@@ -157,6 +157,40 @@ public class BigQueryClusteringIT {
   }
 
   @Test
+  public void testStreamingE2EBigQueryClusteringNoPartitionTableFunction() throws Exception {
+    String tableName = "weather_stations_streamed_clustered_table_function_" + System.currentTimeMillis();
+    BigQueryClusteringITOptions streamOptions = options;
+    
+    streamOptions.setStreaming(true);
+
+    Pipeline p = Pipeline.create(streamOptions);
+
+    p.apply(BigQueryIO.readTableRows().from(streamOptions.getBqcInput()))
+        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) ->
+                        new TableDestination(
+                            String.format("%s.%s", DATASET_NAME, tableName),
+                            null,
+                            null,
+                            CLUSTERING))
+                .withClustering(CLUSTERING)
+                .withSchema(SCHEMA)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+
+    p.run().waitUntilFinish();
+
+    Table table = bqClient.tables().get(streamOptions.getProject(), DATASET_NAME, tableName).execute();
+
+    Assert.assertEquals(CLUSTERING, table.getClustering());
+    Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
+    Assert.assertEquals(EXPECTED_ROWS, table.getNumRows());
+  }
+
+  @Test
   public void testE2EBigQueryClusteringNoPartitionDynamicDestinations() throws Exception {
     String tableName =
         "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
