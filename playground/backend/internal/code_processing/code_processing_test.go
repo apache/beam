@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
@@ -26,6 +27,7 @@ import (
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"fmt"
+	"github.com/go-redis/redismock/v8"
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
 	"io/fs"
@@ -45,6 +47,9 @@ const (
 	goConfig        = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
 	pipelinesFolder = "executable_files"
 	configFolder    = "configs"
+	helloWordPython = "if __name__ == \"__main__\":\n    print(\"Hello world!\")\n"
+	helloWordGo     = "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\")\n}\n"
+	helloWordJava   = "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}"
 )
 
 var opt goleak.Option
@@ -223,7 +228,7 @@ func Test_Process(t *testing.T) {
 			name:                  "Processing complete successfully on java sdk",
 			createExecFile:        true,
 			cancelFunc:            false,
-			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+			code:                  helloWordJava,
 			expectedStatus:        pb.Status_STATUS_FINISHED,
 			expectedCompileOutput: "",
 			expectedRunOutput:     "Hello world!\n",
@@ -606,7 +611,20 @@ func Test_getRunOrTestCmd(t *testing.T) {
 	}
 }
 
-func setupBenchmarks(sdk pb.Sdk) {
+func getSdkEnv(sdk pb.Sdk) (*environment.BeamEnvs, error) {
+	setupSDK(sdk)
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		return nil, err
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	if err != nil {
+		return nil, err
+	}
+	return sdkEnv, nil
+}
+
+func setupSDK(sdk pb.Sdk) {
 	err := os.MkdirAll(configFolder, fs.ModePerm)
 	if err != nil {
 		panic(err)
@@ -659,7 +677,7 @@ func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *
 }
 
 func Benchmark_ProcessJava(b *testing.B) {
-	setupBenchmarks(pb.Sdk_SDK_JAVA)
+	setupSDK(pb.Sdk_SDK_JAVA)
 	defer teardownBenchmarks()
 
 	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
@@ -689,7 +707,7 @@ func Benchmark_ProcessJava(b *testing.B) {
 }
 
 func Benchmark_ProcessPython(b *testing.B) {
-	setupBenchmarks(pb.Sdk_SDK_PYTHON)
+	setupSDK(pb.Sdk_SDK_PYTHON)
 	defer teardownBenchmarks()
 
 	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
@@ -719,7 +737,7 @@ func Benchmark_ProcessPython(b *testing.B) {
 }
 
 func Benchmark_ProcessGo(b *testing.B) {
-	setupBenchmarks(pb.Sdk_SDK_GO)
+	setupSDK(pb.Sdk_SDK_GO)
 	defer teardownBenchmarks()
 
 	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
@@ -797,13 +815,13 @@ func Benchmark_GetLastIndex(b *testing.B) {
 }
 
 func Test_validateStep(t *testing.T) {
-	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	javaSdkEnv, err := getSdkEnv(pb.Sdk_SDK_JAVA)
 	if err != nil {
 		panic(err)
 	}
-	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
-	if err != nil {
-		panic(err)
+	incorrectSdkEnv := &environment.BeamEnvs{
+		ApacheBeamSdk:  pb.Sdk_SDK_UNSPECIFIED,
+		ExecutorConfig: nil,
 	}
 	type args struct {
 		ctx                  context.Context
@@ -826,13 +844,27 @@ func Test_validateStep(t *testing.T) {
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
 				pipelineId:           uuid.New(),
-				sdkEnv:               sdkEnv,
+				sdkEnv:               javaSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
 				validationResults:    &sync.Map{},
 				cancelChannel:        make(chan bool, 1),
 			},
 			want: 3,
-			code: "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+			code: helloWordJava,
+		},
+		{
+			name: "Test validation step with incorrect sdkEnv",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               incorrectSdkEnv,
+				pipelineLifeCycleCtx: context.Background(),
+				validationResults:    &sync.Map{},
+				cancelChannel:        make(chan bool, 1),
+			},
+			want: 0,
+			code: helloWordJava,
 		},
 	}
 	for _, tt := range tests {
@@ -853,17 +885,18 @@ func Test_validateStep(t *testing.T) {
 }
 
 func Test_prepareStep(t *testing.T) {
-	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	javaSdkEnv, err := getSdkEnv(pb.Sdk_SDK_JAVA)
 	if err != nil {
 		panic(err)
 	}
-	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
-	if err != nil {
-		panic(err)
+	incorrectSdkEnv := &environment.BeamEnvs{
+		ApacheBeamSdk:  pb.Sdk_SDK_UNSPECIFIED,
+		ExecutorConfig: nil,
 	}
 	validationResults := sync.Map{}
 	validationResults.Store(validators.UnitTestValidatorName, false)
 	validationResults.Store(validators.KatasValidatorName, false)
+	pipelineLifeCycleCtx, _ := context.WithTimeout(context.Background(), 1)
 	type args struct {
 		ctx                  context.Context
 		cacheService         cache.Cache
@@ -874,10 +907,10 @@ func Test_prepareStep(t *testing.T) {
 		cancelChannel        chan bool
 	}
 	tests := []struct {
-		name string
-		args args
-		want *executors.Executor
-		code string
+		name           string
+		args           args
+		code           string
+		expectedStatus pb.Status
 	}{
 		{
 			name: "Test preparer step working without an error",
@@ -885,12 +918,41 @@ func Test_prepareStep(t *testing.T) {
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
 				pipelineId:           uuid.New(),
-				sdkEnv:               sdkEnv,
+				sdkEnv:               javaSdkEnv,
 				pipelineLifeCycleCtx: context.Background(),
 				validationResults:    &validationResults,
 				cancelChannel:        make(chan bool, 1),
 			},
-			code: "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+			code:           helloWordJava,
+			expectedStatus: pb.Status_STATUS_COMPILING,
+		},
+		{
+			name: "Test preparer step working with incorrect sdkEnv",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               incorrectSdkEnv,
+				pipelineLifeCycleCtx: context.Background(),
+				validationResults:    &validationResults,
+				cancelChannel:        make(chan bool, 1),
+			},
+			code:           "",
+			expectedStatus: pb.Status_STATUS_ERROR,
+		},
+		{
+			name: "Error during expired context of the example",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               javaSdkEnv,
+				pipelineLifeCycleCtx: pipelineLifeCycleCtx,
+				validationResults:    &validationResults,
+				cancelChannel:        make(chan bool, 1),
+			},
+			code:           "",
+			expectedStatus: pb.Status_STATUS_RUN_TIMEOUT,
 		},
 	}
 	for _, tt := range tests {
@@ -901,22 +963,25 @@ func Test_prepareStep(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			_ = lc.CreateSourceCodeFile(tt.code)
-			if got := prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel); got == nil {
-				t.Errorf("prepareStep(): got nil instead of preparer executor")
+			prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel)
+			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
+			if status != tt.expectedStatus {
+				t.Errorf("prepareStep: got status = %v, want %v", status, tt.expectedStatus)
 			}
 		})
 	}
 }
 
 func Test_compileStep(t *testing.T) {
-	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	sdkJavaEnv, err := getSdkEnv(pb.Sdk_SDK_JAVA)
 	if err != nil {
 		panic(err)
 	}
-	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	sdkPythonEnv, err := getSdkEnv(pb.Sdk_SDK_PYTHON)
 	if err != nil {
 		panic(err)
 	}
+	pipelineLifeCycleCtx, _ := context.WithTimeout(context.Background(), 1)
 	type args struct {
 		ctx                  context.Context
 		cacheService         cache.Cache
@@ -927,57 +992,84 @@ func Test_compileStep(t *testing.T) {
 		cancelChannel        chan bool
 	}
 	tests := []struct {
-		name string
-		args args
-		want *executors.Executor
-		code string
+		name           string
+		args           args
+		code           string
+		expectedStatus pb.Status
 	}{
 		{
-			name: "Test compilation step working without an error",
+			name: "Test compilation step working on java sdk",
 			args: args{
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
 				pipelineId:           uuid.New(),
-				sdkEnv:               sdkEnv,
+				sdkEnv:               sdkJavaEnv,
 				isUnitTest:           false,
 				pipelineLifeCycleCtx: context.Background(),
 				cancelChannel:        make(chan bool, 1),
 			},
-			want: nil,
-			code: "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+			code:           helloWordJava,
+			expectedStatus: pb.Status_STATUS_EXECUTING,
+		},
+		{
+			name: "Test compilation step working on python sdk",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               sdkPythonEnv,
+				isUnitTest:           false,
+				pipelineLifeCycleCtx: context.Background(),
+				cancelChannel:        make(chan bool, 1),
+			},
+			code:           helloWordPython,
+			expectedStatus: pb.Status_STATUS_EXECUTING,
+		},
+		{
+			name: "Error during expired context of the example",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               sdkJavaEnv,
+				isUnitTest:           false,
+				pipelineLifeCycleCtx: pipelineLifeCycleCtx,
+				cancelChannel:        make(chan bool, 1),
+			},
+			code:           helloWordJava,
+			expectedStatus: pb.Status_STATUS_RUN_TIMEOUT,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
+			lc, _ := fs_tool.NewLifeCycle(tt.args.sdkEnv.ApacheBeamSdk, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
 			err := lc.CreateFolders()
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			_ = lc.CreateSourceCodeFile(tt.code)
-			if got := compileStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.isUnitTest, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel); got == nil {
-				t.Errorf("compileStep: got nil instead of compiler executor")
+			compileStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.isUnitTest, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
+			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
+			if status != tt.expectedStatus {
+				t.Errorf("compileStep: got status = %v, want %v", status, tt.expectedStatus)
 			}
 		})
 	}
 }
 
 func Test_runStep(t *testing.T) {
-	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	sdkJavaEnv, err := getSdkEnv(pb.Sdk_SDK_JAVA)
 	if err != nil {
 		panic(err)
 	}
-	sdkJavaEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	sdkPythonEnv, err := getSdkEnv(pb.Sdk_SDK_PYTHON)
 	if err != nil {
 		panic(err)
 	}
-	sdkPythonEnv := *sdkJavaEnv
-	sdkPythonEnv.ApacheBeamSdk = pb.Sdk_SDK_PYTHON
-	sdkGoEnv := *sdkJavaEnv
-	sdkGoEnv.ApacheBeamSdk = pb.Sdk_SDK_GO
-	helloWordPython := "if __name__ == \"__main__\":\n    print(\"Hello world!\")\n"
-	helloWordGo := "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\")\n}\n"
-	helloWordJava := "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}"
+	sdkGoEnv, err := getSdkEnv(pb.Sdk_SDK_GO)
+	if err != nil {
+		panic(err)
+	}
 	type args struct {
 		ctx                  context.Context
 		cacheService         cache.Cache
@@ -1000,9 +1092,9 @@ func Test_runStep(t *testing.T) {
 			args: args{
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
-				pipelineId:           uuid.UUID{},
+				pipelineId:           uuid.New(),
 				isUnitTest:           false,
-				sdkEnv:               &sdkPythonEnv,
+				sdkEnv:               sdkPythonEnv,
 				pipelineOptions:      "",
 				pipelineLifeCycleCtx: context.Background(),
 				cancelChannel:        make(chan bool, 1),
@@ -1018,7 +1110,7 @@ func Test_runStep(t *testing.T) {
 				cacheService:         cacheService,
 				pipelineId:           uuid.New(),
 				isUnitTest:           true,
-				sdkEnv:               &sdkGoEnv,
+				sdkEnv:               sdkGoEnv,
 				pipelineOptions:      "",
 				pipelineLifeCycleCtx: context.Background(),
 				cancelChannel:        make(chan bool, 1),
@@ -1135,11 +1227,151 @@ func TestGetGraph(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetGraph(tt.args.ctx, tt.args.cacheService, tt.args.key, tt.args.errorTitle)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetGraph() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetGraph error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("GetGraph() got = %v, want %v", got, tt.want)
+				t.Errorf("GetGraph got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_processSetupError(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	pipelineId := uuid.New()
+	errorMessage := "MOCK_ERROR"
+	type args struct {
+		err            error
+		pipelineId     uuid.UUID
+		cacheService   cache.Cache
+		ctxWithTimeout context.Context
+	}
+	tests := []struct {
+		name    string
+		mocks   func()
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Error during HSet operation",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), "MOCK_VALUE").SetErr(fmt.Errorf(errorMessage))
+			},
+			args: args{
+				err:        fmt.Errorf(errorMessage),
+				pipelineId: pipelineId,
+				cacheService: &redis.Cache{
+					Client: client,
+				},
+				ctxWithTimeout: nil,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
+			if err := processSetupError(tt.args.err, tt.args.pipelineId, tt.args.cacheService, tt.args.ctxWithTimeout); (err != nil) != tt.wantErr {
+				t.Errorf("processSetupError() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_processErrorWithSavingOutput(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	pipelineId := uuid.New()
+	errorMessage := "MOCK_ERROR"
+	subKey := cache.RunOutput
+	type args struct {
+		ctx          context.Context
+		err          error
+		errorOutput  []byte
+		pipelineId   uuid.UUID
+		subKey       cache.SubKey
+		cacheService cache.Cache
+		errorTitle   string
+		newStatus    pb.Status
+	}
+	tests := []struct {
+		name    string
+		mocks   func()
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Error during HSet operation",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), subKey).SetErr(fmt.Errorf(errorMessage))
+			},
+			args: args{
+				ctx:          context.Background(),
+				err:          fmt.Errorf(errorMessage),
+				errorOutput:  nil,
+				pipelineId:   pipelineId,
+				subKey:       subKey,
+				cacheService: &redis.Cache{Client: client},
+				errorTitle:   "",
+				newStatus:    0,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
+			if err := processErrorWithSavingOutput(tt.args.ctx, tt.args.err, tt.args.errorOutput, tt.args.pipelineId, tt.args.subKey, tt.args.cacheService, tt.args.errorTitle, tt.args.newStatus); (err != nil) != tt.wantErr {
+				t.Errorf("processErrorWithSavingOutput() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_processRunError(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	pipelineId := uuid.New()
+	errorMessage := "MOCK_ERROR"
+	subKey := cache.RunError
+	errorChannel := make(chan error, 1)
+	errorChannel <- fmt.Errorf(errorMessage)
+	type args struct {
+		ctx                   context.Context
+		errorChannel          chan error
+		errorOutput           []byte
+		pipelineId            uuid.UUID
+		cacheService          cache.Cache
+		stopReadLogsChannel   chan bool
+		finishReadLogsChannel chan bool
+	}
+	tests := []struct {
+		name    string
+		mocks   func()
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Error during HSet operation",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), subKey).SetErr(fmt.Errorf(errorMessage))
+			},
+			args: args{
+				ctx:                   context.Background(),
+				errorChannel:          errorChannel,
+				errorOutput:           nil,
+				pipelineId:            pipelineId,
+				cacheService:          &redis.Cache{Client: client},
+				stopReadLogsChannel:   nil,
+				finishReadLogsChannel: nil,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
+			if err := processRunError(tt.args.ctx, tt.args.errorChannel, tt.args.errorOutput, tt.args.pipelineId, tt.args.cacheService, tt.args.stopReadLogsChannel, tt.args.finishReadLogsChannel); (err != nil) != tt.wantErr {
+				t.Errorf("processRunError() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
