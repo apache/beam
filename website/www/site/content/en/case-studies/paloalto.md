@@ -10,7 +10,7 @@ reliable, and resilient data processing framework to support this scale. With Ap
 achieved high performance and low latency, and reduced processing costs by 60%."
 authorName: "Talat Uyarer"
 authorPosition: "Sr Principal Software Engineer"
-authorImg: /images/talat_uyarer.png
+authorImg: /images/case-study/paloalto/talat_uyarer.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -203,7 +203,7 @@ use cases. Direct serialization eliminated shuffling and creating additional mem
 This customization increased serialization performance 10x times, allowing to process up to 3K events per second per
 vCPU with reduced latency and infrastructure costs.
 
-<div class="post-scheme">
+<div class="post-scheme vertical-scheme">
     <img src="/images/case-study/paloalto/direct_serialization.png" alt="Direct Serialization from Avro to Beam Row">
 </div>
 
