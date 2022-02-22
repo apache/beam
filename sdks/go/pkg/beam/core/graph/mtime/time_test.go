@@ -160,3 +160,44 @@ func TestNormalize(t *testing.T) {
 		})
 	}
 }
+
+func TestFromTime(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  time.Time
+		expOut Time
+	}{
+		{
+			"zero unix",
+			time.Unix(0, 0).UTC(),
+			Time(0),
+		},
+		{
+			"behind unix",
+			time.Unix(-1, 0).UTC(),
+			Time(-1000),
+		},
+		{
+			"ahead of unix",
+			time.Unix(1, 0).UTC(),
+			Time(1000),
+		},
+		{
+			"insignificant time small",
+			time.Unix(0, 1),
+			Time(0),
+		},
+		{
+			"insignificant time large",
+			time.Unix(0, 999999),
+			Time(0),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got, want := FromTime(test.input), test.expOut; got != want {
+				t.Errorf("got %v, want %v", got, want)
+			}
+		})
+	}
+}
