@@ -21,7 +21,7 @@
 
 The following items need to be setup for the Playground cluster deployment on GCP:
 
-* [GCP account](https://cloud.google.com/) 
+* [GCP account](https://cloud.google.com/)
 * [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud) and required setup i.e. login
 * [Terraform](https://www.terraform.io/downloads.html) tool
 * [Docker](https://www.docker.com/get-started)
