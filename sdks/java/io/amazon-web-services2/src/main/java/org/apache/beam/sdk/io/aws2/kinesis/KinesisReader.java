@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -39,62 +40,42 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisReader.class);
 
+  private final Read spec;
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
-  private final CheckpointGenerator initialCheckpointGenerator;
-  private final WatermarkPolicyFactory watermarkPolicyFactory;
-  private final RateLimitPolicyFactory rateLimitPolicyFactory;
-  private final Duration upToDateThreshold;
+
+  private final CheckpointGenerator checkpointGenerator;
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private long lastBacklogBytes;
   private Instant backlogBytesLastCheckTime = new Instant(0L);
   private ShardReadersPool shardReadersPool;
-  private final Integer maxCapacityPerShard;
 
   KinesisReader(
+      Read spec,
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
-      KinesisSource source,
-      WatermarkPolicyFactory watermarkPolicyFactory,
-      RateLimitPolicyFactory rateLimitPolicyFactory,
-      Duration upToDateThreshold,
-      Integer maxCapacityPerShard) {
-    this(
-        kinesis,
-        initialCheckpointGenerator,
-        source,
-        watermarkPolicyFactory,
-        rateLimitPolicyFactory,
-        upToDateThreshold,
-        Duration.standardSeconds(30),
-        maxCapacityPerShard);
+      KinesisSource source) {
+    this(spec, kinesis, initialCheckpointGenerator, source, Duration.standardSeconds(30));
   }
 
   KinesisReader(
+      Read spec,
       SimplifiedKinesisClient kinesis,
-      CheckpointGenerator initialCheckpointGenerator,
+      CheckpointGenerator checkpointGenerator,
       KinesisSource source,
-      WatermarkPolicyFactory watermarkPolicyFactory,
-      RateLimitPolicyFactory rateLimitPolicyFactory,
-      Duration upToDateThreshold,
-      Duration backlogBytesCheckThreshold,
-      Integer maxCapacityPerShard) {
+      Duration backlogBytesCheckThreshold) {
+    this.spec = checkNotNull(spec, "spec");
     this.kinesis = checkNotNull(kinesis, "kinesis");
-    this.initialCheckpointGenerator =
-        checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
-    this.watermarkPolicyFactory = watermarkPolicyFactory;
-    this.rateLimitPolicyFactory = rateLimitPolicyFactory;
+    this.checkpointGenerator = checkNotNull(checkpointGenerator, "checkpointGenerator");
     this.source = source;
-    this.upToDateThreshold = upToDateThreshold;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
-    this.maxCapacityPerShard = maxCapacityPerShard;
   }
 
   /** Generates initial checkpoint and instantiates iterators for shards. */
   @Override
   public boolean start() throws IOException {
-    LOG.info("Starting reader using {}", initialCheckpointGenerator);
+    LOG.info("Starting reader using {}", checkpointGenerator);
 
     try {
       shardReadersPool = createShardReadersPool();
@@ -159,7 +140,8 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
    * into account size of the records that were added to the stream after timestamp of the most
    * recent record returned by the reader. If no records have yet been retrieved from the reader
    * {@link UnboundedSource.UnboundedReader#BACKLOG_UNKNOWN} is returned. When currently processed
-   * record is not further behind than {@link #upToDateThreshold} then this method returns 0.
+   * record is not further behind than {@link Read#getUpToDateThreshold()} then this method returns
+   * 0.
    *
    * <p>The method can over-estimate size of the records for the split as it reports the backlog
    * across all shards. This can lead to unnecessary decisions to scale up the number of workers but
@@ -172,51 +154,46 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     Instant latestRecordTimestamp = shardReadersPool.getLatestRecordTimestamp();
 
     if (latestRecordTimestamp.equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
-      LOG.debug("Split backlog bytes for stream {} unknown", source.getStreamName());
+      LOG.debug("Split backlog bytes for stream {} unknown", spec.getStreamName());
       return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
     }
 
-    if (latestRecordTimestamp.plus(upToDateThreshold).isAfterNow()) {
+    if (latestRecordTimestamp.plus(spec.getUpToDateThreshold()).isAfterNow()) {
       LOG.debug(
           "Split backlog bytes for stream {} with latest record timestamp {}: 0 (latest record timestamp is up-to-date with threshold of {})",
-          source.getStreamName(),
+          spec.getStreamName(),
           latestRecordTimestamp,
-          upToDateThreshold);
+          spec.getUpToDateThreshold());
       return 0L;
     }
 
     if (backlogBytesLastCheckTime.plus(backlogBytesCheckThreshold).isAfterNow()) {
       LOG.debug(
           "Split backlog bytes for {} stream with latest record timestamp {}: {} (cached value)",
-          source.getStreamName(),
+          spec.getStreamName(),
           latestRecordTimestamp,
           lastBacklogBytes);
       return lastBacklogBytes;
     }
 
     try {
-      lastBacklogBytes = kinesis.getBacklogBytes(source.getStreamName(), latestRecordTimestamp);
+      lastBacklogBytes = kinesis.getBacklogBytes(spec.getStreamName(), latestRecordTimestamp);
       backlogBytesLastCheckTime = Instant.now();
     } catch (TransientKinesisException e) {
       LOG.warn(
           "Transient exception occurred during backlog estimation for stream {}.",
-          source.getStreamName(),
+          spec.getStreamName(),
           e);
     }
     LOG.info(
         "Split backlog bytes for {} stream with {} latest record timestamp: {}",
-        source.getStreamName(),
+        spec.getStreamName(),
         latestRecordTimestamp,
         lastBacklogBytes);
     return lastBacklogBytes;
   }
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
-    return new ShardReadersPool(
-        kinesis,
-        initialCheckpointGenerator.generate(kinesis),
-        watermarkPolicyFactory,
-        rateLimitPolicyFactory,
-        maxCapacityPerShard);
+    return new ShardReadersPool(spec, kinesis, checkpointGenerator.generate(kinesis));
   }
 }

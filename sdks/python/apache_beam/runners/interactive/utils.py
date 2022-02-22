@@ -32,6 +32,9 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
+from apache_beam.internal.gcp import auth
+from apache_beam.internal.http_client import get_new_http
+from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
@@ -50,6 +53,47 @@ _INTERACTIVE_LOG_STYLE = """
   </style>
 """
 
+
+class bidict(dict):
+  """ Forces a 1:1 bidirectional mapping between key-value pairs.
+
+  Deletion is automatically handled both ways.
+
+  Example setting usage:
+    bd = bidict()
+    bd['foo'] = 'bar'
+
+    In this case, bd will contain the following values:
+      bd = {'foo': 'bar'}
+      bd.inverse = {'bar': 'foo'}
+
+  Example deletion usage:
+    bd = bidict()
+    bd['foo'] = 'bar'
+    del bd['foo']
+
+    In this case, bd and bd.inverse will both be {}.
+  """
+  def __init__(self):
+    self.inverse = {}
+
+  def __setitem__(self, key, value):
+    super().__setitem__(key, value)
+    self.inverse.setdefault(value, key)
+
+  def __delitem__(self, key):
+    if self[key] in self.inverse:
+      del self.inverse[self[key]]
+    super().__delitem__(key)
+
+  def clear(self):
+    super().clear()
+    self.inverse.clear()
+
+  def pop(self, key, default_value=None):
+    value = super().pop(key, default_value)
+    inverse_value = self.inverse.pop(value, default_value)
+    return value, inverse_value
 
 def to_element_list(
     reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
@@ -427,3 +471,34 @@ def create_var_in_main(name: str,
     from apache_beam.runners.interactive import interactive_environment as ie
     ie.current_env().watch({name: value})
   return name, value
+
+
+def assert_bucket_exists(bucket_name):
+  # type: (str) -> None
+
+  """Asserts whether the specified GCS bucket with the name
+  bucket_name exists.
+
+    Logs an error and raises a ValueError if the bucket does not exist.
+
+    Logs a warning if the bucket cannot be verified to exist.
+  """
+  try:
+    from apitools.base.py.exceptions import HttpError
+    storage_client = storage.StorageV1(
+        credentials=auth.get_service_credentials(),
+        get_credentials=False,
+        http=get_new_http(),
+        response_encoding='utf8')
+    request = storage.StorageBucketsGetRequest(bucket=bucket_name)
+    storage_client.buckets.Get(request)
+  except HttpError as e:
+    if e.status_code == 404:
+      _LOGGER.error('%s bucket does not exist!', bucket_name)
+      raise ValueError('Invalid GCS bucket provided!')
+    else:
+      _LOGGER.warning(
+          'HttpError - unable to verify whether bucket %s exists', bucket_name)
+  except ImportError:
+    _LOGGER.warning(
+        'ImportError - unable to verify whether bucket %s exists', bucket_name)
