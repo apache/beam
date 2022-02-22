@@ -20,12 +20,10 @@ package org.apache.beam.examples.complete.game;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleOptions;
-import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.Default;
@@ -195,14 +193,13 @@ public class LeaderBoard extends HourlyTeamScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
-    runLeaderBoard(options);
+    Pipeline pipeline = Pipeline.create(options);
+    runLeaderBoard(options, pipeline);
   }
 
-  static void runLeaderBoard(Options options) {
+  static void runLeaderBoard(Options options, Pipeline pipeline) {
 
-    ExampleUtils exampleUtils = new ExampleUtils(options);
-
-    Pipeline pipeline = Pipeline.create(options);
+    // ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
     // data elements, and parse the data.
@@ -214,37 +211,43 @@ public class LeaderBoard extends HourlyTeamScore {
                     .fromTopic(options.getTopic()))
             .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
-    gameEvents
-        .apply(
+    PCollection<KV<String, Integer>> calculateTeamScores =
+        gameEvents.apply(
             "CalculateTeamScores",
             new CalculateTeamScores(
                 Duration.standardMinutes(options.getTeamWindowDuration()),
-                Duration.standardMinutes(options.getAllowedLateness())))
+                Duration.standardMinutes(options.getAllowedLateness())));
+
+    calculateTeamScores
         // Write the results to BigQuery.
         .apply(
-            "WriteTeamScoreSums",
-            new WriteWindowedToBigQuery<>(
-                options.as(GcpOptions.class).getProject(),
-                options.getDataset(),
-                options.getLeaderBoardTableName() + "_team",
-                configureWindowedTableWrite()));
-    gameEvents
-        .apply(
+        "WriteTeamScoreSums",
+        new WriteWindowedToBigQuery<>(
+            options.as(GcpOptions.class).getProject(),
+            options.getDataset(),
+            options.getLeaderBoardTableName() + "_team",
+            configureWindowedTableWrite()));
+
+    PCollection<KV<String, Integer>> calculateUserScores =
+        gameEvents.apply(
             "CalculateUserScores",
-            new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())))
+            new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())));
+
+    calculateUserScores
         // Write the results to BigQuery.
         .apply(
-            "WriteUserScoreSums",
-            new WriteToBigQuery<>(
-                options.as(GcpOptions.class).getProject(),
-                options.getDataset(),
-                options.getLeaderBoardTableName() + "_user",
-                configureGlobalWindowBigQueryWrite()));
+        "WriteUserScoreSums",
+        new WriteToBigQuery<>(
+            options.as(GcpOptions.class).getProject(),
+            options.getDataset(),
+            options.getLeaderBoardTableName() + "_user",
+            configureGlobalWindowBigQueryWrite()));
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.
-    PipelineResult result = pipeline.run();
+    /*PipelineResult result = pipeline.run();
     exampleUtils.waitToFinish(result);
+     */
   }
 
   /** Calculates scores for each team within the configured window duration. */
