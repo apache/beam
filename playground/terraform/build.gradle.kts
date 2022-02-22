@@ -31,8 +31,14 @@ tasks {
     /* init Infrastucture for migrate */
     register<TerraformTask>("terraformInit") {
         // exec args can be passed by commandline, for example
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
         args(
             "init", "-migrate-state",
             "-backend-config=./environment/$environment/state.tfbackend",
@@ -48,8 +54,14 @@ tasks {
     /* refresh Infrastucture for remote state */
     register<TerraformTask>("terraformRef") {
         mustRunAfter(":playground:terraform:terraformInit")
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
         args(
             "refresh",
             "-lock=false",
@@ -65,8 +77,14 @@ tasks {
 
     /* deploy all App */
     register<TerraformTask>("terraformApplyApp") {
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
         var docker_tag = if (project.hasProperty("docker-tag")) {
             project.property("docker-tag") as String
         } else {
@@ -90,8 +108,14 @@ tasks {
 
     /* deploy  App - Only all services for  backend */
     register<TerraformTask>("terraformApplyAppBack") {
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
         var docker_tag = if (project.hasProperty("docker-tag")) {
             project.property("docker-tag") as String
         } else {
@@ -115,8 +139,14 @@ tasks {
 
     /* deploy  App - Only services for frontend */
     register<TerraformTask>("terraformApplyAppFront") {
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
         var docker_tag = if (project.hasProperty("docker-tag")) {
             project.property("docker-tag") as String
         } else {
@@ -140,8 +170,14 @@ tasks {
 
     /* build only Infrastructurte */
     register<TerraformTask>("terraformApplyInf") {
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
         args(
             "apply",
             "-auto-approve",
@@ -159,8 +195,14 @@ tasks {
 
     /* build All */
     register<TerraformTask>("terraformApply") {
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+        environment = project.property("project_environment") as String
+        }
         var docker_tag = if (project.hasProperty("docker-tag")) {
             project.property("docker-tag") as String
         } else {
@@ -182,8 +224,14 @@ tasks {
     }
 
     register<TerraformTask>("terraformDestroy") {
-        var project_id = project.property("project_id") as String?
-        var environment = project.property("project_environment") as String?
+        var project_id = "unknow"
+        var environment = "unknow"
+        if (project.hasProperty("project_id")) {
+            project_id = project.property("project_id") as String
+        }
+        if (project.hasProperty("project_environment")) {
+            environment = project.property("project_environment") as String
+        }
         args(
             "destroy",
             "-auto-approve",
@@ -199,9 +247,9 @@ tasks {
     }
 }
 
-
 /* set Docker Registry to params from Inf */
 task("setDockerRegistry") {
+    group = "deploy"
     //get Docker Registry
     dependsOn(":playground:terraform:terraformInit")
     dependsOn(":playground:terraform:terraformRef")
@@ -218,11 +266,13 @@ task("setDockerRegistry") {
 }
 
 task("readState") {
+    group = "deploy"
     dependsOn(":playground:terraform:terraformInit")
     dependsOn(":playground:terraform:terraformRef")
 }
 
 task("pushBack") {
+    group = "deploy"
     dependsOn(":playground:backend:containers:go:dockerTagsPush")
     dependsOn(":playground:backend:containers:java:dockerTagsPush")
     dependsOn(":playground:backend:containers:python:dockerTagsPush")
@@ -231,10 +281,12 @@ task("pushBack") {
 }
 
 task("pushFront") {
+    group = "deploy"
     dependsOn(":playground:frontend:dockerTagsPush")
 }
 
 task("prepareConfig") {
+    group = "deploy"
     doLast {
         var playgroundBackendUrl = ""
         var playgroundBackendJavaRouteUrl = ""
@@ -316,6 +368,8 @@ playgroundBackendScioRouteUrl=${playgroundBackendScioRouteUrl}
 }
 /* initialization infrastructure */
 task("InitInfrastructure") {
+    group = "deploy"
+    description = "initialization infrastructure"
     val init = tasks.getByName("terraformInit")
     val apply = tasks.getByName("terraformApplyInf")
     dependsOn(init)
@@ -325,6 +379,8 @@ task("InitInfrastructure") {
 
 /* build, push, deploy Frontend app */
 task("deployFrontend") {
+    group = "deploy"
+    description = "deploy Frontend app"
     val read = tasks.getByName("readState")
     val prepare = tasks.getByName("prepareConfig")
     val push = tasks.getByName("pushFront")
@@ -342,7 +398,8 @@ task("deployFrontend") {
 
 /* build, push, deploy Backend app */
 task("deployBackend") {
-
+    group = "deploy"
+    description = "deploy Backend app"
     val config = tasks.getByName("setDockerRegistry")
     val push = tasks.getByName("pushBack")
     val deploy = tasks.getByName("terraformApplyAppBack")
@@ -352,6 +409,5 @@ task("deployBackend") {
     deploy.mustRunAfter(push)
     dependsOn(push)
     dependsOn(deploy)
-
 }
 
