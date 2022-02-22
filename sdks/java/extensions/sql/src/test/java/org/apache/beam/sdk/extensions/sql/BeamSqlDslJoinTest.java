@@ -27,6 +27,8 @@ import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -76,6 +79,42 @@ public class BeamSqlDslJoinTest {
     PAssert.that(queryFromOrderTables(sql))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(RESULT_ROW_TYPE).addRows(2, 3, 3, 1, 2, 3).getRows());
+    pipeline.run();
+  }
+
+  private String jsonNumber(Integer number) {
+    return "{\n"
+        + "  \"number\": "
+        + number
+        + "}";
+  }
+
+  private Row row(Schema schema, Object... values) {
+    return Row.withSchema(schema).addValues(values).build();
+  }
+
+  @Test
+  public void testSameSchema() throws Exception {
+    String sql = "SELECT * FROM numbers1 JOIN numbers2 ON numbers1.number = numbers2.number";
+
+    Schema numberSchema1 = Schema.builder().addInt32Field("number").build();
+    Schema resultSchema = Schema.builder().addInt32Field("n1").addInt32Field("n2").build();
+    PCollection<String> jsonPersons1 =
+        pipeline.apply("JsonPerson1",
+            Create.of(jsonNumber(1), jsonNumber(2)));
+    PCollection<String> jsonPersons2 =
+        pipeline.apply("JsonPerson2",
+            Create.of(jsonNumber(2), jsonNumber(3)));
+
+    PCollection<Row> numbers1 = jsonPersons1.apply("toRow1", JsonToRow.withSchema(numberSchema1));
+    PCollection<Row> numbers2 = jsonPersons2.apply("toRow2", JsonToRow.withSchema(numberSchema1));
+    PCollectionTuple inputs = PCollectionTuple
+        .of(new TupleTag<>("numbers1"), numbers1)
+        .and(new TupleTag<>("numbers2"), numbers2);
+
+    PCollection<Row> output = inputs.apply("sql", SqlTransform.query(sql));
+    PAssert.that(output)
+        .containsInAnyOrder(row(resultSchema, 2, 2));
     pipeline.run();
   }
 

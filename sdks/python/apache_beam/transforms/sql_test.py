@@ -189,6 +189,27 @@ class SqlTransformTest(unittest.TestCase):
           | SqlTransform("SELECT * FROM PCOLLECTION WHERE shopper = 'alice'"))
       assert_that(out, equal_to([('alice', {'apples': 2, 'bananas': 3})]))
 
+  def test_two_pcoll_same_schema(self):
+    with TestPipeline() as p:
+      numbers1 = (
+          p
+          | "numbers" >> beam.Create(range(10))
+          | beam.Map(lambda x: beam.Row(number=x)))
+      numbers2 = (
+          p
+          | "numbers2" >> beam.Create(range(5, 15))
+          | beam.Map(lambda x: beam.Row(number=x)))
+      common_numbers = ({
+          'numbers1': numbers1, 'numbers2': numbers2
+      }
+                        | beam.transforms.sql.SqlTransform(
+                            """
+          SELECT * FROM numbers1
+          JOIN numbers2 ON numbers1.number = numbers2.number
+          """))
+      assert_that(
+          common_numbers, equal_to([(5, 5), (6, 6), (7, 7), (8, 8), (9, 9)]))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
