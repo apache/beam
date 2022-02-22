@@ -26,6 +26,9 @@ public final class DataflowUtils {
   /**
    * Creates a job name.
    *
+   * <p>If there are uppercase characters in {@code prefix}, then this will convert them into a dash
+   * followed by the lowercase equivalent of that letter.
+   *
    * <p>The job name will normally be unique, but this is not guaranteed if multiple jobs with the
    * same prefix are requested in a short period of time.
    *
@@ -34,9 +37,20 @@ public final class DataflowUtils {
    *     prefix
    */
   public static String createJobName(String prefix) {
+    StringBuilder properlyFormatted = new StringBuilder();
+    for (int i = 0; i < prefix.length(); ++i) {
+      char c = prefix.charAt(i);
+      if (Character.isUpperCase(c)) {
+        properlyFormatted.append("-");
+        properlyFormatted.append(Character.toLowerCase(c));
+      } else {
+        properlyFormatted.append(c);
+      }
+    }
+
     return String.format(
         "%s-%s",
-        prefix,
+        properlyFormatted,
         DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             .withZone(ZoneId.of("UTC"))
             .format(Instant.now()));

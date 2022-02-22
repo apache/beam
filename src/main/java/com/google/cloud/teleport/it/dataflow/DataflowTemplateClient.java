@@ -44,7 +44,7 @@ public interface DataflowTemplateClient {
     private static final String DATAFLOW_PREFIX = "JOB_STATE_";
 
     /** States that indicate the job is running or getting ready to run. */
-    public static final ImmutableSet<JobState> RUNNING_STATES =
+    public static final ImmutableSet<JobState> ACTIVE_STATES =
         ImmutableSet.of(RUNNING, UPDATED, PENDING, QUEUED);
 
     /** States that indicate that the job is done. */

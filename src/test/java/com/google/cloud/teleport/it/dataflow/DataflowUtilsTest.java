@@ -25,10 +25,14 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link DataflowUtils}. */
 @RunWith(JUnit4.class)
 public class DataflowUtilsTest {
-
   @Test
   public void testCreateJobName() {
     String name = "create-job-name";
     assertThat(createJobName(name)).matches(name + "-\\d{14}");
+  }
+
+  @Test
+  public void testCreateJobNameWithUppercase() {
+    assertThat(createJobName("testWithUpperCase")).matches("test-with-upper-case" + "-\\d{14}");
   }
 }
