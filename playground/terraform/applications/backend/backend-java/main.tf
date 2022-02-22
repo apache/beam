@@ -51,8 +51,8 @@ resource "google_app_engine_flexible_app_version" "backend_app_java" {
   }
 
   resources {
-    memory_gb = 12
-    cpu       = 2
+    memory_gb = var.memory
+    cpu       = var.cpu
     volumes {
       name        = "inmemory"
       size_gb     = var.volume_size

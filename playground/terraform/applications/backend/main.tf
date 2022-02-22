@@ -32,6 +32,9 @@ module "backend-go" {
   service_name            = "${var.base_service_name}-go"
   cache_type              = var.cache_type
   volume_size             = var.go_volume_size
+  cpu                     = var.go_cpu
+  memory                  = var.go_memory
+  max_instance            = var.go_max_instance
 }
 
 module "backend-java" {
@@ -47,6 +50,9 @@ module "backend-java" {
   service_name            = "${var.base_service_name}-java"
   cache_type              = var.cache_type
   volume_size             = var.java_volume_size
+  cpu                     = var.java_cpu
+  memory                  = var.java_memory
+  max_instance            = var.java_max_instance
 }
 
 module "backend-python" {
@@ -62,6 +68,9 @@ module "backend-python" {
   service_name            = "${var.base_service_name}-python"
   cache_type              = var.cache_type
   volume_size             = var.python_volume_size
+  cpu                     = var.python_cpu
+  memory                  = var.python_memory
+  max_instance            = var.python_max_instance
 }
 
 module "backend-router" {
@@ -77,6 +86,9 @@ module "backend-router" {
   service_name            = "${var.base_service_name}-router"
   cache_type              = var.cache_type
   volume_size             = var.router_volume_size
+  cpu                     = var.router_cpu
+  memory                  = var.router_memory
+  max_instance            = var.router_max_instance
 }
 
 module "backend-scio" {
@@ -92,6 +104,9 @@ module "backend-scio" {
   service_name            = "${var.base_service_name}-scio"
   cache_type              = var.cache_type
   volume_size             = var.scio_volume_size
+  cpu                     = var.scio_cpu
+  memory                  = var.scio_memory
+  max_instance            = var.scio_max_instance
 }
 
 

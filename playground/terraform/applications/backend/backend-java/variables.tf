@@ -73,3 +73,27 @@ variable "environment" {
   description = "prod,dev,beta"
   default     = "dev"
 }
+
+variable "max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 7
+}
+
+variable "min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 2
+}
+
+variable "memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 16
+}
+
+variable "cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 8
+}

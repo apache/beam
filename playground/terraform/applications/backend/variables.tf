@@ -55,7 +55,6 @@ variable "docker_registry_address" {
   description = "Docker registry address"
 }
 
-
 variable "base_service_name" {
   default = "backend"
 }
@@ -74,6 +73,30 @@ variable "scio_volume_size" {
   default     = 1
 }
 
+variable "scio_max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 7
+}
+
+variable "scio_min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 2
+}
+
+variable "scio_memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 16
+}
+
+variable "scio_cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 8
+}
+
 # Go variables
 
 variable "go_volume_size" {
@@ -82,13 +105,60 @@ variable "go_volume_size" {
   default     = 1
 }
 
-# Python variables
+variable "go_max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 7
+}
 
+variable "go_min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 2
+}
+
+variable "go_memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 16
+}
+
+variable "go_cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 8
+}
+
+# Python variables
 
 variable "python_volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"
   type        = number
   default     = 1
+}
+
+variable "python_max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 7
+}
+
+variable "python_min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 2
+}
+
+variable "python_memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 16
+}
+
+variable "python_cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 8
 }
 
 # Java variables
@@ -99,6 +169,30 @@ variable "java_volume_size" {
   default     = 1
 }
 
+variable "java_max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 7
+}
+
+variable "java_min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 2
+}
+
+variable "java_memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 16
+}
+
+variable "java_cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 8
+}
+
 # Router variables
 
 variable "router_volume_size" {
@@ -106,3 +200,28 @@ variable "router_volume_size" {
   type        = number
   default     = 1
 }
+
+variable "router_max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 3
+}
+
+variable "router_min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 1
+}
+
+variable "router_memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 4
+}
+
+variable "router_cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 2
+}
+

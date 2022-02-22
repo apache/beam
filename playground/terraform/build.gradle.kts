@@ -19,6 +19,25 @@
 import com.pswidersk.gradle.terraform.TerraformTask
 import java.io.ByteArrayOutputStream
 
+description = "Apache Beam :: Playground :: Deploy"
+val licenseText = "################################################################################\n" +
+        "#  Licensed to the Apache Software Foundation (ASF) under one\n" +
+        "#  or more contributor license agreements.  See the NOTICE file\n" +
+        "#  distributed with this work for additional information\n" +
+        "#  regarding copyright ownership.  The ASF licenses this file\n" +
+        "#  to you under the Apache License, Version 2.0 (the\n" +
+        "#  \"License\"); you may not use this file except in compliance\n" +
+        "#  with the License.  You may obtain a copy of the License at\n" +
+        "#\n" +
+        "#      http://www.apache.org/licenses/LICENSE-2.0\n" +
+        "#\n" +
+        "#  Unless required by applicable law or agreed to in writing, software\n" +
+        "#  distributed under the License is distributed on an \"AS IS\" BASIS,\n" +
+        "#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
+        "#  See the License for the specific language governing permissions and\n" +
+        "# limitations under the License.\n" +
+        "################################################################################"
+
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
 }
@@ -28,10 +47,10 @@ terraformPlugin {
 }
 
 tasks {
-    /* init Infrastucture for migrate */
+    /* init Infrastructure for migrate */
     register<TerraformTask>("terraformInit") {
         // exec args can be passed by commandline, for example
-        var environment = "unknow"
+        var environment = "unknown"
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
@@ -49,8 +68,8 @@ tasks {
     /* refresh Infrastucture for remote state */
     register<TerraformTask>("terraformRef") {
         mustRunAfter(":playground:terraform:terraformInit")
-        var project_id = "unknow"
-        var environment = "unknow"
+        var project_id = "unknown"
+        var environment = "unknown"
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
         }
@@ -72,8 +91,8 @@ tasks {
 
     /* deploy all App */
     register<TerraformTask>("terraformApplyApp") {
-        var project_id = "unknow"
-        var environment = "unknow"
+        var project_id = "unknown"
+        var environment = "unknown"
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
         }
@@ -103,7 +122,7 @@ tasks {
 
     /* deploy  App - Only all services for  backend */
     register<TerraformTask>("terraformApplyAppBack") {
-        var environment = "unknow"
+        var environment = "unknown"
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
@@ -123,8 +142,8 @@ tasks {
 
     /* deploy  App - Only services for frontend */
     register<TerraformTask>("terraformApplyAppFront") {
-        var project_id = "unknow"
-        var environment = "unknow"
+        var project_id = "unknown"
+        var environment = "unknown"
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
         }
@@ -154,7 +173,7 @@ tasks {
 
     /* build only Infrastructurte */
     register<TerraformTask>("terraformApplyInf") {
-        var environment = "unknow"
+        var environment = "unknown"
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
@@ -174,8 +193,8 @@ tasks {
 
     /* build All */
     register<TerraformTask>("terraformApply") {
-        var project_id = "unknow"
-        var environment = "unknow"
+        var project_id = "unknown"
+        var environment = "unknown"
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
         }
@@ -203,8 +222,8 @@ tasks {
     }
 
     register<TerraformTask>("terraformDestroy") {
-        var project_id = "unknow"
-        var environment = "unknow"
+        var project_id = "unknown"
+        var environment = "unknown"
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
         }
@@ -307,25 +326,7 @@ task("prepareConfig") {
         var file = File(modulePath + "/" + configFileName)
 
         file.writeText(
-        // TODO please move to constants
-            """################################################################################
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-################################################################################
-
+            """${licenseText}
 playgroundBackendUrl=${playgroundBackendUrl}
 analyticsUA=UA-73650088-1
 playgroundBackendJavaRouteUrl=${playgroundBackendJavaRouteUrl}
@@ -367,7 +368,6 @@ task("deployFrontend") {
     val deploy = tasks.getByName("terraformApplyAppFront")
     dependsOn(read)
     Thread.sleep(10)
-
     prepare.mustRunAfter(read)
     dependsOn(prepare)
     push.mustRunAfter(prepare)

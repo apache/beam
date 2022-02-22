@@ -45,11 +45,26 @@ module "backend" {
   docker_image_name       = "${var.docker_image_name}-backend"
   cache_type              = var.cache_type
 
-  go_volume_size     = var.go_volume_size
-  java_volume_size   = var.java_volume_size
-  python_volume_size = var.python_volume_size
-  router_volume_size = var.router_volume_size
-  scio_volume_size   = var.scio_volume_size
+  go_volume_size      = var.go_volume_size
+  go_cpu              = var.go_cpu
+  go_memory           = var.go_memory
+  go_max_instance     = var.go_max_instance
+  java_volume_size    = var.java_volume_size
+  java_cpu            = var.java_cpu
+  java_memory         = var.java_memory
+  java_max_instance   = var.java_max_instance
+  python_volume_size  = var.python_volume_size
+  python_cpu          = var.python_cpu
+  python_memory       = var.python_memory
+  python_max_instance = var.python_max_instance
+  router_volume_size  = var.router_volume_size
+  router_cpu          = var.router_cpu
+  router_memory       = var.router_memory
+  router_max_instance = var.router_max_instance
+  scio_volume_size    = var.scio_volume_size
+  scio_cpu            = var.router_cpu
+  scio_memory         = var.scio_memory
+  scio_max_instance   = var.scio_max_instance
 }
 
 module "frontend" {
