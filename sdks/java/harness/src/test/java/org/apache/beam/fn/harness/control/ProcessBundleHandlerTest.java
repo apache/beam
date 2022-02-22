@@ -35,6 +35,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -48,8 +49,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -62,7 +65,6 @@ import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistra
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -72,6 +74,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Timers;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
@@ -89,10 +92,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.OutputTime;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Trigger;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Trigger.Always;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -103,9 +108,9 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -125,6 +130,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -296,6 +302,16 @@ public class ProcessBundleHandlerTest {
     @Override
     Collection<BeamFnDataReadRunner> getChannelRoots() {
       return wrappedBundleProcessor.getChannelRoots();
+    }
+
+    @Override
+    Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators() {
+      return wrappedBundleProcessor.getOutboundAggregators();
+    }
+
+    @Override
+    Set<String> getRunnerCapabilities() {
+      return wrappedBundleProcessor.getRunnerCapabilities();
     }
 
     @Override
@@ -692,7 +708,8 @@ public class ProcessBundleHandlerTest {
             metricsContainerRegistry,
             stateTracker,
             beamFnStateClient,
-            bundleFinalizationCallbacks);
+            bundleFinalizationCallbacks,
+            new HashSet<>());
     bundleProcessor.finish();
     CacheToken cacheToken =
         CacheToken.newBuilder()
@@ -891,7 +908,8 @@ public class ProcessBundleHandlerTest {
   }
 
   private ProcessBundleHandler setupProcessBundleHandlerForSimpleRecordingDoFn(
-      List<String> dataOutput, List<String> timerOutput) throws Exception {
+      List<String> dataOutput, List<Timers> timerOutput, boolean enableOutputEmbedding)
+      throws Exception {
     DoFnWithExecutionInformation doFnWithExecutionInformation =
         DoFnWithExecutionInformation.of(
             new SimpleDoFn(),
@@ -995,26 +1013,34 @@ public class ProcessBundleHandlerTest {
             });
 
     Mockito.doAnswer(
-            (invocation) -> {
-              return new CloseableFnDataReceiver() {
-                @Override
-                public void accept(Object input) throws Exception {
-                  timerOutput.add(((Timer<String>) input).getDynamicTimerTag());
-                }
+            (invocation) ->
+                new BeamFnDataOutboundAggregator(
+                    PipelineOptionsFactory.create(),
+                    invocation.getArgument(1),
+                    new StreamObserver<Elements>() {
+                      @Override
+                      public void onNext(Elements elements) {
+                        for (Timers timer : elements.getTimersList()) {
+                          timerOutput.addAll(elements.getTimersList());
+                        }
+                      }
 
-                @Override
-                public void flush() throws Exception {}
+                      @Override
+                      public void onError(Throwable throwable) {}
 
-                @Override
-                public void close() throws Exception {}
-              };
-            })
+                      @Override
+                      public void onCompleted() {}
+                    },
+                    invocation.getArgument(2)))
         .when(beamFnDataClient)
-        .send(any(), any(), any());
+        .createOutboundAggregator(any(), any(), anyBoolean());
 
     return new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
-        Collections.emptySet(),
+        enableOutputEmbedding
+            ? Collections.singleton(
+                BeamUrns.getUrn(StandardRunnerProtocols.Enum.CONTROL_RESPONSE_ELEMENTS_EMBEDDING))
+            : Collections.emptySet(),
         fnApiRegistry::get,
         beamFnDataClient,
         null /* beamFnStateClient */,
@@ -1028,9 +1054,9 @@ public class ProcessBundleHandlerTest {
   @Test
   public void testInstructionEmbeddedElementsAreProcessed() throws Exception {
     List<String> dataOutput = new ArrayList<>();
-    List<String> timerOutput = new ArrayList<>();
+    List<Timers> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
@@ -1045,59 +1071,57 @@ public class ProcessBundleHandlerTest {
                 Instant.ofEpochMilli(1L),
                 PaneInfo.ON_TIME_AND_ONLY_FIRING),
             encodedTimer);
-
+    Elements elements =
+        Elements.newBuilder()
+            .addData(
+                Data.newBuilder()
+                    .setInstructionId("998L")
+                    .setTransformId("2L")
+                    .setData(encodedData.toByteString())
+                    .build())
+            .addData(
+                Data.newBuilder()
+                    .setInstructionId("998L")
+                    .setTransformId("2L")
+                    .setIsLast(true)
+                    .build())
+            .addTimers(
+                Timers.newBuilder()
+                    .setInstructionId("998L")
+                    .setTransformId("3L")
+                    .setTimerFamilyId(TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
+                    .setTimers(encodedTimer.toByteString())
+                    .build())
+            .addTimers(
+                Timers.newBuilder()
+                    .setInstructionId("998L")
+                    .setTransformId("3L")
+                    .setTimerFamilyId(TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
+                    .setIsLast(true)
+                    .build())
+            .build();
     handler.processBundle(
         InstructionRequest.newBuilder()
             .setInstructionId("998L")
             .setProcessBundle(
                 ProcessBundleRequest.newBuilder()
                     .setProcessBundleDescriptorId("1L")
-                    .setElements(
-                        Elements.newBuilder()
-                            .addData(
-                                Data.newBuilder()
-                                    .setInstructionId("998L")
-                                    .setTransformId("2L")
-                                    .setData(encodedData.toByteString())
-                                    .build())
-                            .addData(
-                                Data.newBuilder()
-                                    .setInstructionId("998L")
-                                    .setTransformId("2L")
-                                    .setIsLast(true)
-                                    .build())
-                            .addTimers(
-                                Timers.newBuilder()
-                                    .setInstructionId("998L")
-                                    .setTransformId("3L")
-                                    .setTimerFamilyId(
-                                        TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
-                                    .setTimers(encodedTimer.toByteString())
-                                    .build())
-                            .addTimers(
-                                Timers.newBuilder()
-                                    .setInstructionId("998L")
-                                    .setTransformId("3L")
-                                    .setTimerFamilyId(
-                                        TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
-                                    .setIsLast(true)
-                                    .build())
-                            .build()))
+                    .setElements(elements))
             .build());
     handler.shutdown();
     assertThat(dataOutput, contains("data"));
-    assertThat(timerOutput, contains("output_timer"));
-    // Register timer family outbound receiver.
-    verify(beamFnDataClient).send(any(), any(), any());
-    verifyNoMoreInteractions(beamFnDataClient);
+    Timer<String> timer =
+        Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
+            .decode(timerOutput.get(0).getTimers().newInput());
+    assertEquals("output_timer", timer.getDynamicTimerTag());
   }
 
   @Test
   public void testInstructionEmbeddedElementsWithMalformedData() throws Exception {
     List<String> dataOutput = new ArrayList<>();
-    List<String> timerOutput = new ArrayList<>();
+    List<Timers> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
@@ -1151,9 +1175,9 @@ public class ProcessBundleHandlerTest {
   @Test
   public void testInstructionEmbeddedElementsWithMalformedTimers() throws Exception {
     List<String> dataOutput = new ArrayList<>();
-    List<String> timerOutput = new ArrayList<>();
+    List<Timers> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
 
     ByteString.Output encodedTimer = ByteString.newOutput();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
@@ -1240,6 +1264,68 @@ public class ProcessBundleHandlerTest {
                                     .build()))
                     .build()));
     handler.shutdown();
+  }
+
+  @Test
+  public void testOutputEmbeddedElementsAreProcessed() throws Exception {
+    List<String> dataOutput = new ArrayList<>();
+    List<Timers> timerOutput = new ArrayList<>();
+    ProcessBundleHandler handler =
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, true);
+
+    ByteString.Output encodedTimer = ByteString.newOutput();
+    Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
+        .encode(
+            Timer.of(
+                "",
+                "timer_id",
+                Collections.singletonList(GlobalWindow.INSTANCE),
+                Instant.ofEpochMilli(1L),
+                Instant.ofEpochMilli(1L),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+            encodedTimer);
+
+    InstructionResponse.Builder builder =
+        handler.processBundle(
+            InstructionRequest.newBuilder()
+                .setInstructionId("998L")
+                .setProcessBundle(
+                    ProcessBundleRequest.newBuilder()
+                        .setProcessBundleDescriptorId("1L")
+                        .setElements(
+                            Elements.newBuilder()
+                                .addData(
+                                    Data.newBuilder()
+                                        .setInstructionId("998L")
+                                        .setTransformId("2L")
+                                        .setIsLast(true)
+                                        .build())
+                                .addTimers(
+                                    Timers.newBuilder()
+                                        .setInstructionId("998L")
+                                        .setTransformId("3L")
+                                        .setTimerFamilyId(
+                                            TimerFamilyDeclaration.PREFIX
+                                                + SimpleDoFn.TIMER_FAMILY_ID)
+                                        .setTimers(encodedTimer.toByteString())
+                                        .build())
+                                .addTimers(
+                                    Timers.newBuilder()
+                                        .setInstructionId("998L")
+                                        .setTransformId("3L")
+                                        .setTimerFamilyId(
+                                            TimerFamilyDeclaration.PREFIX
+                                                + SimpleDoFn.TIMER_FAMILY_ID)
+                                        .setIsLast(true)
+                                        .build())
+                                .build()))
+                .build());
+
+    handler.shutdown();
+    // Ensure no data is flushed through OutboundObserver.
+    assertThat(timerOutput, empty());
+    // Ensure ProcessBundleResponse gets the embedded data plus terminal element.
+    assertEquals(2L, builder.build().getProcessBundle().getElements().getTimersCount());
   }
 
   @Test
@@ -1595,15 +1681,9 @@ public class ProcessBundleHandlerTest {
                 new PTransformRunnerFactory<Object>() {
                   @Override
                   public Object createRunnerForPTransform(Context context) throws IOException {
-                    BeamFnTimerClient beamFnTimerClient = context.getBeamFnTimerClient();
-                    context.addStartBundleFunction(() -> doTimerRegistrations(beamFnTimerClient));
+                    context.addOutgoingTimersEndpoint(
+                        "timer", Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
                     return null;
-                  }
-
-                  private void doTimerRegistrations(BeamFnTimerClient beamFnTimerClient) {
-                    beamFnTimerClient.register(
-                        LogicalEndpoint.timer("1L", "2L", "Timer"),
-                        Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
                   }
                 }),
             Caches.noop(),

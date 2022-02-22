@@ -23,6 +23,7 @@
 #   name: StreamingWordCountITTest
 #   description: Unit-test for the streaming WordCount example.
 #   multifile: false
+#   context_line: 45
 #   categories:
 #     - Streaming
 #     - IO

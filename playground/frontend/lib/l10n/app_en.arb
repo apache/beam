@@ -27,10 +27,6 @@
   "@cancelExecution": {
     "description": "Title for the cancel execution notification"
   },
-  "unknownExample": "Unknown Example",
-  "@unknownExample": {
-    "description": "Unknown example text part"
-  },
   "log": "Log",
   "@log": {
     "description": "Title for the log section"

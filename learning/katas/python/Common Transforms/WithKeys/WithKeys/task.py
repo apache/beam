@@ -18,8 +18,9 @@
 #   name: WithKeys
 #   description: Task from katas to convert each fruit name into a KV of its first letter and itself.
 #   multifile: false
+#   context_line: 29
 #   categories:
-#     - Combiners
+#     - Core Transforms
 
 import apache_beam as beam
 

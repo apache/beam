@@ -45,6 +45,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import software.amazon.awssdk.regions.Region;
 
 /** Tests {@link S3ResourceId}. */
 @RunWith(JUnit4.class)
@@ -353,7 +354,7 @@ public class S3ResourceIdTest {
   @Test
   public void testResourceIdTester() {
     S3Options options = PipelineOptionsFactory.create().as(S3Options.class);
-    options.setAwsRegion("us-west-1");
+    options.setAwsRegion(Region.US_WEST_1);
     FileSystems.setDefaultPipelineOptions(options);
     ResourceIdTester.runResourceIdBattery(S3ResourceId.fromUri("s3://bucket/foo/"));
   }

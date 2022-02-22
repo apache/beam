@@ -131,12 +131,12 @@ func Test_isPathToPrecompiledObjectFile(t *testing.T) {
 	}{
 		{
 			name: "Test if path is valid",
-			args: args{path: "SDK_JAVA/HelloWorld/HelloWorld.java"},
+			args: args{path: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/HelloWorld/HelloWorld.java"},
 			want: true,
 		},
 		{
 			name: "Test if path is not valid",
-			args: args{path: "SDK_JAVA/HelloWorld/"},
+			args: args{path: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/HelloWorld/"},
 			want: false,
 		},
 	}
@@ -165,22 +165,24 @@ func Test_appendPrecompiledObject(t *testing.T) {
 			name: "Test append new objects",
 			args: args{
 				objectInfo: ObjectInfo{
-					Name:        "",
-					CloudPath:   "",
-					Description: "",
-					Type:        0,
-					Categories:  []string{"Common"},
+					Name:            "",
+					CloudPath:       "",
+					Description:     "",
+					Type:            0,
+					Categories:      []string{"Common"},
+					PipelineOptions: "",
 				},
 				sdkToCategories: &SdkToCategories{},
 				pathToObject:    "SDK_JAVA/HelloWorld",
 				categoryName:    "Common",
 			},
 			want: &SdkToCategories{"SDK_JAVA": CategoryToPrecompiledObjects{"Common": PrecompiledObjects{ObjectInfo{
-				Name:        "HelloWorld",
-				CloudPath:   "SDK_JAVA/HelloWorld",
-				Description: "",
-				Type:        0,
-				Categories:  []string{"Common"},
+				Name:            "HelloWorld",
+				CloudPath:       "SDK_JAVA/HelloWorld",
+				Description:     "",
+				Type:            0,
+				Categories:      []string{"Common"},
+				PipelineOptions: "",
 			}}}},
 		},
 	}

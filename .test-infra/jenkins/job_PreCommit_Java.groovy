@@ -23,6 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java',
     gradleTask: ':javaPreCommit',
     gradleSwitches: [
+      '-PretryFlakyTest=true',
       '-PdisableSpotlessCheck=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
@@ -39,7 +40,11 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     )
 builder.build {
   publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
+    archiveJunit('**/build/test-results/**/*.xml') {
+      testDataPublishers {
+        publishFlakyTestsReport()
+      }
+    }
     recordIssues {
       tools {
         errorProne()

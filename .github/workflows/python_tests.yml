@@ -38,14 +38,6 @@ on:
 
 jobs:
 
-  setup-go:
-    runs-on: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: '1.16.12'
-
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
@@ -108,12 +100,8 @@ jobs:
           {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
+          {"py_ver": "3.9", "tox_env": "py39"},
         ]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            params: {"py_ver": "3.8", "tox_env": "py38"}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -148,12 +136,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: [3.6, 3.7, 3.8]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            python: 3.8
+        python: [3.6, 3.7, 3.8, 3.9]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -176,18 +159,12 @@ jobs:
     name: 'Python Wordcount Dataflow'
     needs:
       - build_python_sdk_source
-      - setup-go
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: [3.6, 3.7, 3.8]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            python: 3.8
+        python: [3.6, 3.7, 3.8, 3.9]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -195,6 +172,10 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python }}
+      - name: Install go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.12'
       - name: Download source from artifacts
         uses: actions/download-artifact@v2
         with:
