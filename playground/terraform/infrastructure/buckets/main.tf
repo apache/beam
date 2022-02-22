@@ -17,24 +17,22 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "Project ID"
+resource "google_storage_bucket" "examples_bucket" {
+  name          = var.examples_bucket_name
+  location      = var.examples_bucket_location
+  project       = var.project_id
+  storage_class = var.examples_storage_class
 }
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
+resource "google_storage_bucket_access_control" "public_rule" {
+  bucket = google_storage_bucket.examples_bucket.name
+  role   = "READER"
+  entity = "allUsers"
 }
 
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-frontend"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "frontend"
+resource "google_storage_bucket" "terraform_bucket" {
+  name          = var.terraform_bucket_name
+  location      = var.terraform_bucket_location
+  project       = var.project_id
+  storage_class = var.terraform_storage_class
 }

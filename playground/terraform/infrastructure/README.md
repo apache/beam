@@ -17,25 +17,54 @@
     under the License.
 -->
 
+# Overview
+
+This directory provisions required infrastructure for the application.
+
 # Requirements
 
-The following items need to be setup for the Playground cluster deployment on GCP:
+See [playground/README.md](../README.md) for a list of the requirements
+prior to following these instructions.
 
-* [GCP account](https://cloud.google.com/)
-* [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud) and required setup i.e. login
-* [Terraform](https://www.terraform.io/downloads.html) tool
-* [Docker](https://www.docker.com/get-started)
+# Usage
 
-# Deployment steps
+## Terraform init
 
-## 1. Provision infrastructure
+Follow conventional terraform workflow to build this solution.
+You will be prompted for required variables.
+Alternatively, you may create a `vars.tfvars` file and
+apply the `-var-file=vars.tfvars` flag.
 
-To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module.
+Initialize the terraform environment.
 
-## 2. Build containers
+```
+terraform init
+```
 
-TBD
+## Terraform plan
 
-## 3. Deploy application
+Plan the terraform solution.
 
-TBD
+```
+terraform plan
+```
+
+or
+
+```
+terraform plan -var-file=vars.tfvars
+```
+
+## Terraform apply
+
+Apply the terraform solution.
+
+```
+terraform apply
+```
+
+or
+
+```
+terraform apply -var-file=vars.tfvars
+```

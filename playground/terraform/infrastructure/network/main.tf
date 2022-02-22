@@ -17,24 +17,17 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "Project ID"
+resource "google_compute_network" "playground" {
+  project = var.project_id
+  name    = var.network_name
+  auto_create_subnetworks = false
 }
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
-
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-frontend"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "frontend"
+resource "google_compute_subnetwork" "playground" {
+  ip_cidr_range            = var.subnetwork_cidr_range
+  name                     = var.subnetwork_name
+  network                  = google_compute_network.playground.id
+  region                   = var.region
+  project                  = var.project_id
+  private_ip_google_access = true
 }
