@@ -121,7 +121,7 @@ func TestSubtract(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := test.baseTime.Subtract(test.subtraction), test.expOut; got != want {
-				t.Errorf("(%v).Add(%v), got time %v, want %v", test.baseTime, test.subtraction, got, want)
+				t.Errorf("(%v).Subtract(%v), got time %v, want %v", test.baseTime, test.subtraction, got, want)
 			}
 		})
 	}
