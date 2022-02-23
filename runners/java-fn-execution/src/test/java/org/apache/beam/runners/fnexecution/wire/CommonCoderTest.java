@@ -385,8 +385,9 @@ public class CommonCoderTest {
       Coder windowCoder = ((TimestampPrefixingWindowCoder) coder).getWindowCoder();
       return convertValue(kvMap.get("window"), coderSpec.getComponents().get(0), windowCoder);
     } else if (s.equals(getUrn(StandardCoders.Enum.NULLABLE))) {
-      if (coderSpec.getComponents().size() == 1 && coderSpec.getComponents().get(0).getUrn().equals(getUrn(StandardCoders.Enum.BYTES))){
-        if (value == null){
+      if (coderSpec.getComponents().size() == 1
+          && coderSpec.getComponents().get(0).getUrn().equals(getUrn(StandardCoders.Enum.BYTES))) {
+        if (value == null) {
           return null;
         } else {
           return ((String) value).getBytes(StandardCharsets.ISO_8859_1);
@@ -587,7 +588,7 @@ public class CommonCoderTest {
       assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.CUSTOM_WINDOW))) {
       assertEquals(expectedValue, actualValue);
-    } else if (s.equals(getUrn(StandardCoders.Enum.NULLABLE))){
+    } else if (s.equals(getUrn(StandardCoders.Enum.NULLABLE))) {
       assertThat(expectedValue, equalTo(actualValue));
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
