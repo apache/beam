@@ -428,11 +428,11 @@ public class SchemaTranslation {
         return builder.setRowValue(rowToProto((Row) value)).build();
       case DATETIME:
         return builder
-            .setLogicalTypeValue(logicalTypeToProtoViaCoder(FieldType.INT64, fieldType, value))
+            .setLogicalTypeValue(logicalTypeToProto(FieldType.INT64, fieldType, value))
             .build();
       case DECIMAL:
         return builder
-            .setLogicalTypeValue(logicalTypeToProtoViaCoder(FieldType.BYTES, fieldType, value))
+            .setLogicalTypeValue(logicalTypeToProto(FieldType.BYTES, fieldType, value))
             .build();
       case LOGICAL_TYPE:
         return builder
@@ -484,14 +484,12 @@ public class SchemaTranslation {
         if (isNullFieldValueFromProto(fieldType, value.hasLogicalTypeValue())) {
           return null;
         }
-        return logicalTypeFromProtoViaCoder(
-            FieldType.INT64, fieldType, value.getLogicalTypeValue());
+        return logicalTypeFromProto(FieldType.INT64, fieldType, value.getLogicalTypeValue());
       case DECIMAL:
         if (isNullFieldValueFromProto(fieldType, value.hasLogicalTypeValue())) {
           return null;
         }
-        return logicalTypeFromProtoViaCoder(
-            FieldType.BYTES, fieldType, value.getLogicalTypeValue());
+        return logicalTypeFromProto(FieldType.BYTES, fieldType, value.getLogicalTypeValue());
       default:
         if (isNullFieldValueFromProto(fieldType, value.hasAtomicValue())) {
           return null;
@@ -550,7 +548,8 @@ public class SchemaTranslation {
                 entry -> fieldValueFromProto(mapValueType, entry.getValue())));
   }
 
-  private static Object logicalTypeFromProtoViaCoder(
+  /** Converts logical type value from proto using a default type coder. */
+  private static Object logicalTypeFromProto(
       FieldType baseType, FieldType inputType, LogicalTypeValue value) {
     try {
       PipedInputStream in = new PipedInputStream();
@@ -573,7 +572,8 @@ public class SchemaTranslation {
     }
   }
 
-  private static LogicalTypeValue logicalTypeToProtoViaCoder(
+  /** Converts logical type value to a proto using a default type coder. */
+  private static LogicalTypeValue logicalTypeToProto(
       FieldType baseType, FieldType inputType, Object value) {
     try {
       PipedInputStream in = new PipedInputStream();
@@ -603,13 +603,15 @@ public class SchemaTranslation {
   private static LogicalTypeValue logicalTypeToProto(LogicalType logicalType, Object value) {
     return LogicalTypeValue.newBuilder()
         .setValue(
-            fieldValueToProto(logicalType.getBaseType(), logicalType.toBaseTypeGeneric(value)))
+            fieldValueToProto(
+                logicalType.getBaseType(), SchemaUtils.toLogicalBaseType(logicalType, value)))
         .build();
   }
 
   private static Object logicalTypeFromProto(
       LogicalType logicalType, SchemaApi.FieldValue logicalValue) {
-    return logicalType.toInputTypeGeneric(
+    return SchemaUtils.toLogicalInputType(
+        logicalType,
         fieldValueFromProto(
             logicalType.getBaseType(), logicalValue.getLogicalTypeValue().getValue()));
   }

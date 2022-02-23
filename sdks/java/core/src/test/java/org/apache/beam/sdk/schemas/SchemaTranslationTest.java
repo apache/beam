@@ -359,8 +359,6 @@ public class SchemaTranslationTest {
       SchemaApi.Row rowProto = SchemaTranslation.rowToProto(row);
       Row decodedRow =
           (Row) SchemaTranslation.rowFromProto(rowProto, FieldType.row(row.getSchema()));
-      System.out.println(decodedRow);
-      System.out.println(row);
       assertThat(decodedRow, equalTo(row));
     }
   }

@@ -579,16 +579,6 @@ public class Schema implements Serializable {
     /** Convert the Java type used by the base {@link FieldType} to the input type. */
     @NonNull
     InputT toInputType(@NonNull BaseT base);
-
-    /** Convert the Java type used by the base {@link FieldType} to the input type. */
-    default BaseT toBaseTypeGeneric(Object input) {
-      return toBaseType((InputT) input);
-    }
-
-    /** Convert the Java type used by the base {@link FieldType} to the input type. */
-    default InputT toInputTypeGeneric(Object base) {
-      return toInputType((BaseT) base);
-    }
   }
 
   /**
