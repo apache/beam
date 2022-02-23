@@ -1375,7 +1375,7 @@ public class KafkaIO {
       }
     }
 
-    private static class ReadFromKafkaViaUnbounded<K, V> extends AbstractReadFromKafka<K, V> {
+    static class ReadFromKafkaViaUnbounded<K, V> extends AbstractReadFromKafka<K, V> {
       ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
         super(kafkaRead, keyCoder, valueCoder, KafkaIOReadImplementation.LEGACY);
       }

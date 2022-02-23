@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
@@ -33,13 +34,40 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
+/**
+ * {@link KafkaIO.Read} has multiple implementations with different feature set.<br>
+ * This class is responsible to determine which one could/should be used.<br>
+ * It is required because the methods used to configure the expected behaviour are shared,<br>
+ * and not every configuration is being supported by every implementation.
+ */
 class KafkaIOReadImplementationCompatibility {
 
+  /**
+   * This enum should represent every different implementation<br>
+   * that might be applied to the pipeline inside {@link KafkaIO.Read#expand(PBegin)}.
+   */
   enum KafkaIOReadImplementation {
+    /**
+     * This is essentially a "traditional"/"legacy" read implementation,<br>
+     * which uses {@link org.apache.beam.sdk.io.Read.Unbounded}<br>
+     * to read from an {@link org.apache.beam.sdk.io.UnboundedSource}.
+     *
+     * @see KafkaIO.Read.ReadFromKafkaViaUnbounded
+     * @see KafkaUnboundedSource
+     * @see KafkaUnboundedReader
+     */
     LEGACY,
+    /**
+     * This is the newer SplittableDoFn based implementation.
+     *
+     * @see KafkaIO.Read.ReadFromKafkaViaSDF
+     * @see KafkaIO.ReadSourceDescriptors
+     * @see ReadFromKafkaDoFn
+     */
     SDF
   }
 
+  /** This enum should represent every configurable property found at {@link KafkaIO.Read}. */
   @VisibleForTesting
   @SuppressWarnings("ImmutableEnumChecker")
   enum KafkaIOReadProperties {
@@ -106,6 +134,12 @@ class KafkaIOReadImplementationCompatibility {
       }
     }
 
+    /**
+     * In order to determine which property has been configured<br>
+     * we compare the current value with the not configured one.<br>
+     * Usually that is {@code null}, but in some cases it isn't.<br>
+     * This method can be used to provide that value.
+     */
     @VisibleForTesting
     Object getDefaultValue() {
       return null;
@@ -117,6 +151,11 @@ class KafkaIOReadImplementationCompatibility {
     }
   }
 
+  /**
+   * Calculates what kind of read implementation can be used by the {@link KafkaIO.Read}.<br>
+   * It enforces to "use" every configuration by picking an implementation that will do that.<br>
+   * Fails if it's not doable due conflicting needs.<br>
+   */
   static KafkaIOReadImplementationCompatibilityResult getCompatibility(KafkaIO.Read<?, ?> read) {
     final Multimap<KafkaIOReadImplementation, KafkaIOReadProperties>
         notSupportedImplementationsWithProperties = HashMultimap.create();
@@ -164,14 +203,26 @@ class KafkaIOReadImplementationCompatibility {
       this.notSupported = notSupportedImplementationsWithAssociatedProperties;
     }
 
+    /**
+     * @return true, if the implementation can "use" every configuration,<br>
+     *     false, otherwise
+     */
     boolean supports(KafkaIOReadImplementation implementation) {
       return !notSupported.containsKey(implementation);
     }
 
+    /**
+     * @return true, if the implementation - and only that - can "use" every configuration, <br>
+     *     false, otherwise
+     */
     boolean supportsOnly(KafkaIOReadImplementation implementation) {
       return EnumSet.complementOf(EnumSet.of(implementation)).equals(notSupported.keySet());
     }
 
+    /**
+     * Checks if the selected implementation can "use" every configuration,<br>
+     * fails otherwise.
+     */
     void checkSupport(KafkaIOReadImplementation selectedImplementation) {
       checkState(
           supports(selectedImplementation),
