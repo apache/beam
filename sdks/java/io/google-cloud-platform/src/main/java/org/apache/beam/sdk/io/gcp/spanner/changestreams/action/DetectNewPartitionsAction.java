@@ -129,7 +129,7 @@ public class DetectNewPartitionsAction {
         partitions.add(partition);
       }
     }
-    LOG.info(
+    LOG.debug(
         "Found " + partitions.size() + " to be scheduled (readTimestamp = " + readTimestamp + ")");
     return partitions;
   }
@@ -199,9 +199,8 @@ public class DetectNewPartitionsAction {
   }
 
   private ProcessContinuation terminate(RestrictionTracker<TimestampRange, Timestamp> tracker) {
-    if (!tracker.tryClaim(tracker.currentRestriction().getTo())) {
-      LOG.warn("Failed to claim the end of range in DetectNewPartitionsDoFn.");
-    }
+    // We need to try claim something here, otherwise restriction tracker check done fails
+    tracker.tryClaim(tracker.currentRestriction().getTo());
     LOG.info("All partitions have been processed, stopping");
     return ProcessContinuation.stop();
   }

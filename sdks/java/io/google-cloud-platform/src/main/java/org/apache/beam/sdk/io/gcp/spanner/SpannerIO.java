@@ -19,6 +19,11 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_CHANGE_STREAM_NAME;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_END_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_START_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_RPC_PRIORITY;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.NameGenerator.generatePartitionMetadataTableName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -428,14 +433,10 @@ public class SpannerIO {
   public static ReadChangeStream readChangeStream() {
     return new AutoValue_SpannerIO_ReadChangeStream.Builder()
         .setSpannerConfig(SpannerConfig.create())
-        .setChangeStreamName("")
-        .setInclusiveStartAt(Timestamp.MIN_VALUE)
-        // Sets the default change stream request priority as high
-        .setRpcPriority(RpcPriority.HIGH)
-        // Set a default value to the end timestamp. Do not delete this.
-        // Otherwise, we will get a null pointer exception when we try to access
-        // it later.
-        .setInclusiveEndAt(Timestamp.MAX_VALUE)
+        .setChangeStreamName(DEFAULT_CHANGE_STREAM_NAME)
+        .setRpcPriority(DEFAULT_RPC_PRIORITY)
+        .setInclusiveStartAt(DEFAULT_INCLUSIVE_START_AT)
+        .setInclusiveEndAt(DEFAULT_INCLUSIVE_END_AT)
         .build();
   }
 
@@ -1472,6 +1473,13 @@ public class SpannerIO {
       checkArgument(
           getInclusiveStartAt() != null,
           "SpannerIO.readChangeStream() requires the start time to be set.");
+      // Inclusive end at is defaulted to ChangeStreamsContants.MAX_INCLUSIVE_END_AT
+      checkArgument(
+          getInclusiveEndAt() != null,
+          "SpannerIO.readChangeStream() requires the end time to be set.");
+      checkArgument(
+          getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) <= 0,
+          "SpannerIO.readChangeStream() max end timestamp is " + MAX_INCLUSIVE_END_AT + ".");
       if (getMetadataInstance() != null) {
         checkArgument(
             getMetadataDatabase() != null,

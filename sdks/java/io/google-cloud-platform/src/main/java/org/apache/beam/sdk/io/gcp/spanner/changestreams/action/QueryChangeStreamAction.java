@@ -258,10 +258,32 @@ public class QueryChangeStreamAction {
     }
 
     LOG.debug("[" + token + "] change stream completed successfully");
+    final Timestamp from = tracker.currentRestriction().getFrom();
+    final Timestamp to = tracker.currentRestriction().getTo();
     if (tracker.tryClaim(endTimestamp)) {
       LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
-      LOG.info("[" + token + "] Partition finished");
+      LOG.info(
+          "["
+              + token
+              + "] Partition finished, claimed "
+              + endTimestamp
+              + " (restriction = ["
+              + from
+              + ", "
+              + to
+              + ")");
+    } else {
+      LOG.info(
+          "["
+              + token
+              + "] Could not claim end timestamp "
+              + endTimestamp
+              + " (restriction = ["
+              + from
+              + ", "
+              + to
+              + ")");
     }
     return ProcessContinuation.stop();
   }

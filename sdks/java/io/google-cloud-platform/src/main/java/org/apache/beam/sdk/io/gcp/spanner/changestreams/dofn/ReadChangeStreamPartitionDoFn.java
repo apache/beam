@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-import static com.google.cloud.Timestamp.MAX_VALUE;
 import static com.google.cloud.Timestamp.ofTimeSecondsAndNanos;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
 
@@ -26,7 +25,6 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.io.Serializable;
-import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
@@ -132,12 +130,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
     // Range represents closed-open interval
     final com.google.cloud.Timestamp endTimestamp =
-        Optional.ofNullable(partition.getEndTimestamp())
-            .filter(timestamp -> !timestamp.equals(MAX_VALUE))
-            .map(
-                timestamp ->
-                    ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos() + 1))
-            .orElse(MAX_VALUE);
+        ofTimeSecondsAndNanos(
+            partition.getEndTimestamp().getSeconds(), partition.getEndTimestamp().getNanos() + 1);
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
     final com.google.cloud.Timestamp partitionRunningAt =
         daoFactory.getPartitionMetadataDao().updateToRunning(token);
