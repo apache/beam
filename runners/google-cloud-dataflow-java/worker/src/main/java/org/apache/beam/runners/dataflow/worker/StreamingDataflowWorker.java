@@ -780,7 +780,11 @@ public class StreamingDataflowWorker {
   }
 
   private int chooseMaximumBundlesOutstanding() {
-    return Math.max(options.getMaxBundlesFromWindmillOutstanding(), chooseMaximumNumberOfThreads());
+    int maxBundles = options.getMaxBundlesFromWindmillOutstanding();
+    if (maxBundles > 0) {
+      return maxBundles;
+    }
+    return chooseMaximumNumberOfThreads() + 100;
   }
 
   private long chooseMaximumBytesOutstanding() {
