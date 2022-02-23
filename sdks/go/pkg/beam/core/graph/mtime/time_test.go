@@ -68,7 +68,7 @@ func TestAdd(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := test.baseTime.Add(test.addition), test.expOut; got != want {
-				t.Errorf("(%v).Add(%v), got time %v, want %v", t.baseTime, test.addition, got, want)
+				t.Errorf("(%v).Add(%v), got time %v, want %v", test.baseTime, test.addition, got, want)
 			}
 		})
 	}
@@ -121,7 +121,7 @@ func TestSubtract(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := test.baseTime.Subtract(test.subtraction), test.expOut; got != want {
-				t.Errorf("got time %v, want %v", got, want)
+				t.Errorf("(%v).Add(%v), got time %v, want %v", test.baseTime, test.subtraction, got, want)
 			}
 		})
 	}
@@ -167,7 +167,7 @@ func TestNormalize(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := Normalize(test.in), test.expOut; got != want {
-				t.Errorf("got Time %v, want %v", got, want)
+				t.Errorf("Normalize(%v), got Time %v, want %v", test.in, got, want)
 			}
 		})
 	}
@@ -208,7 +208,7 @@ func TestFromTime(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := FromTime(test.input), test.expOut; got != want {
-				t.Errorf("got %v, want %v", got, want)
+				t.Errorf("FromTime(%v), got %v, want %v", test.input, got, want)
 			}
 		})
 	}
