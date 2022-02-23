@@ -103,7 +103,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
     mutations.add(insertRecordMutation(0, "FirstName0", "LastName0"));
-    final long timeIncrementInSeconds = 5;
+    final long timeIncrementInSeconds = 2;
     final Timestamp startTimestamp = databaseClient.write(mutations);
     writeTransactionsToDatabase();
 
@@ -165,22 +165,12 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                 + "{\"SingerId\":\"1\"},DELETE\n"
                 + "{\"SingerId\":\"3\"},INSERT\n"
 
-                // Insert Singers 4, 5, 6 into the table.
-                + "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n"
+                // Delete Singers 2 and 3.
+                + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n"
 
-                // Update Singer 6 and Insert Singer 7
-                + "{\"SingerId\":\"6\"},UPDATE\n"
-                + "{\"SingerId\":\"7\"},INSERT\n"
+                // Delete Singer 0.
+                + "{\"SingerId\":\"0\"},DELETE\n",
 
-                // Update Singers 4 and 5 in the table.
-                + "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n"
-
-                // Delete Singers 3, 4, 5 from the table.
-                + "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n"
-
-                // Delete Singers 0, 2, 6, 7;
-                + "{\"SingerId\":\"0\"}{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}"
-                + "{\"SingerId\":\"7\"},DELETE\n",
 
             // Second batch of transactions.
             // Insert Singer 1 and 2 into the table,
@@ -190,22 +180,8 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                 + "{\"SingerId\":\"1\"},DELETE\n"
                 + "{\"SingerId\":\"3\"},INSERT\n"
 
-                // Insert Singers 4, 5, 6 into the table.
-                + "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n"
-
-                // Update Singer 6 and Insert Singer 7
-                + "{\"SingerId\":\"6\"},UPDATE\n"
-                + "{\"SingerId\":\"7\"},INSERT\n"
-
-                // Update Singers 4 and 5 in the table.
-                + "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n"
-
-                // Delete Singers 3, 4, 5 from the table.
-                + "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n"
-
-                // Delete Singers 0, 2, 6, 7;
-                + "{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}"
-                + "{\"SingerId\":\"7\"},DELETE\n",
+                // Delete Singers 2 and 3.
+                + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n",
 
             // Third batch of transactions.
             // Insert Singer 1 and 2 into the table,
@@ -215,22 +191,8 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                 + "{\"SingerId\":\"1\"},DELETE\n"
                 + "{\"SingerId\":\"3\"},INSERT\n"
 
-                // Insert Singers 4, 5, 6 into the table.
-                + "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n"
-
-                // Update Singer 6 and Insert Singer 7
-                + "{\"SingerId\":\"6\"},UPDATE\n"
-                + "{\"SingerId\":\"7\"},INSERT\n"
-
-                // Update Singers 4 and 5 in the table.
-                + "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n"
-
-                // Delete Singers 3, 4, 5 from the table.
-                + "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n"
-
-                // Delete Singers 0, 2, 6, 7;
-                + "{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}"
-                + "{\"SingerId\":\"7\"},DELETE\n");
+                // Delete Singers 2 and 3.
+                + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n");
 
     final PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish();
@@ -520,57 +482,18 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     LOG.debug("The second transaction committed with timestamp: " + t2.toString());
     mutations.clear();
 
-    // 3. Commit a transaction to insert Singer 4 and Singer 5 and Singer 6 into the table.
-    mutations.add(insertRecordMutation(4, "FirstName4", "LastName4"));
-    mutations.add(insertRecordMutation(5, "FirstName5", "LastName5"));
-    mutations.add(insertRecordMutation(6, "FirstName6", "LastName6"));
+    // 3. Commit a transaction to delete Singer 2 and Singer 3 from the table.
+    mutations.add(deleteRecordMutation(2));
+    mutations.add(deleteRecordMutation(3));
     Timestamp t3 = databaseClient.write(mutations);
     LOG.debug("The third transaction committed with timestamp: " + t3.toString());
-    mutations.clear();
 
-    // 4. Commit a transaction to insert Singer 7 and update Singer 6 in the table.
-    mutations.add(insertRecordMutation(7, "FirstName7", "LastName7"));
-    mutations.add(updateRecordMutation(6, "FirstName5", "LastName5"));
+    // 4. Commit a transaction to delete Singer 0.
+    mutations.add(deleteRecordMutation(0));
     Timestamp t4 = databaseClient.write(mutations);
     LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
-    mutations.clear();
 
-    // 5. Commit a transaction to update Singer 4 and Singer 5 in the table.
-    mutations.add(updateRecordMutation(4, "FirstName9", "LastName9"));
-    mutations.add(updateRecordMutation(5, "FirstName9", "LastName9"));
-    Timestamp t5 = databaseClient.write(mutations);
-    LOG.debug("The fifth transaction committed with timestamp: " + t5.toString());
-    mutations.clear();
-
-    // 6. Commit a transaction to delete Singers 3, 4, 5.
-    mutations.add(deleteRecordMutation(3));
-    mutations.add(deleteRecordMutation(4));
-    mutations.add(deleteRecordMutation(5));
-    Timestamp t6 = databaseClient.write(mutations);
-    mutations.clear();
-    LOG.debug("The sixth transaction committed with timestamp: " + t6.toString());
-
-    // 7. Commit a transaction to delete Singers 0, 2, 6, 7.
-    mutations.add(deleteRecordMutation(0));
-    mutations.add(deleteRecordMutation(2));
-    mutations.add(deleteRecordMutation(6));
-    mutations.add(deleteRecordMutation(7));
-    Timestamp t7 = databaseClient.write(mutations);
-    LOG.debug("The seventh transaction committed with timestamp: " + t7.toString());
-
-    return t7;
-  }
-
-  // Create an update mutation.
-  private static Mutation updateRecordMutation(long singerId, String firstName, String lastName) {
-    return Mutation.newUpdateBuilder(tableName)
-        .set("SingerId")
-        .to(singerId)
-        .set("FirstName")
-        .to(firstName)
-        .set("LastName")
-        .to(lastName)
-        .build();
+    return t4;
   }
 
   // Create an insert mutation.
