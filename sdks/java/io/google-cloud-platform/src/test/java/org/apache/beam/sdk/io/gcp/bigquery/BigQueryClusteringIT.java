@@ -180,7 +180,8 @@ public class BigQueryClusteringIT {
                 .withClustering(CLUSTERING)
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS));
 
     p.run().waitUntilFinish();
 
@@ -215,5 +216,57 @@ public class BigQueryClusteringIT {
     Assert.assertEquals(CLUSTERING, table.getClustering());
     Assert.assertEquals(EXPECTED_ROWS, table.getNumRows());
     Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
+  }
+
+  @Test
+  public void testE2EBigQueryClusteringNoPartitionDynamicDestinationsStorageAPI() throws Exception {
+
+    String tableName =
+        "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
+
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
+        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(new ClusteredDestinations(tableName))
+                .withClustering(CLUSTERING)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API));
+
+    p.run().waitUntilFinish();
+
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
+
+    Assert.assertEquals(CLUSTERING, table.getClustering());
+  }
+
+  @Test
+  public void testE2EBigQueryClusteringNoPartitionDynamicDestinationsAtLeastOnceStorageAPI()
+      throws Exception {
+
+    String tableName =
+        "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
+
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
+        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(new ClusteredDestinations(tableName))
+                .withClustering(CLUSTERING)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+                .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE));
+
+    p.run().waitUntilFinish();
+
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
+
+    // ONLY TESTING CLUSTERING, since TABLE CONTENTS NON-DETERMINISTIC DUE TO AT-LEAST-ONCE
+    Assert.assertEquals(CLUSTERING, table.getClustering());
   }
 }
