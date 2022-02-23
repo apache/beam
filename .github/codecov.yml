@@ -64,6 +64,7 @@ ignore:
   - "**/*_test_py3*.py"
   - "**/*_microbenchmark.py"
 
+# See https://docs.codecov.com/docs/flags for options.
 flag_management:
   default_rules: # the rules that will be followed for any flag added, generally
-    carryforward: true
+    carryforward: true # recommended for multi-lang mono-repos.
