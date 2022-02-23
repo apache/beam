@@ -31,7 +31,7 @@ public interface ChangeStreamTestPipelineOptions extends IOTestPipelineOptions, 
   void setProjectId(String value);
 
   @Description("Instance ID to write to in Spanner")
-  @Default.String("beam-test")
+  @Default.String("changestream")
   String getInstanceId();
 
   void setInstanceId(String value);

@@ -171,7 +171,6 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                 // Delete Singer 0.
                 + "{\"SingerId\":\"0\"},DELETE\n",
 
-
             // Second batch of transactions.
             // Insert Singer 1 and 2 into the table,
             "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n"
