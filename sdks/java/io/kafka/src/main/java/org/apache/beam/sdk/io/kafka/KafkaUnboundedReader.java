@@ -334,10 +334,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
    */
   private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
 
-  // private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.standardSeconds(10);
-  // private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.standardSeconds(1);
-  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
-  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
+  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.standardSeconds(3);
+  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.standardSeconds(1);
 
   // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
   // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout

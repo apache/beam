@@ -546,14 +546,14 @@ public class Read {
       UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
       Instant claimLoopStart = Instant.now();
       long claimLoopCount = 0;
-      LOG.info("dmitryo-read: entering tracker.tryClaim(out) loop");
+      LOG.info("twosigma-read: entering tracker.tryClaim(out) loop");
       while (tracker.tryClaim(out) && out[0] != null) {
         claimLoopCount++;
         watermarkEstimator.setWatermark(out[0].getWatermark());
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
       }
-      LOG.info("dmitryo-read: tracker.tryClaim(out) looped {} times in {}",
+      LOG.info("twosigma-read: tracker.tryClaim(out) looped {} times in {}",
           claimLoopCount, new Duration(claimLoopStart, Instant.now()));
 
       UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction =
@@ -866,7 +866,7 @@ public class Read {
             initializeCurrentReader();
           }
           if (currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader) {
-            LOG.info("dmitryo-read: reader changed into an EmptyUnboundedReader");
+            LOG.info("twosigma-read: reader changed into an EmptyUnboundedReader");
             return false;
           }
           if (!readerHasBeenStarted) {
@@ -876,7 +876,7 @@ public class Read {
               return true;
             }
           } else if (!currentReader.advance()) {
-            LOG.info("dmitryo-read: currentReader.advance() returned false");
+            LOG.info("twosigma-read: currentReader.advance() returned false");
             position[0] = null;
             return true;
           }
