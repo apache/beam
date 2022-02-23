@@ -97,16 +97,16 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 		}
 		log.Debugf(ctx, "control response channel closed")
 	}()
-	var swg sync.WaitGroup
-	sigch := make(chan int)
+
+	var workerStatus *workerStatusHandler
+	var wwg sync.WaitGroup
 	if statusEndpoint != "" {
-		sconn, err := dial(ctx, statusEndpoint, 6*time.Second)
+		sconn, err := dial(ctx, statusEndpoint, 60*time.Second)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to connect status: %v\n", statusEndpoint))
+			return errors.Wrapf(err, "failed to connect: %v\n", statusEndpoint)
 		}
 		defer sconn.Close()
-		statusClient := fnpb.NewBeamFnWorkerStatusClient(sconn)
-		statusStub, err := statusClient.WorkerStatus(ctx)
+		workerStatus, err = newWorkerStatusHandler(ctx, sconn)
 		if err != nil {
 			return errors.Wrapf(err, "failed to connect to worker status service")
 		}
@@ -115,25 +115,11 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 
 		// starting goroutine for status endpoint
 
-		swg.Add(1)
-		go func() {
-			defer swg.Done()
-			for {
-				req, _ := statusStub.Recv()
-				// if err == io.EOF {
-				// 	return
-				// }
-				select {
-				case <-sigch:
-					return
-				default:
-				}
-				resp := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: "i am the status info"}
-				if err := statusStub.Send(resp); err != nil {
-					log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
-				}
-			}
-		}()
+		wwg.Add(1)
+		go workerStatus.Writer(ctx, &wwg)
+
+		// go workerStatus.Reader(ctx, &wwg)
+
 	}
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
@@ -156,13 +142,23 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 	// so as to avoid blocking the underlying network channel.
 	var shutdown int32
 	for {
+		sreq, err := workerStatus.stub.Recv()
+		if err != nil {
+			close(workerStatus.resp)
+			wwg.Wait()
+			return nil
+		}
+		log.Debugf(ctx, "RECV-status: %v", proto.MarshalTextString(sreq))
+		go workerStatus.handleRequest(ctx, sreq)
+
 		req, err := stub.Recv()
 		if err != nil {
 			// An error means we can't send or receive anymore. Shut down.
 			atomic.AddInt32(&shutdown, 1)
 			close(respc)
+			close(workerStatus.resp)
+			wwg.Wait()
 			wg.Wait()
-			sigch <- 1
 			if err == io.EOF {
 				recordFooter()
 				return nil
