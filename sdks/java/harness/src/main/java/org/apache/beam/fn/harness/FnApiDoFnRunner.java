@@ -2614,7 +2614,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       + "changing the allowed skew.",
                   timestamp,
                   currentTimer.getHoldTimestamp(),
-                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                      ? doFn.getAllowedTimestampSkew()
+                      : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
                   BoundedWindow.TIMESTAMP_MAX_VALUE));
         }
       }

@@ -17,6 +17,7 @@
  */
 
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart';
+import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_error.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
@@ -108,6 +109,7 @@ class CodeRepository {
   ) async {
     final prevOutput = prevResult?.output ?? '';
     final prevLog = prevResult?.log ?? '';
+    final prevGraph = prevResult?.graph ?? '';
     switch (status) {
       case RunCodeStatus.compileError:
         final compileOutput = await _client.getCompileOutput(
@@ -119,6 +121,7 @@ class CodeRepository {
           status: status,
           output: compileOutput.output,
           log: prevLog,
+          graph: prevGraph,
         );
       case RunCodeStatus.timeout:
         return RunCodeResult(
@@ -127,6 +130,7 @@ class CodeRepository {
           errorMessage: kTimeoutErrorText,
           output: kTimeoutErrorText,
           log: prevLog,
+          graph: prevGraph,
         );
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid, request);
@@ -135,6 +139,7 @@ class CodeRepository {
           status: status,
           output: output.output,
           log: prevLog,
+          graph: prevGraph,
         );
       case RunCodeStatus.validationError:
         final output =
@@ -143,6 +148,7 @@ class CodeRepository {
           status: status,
           output: output.output,
           log: prevLog,
+          graph: prevGraph,
         );
       case RunCodeStatus.preparationError:
         final output =
@@ -151,6 +157,7 @@ class CodeRepository {
           status: status,
           output: output.output,
           log: prevLog,
+          graph: prevGraph,
         );
       case RunCodeStatus.unknownError:
         return RunCodeResult(
@@ -159,40 +166,52 @@ class CodeRepository {
           errorMessage: kUnknownErrorText,
           output: kUnknownErrorText,
           log: prevLog,
+          graph: prevGraph,
         );
       case RunCodeStatus.executing:
         final responses = await Future.wait([
           _client.getRunOutput(pipelineUuid, request),
           _client.getLogOutput(pipelineUuid, request),
+          prevGraph.isEmpty
+              ? _client.getGraphOutput(pipelineUuid, request)
+              : Future.value(OutputResponse(prevGraph)),
         ]);
         final output = responses[0];
         final log = responses[1];
+        final graph = responses[2];
         return RunCodeResult(
           pipelineUuid: pipelineUuid,
           status: status,
           output: prevOutput + output.output,
           log: prevLog + log.output,
+          graph: graph.output,
         );
       case RunCodeStatus.finished:
         final responses = await Future.wait([
           _client.getRunOutput(pipelineUuid, request),
           _client.getLogOutput(pipelineUuid, request),
-          _client.getRunErrorOutput(pipelineUuid, request)
+          _client.getRunErrorOutput(pipelineUuid, request),
+          prevGraph.isEmpty
+              ? _client.getGraphOutput(pipelineUuid, request)
+              : Future.value(OutputResponse(prevGraph)),
         ]);
         final output = responses[0];
         final log = responses[1];
         final error = responses[2];
+        final graph = responses[3];
         return RunCodeResult(
           pipelineUuid: pipelineUuid,
           status: status,
           output: prevOutput + output.output + error.output,
           log: prevLog + log.output,
+          graph: graph.output,
         );
       default:
         return RunCodeResult(
           pipelineUuid: pipelineUuid,
           log: prevLog,
           status: status,
+          graph: prevGraph,
         );
     }
   }

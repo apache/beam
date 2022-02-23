@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"bufio"
 	"errors"
 	"github.com/google/uuid"
@@ -35,12 +36,15 @@ const (
 	javaLogFilePlaceholder = "{logFilePath}"
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
-	scioProjectName        = "scioproject"
-	projectPath            = "scioproject/src/main/scala/scioproject"
+	scioProjectName        = "y"
+	scioProjectPath        = scioProjectName + "/src/main/scala/" + scioProjectName
 	logFileName            = "logs.log"
 	defaultExampleInSbt    = "WordCount.scala"
 	shCmd                  = "sh"
+	rmCmd                  = "rm"
+	cpCmd                  = "cp"
 	scioProject            = "new_scio_project.sh"
+	scioCommonConstants    = "ExampleData.scala"
 )
 
 // Setup returns fs_tool.LifeCycle.
@@ -164,15 +168,21 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 		return nil, err
 	}
 
-	sourceFileFolder := filepath.Join(pipelineFolder, projectPath)
+	sourceFileFolder := filepath.Join(pipelineFolder, scioProjectPath)
 	fileName := lc.Paths.SourceFileName
 	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)
 	absFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, fileName))
 	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, utils.GraphFileName))
 	projectFolder, _ := filepath.Abs(filepath.Join(pipelineFolder, scioProjectName))
 	executableName := lc.Paths.ExecutableName
 
-	_, err = exec.Command("rm", filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
+	_, err = exec.Command(rmCmd, filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = exec.Command(cpCmd, filepath.Join(workingDir, scioCommonConstants), absFileFolderPath).Output()
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +197,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 			AbsoluteExecutableFilePath:       absFilePath,
 			AbsoluteBaseFolderPath:           absFileFolderPath,
 			AbsoluteLogFilePath:              absLogFilePath,
+			AbsoluteGraphFilePath:            absGraphFilePath,
 			ProjectDir:                       projectFolder,
 		},
 	}

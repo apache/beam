@@ -268,6 +268,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     // Unbounded

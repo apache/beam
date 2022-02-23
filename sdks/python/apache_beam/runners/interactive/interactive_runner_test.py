@@ -31,6 +31,7 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -482,6 +483,44 @@ class InteractiveRunnerTest(unittest.TestCase):
     for producer, consumer in trace:
       self.assertEqual(producer, prev_producer, trace_string)
       prev_producer = consumer
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.create_flink_cluster',
+      return_value=None)
+  def test_create_dataproc_cluster_no_flink_master_or_master_url(
+      self, mock_create_cluster):
+    from apache_beam.runners.portability.flink_runner import FlinkRunner
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project='test-project',
+            region='test-region',
+        ))
+    runner._create_dataproc_cluster_if_applicable(p)
+    ie.current_env()._tracked_user_pipelines.add_user_pipeline(p)
+    self.assertEqual(
+        ie.current_env().clusters.describe(p)['cluster_metadata'].project_id,
+        'test-project')
+    ie.current_env().clusters = ib.Clusters()
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  def test_create_dataproc_cluster_flink_master_provided(self):
+    runner = interactive_runner.InteractiveRunner()
+    from apache_beam.runners.portability.flink_runner import FlinkRunner
+    p = beam.Pipeline(
+        interactive_runner.InteractiveRunner(underlying_runner=FlinkRunner()),
+        options=PipelineOptions(
+            flink_master='--flink_master=example.internal:1'))
+    runner._create_dataproc_cluster_if_applicable(p)
+    self.assertEqual(ie.current_env().clusters.describe(), {})
+    ie.current_env().clusters = ib.Clusters()
 
 
 if __name__ == '__main__':

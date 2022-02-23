@@ -498,7 +498,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.1"
+    def testcontainers_version = "1.16.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
@@ -530,6 +530,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk_sqs                            : "com.amazonaws:aws-java-sdk-sqs:$aws_java_sdk_version",
         aws_java_sdk_sts                            : "com.amazonaws:aws-java-sdk-sts:$aws_java_sdk_version",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
+        aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
         aws_java_sdk2_cloudwatch                    : "software.amazon.awssdk:cloudwatch:$aws_java_sdk2_version",
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
