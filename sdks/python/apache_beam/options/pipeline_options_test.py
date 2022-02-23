@@ -656,28 +656,34 @@ class PipelineOptionsTest(unittest.TestCase):
       cls._add_argparse_args(parser)
 
     actions = parser._actions.copy()
-    options_to_dest = {}
-    options_diff_dest_store_true = {}  # action == store_true,
-    # dest is different name
+    dest_to_options = {}
+    options_diff_dest_store_true = {}
+
     for i in range(len(actions)):
       options_name = actions[i].option_strings
       dest = actions[i].dest
+
       if isinstance(actions[i].const, bool):
         for option_name in options_name:
           option_name = option_name.strip(
               '--') if '--' in option_name else option_name
           if option_name != dest:
+            # Capture flags which has store_action=True and has a
+            # different dest. This behavior would be confusing.
             if actions[i].const:
               options_diff_dest_store_true[option_name] = dest
               continue
-            options_to_dest[option_name] = dest
+            # check the flags like no_use_public_ips
+            # default is None, action is {True, False}
+            if actions[i].default is None:
+              dest_to_options[dest] = option_name
 
     assert len(options_diff_dest_store_true) == 0, (
-      _LOGGER.error("There should be no options that have a dest "
-                    "different from option_name and action as "
+      _LOGGER.error("There should be no flags that have a dest "
+                    "different from flag name and action as "
                     "store_true. It would be confusing "
                     "to the user. Please specify the dest as the "
-                    "option_name/flag_name instead.")
+                    "flag_name instead.")
     )
     from apache_beam.options.pipeline_options import (
         _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST)
@@ -689,44 +695,14 @@ class PipelineOptionsTest(unittest.TestCase):
           d[k] = d1[k]
       return d
 
-    assert _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST == options_to_dest, (
-      "If you are adding a new option with default=None, action=store_false,"
-      " with dest different from option name, please add the option_name and "
-      "dest of the option: %s to variable "
+    assert _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST == dest_to_options, (
+      "If you are adding a new boolean flag with default=None,"
+      " with dest different from flag name, please add the flag and "
+      "dest of the flag: %s to variable "
       " _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST in PipelineOptions.py" % (
-      get_options_not_present_in_map(options_to_dest,
+      get_options_not_present_in_map(dest_to_options,
                                      _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST))
     )
-
-  def test_pipelineoptions_store_false_with_different_dest(self):
-
-    flags = ['--no_use_public_ips']
-    params = {'no_use_public_ips': True}
-    options_1 = PipelineOptions(flags).view_as(WorkerOptions)
-    options_2 = PipelineOptions(**params).view_as(WorkerOptions)
-    options_3 = PipelineOptions.from_dictionary(params).view_as(WorkerOptions)
-
-    assert options_1.use_public_ips == options_2.use_public_ips == (
-        options_3.use_public_ips) == False
-
-    flags = ['--use_public_ips']
-    params = {'use_public_ips': True}
-    options_1 = PipelineOptions(flags).view_as(WorkerOptions)
-    options_2 = PipelineOptions(**params).view_as(WorkerOptions)
-    options_3 = PipelineOptions.from_dictionary(params).view_as(WorkerOptions)
-
-    assert options_1.use_public_ips == options_2.use_public_ips == (
-        options_3.use_public_ips) == True
-    params = {'use_public_ips': False}  # use_public_ips = False represents
-    # that this option is not provided to the command line.
-    flags = []
-    options_1 = PipelineOptions(flags).view_as(WorkerOptions)
-    options_2 = PipelineOptions(**params).view_as(WorkerOptions)
-    options_3 = PipelineOptions.from_dictionary(params).view_as(WorkerOptions)
-
-    # Invalid override flags in params.
-    assert options_1.use_public_ips == options_2.use_public_ips == (
-        options_3.use_public_ips) == None
 
 
 if __name__ == '__main__':
