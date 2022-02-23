@@ -68,7 +68,7 @@ func TestAdd(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := test.baseTime.Add(test.addition), test.expOut; got != want {
-				t.Errorf("got time %v, want %v", got, want)
+				t.Errorf("(%v).Add(%v), got time %v, want %v", t.baseTime, test.addition, got, want)
 			}
 		})
 	}
