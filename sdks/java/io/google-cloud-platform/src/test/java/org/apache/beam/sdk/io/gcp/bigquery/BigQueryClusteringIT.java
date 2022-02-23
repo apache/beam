@@ -161,9 +161,12 @@ public class BigQueryClusteringIT {
     String tableName =
         "weather_stations_streamed_clustered_table_function_" + System.currentTimeMillis();
 
-    Pipeline p = Pipeline.create(options);
+    BigQueryClusteringITOptions streamOptions = options;
+    streamOptions.setStreaming(true);
 
-    p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
+    Pipeline p = Pipeline.create(streamOptions);
+
+    p.apply(BigQueryIO.readTableRows().from(streamOptions.getBqcInput()))
         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
         .apply(
             BigQueryIO.writeTableRows()
@@ -177,12 +180,12 @@ public class BigQueryClusteringIT {
                 .withClustering(CLUSTERING)
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
-                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS));
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
+    Table table =
+        bqClient.tables().get(streamOptions.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(CLUSTERING, table.getClustering());
     Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
