@@ -67,7 +67,7 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -258,7 +258,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       // Reset the idle timer.
       streamIdleTimer
           .offset(streamIdleTime)
-          .withOutputTimestamp(BoundedWindow.TIMESTAMP_MAX_VALUE)
+          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
           .setRelative();
 
       return stream;
@@ -497,7 +497,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       appendLatencyDistribution.update(timeElapsed.toMillis());
       idleTimer
           .offset(streamIdleTime)
-          .withOutputTimestamp(BoundedWindow.TIMESTAMP_MAX_VALUE)
+          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
           .setRelative();
     }
 
