@@ -69,29 +69,17 @@ public class BoundedQueueExecutor {
                     && elementsOutstanding < maximumElementsOutstanding);
           }
         });
-    Runnable workRunnable =
-        () -> {
-          try {
-            work.run();
-          } finally {
-            monitor.enter();
-            --elementsOutstanding;
-            bytesOutstanding -= workBytes;
-            monitor.leave();
-          }
-        };
-    try {
-      bytesOutstanding += workBytes;
-      ++elementsOutstanding;
-      executor.execute(workRunnable);
-    } finally {
-      monitor.leave();
-    }
+    executeLockHeld(work, workBytes);
+  }
+
+  public void forceExecute(Runnable work, long workBytes) {
+    monitor.enter();
+    executeLockHeld(work, workBytes);
   }
 
   // Forcibly add something to the queue, ignoring the length limit.
   public void forceExecute(Runnable r) {
-    executor.execute(r);
+    forceExecute(r, 0);
   }
 
   public void shutdown() throws InterruptedException {
@@ -132,6 +120,27 @@ public class BoundedQueueExecutor {
       builder.append("<br>/n");
 
       return builder.toString();
+    } finally {
+      monitor.leave();
+    }
+  }
+
+  private void executeLockHeld(Runnable work, long workBytes) {
+    Runnable workRunnable =
+        () -> {
+          try {
+            work.run();
+          } finally {
+            monitor.enter();
+            --elementsOutstanding;
+            bytesOutstanding -= workBytes;
+            monitor.leave();
+          }
+        };
+    try {
+      bytesOutstanding += workBytes;
+      ++elementsOutstanding;
+      executor.execute(workRunnable);
     } finally {
       monitor.leave();
     }

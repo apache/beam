@@ -1551,7 +1551,7 @@ public class StreamingDataflowWorker {
       if (retryLocally) {
         // Try again after some delay and at the end of the queue to avoid a tight loop.
         sleep(retryLocallyDelayMs);
-        workUnitExecutor.forceExecute(work);
+        workUnitExecutor.forceExecute(work, work.getWorkItem().getSerializedSize());
       } else {
         // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
         // be processed.
@@ -2330,7 +2330,7 @@ public class StreamingDataflowWorker {
         }
       }
       if (nextWork != null) {
-        executor.forceExecute(nextWork);
+        executor.forceExecute(nextWork, nextWork.getWorkItem().getSerializedSize());
       }
     }
 

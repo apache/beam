@@ -2713,7 +2713,7 @@ public class StreamingDataflowWorkerTest {
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     computationState.completeWork(key1, 2);
-    Mockito.verify(mockExecutor).forceExecute(m3);
+    Mockito.verify(mockExecutor).forceExecute(m3, m3.getWorkItem().getSerializedSize());
     computationState.completeWork(key1, 3);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
