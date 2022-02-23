@@ -190,15 +190,15 @@ class PipelineOptions(HasDisplayData):
       flags: An iterable of command line arguments to be used. If not specified
         then sys.argv will be used as input for parsing arguments.
 
-      **kwargs: Add overrides for arguments passed in flags.
-
-      Note: for **kwargs, please pass the option names instead of flag names.
-      Option names: These are defined as dest in the parser.add_argument().
-      Passing flag names like {no_use_public_ips: True}, which is not defined
-      to any destination(dest) in parser, would be discarded/ignored. Instead,
-      pass the dest of the flag(dest of no_use_public_ips is use_public_ips),
-      Eg: {use_public_ips: False} to get the desired behavior.
-
+      **kwargs: Add overrides for arguments passed in flags. For kwargs,
+                please pass the option names instead of flag names.
+                Option names: These are defined as dest in the
+                parser.add_argument(). Passing flag names like
+                {no_use_public_ips: True}, which is not defined to any
+                destination(dest) in parser, would be discarded/ignored.
+                Instead, pass the dest of the flag
+                (dest of no_use_public_ips is use_public_ips),
+                Eg: {use_public_ips: False} to get the desired behavior.
 
     """
     # Initializing logging configuration in case the user did not set it up.
@@ -263,10 +263,11 @@ class PipelineOptions(HasDisplayData):
     Returns:
       A PipelineOptions object representing the given arguments.
 
-    Note: If a boolean flag is True in the dictionary, implicitly the
-    method assumes the boolean flag is specified as a command line argument.
-     If the boolean flag is False, this method simply discards them.
-
+    Note: If a boolean flag is True in the dictionary,
+          implicitly the method assumes the boolean flag is
+          specified as a command line argument. If the
+          boolean flag is False, this method simply discards
+          them.
     Eg: {no_auth: True} is similar to python your_file.py --no_auth
         {no_auth: False} is similar to python your_file.py.
     """
