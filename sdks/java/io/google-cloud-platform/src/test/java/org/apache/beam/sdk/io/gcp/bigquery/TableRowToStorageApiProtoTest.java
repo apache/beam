@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -32,11 +29,6 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -46,9 +38,18 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 /** Unit tests for {@link org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto}. */
 public class TableRowToStorageApiProtoTest {
@@ -430,10 +431,10 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("2.817"),
                   new TableCell().setV("true"),
                   new TableCell().setV("true"),
-                  new TableCell().setV(43L),
+                  new TableCell().setV("1970-01-01T00:00:00.000043Z"),
                   new TableCell().setV("00:52:07.123456"),
                   new TableCell().setV("2019-08-16T00:52:07.123456"),
-                  new TableCell().setV((int) LocalDate.of(2019,8,16).toEpochDay()),
+                  new TableCell().setV("2019-08-16"),
                   new TableCell().setV("23.4"),
                   new TableCell().setV(ImmutableList.of("hello", "goodbye"))));
 
@@ -448,10 +449,10 @@ public class TableRowToStorageApiProtoTest {
           .set("floatValue", "2.817")
           .set("boolValue", "true")
           .set("booleanValue", "true")
-          .set("timestampValue", 43L)
+          .set("timestampValue", "1970-01-01T00:00:00.000043Z")
           .set("timeValue", "00:52:07.123456")
           .set("datetimeValue", "2019-08-16T00:52:07.123456")
-          .set("dateValue", (int) LocalDate.of(2019,8,16).toEpochDay())
+          .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
@@ -507,12 +508,12 @@ public class TableRowToStorageApiProtoTest {
         new TableRow()
             .set("nestedValue1", BASE_TABLE_ROW)
             .set("nestedValue2", BASE_TABLE_ROW)
-            .set("nestedvalueNoF1", BASE_TABLE_ROW_NO_F)
-            .set("nestedvalueNoF2", BASE_TABLE_ROW_NO_F);
+            .set("nestedValueNoF1", BASE_TABLE_ROW_NO_F)
+            .set("nestedValueNoF2", BASE_TABLE_ROW_NO_F);
 
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, tableRow);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(NESTED_TABLE_SCHEMA.getFields(), descriptor, tableRow);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -528,7 +529,7 @@ public class TableRowToStorageApiProtoTest {
   public void testMessageWithFFromTableRow() throws Exception {
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, BASE_TABLE_ROW);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(BASE_TABLE_SCHEMA.getFields(), descriptor, BASE_TABLE_ROW);
     assertBaseRecord(msg, true);
   }
 
@@ -567,7 +568,7 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", ImmutableList.of(BASE_TABLE_ROW_NO_F, BASE_TABLE_ROW_NO_F));
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(REPEATED_MESSAGE_SCHEMA.getFields(), descriptor, repeatedRow);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -608,7 +609,7 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", null);
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(REPEATED_MESSAGE_SCHEMA.getFields(), descriptor, repeatedRow);
 
     Map<String, FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()
