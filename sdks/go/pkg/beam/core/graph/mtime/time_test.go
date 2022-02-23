@@ -43,7 +43,7 @@ func TestAdd(t *testing.T) {
 		{
 			"significant addition small",
 			Time(1000),
-			1e6 * time.Nanosecond,
+			1 * time.Millisecond,
 			Time(1001),
 		},
 		{
@@ -56,6 +56,12 @@ func TestAdd(t *testing.T) {
 			"add past max timestamp",
 			MaxTimestamp,
 			1 * time.Minute,
+			MaxTimestamp,
+		},
+		{
+			"add across max boundary",
+			Time(int64(MaxTimestamp) - 10000),
+			10 * time.Minute,
 			MaxTimestamp,
 		},
 	}
@@ -90,7 +96,7 @@ func TestSubtract(t *testing.T) {
 		{
 			"significant subtraction small",
 			Time(1000),
-			1e6 * time.Nanosecond,
+			1 * time.Millisecond,
 			Time(999),
 		},
 		{
@@ -103,6 +109,12 @@ func TestSubtract(t *testing.T) {
 			"subtract past min timestamp",
 			MinTimestamp,
 			1 * time.Minute,
+			MinTimestamp,
+		},
+		{
+			"subtract across min boundary",
+			Time(int64(MinTimestamp) + 10000),
+			10 * time.Minute,
 			MinTimestamp,
 		},
 	}
