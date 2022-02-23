@@ -24,14 +24,10 @@ const { ReviewersForLabel } = require("./reviewersForLabel");
 const { BOT_NAME } = require("./constants");
 
 export class PersistentState {
-  private switchedBranch: boolean;
-
-  constructor() {
-    this.switchedBranch = false;
-  }
+  private switchedBranch = false;
 
   // Returns a Pr object representing the current saved state of the pr.
-  async getPrState(prNumber: number): Promise<any> {
+  async getPrState(prNumber: number): Promise<typeof Pr> {
     var fileName = this.getPrFileName(prNumber);
     return new Pr(await this.getState(fileName, "state/pr-state"));
   }
@@ -43,7 +39,9 @@ export class PersistentState {
   }
 
   // Returns a ReviewersForLabel object representing the current saved state of which reviewers have reviewed recently.
-  async getReviewersForLabelState(label: string): Promise<any> {
+  async getReviewersForLabelState(
+    label: string
+  ): Promise<typeof ReviewersForLabel> {
     var fileName = this.getReviewersForLabelFileName(label);
     return new ReviewersForLabel(label, await this.getState(fileName, "state"));
   }

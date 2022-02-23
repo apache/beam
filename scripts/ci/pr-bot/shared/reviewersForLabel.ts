@@ -22,7 +22,12 @@ export class ReviewersForLabel {
   public label: string;
   public dateOfLastReviewAssignment: { [key: string]: number };
 
-  constructor(label: string, propertyDictionary: any) {
+  constructor(
+    label: string,
+    propertyDictionary: {
+      dateOfLastReviewAssignment: { [key: string]: number };
+    }
+  ) {
     this.label = label;
     this.dateOfLastReviewAssignment = {}; // map of reviewer to date
 
@@ -72,7 +77,7 @@ export class ReviewersForLabel {
   // Updates this object to reflect their assignment.
   assignNextCommitter(availableReviewers: string[]): string {
     let earliestDate = Date.now();
-    let earliestCommitter: any = null;
+    let earliestCommitter: string = "";
 
     for (let i = 0; i < availableReviewers.length; i++) {
       let availableReviewer = availableReviewers[i];

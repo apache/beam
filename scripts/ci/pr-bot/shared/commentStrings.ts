@@ -30,7 +30,7 @@ export function assignReviewer(labelToReviewerMapping: any): string {
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
-    if (label == "no-matching-label") {
+    if (label === "no-matching-label") {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
@@ -46,7 +46,7 @@ Available commands:
 }
 
 export function failingChecksCantAssign(): string {
-  return "Checks are failing. Will not request review until checks are succeeding. If you'd like to override that behavior, comment `assign set of reviewers`\"";
+  return "Checks are failing. Will not request review until checks are succeeding. If you'd like to override that behavior, comment `assign set of reviewers`";
 }
 
 export function someChecksFailing(reviewersToNotify: string[]): string {
@@ -62,14 +62,11 @@ export function remindReviewerAfterTestsPass(requester: string): string {
 }
 
 export function reviewersAlreadyAssigned(reviewers: string[]): string {
-  let commentString = `Reviewers are already assigned to this pr: `;
-  reviewers.forEach((reviewer) => {
-    commentString += `@${reviewer} `;
-  });
-
-  return commentString;
+  return `Reviewers are already assigned to this PR: ${reviewers
+    .map((reviewer) => "@" + reviewer)
+    .join(" ")}`;
 }
 
 export function noLegalReviewers(): string {
-  return "No reviewers could be found from any of the labels on the pr or in the fallback reviewers list. Check the config file to make sure reviewers are configured";
+  return "No reviewers could be found from any of the labels on the PR or in the fallback reviewers list. Check the config file to make sure reviewers are configured";
 }

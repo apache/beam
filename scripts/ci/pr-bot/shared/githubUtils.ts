@@ -19,34 +19,36 @@
 const { Octokit } = require("@octokit/rest");
 const { REPO_OWNER, REPO } = require("./constants");
 
+export interface Label {
+  name: string;
+}
+
 export function getGitHubClient() {
-  let githubToken = process.env["GITHUB_TOKEN"];
-  if (!githubToken) {
+  let auth = process.env["GITHUB_TOKEN"];
+  if (!auth) {
     throw new Error(
       "No github token provided - process.env['GITHUB_TOKEN'] must be set."
     );
   }
-  return new Octokit({ auth: githubToken });
+  return new Octokit({ auth });
 }
 
 export async function addPrComment(pullNumber: number, body: string) {
-  const githubClient = getGitHubClient();
-  await githubClient.rest.issues.createComment({
+  await getGitHubClient().rest.issues.createComment({
     owner: REPO_OWNER,
     repo: REPO,
     issue_number: pullNumber,
-    body: body,
+    body,
   });
 }
 
 export async function nextActionReviewers(
   pullNumber: number,
-  existingLabels: any[]
+  existingLabels: Label[]
 ) {
-  const client = getGitHubClient();
   let newLabels = removeNextActionLabel(existingLabels);
   newLabels.push("Next Action: Reviewers");
-  await client.rest.issues.setLabels({
+  await getGitHubClient().rest.issues.setLabels({
     owner: REPO_OWNER,
     repo: REPO,
     issue_number: pullNumber,
@@ -56,12 +58,11 @@ export async function nextActionReviewers(
 
 export async function nextActionAuthor(
   pullNumber: number,
-  existingLabels: any[]
+  existingLabels: Label[]
 ) {
-  const client = getGitHubClient();
   let newLabels = removeNextActionLabel(existingLabels);
   newLabels.push("Next Action: Author");
-  await client.rest.issues.setLabels({
+  await getGitHubClient().rest.issues.setLabels({
     owner: REPO_OWNER,
     repo: REPO,
     issue_number: pullNumber,
@@ -70,27 +71,26 @@ export async function nextActionAuthor(
 }
 
 export async function checkIfCommitter(username: string): Promise<boolean> {
-  const client = getGitHubClient();
-  const permissions = (
-    await client.rest.repos.getCollaboratorPermissionLevel({
+  const permissionLevel = (
+    await getGitHubClient().rest.repos.getCollaboratorPermissionLevel({
       owner: REPO_OWNER,
       repo: REPO,
-      username: username,
+      username,
     })
-  ).data.permission;
+  ).data;
 
-  return permissions == "write" || permissions == "admin";
+  return (
+    permissionLevel.permission === "write" ||
+    permissionLevel.permission === "admin"
+  );
 }
 
-function removeNextActionLabel(existingLabels: any[]): string[] {
-  let newLabels: string[] = [];
-  existingLabels.forEach((label) => {
-    if (
-      label.name != "Next Action: Reviewers" &&
-      label.name != "Next Action: Author"
-    ) {
-      newLabels.push(label.name);
-    }
-  });
-  return newLabels;
+function removeNextActionLabel(existingLabels: Label[]): string[] {
+  return existingLabels
+    .filter(
+      (label) =>
+        label.name != "Next Action: Reviewers" &&
+        label.name != "Next Action: Author"
+    )
+    .map((label) => label.name);
 }

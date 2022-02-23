@@ -63,7 +63,7 @@ export class Pr {
     const labels = Object.keys(this.reviewersAssignedForLabels);
     for (let i = 0; i < labels.length; i++) {
       let label = labels[i];
-      if (this.reviewersAssignedForLabels[label] == reviewer) {
+      if (this.reviewersAssignedForLabels[label] === reviewer) {
         return label;
       }
     }
@@ -75,9 +75,10 @@ export class Pr {
   async isAnyAssignedReviewerCommitter(): Promise<boolean> {
     const labels = Object.keys(this.reviewersAssignedForLabels);
     for (let i = 0; i < labels.length; i++) {
-      let label = labels[i];
       if (
-        await github.checkIfCommitter(this.reviewersAssignedForLabels[label])
+        await github.checkIfCommitter(
+          this.reviewersAssignedForLabels[labels[i]]
+        )
       ) {
         return true;
       }

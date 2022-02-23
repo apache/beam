@@ -17,9 +17,9 @@
     under the License.
 -->
 
-# Pr Bot
+# PR Bot
 
-This directory holds all the code (except for Actions Workflows) for our pr bot designed to improve the pr experience.
+This directory holds all the code (except for Actions Workflows) for our PR bot designed to improve the PR experience.
 For a list of commands to use when interacting with the bot, see [Commands.md](./Commands.md).
 For a design doc explaining the design and implementation, see [Automate Reviewer Assignment](https://docs.google.com/document/d/1FhRPRD6VXkYlLAPhNfZB7y2Yese2FCWBzjx67d3TjBo/edit#)
 
