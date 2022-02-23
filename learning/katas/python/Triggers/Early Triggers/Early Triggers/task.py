@@ -17,35 +17,41 @@
 # under the License.
 #
 
+# beam-playground:
+#   name: EarlyTriggers
+#   description: Task from katas to count events using early triggers
+#   multifile: true
+#   context_line: 46
+#   categories:
+#     - Streaming
+
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+
 from generate_event import GenerateEvent
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.utils.timestamp import Duration
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from log_elements import LogElements
 
 
-def apply_transform(events):
+class CountEventsWithEarlyTrigger(beam.PTransform):
+  def expand(self, events):
     return (events
-            | beam.WindowInto(FixedWindows(1*24*60*60),  # 1 Day Window
+            | beam.WindowInto(FixedWindows(1 * 24 * 60 * 60),  # 1 Day Window
                               trigger=AfterWatermark(early=AfterCount(1)),
                               accumulation_mode=AccumulationMode.DISCARDING,
                               allowed_lateness=Duration(seconds=0))
             | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())
 
 
-def main():
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    with beam.Pipeline(options=options) as p:
-        events = p | GenerateEvent.sample_data()
-        output = apply_transform(events)
-        output | LogElements(with_window=True)
+options = PipelineOptions()
+options.view_as(StandardOptions).streaming = True  # Required to get multiple trigger firing outputs
 
-
-if __name__ == "__main__":
-    main()
+with beam.Pipeline(options=options) as p:
+  (p | GenerateEvent.sample_data()
+   | CountEventsWithEarlyTrigger()
+   | LogElements(with_window=True))

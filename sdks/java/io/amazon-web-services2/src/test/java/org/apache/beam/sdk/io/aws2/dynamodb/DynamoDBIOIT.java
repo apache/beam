@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.DYNAMODB;
 
-import java.net.URI;
 import java.util.Map;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
@@ -120,9 +119,7 @@ public class DynamoDBIOIT {
         .apply("Prepare TestRows", ParDo.of(new DeterministicallyConstructTestRowFn()))
         .apply(
             "Write to DynamoDB",
-            DynamoDBIO.<TestRow>write()
-                .withDynamoDbClientProvider(clientProvider())
-                .withWriteRequestMapperFn(row -> buildWriteRequest(row)));
+            DynamoDBIO.<TestRow>write().withWriteRequestMapperFn(row -> buildWriteRequest(row)));
     pipelineWrite.run().waitUntilFinish();
   }
 
@@ -133,10 +130,7 @@ public class DynamoDBIOIT {
         pipelineRead
             .apply(
                 "Read from DynamoDB",
-                DynamoDBIO.read()
-                    .withDynamoDbClientProvider(clientProvider())
-                    .withScanRequestFn(in -> buildScanRequest())
-                    .items())
+                DynamoDBIO.read().withScanRequestFn(in -> buildScanRequest()).items())
             .apply("Flatten result", Flatten.iterables());
 
     PAssert.thatSingleton(records.apply("Count All", Count.globally())).isEqualTo((long) rows);
@@ -149,13 +143,6 @@ public class DynamoDBIOIT {
     PAssert.that(consolidatedHashcode).containsInAnyOrder(getExpectedHashForRowCount(rows));
 
     pipelineRead.run().waitUntilFinish();
-  }
-
-  private DynamoDbClientProvider clientProvider() {
-    return new BasicDynamoDbClientProvider(
-        env.options().getAwsCredentialsProvider(),
-        env.options().getAwsRegion(),
-        env.options().getEndpoint() != null ? URI.create(env.options().getEndpoint()) : null);
   }
 
   private static ScanRequest buildScanRequest() {

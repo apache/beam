@@ -17,12 +17,12 @@ package preparers
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -36,6 +36,14 @@ const (
 	pathSeparatorPattern              = os.PathSeparator
 	tmpFileSuffix                     = "tmp"
 	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
+	pipelineNamePattern               = `Pipeline\s([A-z|0-9_]*)\s=\sPipeline\.create`
+	graphSavePattern                  = "String dotString = org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer.toDotString(%s);\n" +
+		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"%s\")) {\n      " +
+		"		out.println(dotString);\n    " +
+		"	} catch (java.io.FileNotFoundException e) {\n" +
+		"      e.printStackTrace();\n    " +
+		"\n}\n"
+	graphRunPattern = "(.*%s.run.*;)"
 )
 
 //JavaPreparersBuilder facet of PreparersBuilder
@@ -88,12 +96,48 @@ func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder
 	return builder
 }
 
+//WithGraphHandler adds code to save the graph
+func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
+	graphCodeAdder := Preparer{
+		Prepare: addCodeToSaveGraph,
+		Args:    []interface{}{builder.filePath},
+	}
+	builder.AddPreparer(graphCodeAdder)
+	return builder
+}
+
+func addCodeToSaveGraph(args ...interface{}) error {
+	filePath := args[0].(string)
+	pipelineObjectName, _ := findPipelineObjectName(filePath)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, utils.GraphFileName)
+
+	if pipelineObjectName != utils.EmptyLine {
+		reg := regexp.MustCompile(fmt.Sprintf(graphRunPattern, pipelineObjectName))
+		code, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			logger.Error("Can't read file")
+			return err
+		}
+		result := reg.ReplaceAllString(string(code), fmt.Sprintf(`%s$1`, graphSaveCode))
+		if err != nil {
+			logger.Error("Can't add graph extraction code")
+			return err
+		}
+		if err = ioutil.WriteFile(filePath, []byte(result), 0666); err != nil {
+			logger.Error("Can't rewrite file %s", filePath)
+			return err
+		}
+	}
+	return nil
+}
+
 // GetJavaPreparers returns preparation methods that should be applied to Java code
 func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if !isUnitTest && !isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
-			WithPackageChanger()
+			WithPackageChanger().
+			WithGraphHandler()
 	}
 	if isUnitTest {
 		builder.JavaPreparers().
@@ -103,8 +147,25 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
-			WithPackageRemover()
+			WithPackageRemover().
+			WithGraphHandler()
 	}
+}
+
+// findPipelineObjectName finds name of pipeline in JAVA code when pipeline is created
+func findPipelineObjectName(filepath string) (string, error) {
+	reg := regexp.MustCompile(pipelineNamePattern)
+	b, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return "", err
+	}
+	matches := reg.FindStringSubmatch(string(b))
+	if len(matches) > 0 {
+		return matches[1], nil
+	} else {
+		return "", nil
+	}
+
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
@@ -167,7 +228,7 @@ func writeWithReplace(from *os.File, to *os.File, pattern, newPattern string) er
 
 // replaceAndWriteLine replaces pattern from line to newPattern and writes updated line to the file
 func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Regexp, newPattern string) error {
-	err := addNewLine(newLine, to)
+	err := utils.AddNewLine(newLine, to)
 	if err != nil {
 		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", newLinePattern, err.Error())
 		return err
@@ -191,44 +252,15 @@ func createTempFile(originalFilePath string) (*os.File, error) {
 	return os.Create(tmpFilePath)
 }
 
-// addNewLine adds a new line at the end of the file
-func addNewLine(newLine bool, file *os.File) error {
-	if !newLine {
-		return nil
-	}
-	if _, err := io.WriteString(file, newLinePattern); err != nil {
-		return err
-	}
-	return nil
-}
-
 func changeJavaTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	className, err := getPublicClassName(filePath, javaPublicClassNamePattern)
+	className, err := utils.GetPublicClassName(filePath, javaPublicClassNamePattern)
 	if err != nil {
 		return err
 	}
-	err = renameSourceCodeFile(filePath, className)
+	err = utils.RenameSourceCodeFile(filePath, className)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func renameSourceCodeFile(filePath string, className string) error {
-	currentFileName := filepath.Base(filePath)
-	newFilePath := strings.Replace(filePath, currentFileName, fmt.Sprintf("%s%s", className, filepath.Ext(currentFileName)), 1)
-	err := os.Rename(filePath, newFilePath)
-	return err
-}
-
-func getPublicClassName(filePath, pattern string) (string, error) {
-	code, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		logger.Errorf("Preparer: Error during open file: %s, err: %s\n", filePath, err.Error())
-		return "", err
-	}
-	re := regexp.MustCompile(pattern)
-	className := re.FindStringSubmatch(string(code))[1]
-	return className, err
 }

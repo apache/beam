@@ -16,6 +16,7 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
 	"path/filepath"
 	"reflect"
@@ -55,6 +56,7 @@ func Test_newPythonLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(baseFileFolder, pipelineId.String()+pythonExecutableFileExtension),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 				},
 			},
 		},
