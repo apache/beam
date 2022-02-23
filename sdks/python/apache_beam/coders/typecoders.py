@@ -137,9 +137,9 @@ class CoderRegistry(object):
         return coders.IterableCoder.from_type_hint(typehint, self)
       elif isinstance(typehint, typehints.ListConstraint):
         return coders.ListCoder.from_type_hint(typehint, self)
-      elif isinstance(typehint,
-                      typehints.UnionConstraint) and typehint.contains_type(
-                          type(None)):
+      elif (isinstance(typehint, typehints.UnionConstraint) and
+            typehint.contains_type(type(None) and
+                                   len(list(typehint._inner_types())) == 2)):
         return coders.NullableCoder.from_type_hint(typehint, self)
       elif typehint is None:
         # In some old code, None is used for Any.
