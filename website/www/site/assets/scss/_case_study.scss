@@ -312,6 +312,13 @@ h2.case-study-h2 {
     img {
       width: 100%;
     }
+
+    &.vertical-scheme {
+      text-align: center;
+      img {
+        max-width: 480px;
+      }
+    }
   }
 
   @media screen and (max-width: $mobile) {
