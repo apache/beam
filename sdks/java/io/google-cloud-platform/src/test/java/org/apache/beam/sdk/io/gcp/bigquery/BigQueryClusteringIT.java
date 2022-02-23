@@ -160,13 +160,10 @@ public class BigQueryClusteringIT {
   public void testStreamingE2EBigQueryClusteringNoPartitionTableFunction() throws Exception {
     String tableName =
         "weather_stations_streamed_clustered_table_function_" + System.currentTimeMillis();
-    BigQueryClusteringITOptions streamOptions = options;
 
-    streamOptions.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
 
-    Pipeline p = Pipeline.create(streamOptions);
-
-    p.apply(BigQueryIO.readTableRows().from(streamOptions.getBqcInput()))
+    p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
         .apply(
             BigQueryIO.writeTableRows()
@@ -180,12 +177,12 @@ public class BigQueryClusteringIT {
                 .withClustering(CLUSTERING)
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS));
 
     p.run().waitUntilFinish();
 
-    Table table =
-        bqClient.tables().get(streamOptions.getProject(), DATASET_NAME, tableName).execute();
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(CLUSTERING, table.getClustering());
     Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
@@ -221,7 +218,7 @@ public class BigQueryClusteringIT {
   public void testE2EBigQueryClusteringNoPartitionDynamicDestinationsStorageAPI() throws Exception {
 
     String tableName =
-        "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
+        "weather_stations_clustered_storageapi_dynamic_destinations_" + System.currentTimeMillis();
 
     Pipeline p = Pipeline.create(options);
 
@@ -247,7 +244,7 @@ public class BigQueryClusteringIT {
       throws Exception {
 
     String tableName =
-        "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
+        "weather_stations_clustered_atleastonce_dynamic_destinations_" + System.currentTimeMillis();
 
     Pipeline p = Pipeline.create(options);
 
