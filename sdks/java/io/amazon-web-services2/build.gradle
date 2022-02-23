@@ -59,10 +59,10 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:kinesis", configuration: "testRuntimeMigration")
   testImplementation "io.findify:s3mock_2.12:0.2.6"
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:1.3.5'
   testImplementation library.java.mockito_core
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
-  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6' // later versions conflict with s3mock
   testImplementation library.java.hamcrest
   testImplementation "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14

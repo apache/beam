@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,23 +17,14 @@
 # under the License.
 #
 
-resource "google_storage_bucket" "examples_bucket" {
-  name          = "${var.examples_bucket_name}"
-  location      = "${var.examples_bucket_location}"
-  project       = "${var.project_id}"
-  storage_class = "${var.examples_storage_class}"
-  uniform_bucket_level_access = true
+resource "google_project_service" "required_services" {
+  for_each = toset([
+    "artifactregistry",
+    "compute",
+    "container",
+    "redis",
+  ])
+  service            = "${each.key}.googleapis.com"
+  disable_on_destroy = false
 }
 
-resource "google_storage_bucket_access_control" "public_rule" {
-  bucket = google_storage_bucket.examples_bucket.name
-  role   = "VIEWER"
-  entity = "allUsers"
-}
-
-resource "google_storage_bucket" "terraform_bucket" {
-  name          = "${var.terraform_bucket_name}"
-  location      = "${var.terraform_bucket_location}"
-  project       = "${var.project_id}"
-  storage_class = "${var.terraform_storage_class}"
-}

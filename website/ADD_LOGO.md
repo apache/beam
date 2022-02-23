@@ -22,6 +22,7 @@
 1. Fork [Apache Beam](https://github.com/apache/beam) repository
 2. Add file with company or project name to
    the [case-studies](https://github.com/apache/beam/tree/master/website/www/site/content/en/case-studies) folder
+   e.g., `company.md`
 3. Add project/company logo to
    the [images/logos/powered-by](https://github.com/apache/beam/tree/master/website/www/site/static/images/logos/powered-by)
    folder. Please use your company/project name e.g. `ricardo.png`

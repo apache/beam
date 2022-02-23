@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,12 +17,14 @@
 # under the License.
 #
 
-resource "google_artifact_registry_repository" "playground_repo" {
-  provider = google-beta
+output "registry_name" {
+  value = google_artifact_registry_repository.playground_repo.name
+}
 
-  project = "${var.project_id}"
-  location = "${var.repository_location}"
-  repository_id = "${var.repository_id}"
-  description = "Playground docker repository"
-  format = "DOCKER"
+output "registry_id" {
+  value = google_artifact_registry_repository.playground_repo.id
+}
+
+output "location" {
+  value = google_artifact_registry_repository.playground_repo.location
 }

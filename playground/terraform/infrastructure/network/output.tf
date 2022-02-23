@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,10 +17,10 @@
 # under the License.
 #
 
-output "vpc_name" {
-  value = "${google_compute_network.playground_vpc.name}"
+output "network" {
+  value = google_compute_network.playground.name
 }
 
-output "vpc_id" {
-  value = "${google_compute_network.playground_vpc.id}"
+output "subnetwork" {
+  value = google_compute_subnetwork.playground.name
 }
