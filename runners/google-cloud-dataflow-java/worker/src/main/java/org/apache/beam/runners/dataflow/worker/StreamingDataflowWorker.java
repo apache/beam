@@ -660,7 +660,7 @@ public class StreamingDataflowWorker {
             THREAD_EXPIRATION_TIME_SEC,
             TimeUnit.SECONDS,
             chooseMaximumBundlesOutstanding(),
-            options.getMaxBytesFromWindmillOutstanding(),
+            chooseMaximumBytesOutstanding(),
             threadFactory);
 
     maxSinkBytes =
@@ -781,6 +781,14 @@ public class StreamingDataflowWorker {
 
   private int chooseMaximumBundlesOutstanding() {
     return Math.max(options.getMaxBundlesFromWindmillOutstanding(), chooseMaximumNumberOfThreads());
+  }
+
+  private long chooseMaximumBytesOutstanding() {
+    long maxMem = options.getMaxBytesFromWindmillOutstanding();
+    if (maxMem > 0) {
+      return maxMem;
+    }
+    return Runtime.getRuntime().maxMemory() / 2;
   }
 
   void addStateNameMappings(Map<String, String> nameMap) {

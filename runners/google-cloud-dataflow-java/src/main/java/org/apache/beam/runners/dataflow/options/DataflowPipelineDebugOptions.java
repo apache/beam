@@ -177,22 +177,24 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
 
   void setNumberOfWorkerHarnessThreads(int value);
 
-  /**
-   * Maximum number of bundles outstanding from windmill before the worker stops requesting.
-   */
+  /** Maximum number of bundles outstanding from windmill before the worker stops requesting. */
   @Description(
       "Maximum number of bundles outstanding from windmill before the worker stops requesting.")
   @Default.Integer(400)
   int getMaxBundlesFromWindmillOutstanding();
+
   void setMaxBundlesFromWindmillOutstanding(int value);
 
   /**
    * Maximum number of bytes outstanding from windmill before the worker stops requesting.
+   *
+   * <p>If <= 0, use the default value of 50% of jvm memory.
    */
   @Description(
-      "Maximum number of bytes outstanding from windmill before the worker stops requesting.")
-  @Default.Long(500L << 20L) // 500MB
+      "Maximum number of bytes outstanding from windmill before the worker stops requesting. If <= 0, use the default value of 50% of jvm memory.")
+  @Default.Long(0)
   long getMaxBytesFromWindmillOutstanding();
+
   void setMaxBytesFromWindmillOutstanding(long value);
 
   /**
