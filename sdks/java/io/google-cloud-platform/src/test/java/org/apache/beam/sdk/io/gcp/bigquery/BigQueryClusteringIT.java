@@ -156,6 +156,7 @@ public class BigQueryClusteringIT {
     Assert.assertEquals(EXPECTED_ROWS, table.getNumRows());
   }
 
+  /*
   @Test
   public void testStreamingE2EBigQueryClusteringNoPartitionTableFunction() throws Exception {
     String tableName =
@@ -188,6 +189,7 @@ public class BigQueryClusteringIT {
     Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
     Assert.assertEquals(EXPECTED_ROWS, table.getNumRows());
   }
+  */
 
   @Test
   public void testE2EBigQueryClusteringNoPartitionDynamicDestinations() throws Exception {
