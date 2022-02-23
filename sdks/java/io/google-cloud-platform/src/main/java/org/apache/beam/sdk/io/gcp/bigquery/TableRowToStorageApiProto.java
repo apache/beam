@@ -66,14 +66,6 @@ public class TableRowToStorageApiProto {
           .put("BOOL", Type.TYPE_BOOL)
           .put("BOOLEAN", Type.TYPE_BOOL)
           .put("BYTES", Type.TYPE_BYTES)
-//          .put("NUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
-//          .put("BIGNUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
-//          .put("GEOGRAPHY", Type.TYPE_STRING) // Pass through the JSON encoding.
-//          .put("DATE", Type.TYPE_STRING) // Pass through the JSON encoding.
-//          .put("TIME", Type.TYPE_STRING) // Pass through the JSON encoding.
-//          .put("DATETIME", Type.TYPE_STRING) // Pass through the JSON encoding.
-//          .put("TIMESTAMP", Type.TYPE_STRING) // Pass through the JSON encoding.
-
           .put("NUMERIC", Type.TYPE_STRING)
           .put("BIGNUMERIC", Type.TYPE_STRING)
           .put("GEOGRAPHY", Type.TYPE_STRING)
