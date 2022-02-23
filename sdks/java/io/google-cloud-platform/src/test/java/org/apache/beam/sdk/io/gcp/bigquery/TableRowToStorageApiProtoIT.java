@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -93,10 +94,10 @@ public class TableRowToStorageApiProtoIT {
                     .set("floatValue", "2.817")
                     .set("boolValue", "true")
                     .set("booleanValue", "true")
-                    .set("timestampValue", "43")
+                    .set("timestampValue", 43L)
                     .set("timeValue", "00:52:07.123456")
                     .set("datetimeValue", "2019-08-16T00:52:07.123456")
-                    .set("dateValue", "2019-08-16")
+                    .set("dateValue", (int) LocalDate.parse("2019-08-16").toEpochDay())
                     .set("numericValue", "23.4")
                     .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
@@ -111,7 +112,7 @@ public class TableRowToStorageApiProtoIT {
                     .set("floatValue", 2.817)
                     .set("boolValue", true)
                     .set("booleanValue", true)
-                    .set("timestampValue", "43")
+                    .set("timestampValue", "4.3E-5")
                     .set("timeValue", "00:52:07.123456")
                     .set("datetimeValue", "2019-08-16T00:52:07.123456")
                     .set("dateValue", "2019-08-16")

@@ -53,6 +53,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
+
+  // see protocol buffer type and bigquery type conversion
+  // https://cloud.google.com/bigquery/docs/write-api#data_type_conversions
   static final Map<String, Type> PRIMITIVE_TYPES =
       ImmutableMap.<String, Type>builder()
           .put("INT64", Type.TYPE_INT64)
@@ -63,13 +66,21 @@ public class TableRowToStorageApiProto {
           .put("BOOL", Type.TYPE_BOOL)
           .put("BOOLEAN", Type.TYPE_BOOL)
           .put("BYTES", Type.TYPE_BYTES)
-          .put("NUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("BIGNUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("GEOGRAPHY", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("DATE", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("TIME", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("DATETIME", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("TIMESTAMP", Type.TYPE_STRING) // Pass through the JSON encoding.
+//          .put("NUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
+//          .put("BIGNUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
+//          .put("GEOGRAPHY", Type.TYPE_STRING) // Pass through the JSON encoding.
+//          .put("DATE", Type.TYPE_STRING) // Pass through the JSON encoding.
+//          .put("TIME", Type.TYPE_STRING) // Pass through the JSON encoding.
+//          .put("DATETIME", Type.TYPE_STRING) // Pass through the JSON encoding.
+//          .put("TIMESTAMP", Type.TYPE_STRING) // Pass through the JSON encoding.
+
+          .put("NUMERIC", Type.TYPE_STRING)
+          .put("BIGNUMERIC", Type.TYPE_STRING)
+          .put("GEOGRAPHY", Type.TYPE_STRING)
+          .put("DATE", Type.TYPE_INT32)
+          .put("TIME", Type.TYPE_STRING)
+          .put("DATETIME", Type.TYPE_STRING)
+          .put("TIMESTAMP", Type.TYPE_INT64)
           .put("JSON", Type.TYPE_STRING)
           .build();
 

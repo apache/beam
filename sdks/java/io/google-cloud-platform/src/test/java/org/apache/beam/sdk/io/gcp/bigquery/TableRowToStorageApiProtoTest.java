@@ -33,6 +33,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -173,7 +174,7 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -194,7 +195,7 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(13)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -275,7 +276,7 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -295,8 +296,8 @@ public class TableRowToStorageApiProtoTest {
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
-                  .setNumber(2)
-                  .setType(Type.TYPE_STRING)
+                  .setNumber(12)
+                  .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -429,10 +430,10 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("2.817"),
                   new TableCell().setV("true"),
                   new TableCell().setV("true"),
-                  new TableCell().setV("43"),
-                  new TableCell().setV("00:52:07[.123]|[.123456] UTC"),
-                  new TableCell().setV("2019-08-16 00:52:07[.123]|[.123456] UTC"),
-                  new TableCell().setV("2019-08-16"),
+                  new TableCell().setV(43L),
+                  new TableCell().setV("00:52:07.123456"),
+                  new TableCell().setV("2019-08-16T00:52:07.123456"),
+                  new TableCell().setV((int) LocalDate.of(2019,8,16).toEpochDay()),
                   new TableCell().setV("23.4"),
                   new TableCell().setV(ImmutableList.of("hello", "goodbye"))));
 
@@ -447,10 +448,10 @@ public class TableRowToStorageApiProtoTest {
           .set("floatValue", "2.817")
           .set("boolValue", "true")
           .set("booleanValue", "true")
-          .set("timestampValue", "43")
-          .set("timeValue", "00:52:07[.123]|[.123456] UTC")
-          .set("datetimeValue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
-          .set("dateValue", "2019-08-16")
+          .set("timestampValue", 43L)
+          .set("timeValue", "00:52:07.123456")
+          .set("datetimeValue", "2019-08-16T00:52:07.123456")
+          .set("dateValue", (int) LocalDate.of(2019,8,16).toEpochDay())
           .set("numericValue", "23.4")
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
@@ -465,10 +466,10 @@ public class TableRowToStorageApiProtoTest {
           .put("floatvalue", (double) 2.817)
           .put("boolvalue", true)
           .put("booleanvalue", true)
-          .put("timestampvalue", "43")
-          .put("timevalue", "00:52:07[.123]|[.123456] UTC")
-          .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
-          .put("datevalue", "2019-08-16")
+          .put("timestampvalue", 43L)
+          .put("timevalue", "00:52:07.123456")
+          .put("datetimevalue", "2019-08-16T00:52:07.123456")
+          .put("datevalue", (int) LocalDate.of(2019, 8, 16).toEpochDay())
           .put("numericvalue", "23.4")
           .put("arrayvalue", ImmutableList.of("hello", "goodbye"))
           .build();
@@ -483,10 +484,10 @@ public class TableRowToStorageApiProtoTest {
           .put("floatvalue", (double) 2.817)
           .put("boolvalue", true)
           .put("booleanvalue", true)
-          .put("timestampvalue", "43")
-          .put("timevalue", "00:52:07[.123]|[.123456] UTC")
-          .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
-          .put("datevalue", "2019-08-16")
+          .put("timestampvalue", 43L)
+          .put("timevalue", "00:52:07.123456")
+          .put("datetimevalue", "2019-08-16T00:52:07.123456")
+          .put("datevalue", (int) LocalDate.parse("2019-08-16").toEpochDay())
           .put("numericvalue", "23.4")
           .put("arrayvalue", ImmutableList.of("hello", "goodbye"))
           .build();
