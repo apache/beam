@@ -468,7 +468,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     Write<TableRow> writeTransform =
         BigQueryIO.writeTableRows()
-            .to("project-id:dataset-id.table-id")
+            .to("project-id:dataset-id.table-time-partitioning-clustering")
             .withTestServices(fakeBqServices)
             .withMethod(insertMethod)
             .withSchema(schema)
@@ -485,7 +485,8 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
     Table table =
         fakeDatasetService.getTable(
-            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+            BigQueryHelpers.parseTableSpec(
+                "project-id:dataset-id.table-time-partitioning-clustering"));
 
     assertEquals(schema, table.getSchema());
     if (enablePartitioning) {
