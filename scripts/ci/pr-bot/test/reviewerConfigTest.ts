@@ -53,40 +53,58 @@ describe("ReviewerConfig", function () {
         []
       );
       assert(
-        reviewersForLabels["Go"].indexOf("testReviewer1") > -1,
+        reviewersForLabels["Go"].find(
+          (reviewer) => reviewer === "testReviewer1"
+        ),
         "Return value for Go label should include testReviewer1"
       );
       assert(
-        reviewersForLabels["Go"].indexOf("testReviewer2") > -1,
+        reviewersForLabels["Go"].find(
+          (reviewer) => reviewer === "testReviewer2"
+        ),
         "Return value for Go label should include testReviewer2"
       );
       assert(
-        reviewersForLabels["Go"].indexOf("testReviewer3") == -1,
+        !reviewersForLabels["Go"].find(
+          (reviewer) => reviewer === "testReviewer3"
+        ),
         "Return value for Go label should not include testReviewer3"
       );
       assert(
-        reviewersForLabels["Go"].indexOf("testReviewer4") == -1,
+        !reviewersForLabels["Go"].find(
+          (reviewer) => reviewer === "testReviewer4"
+        ),
         "Return value for Go label should not include testReviewer4"
       );
 
       assert(
-        reviewersForLabels["Java"].indexOf("testReviewer3") > -1,
+        reviewersForLabels["Java"].find(
+          (reviewer) => reviewer === "testReviewer3"
+        ),
         "Return value for Java label should include testReviewer3"
       );
       assert(
-        reviewersForLabels["Java"].indexOf("testReviewer2") > -1,
+        reviewersForLabels["Java"].find(
+          (reviewer) => reviewer === "testReviewer2"
+        ),
         "Return value for Java label should include testReviewer2"
       );
       assert(
-        reviewersForLabels["Java"].indexOf("testReviewer4") == -1,
+        !reviewersForLabels["Java"].find(
+          (reviewer) => reviewer === "testReviewer4"
+        ),
         "Return value for Java label should not include testReviewer4"
       );
       assert(
-        reviewersForLabels["Java"].indexOf("testReviewer1") == -1,
+        !reviewersForLabels["Java"].find(
+          (reviewer) => reviewer === "testReviewer1"
+        ),
         "Return value for Java label should not include testReviewer1"
       );
       assert(
-        reviewersForLabels["Java"].indexOf("testReviewer5") == -1,
+        !reviewersForLabels["Java"].find(
+          (reviewer) => reviewer === "testReviewer5"
+        ),
         "Return value for Java label should not include testReviewer5"
       );
 
@@ -117,7 +135,9 @@ describe("ReviewerConfig", function () {
       );
 
       assert(
-        reviewersForLabels["Go"].indexOf("testReviewer1") == -1,
+        !reviewersForLabels["Go"].find(
+          (reviewer) => reviewer === "testReviewer1"
+        ),
         "testReviewer1 should have been excluded from the result set"
       );
     });
@@ -129,19 +149,19 @@ describe("ReviewerConfig", function () {
       const reviewersForGo = config.getReviewersForLabel("Go", []);
 
       assert(
-        reviewersForGo.indexOf("testReviewer1") > -1,
+        reviewersForGo.find((reviewer) => reviewer === "testReviewer1"),
         "Return value for Go label should include testReviewer1"
       );
       assert(
-        reviewersForGo.indexOf("testReviewer2") > -1,
+        reviewersForGo.find((reviewer) => reviewer === "testReviewer2"),
         "Return value for Go label should include testReviewer2"
       );
       assert(
-        reviewersForGo.indexOf("testReviewer3") == -1,
+        !reviewersForGo.find((reviewer) => reviewer === "testReviewer3"),
         "Return value for Go label should not include testReviewer3"
       );
       assert(
-        reviewersForGo.indexOf("testReviewer4") == -1,
+        !reviewersForGo.find((reviewer) => reviewer === "testReviewer4"),
         "Return value for Go label should not include testReviewer4"
       );
     });
@@ -162,7 +182,7 @@ describe("ReviewerConfig", function () {
       ]);
 
       assert(
-        reviewersForGo.indexOf("testReviewer1") == -1,
+        !reviewersForGo.find((reviewer) => reviewer === "testReviewer1"),
         "Return value for Go label should not include testReviewer1"
       );
     });
@@ -174,7 +194,7 @@ describe("ReviewerConfig", function () {
       const goExclusionList = config.getExclusionListForLabel("Go");
 
       assert(
-        goExclusionList.indexOf("testReviewer3") > -1,
+        goExclusionList.find((reviewer) => reviewer === "testReviewer3"),
         "Return value for Go label should include testReviewer3"
       );
       assert.equal(1, goExclusionList.length);
@@ -188,15 +208,15 @@ describe("ReviewerConfig", function () {
 
       assert.equal(3, fallbackReviewers.length);
       assert(
-        fallbackReviewers.indexOf("testReviewer5") > -1,
+        fallbackReviewers.find((reviewer) => reviewer === "testReviewer5"),
         "Fallback reviewers should include testReviewer5"
       );
       assert(
-        fallbackReviewers.indexOf("testReviewer1") > -1,
+        fallbackReviewers.find((reviewer) => reviewer === "testReviewer1"),
         "Fallback reviewers should include testReviewer1"
       );
       assert(
-        fallbackReviewers.indexOf("testReviewer3") > -1,
+        fallbackReviewers.find((reviewer) => reviewer === "testReviewer3"),
         "Fallback reviewers should include testReviewer3"
       );
     });
@@ -210,7 +230,7 @@ describe("ReviewerConfig", function () {
 
       assert.equal(1, fallbackReviewers.length);
       assert(
-        fallbackReviewers.indexOf("testReviewer5") > -1,
+        fallbackReviewers.find((reviewer) => reviewer === "testReviewer5"),
         "Fallback reviewers should only include testReviewer5"
       );
     });

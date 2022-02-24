@@ -44,7 +44,7 @@ export class ReviewersForLabel {
   // returns the next reviewer up based on who has reviewed least recently.
   // Updates this object to reflect their assignment.
   assignNextReviewer(availableReviewers: string[]): string {
-    if (availableReviewers.length == 0) {
+    if (availableReviewers.length === 0) {
       throw new Error(`No reviewers available for label ${this.label}`);
     }
 
@@ -75,13 +75,13 @@ export class ReviewersForLabel {
   // Given the up to date list of available reviewers (excluding the author),
   // returns the next reviewer up based on who has reviewed least recently.
   // Updates this object to reflect their assignment.
-  assignNextCommitter(availableReviewers: string[]): string {
+  async assignNextCommitter(availableReviewers: string[]): Promise<string> {
     let earliestDate = Date.now();
     let earliestCommitter: string = "";
 
     for (let i = 0; i < availableReviewers.length; i++) {
       let availableReviewer = availableReviewers[i];
-      if (github.checkIfCommitter(availableReviewer)) {
+      if (await github.checkIfCommitter(availableReviewer)) {
         if (!this.dateOfLastReviewAssignment[availableReviewer]) {
           this.dateOfLastReviewAssignment[availableReviewer] = Date.now();
           return availableReviewer;

@@ -89,12 +89,9 @@ export class ReviewerConfig {
     if (!exclusionList) {
       return reviewers;
     }
-    exclusionList.forEach((reviewer) => {
-      const reviewerIndex = reviewers.indexOf(reviewer);
-      if (reviewerIndex > -1) {
-        reviewers.splice(reviewerIndex, 1);
-      }
-    });
-    return reviewers;
+
+    return reviewers.filter(
+      (reviewer) => exclusionList.indexOf(reviewer) == -1
+    );
   }
 }
