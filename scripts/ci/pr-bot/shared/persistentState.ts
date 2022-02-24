@@ -23,18 +23,33 @@ const { Pr } = require("./pr");
 const { ReviewersForLabel } = require("./reviewersForLabel");
 const { BOT_NAME } = require("./constants");
 
+function getPrFileName(prNumber) {
+  return `pr-${prNumber}.json`.toLowerCase();
+}
+
+function getReviewersForLabelFileName(label) {
+  return `reviewers-for-label-${label}.json`.toLowerCase();
+}
+
+async function commitStateToRepo() {
+  await exec.exec("git pull origin pr-bot-state");
+  await exec.exec("git add state/*");
+  await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
+  await exec.exec("git push origin pr-bot-state");
+}
+
 export class PersistentState {
   private switchedBranch = false;
 
   // Returns a Pr object representing the current saved state of the pr.
   async getPrState(prNumber: number): Promise<typeof Pr> {
-    var fileName = this.getPrFileName(prNumber);
+    var fileName = getPrFileName(prNumber);
     return new Pr(await this.getState(fileName, "state/pr-state"));
   }
 
   // Writes a Pr object representing the current saved state of the pr to persistent storage.
   async writePrState(prNumber: number, newState: any) {
-    var fileName = this.getPrFileName(prNumber);
+    var fileName = getPrFileName(prNumber);
     await this.writeState(fileName, "state/pr-state", new Pr(newState));
   }
 
@@ -42,13 +57,13 @@ export class PersistentState {
   async getReviewersForLabelState(
     label: string
   ): Promise<typeof ReviewersForLabel> {
-    var fileName = this.getReviewersForLabelFileName(label);
+    var fileName = getReviewersForLabelFileName(label);
     return new ReviewersForLabel(label, await this.getState(fileName, "state"));
   }
 
   // Writes a ReviewersForLabel object representing the current saved state of which reviewers have reviewed recently.
   async writeReviewersForLabelState(label: string, newState: any) {
-    var fileName = this.getReviewersForLabelFileName(label);
+    var fileName = getReviewersForLabelFileName(label);
     await this.writeState(
       fileName,
       "state",
@@ -74,7 +89,7 @@ export class PersistentState {
     fs.writeFileSync(fileName, JSON.stringify(state, null, 2), {
       encoding: "utf-8",
     });
-    await this.commitStateToRepo();
+    await commitStateToRepo();
   }
 
   private async ensureCorrectBranch() {
@@ -102,20 +117,5 @@ export class PersistentState {
       }
     }
     this.switchedBranch = true;
-  }
-
-  private getPrFileName(prNumber) {
-    return `pr-${prNumber}.json`.toLowerCase();
-  }
-
-  private getReviewersForLabelFileName(label) {
-    return `reviewers-for-label-${label}.json`.toLowerCase();
-  }
-
-  private async commitStateToRepo() {
-    await exec.exec("git pull origin pr-bot-state");
-    await exec.exec("git add state/*");
-    await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
-    await exec.exec("git push origin pr-bot-state");
   }
 }
