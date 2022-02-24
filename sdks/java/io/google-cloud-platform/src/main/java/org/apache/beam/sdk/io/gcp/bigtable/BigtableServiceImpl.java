@@ -39,7 +39,6 @@ import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -58,7 +57,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-//import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
