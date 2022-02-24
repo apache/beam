@@ -1333,7 +1333,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (configuration.validateShadowJar) {
-          project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
+          def validateShadedJarDoesntLeakNonProjectClasses = project.tasks.register('validateShadedJarDoesntLeakNonProjectClasses') {
+            dependsOn 'shadowJar'
             ext.outFile = project.file("${project.reportsDir}/${name}.out")
             inputs.files(project.configurations.shadow.artifacts.files)
                 .withPropertyName("shadowArtifactsFiles")
@@ -1357,10 +1358,10 @@ class BeamModulePlugin implements Plugin<Project> {
               }
             }
           }
-          project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
+          project.tasks.check.dependsOn validateShadedJarDoesntLeakNonProjectClasses
         }
       } else {
-        project.task("testJar", type: Jar, {
+        project.tasks.register("testJar", Jar) {
           group = "Jar"
           description = "Create a JAR of test classes"
           classifier = "tests"
@@ -1370,7 +1371,7 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.SF"
           exclude "META-INF/*.DSA"
           exclude "META-INF/*.RSA"
-        })
+        }
         project.artifacts.testRuntimeMigration project.testJar
       }
 
@@ -1392,7 +1393,8 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
 
-        project.task("jmh", type: JavaExec, dependsOn: project.classes, {
+        project.tasks.register("jmh", JavaExec)  {
+          dependsOn project.classes
           mainClass = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
           // For a list of arguments, see
@@ -1424,12 +1426,13 @@ class BeamModulePlugin implements Plugin<Project> {
             args 'org.apache.beam'
           }
           args '-foe=true'
-        })
+        }
 
         // Single shot of JMH benchmarks ensures that they can execute.
         //
         // Note that these tests will fail on JVMs that JMH doesn't support.
-        project.task("jmhTest", type: JavaExec, dependsOn: project.classes, {
+        def jmhTest = project.tasks.register("jmhTest", JavaExec) {
+          dependsOn project.classes
           mainClass = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
 
@@ -1442,8 +1445,8 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-f=0'
           args '-wf=0'
           args '-foe=true'
-        })
-        project.check.dependsOn("jmhTest")
+        }
+        project.check.dependsOn jmhTest
       }
 
       project.ext.includeInJavaBom = configuration.publish
