@@ -13,35 +13,62 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx_test
+package gcsx
 
 import (
-	"context"
-	"time"
+	"testing"
 
-	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-func Example() {
-	ctx := context.Background()
-	c, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
-	if err != nil {
-		// do something
+func TestMakeObject(t *testing.T) {
+	if got, want := MakeObject("some-bucket", "some/path"), "gs://some-bucket/some/path"; got != want {
+		t.Fatalf("MakeObject() Got: %v Want: %v", got, want)
+	}
+}
+
+func TestParseObject(t *testing.T) {
+	tests := []struct {
+		object string
+		bucket string
+		path   string
+		err    error
+	}{
+		{
+			object: "gs://some-bucket/some-object",
+			bucket: "some-bucket",
+			path:   "some-object",
+			err:    nil,
+		},
+		{
+			object: "gs://some-bucket",
+			bucket: "some-bucket",
+			path:   "",
+			err:    nil,
+		},
+		{
+			object: "gs://",
+			bucket: "",
+			path:   "",
+			err:    errors.Errorf("object gs:// must have bucket"),
+		},
+		{
+			object: "other://some-bucket/some-object",
+			bucket: "",
+			path:   "",
+			err:    errors.Errorf("object other://some-bucket/some-object must have 'gs' scheme"),
+		},
 	}
 
-	buckets, object, err := gcsx.ParseObject("gs://some-bucket/some-object")
-	if err != nil {
-		// do something
+	for _, test := range tests {
+		if bucket, path, err := ParseObject(test.object); bucket != test.bucket || path != test.path || (err != nil && test.err == nil) || (err == nil && test.err != nil) {
+			t.Errorf("ParseObject(%v) Got: %v, %v, %v Want: %v, %v, %v", test.object, bucket, path, err, test.bucket, test.path, test.err)
+		}
 	}
+}
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	bytes, err := gcsx.ReadObject(ctx, c, buckets, object)
-	if err != nil {
-		// do something
+func TestJoin(t *testing.T) {
+	if got, want := Join("gs://some-bucket/some-object", "some/path", "more/pathing"), "gs://some-bucket/some-object/some/path/more/pathing"; got != want {
+		t.Fatalf("MakeObject() Got: %v Want: %v", got, want)
 	}
-
-	_ = bytes
 }
