@@ -203,7 +203,7 @@ import org.slf4j.LoggerFactory;
 })
 public class ElasticsearchIO {
 
-  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(2, 5, 6, 7);
+  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(2, 5, 6, 7, 8);
   private static final List<String> VERSION_TYPES =
       Arrays.asList("internal", "external", "external_gt", "external_gte");
   private static final String VERSION_CONFLICT_ERROR = "version_conflict_engine_exception";
@@ -329,7 +329,7 @@ public class ElasticsearchIO {
 
     public abstract String getIndex();
 
-    public abstract String getType();
+    public abstract @Nullable String getType();
 
     public abstract @Nullable Integer getSocketTimeout();
 
@@ -426,7 +426,7 @@ public class ElasticsearchIO {
     }
 
     /**
-     * Generates the bulk API endpoint based on the set values.
+     * Generates the API endpoint prefix based on the set values.
      *
      * <p>Based on ConnectionConfiguration constructors, we know that one of the following is true:
      *
@@ -436,7 +436,7 @@ public class ElasticsearchIO {
      *   <li>index and type are empty string
      * </ul>
      *
-     * <p>Valid endpoints therefore include:
+     * <p>Example valid endpoints therefore include:
      *
      * <ul>
      *   <li>/_bulk
@@ -444,7 +444,7 @@ public class ElasticsearchIO {
      *   <li>/index_name/type_name/_bulk
      * </ul>
      */
-    public String getBulkEndPoint() {
+    public String getApiPrefix() {
       StringBuilder sb = new StringBuilder();
       if (!Strings.isNullOrEmpty(getIndex())) {
         sb.append("/").append(getIndex());
@@ -452,8 +452,23 @@ public class ElasticsearchIO {
       if (!Strings.isNullOrEmpty(getType())) {
         sb.append("/").append(getType());
       }
-      sb.append("/").append("_bulk");
       return sb.toString();
+    }
+
+    public String getPrefixedEndpoint(String endpoint) {
+      return getApiPrefix() + "/" + endpoint;
+    }
+
+    public String getBulkEndPoint() {
+      return getPrefixedEndpoint("_bulk");
+    }
+
+    public String getSearchEndPoint() {
+      return getPrefixedEndpoint("_search");
+    }
+
+    public String getCountEndPoint() {
+      return getPrefixedEndpoint("_count");
     }
 
     /**
@@ -575,7 +590,7 @@ public class ElasticsearchIO {
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("address", getAddresses().toString()));
       builder.add(DisplayData.item("index", getIndex()));
-      builder.add(DisplayData.item("type", getType()));
+      builder.addIfNotNull(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
       builder.addIfNotNull(DisplayData.item("socketTimeout", getSocketTimeout()));
@@ -896,10 +911,7 @@ public class ElasticsearchIO {
         return estimatedByteSize;
       }
 
-      String endPoint =
-          String.format(
-              "/%s/%s/_count",
-              connectionConfiguration.getIndex(), connectionConfiguration.getType());
+      String endPoint = connectionConfiguration.getCountEndPoint();
       try (RestClient restClient = connectionConfiguration.createClient()) {
         long count = queryCount(restClient, endPoint, query);
         LOG.debug("estimate source byte size: query document count {}", count);
@@ -1006,11 +1018,7 @@ public class ElasticsearchIO {
             String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
         query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
       }
-      String endPoint =
-          String.format(
-              "/%s/%s/_search",
-              source.spec.getConnectionConfiguration().getIndex(),
-              source.spec.getConnectionConfiguration().getType());
+      String endPoint = source.spec.getConnectionConfiguration().getSearchEndPoint();
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
       if (source.backendVersion == 2) {
@@ -2573,8 +2581,8 @@ public class ElasticsearchIO {
     }
   }
 
-  static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
-    try (RestClient restClient = connectionConfiguration.createClient()) {
+  static int getBackendVersion(RestClient restClient) {
+    try {
       Request request = new Request("GET", "");
       Response response = restClient.performRequest(request);
       JsonNode jsonNode = parseResponse(response.getEntity());
@@ -2584,10 +2592,19 @@ public class ElasticsearchIO {
           VALID_CLUSTER_VERSIONS.contains(backendVersion),
           "The Elasticsearch version to connect to is %s.x. "
               + "This version of the ElasticsearchIO is only compatible with "
-              + "Elasticsearch v7.x, v6.x, v5.x and v2.x",
+              + "Elasticsearch "
+              + VALID_CLUSTER_VERSIONS.toString(),
           backendVersion);
       return backendVersion;
 
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Cannot get Elasticsearch version", e);
+    }
+  }
+
+  static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
+    try (RestClient restClient = connectionConfiguration.createClient()) {
+      return getBackendVersion(restClient);
     } catch (IOException e) {
       throw new IllegalArgumentException("Cannot get Elasticsearch version", e);
     }
