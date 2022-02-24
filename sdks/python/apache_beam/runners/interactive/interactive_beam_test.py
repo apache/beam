@@ -311,19 +311,6 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     self.assertEqual('test-project', clusters.describe()[None] \
     ['cluster_metadata'].project_id)
 
-  def test_clusters_cleanup_cluster_manager_not_found(self):
-    clusters = ib.Clusters()
-    p = beam.Pipeline(
-        options=PipelineOptions(
-            project='test-project',
-            region='test-region',
-        ))
-    from apache_beam.runners.interactive.interactive_beam import _LOGGER
-    with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
-      clusters.cleanup(p)
-      self.assertTrue(
-          'No cluster_manager is associated' in context_manager.output[0])
-
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
       'DataprocClusterManager.get_master_url',
