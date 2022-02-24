@@ -192,22 +192,21 @@ Beam offers a way to take a Beam container image and customize it. But if you ha
  ENTRYPOINT ["/opt/apache/beam/boot"]
 
   ```
-> **NOTE**: This example assumes necessary dependencies (in this case, Python 3.7 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time. 
-> The version specified in the `RUN` instruction must match the version used to launch the pipeline. <br> 
-> **Users need to make sure that whatever base image they use has the same Python/Java interpreter version that they use to run the pipeline**.
+>**NOTE**: This example assumes necessary dependencies (in this case, Python 3.7 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
+>The version specified in the `RUN` instruction must match the version used to launch the pipeline.<br>
+>**Users need to make sure that whatever base image they use has the same Python/Java interpreter version that they use to run the pipeline**.
 
 
 2. [Build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker.
-
   ```
     export BASE_IMAGE="apache/beam_python3.7_sdk:2.25.0"
     export IMAGE_NAME="myremoterepo/mybeamsdk"
     export TAG="latest"
-  
+
     # Optional - pull the base image into your local Docker daemon to ensure
     # you have the most up-to-date version of the base image locally.
     docker pull "${BASE_IMAGE}"
-    
+
     docker build -f Dockerfile -t "${IMAGE_NAME}:${TAG}" .
  ```
 

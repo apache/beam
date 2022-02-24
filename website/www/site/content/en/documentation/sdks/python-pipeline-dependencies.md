@@ -45,7 +45,7 @@ If your pipeline uses public packages from the [Python Package Index](https://py
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
 **Important:** Remote workers will install all packages listed in the `requirements.txt` file. Because of this, it's very important that you delete non-PyPI packages from the `requirements.txt` file, as stated in step 2. If you don't remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.
-> **NOTE**: An alternative to `pip check` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile the `requirements.txt` with all the dependencies required for the pipeline.  
+> **NOTE**: An alternative to `pip check` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile the `requirements.txt` with all the dependencies required for the pipeline.
 ## Custom Containers {#custom-containers}
 
 You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](https://beam.apache.org/documentation/runtime/environments/#running-pipelines).
@@ -81,7 +81,6 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
    See the [sdist documentation](https://docs.python.org/2/distutils/sourcedist.html) for more details on this command.
 
-        
 ## Multiple File Dependencies
 
 Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
@@ -142,7 +141,7 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
 
 In the pre-building step, we install pipeline dependencies on the container image prior to the job submission. This would speed up the pipeline execution.\
 To use pre-building the dependencies from `requirements.txt` on the container image. Follow the steps below.
-1. Provide the container engine. We support `docker` and `cloud_build`(requires a GCP project with Cloud Build API enabled). 
+1. Provide the container engine. We support `docker` and `cloud_build`(requires a GCP project with Cloud Build API enabled).
 
        --prebuild_sdk_container_enginer <execution_environment>
 2. To pass a base image for pre-building dependencies, enable this flag. If not, apache beam's base image would be used.
@@ -151,7 +150,5 @@ To use pre-building the dependencies from `requirements.txt` on the container im
 3. To push the container image, pre-built locally with `Docker` , to a remote repository(eg: docker registry), provide URL to the docker registry by passing
 
        --docker_registry_push_url <IMAGE_URL>
-              
 > To use Docker, the `--prebuild_sdk_container_base_image` should be compatible with Apache Beam Runner. Please follow the [instructions](https://beam.apache.org/documentation/runtime/environments/#building-and-pushing-custom-containers) on how to build a base container image compatible with Apache Beam.
-   
 **NOTE**: For now, this feature is available only for the `Dataflow`.
