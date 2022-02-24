@@ -292,6 +292,9 @@ export class RawExternalTransform<
 
     // Construct and return the resulting object.
     // TODO: (Typescipt) Can I get the concrete OutputT at runtime?
+    // TypeScript types are not available at runtime. If I understand correctly, there is no plan to change that at the moment.
+    // See: https://github.com/microsoft/TypeScript/issues/47658
+    // See: https://github.com/microsoft/TypeScript/issues/3628
     if (this.inferPValueType) {
       const outputKeys = [...Object.keys(response.transform!.outputs)];
       if (outputKeys.length == 0) {

@@ -40,12 +40,11 @@ const defaultArtifactDir = path.join(
  * Downloads the required artifacts from the service to the destination
  * directory.
  */
-export async function resolveArtifacts(
+export async function* resolveArtifacts(
   client: IArtifactRetrievalServiceClient,
   artifacts: Iterable<runnerApi.ArtifactInformation>,
   localDir: string = defaultArtifactDir
-): Promise<Iterable<runnerApi.ArtifactInformation>> {
-  const result: Promise<runnerApi.ArtifactInformation>[] = [];
+): AsyncGenerator<runnerApi.ArtifactInformation, void, unknown> {
   const resolved = await client.resolveArtifacts({
     artifacts: Array.from(artifacts),
     preferredUrns: [],
@@ -107,12 +106,11 @@ export async function resolveArtifacts(
       artifact.typeUrn == "beam:artifact:type:embedded:v1"
     ) {
       // TODO: (Typescript) Yield from asycn?
-      result.push(Promise.resolve(artifact));
+      yield artifact;
     } else {
-      result.push(storeArtifact(artifact));
+      yield await storeArtifact(artifact);
     }
   }
-  return Promise.all(result);
 }
 
 export async function offerArtifacts(

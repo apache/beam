@@ -193,9 +193,10 @@ export class Split<T> extends PTransform<
 
 // TODO: (Typescript) Is it possible to type that this takes
 // PCollection<{a: T, b: U, ...}> to {a: PCollection<T>, b: PCollection<U>, ...}
-export class Split2<T> extends PTransform<
-  PCollection<{ [key: string]: T | undefined }>,
-  { [key: string]: PCollection<T> }
+// I think this requires a cast inside expandInternal. But at least the cast is contained here.
+export class Split2<T extends {[key: string]: unknown}> extends PTransform<
+  PCollection<T>,
+  { [P in keyof T]: PCollection<T[P]> }
 > {
   private tags: string[];
   constructor(...tags: string[]) {
@@ -205,7 +206,7 @@ export class Split2<T> extends PTransform<
   expandInternal(
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: PCollection<{ [key: string]: T | undefined }>
+    input: PCollection<T>
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,
@@ -223,11 +224,11 @@ export class Split2<T> extends PTransform<
     return Object.fromEntries(
       this_.tags.map((tag) => [
         tag,
-        pipeline.createPCollectionInternal<T>(
+        pipeline.createPCollectionInternal<T[typeof tag]>(
           pipeline.context.getPCollectionCoderId(input)
         ),
       ])
-    );
+    ) as {[P in keyof T]: PCollection<T[P]>};
   }
 }
 
