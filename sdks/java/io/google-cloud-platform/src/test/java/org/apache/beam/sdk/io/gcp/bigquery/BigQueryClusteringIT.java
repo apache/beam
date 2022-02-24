@@ -88,7 +88,7 @@ public class BigQueryClusteringIT {
       String day = (String) c.element().get("day");
       String month = (String) c.element().get("month");
       String year = (String) c.element().get("year");
-      String stationNumber = (String)  c.element().get("station_number");
+      String stationNumber = (String) c.element().get("station_number");
 
       TableRow row = new TableRow();
       row.set("station_number", stationNumber);
