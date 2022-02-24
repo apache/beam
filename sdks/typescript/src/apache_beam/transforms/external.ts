@@ -185,8 +185,13 @@ export class RawExternalTransform<
     // a more permanent form.
     for (const env of Object.values(components.environments)) {
       if (env.dependencies.length > 0) {
-        env.dependencies = Array.from(
-          await artifacts.resolveArtifacts(artifactClient, env.dependencies)
+        env.dependencies = Array.from(await (async() => {
+          let result :runnerApi.ArtifactInformation[]  = []
+          for await (const dep of artifacts.resolveArtifacts(artifactClient, env.dependencies)) {
+            result.push(dep);
+          }
+          return result;
+          })()
         );
       }
     }
