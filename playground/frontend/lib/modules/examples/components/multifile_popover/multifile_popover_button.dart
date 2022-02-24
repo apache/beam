@@ -18,12 +18,13 @@
 
 import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/description_popover/description_popover.dart';
+import 'package:playground/modules/examples/components/multifile_popover/multifile_popover.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 
-class DescriptionPopoverButton extends StatelessWidget {
+class MultifilePopoverButton extends StatelessWidget {
   final BuildContext? parentContext;
   final ExampleModel example;
   final Alignment followerAnchor;
@@ -31,7 +32,7 @@ class DescriptionPopoverButton extends StatelessWidget {
   final void Function()? onOpen;
   final void Function()? onClose;
 
-  const DescriptionPopoverButton({
+  const MultifilePopoverButton({
     Key? key,
     this.parentContext,
     required this.example,
@@ -46,12 +47,9 @@ class DescriptionPopoverButton extends StatelessWidget {
     return IconButton(
       iconSize: kIconSizeMd,
       splashRadius: kIconButtonSplashRadius,
-      icon: Icon(
-        Icons.info_outline_rounded,
-        color: ThemeColors.of(context).grey1Color,
-      ),
+      icon: SvgPicture.asset(kMultifileIconAsset),
       onPressed: () {
-        _showDescriptionPopover(
+        _showMultifilePopover(
           parentContext ?? context,
           example,
           followerAnchor,
@@ -61,13 +59,13 @@ class DescriptionPopoverButton extends StatelessWidget {
     );
   }
 
-  void _showDescriptionPopover(
+  void _showMultifilePopover(
     BuildContext context,
     ExampleModel example,
     Alignment followerAnchor,
     Alignment targetAnchor,
   ) async {
-    // close previous description dialog
+    // close previous dialogs
     Navigator.of(context, rootNavigator: true).popUntil((route) {
       return route.isFirst;
     });
@@ -76,7 +74,7 @@ class DescriptionPopoverButton extends StatelessWidget {
     }
     await showAlignedDialog(
       context: context,
-      builder: (dialogContext) => DescriptionPopover(
+      builder: (dialogContext) => MultifilePopover(
         example: example,
       ),
       followerAnchor: followerAnchor,
