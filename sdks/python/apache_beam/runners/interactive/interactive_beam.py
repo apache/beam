@@ -420,10 +420,6 @@ class Clusters:
           self.master_urls.pop(master_url, None)
           self.master_urls_to_pipelines.pop(master_url, None)
           self.dataproc_cluster_managers.pop(str(id(pipeline)), None)
-      else:
-        _LOGGER.error(
-            'No cluster_manager is associated with the provided '
-            'pipeline!')
     else:
       cluster_manager_identifiers = set()
       for cluster_manager in self.dataproc_cluster_managers.values():
