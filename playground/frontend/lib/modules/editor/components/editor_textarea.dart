@@ -169,7 +169,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   }
 
   int _getQntOfStringsOnScreen() {
-    RenderBox? rBox =
+    RenderBox rBox =
         codeFieldKey.currentContext?.findRenderObject() as RenderBox;
     double height = rBox.size.height * .75;
 
@@ -193,18 +193,18 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     List<String> stringsAfterContextLine,
     int qntOfStrings,
   ) {
-    String result = '';
+    StringBuffer result = StringBuffer();
 
     for (int i = qntOfStrings - kAdditionalLinesForScrolling;
         i < qntOfStrings + kAdditionalLinesForScrolling;
         i++) {
       if (i == stringsAfterContextLine.length - 1) {
-        return result;
+        return result.toString();
       }
-      result += stringsAfterContextLine[i] + '\n';
+      result.write(stringsAfterContextLine[i] + '\n');
     }
 
-    return result;
+    return result.toString();
   }
 
   _getLanguageFromSdk() {
