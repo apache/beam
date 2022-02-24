@@ -179,7 +179,6 @@ func TestSetTopLevelMsgf_NilErr(t *testing.T) {
 }
 
 func TestError(t *testing.T) {
-
 	tests := []struct {
 		err  error
 		want string
