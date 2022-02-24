@@ -47,7 +47,7 @@ import org.junit.runners.JUnit4;
 /** Integration test that clusters sample data in BigQuery. */
 @RunWith(JUnit4.class)
 public class BigQueryClusteringIT {
-  private static final Long EXPECTED_BYTES = 16000L;
+  private static final Long EXPECTED_BYTES = 18961L;
   private static final BigInteger EXPECTED_ROWS = new BigInteger("1000");
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
@@ -58,7 +58,7 @@ public class BigQueryClusteringIT {
       new TableSchema()
           .setFields(
               Arrays.asList(
-                  new TableFieldSchema().setName("station_number").setType("INTEGER"),
+                  new TableFieldSchema().setName("station_number").setType("STRING"),
                   new TableFieldSchema().setName("date").setType("STRING")));
 
   private Bigquery bqClient;
@@ -88,9 +88,10 @@ public class BigQueryClusteringIT {
       String day = (String) c.element().get("day");
       String month = (String) c.element().get("month");
       String year = (String) c.element().get("year");
+      String stationNumber = (String)  c.element().get("station_number");
 
       TableRow row = new TableRow();
-      row.set("station_number", c.element().get("station_number"));
+      row.set("station_number", stationNumber);
       row.set("date", String.format("%s-%s-%s", year, month, day));
       c.output(row);
     }
