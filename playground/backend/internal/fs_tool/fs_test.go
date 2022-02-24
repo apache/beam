@@ -31,7 +31,7 @@ const (
 	testFileMode    = 0755
 	pipelinesFolder = "executable_files"
 	fileName        = "file.txt"
-	directoryName   = "incorrect"
+	emptyFolder     = "emptyFolder"
 )
 
 func TestMain(m *testing.M) {
@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 }
 
 func prepareFiles() error {
-	err := os.MkdirAll(filepath.Join(sourceDir, directoryName), testFileMode)
+	err := os.MkdirAll(filepath.Join(sourceDir, emptyFolder), testFileMode)
 	if err != nil {
 		return err
 	}
@@ -77,6 +77,8 @@ func teardownFolders(baseFileFolder string) error {
 }
 
 func TestLifeCycle_CopyFile(t *testing.T) {
+	a := ""
+	fmt.Println(a)
 	type fields struct {
 		folderGlobs []string
 		Paths       LifeCyclePaths
@@ -122,7 +124,7 @@ func TestLifeCycle_CopyFile(t *testing.T) {
 				folderGlobs: nil,
 			},
 			args: args{
-				fileName:       directoryName,
+				fileName:       emptyFolder,
 				sourceDir:      sourceDir,
 				destinationDir: destinationDir,
 			},
