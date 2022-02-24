@@ -13,35 +13,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package errorx contains utilities for handling errors.
 package errorx
 
-import "sync"
+import (
+	"errors"
+	"testing"
+)
 
-// GuardedError is a concurrency-safe error wrapper. It is sticky
-// in that the first error won't be overwritten.
-type GuardedError struct {
-	err error
-	mu  sync.Mutex
-}
-
-// Error returns the guarded error.
-func (g *GuardedError) Error() error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	return g.err
-}
-
-// TrySetError sets the error, if not already set. Returns true iff the
-// error was set.
-func (g *GuardedError) TrySetError(err error) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	upd := (g.err == nil)
-	if upd {
-		g.err = err
+func TestTrySetError(t *testing.T) {
+	var gu GuardedError
+	setErr := errors.New("attempted error")
+	success := gu.TrySetError(setErr)
+	if !success {
+		t.Fatal("got false when trying to set error, want true")
 	}
-	return upd
+	if got, want := gu.Error(), setErr; got != want {
+		t.Errorf("got error %v when checking message, want %v", got, want)
+	}
+}
+
+func TestTrySetError_bad(t *testing.T) {
+	setErr := errors.New("old error")
+	gu := &GuardedError{err: setErr}
+	success := gu.TrySetError(setErr)
+	if success {
+		t.Fatal("got true when trying to set error, want false")
+	}
+	if got, want := gu.Error(), setErr; got != want {
+		t.Errorf("got error %v when checking message, want %v", got, want)
+	}
 }
