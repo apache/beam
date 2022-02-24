@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.aws2.options;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -32,6 +34,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.ValueInstantiator;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -40,14 +43,15 @@ import com.fasterxml.jackson.databind.util.NameTransformer;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
 import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -58,8 +62,8 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
-import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
@@ -75,12 +79,6 @@ public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";
   private static final String SESSION_TOKEN = "sessionToken";
-  public static final String CONNECTION_ACQUIRE_TIMEOUT = "connectionAcquisitionTimeout";
-  public static final String CONNECTION_MAX_IDLE_TIMEOUT = "connectionMaxIdleTime";
-  public static final String CONNECTION_TIMEOUT = "connectionTimeout";
-  public static final String CONNECTION_TIME_TO_LIVE = "connectionTimeToLive";
-  public static final String MAX_CONNECTIONS = "maxConnections";
-  public static final String READ_TIMEOUT = "socketTimeout";
 
   public AwsModule() {
     super("AwsModule");
@@ -90,10 +88,35 @@ public class AwsModule extends SimpleModule {
   public void setupModule(SetupContext cxt) {
     cxt.setMixInAnnotations(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
     cxt.setMixInAnnotations(ProxyConfiguration.class, ProxyConfigurationMixin.class);
-    cxt.setMixInAnnotations(AttributeMap.class, AttributeMapMixin.class);
+    cxt.setMixInAnnotations(HttpClientConfiguration.class, HttpClientConfigurationMixin.class);
+    cxt.setMixInAnnotations(
+        HttpClientConfiguration.Builder.class, HttpClientConfigurationMixin.Builder.class);
     cxt.setMixInAnnotations(SSECustomerKey.class, SSECustomerKeyMixin.class);
-    cxt.setMixInAnnotations(SSECustomerKey.Builder.class, SSECustomerKeyBuilderMixin.class);
+    cxt.setMixInAnnotations(SSECustomerKey.Builder.class, SSECustomerKeyMixin.Builder.class);
+    cxt.setMixInAnnotations(Region.class, RegionMixin.class);
+
+    addValueInstantiator(HttpClientConfiguration.Builder.class, HttpClientConfiguration::builder);
+
     super.setupModule(cxt);
+  }
+
+  @JsonDeserialize(using = RegionMixin.Deserializer.class)
+  @JsonSerialize(using = RegionMixin.Serializer.class)
+  private static class RegionMixin {
+    private static class Deserializer extends JsonDeserializer<Region> {
+      @Override
+      public Region deserialize(JsonParser p, DeserializationContext cxt) throws IOException {
+        return Region.of(p.readValueAs(String.class));
+      }
+    }
+
+    private static class Serializer extends JsonSerializer<Region> {
+      @Override
+      public void serialize(Region value, JsonGenerator gen, SerializerProvider serializers)
+          throws IOException {
+        gen.writeString(value.id());
+      }
+    }
   }
 
   /** A mixin to add Jackson annotations to {@link AwsCredentialsProvider}. */
@@ -298,100 +321,38 @@ public class AwsModule extends SimpleModule {
   }
 
   /** A mixin to add Jackson annotations to {@link AttributeMap}. */
-  @JsonSerialize(using = AttributeMapSerializer.class)
-  @JsonDeserialize(using = AttributeMapDeserializer.class)
-  private static class AttributeMapMixin {}
-
-  private static class AttributeMapDeserializer extends JsonDeserializer<AttributeMap> {
-    @Override
-    public AttributeMap deserialize(JsonParser jsonParser, DeserializationContext context)
-        throws IOException {
-      Map<String, String> map =
-          checkNotNull(
-              jsonParser.readValueAs(new TypeReference<Map<String, String>>() {}),
-              "Serialized AttributeMap is null");
-
-      // Add new attributes below.
-      final AttributeMap.Builder attributeMapBuilder = AttributeMap.builder();
-      if (map.containsKey(CONNECTION_ACQUIRE_TIMEOUT)) {
-        attributeMapBuilder.put(
-            SdkHttpConfigurationOption.CONNECTION_ACQUIRE_TIMEOUT,
-            Duration.parse(map.get(CONNECTION_ACQUIRE_TIMEOUT)));
-      }
-      if (map.containsKey(CONNECTION_MAX_IDLE_TIMEOUT)) {
-        attributeMapBuilder.put(
-            SdkHttpConfigurationOption.CONNECTION_MAX_IDLE_TIMEOUT,
-            Duration.parse(map.get(CONNECTION_MAX_IDLE_TIMEOUT)));
-      }
-      if (map.containsKey(CONNECTION_TIMEOUT)) {
-        attributeMapBuilder.put(
-            SdkHttpConfigurationOption.CONNECTION_TIMEOUT,
-            Duration.parse(map.get(CONNECTION_TIMEOUT)));
-      }
-      if (map.containsKey(CONNECTION_TIME_TO_LIVE)) {
-        attributeMapBuilder.put(
-            SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE,
-            Duration.parse(map.get(CONNECTION_TIME_TO_LIVE)));
-      }
-      if (map.containsKey(MAX_CONNECTIONS)) {
-        attributeMapBuilder.put(
-            SdkHttpConfigurationOption.MAX_CONNECTIONS, Integer.parseInt(map.get(MAX_CONNECTIONS)));
-      }
-      if (map.containsKey(READ_TIMEOUT)) {
-        attributeMapBuilder.put(
-            SdkHttpConfigurationOption.READ_TIMEOUT, Duration.parse(map.get(READ_TIMEOUT)));
-      }
-      return attributeMapBuilder.build();
-    }
-  }
-
-  private static class AttributeMapSerializer extends JsonSerializer<AttributeMap> {
-
-    @Override
-    public void serialize(
-        AttributeMap attributeMap, JsonGenerator jsonGenerator, SerializerProvider serializer)
-        throws IOException {
-
-      jsonGenerator.writeStartObject();
-      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_ACQUIRE_TIMEOUT)) {
-        jsonGenerator.writeStringField(
-            CONNECTION_ACQUIRE_TIMEOUT,
-            String.valueOf(
-                attributeMap.get(SdkHttpConfigurationOption.CONNECTION_ACQUIRE_TIMEOUT)));
-      }
-      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_MAX_IDLE_TIMEOUT)) {
-        jsonGenerator.writeStringField(
-            CONNECTION_MAX_IDLE_TIMEOUT,
-            String.valueOf(
-                attributeMap.get(SdkHttpConfigurationOption.CONNECTION_MAX_IDLE_TIMEOUT)));
-      }
-      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_TIMEOUT)) {
-        jsonGenerator.writeStringField(
-            CONNECTION_TIMEOUT,
-            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIMEOUT)));
-      }
-      if (attributeMap.containsKey(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE)) {
-        jsonGenerator.writeStringField(
-            CONNECTION_TIME_TO_LIVE,
-            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE)));
-      }
-      if (attributeMap.containsKey(SdkHttpConfigurationOption.MAX_CONNECTIONS)) {
-        jsonGenerator.writeStringField(
-            MAX_CONNECTIONS,
-            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS)));
-      }
-      if (attributeMap.containsKey(SdkHttpConfigurationOption.READ_TIMEOUT)) {
-        jsonGenerator.writeStringField(
-            READ_TIMEOUT,
-            String.valueOf(attributeMap.get(SdkHttpConfigurationOption.READ_TIMEOUT)));
-      }
-      jsonGenerator.writeEndObject();
-    }
+  @JsonDeserialize(builder = HttpClientConfiguration.Builder.class)
+  @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
+  @JsonInclude(value = JsonInclude.Include.NON_EMPTY)
+  private static class HttpClientConfigurationMixin {
+    @JsonPOJOBuilder(withPrefix = "")
+    static class Builder {}
   }
 
   @JsonDeserialize(builder = SSECustomerKey.Builder.class)
-  private static class SSECustomerKeyMixin {}
+  private static class SSECustomerKeyMixin {
+    @JsonPOJOBuilder(withPrefix = "")
+    static class Builder {}
+  }
 
-  @JsonPOJOBuilder(withPrefix = "")
-  private static class SSECustomerKeyBuilderMixin {}
+  private <T> void addValueInstantiator(Class<T> clazz, Instantiator<T> instantiator) {
+    addValueInstantiator(
+        clazz,
+        new ValueInstantiator.Base(clazz) {
+          @Override
+          public Object createUsingDefault(DeserializationContext cxt) {
+            return instantiator.create();
+          }
+
+          @Override
+          public boolean canCreateUsingDefault() {
+            return true;
+          }
+        });
+  }
+
+  private interface Instantiator<T> {
+    @NonNull
+    T create();
+  }
 }

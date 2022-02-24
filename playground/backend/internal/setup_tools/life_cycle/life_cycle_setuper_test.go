@@ -18,6 +18,7 @@ package life_cycle
 import (
 	playground "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
@@ -123,6 +124,7 @@ func TestSetup(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", successPipelineId.String(), javaCompiledFileExtension)),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 				},
 			},
 			wantErr: false,

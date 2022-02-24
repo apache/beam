@@ -24,3 +24,4 @@ const kApacheBeamGithubLink = 'https://github.com/apache/beam';
 const kBeamWebsiteLink = 'https://beam.apache.org/';
 const kScioGithubLink = 'https://github.com/spotify/scio';
 const kAboutBeamLink = 'https://beam.apache.org/get-started/beam-overview';
+const kAddExampleLink = 'https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples';

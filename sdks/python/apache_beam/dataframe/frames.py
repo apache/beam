@@ -4717,9 +4717,43 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise TypeError("str.repeat(repeats=) value must be an int or a "
                       f"DeferredSeries (encountered {type(repeats)}).")
 
-  get_dummies = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'get_dummies',
-      reason='non-deferred-columns')
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  def get_dummies(self, **kwargs):
+    """
+    Series must be categorical dtype. Please cast to ``CategoricalDtype``
+    to ensure correct categories.
+    """
+    dtype = self._expr.proxy().dtype
+    if not isinstance(dtype, pd.CategoricalDtype):
+      raise frame_base.WontImplementError(
+          "get_dummies() of non-categorical type is not supported because "
+          "the type of the output column depends on the data. Please use "
+          "pd.CategoricalDtype with explicit categories.",
+          reason="non-deferred-columns")
+
+    split_cats = [
+      cat.split(sep=kwargs.get('sep', '|')) for cat in dtype.categories
+    ]
+
+    # Adding the nan category because the there could be the case that
+    # the data includes NaNs, which is not valid to be casted as a Category,
+    # but nevertheless would be broadcasted as a column in get_dummies()
+    columns = sorted(set().union(*split_cats))
+    columns = columns + ['nan'] if 'nan' not in columns else columns
+
+    proxy = pd.DataFrame(columns=columns).astype(int)
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'get_dummies',
+            lambda series: pd.concat(
+              [proxy, series.str.get_dummies(**kwargs)]
+              ).fillna(value=0, method=None).astype('int64'),
+            [self._expr],
+            proxy=proxy,
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
 
   split = frame_base.wont_implement_method(
       pd.core.strings.StringMethods, 'split',

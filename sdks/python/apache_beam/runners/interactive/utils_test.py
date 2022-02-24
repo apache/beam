@@ -381,5 +381,35 @@ class GCSUtilsTest(unittest.TestCase):
     utils.assert_bucket_exists('')
 
 
+class BidictTest(unittest.TestCase):
+  def test_inverse_set_correctly(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    self.assertEqual(bd.inverse['bar'], 'foo')
+    bd['foo'] = 'baz'
+    self.assertEqual(bd.inverse['baz'], 'foo')
+
+  def test_on_delete_remove_pair(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    del bd['foo']
+    self.assertEqual(bd, {})
+    self.assertEqual(bd.inverse, {})
+
+  def test_clear_bidirectionally(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    bd.clear()
+    self.assertEqual(bd, {})
+    self.assertEqual(bd.inverse, {})
+
+  def test_on_pop_pair(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    value, inverse_value = bd.pop('foo')
+    self.assertEqual(value, 'bar')
+    self.assertEqual(inverse_value, 'foo')
+
+
 if __name__ == '__main__':
   unittest.main()
