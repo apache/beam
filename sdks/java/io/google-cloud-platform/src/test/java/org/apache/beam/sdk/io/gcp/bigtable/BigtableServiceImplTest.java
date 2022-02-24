@@ -141,35 +141,7 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadAboveMiniBatchLimit() throws IOException {
-    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
-    //ByteKey filler = ByteKey.copyFrom("z".getBytes(StandardCharsets.UTF_8));
-    ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
-
-    //mockBigtableSource.
-
-    //ByteKeyRange How do I make a ByteKeyRange of 101 size?
-
-    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
-    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
-    @SuppressWarnings("unchecked")
-    ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
-    Row[] expectedRows = new Row[] {Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build(),
-        Row.newBuilder().setKey(ByteString.copyFromUtf8("b")).build()};
-    when(mockResultScanner.next(MINI_BATCH_ROW_LIMIT)).thenReturn(expectedRows).thenReturn(null);
-    when(mockResultScanner.available()).thenReturn(2).thenReturn(0);
-    when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
-    BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
-
-    underTest.start();
-    Assert.assertEquals(expectedRows[0], underTest.getCurrentRow());
-    Assert.assertTrue(underTest.advance());
-    Assert.assertEquals(expectedRows[1], underTest.getCurrentRow());
-    Assert.assertFalse(underTest.advance());
-    underTest.close();
-
-    verify(mockResultScanner, times(1)).close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
+    // TODO(diegomez): Write test
   }
 
   /**

@@ -197,17 +197,18 @@ class BigtableServiceImpl implements BigtableService {
       if (rowSet.getRowKeysCount() == 0) { // Are there any other edge cases?
         return false;
       }
-      RowSet.Builder trunicatedRowSet = RowSet.newBuilder();
+      RowSet.Builder truncatedRowSet = RowSet.newBuilder();
       if (rowSet.getRowKeysCount() <= MINI_BATCH_ROW_LIMIT) {
-        trunicatedRowSet.addAllRowKeys(rowSet.getRowKeysList());
+        truncatedRowSet.addAllRowKeys(rowSet.getRowKeysList());
       } else {
-        for (int i = MINI_BATCH_ROW_LIMIT; i < rowSet.getRowKeysCount(); i++) {
-          trunicatedRowSet.addRowKeys(rowSet.getRowKeys(i));
+        for (long i = MINI_BATCH_ROW_LIMIT; i < rowSet.getRowKeysCount(); i++) {
+          truncatedRowSet.addRowKeys(rowSet.getRowKeys((int)i));
         }
       }
+      rowSet = truncatedRowSet.build();
 
       ReadRowsRequest.Builder request =
-          ReadRowsRequest.newBuilder().setRows(trunicatedRowSet)
+          ReadRowsRequest.newBuilder().setRows(truncatedRowSet)
               .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(source.getTableId().toString());
       results = session.getDataClient().readRows(request.build());
       if (results.available() != 0) {
