@@ -111,7 +111,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString());
+      LOG.error(e.toString(), e);
     }
 
     // This will be the second batch of transactions that will have strict timestamp ordering
@@ -122,7 +122,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString());
+      LOG.error(e.toString(), e);
     }
 
     // This will be the final batch of transactions that will have strict timestamp ordering
