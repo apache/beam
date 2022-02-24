@@ -16,12 +16,29 @@
  * limitations under the License.
  */
 
-const kReportIssueLink = 'https://issues.apache.org/jira/projects/BEAM/issues/';
-const kBeamPrivacyPolicyLink = 'https://beam.apache.org/privacy_policy/';
-const kBeamPlaygroundGithubLink =
-    'https://github.com/apache/beam/tree/master/playground';
-const kApacheBeamGithubLink = 'https://github.com/apache/beam';
-const kBeamWebsiteLink = 'https://beam.apache.org/';
-const kScioGithubLink = 'https://github.com/spotify/scio';
-const kAboutBeamLink = 'https://beam.apache.org/get-started/beam-overview';
-const kAddExampleLink = 'https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples';
+import 'package:flutter/material.dart';
+import 'package:playground/modules/examples/models/popover_state.dart';
+import 'package:provider/provider.dart';
+
+class OutsideClickHandler extends StatelessWidget {
+  final void Function() onTap;
+
+  const OutsideClickHandler({Key? key, required this.onTap}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<PopoverState>(builder: (context, state, child) {
+      if (state.isOpen) {
+        return Container();
+      }
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          color: Colors.transparent,
+          height: double.infinity,
+          width: double.infinity,
+        ),
+      );
+    });
+  }
+}
