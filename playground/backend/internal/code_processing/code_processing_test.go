@@ -26,6 +26,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redismock/v8"
 	"github.com/google/uuid"
@@ -47,9 +48,11 @@ const (
 	goConfig        = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
 	pipelinesFolder = "executable_files"
 	configFolder    = "configs"
+	resourcesFolder = "resources"
 	helloWordPython = "if __name__ == \"__main__\":\n    print(\"Hello world!\")\n"
 	helloWordGo     = "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\")\n}\n"
 	helloWordJava   = "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}"
+	graphFilePath   = "resources/graph.dot"
 )
 
 var opt goleak.Option
@@ -65,12 +68,22 @@ func TestMain(m *testing.M) {
 
 func setup() {
 	// create configs for java
-	err := os.MkdirAll("configs", fs.ModePerm)
+	err := os.MkdirAll(configFolder, fs.ModePerm)
 	if err != nil {
 		panic(err)
 	}
-	filePath := filepath.Join("configs", pb.Sdk_SDK_JAVA.String()+".json")
+	filePath := filepath.Join(configFolder, pb.Sdk_SDK_JAVA.String()+".json")
 	err = os.WriteFile(filePath, []byte(javaConfig), 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	// create dir with graph file
+	err = os.MkdirAll(resourcesFolder, fs.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	err = os.WriteFile(graphFilePath, []byte("graph"), 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -91,6 +104,10 @@ func teardown() {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 	err = os.RemoveAll(pipelinesFolder)
+	if err != nil {
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
+	}
+	err = os.RemoveAll(resourcesFolder)
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
@@ -1372,6 +1389,144 @@ func Test_processRunError(t *testing.T) {
 			tt.mocks()
 			if err := processRunError(tt.args.ctx, tt.args.errorChannel, tt.args.errorOutput, tt.args.pipelineId, tt.args.cacheService, tt.args.stopReadLogsChannel, tt.args.finishReadLogsChannel); (err != nil) != tt.wantErr {
 				t.Errorf("processRunError() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_processCompileSuccess(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	pipelineId := uuid.New()
+	output := "output"
+	cacheMock := &redis.Cache{Client: client}
+	marshalLogs, _ := json.Marshal(cache.Logs)
+	marshalCompileOutput, _ := json.Marshal(cache.CompileOutput)
+	marshalRunOutput, _ := json.Marshal(cache.RunOutput)
+	marshalRunError, _ := json.Marshal(cache.RunError)
+	outputMarshal, _ := json.Marshal(output)
+	marshalEmptyString, _ := json.Marshal("")
+	type args struct {
+		ctx          context.Context
+		output       []byte
+		pipelineId   uuid.UUID
+		cacheService cache.Cache
+	}
+	tests := []struct {
+		name    string
+		mocks   func()
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Error during set value to CompileOutput subKey",
+			mocks: func() {
+			},
+			args: args{
+				ctx:          context.Background(),
+				output:       []byte(output),
+				pipelineId:   pipelineId,
+				cacheService: cacheMock,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Error during set value to RunOutput subKey",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshalCompileOutput, outputMarshal).SetVal(1)
+			},
+			args: args{
+				ctx:          context.Background(),
+				output:       []byte(output),
+				pipelineId:   pipelineId,
+				cacheService: cacheMock,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Error during set value to RunError subKey",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshalCompileOutput, outputMarshal).SetVal(1)
+				mock.ExpectHSet(pipelineId.String(), marshalRunOutput, marshalEmptyString).SetVal(1)
+			},
+			args: args{
+				ctx:          context.Background(),
+				output:       []byte(output),
+				pipelineId:   pipelineId,
+				cacheService: cacheMock,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Error during set value to Logs subKey",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshalCompileOutput, outputMarshal).SetVal(1)
+				mock.ExpectHSet(pipelineId.String(), marshalRunOutput, marshalEmptyString).SetVal(1)
+				mock.ExpectHSet(pipelineId.String(), marshalRunError, marshalEmptyString).SetVal(1)
+			},
+			args: args{
+				ctx:          context.Background(),
+				output:       []byte(output),
+				pipelineId:   pipelineId,
+				cacheService: cacheMock,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Error during set value to Graph subKey",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshalCompileOutput, outputMarshal).SetVal(1)
+				mock.ExpectHSet(pipelineId.String(), marshalRunOutput, marshalEmptyString).SetVal(1)
+				mock.ExpectHSet(pipelineId.String(), marshalRunError, marshalEmptyString).SetVal(1)
+				mock.ExpectHSet(pipelineId.String(), marshalLogs, marshalEmptyString).SetVal(1)
+			},
+			args: args{
+				ctx:          context.Background(),
+				output:       []byte(output),
+				pipelineId:   pipelineId,
+				cacheService: cacheMock,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
+			if err := processCompileSuccess(tt.args.ctx, tt.args.output, tt.args.pipelineId, tt.args.cacheService); (err != nil) != tt.wantErr {
+				t.Errorf("processCompileSuccess() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_readGraphFile(t *testing.T) {
+	pipelineLifeCycleCtx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+	type args struct {
+		pipelineLifeCycleCtx context.Context
+		backgroundCtx        context.Context
+		cacheService         cache.Cache
+		graphFilePath        string
+		pipelineId           uuid.UUID
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "All success",
+			args: args{
+				pipelineLifeCycleCtx: pipelineLifeCycleCtx,
+				backgroundCtx:        context.Background(),
+				cacheService:         cacheService,
+				graphFilePath:        graphFilePath,
+				pipelineId:           uuid.New(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			readGraphFile(tt.args.pipelineLifeCycleCtx, tt.args.backgroundCtx, tt.args.cacheService, tt.args.graphFilePath, tt.args.pipelineId)
+			if v, _ := cacheService.GetValue(tt.args.backgroundCtx, tt.args.pipelineId, cache.Graph); v == nil {
+				t.Errorf("readGraphFile() error: the graph was not cached")
 			}
 		})
 	}
