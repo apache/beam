@@ -16,12 +16,17 @@
  * limitations under the License.
  */
 
-const kReportIssueLink = 'https://issues.apache.org/jira/projects/BEAM/issues/';
-const kBeamPrivacyPolicyLink = 'https://beam.apache.org/privacy_policy/';
-const kBeamPlaygroundGithubLink =
-    'https://github.com/apache/beam/tree/master/playground';
-const kApacheBeamGithubLink = 'https://github.com/apache/beam';
-const kBeamWebsiteLink = 'https://beam.apache.org/';
-const kScioGithubLink = 'https://github.com/spotify/scio';
-const kAboutBeamLink = 'https://beam.apache.org/get-started/beam-overview';
-const kAddExampleLink = 'https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples';
+import 'package:flutter/cupertino.dart';
+
+class PopoverState extends ChangeNotifier {
+  bool _isOpen;
+
+  bool get isOpen => _isOpen;
+
+  PopoverState(this._isOpen);
+
+  setOpen(bool open) {
+    _isOpen = open;
+    notifyListeners();
+  }
+}
