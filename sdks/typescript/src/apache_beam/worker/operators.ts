@@ -39,6 +39,22 @@ import {
 
 // Trying to get some of https://github.com/microsoft/TypeScript/issues/8240
 // TODO: (Typescript) Is there a more idiomatic way to get a singleton?
+// I think the idiomatic way in TypeScript is a string or objects with a string key.
+// See: https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions
+// Examples:
+//
+// type ProcessResult = 'nonpromise' | Promise<void>;
+//
+// type ProcessResult = void | Promise<void>;
+//
+// interface NonPromiseResult {
+//   kind: 'nonpromise';
+// }
+// interface PromiseResult {
+//   kind: 'promise';
+//   promise: Promise<void>;
+// }
+// type ProcessResult = NonPromiseResult | PromiseResult;
 class NonPromiseClass {
   static INSTANCE = new NonPromiseClass();
   private constructor() {}
@@ -118,6 +134,10 @@ export function createOperator(
 }
 
 // TODO: (Typescript) Is there a good way to get the construtor as a function to avoid this new operator hacking?
+// I'm not sure I completely understand the usecase. Using the new operator
+// in itself doesn't seem hacky to me. It's used quite often in the builtin
+// types to define contructors. E.g.
+// https://github.com/microsoft/TypeScript/blob/460908a4788165d245918d8d6b2a60877f26c39f/lib/lib.es5.d.ts#L978
 type OperatorConstructor = (
   transformId: string,
   transformProto: PTransform,

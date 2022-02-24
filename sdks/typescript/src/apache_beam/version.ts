@@ -20,6 +20,10 @@ const fs = require("fs");
 const path = require("path");
 
 // TODO: (Typescript) Is there a more standard way to do this?
+// Not really. If you want to avoid require and use ES imports, you can do something like:
+// import * as fs from 'fs';
+// const packageJsonUrl = new URL('../../../package.json', import.meta.url);
+// fs.readFileSync(packageJsonUrl);
 export const version: string = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, "..", "..", "..", "package.json"))
 )["version"];

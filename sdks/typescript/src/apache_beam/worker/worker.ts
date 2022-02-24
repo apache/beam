@@ -246,6 +246,7 @@ export class BundleProcessor {
         if (isPrimitive(transform)) {
           Object.values(transform.inputs).forEach((pcollectionId: string) => {
             // TODO: (Typescript) is there a javascript defaultdict?
+            // Sadly no :(
             if (!consumers.has(pcollectionId)) {
               consumers.set(pcollectionId, []);
             }
