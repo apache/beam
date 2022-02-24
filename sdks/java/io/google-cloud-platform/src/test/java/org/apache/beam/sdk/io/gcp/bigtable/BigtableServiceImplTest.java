@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Queue;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -51,7 +52,9 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.Default.Byte;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -71,6 +74,8 @@ public class BigtableServiceImplTest {
   private static final String PROJECT_ID = "project";
   private static final String INSTANCE_ID = "instance";
   private static final String TABLE_ID = "table";
+
+  private static final int MINI_BATCH_ROW_LIMIT = 100;
 
   private static final BigtableTableName TABLE_NAME =
       new BigtableInstanceName(PROJECT_ID, INSTANCE_ID).toTableName(TABLE_ID);
@@ -98,27 +103,68 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
-   * as expected.
+   * as expected. This test checks that the proper Rows are returned when the buffer is not filled.
    *
    * @throws IOException
    * @throws InterruptedException
    */
   @Test
-  public void testRead() throws IOException {
+  public void testReadBelowMiniBatchLimit() throws IOException {
     ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     @SuppressWarnings("unchecked")
     ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
-    Row expectedRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
-    when(mockResultScanner.next()).thenReturn(expectedRow).thenReturn(null);
+    Row[] expectedRows = new Row[] {Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build()};
+    when(mockResultScanner.next(MINI_BATCH_ROW_LIMIT)).thenReturn(expectedRows).thenReturn(null);
+    when(mockResultScanner.available()).thenReturn(1).thenReturn(0);
     when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
-    Assert.assertEquals(expectedRow, underTest.getCurrentRow());
+    Assert.assertEquals(expectedRows[0], underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
+    underTest.close();
+
+    verify(mockResultScanner, times(1)).close();
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
+  }
+
+  /**
+   * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
+   * as expected. This test checks that the proper Rows are returned when the buffer is filled.
+   *
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  @Test
+  public void testReadAboveMiniBatchLimit() throws IOException {
+    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    //ByteKey filler = ByteKey.copyFrom("z".getBytes(StandardCharsets.UTF_8));
+    ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
+
+    //mockBigtableSource.
+
+    //ByteKeyRange How do I make a ByteKeyRange of 101 size?
+
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+    @SuppressWarnings("unchecked")
+    ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
+    Row[] expectedRows = new Row[] {Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build(),
+        Row.newBuilder().setKey(ByteString.copyFromUtf8("b")).build()};
+    when(mockResultScanner.next(MINI_BATCH_ROW_LIMIT)).thenReturn(expectedRows).thenReturn(null);
+    when(mockResultScanner.available()).thenReturn(2).thenReturn(0);
+    when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+
+    underTest.start();
+    Assert.assertEquals(expectedRows[0], underTest.getCurrentRow());
+    Assert.assertTrue(underTest.advance());
+    Assert.assertEquals(expectedRows[1], underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
     underTest.close();
 

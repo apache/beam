@@ -38,9 +38,13 @@ import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -54,6 +58,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+//import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class BigtableServiceImpl implements BigtableService {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
@@ -112,6 +117,10 @@ class BigtableServiceImpl implements BigtableService {
     private final BigtableSource source;
     private ResultScanner<Row> results;
     private Row currentRow;
+    private Queue<Row> buffer;
+    private RowSet rowSet;
+
+    private final int MINI_BATCH_ROW_LIMIT = 100;
 
     @VisibleForTesting
     BigtableReaderImpl(BigtableSession session, BigtableSource source) {
@@ -129,7 +138,8 @@ class BigtableServiceImpl implements BigtableService {
                     .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
                     .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
       }
-      RowSet rowSet = rowSetBuilder.build();
+      rowSet = rowSetBuilder.build();
+      buffer = new ConcurrentLinkedQueue<Row>();
 
       String tableNameSr =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
@@ -157,12 +167,17 @@ class BigtableServiceImpl implements BigtableService {
       ServiceCallMetric serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
       ReadRowsRequest.Builder requestB =
-          ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
+          ReadRowsRequest.newBuilder().setRows(rowSet)
+              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
       try {
         results = session.getDataClient().readRows(requestB.build());
+        if (results.available() != 0) { // Edge Cases?
+          buffer.addAll(Arrays.asList(
+              results.next(MINI_BATCH_ROW_LIMIT)));
+        }
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().value());
@@ -173,9 +188,38 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
-      currentRow = results.next();
+      if (buffer.isEmpty()) {
+        return refillReadRowsBuffer();
+      }
+      currentRow = buffer.remove();
       return currentRow != null;
     }
+
+    public boolean refillReadRowsBuffer() throws IOException {
+      if (rowSet.getRowKeysCount() == 0) { // Are there any other edge cases?
+        return false;
+      }
+      RowSet.Builder trunicatedRowSet = RowSet.newBuilder();
+      if (rowSet.getRowKeysCount() <= MINI_BATCH_ROW_LIMIT) {
+        trunicatedRowSet.addAllRowKeys(rowSet.getRowKeysList());
+      } else {
+        for (int i = MINI_BATCH_ROW_LIMIT; i < rowSet.getRowKeysCount(); i++) {
+          trunicatedRowSet.addRowKeys(rowSet.getRowKeys(i));
+        }
+      }
+
+      ReadRowsRequest.Builder request =
+          ReadRowsRequest.newBuilder().setRows(trunicatedRowSet)
+              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(source.getTableId().toString());
+      results = session.getDataClient().readRows(request.build());
+      if (results.available() != 0) {
+        buffer.addAll(Arrays.asList(results.next(MINI_BATCH_ROW_LIMIT)));
+      }
+
+      currentRow = buffer.remove();
+      return currentRow != null;
+    }
+
 
     @Override
     public void close() throws IOException {
