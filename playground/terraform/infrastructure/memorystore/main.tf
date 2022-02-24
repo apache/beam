@@ -21,6 +21,7 @@
 # Redis for storing state of Playground application.
 # In this cache Playground instances stores pipeline's statuses, outputs and pipeline's graph
 resource "google_redis_instance" "cache" {
+  // TODO: remove when replica_count, etc is generally available
   provider           = google-beta
   project            = var.project_id
   region             = var.region

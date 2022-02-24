@@ -34,8 +34,8 @@ resource "google_app_engine_flexible_app_version" "backend_app_router" {
   }
 
   automatic_scaling {
-    max_total_instances = 2
-    min_total_instances = 1
+    max_total_instances = var.max_instance
+    min_total_instances = var.min_instance
     cool_down_period    = "120s"
     cpu_utilization {
       target_utilization = 0.7
@@ -60,6 +60,7 @@ resource "google_app_engine_flexible_app_version" "backend_app_router" {
   env_variables = {
     CACHE_TYPE    = var.cache_type
     CACHE_ADDRESS = "${var.cache_address}:6379"
+    NUM_PARALLEL_JOBS = 10
     LAUNCH_SITE   = "app_engine"
   }
 

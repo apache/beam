@@ -1,10 +1,13 @@
 ---
 title: "Scalability and Cost Optimization for Search Engine's Workloads"
 name: "Seznam"
-categories:
-  - Commercial
-  - Enterprise
 icon: /images/logos/powered-by/seznam.png
+category: study
+cardTitle: "Scalability and Cost Optimization for Search Engine's Workloads"
+cardDescription: "Dive into the Czech search engine’s experience of scaling the on-premises infrastructure to learn more about the benefits of byte-based data shuffling and the use cases where Apache Beam portability and abstraction bring the utmost value."
+authorName: "Marek Simunek"
+authorPosition: "Senior Software Engineer @ seznam.cz"
+authorImg: /images/marek_simunek_photo.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -189,14 +192,6 @@ on Kubernetes cluster, Seznam employs Elasticsearch to store, search, and analyz
 
 ## Results
 
-Apache Beam has provided Ricardo with a scalable and reliable data processing framework that supported Ricardo’s
-fundamental business scenarios and enabled new use cases to respond to events in real-time.
-
-Throughout Ricardo’s transformation, Apache Beam has been a unified framework that can run batch and stream pipelines,
-offers on-premises and cloud managed services execution, and programming language options like Java and Python,
-empowered data science and research teams to advance customer experience with new real-time scenarios fast-tracking time
-to value.
-
 Apache Beam offered a unified model for Seznam’s stream and batch processing that provided performance at scale.
 Apache Beam supported multiple runners, language SDKs, and built-in and custom pluggable I/O transforms,
 thus eliminating the need to invest into the development and support of proprietary runners and solutions.
@@ -208,5 +203,6 @@ The Apache Beam abstraction and execution model allowed Seznam to robustly scale
 It also provided the flexibility to write the business logic just once and keep freedom of choice between runners.
 The model was especially valuable for pipeline maintainability in complex use cases.
 Apache Beam helped overcome memory and compute resource constraints by reshuffling unevenly distributed data into manageable partitions.
+{{< case_study_feedback Seznam >}}
 </div>
 <div class="clear-nav"></div>

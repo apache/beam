@@ -15,20 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sns;
+package org.apache.beam.sdk.io.aws2.options;
 
-import org.apache.beam.sdk.io.aws2.StaticSupplier;
-import software.amazon.awssdk.services.sns.SnsClient;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
-/** Client provider supporting unserializable clients such as mock instances for unit tests. */
-class StaticSnsClientProvider extends StaticSupplier<SnsClient, StaticSnsClientProvider>
-    implements SnsClientProvider {
-  static SnsClientProvider of(SnsClient client) {
-    return new StaticSnsClientProvider().withObject(client);
-  }
+public class SerializationTestUtil {
 
-  @Override
-  public SnsClient getSnsClient() {
-    return get();
+  private static final ObjectMapper MAPPER =
+      (new ObjectMapper())
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+
+  public static <T> T serializeDeserialize(Class<T> clazz, T obj) {
+    try {
+      String jsonString = MAPPER.writeValueAsString(obj);
+      return MAPPER.readValue(jsonString, clazz);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException("Failed to serialize/deserialize " + clazz.getSimpleName(), e);
+    }
   }
 }
