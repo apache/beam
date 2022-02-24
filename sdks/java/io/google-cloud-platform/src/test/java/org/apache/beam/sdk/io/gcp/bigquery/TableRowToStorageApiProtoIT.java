@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.junit.Assert.assertEquals;
-
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -34,6 +32,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
@@ -49,6 +48,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
@@ -130,6 +132,24 @@ public class TableRowToStorageApiProtoIT {
           .set("numericValue", new BigDecimal("23.4"))
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
+  private static final TableRow BASE_TABLE_ROW_NULL =
+      new TableRow()
+          .set("stringValue", null)
+          .set("bytesValue", null)
+          .set("int64Value", null)
+          .set("intValue", null)
+          .set("float64Value", null)
+          .set("floatValue", null)
+          .set("boolValue", null)
+          .set("booleanValue", null)
+          .set("timestampValue", null)
+          .set("timeValue", null)
+          .set("datetimeValue", null)
+          .set("dateValue", null)
+          .set("numericValue", null)
+          // BigQuery array cannot be null and cannot contain null element, but it can be empty
+          .set("arrayValue", ImmutableList.of());
+
   private static final TableRow BASE_TABLE_ROW_READ_BACK =
       new TableRow()
           .set("stringValue", "string")
@@ -195,6 +215,21 @@ public class TableRowToStorageApiProtoIT {
 
     assertEquals(1, actualTableRows.size());
     assertEquals(BASE_TABLE_ROW_READ_BACK, actualTableRows.get(0));
+  }
+
+  @Test
+  public void testTableRowToStorageApiProtoITNull() throws IOException, InterruptedException {
+    runPipeline(Collections.singleton(BASE_TABLE_ROW_NULL));
+
+    List<TableRow> actualTableRows =
+        BQ_CLIENT.queryUnflattened(
+            String.format("SELECT * FROM [%s]", FULL_TABLE_NAME), project, true);
+
+    assertEquals(1, actualTableRows.size());
+    // only non null values are returned, only arrayValue field is not null
+    assertEquals(1, actualTableRows.get(0).size());
+    // arrayValue should be an empty list
+    assertTrue(((List<?>) actualTableRows.get(0).get("arrayValue")).isEmpty());
   }
 
   private static void runPipeline(Iterable<TableRow> tableRows) {
