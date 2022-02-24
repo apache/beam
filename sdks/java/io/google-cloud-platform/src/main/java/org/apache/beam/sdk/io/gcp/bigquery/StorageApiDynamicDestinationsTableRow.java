@@ -23,12 +23,11 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
+import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-
-import javax.annotation.Nullable;
-import java.io.IOException;
 
 @SuppressWarnings({"nullness"})
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
@@ -51,7 +50,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
     return new MessageConverter<T>() {
 
       private final TableSchema tableSchema = getTableSchema();
-      private final Descriptor descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
+      private final Descriptor descriptor =
+          TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
 
       @Override
       public Descriptor getSchemaDescriptor() {
@@ -91,7 +91,6 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
         }
         return tableSchema;
       }
-
     };
   }
 }

@@ -17,12 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -68,7 +73,17 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   // FAIL_ON_EMPTY_BEANS is disabled in order to handle null values in
   // TableRow.
   private static final ObjectMapper MAPPER =
-      new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+      JsonMapper.builder()
+          .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+          .addModule(new JavaTimeModule())
+          // serialize Date/Time to string instead of floats
+          .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+          // serialize BigDecimal to string without scientific notation instead of floats
+          .configure(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true)
+          .withConfigOverride(
+              BigDecimal.class,
+              it -> it.setFormat(JsonFormat.Value.forShape(JsonFormat.Shape.STRING)))
+          .build();
 
   private static final TableRowJsonCoder INSTANCE = new TableRowJsonCoder();
   private static final TypeDescriptor<TableRow> TYPE_DESCRIPTOR = new TypeDescriptor<TableRow>() {};

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static java.util.stream.Collectors.toList;
+
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -33,19 +35,22 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
-
-import javax.annotation.Nullable;
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-
-import static java.util.stream.Collectors.toList;
+import java.util.AbstractMap;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /**
  * Utility methods for converting JSON {@link TableRow} objects to dynamic protocol message, for use
@@ -90,17 +95,20 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
-  private static TableFieldSchema getByName(List<TableFieldSchema> tableFieldSchemaList, String name) {
+  private static TableFieldSchema getByName(
+      List<TableFieldSchema> tableFieldSchemaList, String name) {
     for (TableFieldSchema tableFieldSchema : tableFieldSchemaList) {
-      if (tableFieldSchema.getName().equals(name))
+      if (tableFieldSchema.getName().equals(name)) {
         return tableFieldSchema;
+      }
     }
     throw new RuntimeException("cannot find table schema for " + name);
   }
 
   public static DynamicMessage messageFromMap(
       List<TableFieldSchema> tableFieldSchemaList,
-      Descriptor descriptor, AbstractMap<String, Object> map) {
+      Descriptor descriptor,
+      AbstractMap<String, Object> map) {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Map.Entry<String, Object> entry : map.entrySet()) {
 
@@ -111,7 +119,9 @@ public class TableRowToStorageApiProto {
             "TableRow contained unexpected field with name " + entry.getKey());
       }
       TableFieldSchema tableFieldSchema = getByName(tableFieldSchemaList, entry.getKey());
-      @Nullable Object value = messageValueFromFieldValue(tableFieldSchema, fieldDescriptor, entry.getValue());
+      @Nullable
+      Object value =
+          messageValueFromFieldValue(tableFieldSchema, fieldDescriptor, entry.getValue());
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
@@ -123,7 +133,8 @@ public class TableRowToStorageApiProto {
    * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
    * using the BigQuery Storage API.
    */
-  public static DynamicMessage messageFromTableRow(List<TableFieldSchema> tableFieldSchemaList, Descriptor descriptor, TableRow tableRow) {
+  public static DynamicMessage messageFromTableRow(
+      List<TableFieldSchema> tableFieldSchemaList, Descriptor descriptor, TableRow tableRow) {
     @Nullable List<TableCell> cells = tableRow.getF();
     if (cells != null) {
       DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
@@ -134,7 +145,8 @@ public class TableRowToStorageApiProto {
         TableCell cell = cells.get(i);
         FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
         TableFieldSchema tableFieldSchema = tableFieldSchemaList.get(i);
-        @Nullable Object value = messageValueFromFieldValue(tableFieldSchema, fieldDescriptor, cell.getV());
+        @Nullable
+        Object value = messageValueFromFieldValue(tableFieldSchema, fieldDescriptor, cell.getV());
         if (value != null) {
           builder.setField(fieldDescriptor, value);
         }
@@ -198,8 +210,7 @@ public class TableRowToStorageApiProto {
 
   @Nullable
   private static Object messageValueFromFieldValue(
-      TableFieldSchema tableFieldSchema,
-      FieldDescriptor fieldDescriptor, Object bqValue) {
+      TableFieldSchema tableFieldSchema, FieldDescriptor fieldDescriptor, Object bqValue) {
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
@@ -219,16 +230,21 @@ public class TableRowToStorageApiProto {
   @VisibleForTesting
   static Object toProtoValue(
       TableFieldSchema tableFieldSchema,
-      FieldDescriptor fieldDescriptor, Object jsonBQValue, boolean isRepeated) {
+      FieldDescriptor fieldDescriptor,
+      Object jsonBQValue,
+      boolean isRepeated) {
     if (isRepeated) {
       return ((List<Object>) jsonBQValue)
-          .stream().map(v -> toProtoValue(tableFieldSchema, fieldDescriptor, v, false)).collect(toList());
+          .stream()
+              .map(v -> toProtoValue(tableFieldSchema, fieldDescriptor, v, false))
+              .collect(toList());
     }
 
     if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
       if (jsonBQValue instanceof TableRow) {
         TableRow tableRow = (TableRow) jsonBQValue;
-        return messageFromTableRow(tableFieldSchema.getFields(), fieldDescriptor.getMessageType(), tableRow);
+        return messageFromTableRow(
+            tableFieldSchema.getFields(), fieldDescriptor.getMessageType(), tableRow);
       } else if (jsonBQValue instanceof AbstractMap) {
         // This will handle nested rows.
         AbstractMap<String, Object> map = ((AbstractMap<String, Object>) jsonBQValue);
@@ -243,8 +259,10 @@ public class TableRowToStorageApiProto {
   @VisibleForTesting
   @Nullable
   static Object scalarToProtoValue(TableFieldSchema tableFieldSchema, Object jsonBQValue) {
-    if (jsonBQValue == null) // nullable value
+    if (jsonBQValue == null) {
+      // nullable value
       return null;
+    }
 
     switch (tableFieldSchema.getType()) {
       case "INT64":
@@ -252,7 +270,7 @@ public class TableRowToStorageApiProto {
         if (jsonBQValue instanceof String) {
           return Long.valueOf((String) jsonBQValue);
         } else if (jsonBQValue instanceof Integer) {
-          return (long) jsonBQValue;
+          return ((Integer) jsonBQValue).longValue();
         } else if (jsonBQValue instanceof Long) {
           return jsonBQValue;
         }
@@ -264,7 +282,7 @@ public class TableRowToStorageApiProto {
         } else if (jsonBQValue instanceof Double) {
           return jsonBQValue;
         } else if (jsonBQValue instanceof Float) {
-          return (double) jsonBQValue;
+          return ((Float) jsonBQValue).longValue();
         }
         break;
       case "BOOLEAN":
@@ -294,19 +312,25 @@ public class TableRowToStorageApiProto {
         } else if (jsonBQValue instanceof Long) {
           return jsonBQValue;
         } else if (jsonBQValue instanceof Integer) {
-          return (long) jsonBQValue;
+          return ((Integer) jsonBQValue).longValue();
         }
         break;
       case "DATE":
         if (jsonBQValue instanceof String) {
-          return (int) LocalDate.parse((String) jsonBQValue).toEpochDay();
+          return ((Long) LocalDate.parse((String) jsonBQValue).toEpochDay()).intValue();
         } else if (jsonBQValue instanceof LocalDate) {
-          return (int) ((LocalDate) jsonBQValue).toEpochDay();
+          return ((Long) ((LocalDate) jsonBQValue).toEpochDay()).intValue();
+        }
+        break;
+      case "NUMERIC":
+      case "BIGNUMERIC":
+        if (jsonBQValue instanceof String) {
+          return jsonBQValue;
+        } else if (jsonBQValue instanceof BigDecimal) {
+          return ((BigDecimal) jsonBQValue).toPlainString();
         }
         break;
       case "STRING":
-      case "NUMERIC":
-      case "BIGNUMERIC":
       case "TIME":
       case "DATETIME":
       case "JSON":
@@ -314,8 +338,15 @@ public class TableRowToStorageApiProto {
         return jsonBQValue.toString();
     }
 
-    throw new RuntimeException("Unexpected value :" + jsonBQValue + ", type: " + jsonBQValue.getClass() +
-        ". Table field name: " + tableFieldSchema.getName() + ", type: " + tableFieldSchema.getType());
+    throw new RuntimeException(
+        "Unexpected value :"
+            + jsonBQValue
+            + ", type: "
+            + jsonBQValue.getClass()
+            + ". Table field name: "
+            + tableFieldSchema.getName()
+            + ", type: "
+            + tableFieldSchema.getType());
   }
 
   @VisibleForTesting

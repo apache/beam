@@ -17,7 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.*;
+import static org.junit.Assert.assertEquals;
+
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
@@ -34,142 +50,163 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.Collections;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-        "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 /** Unit tests for {@link TableRowToStorageApiProto}. */
 public class TableRowToStorageApiProtoIT {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TableRowToStorageApiProtoIT.class);
-    private static final BigqueryClient BQ_CLIENT = new BigqueryClient("TableRowToStorageApiProtoIT");
+  private static final Logger LOG = LoggerFactory.getLogger(TableRowToStorageApiProtoIT.class);
+  private static final BigqueryClient BQ_CLIENT = new BigqueryClient("TableRowToStorageApiProtoIT");
 
-    private static final String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    private static final String BIG_QUERY_DATASET_ID =
-            "table_row_to_storage_api_proto_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
-    private static final String TABLE_NAME = "table_row_to_storage_api";
-    private static final String FULL_TABLE_NAME = project + ":" + BIG_QUERY_DATASET_ID + "." + TABLE_NAME;
+  private static final String project =
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  private static final String BIG_QUERY_DATASET_ID =
+      "table_row_to_storage_api_proto_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
+  private static final String TABLE_NAME = "table_row_to_storage_api";
+  private static final String FULL_TABLE_NAME =
+      project + ":" + BIG_QUERY_DATASET_ID + "." + TABLE_NAME;
 
-    private static final TableSchema BASE_TABLE_SCHEMA =
-            new TableSchema()
-                    .setFields(
-                            ImmutableList.<TableFieldSchema>builder()
-                                    .add(new TableFieldSchema().setType("STRING").setName("stringValue"))
-                                    .add(new TableFieldSchema().setType("BYTES").setName("bytesValue"))
-                                    .add(new TableFieldSchema().setType("INT64").setName("int64Value"))
-                                    .add(new TableFieldSchema().setType("INTEGER").setName("intValue"))
-                                    .add(new TableFieldSchema().setType("FLOAT64").setName("float64Value"))
-                                    .add(new TableFieldSchema().setType("FLOAT").setName("floatValue"))
-                                    .add(new TableFieldSchema().setType("BOOL").setName("boolValue"))
-                                    .add(new TableFieldSchema().setType("BOOLEAN").setName("booleanValue"))
-                                    .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValue"))
-                                    .add(new TableFieldSchema().setType("TIME").setName("timeValue"))
-                                    .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
-                                    .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
-                                    .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
-                                    .add(
-                                            new TableFieldSchema()
-                                                    .setType("STRING")
-                                                    .setMode("REPEATED")
-                                                    .setName("arrayValue"))
-                                    .build());
+  private static final TableSchema BASE_TABLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.<TableFieldSchema>builder()
+                  .add(new TableFieldSchema().setType("STRING").setName("stringValue"))
+                  .add(new TableFieldSchema().setType("BYTES").setName("bytesValue"))
+                  .add(new TableFieldSchema().setType("INT64").setName("int64Value"))
+                  .add(new TableFieldSchema().setType("INTEGER").setName("intValue"))
+                  .add(new TableFieldSchema().setType("FLOAT64").setName("float64Value"))
+                  .add(new TableFieldSchema().setType("FLOAT").setName("floatValue"))
+                  .add(new TableFieldSchema().setType("BOOL").setName("boolValue"))
+                  .add(new TableFieldSchema().setType("BOOLEAN").setName("booleanValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValue"))
+                  .add(new TableFieldSchema().setType("TIME").setName("timeValue"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
+                  .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
+                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("STRING")
+                          .setMode("REPEATED")
+                          .setName("arrayValue"))
+                  .build());
 
-    private static final TableRow BASE_TABLE_ROW =
-            new TableRow()
-                    .set("stringValue", "string")
-                    .set(
-                            "bytesValue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
-                    .set("int64Value", "42")
-                    .set("intValue", "43")
-                    .set("float64Value", "2.8168")
-                    .set("floatValue", "2.817")
-                    .set("boolValue", "true")
-                    .set("booleanValue", "true")
-                    .set("timestampValue", "1970-01-01T00:00:00.000043Z")
-                    .set("timeValue", "00:52:07.123456")
-                    .set("datetimeValue", "2019-08-16T00:52:07.123456")
-                    .set("dateValue", "2019-08-16")
-                    .set("numericValue", "23.4")
-                    .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+  private static final TableRow BASE_TABLE_ROW =
+      new TableRow()
+          .set("stringValue", "string")
+          .set(
+              "bytesValue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
+          .set("int64Value", "42")
+          .set("intValue", "43")
+          .set("float64Value", "2.8168")
+          .set("floatValue", "2.817")
+          .set("boolValue", "true")
+          .set("booleanValue", "true")
+          .set("timestampValue", "1970-01-01T00:00:00.000043Z")
+          .set("timeValue", "00:52:07.123456")
+          .set("datetimeValue", "2019-08-16T00:52:07.123456")
+          .set("dateValue", "2019-08-16")
+          .set("numericValue", "23.4")
+          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
-    private static final TableRow BASE_TABLE_ROW_READ_BACK =
-            new TableRow()
-                    .set("stringValue", "string")
-                    .set(
-                            "bytesValue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
-                    .set("int64Value", "42")
-                    .set("intValue", "43")
-                    .set("float64Value", 2.8168)
-                    .set("floatValue", 2.817)
-                    .set("boolValue", true)
-                    .set("booleanValue", true)
-                    .set("timestampValue", "4.3E-5")
-                    .set("timeValue", "00:52:07.123456")
-                    .set("datetimeValue", "2019-08-16T00:52:07.123456")
-                    .set("dateValue", "2019-08-16")
-                    .set("numericValue", "23.4")
-                    .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+  private static final TableRow BASE_TABLE_ROW_RICH_TYPE =
+      new TableRow()
+          .set("stringValue", "string")
+          .set("bytesValue", "string".getBytes(StandardCharsets.UTF_8))
+          .set("int64Value", 42)
+          .set("intValue", 43)
+          .set("float64Value", 2.8168f)
+          .set("floatValue", 2.817f)
+          .set("boolValue", true)
+          .set("booleanValue", true)
+          .set("timestampValue", Instant.parse("1970-01-01T00:00:00.000043Z"))
+          .set("timeValue", LocalTime.parse("00:52:07.123456"))
+          .set("datetimeValue", LocalDateTime.parse("2019-08-16T00:52:07.123456"))
+          .set("dateValue", LocalDate.parse("2019-08-16"))
+          .set("numericValue", new BigDecimal("23.4"))
+          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
-    @BeforeClass
-    public static void setupTestEnvironment() throws Exception {
+  private static final TableRow BASE_TABLE_ROW_READ_BACK =
+      new TableRow()
+          .set("stringValue", "string")
+          .set(
+              "bytesValue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
+          .set("int64Value", "42")
+          .set("intValue", "43")
+          .set("float64Value", 2.8168)
+          .set("floatValue", 2.817)
+          .set("boolValue", true)
+          .set("booleanValue", true)
+          .set("timestampValue", "4.3E-5")
+          .set("timeValue", "00:52:07.123456")
+          .set("datetimeValue", "2019-08-16T00:52:07.123456")
+          .set("dateValue", "2019-08-16")
+          .set("numericValue", "23.4")
+          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
-        // Create one BQ dataset for all test cases.
-        BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
+  @BeforeClass
+  public static void setupTestEnvironment() throws Exception {
 
-        // Create table and insert data for new type query test cases.
-        BQ_CLIENT.createNewTable(
-                project,
-                BIG_QUERY_DATASET_ID,
-                new Table()
-                        .setSchema(BASE_TABLE_SCHEMA)
-                        .setTableReference(
-                                new TableReference()
-                                        .setTableId(TABLE_NAME)
-                                        .setDatasetId(BIG_QUERY_DATASET_ID)
-                                        .setProjectId(project)
-                        )
-        );
-    }
+    // Create one BQ dataset for all test cases.
+    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
 
-    @AfterClass
-    public static void cleanup() {
-        LOG.info("Start to clean up tables and datasets.");
-        BQ_CLIENT.deleteDataset(project, BIG_QUERY_DATASET_ID);
-    }
+    // Create table and insert data for new type query test cases.
+    BQ_CLIENT.createNewTable(
+        project,
+        BIG_QUERY_DATASET_ID,
+        new Table()
+            .setSchema(BASE_TABLE_SCHEMA)
+            .setTableReference(
+                new TableReference()
+                    .setTableId(TABLE_NAME)
+                    .setDatasetId(BIG_QUERY_DATASET_ID)
+                    .setProjectId(project)));
+  }
 
-    @Test
-    public void testTableRowToStorageApiProtoIT() throws IOException, InterruptedException {
-        runPipeline(Collections.singleton(BASE_TABLE_ROW));
+  @AfterClass
+  public static void cleanup() {
+    LOG.info("Start to clean up tables and datasets.");
+    BQ_CLIENT.deleteDataset(project, BIG_QUERY_DATASET_ID);
+  }
 
-        List<TableRow> actualTableRows = BQ_CLIENT
-                .queryUnflattened(String.format("SELECT * FROM [%s]", FULL_TABLE_NAME), project, true);
+  @Test
+  public void testTableRowToStorageApiProtoIT() throws IOException, InterruptedException {
+    runPipeline(Collections.singleton(BASE_TABLE_ROW));
 
-        assertEquals(1, actualTableRows.size());
-        assertEquals(BASE_TABLE_ROW_READ_BACK, actualTableRows.get(0));
-    }
+    List<TableRow> actualTableRows =
+        BQ_CLIENT.queryUnflattened(
+            String.format("SELECT * FROM [%s]", FULL_TABLE_NAME), project, true);
 
-    private static void runPipeline(Iterable<TableRow> tableRows) {
-        Pipeline p = Pipeline.create();
-        p
-                .apply("Create test cases", Create.of(tableRows))
-                .apply("Write using Storage Write API",
-                        BigQueryIO.<TableRow>write()
-                                .to(FULL_TABLE_NAME)
-                                .withFormatFunction(SerializableFunctions.identity())
-                                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
-                                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
-                );
-        p.run().waitUntilFinish();
-    }
+    assertEquals(1, actualTableRows.size());
+    assertEquals(BASE_TABLE_ROW_READ_BACK, actualTableRows.get(0));
+  }
+
+  @Test
+  public void testTableRowToStorageApiProtoITRichType() throws IOException, InterruptedException {
+    runPipeline(Collections.singleton(BASE_TABLE_ROW_RICH_TYPE));
+
+    List<TableRow> actualTableRows =
+        BQ_CLIENT.queryUnflattened(
+            String.format("SELECT * FROM [%s]", FULL_TABLE_NAME), project, true);
+
+    assertEquals(1, actualTableRows.size());
+    assertEquals(BASE_TABLE_ROW_READ_BACK, actualTableRows.get(0));
+  }
+
+  private static void runPipeline(Iterable<TableRow> tableRows) {
+    Pipeline p = Pipeline.create();
+    p.apply("Create test cases", Create.of(tableRows))
+        .apply(
+            "Write using Storage Write API",
+            BigQueryIO.<TableRow>write()
+                .to(FULL_TABLE_NAME)
+                .withFormatFunction(SerializableFunctions.identity())
+                .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+    p.run().waitUntilFinish();
+  }
 }
