@@ -17,9 +17,11 @@ package trigger
 import (
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-func TestAfterCount(t *testing.T) {
+func TestAfterCountTrigger(t *testing.T) {
 	tr := AfterCount(1)
 	want := int32(1)
 	if got := tr.ElementCount(); got != want {
@@ -27,33 +29,45 @@ func TestAfterCount(t *testing.T) {
 	}
 }
 
-func TestAfterProcessingTime(t *testing.T) {
-	tr := AfterProcessingTime()
-	tr.PlusDelay(time.Millisecond).AlignedTo(time.Millisecond, time.Now())
-	want := 2
-	if got := len(tr.TimestampTransforms()); got != want {
-		t.Errorf("timestamp transforms not configured correctly. got %v, want %v", got, want)
+func TestAfterProcessingTimeTrigger(t *testing.T) {
+	tests := []struct {
+		tr *AfterProcessingTimeTrigger
+		tt []TimestampTransform
+	}{
+		{
+			tr: AfterProcessingTime().PlusDelay(time.Millisecond),
+			tt: []TimestampTransform{DelayTransform{Delay: 1}},
+		},
+		{
+			tr: AfterProcessingTime().PlusDelay(time.Millisecond).AlignedTo(time.Millisecond, time.Time{}),
+			tt: []TimestampTransform{DelayTransform{Delay: 1}, AlignToTransform{Period: 1, Offset: 0}},
+		},
+	}
+	for _, test := range tests {
+		if diff := cmp.Diff(test.tr.TimestampTransforms(), test.tt); diff != "" {
+			t.Errorf("timestamp transforms are not equal: %v", diff)
+		}
 	}
 }
 
-func TestRepeat(t *testing.T) {
-	subTr := AfterCount(1)
+func TestRepeatTrigger(t *testing.T) {
+	subTr := AfterCount(2)
 	tr := Repeat(subTr)
 
-	if got := tr.SubTrigger(); got != subTr {
+	if got, ok := tr.SubTrigger().(*AfterCountTrigger); ok && got != subTr {
 		t.Errorf("subtrigger not configured correctly. got %v, want %v", got, subTr)
 	}
 }
 
-func TestAfterEndOfWindow(t *testing.T) {
+func TestAfterEndOfWindowTrigger(t *testing.T) {
 	earlyTr := AfterCount(50)
 	lateTr := Always()
 	tr := AfterEndOfWindow().EarlyFiring(earlyTr).LateFiring(lateTr)
 
-	if got := tr.Early(); got != earlyTr {
+	if got, ok := tr.Early().(*AfterCountTrigger); ok && got != earlyTr {
 		t.Errorf("early firing trigger not configured correctly. got %v, want %v", got, earlyTr)
 	}
-	if got := tr.Late(); got != lateTr {
+	if got, ok := tr.Late().(*AlwaysTrigger); ok && got != lateTr {
 		t.Errorf("late firing trigger not configured correctly. got %v, want %v", got, lateTr)
 	}
 }
