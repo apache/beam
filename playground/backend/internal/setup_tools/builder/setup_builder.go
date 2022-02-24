@@ -22,6 +22,7 @@ import (
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -36,7 +37,7 @@ const (
 // Validator return executor with set args for validator
 func Validator(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
-	val, err := utils.GetValidators(sdk, paths.AbsoluteSourceFilePath)
+	val, err := validators.GetValidators(sdk, paths.AbsoluteSourceFilePath)
 	if err != nil {
 		return nil, err
 	}

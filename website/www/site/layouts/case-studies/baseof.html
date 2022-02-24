@@ -21,12 +21,13 @@
     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
       {{ .TableOfContents }}
     </nav>
-    <div class="{{ if .Params.hasNav }}body__contained body__section-no-nav{{ end }}">
+    <div class="{{ if .Params.hasNav }}body__contained body__section-no-nav{{ end }} case-study-page">
       {{ block "main" . }}{{ end }}
     </div>
   </div>
   {{ partial "footer.html" . }}
   <script>
+      // Handle case study feedback buttons
       function sendCaseStudyFeedback(isUseful, name) {
           ga('send', 'event', 'Case Study Feedback', 'Click', name + (isUseful ? ', yes' : ', no'));
           var caseStudyFeedbackContainerId = 'case-study-feedback';
