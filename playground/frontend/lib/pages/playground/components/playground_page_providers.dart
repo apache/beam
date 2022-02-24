@@ -95,12 +95,12 @@ class PlaygroundPageProviders extends StatelessWidget {
   ) {
     final examplePath = Uri.base.queryParameters[kExampleParam];
 
-    if (exampleState.defaultExamplesMap == null) {
+    if (exampleState.defaultExamplesMap.isEmpty) {
       exampleState.loadDefaultExamples();
     }
 
-    if (examplePath == null || examplePath == '') {
-      return exampleState.defaultExamplesMap![playground.sdk];
+    if (examplePath?.isEmpty ?? true) {
+      return exampleState.defaultExamplesMap[playground.sdk];
     }
 
     final allExamples = exampleState.sdkCategories?.values

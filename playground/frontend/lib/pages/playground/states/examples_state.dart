@@ -27,7 +27,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
   Map<SDK, List<CategoryModel>>? sdkCategories;
-  Map<SDK, ExampleModel>? defaultExamplesMap;
+  Map<SDK, ExampleModel> defaultExamplesMap = {};
   ExampleModel? defaultExample;
   bool isSelectorOpened = false;
 
@@ -101,26 +101,28 @@ class ExampleState with ChangeNotifier {
   }
 
   loadDefaultExamples() async {
-    if (defaultExamplesMap != null) {
+    if (defaultExamplesMap.isNotEmpty) {
       return;
     }
-    defaultExamplesMap = {};
+
     List<MapEntry<SDK, ExampleModel>> defaultExamples = [];
 
     for (var value in SDK.values) {
       defaultExamples.add(
         MapEntry(
-            value,
-            await _exampleRepository.getDefaultExample(
-              GetExampleRequestWrapper('', value),
-            )),
+          value,
+          await _exampleRepository.getDefaultExample(
+            // First parameter is an empty string, because we don't need path to get the default example.
+            GetExampleRequestWrapper('', value),
+          ),
+        ),
       );
     }
 
-    defaultExamplesMap!.addEntries(defaultExamples);
-    for (var entry in defaultExamplesMap!.entries) {
+    defaultExamplesMap.addEntries(defaultExamples);
+    for (var entry in defaultExamplesMap.entries) {
       loadExampleInfo(entry.value, entry.key)
-          .then((value) => defaultExamplesMap![entry.key] = value);
+          .then((value) => defaultExamplesMap[entry.key] = value);
     }
     notifyListeners();
   }
