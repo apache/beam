@@ -313,7 +313,11 @@ function extractFnAndName<T, K>(
   extractor: string | string[] | ((T) => K),
   defaultName: string
 ): [(T) => K, string | string[]] {
-  if (typeof extractor === "string" || typeof extractor === "number" || typeof extractor === "symbol") {
+  if (
+    typeof extractor === "string" ||
+    typeof extractor === "number" ||
+    typeof extractor === "symbol"
+  ) {
     return [(element: T) => element[extractor] as unknown as K, extractor];
   } else if (extractor instanceof Array) {
     return [
