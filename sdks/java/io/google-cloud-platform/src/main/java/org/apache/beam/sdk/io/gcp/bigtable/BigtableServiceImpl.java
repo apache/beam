@@ -117,6 +117,7 @@ class BigtableServiceImpl implements BigtableService {
     private Row currentRow;
     private Queue<Row> buffer;
     private RowSet rowSet;
+    private ServiceCallMetric serviceCallMetric;
 
     private final int MINI_BATCH_ROW_LIMIT = 100;
 
@@ -139,9 +140,6 @@ class BigtableServiceImpl implements BigtableService {
       rowSet = rowSetBuilder.build();
       buffer = new ConcurrentLinkedQueue<Row>();
 
-      String tableNameSr =
-          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
-
       HashMap<String, String> baseLabels = new HashMap<>();
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
       baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
@@ -162,25 +160,10 @@ class BigtableServiceImpl implements BigtableService {
               session.getOptions().getProjectId(),
               session.getOptions().getInstanceId(),
               source.getTableId().get()));
-      ServiceCallMetric serviceCallMetric =
+      serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-      ReadRowsRequest.Builder requestB =
-          ReadRowsRequest.newBuilder().setRows(rowSet)
-              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(tableNameSr);
-      if (source.getRowFilter() != null) {
-        requestB.setFilter(source.getRowFilter());
-      }
-      try {
-        results = session.getDataClient().readRows(requestB.build());
-        if (results.available() != 0) { // Edge Cases?
-          buffer.addAll(Arrays.asList(
-              results.next(MINI_BATCH_ROW_LIMIT)));
-        }
-        serviceCallMetric.call("ok");
-      } catch (StatusRuntimeException e) {
-        serviceCallMetric.call(e.getStatus().getCode().value());
-        throw e;
-      }
+
+      buildReadRequest();
       return advance();
     }
 
@@ -202,21 +185,36 @@ class BigtableServiceImpl implements BigtableService {
         truncatedRowSet.addAllRowKeys(rowSet.getRowKeysList());
       } else {
         for (long i = MINI_BATCH_ROW_LIMIT; i < rowSet.getRowKeysCount(); i++) {
-          truncatedRowSet.addRowKeys(rowSet.getRowKeys((int)i));
+          truncatedRowSet.addRowKeys(rowSet.getRowKeys((int)i)); // Leave as long?
         }
       }
       rowSet = truncatedRowSet.build();
-
-      ReadRowsRequest.Builder request =
-          ReadRowsRequest.newBuilder().setRows(truncatedRowSet)
-              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(source.getTableId().toString());
-      results = session.getDataClient().readRows(request.build());
-      if (results.available() != 0) {
-        buffer.addAll(Arrays.asList(results.next(MINI_BATCH_ROW_LIMIT)));
-      }
-
+      buildReadRequest();
       currentRow = buffer.remove();
       return currentRow != null;
+    }
+
+    public void buildReadRequest() throws IOException {
+      String tableNameStr =
+          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
+
+      ReadRowsRequest.Builder request =
+          ReadRowsRequest.newBuilder().setRows(rowSet)
+              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(tableNameStr);
+      if (source.getRowFilter() != null) {
+        request.setFilter(source.getRowFilter());
+      }
+      try {
+        results = session.getDataClient().readRows(request.build());
+        if (results.available() != 0) { // Edge Cases?
+          buffer.addAll(Arrays.asList(
+              results.next(MINI_BATCH_ROW_LIMIT)));
+        }
+        serviceCallMetric.call("ok");
+      } catch (StatusRuntimeException e) {
+        serviceCallMetric.call(e.getStatus().getCode().value());
+        throw e;
+      }
     }
 
 
