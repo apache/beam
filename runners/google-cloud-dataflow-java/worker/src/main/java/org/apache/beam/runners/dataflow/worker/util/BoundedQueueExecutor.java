@@ -72,14 +72,10 @@ public class BoundedQueueExecutor {
     executeLockHeld(work, workBytes);
   }
 
+  // Forcibly add something to the queue, ignoring the length limit.
   public void forceExecute(Runnable work, long workBytes) {
     monitor.enter();
     executeLockHeld(work, workBytes);
-  }
-
-  // Forcibly add something to the queue, ignoring the length limit.
-  public void forceExecute(Runnable r) {
-    forceExecute(r, 0);
   }
 
   public void shutdown() throws InterruptedException {
@@ -126,24 +122,31 @@ public class BoundedQueueExecutor {
   }
 
   private void executeLockHeld(Runnable work, long workBytes) {
-    Runnable workRunnable =
-        () -> {
-          try {
-            work.run();
-          } finally {
-            monitor.enter();
-            --elementsOutstanding;
-            bytesOutstanding -= workBytes;
-            monitor.leave();
-          }
-        };
+    bytesOutstanding += workBytes;
+    ++elementsOutstanding;
+    monitor.leave();
+
     try {
-      bytesOutstanding += workBytes;
-      ++elementsOutstanding;
-      executor.execute(workRunnable);
-    } finally {
-      monitor.leave();
+      executor.execute(
+          () -> {
+            try {
+              work.run();
+            } finally {
+              decrementCounters(workBytes);
+            }
+          });
+    } catch (RuntimeException e) {
+      // If the execute() call threw an exception, decrement counters here.
+      decrementCounters(workBytes);
+      throw e;
     }
+  }
+
+  private void decrementCounters(long workBytes) {
+    monitor.enter();
+    --elementsOutstanding;
+    bytesOutstanding -= workBytes;
+    monitor.leave();
   }
 
   private long bytesAvailable() {

@@ -1243,7 +1243,8 @@ public class StreamingDataflowWorker {
               } catch (Throwable t) {
                 LOG.error("Source checkpoint finalization failed:", t);
               }
-            });
+            },
+            0);
       }
     }
   }
