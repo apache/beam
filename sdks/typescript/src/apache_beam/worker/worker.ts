@@ -188,7 +188,8 @@ export class Worker {
   }
 
   getDataChannel(endpoint: string): MultiplexingDataChannel {
-    // TODO: (Typescript) Is there a javascript equivalent of Python's defaultdict?
+    // TODO: (Typescript) Defining something like Python's defaultdict could
+    // simplify this code.
     // This would be handy in several other places as well.
     if (!this.dataChannels.has(endpoint)) {
       this.dataChannels.set(
@@ -245,8 +246,6 @@ export class BundleProcessor {
       ([transformId, transform]) => {
         if (isPrimitive(transform)) {
           Object.values(transform.inputs).forEach((pcollectionId: string) => {
-            // TODO: (Typescript) is there a javascript defaultdict?
-            // Sadly no :(
             if (!consumers.has(pcollectionId)) {
               consumers.set(pcollectionId, []);
             }
