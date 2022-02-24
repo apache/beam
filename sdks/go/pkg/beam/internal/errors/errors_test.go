@@ -203,7 +203,7 @@ func TestError(t *testing.T) {
 				t.Errorf("Incorrect formatting. Want: %q, Got: %q", want, got)
 			}
 		} else {
-			t.Errorf("Error should be type beamError, got: %q", test.err)
+			t.Errorf("Error should be type *beamError, got: %q", test.err)
 		}
 	}
 }
