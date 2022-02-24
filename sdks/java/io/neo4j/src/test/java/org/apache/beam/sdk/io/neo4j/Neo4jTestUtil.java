@@ -29,18 +29,21 @@ import org.neo4j.driver.SessionConfig;
 
 public class Neo4jTestUtil {
 
-  public static final String NEO4J_VERSION = "4.3.6";
-  public static final String NEO4J_HOSTNAME = "neo4j";
-  public static final String NEO4J_URL = "neo4j://" + NEO4J_HOSTNAME + ":7687";
+  public static final String NEO4J_VERSION = "latest";
+  public static final String NEO4J_NETWORK_ALIAS = "neo4jcontainer";
   public static final String NEO4J_USERNAME = "neo4j";
   public static final String NEO4J_PASSWORD = "abcd";
-  public static final String NEO4J_DATABASE = "tests";
+  public static final String NEO4J_DATABASE = "neo4j";
 
-  public static Driver getDriver() throws URISyntaxException {
+  public static final String getUrl(String hostname, int port) {
+    return "neo4j://" + hostname + ":" + port;
+  }
+
+  public static Driver getDriver(String hostname, int port) throws URISyntaxException {
     return GraphDatabase.routingDriver(
-        Arrays.asList(new URI(NEO4J_URL)),
+        Arrays.asList(new URI(getUrl(hostname, port))),
         AuthTokens.basic(NEO4J_USERNAME, NEO4J_PASSWORD),
-        Config.builder().withoutEncryption().build());
+        Config.builder().build());
   }
 
   public static Session getSession(Driver driver, boolean withDatabase) {
@@ -51,12 +54,14 @@ public class Neo4jTestUtil {
     return driver.session(builder.build());
   }
 
-  public static Neo4jIO.DriverConfiguration getDriverConfiguration() {
-    return Neo4jIO.DriverConfiguration.create(NEO4J_URL, NEO4J_USERNAME, NEO4J_PASSWORD);
+  public static Neo4jIO.DriverConfiguration getDriverConfiguration(String hostname, int port) {
+    return Neo4jIO.DriverConfiguration.create(
+        getUrl(hostname, port), NEO4J_USERNAME, NEO4J_PASSWORD);
   }
 
-  public static void executeOnNeo4j(String cypher, boolean useDatabase) throws Exception {
-    try (Driver driver = Neo4jTestUtil.getDriver()) {
+  public static void executeOnNeo4j(String hostname, int port, String cypher, boolean useDatabase)
+      throws Exception {
+    try (Driver driver = Neo4jTestUtil.getDriver(hostname, port)) {
       try (Session session = Neo4jTestUtil.getSession(driver, useDatabase)) {
         session.run(cypher);
       }

@@ -51,14 +51,14 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.testcontainers.containers.Neo4jContainer;
-import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 
 @RunWith(JUnit4.class)
 public class Neo4jIOIT {
 
-  private static Network network;
   private static Neo4jContainer<?> neo4jContainer;
+  private static String containerHostname;
+  private static int containerPort;
 
   @Rule public transient TestPipeline parameterizedReadPipeline = TestPipeline.create();
   @Rule public transient TestPipeline writeUnwindPipeline = TestPipeline.create();
@@ -66,17 +66,12 @@ public class Neo4jIOIT {
 
   @BeforeClass
   public static void setup() throws Exception {
-    // network sharing doesn't work with ClassRule
-    network = Network.newNetwork();
-
     neo4jContainer =
         new Neo4jContainer<>(DockerImageName.parse("neo4j").withTag(Neo4jTestUtil.NEO4J_VERSION))
             .withStartupAttempts(1)
-            .withNetwork(network)
-            .withEnv(
-                "NEO4J_AUTH", Neo4jTestUtil.NEO4J_USERNAME + "/" + Neo4jTestUtil.NEO4J_PASSWORD)
+            .withAdminPassword(Neo4jTestUtil.NEO4J_PASSWORD)
             .withEnv("NEO4J_dbms_default_listen_address", "0.0.0.0")
-            .withNetworkAliases(Neo4jTestUtil.NEO4J_HOSTNAME)
+            .withNetworkAliases(Neo4jTestUtil.NEO4J_NETWORK_ALIAS)
             .withSharedMemorySize(256 * 1024 * 1024L); // 256MB
 
     // Start Neo4j
@@ -87,22 +82,20 @@ public class Neo4jIOIT {
     // We add a unique constraint to see we're not trying to create nodes twice in the larger test
     // below
     //
+    containerHostname = neo4jContainer.getContainerIpAddress();
+    containerPort = neo4jContainer.getMappedPort(7687);
+
     Neo4jTestUtil.executeOnNeo4j(
-        "CREATE OR REPLACE DATABASE " + Neo4jTestUtil.NEO4J_DATABASE, false);
-    Neo4jTestUtil.executeOnNeo4j(
-        "CREATE CONSTRAINT something_id_unique ON (n:Something) ASSERT n.id IS UNIQUE", true);
+        containerHostname,
+        containerPort,
+        "CREATE CONSTRAINT something_id_unique ON (n:Something) ASSERT n.id IS UNIQUE",
+        true);
   }
 
   @AfterClass
   public static void tearDown() {
     neo4jContainer.stop();
     neo4jContainer.close();
-
-    try {
-      network.close();
-    } catch (Exception e) {
-      // ignore
-    }
   }
 
   private static class ParameterizedReadRowToLineFn extends DoFn<Row, String> {
@@ -139,9 +132,9 @@ public class Neo4jIOIT {
     Neo4jIO.ReadAll<String, Row> read =
         Neo4jIO.<String, Row>readAll()
             .withCypher("RETURN 1, $par1")
-            .withDriverConfiguration(Neo4jTestUtil.getDriverConfiguration())
+            .withDriverConfiguration(
+                Neo4jTestUtil.getDriverConfiguration(containerHostname, containerPort))
             .withSessionConfig(SessionConfig.forDatabase(Neo4jTestUtil.NEO4J_DATABASE))
-            .withReadTransaction()
             .withRowMapper(rowMapper)
             .withParametersFunction(parametersFunction)
             .withCoder(SerializableCoder.of(Row.class))
@@ -174,7 +167,8 @@ public class Neo4jIOIT {
 
     Neo4jIO.WriteUnwind<String> read =
         Neo4jIO.<String>writeUnwind()
-            .withDriverConfiguration(Neo4jTestUtil.getDriverConfiguration())
+            .withDriverConfiguration(
+                Neo4jTestUtil.getDriverConfiguration(containerHostname, containerPort))
             .withSessionConfig(SessionConfig.forDatabase(Neo4jTestUtil.NEO4J_DATABASE))
             .withBatchSize(5000)
             .withUnwindMapName("rows")
@@ -192,7 +186,7 @@ public class Neo4jIOIT {
 
     // Connect back to the Instance and verify that we have 3 nodes
     //
-    try (Driver driver = Neo4jTestUtil.getDriver()) {
+    try (Driver driver = Neo4jTestUtil.getDriver(containerHostname, containerPort)) {
       try (Session session = Neo4jTestUtil.getSession(driver, true)) {
         List<String> names =
             session.readTransaction(
@@ -233,7 +227,8 @@ public class Neo4jIOIT {
     //
     Neo4jIO.WriteUnwind<Integer> read =
         Neo4jIO.<Integer>writeUnwind()
-            .withDriverConfiguration(Neo4jTestUtil.getDriverConfiguration())
+            .withDriverConfiguration(
+                Neo4jTestUtil.getDriverConfiguration(containerHostname, containerPort))
             .withSessionConfig(SessionConfig.forDatabase(Neo4jTestUtil.NEO4J_DATABASE))
             .withBatchSize(123)
             .withUnwindMapName("rows")
@@ -251,7 +246,7 @@ public class Neo4jIOIT {
 
     // Connect back to the Instance and verify that we have 1000 Something nodes
     //
-    try (Driver driver = Neo4jTestUtil.getDriver()) {
+    try (Driver driver = Neo4jTestUtil.getDriver(containerHostname, containerPort)) {
       try (Session session = Neo4jTestUtil.getSession(driver, true)) {
         List<Integer> values =
             session.readTransaction(
