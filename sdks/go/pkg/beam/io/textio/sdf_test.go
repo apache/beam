@@ -37,3 +37,15 @@ func TestReadSdf(t *testing.T) {
 		t.Fatalf("Failed to execute job: %v", err)
 	}
 }
+
+func TestReadAllSdf(t *testing.T) {
+	f := "../../../../data/textio_test.txt"
+	p, s := beam.NewPipelineWithRoot()
+	files := beam.Create(s, f)
+	lines := ReadAllSdf(s, files)
+	passert.Count(s, lines, "NumLines", 1)
+
+	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
+}
