@@ -12424,7 +12424,7 @@ AvroIO
 &lt;/td>
 &lt;td>PTransforms for reading from and writing to &lt;a href="https://avro.apache.org/">Avro&lt;/a> files.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/avroio">github.com/apache/beam/sdks/go/pkg/beam/io/avroio&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/avroio">github.com/apache/beam/sdks/go/pkg/beam/io/avroio&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -12451,7 +12451,7 @@ TextIO
 &lt;/td>
 &lt;td>PTransforms for reading and writing text files.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/textio">github.com/apache/beam/sdks/go/pkg/beam/io/textio&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio">github.com/apache/beam/sdks/go/pkg/beam/io/textio&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -12592,7 +12592,7 @@ GcsFileSystem
 &lt;/td>
 &lt;td>&lt;code>FileSystem&lt;/code> implementation for &lt;a href="https://cloud.google.com/storage">Google Cloud Storage&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs">github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs">github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -12619,7 +12619,7 @@ LocalFileSystem
 &lt;/td>
 &lt;td>&lt;code>FileSystem&lt;/code> implementation for accessing files on disk.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local">github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local">github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -12637,7 +12637,7 @@ In-memory
 &lt;/td>
 &lt;td>&lt;code>FileSystem&lt;/code> implementation in memory; useful for testing.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs">github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs">github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;/table>
@@ -12714,7 +12714,7 @@ PubSubIO
 &lt;/td>
 &lt;td>Read and Write PTransforms for &lt;a href="https://cloud.google.com/pubsub">Google Cloud Pub/Sub&lt;/a> streams.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio">github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio">github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -12869,7 +12869,7 @@ BigQueryIO
 &lt;/td>
 &lt;td>Read from and write to &lt;a href="https://cloud.google.com/bigquery">Google Cloud BigQuery&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio">github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio">github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -13007,7 +13007,7 @@ DatabaseIO
 &lt;/td>
 &lt;td>Package databaseio provides transformations and utilities to interact with a generic database / SQL API.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/databaseio">github.com/apache/beam/sdks/go/pkg/beam/io/databaseio&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/databaseio">github.com/apache/beam/sdks/go/pkg/beam/io/databaseio&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;/table>
