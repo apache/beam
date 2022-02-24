@@ -28,15 +28,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
-func TestReadFn(t *testing.T) {
-	f := "../../../../data/textio_test.txt"
+const testFilePath = "../../../../data/textio_test.txt"
 
+func TestReadFn(t *testing.T) {
 	receivedLines := []string{}
 	getLines := func(line string) {
 		receivedLines = append(receivedLines, line)
 	}
 
-	err := readFn(nil, f, getLines)
+	err := readFn(nil, testFilePath, getLines)
 	if err != nil {
 		t.Fatalf("failed with %v", err)
 	}
@@ -48,9 +48,8 @@ func TestReadFn(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	f := "../../../../data/textio_test.txt"
 	p, s := beam.NewPipelineWithRoot()
-	lines := Read(s, f)
+	lines := Read(s, testFilePath)
 	passert.Count(s, lines, "NumLines", 1)
 
 	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
@@ -59,9 +58,8 @@ func TestRead(t *testing.T) {
 }
 
 func TestReadAll(t *testing.T) {
-	f := "../../../../data/textio_test.txt"
 	p, s := beam.NewPipelineWithRoot()
-	files := beam.Create(s, f)
+	files := beam.Create(s, testFilePath)
 	lines := ReadAll(s, files)
 	passert.Count(s, lines, "NumLines", 1)
 
@@ -71,10 +69,9 @@ func TestReadAll(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	f := "../../../../data/textio_test.txt"
 	out := "text.txt"
 	p, s := beam.NewPipelineWithRoot()
-	lines := Read(s, f)
+	lines := Read(s, testFilePath)
 	Write(s, out, lines)
 
 	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
@@ -87,21 +84,24 @@ func TestWrite(t *testing.T) {
 	defer os.Remove(out)
 
 	outfileContents, _ := os.ReadFile(out)
-	infileContents, _ := os.ReadFile(f)
+	infileContents, _ := os.ReadFile(testFilePath)
 	if got, want := string(outfileContents), string(infileContents); got != want {
 		t.Fatalf("Write() wrote the wrong contents. Got: %v Want: %v", got, want)
 	}
 }
 
 func TestImmediate(t *testing.T) {
-	f := "test2.txt"
-	if err := os.WriteFile(f, []byte("hello\ngo\n"), 0644); err != nil {
-		t.Fatalf("Failed to write file %v", f)
+	f, err := os.CreateTemp("", "test2.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temp file, err: %v", err)
 	}
-	defer os.Remove(f)
+	defer os.Remove(f.Name()) // clean up
+	if err := os.WriteFile(f.Name(), []byte("hello\ngo\n"), 0644); err != nil {
+		t.Fatalf("Failed to write file %v, err: %v", f, err)
+	}
 
 	p, s := beam.NewPipelineWithRoot()
-	lines, err := Immediate(s, f)
+	lines, err := Immediate(s, f.Name())
 	if err != nil {
 		t.Fatalf("Failed to insert Immediate: %v", err)
 	}
