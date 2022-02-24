@@ -59,7 +59,7 @@ public class BigQueryClusteringIT {
           .setFields(
               Arrays.asList(
                   new TableFieldSchema().setName("station_number").setType("INTEGER"),
-                  new TableFieldSchema().setName("date").setType("DATE")));
+                  new TableFieldSchema().setName("date").setType("STRING")));
 
   private Bigquery bqClient;
   private BigQueryClusteringITOptions options;
