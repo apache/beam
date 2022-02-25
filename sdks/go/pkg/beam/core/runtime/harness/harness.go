@@ -98,29 +98,17 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
-	var workerStatus *workerStatusHandler
-	var wwg sync.WaitGroup
+	var statusHandler *workerStatusHandler
+
 	if statusEndpoint != "" {
-		sconn, err := dial(ctx, statusEndpoint, 60*time.Second)
+		statusHandler, err = newWorkerStatusHandler(ctx, statusEndpoint)
 		if err != nil {
-			return errors.Wrapf(err, "failed to connect: %v\n", statusEndpoint)
+			log.Error(ctx, err)
 		}
-		defer sconn.Close()
-		workerStatus, err = newWorkerStatusHandler(ctx, sconn)
-		if err != nil {
-			return errors.Wrapf(err, "failed to connect to worker status service")
-		}
-
-		log.Debugf(ctx, "Successfully connected to status endpoint @ %v", statusEndpoint)
-
-		// starting goroutine for status endpoint
-
-		wwg.Add(1)
-		go workerStatus.Writer(ctx, &wwg)
-
-		// go workerStatus.Reader(ctx, &wwg)
-
+		go statusHandler.handleRequest(ctx)
+		defer statusHandler.close(ctx)
 	}
+
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
@@ -142,22 +130,11 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 	// so as to avoid blocking the underlying network channel.
 	var shutdown int32
 	for {
-		sreq, err := workerStatus.stub.Recv()
-		if err != nil {
-			close(workerStatus.resp)
-			wwg.Wait()
-			return nil
-		}
-		log.Debugf(ctx, "RECV-status: %v", proto.MarshalTextString(sreq))
-		go workerStatus.handleRequest(ctx, sreq)
-
 		req, err := stub.Recv()
 		if err != nil {
 			// An error means we can't send or receive anymore. Shut down.
 			atomic.AddInt32(&shutdown, 1)
 			close(respc)
-			close(workerStatus.resp)
-			wwg.Wait()
 			wg.Wait()
 			if err == io.EOF {
 				recordFooter()
