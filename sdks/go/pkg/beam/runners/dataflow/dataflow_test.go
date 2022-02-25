@@ -53,13 +53,14 @@ func TestGetJobOptions(t *testing.T) {
 		t.Errorf("getJobOptions().Name = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Experiments), 3; got != want {
-		t.Fatalf("len(getJobOptions().Experiments) = %q, want %q", got, want)
-	}
-	sort.Strings(opts.Experiments)
-	expectedExperiments := []string{"min_cpu_platform=testPlatform", "use_portable_job_submission", "use_runner_v2"}
-	for i := 0; i < 3; i++ {
-		if got, want := opts.Experiments[i], expectedExperiments[i]; got != want {
-			t.Fatalf("getJobOptions().Experiments = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().Experiments) = %q, want %q", got, want)
+	} else {
+		sort.Strings(opts.Experiments)
+		expectedExperiments := []string{"min_cpu_platform=testPlatform", "use_portable_job_submission", "use_runner_v2"}
+		for i := 0; i < 3; i++ {
+			if got, want := opts.Experiments[i], expectedExperiments[i]; got != want {
+				t.Errorf("getJobOptions().Experiments = %q, want %q", got, want)
+			}
 		}
 	}
 	if got, want := opts.Project, "testProject"; got != want {
@@ -69,13 +70,14 @@ func TestGetJobOptions(t *testing.T) {
 		t.Errorf("getJobOptions().Region = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Labels), 2; got != want {
-		t.Fatalf("len(getJobOptions().Labels) = %q, want %q", got, want)
-	}
-	if got, want := opts.Labels["label1"], "val1"; got != want {
-		t.Errorf("getJobOptions().Labels[\"label1\"] = %q, want %q", got, want)
-	}
-	if got, want := opts.Labels["label2"], "val2"; got != want {
-		t.Errorf("getJobOptions().Labels[\"label2\"] = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().Labels) = %q, want %q", got, want)
+	} else {
+		if got, want := opts.Labels["label1"], "val1"; got != want {
+			t.Errorf("getJobOptions().Labels[\"label1\"] = %q, want %q", got, want)
+		}
+		if got, want := opts.Labels["label2"], "val2"; got != want {
+			t.Errorf("getJobOptions().Labels[\"label2\"] = %q, want %q", got, want)
+		}
 	}
 	if got, want := opts.TempLocation, "gs://testStagingLocation/tmp"; got != want {
 		t.Errorf("getJobOptions().TempLocation = %q, want %q", got, want)
