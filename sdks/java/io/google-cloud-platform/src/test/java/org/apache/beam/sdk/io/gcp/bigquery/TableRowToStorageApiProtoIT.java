@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -28,11 +27,11 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -60,17 +59,10 @@ public class TableRowToStorageApiProtoIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(TableRowToStorageApiProtoIT.class);
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("TableRowToStorageApiProtoIT");
-
-  private static final String project =
+  private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "table_row_to_storage_api_proto_"
-          + System.currentTimeMillis()
-          + "_"
-          + new SecureRandom().nextInt(32);
-  private static final String TABLE_NAME = "table_row_to_storage_api";
-  private static final String FULL_TABLE_NAME =
-      project + ":" + BIG_QUERY_DATASET_ID + "." + TABLE_NAME;
+      "table_row_to_storage_api_proto_" + System.nanoTime();
 
   private static final TableSchema BASE_TABLE_SCHEMA =
       new TableSchema()
@@ -149,7 +141,11 @@ public class TableRowToStorageApiProtoIT {
           // BigQuery array cannot be null and cannot contain null element, but it can be empty
           .set("arrayValue", ImmutableList.of());
 
-  private static final TableRow BASE_TABLE_ROW_READ_BACK =
+  // only non null values are returned, only arrayValue field is not null
+  private static final TableRow BASE_TABLE_ROW_NULL_EXPECTED =
+      new TableRow().set("arrayValue", ImmutableList.of());
+
+  private static final TableRow BASE_TABLE_ROW_EXPECTED =
       new TableRow()
           .set("stringValue", "string")
           .set(
@@ -167,77 +163,118 @@ public class TableRowToStorageApiProtoIT {
           .set("numericValue", "23.4")
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
+  private static final TableSchema NESTED_TABLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.<TableFieldSchema>builder()
+                  .add(
+                      new TableFieldSchema()
+                          .setType("STRUCT")
+                          .setName("nestedValue1")
+                          .setFields(BASE_TABLE_SCHEMA.getFields()))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("RECORD")
+                          .setName("nestedValue2")
+                          .setMode("REPEATED")
+                          .setFields(BASE_TABLE_SCHEMA.getFields()))
+                  .build());
+
   @BeforeClass
-  public static void setupTestEnvironment() throws Exception {
-
+  public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
-
-    // Create table and insert data for new type query test cases.
-    BQ_CLIENT.createNewTable(
-        project,
-        BIG_QUERY_DATASET_ID,
-        new Table()
-            .setSchema(BASE_TABLE_SCHEMA)
-            .setTableReference(
-                new TableReference()
-                    .setTableId(TABLE_NAME)
-                    .setDatasetId(BIG_QUERY_DATASET_ID)
-                    .setProjectId(project)));
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
 
   @AfterClass
   public static void cleanup() {
     LOG.info("Start to clean up tables and datasets.");
-    BQ_CLIENT.deleteDataset(project, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
   }
 
   @Test
   public void testTableRowToStorageApiProtoIT() throws IOException, InterruptedException {
-    runPipeline(Collections.singleton(BASE_TABLE_ROW));
+    String tableSpec = createTable(BASE_TABLE_SCHEMA);
+
+    runPipeline(tableSpec, Collections.singleton(BASE_TABLE_ROW));
 
     List<TableRow> actualTableRows =
-        BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s]", FULL_TABLE_NAME), project, true);
+        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
 
     assertEquals(1, actualTableRows.size());
-    assertEquals(BASE_TABLE_ROW_READ_BACK, actualTableRows.get(0));
+    assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0));
   }
 
   @Test
   public void testTableRowToStorageApiProtoITRichType() throws IOException, InterruptedException {
-    runPipeline(Collections.singleton(BASE_TABLE_ROW_RICH_TYPE));
+    String tableSpec = createTable(BASE_TABLE_SCHEMA);
+
+    runPipeline(tableSpec, Collections.singleton(BASE_TABLE_ROW_RICH_TYPE));
 
     List<TableRow> actualTableRows =
-        BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s]", FULL_TABLE_NAME), project, true);
+        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
 
     assertEquals(1, actualTableRows.size());
-    assertEquals(BASE_TABLE_ROW_READ_BACK, actualTableRows.get(0));
+    assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0));
   }
 
   @Test
   public void testTableRowToStorageApiProtoITNull() throws IOException, InterruptedException {
-    runPipeline(Collections.singleton(BASE_TABLE_ROW_NULL));
+    String tableSpec = createTable(BASE_TABLE_SCHEMA);
+
+    runPipeline(tableSpec, Collections.singleton(BASE_TABLE_ROW_NULL));
 
     List<TableRow> actualTableRows =
-        BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s]", FULL_TABLE_NAME), project, true);
+        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
 
     assertEquals(1, actualTableRows.size());
-    // only non null values are returned, only arrayValue field is not null
-    assertEquals(1, actualTableRows.get(0).size());
-    // arrayValue should be an empty list
-    assertTrue(((List<?>) actualTableRows.get(0).get("arrayValue")).isEmpty());
+    assertEquals(BASE_TABLE_ROW_NULL_EXPECTED, actualTableRows.get(0));
   }
 
-  private static void runPipeline(Iterable<TableRow> tableRows) {
+  @Test
+  public void testTableRowToStorageApiProtoITNested() throws IOException, InterruptedException {
+    String tableSpec = createTable(NESTED_TABLE_SCHEMA);
+    TableRow tableRow =
+        new TableRow()
+            .set("nestedValue1", BASE_TABLE_ROW)
+            .set("nestedValue2", Arrays.asList(BASE_TABLE_ROW_RICH_TYPE, BASE_TABLE_ROW_NULL));
+
+    runPipeline(tableSpec, Collections.singleton(tableRow));
+
+    List<TableRow> actualTableRows =
+        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
+
+    assertEquals(1, actualTableRows.size());
+    assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0).get("nestedValue1"));
+    assertEquals(
+        ImmutableList.of(BASE_TABLE_ROW_EXPECTED, BASE_TABLE_ROW_NULL_EXPECTED),
+        actualTableRows.get(0).get("nestedValue2"));
+  }
+
+  private static String createTable(TableSchema tableSchema)
+      throws IOException, InterruptedException {
+    String table = "table" + System.nanoTime();
+    BQ_CLIENT.deleteTable(PROJECT, BIG_QUERY_DATASET_ID, table);
+    BQ_CLIENT.createNewTable(
+        PROJECT,
+        BIG_QUERY_DATASET_ID,
+        new Table()
+            .setSchema(tableSchema)
+            .setTableReference(
+                new TableReference()
+                    .setTableId(table)
+                    .setDatasetId(BIG_QUERY_DATASET_ID)
+                    .setProjectId(PROJECT)));
+    return PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + table;
+  }
+
+  private static void runPipeline(String tableSpec, Iterable<TableRow> tableRows) {
     Pipeline p = Pipeline.create();
     p.apply("Create test cases", Create.of(tableRows))
         .apply(
             "Write using Storage Write API",
             BigQueryIO.<TableRow>write()
-                .to(FULL_TABLE_NAME)
+                .to(tableSpec)
                 .withFormatFunction(SerializableFunctions.identity())
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
