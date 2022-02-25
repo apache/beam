@@ -198,3 +198,40 @@ func TestTimerCoder(t *testing.T) {
 
 	compareFV(t, result, wantVal)
 }
+
+type namedTypeForTest struct {
+	A, B int64
+	C    string
+}
+
+func TestRowCoder(t *testing.T) {
+	var buf bytes.Buffer
+	rCoder := coder.NewR(typex.New(reflect.TypeOf((*namedTypeForTest)(nil))))
+	wantStruct := &namedTypeForTest{A: int64(8), B: int64(24), C: "myString"}
+	wantVal := &FullValue{Elm: wantStruct}
+
+	enc := MakeElementEncoder(rCoder)
+	if err := enc.Encode(wantVal, &buf); err != nil {
+		t.Fatalf("Couldn't encode value: %v", err)
+	}
+
+	dec := MakeElementDecoder(rCoder)
+	result, err := dec.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Couldn't decode value: %v", err)
+	}
+	gotPtr, ok := result.Elm.(*namedTypeForTest)
+	gotStruct := *gotPtr
+	if !ok {
+		t.Fatalf("got %v, want namedTypeForTest struct", result.Elm)
+	}
+	if got, want := gotStruct.A, wantStruct.A; got != want {
+		t.Errorf("got A field value %d, want %d", got, want)
+	}
+	if got, want := gotStruct.B, wantStruct.B; got != want {
+		t.Errorf("got B field value %d, want %d", got, want)
+	}
+	if got, want := gotStruct.C, wantStruct.C; got != want {
+		t.Errorf("got C field value %v, want %v", got, want)
+	}
+}
