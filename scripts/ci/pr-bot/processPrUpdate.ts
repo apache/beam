@@ -148,13 +148,7 @@ async function processPrUpdate() {
 
   // TODO(damccorm) - remove this when we roll out to more than go
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
-  let containsGoLabel = false;
-  existingLabels.forEach((label) => {
-    if (label.name.toLowerCase() == "go") {
-      containsGoLabel = true;
-    }
-  });
-  if (!containsGoLabel) {
+  if (!existingLabels.find((label) => label.name.toLowerCase() == "go")) {
     console.log("Does not contain the go label - skipping");
     return;
   }

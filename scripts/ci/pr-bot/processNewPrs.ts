@@ -33,9 +33,16 @@ import { CheckStatus } from "./shared/checks";
 // 4) Are closed
 // 5) Have already been processed
 // 6) Have notifications stopped
+// 7) The pr doesn't contain the go label (temporary). TODO(damccorm) - remove this when we're ready to roll this out to everyone.
 // unless we're supposed to remind the user after tests pass
 // (in which case that's all we need to do).
 function needsProcessed(pull, prState: typeof Pr): boolean {
+  if (!pull.labels.find((label) => label.name.toLowerCase() == "go")) {
+    console.log(
+      `Skipping PR ${pull.number} because it doesn't contain the go label`
+    );
+    return false;
+  }
   if (prState.remindAfterTestsPass && prState.remindAfterTestsPass.length > 0) {
     return true;
   }
