@@ -42,11 +42,9 @@ func (w BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_Worke
 	if err != nil {
 		return fmt.Errorf("error receiving response b.recv: %v", err)
 	}
-	w.response <- resp.StatusInfo
+	w.response <- resp.GetStatusInfo()
 	return nil
 }
-
-// func (w *BeamFnWorkerStatusServicer) mustEmbedUnimplementedBeamFnWorkerStatusServer() {}
 
 type serverData struct {
 	server *grpc.Server
@@ -65,7 +63,6 @@ func (s *serverData) setUp(port string, srv *BeamFnWorkerStatusServicer) {
 }
 
 func TestSendStatusResponse(t *testing.T) {
-
 	server := &serverData{server: grpc.NewServer()}
 	srv := BeamFnWorkerStatusServicer{response: make(chan string)}
 	go server.setUp("9000", &srv)
@@ -75,11 +72,11 @@ func TestSendStatusResponse(t *testing.T) {
 	if err != nil {
 		log.Fatalf("unable to create status handler: %v", err)
 	}
-	statusHandler.handleRequest(ctx)
+	go statusHandler.handleRequest(ctx)
 	defer statusHandler.close(ctx)
 	response := []string{}
-	<-srv.response
-	if len(response) > 0 {
+	response = append(response, <-srv.response)
+	if len(response) == 0 {
 		t.Errorf("error in response: %v", response)
 	}
 }

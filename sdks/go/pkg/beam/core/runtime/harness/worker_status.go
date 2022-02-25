@@ -16,6 +16,7 @@ package harness
 
 import (
 	"context"
+	"io"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -23,7 +24,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 
@@ -57,9 +57,9 @@ func (w *workerStatusHandler) handleRequest(ctx context.Context) {
 
 func (w *workerStatusHandler) Writer(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
 	for res := range w.resp {
-		log.Debugf(ctx, "RESP-status: %v", proto.MarshalTextString(res))
+		log.Debugf(ctx, "RESP-status: %v", res.GetId())
 
-		if err := stub.Send(res); err != nil {
+		if err := stub.Send(res); err != nil && err != io.EOF {
 			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
 		}
 	}
@@ -72,7 +72,7 @@ func (w *workerStatusHandler) Reader(ctx context.Context, stub fnpb.BeamFnWorker
 		close(w.resp)
 		return
 	}
-	log.Debugf(ctx, "RECV-status: %v", proto.MarshalTextString(req))
+	log.Debugf(ctx, "RECV-status: %v", req.GetId())
 	buf := make([]byte, 1<<16)
 	runtime.Stack(buf, true)
 	response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: string(buf)}
@@ -87,18 +87,8 @@ func (w *workerStatusHandler) Reader(ctx context.Context, stub fnpb.BeamFnWorker
 
 func (w *workerStatusHandler) close(ctx context.Context) {
 	atomic.StoreInt32(&w.shutdown, 1)
+	close(w.resp)
 	if err := w.conn.Close(); err != nil {
 		log.Errorf(ctx, "error closing status endpoint connection: %v", err)
 	}
 }
-
-// func (w *workerStatusHandler) handleRequest(ctx context.Context, req *fnpb.WorkerStatusRequest) {
-// 	buf := make([]byte, 1<<16)
-// 	runtime.Stack(buf, true)
-// 	response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: string(buf)}
-// 	// if atomic.LoadInt32(&w.shutdown) == 0 {
-// 	if w.resp != nil {
-// 		w.resp <- response
-// 	}
-// 	// }
-// }
