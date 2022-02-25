@@ -148,3 +148,36 @@ func compareFV(t *testing.T, got *FullValue, want *FullValue) {
 		}
 	}
 }
+
+func TestIterableCoder(t *testing.T) {
+	cod := coder.NewI(coder.NewVarInt())
+	wantVals := []int64{8, 24, 72}
+	val := &FullValue{Elm: wantVals}
+
+	var buf bytes.Buffer
+	enc := MakeElementEncoder(cod)
+	if err := enc.Encode(val, &buf); err != nil {
+		t.Fatalf("Couldn't encode value: %v", err)
+	}
+
+	dec := MakeElementDecoder(cod)
+	result, err := dec.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Couldn't decode value: %v", err)
+	}
+
+	gotVals, ok := result.Elm.([]int64)
+	if !ok {
+		t.Fatalf("got output element %v, want []int64", result.Elm)
+	}
+
+	if got, want := len(gotVals), len(wantVals); got != want {
+		t.Errorf("got %d elements in iterable, want %d", got, want)
+	}
+
+	for i := range gotVals {
+		if got, want := gotVals[i], wantVals[i]; got != want {
+			t.Errorf("got %d at position %d, want %d", got, i, want)
+		}
+	}
+}
