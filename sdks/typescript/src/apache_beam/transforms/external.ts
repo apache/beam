@@ -82,9 +82,9 @@ export class RawExternalTransform<
   }
 
   async asyncExpandInternal(
+    input: InputT,
     pipeline: base.Pipeline,
-    transformProto: runnerApi.PTransform,
-    input: InputT
+    transformProto: runnerApi.PTransform
   ): Promise<OutputT> {
     const pipelineComponents = pipeline.getProto().components!;
     const namespace = RawExternalTransform.freshNamespace();

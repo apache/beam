@@ -65,9 +65,9 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
   }
 
   expandInternal(
+    input: PCollection<InputT>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: PCollection<InputT>
   ) {
     // Extract and populate side inputs from the context.
     var context;
@@ -163,9 +163,9 @@ export class Split<T> extends PTransform<
     this.tags = tags;
   }
   expandInternal(
+    input: PCollection<T>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: PCollection<T>
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,
@@ -204,9 +204,9 @@ export class Split2<T extends { [key: string]: unknown }> extends PTransform<
     this.tags = tags;
   }
   expandInternal(
+    input: PCollection<T>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: PCollection<T>
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,

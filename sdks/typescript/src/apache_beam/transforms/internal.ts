@@ -47,9 +47,9 @@ export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
   }
 
   expandInternal(
+    input: Root,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: Root
   ): PCollection<Uint8Array> {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: Impulse.urn,
@@ -68,9 +68,9 @@ export class WithCoderInternal<T> extends PTransform<
     super("WithCoderInternal(" + coder + ")");
   }
   expandInternal(
+    input: PCollection<T>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: PCollection<T>
   ) {
     // IDENTITY rather than Flatten for better fusion.
     transformProto.spec = {
@@ -109,9 +109,9 @@ export class GroupByKey<K, V> extends PTransform<
   static urn: string = "beam:transform:group_by_key:v1";
 
   expandInternal(
+    input: PCollection<KV<K, V>>,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: PCollection<KV<K, V>>
   ) {
     const pipelineComponents: runnerApi.Components =
       pipeline.getProto().components!;

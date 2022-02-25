@@ -35,9 +35,9 @@ export class AsyncPTransform<
   }
 
   async asyncExpandInternal(
+    input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: InputT
   ): Promise<OutputT> {
     return this.asyncExpand(input);
   }
@@ -56,18 +56,18 @@ export class PTransform<
   }
 
   expandInternal(
+    input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: InputT
   ): OutputT {
     return this.expand(input);
   }
 
   async asyncExpandInternal(
+    input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    input: InputT
   ): Promise<OutputT> {
-    return this.expandInternal(pipeline, transformProto, input);
+    return this.expandInternal(input, pipeline, transformProto);
   }
 }
