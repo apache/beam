@@ -43,9 +43,9 @@ func newWorkerStatusHandler(ctx context.Context, endpoint string) (*workerStatus
 
 func (w *workerStatusHandler) handleRequest(ctx context.Context) {
 	statusClient := fnpb.NewBeamFnWorkerStatusClient(w.conn)
-
+	stub, err := statusClient.WorkerStatus(ctx)
 	for atomic.LoadInt32(&w.shutdown) == 0 {
-		stub, err := statusClient.WorkerStatus(ctx)
+
 		if err != nil {
 			log.Errorf(ctx, "status client not established: %v", err)
 		}
@@ -69,7 +69,6 @@ func (w *workerStatusHandler) Writer(ctx context.Context, stub fnpb.BeamFnWorker
 func (w *workerStatusHandler) Reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
 	req, err := stub.Recv()
 	if err != nil {
-		close(w.resp)
 		return
 	}
 	log.Debugf(ctx, "RECV-status: %v", req.GetId())
