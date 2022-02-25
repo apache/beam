@@ -97,7 +97,7 @@ export class Pipeline {
     let result: OutputT;
     try {
       this.transformStack.push(transformId);
-      result = transform.expandInternal(this, transformProto, input);
+      result = transform.expandInternal(input, this, transformProto);
     } finally {
       this.transformStack.pop();
     }
@@ -116,7 +116,7 @@ export class Pipeline {
     let result: OutputT;
     try {
       this.transformStack.push(transformId);
-      result = await transform.asyncExpandInternal(this, transformProto, input);
+      result = await transform.asyncExpandInternal(input, this, transformProto);
     } finally {
       this.transformStack.pop();
     }

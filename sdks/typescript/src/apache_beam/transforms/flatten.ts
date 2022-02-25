@@ -28,9 +28,9 @@ export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
   static urn: string = "beam:transform:flatten:v1";
 
   expandInternal(
+    inputs: PCollection<any>[],
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
-    inputs: PCollection<any>[]
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: Flatten.urn,
