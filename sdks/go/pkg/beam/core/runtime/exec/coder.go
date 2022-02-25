@@ -1085,6 +1085,9 @@ func (d *intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 	// Encoding: upper bound and duration
 
 	n, err := coder.DecodeInt32(r) // #windows
+	if err != nil {
+		return nil, err
+	}
 
 	ret := make([]typex.Window, n, n)
 	for i := int32(0); i < n; i++ {
