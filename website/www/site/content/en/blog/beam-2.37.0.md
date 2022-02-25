@@ -38,17 +38,14 @@ For more information on changes in 2.37.0 check out the [detailed release notes]
 * DataFrame API now supports pandas 1.4.x ([BEAM-13605](https://issues.apache.org/jira/browse/BEAM-13605)).
 * Go SDK DoFns can now observe trigger panes directly ([BEAM-13757](https://issues.apache.org/jira/browse/BEAM-13757)).
 
-<!--
 ### Known Issues
 
-* {$KNOWN_ISSUE_1}
-* {$KNOWN_ISSUE_2}
-* See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
--->
+* S3 object metadata retrieval broken in Python SDK ([BEAM-13980](https://issues.apache.org/jira/browse/BEAM-13980)).
+* See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.37.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.37.0 release. Thank you to all contributors!
 
 Aizhamal Nurmamat kyzy
 Alexander
