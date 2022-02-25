@@ -178,3 +178,23 @@ func TestIterableCoder(t *testing.T) {
 		}
 	}
 }
+
+// TODO(BEAM-10660): Update once proper timer support is added
+func TestTimerCoder(t *testing.T) {
+	var buf bytes.Buffer
+	tCoder := coder.NewT(coder.NewVarInt(), coder.NewGlobalWindow())
+	wantVal := &FullValue{Elm: int64(13)}
+
+	enc := MakeElementEncoder(tCoder)
+	if err := enc.Encode(wantVal, &buf); err != nil {
+		t.Fatalf("Couldn't encode value: %v", err)
+	}
+
+	dec := MakeElementDecoder(tCoder)
+	result, err := dec.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Couldn't decode value: %v", err)
+	}
+
+	compareFV(t, result, wantVal)
+}
