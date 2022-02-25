@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
 )
 
@@ -55,6 +56,9 @@ func TestCoders(t *testing.T) {
 			}(),
 			val: &FullValue{Elm: "myString"},
 		}, {
+			coder: &coder.Coder{Kind: coder.LP, Components: []*coder.Coder{coder.NewString()}},
+			val:   &FullValue{Elm: "myString"},
+		}, {
 			coder: coder.NewKV([]*coder.Coder{coder.NewVarInt(), coder.NewBool()}),
 			val:   &FullValue{Elm: int64(72), Elm2: false},
 		}, {
@@ -64,6 +68,21 @@ func TestCoders(t *testing.T) {
 					coder.NewDouble(),
 					coder.NewBool()})}),
 			val: &FullValue{Elm: int64(42), Elm2: &FullValue{Elm: float64(3.14), Elm2: true}},
+		}, {
+			coder: &coder.Coder{Kind: coder.Window, Window: coder.NewGlobalWindow()},
+			val:   &FullValue{Windows: []typex.Window{window.GlobalWindow{}}},
+		}, {
+			coder: &coder.Coder{Kind: coder.Window, Window: coder.NewIntervalWindow()},
+			val:   &FullValue{Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}}},
+		}, {
+			coder: &coder.Coder{Kind: coder.Window, Window: coder.NewIntervalWindow()},
+			val:   &FullValue{Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}, window.IntervalWindow{Start: 100, End: 200}}},
+		}, {
+			coder: coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
+			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.GlobalWindow{}}},
+		}, {
+			coder: coder.NewPW(coder.NewString(), coder.NewGlobalWindow()),
+			val:   &FullValue{Elm: "myString" /*Windowing info isn't encoded for PW so we can omit it here*/},
 		},
 	} {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {
@@ -115,5 +134,17 @@ func compareFV(t *testing.T, got *FullValue, want *FullValue) {
 	} else if got, want := got.Elm2, want.Elm2; got != want {
 		t.Errorf("got %v [type: %s], want %v [type %s]",
 			got, reflect.TypeOf(got), wantFv, reflect.TypeOf(wantFv))
+	}
+
+	// Check if the desired FV has windowing information
+	if want.Windows != nil {
+		if gotLen, wantLen := len(got.Windows), len(want.Windows); gotLen != wantLen {
+			t.Fatalf("got %d windows in FV, want %v", gotLen, wantLen)
+		}
+		for i := range want.Windows {
+			if gotWin, wantWin := got.Windows[i], want.Windows[i]; !wantWin.Equals(gotWin) {
+				t.Errorf("got window %v at position %d, want %v", gotWin, i, wantWin)
+			}
+		}
 	}
 }
