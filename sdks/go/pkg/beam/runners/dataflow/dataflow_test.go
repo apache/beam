@@ -50,7 +50,7 @@ func TestGetJobOptions(t *testing.T) {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
 	}
 	if got, want := opts.Name, "testJob"; got != want {
-		t.Fatalf("getJobOptions().Name = %q, want %q", got, want)
+		t.Errorf("getJobOptions().Name = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Experiments), 3; got != want {
 		t.Fatalf("len(getJobOptions().Experiments) = %q, want %q", got, want)
@@ -63,22 +63,22 @@ func TestGetJobOptions(t *testing.T) {
 		}
 	}
 	if got, want := opts.Project, "testProject"; got != want {
-		t.Fatalf("getJobOptions().Project = %q, want %q", got, want)
+		t.Errorf("getJobOptions().Project = %q, want %q", got, want)
 	}
 	if got, want := opts.Region, "testRegion"; got != want {
-		t.Fatalf("getJobOptions().Region = %q, want %q", got, want)
+		t.Errorf("getJobOptions().Region = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Labels), 2; got != want {
 		t.Fatalf("len(getJobOptions().Labels) = %q, want %q", got, want)
 	}
 	if got, want := opts.Labels["label1"], "val1"; got != want {
-		t.Fatalf("getJobOptions().Labels[\"label1\"] = %q, want %q", got, want)
+		t.Errorf("getJobOptions().Labels[\"label1\"] = %q, want %q", got, want)
 	}
 	if got, want := opts.Labels["label2"], "val2"; got != want {
-		t.Fatalf("getJobOptions().Labels[\"label2\"] = %q, want %q", got, want)
+		t.Errorf("getJobOptions().Labels[\"label2\"] = %q, want %q", got, want)
 	}
 	if got, want := opts.TempLocation, "gs://testStagingLocation/tmp"; got != want {
-		t.Fatalf("getJobOptions().TempLocation = %q, want %q", got, want)
+		t.Errorf("getJobOptions().TempLocation = %q, want %q", got, want)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestGetJobOptions_NoExperimentsSet(t *testing.T) {
 	expectedExperiments := []string{"use_portable_job_submission", "use_unified_worker"}
 	for i := 0; i < 2; i++ {
 		if got, want := opts.Experiments[i], expectedExperiments[i]; got != want {
-			t.Fatalf("getJobOptions().Experiments = %q, want %q", got, want)
+			t.Errorf("getJobOptions().Experiments = %q, want %q", got, want)
 		}
 	}
 }
