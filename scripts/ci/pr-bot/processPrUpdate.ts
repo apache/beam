@@ -26,16 +26,16 @@ const { PATH_TO_CONFIG_FILE } = require("./shared/constants");
 
 async function areReviewersAssigned(
   pullNumber: number,
-  stateClient: any
+  stateClient: typeof PersistentState
 ): Promise<boolean> {
   const prState = await stateClient.getPrState(pullNumber);
   return Object.values(prState.reviewersAssignedForLabels).length > 0;
 }
 
 async function processPrComment(
-  payload: any,
-  stateClient: any,
-  reviewerConfig: any
+  payload,
+  stateClient: typeof PersistentState,
+  reviewerConfig: typeof ReviewerConfig
 ) {
   const commentContents = payload.comment.body;
   const commentAuthor = payload.sender.login;
@@ -72,9 +72,9 @@ async function processPrComment(
 
 // On approval from a reviewer we have assigned, assign committer if one not already assigned
 async function processPrReview(
-  payload: any,
-  stateClient: any,
-  reviewerConfig: any
+  payload,
+  stateClient: typeof PersistentState,
+  reviewerConfig: typeof ReviewerConfig
 ) {
   if (payload.review.state != "approved") {
     return;
@@ -123,7 +123,10 @@ async function processPrReview(
 }
 
 // On pr push or author comment, we should put the attention set back on the reviewers
-async function setNextActionReviewers(payload: any, stateClient: any) {
+async function setNextActionReviewers(
+  payload,
+  stateClient: typeof PersistentState
+) {
   const pullNumber = payload.issue?.number || payload.pull_request?.number;
   if (!(await areReviewersAssigned(pullNumber, stateClient))) {
     console.log("No reviewers assigned, dont need to manipulate attention set");

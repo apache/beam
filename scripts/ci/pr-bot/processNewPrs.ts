@@ -21,7 +21,9 @@ const { getChecksStatus } = require("./shared/checks");
 const commentStrings = require("./shared/commentStrings");
 const { ReviewerConfig } = require("./shared/reviewerConfig");
 const { PersistentState } = require("./shared/persistentState");
+const { Pr } = require("./shared/pr");
 const { REPO_OWNER, REPO, PATH_TO_CONFIG_FILE } = require("./shared/constants");
+import { CheckStatus } from "./shared/checks";
 
 // Returns true if the pr needs to be processed or false otherwise.
 // We don't need to process PRs that:
@@ -33,7 +35,7 @@ const { REPO_OWNER, REPO, PATH_TO_CONFIG_FILE } = require("./shared/constants");
 // 6) Have notifications stopped
 // unless we're supposed to remind the user after tests pass
 // (in which case that's all we need to do).
-function needsProcessed(pull, prState): boolean {
+function needsProcessed(pull, prState: typeof Pr): boolean {
   if (prState.remindAfterTestsPass && prState.remindAfterTestsPass.length > 0) {
     return true;
   }
@@ -73,7 +75,12 @@ function needsProcessed(pull, prState): boolean {
 }
 
 // If the checks passed in via checkstate have completed, notifies the users who have configured notifications.
-async function remindIfChecksCompleted(pull, stateClient, checkState, prState) {
+async function remindIfChecksCompleted(
+  pull,
+  stateClient: typeof PersistentState,
+  checkState: CheckStatus,
+  prState: typeof Pr
+) {
   console.log(
     `Notifying reviewers if checks for PR ${pull.number} have completed, then returning`
   );
@@ -94,8 +101,12 @@ async function remindIfChecksCompleted(pull, stateClient, checkState, prState) {
   }
 }
 
-// If we haven't already
-async function notifyChecksFailed(pull, stateClient, prState) {
+// If we haven't already, let the author know checks are failing.
+async function notifyChecksFailed(
+  pull,
+  stateClient: typeof PersistentState,
+  prState: typeof Pr
+) {
   console.log(
     `Checks are failing for PR ${pull.number}. Commenting if we haven't already and skipping.`
   );
@@ -115,7 +126,11 @@ async function notifyChecksFailed(pull, stateClient, prState) {
 // 3) Picking/assigning reviewers
 // 4) Adding "Next Action: Reviewers label"
 // 5) Storing the state of the pull request/reviewers in a dedicated branch.
-async function processPull(pull, reviewerConfig, stateClient) {
+async function processPull(
+  pull,
+  reviewerConfig: typeof ReviewerConfig,
+  stateClient: typeof PersistentState
+) {
   let prState = await stateClient.getPrState(pull.number);
   if (!needsProcessed(pull, prState)) {
     return;
