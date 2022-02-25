@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils.deseriali
 import static org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils.serializeAwsCredentialsProvider;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.auto.value.AutoValue;
@@ -86,6 +86,7 @@ public abstract class ClientConfiguration implements Serializable {
    * Optional {@link RetryConfiguration} for AWS clients. If unset, retry behavior will be unchanged
    * and use SDK defaults.
    */
+  @JsonProperty
   public abstract @Nullable @Pure RetryConfiguration retry();
 
   abstract @Nullable @Pure String regionId();
@@ -141,13 +142,13 @@ public abstract class ClientConfiguration implements Serializable {
      * Optional {@link RetryConfiguration} for AWS clients. If unset, retry behavior will be
      * unchanged and use SDK defaults.
      */
+    @JsonSetter
     public abstract Builder retry(RetryConfiguration retry);
 
     /**
      * Optional {@link RetryConfiguration} for AWS clients. If unset, retry behavior will be
      * unchanged and use SDK defaults.
      */
-    @JsonIgnore
     public Builder retry(Consumer<RetryConfiguration.Builder> retry) {
       RetryConfiguration.Builder builder = RetryConfiguration.builder();
       retry.accept(builder);

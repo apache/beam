@@ -71,6 +71,9 @@ public class ClientConfigurationTest {
 
     config = config.toBuilder().endpoint(URI.create("https://localhost:8080")).build();
     assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().retry(r -> r.numRetries(10)).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
   }
 
   private ClientConfiguration jsonSerializeDeserialize(ClientConfiguration obj) {
