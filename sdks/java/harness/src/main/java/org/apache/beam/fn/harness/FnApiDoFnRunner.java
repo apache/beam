@@ -721,7 +721,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // no-op
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor =
         new FnApiStateAccessor(
             pipelineOptions,
@@ -810,7 +809,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -841,7 +839,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -869,7 +866,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTracker = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -903,7 +899,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTracker = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -935,7 +930,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWatermarkEstimatorState = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -987,20 +981,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       initialWatermark = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
   /** Internal class to hold the primary and residual roots when converted to an input element. */
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes"})
   abstract static class WindowedSplitResult {
     public static WindowedSplitResult forRoots(
-        WindowedValue primaryInFullyProcessedWindowsRoot,
-        WindowedValue primarySplitRoot,
-        WindowedValue residualSplitRoot,
-        WindowedValue residualInUnprocessedWindowsRoot) {
+        WindowedValue<?> primaryInFullyProcessedWindowsRoot,
+        WindowedValue<?> primarySplitRoot,
+        WindowedValue<?> residualSplitRoot,
+        WindowedValue<?> residualInUnprocessedWindowsRoot) {
       return new AutoValue_FnApiDoFnRunner_WindowedSplitResult(
           primaryInFullyProcessedWindowsRoot,
           primarySplitRoot,
@@ -1008,18 +1000,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           residualInUnprocessedWindowsRoot);
     }
 
-    public abstract @Nullable WindowedValue getPrimaryInFullyProcessedWindowsRoot();
+    public abstract @Nullable WindowedValue<?> getPrimaryInFullyProcessedWindowsRoot();
 
-    public abstract @Nullable WindowedValue getPrimarySplitRoot();
+    public abstract @Nullable WindowedValue<?> getPrimarySplitRoot();
 
-    public abstract @Nullable WindowedValue getResidualSplitRoot();
+    public abstract @Nullable WindowedValue<?> getResidualSplitRoot();
 
-    public abstract @Nullable WindowedValue getResidualInUnprocessedWindowsRoot();
+    public abstract @Nullable WindowedValue<?> getResidualInUnprocessedWindowsRoot();
   }
 
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes"})
   abstract static class SplitResultsWithStopIndex {
     public static SplitResultsWithStopIndex of(
         WindowedSplitResult windowSplit,
@@ -1750,7 +1741,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
