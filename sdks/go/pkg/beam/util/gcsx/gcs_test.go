@@ -16,6 +16,7 @@
 package gcsx
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -68,7 +69,30 @@ func TestParseObject(t *testing.T) {
 }
 
 func TestJoin(t *testing.T) {
-	if got, want := Join("gs://some-bucket/some-object", "some/path", "more/pathing"), "gs://some-bucket/some-object/some/path/more/pathing"; got != want {
-		t.Fatalf("MakeObject() Got: %v Want: %v", got, want)
+	tests := []struct {
+		object string
+		elms   []string
+		result string
+	}{
+		{
+			object: "gs://some-bucket/some-object",
+			elms:   []string{"some/path", "more/pathing"},
+			result: "gs://some-bucket/some-object/some/path/more/pathing",
+		},
+		{
+			object: "gs://some-bucket/some-object",
+			elms:   []string{"some/path"},
+			result: "gs://some-bucket/some-object/some/path",
+		},
+		{
+			object: "gs://some-bucket/some-object",
+			elms:   []string{},
+			result: "gs://some-bucket/some-object",
+		},
+	}
+	for _, test := range tests {
+		if got, want := Join(test.object, test.elms...), test.result; got != want {
+			t.Errorf("Join(%v, %v) Got: %v Want: %v", test.object, strings.Join(test.elms, ", "), got, want)
+		}
 	}
 }
