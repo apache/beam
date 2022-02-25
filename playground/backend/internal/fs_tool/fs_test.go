@@ -77,8 +77,6 @@ func teardownFolders(baseFileFolder string) error {
 }
 
 func TestLifeCycle_CopyFile(t *testing.T) {
-	a := ""
-	fmt.Println(a)
 	type fields struct {
 		folderGlobs []string
 		Paths       LifeCyclePaths
