@@ -235,3 +235,37 @@ func TestRowCoder(t *testing.T) {
 		t.Errorf("got C field value %v, want %v", got, want)
 	}
 }
+
+func TestPaneCoder(t *testing.T) {
+	pn := coder.NewPane(0x04)
+	val := &FullValue{Pane: pn}
+	cod := &coder.Coder{Kind: coder.PaneInfo}
+
+	var buf bytes.Buffer
+	enc := MakeElementEncoder(cod)
+	if err := enc.Encode(val, &buf); err != nil {
+		t.Fatalf("Couldn't encode value: %v", err)
+	}
+
+	dec := MakeElementDecoder(cod)
+	result, err := dec.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Couldn't decode value: %v", err)
+	}
+
+	if got, want := result.Pane.Timing, pn.Timing; got != want {
+		t.Errorf("got pane timing %v, want %v", got, want)
+	}
+	if got, want := result.Pane.IsFirst, pn.IsFirst; got != want {
+		t.Errorf("got IsFirst %v, want %v", got, want)
+	}
+	if got, want := result.Pane.IsLast, pn.IsLast; got != want {
+		t.Errorf("got IsLast %v, want %v", got, want)
+	}
+	if got, want := result.Pane.Index, pn.Index; got != want {
+		t.Errorf("got pane index %v, want %v", got, want)
+	}
+	if got, want := result.Pane.NonSpeculativeIndex, pn.NonSpeculativeIndex; got != want {
+		t.Errorf("got pane non-speculative index %v, want %v", got, want)
+	}
+}
