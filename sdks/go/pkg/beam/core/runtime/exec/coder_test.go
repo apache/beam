@@ -75,9 +75,6 @@ func TestCoders(t *testing.T) {
 			coder: &coder.Coder{Kind: coder.Window, Window: coder.NewIntervalWindow()},
 			val:   &FullValue{Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}}},
 		}, {
-			coder: &coder.Coder{Kind: coder.Window, Window: coder.NewIntervalWindow()},
-			val:   &FullValue{Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}, window.IntervalWindow{Start: 100, End: 200}}},
-		}, {
 			coder: coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
 			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.GlobalWindow{}}},
 		}, {

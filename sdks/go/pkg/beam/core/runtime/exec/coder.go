@@ -976,7 +976,7 @@ func (e *wrappedWindowEncoder) Encode(val *FullValue, w io.Writer) error {
 	if len(val.Windows) == 0 {
 		return nil
 	}
-	return e.enc.Encode(val.Windows, w)
+	return e.enc.EncodeSingle(val.Windows[0], w)
 }
 
 // wrappedWindowDecoder wraps a WindowDecoder for the ElementDecoder interface.
@@ -985,11 +985,11 @@ type wrappedWindowDecoder struct {
 }
 
 func (d *wrappedWindowDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
-	ws, err := d.dec.Decode(r)
+	ws, err := d.dec.DecodeSingle(r)
 	if err != nil {
 		return err
 	}
-	fv.Windows = ws
+	fv.Windows = []typex.Window{ws}
 	return nil
 }
 
