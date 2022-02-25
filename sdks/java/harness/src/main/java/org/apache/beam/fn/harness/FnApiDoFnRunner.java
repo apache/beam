@@ -180,6 +180,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getWindowingStrategies(),
               context::addStartBundleFunction,
               context::addFinishBundleFunction,
+              context::addResetFunction,
               context::addTearDownFunction,
               context::getPCollectionConsumer,
               (pCollectionId, consumer, valueCoder) ->
@@ -242,6 +243,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final OnTimerContext<?> onTimerContext;
   private final OnWindowExpirationContext<?> onWindowExpirationContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
+  private final Duration allowedLateness;
 
   /**
    * Used to guarantee a consistent view of this {@link FnApiDoFnRunner} while setting up for {@link
@@ -344,6 +346,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
+      Consumer<ThrowingRunnable> addResetFunction,
       Consumer<ThrowingRunnable> addTearDownFunction,
       Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
       TriFunction<String, FnDataReceiver<WindowedValue<?>>, Coder<?>> addPCollectionConsumer,
@@ -457,6 +460,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       timerFamilyInfos = timerFamilyInfosBuilder.build();
 
+      this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
+      this.allowedLateness =
+          rehydratedComponents
+              .getPCollection(pTransform.getInputsOrThrow(mainInputId))
+              .getWindowingStrategy()
+              .getAllowedLateness();
+
     } catch (IOException exn) {
       throw new IllegalArgumentException("Malformed ParDoPayload", exn);
     }
@@ -473,12 +483,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.bundleFinalizer = bundleFinalizer;
     this.onTimerContext = new OnTimerContext();
     this.onWindowExpirationContext = new OnWindowExpirationContext<>();
+    this.timerBundleTracker =
+        new FnApiTimerBundleTracker(
+            keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
+    addResetFunction.accept(timerBundleTracker::reset);
 
-    try {
-      this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) localNameToConsumer.get(mainOutputTag.getId());
@@ -756,9 +765,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void startBundle() {
-    timerBundleTracker =
-        new FnApiTimerBundleTracker(
-            keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
   }
 
@@ -1694,14 +1700,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or
           // timerFamilyId
           // from timer family declaration.
-          String timerId =
-              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-                  ? ""
-                  : timerIdOrTimerFamilyId;
-          String timerFamilyId =
-              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-                  ? timerIdOrTimerFamilyId
-                  : "";
+          boolean isFamily = timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX);
+          String timerId = isFamily ? "" : timerIdOrTimerFamilyId;
+          String timerFamilyId = isFamily ? timerIdOrTimerFamilyId : "";
           processTimerDirect(timerFamilyId, timerId, timeDomain, timer);
         }
       }
@@ -1778,7 +1779,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     private final K userKey;
     private final String dynamicTimerTag;
     private final TimeDomain timeDomain;
-    private final Duration allowedLateness;
     private final Instant fireTimestamp;
     private final Instant elementTimestampOrTimerHoldTimestamp;
     private final BoundedWindow boundedWindow;
@@ -1816,18 +1816,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         default:
           throw new IllegalArgumentException(
               String.format("Unknown or unsupported time domain %s", timeDomain));
-      }
-
-      try {
-        this.allowedLateness =
-            rehydratedComponents
-                .getPCollection(
-                    pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform)))
-                .getWindowingStrategy()
-                .getAllowedLateness();
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-            String.format("Unable to get allowed lateness for timer %s", timerIdOrFamily));
       }
     }
 
