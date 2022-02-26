@@ -16,36 +16,30 @@
 package debug
 
 import (
-	"context"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 func TestHead(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	sequence := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	p, s, sequence := ptest.CreateList([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 	headSequence := Head(s, sequence, 5)
 	passert.Count(s, headSequence, "NumElements", 5)
 	passert.Equals(s, headSequence, 1, 2, 3, 4, 5)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func TestHead_KV(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	sequence := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	p, s, sequence := ptest.CreateList([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 	kvSequence := beam.AddFixedKey(s, sequence)
 	headKvSequence := Head(s, kvSequence, 5)
 	headSequence := beam.DropKey(s, headKvSequence)
 	passert.Count(s, headSequence, "NumElements", 5)
 	passert.Equals(s, headSequence, 1, 2, 3, 4, 5)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }

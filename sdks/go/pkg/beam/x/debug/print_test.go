@@ -17,7 +17,6 @@ package debug
 
 import (
 	"bytes"
-	"context"
 	"log"
 	"os"
 	"strings"
@@ -25,17 +24,14 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 func TestPrint(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	sequence := beam.Create(s, "abc", "def", "ghi")
+	p, s, sequence := ptest.CreateList([]string{"abc", "def", "ghi"})
 	Print(s, sequence)
 
-	output, err := captureRunLogging(p)
-	if err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	output := captureRunLogging(p)
 	if !strings.Contains(output, "Elm: abc") {
 		t.Errorf("Print() should contain \"Elm: abc\", got: %v", output)
 	}
@@ -52,10 +48,7 @@ func TestPrintf(t *testing.T) {
 	sequence := beam.Create(s, "abc", "def", "ghi")
 	Printf(s, "myformatting - %v", sequence)
 
-	output, err := captureRunLogging(p)
-	if err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	output := captureRunLogging(p)
 	if !strings.Contains(output, "myformatting - abc") {
 		t.Errorf("Printf() should contain \"myformatting - abc\", got: %v", output)
 	}
@@ -68,15 +61,11 @@ func TestPrintf(t *testing.T) {
 }
 
 func TestPrint_KV(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	sequence := beam.Create(s, "abc", "def", "ghi")
+	p, s, sequence := ptest.CreateList([]string{"abc", "def", "ghi"})
 	kvSequence := beam.AddFixedKey(s, sequence)
 	Print(s, kvSequence)
 
-	output, err := captureRunLogging(p)
-	if err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	output := captureRunLogging(p)
 	if !strings.Contains(output, "Elm: (0,abc)") {
 		t.Errorf("Print() should contain \"Elm: (0,abc)\", got: %v", output)
 	}
@@ -89,29 +78,25 @@ func TestPrint_KV(t *testing.T) {
 }
 
 func TestPrint_CoGBK(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	sequence := beam.Create(s, "abc", "def", "ghi")
+	p, s, sequence := ptest.CreateList([]string{"abc", "def", "ghi"})
 	kvSequence := beam.AddFixedKey(s, sequence)
 	gbkSequence := beam.CoGroupByKey(s, kvSequence)
 	Print(s, gbkSequence)
 
-	output, err := captureRunLogging(p)
-	if err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	output := captureRunLogging(p)
 	if !strings.Contains(output, "Elm: (0,[abc def ghi])") {
 		t.Errorf("Print() should contain \"Elm: (0,[abc def ghi])\", got: %v", output)
 	}
 }
 
-func captureRunLogging(p *beam.Pipeline) (string, error) {
+func captureRunLogging(p *beam.Pipeline) string {
 	// Pipe output to out
 	var out bytes.Buffer
 	log.SetOutput(&out)
 
-	_, err := beam.Run(context.Background(), "direct", p)
+	ptest.Run(p)
 
 	// Return to original state
 	log.SetOutput(os.Stderr)
-	return out.String(), err
+	return out.String()
 }
