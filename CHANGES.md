@@ -44,6 +44,8 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Ignore error `Command not supported` because of CosmosDB not support `splitVector` command in Java SDK ([BEAM-14004](https://issues.apache.org/jira/browse/BEAM-14004)).
+
 ## Known Issues
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
