@@ -26,6 +26,7 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -485,8 +486,16 @@ public class MongoDbIO {
             // maxChunkSize is the Mongo partition size in MB
             LOG.debug("Splitting in chunk of {} MB", desiredBundleSizeBytes / 1024 / 1024);
             splitVectorCommand.append("maxChunkSize", desiredBundleSizeBytes / 1024 / 1024);
-            Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
-            splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
+            try {
+              Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
+              splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
+            } catch (MongoCommandException e) {
+              if (e.getErrorCode() == 115) {
+                LOG.warn("This command is not supported: " + splitVectorCommand.toString(), e);
+                return Collections.singletonList(this);
+              }
+              throw e;
+            }
           }
 
           if (splitKeys.size() < 1) {

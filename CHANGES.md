@@ -60,6 +60,7 @@
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
+
 ## New Features / Improvements
 
 * Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)). To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python).
@@ -80,6 +81,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Ignore error `Command not supported` because of CosmosDB not support `splitKeys` command in Java SDK ([BEAM-14004](https://issues.apache.org/jira/browse/BEAM-14004)).
 
 ## Known Issues
 
