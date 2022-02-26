@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Times
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toTimestamp;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.Timestamp;
@@ -42,7 +43,7 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
   protected @Nullable Timestamp lastClaimedTimestamp;
 
   public TimestampRangeTracker(TimestampRange range) {
-    this.range = range;
+    this.range = checkNotNull(range);
   }
 
   @Override
@@ -78,7 +79,7 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
     final BigDecimal nanosOffset =
         toInNanos
             .subtract(currentInNanos, MathContext.DECIMAL128)
-            .multiply(BigDecimal.valueOf(fractionOfRemainder))
+            .multiply(BigDecimal.valueOf(fractionOfRemainder), MathContext.DECIMAL128)
             .max(BigDecimal.ONE);
 
     // splitPosition = current + max(1, (range.getTo() - current) * fractionOfRemainder)
