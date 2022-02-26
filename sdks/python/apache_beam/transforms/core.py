@@ -3307,4 +3307,4 @@ def _strip_output_annotations(type_hint):
   except StopIteration:
     contains_annotation = True
 
-return typehints.Any if contains_annotation else type_hint
+  return typehints.Any if contains_annotation else type_hint
