@@ -20,7 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"github.com/google/uuid"
@@ -51,7 +51,7 @@ func setup() {
 }
 
 func TestValidator(t *testing.T) {
-	vals, err := utils.GetValidators(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath)
+	vals, err := validators.GetValidators(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath)
 	if err != nil {
 		panic(err)
 	}
@@ -117,7 +117,7 @@ func TestPreparer(t *testing.T) {
 	validationResults.Store(validators.UnitTestValidatorName, false)
 	validationResults.Store(validators.KatasValidatorName, false)
 
-	prep, err := utils.GetPreparers(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath, &validationResults)
+	prep, err := preparers.GetPreparers(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath, &validationResults)
 	if err != nil {
 		panic(err)
 	}

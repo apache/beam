@@ -358,8 +358,11 @@ class FnApiRunner(runner.PipelineRunner):
         stage_context.components.environments, self._provision_info)
     pipeline_metrics = MetricsContainer('')
     pipeline_metrics.get_counter(
-        MetricName(str(type(self)),
-                   self.NUM_FUSED_STAGES_COUNTER)).update(len(stages))
+        MetricName(
+            str(type(self)),
+            self.NUM_FUSED_STAGES_COUNTER,
+            urn='internal:' + self.NUM_FUSED_STAGES_COUNTER)).update(
+                len(stages))
     monitoring_infos_by_stage = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(

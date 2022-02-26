@@ -30,6 +30,9 @@ from apache_beam.coders import ListCoder
 from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders import VarIntCoder
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -156,6 +159,36 @@ class InterfaceTest(unittest.TestCase):
       TimerSpec('timer', 'bogus_time_domain')
     with self.assertRaises(ValueError):
       DoFn.StateParam(TimerSpec('timer', TimeDomain.WATERMARK))
+
+  def test_state_spec_proto_conversion(self):
+    context = pipeline_context.PipelineContext()
+    state = BagStateSpec('statename', VarIntCoder())
+    state_proto = state.to_runner_api(context)
+    self.assertEqual(
+        beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
+        state_proto.protocol)
+
+    context = pipeline_context.PipelineContext()
+    state = CombiningValueStateSpec(
+        'statename', VarIntCoder(), TopCombineFn(10))
+    state_proto = state.to_runner_api(context)
+    self.assertEqual(
+        beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
+        state_proto.protocol)
+
+    context = pipeline_context.PipelineContext()
+    state = SetStateSpec('setstatename', VarIntCoder())
+    state_proto = state.to_runner_api(context)
+    self.assertEqual(
+        beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
+        state_proto.protocol)
+
+    context = pipeline_context.PipelineContext()
+    state = ReadModifyWriteStateSpec('valuestatename', VarIntCoder())
+    state_proto = state.to_runner_api(context)
+    self.assertEqual(
+        beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
+        state_proto.protocol)
 
   def test_param_construction(self):
     with self.assertRaises(ValueError):
@@ -354,7 +387,7 @@ class InterfaceTest(unittest.TestCase):
       # Note that we mistakenly reuse the "on_expiry_1" name; this is valid
       # syntactically in Python.
       @on_timer(EXPIRY_TIMER_2)
-      def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):
+      def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):  # pylint: disable=function-redefined
         yield 'expired2'
 
       # Use a stable string value for matching.

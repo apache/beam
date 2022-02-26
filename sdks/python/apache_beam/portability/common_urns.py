@@ -29,6 +29,7 @@ from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardPTransf
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardRequirements
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardResourceHints
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardSideInputTypes
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardUserStateTypes
 from apache_beam.portability.api.external_transforms_pb2_urns import ExpansionMethods
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfo
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoSpecs
@@ -45,6 +46,7 @@ combine_components = StandardPTransforms.CombineComponents
 sdf_components = StandardPTransforms.SplittableParDoComponents
 group_into_batches_components = StandardPTransforms.GroupIntoBatchesComponents
 
+user_state = StandardUserStateTypes.Enum
 side_inputs = StandardSideInputTypes.Enum
 coders = StandardCoders.Enum
 constants = BeamConstants.Constants

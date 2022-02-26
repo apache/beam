@@ -23,8 +23,8 @@ applyPythonNature()
 /*************************************************************************************************/
 // Basic build and Python environment setup/cleanup
 
-task buildPython {
-  dependsOn 'setupVirtualenv'
+def buildPython = tasks.register("buildPython") {
+  dependsOn setupVirtualenv
 
   doLast {
     logger.info('Building Python Dependencies')
@@ -34,11 +34,11 @@ task buildPython {
     }
   }
 }
-build.dependsOn buildPython
+build.dependsOn tasks.named("buildPython")
 
 // Create a Python source distribution tarball.
 def tarball = "apache-beam.tar.gz"
-task sdist {
+def sdist = tasks.register("sdist") {
   dependsOn setupVirtualenv
 
   doLast {
@@ -70,8 +70,8 @@ artifacts {
 
 // Snapshot of dependency requirements defined in setup.py.
 // Results will be stored in files under Gradle build directory.
-task depSnapshot {
-  dependsOn 'installGcpTest'
+def depSnapshot = tasks.register("depSnapshot") {
+  dependsOn installGcpTest
 
   doLast {
     def outputDir = file(buildDir)
@@ -89,18 +89,18 @@ task depSnapshot {
   }
 }
 
-task dependencyUpdates {
+tasks.register("dependencyUpdates") {
   dependsOn ':dependencyUpdates'
   dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
 }
 
-task buildSnapshot() {
-  dependsOn 'sdist'
-  dependsOn 'depSnapshot'
+tasks.register("buildSnapshot") {
+  dependsOn sdist
+  dependsOn depSnapshot
 }
 
-task startPortableRunner {
-  dependsOn 'buildPython'
+tasks.register("startPortableRunner") {
+  dependsOn buildPython
 
   doLast {
     def jobPort = project.findProperty("jobPort") ?: 8099
@@ -112,9 +112,9 @@ task startPortableRunner {
 }
 
 // Run this task to validate the python environment setup for contributors
-task wordCount {
+tasks.register("wordCount") {
   description "Run the Python word count example"
-  dependsOn 'installGcpTest'
+  dependsOn installGcpTest
   doLast {
     exec {
       executable 'sh'

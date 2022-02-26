@@ -682,9 +682,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
     # TODO(BEAM-8247): Side inputs types.
-    # TODO(robertwb): Assert compatibility with input type hint?
-    return _strip_output_annotations(
-        trivial_inference.infer_return_type(self.process, [input_type]))
+    return trivial_inference.element_type(
+        _strip_output_annotations(
+            trivial_inference.infer_return_type(self.process, [input_type])))
 
   def _process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
@@ -758,8 +758,9 @@ class CallableWrapperDoFn(DoFn):
     return type_hints
 
   def infer_output_type(self, input_type):
-    return _strip_output_annotations(
-        trivial_inference.infer_return_type(self._fn, [input_type]))
+    return trivial_inference.element_type(
+        _strip_output_annotations(
+            trivial_inference.infer_return_type(self._fn, [input_type])))
 
   def _process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
@@ -1296,7 +1297,7 @@ class ParDo(PTransformWithSideInputs):
     return self.fn.get_type_hints()
 
   def infer_output_type(self, input_type):
-    return trivial_inference.element_type(self.fn.infer_output_type(input_type))
+    return self.fn.infer_output_type(input_type)
 
   def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
@@ -2577,8 +2578,8 @@ class GroupByKey(PTransform):
 
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
-      return typehints.Iterable[typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
+      return typehints.KV[
+          key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
   def expand(self, pcoll):
     from apache_beam.transforms.trigger import DataLossReason

@@ -1136,7 +1136,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     # Must re-define since the conditional is in the (maybe)wrapper.
     @check_type_hints
     @with_input_types(a=int)
-    def int_to_str(a):
+    def int_to_str(a):  # pylint: disable=function-redefined
       return str(a)
 
     # With run-time type checking enabled once again the same call-atttempt
@@ -1157,7 +1157,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     # Must re-define since the conditional is in the (maybe)wrapper.
     @check_type_hints
     @with_output_types(str)
-    def int_to_str(a):
+    def int_to_str(a):  # pylint: disable=function-redefined
       return a
 
     # With type-checking enabled once again we should get a TypeCheckError here.
@@ -1189,7 +1189,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     @check_type_hints
     @with_output_types(str)
     @with_input_types(a=str)
-    def to_lower(a):
+    def to_lower(a):  # pylint: disable=function-redefined
       return 9
 
     # Modified function now has an invalid return type.
@@ -1213,7 +1213,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     @check_type_hints
     @with_output_types(typehints.List[typehints.Tuple[int, int]])
     @with_input_types(it=typehints.List[int])
-    def expand_ints(it):
+    def expand_ints(it):  # pylint: disable=function-redefined
       return [str(i) for i in it]
 
     # Modified function now has invalid return type.

@@ -47,7 +47,7 @@ dependencies {
   testImplementation library.java.junit
   testImplementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
   testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:${elastic_search_version}"
-  testImplementation "org.testcontainers:elasticsearch:1.15.3"
+  testImplementation library.java.testcontainers_elasticsearch
 
   testRuntimeOnly "org.apache.logging.log4j:log4j-api:$log4j_version"
   testRuntimeOnly "org.apache.logging.log4j:log4j-core:$log4j_version"

@@ -38,26 +38,53 @@ public class TestStructMapper {
       Type.struct(
           StructField.of("token", Type.string()),
           StructField.of("parent_partition_tokens", Type.array(Type.string())));
-  private static final Type COLUMN_TYPE_TYPE =
+  // TODO: Remove COLUMN_TYPE_STRING_TYPE when backend has fully migrated to use JSON
+  private static final Type COLUMN_TYPE_STRING_TYPE =
       Type.struct(
           StructField.of("name", Type.string()),
           StructField.of("type", Type.string()),
           StructField.of("is_primary_key", Type.bool()),
           StructField.of("ordinal_position", Type.int64()));
-  private static final Type MOD_TYPE =
+  private static final Type COLUMN_TYPE_JSON_TYPE =
+      Type.struct(
+          StructField.of("name", Type.string()),
+          StructField.of("type", Type.json()),
+          StructField.of("is_primary_key", Type.bool()),
+          StructField.of("ordinal_position", Type.int64()));
+  // TODO: Remove MOD_STRING_TYPE when backend has fully migrated to use JSON
+  private static final Type MOD_STRING_TYPE =
       Type.struct(
           StructField.of("keys", Type.string()),
           StructField.of("new_values", Type.string()),
           StructField.of("old_values", Type.string()));
-  private static final Type DATA_CHANGE_RECORD_TYPE =
+  private static final Type MOD_JSON_TYPE =
+      Type.struct(
+          StructField.of("keys", Type.json()),
+          StructField.of("new_values", Type.json()),
+          StructField.of("old_values", Type.json()));
+  // TODO: Remove DATA_CHANGE_RECORD_STRING_TYPE when backend has fully migrated to use JSON
+  private static final Type DATA_CHANGE_RECORD_STRING_TYPE =
       Type.struct(
           StructField.of("commit_timestamp", Type.timestamp()),
           StructField.of("record_sequence", Type.string()),
           StructField.of("server_transaction_id", Type.string()),
           StructField.of("is_last_record_in_transaction_in_partition", Type.bool()),
           StructField.of("table_name", Type.string()),
-          StructField.of("column_types", Type.array(COLUMN_TYPE_TYPE)),
-          StructField.of("mods", Type.array(MOD_TYPE)),
+          StructField.of("column_types", Type.array(COLUMN_TYPE_STRING_TYPE)),
+          StructField.of("mods", Type.array(MOD_STRING_TYPE)),
+          StructField.of("mod_type", Type.string()),
+          StructField.of("value_capture_type", Type.string()),
+          StructField.of("number_of_records_in_transaction", Type.int64()),
+          StructField.of("number_of_partitions_in_transaction", Type.int64()));
+  private static final Type DATA_CHANGE_RECORD_JSON_TYPE =
+      Type.struct(
+          StructField.of("commit_timestamp", Type.timestamp()),
+          StructField.of("record_sequence", Type.string()),
+          StructField.of("server_transaction_id", Type.string()),
+          StructField.of("is_last_record_in_transaction_in_partition", Type.bool()),
+          StructField.of("table_name", Type.string()),
+          StructField.of("column_types", Type.array(COLUMN_TYPE_JSON_TYPE)),
+          StructField.of("mods", Type.array(MOD_JSON_TYPE)),
           StructField.of("mod_type", Type.string()),
           StructField.of("value_capture_type", Type.string()),
           StructField.of("number_of_records_in_transaction", Type.int64()),
@@ -69,39 +96,59 @@ public class TestStructMapper {
           StructField.of("start_timestamp", Type.timestamp()),
           StructField.of("record_sequence", Type.string()),
           StructField.of("child_partitions", Type.array(CHILD_PARTITION_TYPE)));
-  private static final Type STREAM_RECORD_TYPE =
+  // TODO: Remove STREAM_RECORD_STRING_TYPE when backend has fully migrated to use JSON
+  private static final Type STREAM_RECORD_STRING_TYPE =
       Type.struct(
-          StructField.of("data_change_record", Type.array(DATA_CHANGE_RECORD_TYPE)),
+          StructField.of("data_change_record", Type.array(DATA_CHANGE_RECORD_STRING_TYPE)),
+          StructField.of("heartbeat_record", Type.array(HEARTBEAT_RECORD_TYPE)),
+          StructField.of("child_partitions_record", Type.array(CHILD_PARTITIONS_RECORD_TYPE)));
+  private static final Type STREAM_RECORD_JSON_TYPE =
+      Type.struct(
+          StructField.of("data_change_record", Type.array(DATA_CHANGE_RECORD_JSON_TYPE)),
           StructField.of("heartbeat_record", Type.array(HEARTBEAT_RECORD_TYPE)),
           StructField.of("child_partitions_record", Type.array(CHILD_PARTITIONS_RECORD_TYPE)));
 
-  public static Struct recordsToStruct(ChangeStreamRecord... records) {
+  public static Struct recordsToStructWithJson(ChangeStreamRecord... records) {
+    return recordsToStruct(true, records);
+  }
+
+  // TODO: Remove when backend is fully migrated to JSON
+  public static Struct recordsToStructWithStrings(ChangeStreamRecord... records) {
+    return recordsToStruct(false, records);
+  }
+
+  private static Struct recordsToStruct(boolean useJsonFields, ChangeStreamRecord... records) {
+    final Type streamRecordType =
+        useJsonFields ? STREAM_RECORD_JSON_TYPE : STREAM_RECORD_STRING_TYPE;
     return Struct.newBuilder()
         .add(
             Value.structArray(
-                STREAM_RECORD_TYPE,
+                streamRecordType,
                 Arrays.stream(records)
-                    .map(TestStructMapper::streamRecordStructFrom)
+                    .map(record -> TestStructMapper.streamRecordStructFrom(record, useJsonFields))
                     .collect(Collectors.toList())))
         .build();
   }
 
-  private static Struct streamRecordStructFrom(ChangeStreamRecord record) {
+  private static Struct streamRecordStructFrom(ChangeStreamRecord record, boolean useJsonFields) {
     if (record instanceof DataChangeRecord) {
-      return streamRecordStructFrom((DataChangeRecord) record);
+      return streamRecordStructFrom((DataChangeRecord) record, useJsonFields);
     } else if (record instanceof HeartbeatRecord) {
-      return streamRecordStructFrom((HeartbeatRecord) record);
+      return streamRecordStructFrom((HeartbeatRecord) record, useJsonFields);
     } else if (record instanceof ChildPartitionsRecord) {
-      return streamRecordStructFrom((ChildPartitionsRecord) record);
+      return streamRecordStructFrom((ChildPartitionsRecord) record, useJsonFields);
     } else {
       throw new UnsupportedOperationException("Unimplemented mapping for " + record.getClass());
     }
   }
 
-  private static Struct streamRecordStructFrom(ChildPartitionsRecord record) {
+  private static Struct streamRecordStructFrom(
+      ChildPartitionsRecord record, boolean useJsonFields) {
+    final Type dataChangeRecordType =
+        useJsonFields ? DATA_CHANGE_RECORD_JSON_TYPE : DATA_CHANGE_RECORD_STRING_TYPE;
     return Struct.newBuilder()
         .set("data_change_record")
-        .to(Value.structArray(DATA_CHANGE_RECORD_TYPE, Collections.emptyList()))
+        .to(Value.structArray(dataChangeRecordType, Collections.emptyList()))
         .set("heartbeat_record")
         .to(Value.structArray(HEARTBEAT_RECORD_TYPE, Collections.emptyList()))
         .set("child_partitions_record")
@@ -128,10 +175,12 @@ public class TestStructMapper {
         .build();
   }
 
-  private static Struct streamRecordStructFrom(HeartbeatRecord record) {
+  private static Struct streamRecordStructFrom(HeartbeatRecord record, boolean useJsonFields) {
+    final Type dataChangeRecordType =
+        useJsonFields ? DATA_CHANGE_RECORD_JSON_TYPE : DATA_CHANGE_RECORD_STRING_TYPE;
     return Struct.newBuilder()
         .set("data_change_record")
-        .to(Value.structArray(DATA_CHANGE_RECORD_TYPE, Collections.emptyList()))
+        .to(Value.structArray(dataChangeRecordType, Collections.emptyList()))
         .set("heartbeat_record")
         .to(
             Value.structArray(
@@ -145,12 +194,15 @@ public class TestStructMapper {
     return Struct.newBuilder().set("timestamp").to(record.getTimestamp()).build();
   }
 
-  private static Struct streamRecordStructFrom(DataChangeRecord record) {
+  private static Struct streamRecordStructFrom(DataChangeRecord record, boolean useJsonFields) {
+    final Type dataChangeRecordType =
+        useJsonFields ? DATA_CHANGE_RECORD_JSON_TYPE : DATA_CHANGE_RECORD_STRING_TYPE;
     return Struct.newBuilder()
         .set("data_change_record")
         .to(
             Value.structArray(
-                DATA_CHANGE_RECORD_TYPE, Collections.singletonList(recordStructFrom(record))))
+                dataChangeRecordType,
+                Collections.singletonList(recordStructFrom(record, useJsonFields))))
         .set("heartbeat_record")
         .to(Value.structArray(HEARTBEAT_RECORD_TYPE, Collections.emptyList()))
         .set("child_partitions_record")
@@ -158,18 +210,20 @@ public class TestStructMapper {
         .build();
   }
 
-  private static Struct recordStructFrom(DataChangeRecord record) {
+  private static Struct recordStructFrom(DataChangeRecord record, boolean useJsonFields) {
+    final Type columnTypeType = useJsonFields ? COLUMN_TYPE_JSON_TYPE : COLUMN_TYPE_STRING_TYPE;
+    final Type modType = useJsonFields ? MOD_JSON_TYPE : MOD_STRING_TYPE;
     final Value columnTypes =
         Value.structArray(
-            COLUMN_TYPE_TYPE,
+            columnTypeType,
             record.getRowType().stream()
-                .map(TestStructMapper::columnTypeStructFrom)
+                .map(rowType -> TestStructMapper.columnTypeStructFrom(rowType, useJsonFields))
                 .collect(Collectors.toList()));
     final Value mods =
         Value.structArray(
-            MOD_TYPE,
+            modType,
             record.getMods().stream()
-                .map(TestStructMapper::modStructFrom)
+                .map(mod -> TestStructMapper.modStructFrom(mod, useJsonFields))
                 .collect(Collectors.toList()));
     return Struct.newBuilder()
         .set("commit_timestamp")
@@ -197,12 +251,16 @@ public class TestStructMapper {
         .build();
   }
 
-  private static Struct columnTypeStructFrom(ColumnType columnType) {
+  private static Struct columnTypeStructFrom(ColumnType columnType, boolean useJsonFields) {
+    final Value type =
+        useJsonFields
+            ? Value.json(columnType.getType().getCode())
+            : Value.string(columnType.getType().getCode());
     return Struct.newBuilder()
         .set("name")
         .to(columnType.getName())
         .set("type")
-        .to(columnType.getType().getCode())
+        .to(type)
         .set("is_primary_key")
         .to(columnType.isPrimaryKey())
         .set("ordinal_position")
@@ -210,14 +268,20 @@ public class TestStructMapper {
         .build();
   }
 
-  private static Struct modStructFrom(Mod mod) {
+  private static Struct modStructFrom(Mod mod, boolean useJsonFields) {
+    final Value keys =
+        useJsonFields ? Value.json(mod.getKeysJson()) : Value.string(mod.getKeysJson());
+    final Value newValues =
+        useJsonFields ? Value.json(mod.getNewValuesJson()) : Value.string(mod.getNewValuesJson());
+    final Value oldValues =
+        useJsonFields ? Value.json(mod.getOldValuesJson()) : Value.string(mod.getOldValuesJson());
     return Struct.newBuilder()
         .set("keys")
-        .to(mod.getKeysJson())
+        .to(keys)
         .set("new_values")
-        .to(mod.getNewValuesJson())
+        .to(newValues)
         .set("old_values")
-        .to(mod.getOldValuesJson())
+        .to(oldValues)
         .build();
   }
 
