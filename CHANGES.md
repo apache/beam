@@ -49,7 +49,13 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
-# 2.36.0 - Unreleased
+# [2.36.1] - Unreleased
+
+## Bugfixes
+
+* Ignore error `Command not supported` because of CosmosDB not support `splitKeys` command in Java SDK ([BEAM-14004](https://issues.apache.org/jira/browse/BEAM-14004)).
+
+# [2.36.0] - 2022-02-08
 
 ## Highlights
 
