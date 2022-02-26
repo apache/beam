@@ -17,7 +17,6 @@
 package textio
 
 import (
-	"context"
 	"errors"
 	"os"
 	"testing"
@@ -26,6 +25,7 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 const testFilePath = "../../../../data/textio_test.txt"
@@ -52,20 +52,15 @@ func TestRead(t *testing.T) {
 	lines := Read(s, testFilePath)
 	passert.Count(s, lines, "NumLines", 1)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func TestReadAll(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	files := beam.Create(s, testFilePath)
+	p, s, files := ptest.CreateList([]string{testFilePath})
 	lines := ReadAll(s, files)
 	passert.Count(s, lines, "NumLines", 1)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func TestWrite(t *testing.T) {
@@ -74,14 +69,14 @@ func TestWrite(t *testing.T) {
 	lines := Read(s, testFilePath)
 	Write(s, out, lines)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 
 	if _, err := os.Stat(out); errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Failed to write %v", out)
 	}
-	defer os.Remove(out)
+	t.Cleanup(func() {
+		os.Remove(out)
+	})
 
 	outfileContents, _ := os.ReadFile(out)
 	infileContents, _ := os.ReadFile(testFilePath)
@@ -95,7 +90,9 @@ func TestImmediate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file, err: %v", err)
 	}
-	defer os.Remove(f.Name()) // clean up
+	t.Cleanup(func() {
+		os.Remove(f.Name())
+	})
 	if err := os.WriteFile(f.Name(), []byte("hello\ngo\n"), 0644); err != nil {
 		t.Fatalf("Failed to write file %v, err: %v", f, err)
 	}
@@ -107,7 +104,5 @@ func TestImmediate(t *testing.T) {
 	}
 	passert.Count(s, lines, "NumLines", 2)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
