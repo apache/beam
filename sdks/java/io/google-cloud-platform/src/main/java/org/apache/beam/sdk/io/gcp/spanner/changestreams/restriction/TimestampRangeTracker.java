@@ -17,79 +17,82 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toTimestamp;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.Timestamp;
-import java.nio.ByteBuffer;
-import org.apache.beam.sdk.io.range.ByteKey;
-import org.apache.beam.sdk.io.range.ByteKeyRange;
-import org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * This restriction tracker provides a decorator on top of the {@link ByteKeyRangeTracker} to allow
- * for using a {@link TimestampRange} and claim a {@link Timestamp} position.
- */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Timestamp>
     implements HasProgress {
 
-  private final ByteKeyRangeTracker tracker;
-  private TimestampRange range;
-  protected Timestamp lastAttemptedTimestamp;
+  protected TimestampRange range;
+  protected @Nullable Timestamp lastAttemptedTimestamp;
+  protected @Nullable Timestamp lastClaimedTimestamp;
 
-  /**
-   * It creates an internal {@link ByteKeyRangeTracker} from the received {@link TimestampRange}.
-   * The conversion is lossless, so the start and end timestamps are represented internally as
-   * {@link ByteKey}s, with a second and nanosecond component.
-   *
-   * @param range closed / open range interval for the start / end times of the given partition
-   */
   public TimestampRangeTracker(TimestampRange range) {
     this.range = range;
-    this.tracker =
-        ByteKeyRangeTracker.of(
-            ByteKeyRange.of(toByteKey(range.getFrom()), toByteKey(range.getTo())));
   }
 
-  /**
-   * Attempts to claim the given position.
-   *
-   * <p>Must be larger than the last successfully claimed position.
-   *
-   * @return {@code true} if the position was successfully claimed, {@code false} if it is outside
-   *     the current {@link TimestampRange} of this tracker (in that case this operation is a
-   *     no-op).
-   */
   @Override
   public boolean tryClaim(Timestamp position) {
-    final boolean canClaim = tracker.tryClaim(toByteKey(position));
+    checkArgument(
+        lastAttemptedTimestamp == null || position.compareTo(lastAttemptedTimestamp) > 0,
+        "Trying to claim offset %s while last attempted was %s",
+        position,
+        lastAttemptedTimestamp);
+    checkArgument(
+        position.compareTo(range.getFrom()) >= 0,
+        "Trying to claim offset %s before start of the range %s",
+        position,
+        range);
     lastAttemptedTimestamp = position;
 
-    return canClaim;
+    // It is ok to try to claim offsets beyond of the range, this will simply return false
+    if (position.compareTo(range.getTo()) >= 0) {
+      return false;
+    }
+    lastClaimedTimestamp = position;
+    return true;
   }
 
   @Override
   public @Nullable SplitResult<TimestampRange> trySplit(double fractionOfRemainder) {
-    final SplitResult<ByteKeyRange> result = tracker.trySplit(fractionOfRemainder);
-    if (result == null) {
+    final BigDecimal fromInNanos = toNanos(range.getFrom());
+    final BigDecimal toInNanos = toNanos(range.getTo());
+    final BigDecimal currentInNanos =
+        lastAttemptedTimestamp == null
+            ? fromInNanos.subtract(BigDecimal.ONE, MathContext.DECIMAL128)
+            : toNanos(lastAttemptedTimestamp);
+    final BigDecimal nanosOffset =
+        toInNanos
+            .subtract(currentInNanos, MathContext.DECIMAL128)
+            .multiply(BigDecimal.valueOf(fractionOfRemainder))
+            .max(BigDecimal.ONE);
+
+    // splitPosition = current + max(1, (range.getTo() - current) * fractionOfRemainder)
+    final BigDecimal splitPositionInNanos = currentInNanos.add(nanosOffset, MathContext.DECIMAL128);
+    final Timestamp splitPosition = toTimestamp(splitPositionInNanos);
+
+    if (splitPosition.compareTo(range.getTo()) >= 0) {
       return null;
     }
 
-    final TimestampRange primary = toTimestampRange(result.getPrimary());
-    final TimestampRange residual = toTimestampRange(result.getResidual());
+    final TimestampRange primary = new TimestampRange(range.getFrom(), splitPosition);
+    final TimestampRange residual = new TimestampRange(splitPosition, range.getTo());
     this.range = primary;
     return SplitResult.of(primary, residual);
-  }
-
-  @Override
-  public TimestampRange currentRestriction() {
-    return range;
   }
 
   @Override
@@ -121,61 +124,35 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
   }
 
   @Override
-  public IsBounded isBounded() {
-    return tracker.isBounded();
+  public Progress getProgress() {
+    final BigDecimal fromInNanos = toNanos(range.getFrom());
+    final BigDecimal toInNanos = toNanos(range.getTo());
+    final BigDecimal totalWork = toInNanos.subtract(fromInNanos, MathContext.DECIMAL128);
+
+    if (lastAttemptedTimestamp == null) {
+      final double workCompleted = 0D;
+      final double workRemaining = totalWork.doubleValue();
+
+      return Progress.from(workCompleted, workRemaining);
+    } else {
+      final BigDecimal currentInNanos = toNanos(lastAttemptedTimestamp);
+      final BigDecimal workRemainingInNanos =
+          toInNanos.subtract(currentInNanos, MathContext.DECIMAL128).max(BigDecimal.ZERO);
+
+      final double workCompleted = totalWork.subtract(workRemainingInNanos).doubleValue();
+      final double workRemaining = workRemainingInNanos.doubleValue();
+
+      return Progress.from(workCompleted, workRemaining);
+    }
   }
 
   @Override
-  public Progress getProgress() {
-    return tracker.getProgress();
+  public TimestampRange currentRestriction() {
+    return range;
   }
 
-  private TimestampRange toTimestampRange(ByteKeyRange range) {
-    if (range == null) {
-      return null;
-    }
-
-    return TimestampRange.of(toTimestamp(range.getStartKey()), toTimestamp(range.getEndKey()));
-  }
-
-  /**
-   * Converts the given timestamp to a byte array. The byte array has 12 positions, the 8 first
-   * positions are allocated for the seconds part of the timestamp (which is a long) and the next 4
-   * positions are allocated for the nanoseconds part of the timestamp (which is an integer).
-   *
-   * @param timestamp the timestamp to be converted
-   * @return 12 bytes containing the seconds in the first 8 bytes and the nanoseconds in the last 4
-   *     bytes
-   */
-  protected ByteKey toByteKey(Timestamp timestamp) {
-    return ByteKey.copyFrom(
-        ByteBuffer.allocate(Long.BYTES + Integer.BYTES)
-            .putLong(timestamp.getSeconds())
-            .putInt(timestamp.getNanos())
-            .array());
-  }
-
-  /**
-   * Reads an array in which the first 8 bytes contain the seconds part of the timestamp and the
-   * last 4 bytes contain the nanoseconds part of the timestamp. In total the array must have 12
-   * bytes (positions). It returns a timestamp constructed from the seconds and nanoseconds read.
-   *
-   * @param key a {@link ByteKey} containing seconds in the first 8 bytes and nanoseconds in the
-   *     last 4 bytes
-   * @return a timestamp with the seconds and nanoseconds read
-   */
-  protected Timestamp toTimestamp(ByteKey key) {
-    final ByteBuffer buffer = key.getValue();
-    final long seconds = buffer.getLong();
-    final int nanos = buffer.getInt();
-
-    return Timestamp.ofTimeSecondsAndNanos(seconds, nanos);
-  }
-
-  private Timestamp next(Timestamp timestamp) {
-    if (timestamp.equals(Timestamp.MAX_VALUE)) {
-      return timestamp;
-    }
-    return Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos() + 1);
+  @Override
+  public IsBounded isBounded() {
+    return IsBounded.BOUNDED;
   }
 }

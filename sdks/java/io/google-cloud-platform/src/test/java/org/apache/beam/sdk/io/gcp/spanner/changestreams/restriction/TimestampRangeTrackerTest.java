@@ -17,165 +17,249 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeThat;
 
 import com.google.cloud.Timestamp;
-import org.apache.beam.sdk.io.range.ByteKey;
+import com.pholser.junit.quickcheck.From;
+import com.pholser.junit.quickcheck.Property;
+import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
+import java.math.BigDecimal;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TimestampGenerator;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
+@RunWith(JUnitQuickcheck.class)
 public class TimestampRangeTrackerTest {
-  private TimestampRange range;
-  private TimestampRangeTracker tracker;
+  private static final double DELTA = 1e-15;
 
-  @Before
-  public void setUp() throws Exception {
-    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(20L));
-    tracker = new TimestampRangeTracker(range);
+  @Property
+  public void testTryClaimReturnsTrueWhenPositionIsWithinTheRange(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp position) {
+    assumeThat(from, lessThanOrEqualTo(to));
+    assumeThat(position, greaterThanOrEqualTo(from));
+    assumeThat(position, lessThan(to));
+
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    assertTrue(tracker.tryClaim(position));
+    assertEquals(position, tracker.lastAttemptedTimestamp);
+    assertEquals(position, tracker.lastClaimedTimestamp);
+  }
+
+  @Property
+  public void testTryClaimReturnsFalseWhenPositionIsGreaterOrEqualToTheEndOfTheRange(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp position) {
+    assumeThat(from, lessThanOrEqualTo(to));
+    assumeThat(position, greaterThanOrEqualTo(to));
+
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    assertFalse(tracker.tryClaim(position));
+    assertEquals(position, tracker.lastAttemptedTimestamp);
+    assertNull(tracker.lastClaimedTimestamp);
   }
 
   @Test
-  public void testTryClaim() {
-    assertEquals(range, tracker.currentRestriction());
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(10L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
-    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(19L)));
-    assertFalse(tracker.tryClaim(Timestamp.ofTimeMicroseconds(20L)));
+  public void testTryClaimFailsWhenPositionIsLessThanPreviousClaim() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(0L);
+    final Timestamp to = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp position = Timestamp.ofTimeMicroseconds(5L);
+    final Timestamp nextPosition = Timestamp.ofTimeMicroseconds(3L);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    assertTrue(tracker.tryClaim(position));
+    assertThrows(IllegalArgumentException.class, () -> tracker.tryClaim(nextPosition));
+    assertEquals(position, tracker.lastAttemptedTimestamp);
+    assertEquals(position, tracker.lastClaimedTimestamp);
   }
 
   @Test
-  public void testTrySplitReturnsPrimaryAndResidual() {
-    tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L));
+  public void testTryClaimFailsWhenPositionIsLessThanTheBeginningOfTheRange() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(5L);
+    final Timestamp to = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp position = Timestamp.ofTimeMicroseconds(4L);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    final SplitResult<TimestampRange> result = tracker.trySplit(0D);
-    assertEquals(
-        TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(11L)),
-        result.getPrimary());
-    assertEquals(
-        TimestampRange.of(Timestamp.ofTimeMicroseconds(11L), Timestamp.ofTimeMicroseconds(20L)),
-        result.getResidual());
+    assertThrows(IllegalArgumentException.class, () -> tracker.tryClaim(position));
+  }
+
+  @Property
+  public void testTrySplitReturnsSplitWhenNoPositionWasClaimed(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThanOrEqualTo(to));
+
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    final SplitResult<TimestampRange> splitResult = tracker.trySplit(0D);
+    final TimestampRange primary = splitResult.getPrimary();
+    final TimestampRange residual = splitResult.getResidual();
+
+    assertEquals(TimestampRange.of(from, from), primary);
+    assertEquals(TimestampRange.of(from, to), residual);
+    assertEquals(primary, tracker.range);
+  }
+
+  @Property
+  public void testTrySplitReturnsSplitWhenAPositionIsClaimedAndFractionOfRemainderIsZero(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp position) {
+    assumeThat(from, lessThanOrEqualTo(to));
+    assumeThat(position, greaterThanOrEqualTo(from));
+    assumeThat(position, lessThan(to));
+
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    tracker.tryClaim(position);
+    final SplitResult<TimestampRange> splitResult = tracker.trySplit(0D);
+
+    final TimestampRange primary = splitResult.getPrimary();
+    final TimestampRange residual = splitResult.getResidual();
+    final Timestamp nextPosition = next(position);
+    assertEquals(TimestampRange.of(from, nextPosition), primary);
+    assertEquals(TimestampRange.of(nextPosition, to), residual);
+    assertEquals(primary, tracker.range);
+  }
+
+  @Property
+  public void testTrySplitReturnsNullWhenAPositionIsGreaterThanTheEndOfTheRange(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp position) {
+    assumeThat(from, lessThanOrEqualTo(to));
+    assumeThat(position, greaterThan(to));
+
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    tracker.tryClaim(position);
+    final SplitResult<TimestampRange> splitResult = tracker.trySplit(0D);
+
+    assertNull(splitResult);
   }
 
   @Test
-  public void testCheckDoneSucceedsWhenIntervalIsEmpty() {
-    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(10L));
-    tracker = new TimestampRangeTracker(range);
+  public void testCheckDoneSucceedsWhenFromIsEqualToTheEndOfTheRange() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    final TimestampRange range = TimestampRange.of(from, from);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    // check this does not throw an exception
+    // Method is void, succeeds if exception is not thrown
     tracker.checkDone();
   }
 
-  @Test(expected = IllegalStateException.class)
-  public void testCheckDoneThrowsExceptionWhenNoClaimsWereMadeInANonEmptyInterval() {
-    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(20L));
-    tracker = new TimestampRangeTracker(range);
+  @Test
+  public void testCheckDoneSucceedsWhenClaimingTheEndOfTheRangeHasBeenAttempted() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp to = Timestamp.ofTimeMicroseconds(50L);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
+    tracker.tryClaim(to);
+    // Method is void, succeeds if exception is not thrown
     tracker.checkDone();
   }
 
   @Test
-  public void testCheckDoneSucceedsWhenOneBeforeEndOfRangeWasClaimed() {
-    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(20L));
-    tracker = new TimestampRangeTracker(range);
+  public void testCheckDoneSucceedsWhenClaimingPastTheEndOfTheRangeHasBeenAttempted() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp to = Timestamp.ofTimeMicroseconds(50L);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    tracker.tryClaim(Timestamp.ofTimeSecondsAndNanos(0L, 19999));
-
-    // check this does not throw an exception
+    tracker.tryClaim(Timestamp.ofTimeMicroseconds(51L));
+    // Method is void, succeeds if exception is not thrown
     tracker.checkDone();
   }
 
   @Test
-  public void testCheckDoneSucceedsWhenTheEndOfRangeWasClaimed() {
-    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(20L));
-    tracker = new TimestampRangeTracker(range);
+  public void testCheckDoneFailsWhenNoClaimHasBeenMade() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp to = Timestamp.ofTimeMicroseconds(50L);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    tracker.tryClaim(Timestamp.ofTimeMicroseconds(20L));
-
-    // check this does not throw an exception
-    tracker.checkDone();
+    assertThrows(IllegalStateException.class, tracker::checkDone);
   }
 
-  @Test(expected = IllegalStateException.class)
-  public void testCheckDoneThrowsExceptionWhenEndOfRangeWasNotClaimed() {
-    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(20L));
-    tracker = new TimestampRangeTracker(range);
+  @Property
+  public void testCheckDoneFailsWhenClaimingTheEndOfTheRangeHasNotBeenAttempted(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp position) {
+    assumeThat(from, lessThan(to));
+    assumeThat(position, greaterThanOrEqualTo(from));
+    assumeThat(position, lessThan(to));
 
-    tracker.tryClaim(Timestamp.ofTimeMicroseconds(15L));
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    tracker.checkDone();
+    tracker.tryClaim(position);
+    assertThrows(IllegalStateException.class, tracker::checkDone);
   }
 
-  @Test
-  public void testCheckDoneWithMaxTimestampAsEndOfRange() {
-    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.MAX_VALUE);
-    tracker = new TimestampRangeTracker(range);
+  @Property
+  public void testGetProgressReturnsWorkRemainingAsWholeRangeWhenNoClaimWasAttempted(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThanOrEqualTo(to));
 
-    tracker.tryClaim(Timestamp.MAX_VALUE);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    tracker.checkDone();
+    final Progress progress = tracker.getProgress();
+    final double expectedWorkCompleted = 0D;
+    final double expectedWorkRemaining = toNanos(to).subtract(toNanos(from)).doubleValue();
+    assertTrue(progress.getWorkCompleted() >= 0);
+    assertEquals(expectedWorkCompleted, progress.getWorkCompleted(), DELTA);
+    assertTrue(progress.getWorkRemaining() >= 0);
+    assertEquals(expectedWorkRemaining, progress.getWorkRemaining(), DELTA);
   }
 
-  @Test
-  public void testTrySplitUpdatesRestriction() {
-    tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L));
-    tracker.trySplit(0D);
+  @Property
+  public void testGetProgressReturnsWorkRemainingAsRangeEndMinusAttemptedPosition(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp position) {
+    assumeThat(from, lessThanOrEqualTo(to));
+    assumeThat(position, greaterThanOrEqualTo(from));
 
-    assertEquals(
-        TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(11L)),
-        tracker.currentRestriction());
-  }
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-  @Test
-  public void testToByteKey() {
-    final Timestamp timestamp = Timestamp.ofTimeSecondsAndNanos(20L, 10);
-    final ByteKey expectedKey = ByteKey.copyFrom(new byte[] {0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 10});
-
-    assertEquals(expectedKey, tracker.toByteKey(timestamp));
-  }
-
-  @Test
-  public void testToByteKeyMaxTimestamp() {
-    final Timestamp timestamp = Timestamp.MAX_VALUE;
-    final ByteKey expectedKey =
-        ByteKey.copyFrom(new byte[] {0, 0, 0, 58, -1, -12, 65, 127, 59, -102, -55, -1});
-
-    assertEquals(expectedKey, tracker.toByteKey(timestamp));
-  }
-
-  @Test
-  public void testToByteKeyMinTimestamp() {
-    final Timestamp timestamp = Timestamp.MIN_VALUE;
-    final ByteKey expectedKey =
-        ByteKey.copyFrom(new byte[] {-1, -1, -1, -15, -120, 110, 9, 0, 0, 0, 0, 0});
-
-    assertEquals(expectedKey, tracker.toByteKey(timestamp));
-  }
-
-  @Test
-  public void testToTimestamp() {
-    final ByteKey key = ByteKey.copyFrom(new byte[] {0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 10});
-    final Timestamp expectedTimestamp = Timestamp.ofTimeSecondsAndNanos(20L, 10);
-
-    assertEquals(expectedTimestamp, tracker.toTimestamp(key));
-  }
-
-  @Test
-  public void testFromBytesMaxTimestamp() {
-    final ByteKey key =
-        ByteKey.copyFrom(new byte[] {0, 0, 0, 58, -1, -12, 65, 127, 59, -102, -55, -1});
-    final Timestamp expectedTimestamp = Timestamp.MAX_VALUE;
-
-    assertEquals(expectedTimestamp, tracker.toTimestamp(key));
-  }
-
-  @Test
-  public void testFromBytesMinTimestamp() {
-    final ByteKey key = ByteKey.copyFrom(new byte[] {-1, -1, -1, -15, -120, 110, 9, 0, 0, 0, 0, 0});
-    final Timestamp expectedTimestamp = Timestamp.MIN_VALUE;
-
-    assertEquals(expectedTimestamp, tracker.toTimestamp(key));
+    tracker.tryClaim(position);
+    final Progress progress = tracker.getProgress();
+    final BigDecimal expectedWorkRemaining =
+        toNanos(to).subtract(toNanos(position)).max(BigDecimal.ZERO);
+    final BigDecimal expectedWorkCompleted =
+        toNanos(to).subtract(toNanos(from)).subtract(expectedWorkRemaining);
+    assertTrue(progress.getWorkCompleted() >= 0);
+    assertEquals(expectedWorkCompleted.doubleValue(), progress.getWorkCompleted(), DELTA);
+    assertTrue(progress.getWorkRemaining() >= 0);
+    assertEquals(expectedWorkRemaining.doubleValue(), progress.getWorkRemaining(), DELTA);
   }
 }
