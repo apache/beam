@@ -16,7 +16,6 @@
 package databaseio
 
 import (
-	"context"
 	"database/sql"
 	"reflect"
 	"testing"
@@ -24,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	_ "github.com/proullon/ramsql/driver"
 )
 
@@ -47,9 +47,7 @@ func TestRead(t *testing.T) {
 	passert.Count(s, elements, "NumElements", 2)
 	passert.Equals(s, elements, Address{Street: "orchard lane", Street_number: 1}, Address{Street: "morris st", Street_number: 200})
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func TestQuery(t *testing.T) {
@@ -68,9 +66,7 @@ func TestQuery(t *testing.T) {
 	passert.Count(s, read, "NumElementsFromRead", 1)
 	passert.Equals(s, read, Address{Street: "orchard lane", Street_number: 1})
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
 func insertTestData(db *sql.DB) error {
