@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.previous;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
@@ -28,7 +29,6 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -167,7 +167,7 @@ public class QueryChangeStreamAction {
      * partition should be returned within the query.
      */
     final Timestamp restrictionStartTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp previousStartTimestamp = previousTimestampFrom(restrictionStartTimestamp);
+    final Timestamp previousStartTimestamp = previous(restrictionStartTimestamp);
     final boolean isFirstRun =
         restrictionStartTimestamp.compareTo(partition.getStartTimestamp()) == 0;
     final Timestamp startTimestamp =
@@ -242,6 +242,12 @@ public class QueryChangeStreamAction {
             updateWatermarkCallback(token, watermarkEstimator));
 
       } catch (SpannerException e) {
+        /*
+        If there is a split when a partition is supposed to be finished, the residual will try
+        to perform a change stream query for an out of range interval. We ignore this error
+        here, and the residual should be able to claim the end of the timestamp range, finishing
+        the partition.
+        */
         if (isTimestampOutOfRange(e)) {
           LOG.debug(
               "["
@@ -258,32 +264,10 @@ public class QueryChangeStreamAction {
     }
 
     LOG.debug("[" + token + "] change stream completed successfully");
-    final Timestamp from = tracker.currentRestriction().getFrom();
-    final Timestamp to = tracker.currentRestriction().getTo();
     if (tracker.tryClaim(endTimestamp)) {
       LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
-      LOG.info(
-          "["
-              + token
-              + "] Partition finished, claimed "
-              + endTimestamp
-              + " (restriction = ["
-              + from
-              + ", "
-              + to
-              + ")");
-    } else {
-      LOG.info(
-          "["
-              + token
-              + "] Could not claim end timestamp "
-              + endTimestamp
-              + " (restriction = ["
-              + from
-              + ", "
-              + to
-              + ")");
+      LOG.info("[" + token + "] Partition finished");
     }
     return ProcessContinuation.stop();
   }
@@ -311,17 +295,5 @@ public class QueryChangeStreamAction {
             || e.getErrorCode() == ErrorCode.OUT_OF_RANGE)
         && e.getMessage() != null
         && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
-  }
-
-  private Timestamp previousTimestampFrom(Timestamp timestamp) {
-    if (timestamp.equals(Timestamp.MIN_VALUE)) {
-      return timestamp;
-    }
-    final long seconds = timestamp.getSeconds();
-    final int nanos = timestamp.getNanos();
-    final int previousNanos = nanos - 1 < 0 ? (int) TimeUnit.SECONDS.toNanos(1) - 1 : nanos - 1;
-    final long previousSeconds = nanos - 1 < 0 ? seconds - 1 : seconds;
-
-    return Timestamp.ofTimeSecondsAndNanos(previousSeconds, previousNanos);
   }
 }

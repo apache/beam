@@ -129,7 +129,7 @@ public class DetectNewPartitionsAction {
         partitions.add(partition);
       }
     }
-    LOG.debug(
+    LOG.info(
         "Found " + partitions.size() + " to be scheduled (readTimestamp = " + readTimestamp + ")");
     return partitions;
   }

@@ -25,10 +25,10 @@ import java.util.concurrent.TimeUnit;
  * Provides methods in order to convert timestamp to nanoseconds representation and back. Provides
  * method to increment a given timestamp nanoseconds by 1.
  */
-class TimestampUtils {
+public class TimestampUtils {
   private static final BigDecimal MIN_SECONDS =
       BigDecimal.valueOf(Timestamp.MIN_VALUE.getSeconds());
-  private static final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
+  private static final int NANOS_PER_SECOND = (int) TimeUnit.SECONDS.toNanos(1);
 
   /**
    * Converts the given timestamp to respective nanoseconds representation. This method always
@@ -41,7 +41,7 @@ class TimestampUtils {
    * @param timestamp the timestamp to be converted
    * @return positive number of nanoseconds from the {@link Timestamp#MIN_VALUE}
    */
-  static BigDecimal toNanos(Timestamp timestamp) {
+  public static BigDecimal toNanos(Timestamp timestamp) {
     final BigDecimal secondsAsNanos =
         BigDecimal.valueOf(timestamp.getSeconds()).subtract(MIN_SECONDS).scaleByPowerOfTen(9);
     final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
@@ -59,7 +59,7 @@ class TimestampUtils {
    *     Timestamp#MIN_VALUE})
    * @return the converted timestamp
    */
-  static Timestamp toTimestamp(BigDecimal bigDecimal) {
+  public static Timestamp toTimestamp(BigDecimal bigDecimal) {
     final BigDecimal nanos = bigDecimal.remainder(BigDecimal.ONE.scaleByPowerOfTen(9));
     final BigDecimal seconds = bigDecimal.subtract(nanos).scaleByPowerOfTen(-9).add(MIN_SECONDS);
 
@@ -73,7 +73,7 @@ class TimestampUtils {
    * @param timestamp the timestamp to have one nanosecond added to
    * @return input timestamp + 1 nanosecond
    */
-  static Timestamp next(Timestamp timestamp) {
+  public static Timestamp next(Timestamp timestamp) {
     if (timestamp.equals(Timestamp.MAX_VALUE)) {
       return timestamp;
     }
@@ -84,6 +84,20 @@ class TimestampUtils {
       return Timestamp.ofTimeSecondsAndNanos(seconds + 1, 0);
     } else {
       return Timestamp.ofTimeSecondsAndNanos(seconds, nanos + 1);
+    }
+  }
+
+  public static Timestamp previous(Timestamp timestamp) {
+    if (timestamp.equals(Timestamp.MIN_VALUE)) {
+      return timestamp;
+    }
+
+    final int nanos = timestamp.getNanos();
+    final long seconds = timestamp.getSeconds();
+    if (nanos - 1 >= 0) {
+      return Timestamp.ofTimeSecondsAndNanos(seconds, nanos - 1);
+    } else {
+      return Timestamp.ofTimeSecondsAndNanos(seconds - 1, NANOS_PER_SECOND - 1);
     }
   }
 }

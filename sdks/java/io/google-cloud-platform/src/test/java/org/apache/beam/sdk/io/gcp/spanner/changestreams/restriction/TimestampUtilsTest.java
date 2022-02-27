@@ -101,4 +101,23 @@ public class TimestampUtilsTest {
         Timestamp.ofTimeSecondsAndNanos(11L, 0),
         TimestampUtils.next(Timestamp.ofTimeSecondsAndNanos(10L, 999999999)));
   }
+
+  @Test
+  public void testPreviousReturnsMinWhenTimestampIsAlreadyMin() {
+    assertEquals(Timestamp.MIN_VALUE, TimestampUtils.previous(Timestamp.MIN_VALUE));
+  }
+
+  @Test
+  public void testPreviousDecrementsNanosWhenPossible() {
+    assertEquals(
+        Timestamp.ofTimeSecondsAndNanos(10L, 0),
+        TimestampUtils.previous(Timestamp.ofTimeSecondsAndNanos(10L, 1)));
+  }
+
+  @Test
+  public void testPreviousDecrementsSecondsWhenNanosUnderflow() {
+    assertEquals(
+        Timestamp.ofTimeSecondsAndNanos(9L, 999999999),
+        TimestampUtils.previous(Timestamp.ofTimeSecondsAndNanos(10L, 0)));
+  }
 }
