@@ -37,7 +37,6 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -99,30 +98,6 @@ public class TableRowToStorageApiProto {
         FileDescriptor.buildFrom(fileDescriptorProto, new FileDescriptor[0]);
 
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
-  }
-
-  public static DynamicMessage messageFromMap(
-      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
-      Descriptor descriptor,
-      AbstractMap<String, Object> map) {
-    DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
-    for (Map.Entry<String, Object> entry : map.entrySet()) {
-
-      @Nullable
-      FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
-      if (fieldDescriptor == null) {
-        throw new RuntimeException(
-            "TableRow contained unexpected field with name " + entry.getKey());
-      }
-      StorageApiDynamicDestinationsTableRow.BqSchema subBqSchema =
-          bqSchema.getSubFieldByName(entry.getKey());
-      @Nullable
-      Object value = messageValueFromFieldValue(subBqSchema, fieldDescriptor, entry.getValue());
-      if (value != null) {
-        builder.setField(fieldDescriptor, value);
-      }
-    }
-    return builder.build();
   }
 
   /**
@@ -206,6 +181,30 @@ public class TableRowToStorageApiProto {
     descriptorBuilder.addField(fieldDescriptorBuilder.build());
   }
 
+  private static DynamicMessage messageFromMap(
+      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
+      Descriptor descriptor,
+      AbstractMap<String, Object> map) {
+    DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
+
+      @Nullable
+      FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
+      if (fieldDescriptor == null) {
+        throw new RuntimeException(
+            "TableRow contained unexpected field with name " + entry.getKey());
+      }
+      StorageApiDynamicDestinationsTableRow.BqSchema subBqSchema =
+          bqSchema.getSubFieldByName(entry.getKey());
+      @Nullable
+      Object value = messageValueFromFieldValue(subBqSchema, fieldDescriptor, entry.getValue());
+      if (value != null) {
+        builder.setField(fieldDescriptor, value);
+      }
+    }
+    return builder.build();
+  }
+
   @Nullable
   private static Object messageValueFromFieldValue(
       StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
@@ -283,14 +282,11 @@ public class TableRowToStorageApiProto {
           return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
         } else if (value instanceof org.joda.time.Instant) {
           // joda instant precision is millisecond
-          Instant instant = Instant.ofEpochMilli(((org.joda.time.Instant) value).getMillis());
-          return ChronoUnit.MICROS.between(Instant.EPOCH, instant);
-        } else if (value instanceof Timestamp) {
-          return ChronoUnit.MICROS.between(Instant.EPOCH, ((Timestamp) value).toInstant());
+          return ((org.joda.time.Instant) value).getMillis() * 1000L;
         } else if (value instanceof Integer || value instanceof Long) {
           return ((Number) value).longValue();
         } else if (value instanceof Double || value instanceof Float) {
-          // assume jsonBQValue represents number of seconds since epoch
+          // assume value represents number of seconds since epoch
           return BigDecimal.valueOf(((Number) value).doubleValue())
               .scaleByPowerOfTen(6)
               .setScale(0, RoundingMode.HALF_UP)
@@ -331,9 +327,8 @@ public class TableRowToStorageApiProto {
           // This will handle nested rows.
           AbstractMap<String, Object> map = ((AbstractMap<String, Object>) value);
           return messageFromMap(bqSchema, fieldDescriptor.getMessageType(), map);
-        } else {
-          throw new RuntimeException("Unexpected value " + value + " Expected a JSON map.");
         }
+        break;
     }
 
     throw new RuntimeException(
@@ -359,7 +354,7 @@ public class TableRowToStorageApiProto {
     return tableRow;
   }
 
-  public static Object jsonValueFromMessageValue(
+  private static Object jsonValueFromMessageValue(
       FieldDescriptor fieldDescriptor, Object fieldValue, boolean expandRepeated) {
     if (expandRepeated && fieldDescriptor.isRepeated()) {
       List<Object> valueList = (List<Object>) fieldValue;
