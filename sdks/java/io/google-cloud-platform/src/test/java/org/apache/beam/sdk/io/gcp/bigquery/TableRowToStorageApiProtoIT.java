@@ -106,7 +106,24 @@ public class TableRowToStorageApiProtoIT {
           .set("numericValue", "23.4")
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
-  private static final TableRow BASE_TABLE_ROW_RICH_TYPE =
+  private static final TableRow BASE_TABLE_ROW_JODA_TIME =
+      new TableRow()
+          .set("stringValue", "string")
+          .set("bytesValue", "string".getBytes(StandardCharsets.UTF_8))
+          .set("int64Value", 42)
+          .set("intValue", 43)
+          .set("float64Value", 2.8168f)
+          .set("floatValue", 2.817f)
+          .set("boolValue", true)
+          .set("booleanValue", true)
+          .set("timestampValue", org.joda.time.Instant.parse("1970-01-01T00:00:00.000043Z"))
+          .set("timeValue", org.joda.time.LocalTime.parse("00:52:07.123456"))
+          .set("datetimeValue", org.joda.time.LocalDateTime.parse("2019-08-16T00:52:07.123456"))
+          .set("dateValue", org.joda.time.LocalDate.parse("2019-08-16"))
+          .set("numericValue", new BigDecimal("23.4"))
+          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+
+  private static final TableRow BASE_TABLE_ROW_JAVA_TIME =
       new TableRow()
           .set("stringValue", "string")
           .set("bytesValue", "string".getBytes(StandardCharsets.UTF_8))
@@ -141,10 +158,6 @@ public class TableRowToStorageApiProtoIT {
           // BigQuery array cannot be null and cannot contain null element, but it can be empty
           .set("arrayValue", ImmutableList.of());
 
-  // only non null values are returned, only arrayValue field is not null
-  private static final TableRow BASE_TABLE_ROW_NULL_EXPECTED =
-      new TableRow().set("arrayValue", ImmutableList.of());
-
   private static final TableRow BASE_TABLE_ROW_EXPECTED =
       new TableRow()
           .set("stringValue", "string")
@@ -162,6 +175,29 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+
+  // joda is up to millisecond precision, expect truncation
+  private static final TableRow BASE_TABLE_ROW_JODA_EXPECTED =
+      new TableRow()
+          .set("stringValue", "string")
+          .set(
+              "bytesValue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
+          .set("int64Value", "42")
+          .set("intValue", "43")
+          .set("float64Value", 2.8168)
+          .set("floatValue", 2.817)
+          .set("boolValue", true)
+          .set("booleanValue", true)
+          .set("timestampValue", "0.0")
+          .set("timeValue", "00:52:07.123000")
+          .set("datetimeValue", "2019-08-16T00:52:07.123000")
+          .set("dateValue", "2019-08-16")
+          .set("numericValue", "23.4")
+          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+
+  // only non null values are returned, only arrayValue field is not null
+  private static final TableRow BASE_TABLE_ROW_NULL_EXPECTED =
+      new TableRow().set("arrayValue", ImmutableList.of());
 
   private static final TableSchema NESTED_TABLE_SCHEMA =
       new TableSchema()
@@ -193,7 +229,7 @@ public class TableRowToStorageApiProtoIT {
   }
 
   @Test
-  public void testTableRowToStorageApiProtoIT() throws IOException, InterruptedException {
+  public void testBaseTableRow() throws IOException, InterruptedException {
     String tableSpec = createTable(BASE_TABLE_SCHEMA);
 
     runPipeline(tableSpec, Collections.singleton(BASE_TABLE_ROW));
@@ -206,38 +242,15 @@ public class TableRowToStorageApiProtoIT {
   }
 
   @Test
-  public void testTableRowToStorageApiProtoITRichType() throws IOException, InterruptedException {
-    String tableSpec = createTable(BASE_TABLE_SCHEMA);
-
-    runPipeline(tableSpec, Collections.singleton(BASE_TABLE_ROW_RICH_TYPE));
-
-    List<TableRow> actualTableRows =
-        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
-
-    assertEquals(1, actualTableRows.size());
-    assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0));
-  }
-
-  @Test
-  public void testTableRowToStorageApiProtoITNull() throws IOException, InterruptedException {
-    String tableSpec = createTable(BASE_TABLE_SCHEMA);
-
-    runPipeline(tableSpec, Collections.singleton(BASE_TABLE_ROW_NULL));
-
-    List<TableRow> actualTableRows =
-        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
-
-    assertEquals(1, actualTableRows.size());
-    assertEquals(BASE_TABLE_ROW_NULL_EXPECTED, actualTableRows.get(0));
-  }
-
-  @Test
-  public void testTableRowToStorageApiProtoITNested() throws IOException, InterruptedException {
+  public void testNestedRichTypesAndNull() throws IOException, InterruptedException {
     String tableSpec = createTable(NESTED_TABLE_SCHEMA);
     TableRow tableRow =
         new TableRow()
             .set("nestedValue1", BASE_TABLE_ROW)
-            .set("nestedValue2", Arrays.asList(BASE_TABLE_ROW_RICH_TYPE, BASE_TABLE_ROW_NULL));
+            .set(
+                "nestedValue2",
+                Arrays.asList(
+                    BASE_TABLE_ROW_JAVA_TIME, BASE_TABLE_ROW_JODA_TIME, BASE_TABLE_ROW_NULL));
 
     runPipeline(tableSpec, Collections.singleton(tableRow));
 
@@ -247,7 +260,8 @@ public class TableRowToStorageApiProtoIT {
     assertEquals(1, actualTableRows.size());
     assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0).get("nestedValue1"));
     assertEquals(
-        ImmutableList.of(BASE_TABLE_ROW_EXPECTED, BASE_TABLE_ROW_NULL_EXPECTED),
+        ImmutableList.of(
+            BASE_TABLE_ROW_EXPECTED, BASE_TABLE_ROW_JODA_EXPECTED, BASE_TABLE_ROW_NULL_EXPECTED),
         actualTableRows.get(0).get("nestedValue2"));
   }
 

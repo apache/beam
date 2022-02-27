@@ -36,6 +36,7 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -51,6 +52,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.joda.time.Days;
 
 /**
  * Utility methods for converting JSON {@link TableRow} objects to dynamic protocol message, for use
@@ -79,6 +81,8 @@ public class TableRowToStorageApiProto {
           .put("TIMESTAMP", Type.TYPE_INT64)
           .put("JSON", Type.TYPE_STRING)
           .build();
+
+  private static final org.joda.time.LocalDate JODA_EPOCH = new org.joda.time.LocalDate(1970, 1, 1);
 
   /**
    * Given a BigQuery TableSchema, returns a protocol-buffer Descriptor that can be used to write
@@ -269,20 +273,16 @@ public class TableRowToStorageApiProto {
       case "INTEGER":
         if (jsonBQValue instanceof String) {
           return Long.valueOf((String) jsonBQValue);
-        } else if (jsonBQValue instanceof Integer) {
-          return ((Integer) jsonBQValue).longValue();
-        } else if (jsonBQValue instanceof Long) {
-          return jsonBQValue;
+        } else if (jsonBQValue instanceof Integer || jsonBQValue instanceof Long) {
+          return ((Number) jsonBQValue).longValue();
         }
         break;
       case "FLOAT64":
       case "FLOAT":
         if (jsonBQValue instanceof String) {
           return Double.valueOf((String) jsonBQValue);
-        } else if (jsonBQValue instanceof Double) {
-          return jsonBQValue;
-        } else if (jsonBQValue instanceof Float) {
-          return ((Float) jsonBQValue).longValue();
+        } else if (jsonBQValue instanceof Double || jsonBQValue instanceof Float) {
+          return ((Number) jsonBQValue).doubleValue();
         }
         break;
       case "BOOLEAN":
@@ -307,12 +307,20 @@ public class TableRowToStorageApiProto {
           return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) jsonBQValue));
         } else if (jsonBQValue instanceof Instant) {
           return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) jsonBQValue);
+        } else if (jsonBQValue instanceof org.joda.time.Instant) {
+          // joda instant precision is millisecond
+          Instant instant = Instant.ofEpochMilli(((org.joda.time.Instant) jsonBQValue).getMillis());
+          return ChronoUnit.MICROS.between(Instant.EPOCH, instant);
         } else if (jsonBQValue instanceof Timestamp) {
           return ChronoUnit.MICROS.between(Instant.EPOCH, ((Timestamp) jsonBQValue).toInstant());
-        } else if (jsonBQValue instanceof Long) {
-          return jsonBQValue;
-        } else if (jsonBQValue instanceof Integer) {
-          return ((Integer) jsonBQValue).longValue();
+        } else if (jsonBQValue instanceof Integer || jsonBQValue instanceof Long) {
+          return ((Number) jsonBQValue).longValue();
+        } else if (jsonBQValue instanceof Double || jsonBQValue instanceof Float) {
+          // assume jsonBQValue represents number of seconds since epoch
+          return BigDecimal.valueOf(((Number) jsonBQValue).doubleValue())
+              .scaleByPowerOfTen(6)
+              .setScale(0, RoundingMode.HALF_UP)
+              .longValue();
         }
         break;
       case "DATE":
@@ -320,6 +328,8 @@ public class TableRowToStorageApiProto {
           return ((Long) LocalDate.parse((String) jsonBQValue).toEpochDay()).intValue();
         } else if (jsonBQValue instanceof LocalDate) {
           return ((Long) ((LocalDate) jsonBQValue).toEpochDay()).intValue();
+        } else if (jsonBQValue instanceof org.joda.time.LocalDate) {
+          return Days.daysBetween(JODA_EPOCH, (org.joda.time.LocalDate) jsonBQValue).getDays();
         }
         break;
       case "NUMERIC":
@@ -328,6 +338,8 @@ public class TableRowToStorageApiProto {
           return jsonBQValue;
         } else if (jsonBQValue instanceof BigDecimal) {
           return ((BigDecimal) jsonBQValue).toPlainString();
+        } else if (jsonBQValue instanceof Double || jsonBQValue instanceof Float) {
+          return BigDecimal.valueOf(((Number) jsonBQValue).doubleValue()).toPlainString();
         }
         break;
       case "STRING":

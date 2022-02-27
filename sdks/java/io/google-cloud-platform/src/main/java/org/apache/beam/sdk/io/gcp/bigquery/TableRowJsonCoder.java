@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
@@ -76,7 +77,8 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
       JsonMapper.builder()
           .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
           .addModule(new JavaTimeModule())
-          // serialize Date/Time to string instead of floats
+          .addModule(new JodaModule())
+          // serialize date/time to string instead of arrays, instant to string instead of floats
           .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
           // serialize BigDecimal to string without scientific notation instead of floats
           .configure(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true)
