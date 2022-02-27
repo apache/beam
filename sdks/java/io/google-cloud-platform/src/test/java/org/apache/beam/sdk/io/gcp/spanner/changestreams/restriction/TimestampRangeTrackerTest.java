@@ -56,8 +56,8 @@ public class TimestampRangeTrackerTest {
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
     assertTrue(tracker.tryClaim(position));
-    assertEquals(position, tracker.lastAttemptedTimestamp);
-    assertEquals(position, tracker.lastClaimedTimestamp);
+    assertEquals(position, tracker.lastAttemptedPosition);
+    assertEquals(position, tracker.lastClaimedPosition);
   }
 
   @Property
@@ -72,8 +72,8 @@ public class TimestampRangeTrackerTest {
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
     assertFalse(tracker.tryClaim(position));
-    assertEquals(position, tracker.lastAttemptedTimestamp);
-    assertNull(tracker.lastClaimedTimestamp);
+    assertEquals(position, tracker.lastAttemptedPosition);
+    assertNull(tracker.lastClaimedPosition);
   }
 
   @Test
@@ -87,8 +87,8 @@ public class TimestampRangeTrackerTest {
 
     assertTrue(tracker.tryClaim(position));
     assertThrows(IllegalArgumentException.class, () -> tracker.tryClaim(nextPosition));
-    assertEquals(position, tracker.lastAttemptedTimestamp);
-    assertEquals(position, tracker.lastClaimedTimestamp);
+    assertEquals(position, tracker.lastAttemptedPosition);
+    assertEquals(position, tracker.lastClaimedPosition);
   }
 
   @Test
@@ -220,6 +220,24 @@ public class TimestampRangeTrackerTest {
     assertThrows(IllegalStateException.class, tracker::checkDone);
   }
 
+  @Property
+  public void testGetProgressWorkCompletedAndWorkRemainingEqualsToOne(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp position) {
+    assumeThat(from, lessThanOrEqualTo(to));
+    assumeThat(position, greaterThanOrEqualTo(from));
+    assumeThat(position, lessThan(to));
+
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    tracker.tryClaim(position);
+    final Progress progress = tracker.getProgress();
+
+    assertEquals(1D, progress.getWorkCompleted() + progress.getWorkRemaining(), DELTA);
+  }
+
   @Test
   public void testGetProgressReturnsWorkRemainingAsWholeRangeWhenNoClaimWasAttempted() {
     final Timestamp from = Timestamp.MIN_VALUE;
@@ -228,10 +246,8 @@ public class TimestampRangeTrackerTest {
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
     final Progress progress = tracker.getProgress();
-    final double expectedWorkCompleted = 0D;
-    final double expectedWorkRemaining = 1D;
-    assertEquals(expectedWorkCompleted, progress.getWorkCompleted(), DELTA);
-    assertEquals(expectedWorkRemaining, progress.getWorkRemaining(), DELTA);
+    assertEquals(0D, progress.getWorkCompleted(), DELTA);
+    assertEquals(1D, progress.getWorkRemaining(), DELTA);
   }
 
   @Test

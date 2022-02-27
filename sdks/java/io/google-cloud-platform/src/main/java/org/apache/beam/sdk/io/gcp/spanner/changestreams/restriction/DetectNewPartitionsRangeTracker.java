@@ -44,7 +44,7 @@ public class DetectNewPartitionsRangeTracker extends TimestampRangeTracker {
    */
   @Override
   public boolean tryClaim(Timestamp position) {
-    if (position.equals(lastAttemptedTimestamp)) {
+    if (position.equals(lastAttemptedPosition)) {
       return true;
     }
 
