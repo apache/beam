@@ -27,7 +27,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
@@ -141,13 +140,12 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
       final BigDecimal workRemainingInNanos =
           toInNanos.subtract(currentInNanos, DECIMAL128).max(BigDecimal.ZERO);
 
-      final double workCompleted = totalWork
-          .subtract(workRemainingInNanos, DECIMAL128)
-          .divide(totalWork, DECIMAL128)
-          .doubleValue();
-      final double workRemaining = workRemainingInNanos
-          .divide(totalWork, DECIMAL128)
-          .doubleValue();
+      final double workCompleted =
+          totalWork
+              .subtract(workRemainingInNanos, DECIMAL128)
+              .divide(totalWork, DECIMAL128)
+              .doubleValue();
+      final double workRemaining = workRemainingInNanos.divide(totalWork, DECIMAL128).doubleValue();
 
       return Progress.from(workCompleted, workRemaining);
     }

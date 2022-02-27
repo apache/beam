@@ -21,11 +21,26 @@ import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Provides methods in order to convert timestamp to nanoseconds representation and back. Provides
+ * method to increment a given timestamp nanoseconds by 1.
+ */
 class TimestampUtils {
   private static final BigDecimal MIN_SECONDS =
       BigDecimal.valueOf(Timestamp.MIN_VALUE.getSeconds());
   private static final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
 
+  /**
+   * Converts the given timestamp to respective nanoseconds representation. This method always
+   * returns a value >= 0.
+   *
+   * <p>Since the seconds part of a timestamp can be negative (if the timestamp represents a date
+   * earlier than 1970-01-01), seconds are shifted by {@link Timestamp#MIN_VALUE} seconds by adding
+   * the absolute value.
+   *
+   * @param timestamp the timestamp to be converted
+   * @return positive number of nanoseconds from the {@link Timestamp#MIN_VALUE}
+   */
   static BigDecimal toNanos(Timestamp timestamp) {
     final BigDecimal secondsAsNanos =
         BigDecimal.valueOf(timestamp.getSeconds()).subtract(MIN_SECONDS).scaleByPowerOfTen(9);
@@ -34,6 +49,16 @@ class TimestampUtils {
     return secondsAsNanos.add(nanos);
   }
 
+  /**
+   * Converts nanoseconds to their respective timestamp. It is assumed that the seconds part
+   * represent the number of seconds from the {@link Timestamp#MIN_VALUE}. Thus, when converting,
+   * they are shifted back to 1970-01-01, by subtracting the given seconds by the absolute value of
+   * seconds from {@link Timestamp#MIN_VALUE}.
+   *
+   * @param bigDecimal the nanoseconds representation of a timestamp (from {@link
+   *     Timestamp#MIN_VALUE})
+   * @return the converted timestamp
+   */
   static Timestamp toTimestamp(BigDecimal bigDecimal) {
     final BigDecimal nanos = bigDecimal.remainder(BigDecimal.ONE.scaleByPowerOfTen(9));
     final BigDecimal seconds = bigDecimal.subtract(nanos).scaleByPowerOfTen(-9).add(MIN_SECONDS);
@@ -41,6 +66,13 @@ class TimestampUtils {
     return Timestamp.ofTimeSecondsAndNanos(seconds.longValue(), nanos.intValue());
   }
 
+  /**
+   * Adds one nanosecond to the given timestamp. If the timestamp given is {@link
+   * Timestamp#MAX_VALUE}, {@link Timestamp#MAX_VALUE} is returned.
+   *
+   * @param timestamp the timestamp to have one nanosecond added to
+   * @return input timestamp + 1 nanosecond
+   */
   static Timestamp next(Timestamp timestamp) {
     if (timestamp.equals(Timestamp.MAX_VALUE)) {
       return timestamp;

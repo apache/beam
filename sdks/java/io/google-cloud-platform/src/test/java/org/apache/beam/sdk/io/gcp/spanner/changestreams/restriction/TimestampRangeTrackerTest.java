@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
-import static java.math.MathContext.DECIMAL128;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
@@ -35,8 +33,6 @@ import com.google.cloud.Timestamp;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
-import java.math.BigDecimal;
-import java.math.MathContext;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TimestampGenerator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
