@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -104,7 +105,9 @@ public class TableRowToStorageApiProtoIT {
           .set("datetimeValue", "2019-08-16T00:52:07.123456")
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set(
+              "arrayValue",
+              Arrays.asList("hello", "goodbye", null)); // null in arrayValue should be removed
 
   private static final TableRow BASE_TABLE_ROW_JODA_TIME =
       new TableRow()
@@ -138,11 +141,11 @@ public class TableRowToStorageApiProtoIT {
           .set("datetimeValue", LocalDateTime.parse("2019-08-16T00:52:07.123456"))
           .set("dateValue", LocalDate.parse("2019-08-16"))
           .set("numericValue", new BigDecimal("23.4"))
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", Arrays.asList("hello", "goodbye"));
 
   private static final TableRow BASE_TABLE_ROW_NULL =
       new TableRow()
-          .set("stringValue", null)
+          //          .set("stringValue", null)  // do not set stringValue, this should work
           .set("bytesValue", null)
           .set("int64Value", null)
           .set("intValue", null)
@@ -155,8 +158,7 @@ public class TableRowToStorageApiProtoIT {
           .set("datetimeValue", null)
           .set("dateValue", null)
           .set("numericValue", null)
-          // BigQuery array cannot be null and cannot contain null element, but it can be empty
-          .set("arrayValue", ImmutableList.of());
+          .set("arrayValue", null);
 
   private static final TableRow BASE_TABLE_ROW_EXPECTED =
       new TableRow()
@@ -195,7 +197,7 @@ public class TableRowToStorageApiProtoIT {
           .set("numericValue", "23.4")
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
-  // only non null values are returned, only arrayValue field is not null
+  // only nonnull values are returned, null in arrayValue should be converted to empty list
   private static final TableRow BASE_TABLE_ROW_NULL_EXPECTED =
       new TableRow().set("arrayValue", ImmutableList.of());
 
@@ -207,12 +209,19 @@ public class TableRowToStorageApiProtoIT {
                       new TableFieldSchema()
                           .setType("STRUCT")
                           .setName("nestedValue1")
+                          .setMode("REQUIRED")
                           .setFields(BASE_TABLE_SCHEMA.getFields()))
                   .add(
                       new TableFieldSchema()
                           .setType("RECORD")
                           .setName("nestedValue2")
                           .setMode("REPEATED")
+                          .setFields(BASE_TABLE_SCHEMA.getFields()))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("RECORD")
+                          .setName("nestedValue3")
+                          .setMode("NULLABLE")
                           .setFields(BASE_TABLE_SCHEMA.getFields()))
                   .build());
 
@@ -250,7 +259,8 @@ public class TableRowToStorageApiProtoIT {
             .set(
                 "nestedValue2",
                 Arrays.asList(
-                    BASE_TABLE_ROW_JAVA_TIME, BASE_TABLE_ROW_JODA_TIME, BASE_TABLE_ROW_NULL));
+                    BASE_TABLE_ROW_JAVA_TIME, BASE_TABLE_ROW_JODA_TIME, BASE_TABLE_ROW_NULL))
+            .set("nestedValue3", null);
 
     runPipeline(tableSpec, Collections.singleton(tableRow));
 
@@ -263,6 +273,7 @@ public class TableRowToStorageApiProtoIT {
         ImmutableList.of(
             BASE_TABLE_ROW_EXPECTED, BASE_TABLE_ROW_JODA_EXPECTED, BASE_TABLE_ROW_NULL_EXPECTED),
         actualTableRows.get(0).get("nestedValue2"));
+    assertNull(actualTableRows.get(0).get("nestedValue3"));
   }
 
   private static String createTable(TableSchema tableSchema)

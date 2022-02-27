@@ -45,8 +45,10 @@ import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -209,130 +211,109 @@ public class TableRowToStorageApiProto {
       StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
       FieldDescriptor fieldDescriptor,
       Object bqValue) {
+    // handle null
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
-      } else if (fieldDescriptor.isRepeated()) {
+      } else if (fieldDescriptor.isRepeated()) { // repeated field cannot be null
         return Collections.emptyList();
-      }
-      {
+      } else {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
       }
     }
 
-    return toProtoValue(bqSchema, fieldDescriptor, bqValue, fieldDescriptor.isRepeated());
-  }
-
-  @Nullable
-  @SuppressWarnings({"nullness"})
-  @VisibleForTesting
-  static Object toProtoValue(
-      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
-      FieldDescriptor fieldDescriptor,
-      Object jsonBQValue,
-      boolean isRepeated) {
-    if (isRepeated) {
-      return ((List<Object>) jsonBQValue)
-          .stream().map(v -> toProtoValue(bqSchema, fieldDescriptor, v, false)).collect(toList());
+    // handle repeated value
+    if (fieldDescriptor.isRepeated()) {
+      return ((List<Object>) bqValue)
+          .stream()
+              .filter(Objects::nonNull) // repeated field cannot contain null
+              .map(v -> scalarToProtoValue(bqSchema, fieldDescriptor, v))
+              .collect(toList());
     }
 
-    if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-      if (jsonBQValue instanceof TableRow) {
-        TableRow tableRow = (TableRow) jsonBQValue;
-        return messageFromTableRow(bqSchema, fieldDescriptor.getMessageType(), tableRow);
-      } else if (jsonBQValue instanceof AbstractMap) {
-        // This will handle nested rows.
-        AbstractMap<String, Object> map = ((AbstractMap<String, Object>) jsonBQValue);
-        return messageFromMap(bqSchema, fieldDescriptor.getMessageType(), map);
-      } else {
-        throw new RuntimeException("Unexpected value " + jsonBQValue + " Expected a JSON map.");
-      }
-    }
-    return scalarToProtoValue(bqSchema, jsonBQValue);
+    // handle scalar non nullable value
+    return scalarToProtoValue(bqSchema, fieldDescriptor, bqValue);
   }
 
   @VisibleForTesting
   @Nullable
   static Object scalarToProtoValue(
-      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema, Object jsonBQValue) {
-    if (jsonBQValue == null) {
-      // nullable value
-      return null;
-    }
-
+      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
+      FieldDescriptor fieldDescriptor,
+      @Nonnull Object value) {
     switch (bqSchema.getBqType()) {
       case "INT64":
       case "INTEGER":
-        if (jsonBQValue instanceof String) {
-          return Long.valueOf((String) jsonBQValue);
-        } else if (jsonBQValue instanceof Integer || jsonBQValue instanceof Long) {
-          return ((Number) jsonBQValue).longValue();
+        if (value instanceof String) {
+          return Long.valueOf((String) value);
+        } else if (value instanceof Integer || value instanceof Long) {
+          return ((Number) value).longValue();
         }
         break;
       case "FLOAT64":
       case "FLOAT":
-        if (jsonBQValue instanceof String) {
-          return Double.valueOf((String) jsonBQValue);
-        } else if (jsonBQValue instanceof Double || jsonBQValue instanceof Float) {
-          return ((Number) jsonBQValue).doubleValue();
+        if (value instanceof String) {
+          return Double.valueOf((String) value);
+        } else if (value instanceof Double || value instanceof Float) {
+          return ((Number) value).doubleValue();
         }
         break;
       case "BOOLEAN":
       case "BOOL":
-        if (jsonBQValue instanceof String) {
-          return Boolean.valueOf((String) jsonBQValue);
-        } else if (jsonBQValue instanceof Boolean) {
-          return jsonBQValue;
+        if (value instanceof String) {
+          return Boolean.valueOf((String) value);
+        } else if (value instanceof Boolean) {
+          return value;
         }
         break;
       case "BYTES":
-        if (jsonBQValue instanceof String) {
-          return ByteString.copyFrom(BaseEncoding.base64().decode((String) jsonBQValue));
-        } else if (jsonBQValue instanceof byte[]) {
-          return ByteString.copyFrom((byte[]) jsonBQValue);
-        } else if (jsonBQValue instanceof ByteString) {
-          return jsonBQValue;
+        if (value instanceof String) {
+          return ByteString.copyFrom(BaseEncoding.base64().decode((String) value));
+        } else if (value instanceof byte[]) {
+          return ByteString.copyFrom((byte[]) value);
+        } else if (value instanceof ByteString) {
+          return value;
         }
         break;
       case "TIMESTAMP":
-        if (jsonBQValue instanceof String) {
-          return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) jsonBQValue));
-        } else if (jsonBQValue instanceof Instant) {
-          return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) jsonBQValue);
-        } else if (jsonBQValue instanceof org.joda.time.Instant) {
+        if (value instanceof String) {
+          return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) value));
+        } else if (value instanceof Instant) {
+          return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
+        } else if (value instanceof org.joda.time.Instant) {
           // joda instant precision is millisecond
-          Instant instant = Instant.ofEpochMilli(((org.joda.time.Instant) jsonBQValue).getMillis());
+          Instant instant = Instant.ofEpochMilli(((org.joda.time.Instant) value).getMillis());
           return ChronoUnit.MICROS.between(Instant.EPOCH, instant);
-        } else if (jsonBQValue instanceof Timestamp) {
-          return ChronoUnit.MICROS.between(Instant.EPOCH, ((Timestamp) jsonBQValue).toInstant());
-        } else if (jsonBQValue instanceof Integer || jsonBQValue instanceof Long) {
-          return ((Number) jsonBQValue).longValue();
-        } else if (jsonBQValue instanceof Double || jsonBQValue instanceof Float) {
+        } else if (value instanceof Timestamp) {
+          return ChronoUnit.MICROS.between(Instant.EPOCH, ((Timestamp) value).toInstant());
+        } else if (value instanceof Integer || value instanceof Long) {
+          return ((Number) value).longValue();
+        } else if (value instanceof Double || value instanceof Float) {
           // assume jsonBQValue represents number of seconds since epoch
-          return BigDecimal.valueOf(((Number) jsonBQValue).doubleValue())
+          return BigDecimal.valueOf(((Number) value).doubleValue())
               .scaleByPowerOfTen(6)
               .setScale(0, RoundingMode.HALF_UP)
               .longValue();
         }
         break;
       case "DATE":
-        if (jsonBQValue instanceof String) {
-          return ((Long) LocalDate.parse((String) jsonBQValue).toEpochDay()).intValue();
-        } else if (jsonBQValue instanceof LocalDate) {
-          return ((Long) ((LocalDate) jsonBQValue).toEpochDay()).intValue();
-        } else if (jsonBQValue instanceof org.joda.time.LocalDate) {
-          return Days.daysBetween(JODA_EPOCH, (org.joda.time.LocalDate) jsonBQValue).getDays();
+        if (value instanceof String) {
+          return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
+        } else if (value instanceof LocalDate) {
+          return ((Long) ((LocalDate) value).toEpochDay()).intValue();
+        } else if (value instanceof org.joda.time.LocalDate) {
+          return Days.daysBetween(JODA_EPOCH, (org.joda.time.LocalDate) value).getDays();
         }
         break;
       case "NUMERIC":
       case "BIGNUMERIC":
-        if (jsonBQValue instanceof String) {
-          return jsonBQValue;
-        } else if (jsonBQValue instanceof BigDecimal) {
-          return ((BigDecimal) jsonBQValue).toPlainString();
-        } else if (jsonBQValue instanceof Double || jsonBQValue instanceof Float) {
-          return BigDecimal.valueOf(((Number) jsonBQValue).doubleValue()).toPlainString();
+        if (value instanceof String) {
+          return value;
+        } else if (value instanceof BigDecimal) {
+          return ((BigDecimal) value).toPlainString();
+        } else if (value instanceof Double || value instanceof Float) {
+          return BigDecimal.valueOf(((Number) value).doubleValue()).toPlainString();
         }
         break;
       case "STRING":
@@ -340,14 +321,26 @@ public class TableRowToStorageApiProto {
       case "DATETIME":
       case "JSON":
       case "GEOGRAPHY":
-        return jsonBQValue.toString();
+        return value.toString();
+      case "STRUCT":
+      case "RECORD":
+        if (value instanceof TableRow) {
+          TableRow tableRow = (TableRow) value;
+          return messageFromTableRow(bqSchema, fieldDescriptor.getMessageType(), tableRow);
+        } else if (value instanceof AbstractMap) {
+          // This will handle nested rows.
+          AbstractMap<String, Object> map = ((AbstractMap<String, Object>) value);
+          return messageFromMap(bqSchema, fieldDescriptor.getMessageType(), map);
+        } else {
+          throw new RuntimeException("Unexpected value " + value + " Expected a JSON map.");
+        }
     }
 
     throw new RuntimeException(
         "Unexpected value :"
-            + jsonBQValue
+            + value
             + ", type: "
-            + jsonBQValue.getClass()
+            + value.getClass()
             + ". Table field name: "
             + bqSchema.getName()
             + ", type: "
