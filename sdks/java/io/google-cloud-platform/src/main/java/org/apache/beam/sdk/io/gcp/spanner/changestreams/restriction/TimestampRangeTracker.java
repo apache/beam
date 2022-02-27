@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import static java.math.MathContext.DECIMAL128;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toTimestamp;
@@ -74,16 +75,16 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
     final BigDecimal toInNanos = toNanos(range.getTo());
     final BigDecimal currentInNanos =
         lastAttemptedTimestamp == null
-            ? fromInNanos.subtract(BigDecimal.ONE, MathContext.DECIMAL128)
+            ? fromInNanos.subtract(BigDecimal.ONE, DECIMAL128)
             : toNanos(lastAttemptedTimestamp);
     final BigDecimal nanosOffset =
         toInNanos
-            .subtract(currentInNanos, MathContext.DECIMAL128)
-            .multiply(BigDecimal.valueOf(fractionOfRemainder), MathContext.DECIMAL128)
+            .subtract(currentInNanos, DECIMAL128)
+            .multiply(BigDecimal.valueOf(fractionOfRemainder), DECIMAL128)
             .max(BigDecimal.ONE);
 
     // splitPosition = current + max(1, (range.getTo() - current) * fractionOfRemainder)
-    final BigDecimal splitPositionInNanos = currentInNanos.add(nanosOffset, MathContext.DECIMAL128);
+    final BigDecimal splitPositionInNanos = currentInNanos.add(nanosOffset, DECIMAL128);
     final Timestamp splitPosition = toTimestamp(splitPositionInNanos);
 
     if (splitPosition.compareTo(range.getTo()) >= 0) {
@@ -128,20 +129,25 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
   public Progress getProgress() {
     final BigDecimal fromInNanos = toNanos(range.getFrom());
     final BigDecimal toInNanos = toNanos(range.getTo());
-    final BigDecimal totalWork = toInNanos.subtract(fromInNanos, MathContext.DECIMAL128);
+    final BigDecimal totalWork = toInNanos.subtract(fromInNanos, DECIMAL128);
 
     if (lastAttemptedTimestamp == null) {
       final double workCompleted = 0D;
-      final double workRemaining = totalWork.doubleValue();
+      final double workRemaining = 1D;
 
       return Progress.from(workCompleted, workRemaining);
     } else {
       final BigDecimal currentInNanos = toNanos(lastAttemptedTimestamp);
       final BigDecimal workRemainingInNanos =
-          toInNanos.subtract(currentInNanos, MathContext.DECIMAL128).max(BigDecimal.ZERO);
+          toInNanos.subtract(currentInNanos, DECIMAL128).max(BigDecimal.ZERO);
 
-      final double workCompleted = totalWork.subtract(workRemainingInNanos).doubleValue();
-      final double workRemaining = workRemainingInNanos.doubleValue();
+      final double workCompleted = totalWork
+          .subtract(workRemainingInNanos, DECIMAL128)
+          .divide(totalWork, DECIMAL128)
+          .doubleValue();
+      final double workRemaining = workRemainingInNanos
+          .divide(totalWork, DECIMAL128)
+          .doubleValue();
 
       return Progress.from(workCompleted, workRemaining);
     }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import static java.math.MathContext.DECIMAL128;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
 import static org.hamcrest.Matchers.greaterThan;
@@ -35,6 +36,7 @@ import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TimestampGenerator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
@@ -222,44 +224,67 @@ public class TimestampRangeTrackerTest {
     assertThrows(IllegalStateException.class, tracker::checkDone);
   }
 
-  @Property
-  public void testGetProgressReturnsWorkRemainingAsWholeRangeWhenNoClaimWasAttempted(
-      @From(TimestampGenerator.class) Timestamp from,
-      @From(TimestampGenerator.class) Timestamp to) {
-    assumeThat(from, lessThanOrEqualTo(to));
-
+  @Test
+  public void testGetProgressReturnsWorkRemainingAsWholeRangeWhenNoClaimWasAttempted() {
+    final Timestamp from = Timestamp.MIN_VALUE;
+    final Timestamp to = Timestamp.now();
     final TimestampRange range = TimestampRange.of(from, to);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
     final Progress progress = tracker.getProgress();
     final double expectedWorkCompleted = 0D;
-    final double expectedWorkRemaining = toNanos(to).subtract(toNanos(from)).doubleValue();
-    assertTrue(progress.getWorkCompleted() >= 0);
+    final double expectedWorkRemaining = 1D;
     assertEquals(expectedWorkCompleted, progress.getWorkCompleted(), DELTA);
-    assertTrue(progress.getWorkRemaining() >= 0);
     assertEquals(expectedWorkRemaining, progress.getWorkRemaining(), DELTA);
   }
 
-  @Property
-  public void testGetProgressReturnsWorkRemainingAsRangeEndMinusAttemptedPosition(
-      @From(TimestampGenerator.class) Timestamp from,
-      @From(TimestampGenerator.class) Timestamp to,
-      @From(TimestampGenerator.class) Timestamp position) {
-    assumeThat(from, lessThanOrEqualTo(to));
-    assumeThat(position, greaterThanOrEqualTo(from));
-
+  @Test
+  public void testGetProgressReturnsWorkRemainingAsRangeEndMinusAttemptedPosition() {
+    final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
+    final Timestamp to = Timestamp.ofTimeSecondsAndNanos(0, 100);
+    final Timestamp position = Timestamp.ofTimeSecondsAndNanos(0, 30);
     final TimestampRange range = TimestampRange.of(from, to);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
     tracker.tryClaim(position);
     final Progress progress = tracker.getProgress();
-    final BigDecimal expectedWorkRemaining =
-        toNanos(to).subtract(toNanos(position)).max(BigDecimal.ZERO);
-    final BigDecimal expectedWorkCompleted =
-        toNanos(to).subtract(toNanos(from)).subtract(expectedWorkRemaining);
+
     assertTrue(progress.getWorkCompleted() >= 0);
-    assertEquals(expectedWorkCompleted.doubleValue(), progress.getWorkCompleted(), DELTA);
+    assertEquals(0.3D, progress.getWorkCompleted(), DELTA);
     assertTrue(progress.getWorkRemaining() >= 0);
-    assertEquals(expectedWorkRemaining.doubleValue(), progress.getWorkRemaining(), DELTA);
+    assertEquals(0.7D, progress.getWorkRemaining(), DELTA);
+  }
+
+  @Test
+  public void testGetProgressReturnsWorkCompletedAsOneWhenRangeEndHasBeenAttempted() {
+    final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
+    final Timestamp to = Timestamp.ofTimeSecondsAndNanos(0, 100);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    tracker.tryClaim(to);
+    final Progress progress = tracker.getProgress();
+
+    assertTrue(progress.getWorkCompleted() >= 0);
+    assertEquals(1D, progress.getWorkCompleted(), DELTA);
+    assertTrue(progress.getWorkRemaining() >= 0);
+    assertEquals(0D, progress.getWorkRemaining(), DELTA);
+  }
+
+  @Test
+  public void testGetProgressReturnsWorkCompletedAsOneWhenPastRangeEndHasBeenAttempted() {
+    final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
+    final Timestamp to = Timestamp.ofTimeSecondsAndNanos(0, 100);
+    final Timestamp position = Timestamp.ofTimeSecondsAndNanos(0, 101);
+    final TimestampRange range = TimestampRange.of(from, to);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    tracker.tryClaim(position);
+    final Progress progress = tracker.getProgress();
+
+    assertTrue(progress.getWorkCompleted() >= 0);
+    assertEquals(1D, progress.getWorkCompleted(), DELTA);
+    assertTrue(progress.getWorkRemaining() >= 0);
+    assertEquals(0D, progress.getWorkRemaining(), DELTA);
   }
 }
