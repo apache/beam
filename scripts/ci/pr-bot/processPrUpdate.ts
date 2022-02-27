@@ -19,10 +19,17 @@
 const github = require("@actions/github");
 const commentStrings = require("./shared/commentStrings");
 const { processCommand } = require("./shared/userCommand");
-const { addPrComment, nextActionReviewers } = require("./shared/githubUtils");
+const {
+  addPrComment,
+  nextActionReviewers,
+  getPullAuthorFromPayload,
+  getPullNumberFromPayload,
+} = require("./shared/githubUtils");
 const { PersistentState } = require("./shared/persistentState");
 const { ReviewerConfig } = require("./shared/reviewerConfig");
 const { PATH_TO_CONFIG_FILE } = require("./shared/constants");
+
+const reviewerAction = "Reviewers";
 
 async function areReviewersAssigned(
   pullNumber: number,
@@ -33,7 +40,7 @@ async function areReviewersAssigned(
 }
 
 async function processPrComment(
-  payload,
+  payload: any,
   stateClient: typeof PersistentState,
   reviewerConfig: typeof ReviewerConfig
 ) {
@@ -59,9 +66,8 @@ async function processPrComment(
   console.log(
     "No command to be processed, checking if we should shift attention to reviewers"
   );
-  const pullAuthor =
-    payload.issue?.user?.login || payload.pull_request?.user?.login;
-  if (pullAuthor == commentAuthor) {
+  const pullAuthor = getPullAuthorFromPayload(payload);
+  if (pullAuthor === commentAuthor) {
     await setNextActionReviewers(payload, stateClient);
   } else {
     console.log(
@@ -70,17 +76,19 @@ async function processPrComment(
   }
 }
 
-// On approval from a reviewer we have assigned, assign committer if one not already assigned
+/*
+ * On approval from a reviewer we have assigned, assign committer if one not already assigned
+ */
 async function processPrReview(
-  payload,
+  payload: any,
   stateClient: typeof PersistentState,
   reviewerConfig: typeof ReviewerConfig
 ) {
-  if (payload.review.state != "approved") {
+  if (payload.review.state !== "approved") {
     return;
   }
 
-  const pullNumber = payload.issue?.number || payload.pull_request?.number;
+  const pullNumber = getPullNumberFromPayload(payload);
   if (!(await areReviewersAssigned(pullNumber, stateClient))) {
     return;
   }
@@ -91,14 +99,14 @@ async function processPrReview(
     return;
   }
 
-  let labelOfReviewer = prState.getLabelForReviewer(payload.sender.login);
+  const labelOfReviewer = prState.getLabelForReviewer(payload.sender.login);
   if (labelOfReviewer) {
     let reviewersState = await stateClient.getReviewersForLabelState(
       labelOfReviewer
     );
-    let availableReviewers =
+    const availableReviewers =
       reviewerConfig.getReviewersForLabel(labelOfReviewer);
-    let chosenCommitter = await reviewersState.assignNextCommitter(
+    const chosenCommitter = await reviewersState.assignNextCommitter(
       availableReviewers
     );
     prState.reviewersAssignedForLabels[labelOfReviewer] = chosenCommitter;
@@ -111,7 +119,7 @@ async function processPrReview(
     const existingLabels =
       payload.issue?.labels || payload.pull_request?.labels;
     await nextActionReviewers(pullNumber, existingLabels);
-    prState.nextAction = "Reviewers";
+    prState.nextAction = reviewerAction;
 
     // Persist state
     await stateClient.writePrState(pullNumber, prState);
@@ -122,12 +130,14 @@ async function processPrReview(
   }
 }
 
-// On pr push or author comment, we should put the attention set back on the reviewers
+/*
+ * On pr push or author comment, we should put the attention set back on the reviewers
+ */
 async function setNextActionReviewers(
-  payload,
+  payload: any,
   stateClient: typeof PersistentState
 ) {
-  const pullNumber = payload.issue?.number || payload.pull_request?.number;
+  const pullNumber = getPullNumberFromPayload(payload);
   if (!(await areReviewersAssigned(pullNumber, stateClient))) {
     console.log("No reviewers assigned, dont need to manipulate attention set");
     return;
@@ -135,7 +145,7 @@ async function setNextActionReviewers(
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
   await nextActionReviewers(pullNumber, existingLabels);
   let prState = await stateClient.getPrState(pullNumber);
-  prState.nextAction = "Reviewers";
+  prState.nextAction = reviewerAction;
   await stateClient.writePrState(pullNumber, prState);
 }
 
@@ -148,7 +158,7 @@ async function processPrUpdate() {
 
   // TODO(damccorm) - remove this when we roll out to more than go
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
-  if (!existingLabels.find((label) => label.name.toLowerCase() == "go")) {
+  if (!existingLabels.find((label) => label.name.toLowerCase() === "go")) {
     console.log("Does not contain the go label - skipping");
     return;
   }
@@ -157,10 +167,10 @@ async function processPrUpdate() {
     console.log("Issue, not pull request - returning");
     return;
   }
-  const pullNumber = payload.issue?.number || payload.pull_request?.number;
+  const pullNumber = getPullNumberFromPayload(payload);
 
-  let stateClient = new PersistentState();
-  let prState = await stateClient.getPrState(pullNumber);
+  const stateClient = new PersistentState();
+  const prState = await stateClient.getPrState(pullNumber);
   if (prState.stopReviewerNotifications) {
     console.log("Notifications have been paused for this pull - skipping");
     return;
@@ -170,7 +180,7 @@ async function processPrUpdate() {
     case "pull_request_review_comment":
     case "issue_comment":
       console.log("Processing comment event");
-      if (payload.action != "created") {
+      if (payload.action !== "created") {
         console.log("Comment wasnt just created, skipping");
         return;
       }
@@ -181,7 +191,7 @@ async function processPrUpdate() {
       await processPrReview(payload, stateClient, reviewerConfig);
       break;
     case "pull_request_target":
-      if (payload.action == "synchronize") {
+      if (payload.action === "synchronize") {
         console.log("Processing synchronize action");
         await setNextActionReviewers(payload, stateClient);
       }

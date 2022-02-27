@@ -85,6 +85,14 @@ export async function checkIfCommitter(username: string): Promise<boolean> {
   );
 }
 
+export function getPullAuthorFromPayload(payload: any) {
+  return payload.issue?.user?.login || payload.pull_request?.user?.login;
+}
+
+export function getPullNumberFromPayload(payload: any) {
+  return payload.issue?.number || payload.pull_request?.number;
+}
+
 function removeNextActionLabel(existingLabels: Label[]): string[] {
   return existingLabels
     .filter(

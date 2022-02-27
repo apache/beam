@@ -25,19 +25,21 @@ const { Pr } = require("./shared/pr");
 const { REPO_OWNER, REPO, PATH_TO_CONFIG_FILE } = require("./shared/constants");
 import { CheckStatus } from "./shared/checks";
 
-// Returns true if the pr needs to be processed or false otherwise.
-// We don't need to process PRs that:
-// 1) Have WIP in their name
-// 2) Are less than 20 minutes old
-// 3) Are draft prs
-// 4) Are closed
-// 5) Have already been processed
-// 6) Have notifications stopped
-// 7) The pr doesn't contain the go label (temporary). TODO(damccorm) - remove this when we're ready to roll this out to everyone.
-// unless we're supposed to remind the user after tests pass
-// (in which case that's all we need to do).
-function needsProcessed(pull, prState: typeof Pr): boolean {
-  if (!pull.labels.find((label) => label.name.toLowerCase() == "go")) {
+/*
+ * Returns true if the pr needs to be processed or false otherwise.
+ * We don't need to process PRs that:
+ * 1) Have WIP in their name
+ * 2) Are less than 20 minutes old
+ * 3) Are draft prs
+ * 4) Are closed
+ * 5) Have already been processed
+ * 6) Have notifications stopped
+ * 7) The pr doesn't contain the go label (temporary). TODO(damccorm) - remove this when we're ready to roll this out to everyone.
+ * unless we're supposed to remind the user after tests pass
+ * (in which case that's all we need to do).
+ */
+function needsProcessed(pull: any, prState: typeof Pr): boolean {
+  if (!pull.labels.find((label) => label.name.toLowerCase() === "go")) {
     console.log(
       `Skipping PR ${pull.number} because it doesn't contain the go label`
     );
@@ -57,7 +59,7 @@ function needsProcessed(pull, prState: typeof Pr): boolean {
     );
     return false;
   }
-  if (pull.state.toLowerCase() != "open") {
+  if (pull.state.toLowerCase() !== "open") {
     console.log(`Skipping PR ${pull.number} because it is closed`);
     return false;
   }
@@ -81,9 +83,11 @@ function needsProcessed(pull, prState: typeof Pr): boolean {
   return true;
 }
 
-// If the checks passed in via checkstate have completed, notifies the users who have configured notifications.
+/*
+ * If the checks passed in via checkstate have completed, notifies the users who have configured notifications.
+ */
 async function remindIfChecksCompleted(
-  pull,
+  pull: any,
   stateClient: typeof PersistentState,
   checkState: CheckStatus,
   prState: typeof Pr
@@ -91,26 +95,29 @@ async function remindIfChecksCompleted(
   console.log(
     `Notifying reviewers if checks for PR ${pull.number} have completed, then returning`
   );
-  if (checkState.completed) {
-    if (checkState.succeeded) {
-      await github.addPrComment(
-        pull.number,
-        commentStrings.allChecksPassed(prState.remindAfterTestsPass)
-      );
-    } else {
-      await github.addPrComment(
-        pull.number,
-        commentStrings.someChecksFailing(prState.remindAfterTestsPass)
-      );
-    }
-    prState.remindAfterTestsPass = [];
-    await stateClient.writePrState(pull.number, prState);
+  if (!checkState.completed) {
+    return;
   }
+  if (checkState.succeeded) {
+    await github.addPrComment(
+      pull.number,
+      commentStrings.allChecksPassed(prState.remindAfterTestsPass)
+    );
+  } else {
+    await github.addPrComment(
+      pull.number,
+      commentStrings.someChecksFailing(prState.remindAfterTestsPass)
+    );
+  }
+  prState.remindAfterTestsPass = [];
+  await stateClient.writePrState(pull.number, prState);
 }
 
-// If we haven't already, let the author know checks are failing.
+/*
+ * If we haven't already, let the author know checks are failing.
+ */
 async function notifyChecksFailed(
-  pull,
+  pull: any,
   stateClient: typeof PersistentState,
   prState: typeof Pr
 ) {
@@ -127,14 +134,16 @@ async function notifyChecksFailed(
   await stateClient.writePrState(pull.number, prState);
 }
 
-// Performs all the business logic of processing a new pull request, including:
-// 1) Checking if it needs processed
-// 2) Reminding reviewers if checks have completed (if they've subscribed to that)
-// 3) Picking/assigning reviewers
-// 4) Adding "Next Action: Reviewers label"
-// 5) Storing the state of the pull request/reviewers in a dedicated branch.
+/*
+ * Performs all the business logic of processing a new pull request, including:
+ * 1) Checking if it needs processed
+ * 2) Reminding reviewers if checks have completed (if they've subscribed to that)
+ * 3) Picking/assigning reviewers
+ * 4) Adding "Next Action: Reviewers label"
+ * 5) Storing the state of the pull request/reviewers in a dedicated branch.
+ */
 async function processPull(
-  pull,
+  pull: any,
   reviewerConfig: typeof ReviewerConfig,
   stateClient: typeof PersistentState
 ) {
@@ -160,15 +169,14 @@ async function processPull(
   prState.commentedAboutFailingChecks = false;
 
   // Pick reviewers to assign. Store them in reviewerStateToUpdate and update the prState object with those reviewers (and their associated labels)
-  let reviewerStateToUpdate = {};
+  let reviewerStateToUpdate: { [key: string]: typeof ReviewersForLabel } = {};
   const reviewersForLabels: { [key: string]: string[] } =
     reviewerConfig.getReviewersForLabels(pull.labels, [pull.user.login]);
   var labels = Object.keys(reviewersForLabels);
   if (!labels || labels.length === 0) {
     return;
   }
-  for (let i = 0; i < labels.length; i++) {
-    let label = labels[i];
+  for (const label of labels) {
     let availableReviewers = reviewersForLabels[label];
     let reviewersState = await stateClient.getReviewersForLabelState(label);
     let chosenReviewer = reviewersState.assignNextReviewer(availableReviewers);
@@ -187,8 +195,7 @@ async function processPull(
 
   await stateClient.writePrState(pull.number, prState);
   let labelsToUpdate = Object.keys(reviewerStateToUpdate);
-  for (let i = 0; i < labelsToUpdate.length; i++) {
-    let label = labelsToUpdate[i];
+  for (const label of labelsToUpdate) {
     await stateClient.writeReviewersForLabelState(
       label,
       reviewerStateToUpdate[label]
@@ -209,8 +216,7 @@ async function processNewPrs() {
     }
   );
 
-  for (let i = 0; i < openPulls.length; i++) {
-    let pull = openPulls[i];
+  for (const pull of openPulls) {
     await processPull(pull, reviewerConfig, stateClient);
   }
 }
