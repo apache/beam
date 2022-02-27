@@ -99,18 +99,8 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
-  private static TableFieldSchema getByName(
-      List<TableFieldSchema> tableFieldSchemaList, String name) {
-    for (TableFieldSchema tableFieldSchema : tableFieldSchemaList) {
-      if (tableFieldSchema.getName().equals(name)) {
-        return tableFieldSchema;
-      }
-    }
-    throw new RuntimeException("cannot find table schema for " + name);
-  }
-
   public static DynamicMessage messageFromMap(
-      List<TableFieldSchema> tableFieldSchemaList,
+      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
       Descriptor descriptor,
       AbstractMap<String, Object> map) {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
@@ -122,10 +112,10 @@ public class TableRowToStorageApiProto {
         throw new RuntimeException(
             "TableRow contained unexpected field with name " + entry.getKey());
       }
-      TableFieldSchema tableFieldSchema = getByName(tableFieldSchemaList, entry.getKey());
+      StorageApiDynamicDestinationsTableRow.BqSchema subBqSchema =
+          bqSchema.getSubFieldByName(entry.getKey());
       @Nullable
-      Object value =
-          messageValueFromFieldValue(tableFieldSchema, fieldDescriptor, entry.getValue());
+      Object value = messageValueFromFieldValue(subBqSchema, fieldDescriptor, entry.getValue());
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
@@ -138,7 +128,9 @@ public class TableRowToStorageApiProto {
    * using the BigQuery Storage API.
    */
   public static DynamicMessage messageFromTableRow(
-      List<TableFieldSchema> tableFieldSchemaList, Descriptor descriptor, TableRow tableRow) {
+      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
+      Descriptor descriptor,
+      TableRow tableRow) {
     @Nullable List<TableCell> cells = tableRow.getF();
     if (cells != null) {
       DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
@@ -148,9 +140,9 @@ public class TableRowToStorageApiProto {
       for (int i = 0; i < cells.size(); ++i) {
         TableCell cell = cells.get(i);
         FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
-        TableFieldSchema tableFieldSchema = tableFieldSchemaList.get(i);
+        StorageApiDynamicDestinationsTableRow.BqSchema subBqSchema = bqSchema.getSubFieldByIndex(i);
         @Nullable
-        Object value = messageValueFromFieldValue(tableFieldSchema, fieldDescriptor, cell.getV());
+        Object value = messageValueFromFieldValue(subBqSchema, fieldDescriptor, cell.getV());
         if (value != null) {
           builder.setField(fieldDescriptor, value);
         }
@@ -158,7 +150,7 @@ public class TableRowToStorageApiProto {
 
       return builder.build();
     } else {
-      return messageFromMap(tableFieldSchemaList, descriptor, tableRow);
+      return messageFromMap(bqSchema, descriptor, tableRow);
     }
   }
 
@@ -214,7 +206,9 @@ public class TableRowToStorageApiProto {
 
   @Nullable
   private static Object messageValueFromFieldValue(
-      TableFieldSchema tableFieldSchema, FieldDescriptor fieldDescriptor, Object bqValue) {
+      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
+      FieldDescriptor fieldDescriptor,
+      Object bqValue) {
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
@@ -226,49 +220,48 @@ public class TableRowToStorageApiProto {
             "Received null value for non-nullable field " + fieldDescriptor.getName());
       }
     }
-    return toProtoValue(tableFieldSchema, fieldDescriptor, bqValue, fieldDescriptor.isRepeated());
+
+    return toProtoValue(bqSchema, fieldDescriptor, bqValue, fieldDescriptor.isRepeated());
   }
 
   @Nullable
   @SuppressWarnings({"nullness"})
   @VisibleForTesting
   static Object toProtoValue(
-      TableFieldSchema tableFieldSchema,
+      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
       FieldDescriptor fieldDescriptor,
       Object jsonBQValue,
       boolean isRepeated) {
     if (isRepeated) {
       return ((List<Object>) jsonBQValue)
-          .stream()
-              .map(v -> toProtoValue(tableFieldSchema, fieldDescriptor, v, false))
-              .collect(toList());
+          .stream().map(v -> toProtoValue(bqSchema, fieldDescriptor, v, false)).collect(toList());
     }
 
     if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
       if (jsonBQValue instanceof TableRow) {
         TableRow tableRow = (TableRow) jsonBQValue;
-        return messageFromTableRow(
-            tableFieldSchema.getFields(), fieldDescriptor.getMessageType(), tableRow);
+        return messageFromTableRow(bqSchema, fieldDescriptor.getMessageType(), tableRow);
       } else if (jsonBQValue instanceof AbstractMap) {
         // This will handle nested rows.
         AbstractMap<String, Object> map = ((AbstractMap<String, Object>) jsonBQValue);
-        return messageFromMap(tableFieldSchema.getFields(), fieldDescriptor.getMessageType(), map);
+        return messageFromMap(bqSchema, fieldDescriptor.getMessageType(), map);
       } else {
         throw new RuntimeException("Unexpected value " + jsonBQValue + " Expected a JSON map.");
       }
     }
-    return scalarToProtoValue(tableFieldSchema, jsonBQValue);
+    return scalarToProtoValue(bqSchema, jsonBQValue);
   }
 
   @VisibleForTesting
   @Nullable
-  static Object scalarToProtoValue(TableFieldSchema tableFieldSchema, Object jsonBQValue) {
+  static Object scalarToProtoValue(
+      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema, Object jsonBQValue) {
     if (jsonBQValue == null) {
       // nullable value
       return null;
     }
 
-    switch (tableFieldSchema.getType()) {
+    switch (bqSchema.getBqType()) {
       case "INT64":
       case "INTEGER":
         if (jsonBQValue instanceof String) {
@@ -356,9 +349,9 @@ public class TableRowToStorageApiProto {
             + ", type: "
             + jsonBQValue.getClass()
             + ". Table field name: "
-            + tableFieldSchema.getName()
+            + bqSchema.getName()
             + ", type: "
-            + tableFieldSchema.getType());
+            + bqSchema.getBqType());
   }
 
   @VisibleForTesting
