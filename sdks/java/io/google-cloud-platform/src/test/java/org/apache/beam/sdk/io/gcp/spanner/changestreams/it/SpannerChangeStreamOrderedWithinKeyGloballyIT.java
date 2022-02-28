@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecordMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -98,7 +97,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             .withDatabaseId(databaseId);
 
     // Get the time increment interval at which to flush data changes ordered by key.
-    final long timeIncrementInSeconds = 70;
+    final long timeIncrementInSeconds = 2;
 
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
@@ -113,7 +112,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      System.out.println(e);
+      LOG.error(e.toString(), e);
     }
 
     // This will be the second batch of transactions that will have strict timestamp ordering
@@ -124,7 +123,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      System.out.println(e);
+      LOG.error(e.toString(), e);
     }
 
     // This will be the final batch of transactions that will have strict timestamp ordering
@@ -164,70 +163,34 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                 + "Deleted record;",
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 1\"};"
-                + "Deleted record;"
-                + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
                 + "Deleted record;",
             "{\"SingerId\":\"2\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 2\"};"
                 + "Deleted record;",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 3\"};"
-                + "Deleted record;",
-            "{\"SingerId\":\"4\"}\n"
-                + "{\"FirstName\":\"Inserting mutation 4\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
-            "{\"SingerId\":\"5\"}\n"
-                + "{\"FirstName\":\"Updating mutation 5\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 5\"};"
                 + "Deleted record;",
 
             // Second batch of records ordered within key.
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 1\"};"
-                + "Deleted record;"
-                + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
                 + "Deleted record;",
             "{\"SingerId\":\"2\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 2\"};"
                 + "Deleted record;",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 3\"};"
-                + "Deleted record;",
-            "{\"SingerId\":\"4\"}\n"
-                + "{\"FirstName\":\"Inserting mutation 4\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
-            "{\"SingerId\":\"5\"}\n"
-                + "{\"FirstName\":\"Updating mutation 5\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 5\"};"
                 + "Deleted record;",
 
             // Third batch of records ordered within key.
             "{\"SingerId\":\"1\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 1\"};"
-                + "Deleted record;"
-                + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
                 + "Deleted record;",
             "{\"SingerId\":\"2\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 2\"};"
                 + "Deleted record;",
             "{\"SingerId\":\"3\"}\n"
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 3\"};"
-                + "Deleted record;",
-            "{\"SingerId\":\"4\"}\n"
-                + "{\"FirstName\":\"Inserting mutation 4\",\"LastName\":null,\"SingerInfo\":null};"
-                + "Deleted record;",
-            "{\"SingerId\":\"5\"}\n"
-                + "{\"FirstName\":\"Updating mutation 5\",\"LastName\":null,\"SingerInfo\":null};"
-                + "{\"FirstName\":\"Updating mutation 5\"};"
                 + "Deleted record;");
 
     pipeline.run().waitUntilFinish();
@@ -241,22 +204,6 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     @ProcessElement
     public void processElement(
         @Element DataChangeRecord record, OutputReceiver<DataChangeRecord> outputReceiver) {
-      final ChangeStreamRecordMetadata fakeChangeStreamMetadata =
-          ChangeStreamRecordMetadata.newBuilder()
-              .withPartitionToken("1")
-              .withRecordTimestamp(com.google.cloud.Timestamp.ofTimeMicroseconds(2L))
-              .withPartitionStartTimestamp(com.google.cloud.Timestamp.ofTimeMicroseconds(3L))
-              .withPartitionEndTimestamp(com.google.cloud.Timestamp.ofTimeMicroseconds(4L))
-              .withPartitionCreatedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(5L))
-              .withPartitionScheduledAt(com.google.cloud.Timestamp.ofTimeMicroseconds(6L))
-              .withPartitionRunningAt(com.google.cloud.Timestamp.ofTimeMicroseconds(7L))
-              .withQueryStartedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(8L))
-              .withRecordStreamStartedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(9L))
-              .withRecordStreamEndedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(10L))
-              .withRecordReadAt(com.google.cloud.Timestamp.ofTimeMicroseconds(11L))
-              .withTotalStreamTimeMillis(12L)
-              .withNumberOfRecordsRead(13L)
-              .build();
       record.getMods().stream()
           .map(
               mod ->
@@ -273,7 +220,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                       record.getValueCaptureType(),
                       record.getNumberOfRecordsInTransaction(),
                       record.getNumberOfPartitionsInTransaction(),
-                      fakeChangeStreamMetadata))
+                      record.getMetadata()))
           .forEach(outputReceiver::output);
     }
   }
@@ -316,7 +263,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
   // We utilize a looping timer to determine when to flush the buffer:
   //
   // 1. When we see a data change record for a key for the first time, we will set the timer to
-  //    fire at the data change record's commit timestamp.
+  //    fire at an interval after the data change record's commit timestamp.
   // 2. Then, when the timer fires, if the current timer's expiration time is before the pipeline
   //    end time, if set, we still have data left to process. We will set the next timer to the
   //    current timer's expiration time plus incrementIntervalInSeconds.
@@ -546,7 +493,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     }
   }
 
-  private static com.google.cloud.Timestamp writeTransactionsToDatabase() {
+  private com.google.cloud.Timestamp writeTransactionsToDatabase() {
     List<Mutation> mutations = new ArrayList<>();
 
     // 1. Commit a transaction to insert Singer 1 and Singer 2 into the table.
@@ -556,69 +503,29 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     LOG.debug("The first transaction committed with timestamp: " + t1.toString());
     mutations.clear();
 
-    // 2. Commmit a transaction to insert Singer 4 and remove Singer 1 from the table.
-    mutations.add(updateRecordMutation(1));
-    mutations.add(insertRecordMutation(4));
+    // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
+    mutations.add(insertRecordMutation(3));
+    mutations.add(deleteRecordMutation(1));
     com.google.cloud.Timestamp t2 = databaseClient.write(mutations);
     LOG.debug("The second transaction committed with timestamp: " + t2.toString());
     mutations.clear();
 
-    // 3. Commit a transaction to insert Singer 3 and Singer 5.
-    mutations.add(deleteRecordMutation(1));
-    mutations.add(insertRecordMutation(3));
-    mutations.add(insertRecordMutation(5));
-    mutations.add(updateRecordMutation(5));
+    // 3. Commit a transaction to delete Singer 2 and Singer 3 from the table.
+    mutations.add(deleteRecordMutation(2));
+    mutations.add(deleteRecordMutation(3));
     com.google.cloud.Timestamp t3 = databaseClient.write(mutations);
     LOG.debug("The third transaction committed with timestamp: " + t3.toString());
-    mutations.clear();
 
-    // 4. Commit a transaction to update Singer 3 and Singer 2 in the table.
-    mutations.add(updateRecordMutation(3));
-    mutations.add(updateRecordMutation(2));
+    // 4. Commit a transaction to delete Singer 0.
+    mutations.add(deleteRecordMutation(0));
     com.google.cloud.Timestamp t4 = databaseClient.write(mutations);
     LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
-    mutations.clear();
 
-    // 5. Commit a transaction to delete 4, insert 1, delete 3, update 5.
-    mutations.add(deleteRecordMutation(4));
-    mutations.add(insertRecordMutation(1));
-    mutations.add(deleteRecordMutation(3));
-    mutations.add(updateRecordMutation(5));
-    com.google.cloud.Timestamp t5 = databaseClient.write(mutations);
-
-    LOG.debug("The fifth transaction committed with timestamp: " + t5.toString());
-    mutations.clear();
-
-    // 6. Commit a transaction to delete Singers 5, insert singers 6.
-    mutations.add(deleteRecordMutation(5));
-    mutations.add(insertRecordMutation(6));
-    mutations.add(deleteRecordMutation(6));
-    com.google.cloud.Timestamp t6 = databaseClient.write(mutations);
-    LOG.debug("The sixth transaction committed with timestamp: " + t6.toString());
-    mutations.clear();
-
-    // 7. Delete remaining rows from database.
-    mutations.add(deleteRecordMutation(1));
-    mutations.add(deleteRecordMutation(2));
-    mutations.add(deleteRecordMutation(0));
-    com.google.cloud.Timestamp t7 = databaseClient.write(mutations);
-    LOG.debug("The seventh transaction committed with timestamp: " + t7.toString());
-
-    return t7;
-  }
-
-  // Create an update mutation.
-  private static Mutation updateRecordMutation(long singerId) {
-    return Mutation.newUpdateBuilder(tableName)
-        .set("SingerId")
-        .to(singerId)
-        .set("FirstName")
-        .to("Updating mutation " + singerId)
-        .build();
+    return t4;
   }
 
   // Create an insert mutation.
-  private static Mutation insertRecordMutation(long singerId) {
+  private static Mutation insertRecordMutation(int singerId) {
     return Mutation.newInsertBuilder(tableName)
         .set("SingerId")
         .to(singerId)
@@ -628,7 +535,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
   }
 
   // Create a delete mutation.
-  private static Mutation deleteRecordMutation(long singerId) {
+  private static Mutation deleteRecordMutation(int singerId) {
     return Mutation.delete(tableName, KeySet.newBuilder().addKey(Key.of(singerId)).build());
   }
 }
