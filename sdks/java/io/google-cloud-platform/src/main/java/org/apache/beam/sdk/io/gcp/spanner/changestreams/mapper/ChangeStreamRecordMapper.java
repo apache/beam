@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
-import com.google.cloud.spanner.Value;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -280,7 +279,7 @@ public class ChangeStreamRecordMapper {
 
   private ColumnType columnTypeFrom(Struct struct) {
     // TODO: Move to type struct.getJson when backend is fully migrated
-    final String type = getJsonString(struct.getValue(TYPE_COLUMN));
+    final String type = getJsonString(struct, TYPE_COLUMN);
     return new ColumnType(
         struct.getString(NAME_COLUMN),
         new TypeCode(type),
@@ -290,13 +289,13 @@ public class ChangeStreamRecordMapper {
 
   private Mod modFrom(Struct struct) {
     // TODO: Move to keys struct.getJson when backend is fully migrated
-    final String keys = getJsonString(struct.getValue(KEYS_COLUMN));
+    final String keys = getJsonString(struct, KEYS_COLUMN);
     // TODO: Move to oldValues struct.getJson when backend is fully migrated
     final String oldValues =
-        struct.isNull(OLD_VALUES_COLUMN) ? null : getJsonString(struct.getValue(OLD_VALUES_COLUMN));
+        struct.isNull(OLD_VALUES_COLUMN) ? null : getJsonString(struct, OLD_VALUES_COLUMN);
     // TODO: Move to newValues struct.getJson when backend is fully migrated
     final String newValues =
-        struct.isNull(NEW_VALUES_COLUMN) ? null : getJsonString(struct.getValue(NEW_VALUES_COLUMN));
+        struct.isNull(NEW_VALUES_COLUMN) ? null : getJsonString(struct, NEW_VALUES_COLUMN);
     return new Mod(keys, oldValues, newValues);
   }
 
@@ -331,13 +330,13 @@ public class ChangeStreamRecordMapper {
   }
 
   // TODO: Remove when backend is fully migrated to JSON
-  private String getJsonString(Value value) {
-    if (value.getType().equals(Type.json())) {
-      return value.getJson();
-    } else if (value.getType().equals(Type.string())) {
-      return value.getString();
+  private String getJsonString(Struct struct, String columnName) {
+    if (struct.getColumnType(columnName).equals(Type.json())) {
+      return struct.getJson(columnName);
+    } else if (struct.getColumnType(columnName).equals(Type.string())) {
+      return struct.getString(columnName);
     } else {
-      throw new IllegalArgumentException("Can not extract string from value " + value);
+      throw new IllegalArgumentException("Can not extract string from value " + columnName);
     }
   }
 }

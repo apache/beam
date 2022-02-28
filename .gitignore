@@ -126,3 +126,4 @@ website/www/yarn-error.log
 **/*.tfstate
 **/*.tfstate.*
 **/*.hcl
+**/*.tfvars

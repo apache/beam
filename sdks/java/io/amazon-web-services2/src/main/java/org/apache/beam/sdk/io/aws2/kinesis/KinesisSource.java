@@ -24,10 +24,16 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /** Represents source for single stream in Kinesis. */
 @SuppressWarnings({
@@ -49,9 +55,20 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     this.checkpointGenerator = checkNotNull(initialCheckpoint);
   }
 
-  private SimplifiedKinesisClient createClient() {
-    return SimplifiedKinesisClient.from(
-        spec.getAWSClientsProvider(), spec.getRequestRecordsLimit());
+  private SimplifiedKinesisClient createClient(PipelineOptions options) {
+    AwsOptions awsOptions = options.as(AwsOptions.class);
+    KinesisClient kinesis;
+    CloudWatchClient cloudWatch;
+    if (spec.getAWSClientsProvider() != null) {
+      kinesis = spec.getAWSClientsProvider().getKinesisClient();
+      cloudWatch = spec.getAWSClientsProvider().getCloudWatchClient();
+    } else {
+      ClientConfiguration config = spec.getClientConfiguration();
+      kinesis = ClientBuilderFactory.buildClient(awsOptions, KinesisClient.builder(), config);
+      cloudWatch = ClientBuilderFactory.buildClient(awsOptions, CloudWatchClient.builder(), config);
+    }
+    return new SimplifiedKinesisClient(
+        kinesis, cloudWatch, spec.getRequestRecordsLimit(), Instant::now);
   }
 
   /**
@@ -60,10 +77,8 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
    */
   @Override
   public List<KinesisSource> split(int desiredNumSplits, PipelineOptions options) throws Exception {
-    KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(createClient());
-
+    KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(createClient(options));
     List<KinesisSource> sources = newArrayList();
-
     for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
       sources.add(new KinesisSource(spec, new StaticCheckpointGenerator(partition)));
     }
@@ -85,7 +100,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     }
 
     LOG.info("Creating new reader using {}", checkpointGenerator);
-    return new KinesisReader(spec, createClient(), checkpointGenerator, this);
+    return new KinesisReader(spec, createClient(options), checkpointGenerator, this);
   }
 
   @Override
