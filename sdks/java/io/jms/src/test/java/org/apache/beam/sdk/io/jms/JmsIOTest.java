@@ -237,8 +237,9 @@ public class JmsIOTest {
     pipeline
         .apply(Create.of(data))
         .apply(
-            JmsIO.write()
+            JmsIO.<String>write()
                 .withConnectionFactory(connectionFactory)
+                .withValueMapper(new StringMapper())
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD));
@@ -274,11 +275,12 @@ public class JmsIOTest {
     pipeline
         .apply(Create.of(data))
         .apply(
-            JmsIO.<TestEvent>writeDynamic()
+            JmsIO.<TestEvent>write()
                 .withConnectionFactory(connectionFactory)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
-                .via(e -> e.getTopicName(), e -> e.getValue()));
+                .withTopicNameMapper(e -> e.getTopicName())
+                .withValueMapper(e -> e.getValue()));
 
     pipeline.run();
 

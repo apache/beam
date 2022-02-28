@@ -157,15 +157,8 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
   }
 
-  public static Write<String> write() {
-    return new AutoValue_JmsIO_Write.Builder<String>()
-        .setDynamic(false)
-        .setValueMapper(s -> s)
-        .build();
-  }
-
-  public static <EventT> Write<EventT> writeDynamic() {
-    return new AutoValue_JmsIO_Write.Builder<EventT>().setDynamic(true).build();
+  public static <EventT> Write<EventT> write() {
+    return new AutoValue_JmsIO_Write.Builder<EventT>().build();
   }
 
   /**
@@ -613,8 +606,6 @@ public class JmsIO {
   @AutoValue
   public abstract static class Write<EventT> extends PTransform<PCollection<EventT>, PDone> {
 
-    abstract boolean getDynamic();
-
     abstract @Nullable ConnectionFactory getConnectionFactory();
 
     abstract @Nullable String getQueue();
@@ -642,8 +633,6 @@ public class JmsIO {
       abstract Builder<EventT> setUsername(String username);
 
       abstract Builder<EventT> setPassword(String password);
-
-      abstract Builder<EventT> setDynamic(boolean dynamic);
 
       abstract Builder<EventT> setValueMapper(SerializableMapper<EventT> valueMapper);
 
@@ -726,19 +715,22 @@ public class JmsIO {
       return builder().setPassword(password).build();
     }
 
-    public <OutputT> Write<EventT> via(
-        SerializableMapper<EventT> topicNameMapper, SerializableMapper<EventT> valueMapper) {
+    public Write<EventT> withTopicNameMapper(SerializableMapper<EventT> topicNameMapper) {
       checkArgument(topicNameMapper != null, "topicNameMapper can not be null");
+      return builder().setTopicNameMapper(topicNameMapper).build();
+    }
+
+    public Write<EventT> withValueMapper(SerializableMapper<EventT> valueMapper) {
       checkArgument(valueMapper != null, "valueMapper can not be null");
-      return builder().setTopicNameMapper(topicNameMapper).setValueMapper(valueMapper).build();
+      return builder().setValueMapper(valueMapper).build();
     }
 
     @Override
     public PDone expand(PCollection<EventT> input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
       checkArgument(
-          getDynamic() || getQueue() != null || getTopic() != null,
-          "Either withQueue(queue) or withTopic(topic) is required");
+          getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
+          "Either withTopicNameMapper(topicNameMapper) or withQueue(queue) or withTopic(topic) is required");
       checkArgument(
           getQueue() == null || getTopic() == null,
           "withQueue(queue) and withTopic(topic) are exclusive");
@@ -788,7 +780,7 @@ public class JmsIO {
       public void processElement(ProcessContext ctx) throws Exception {
         String value = spec.getValueMapper().apply(ctx.element());
         TextMessage message = session.createTextMessage(value);
-        if (spec.getDynamic()) {
+        if (spec.getTopicNameMapper() != null) {
           Destination dynamicDestination =
               session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
           producer.send(dynamicDestination, message);
