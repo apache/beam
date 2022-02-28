@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,8 +18,9 @@
 #
 
 provider "google" {
-  region      = "us-central"
+  region = "us-central"
 }
+# TODO Please remove it when all resources are available in the stable version
 provider "google-beta" {
-  region      = "us-central"
+  region = "us-central"
 }

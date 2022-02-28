@@ -32,9 +32,7 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-// setupPreparedFiles creates 2 go programs:
-// correctFile - program without errors
-// incorrectFile - program with errors
+// setupPreparedFiles creates go files used for tests
 func setupPreparedFiles() error {
 	err := createFile(correctGoFile, correctGoCode)
 	if err != nil {

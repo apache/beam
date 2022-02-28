@@ -100,6 +100,8 @@ func Test_saveLogs(t *testing.T) {
 	file, _ := os.Open(correctPyFile)
 	tmp, _ := utils.CreateTempFile(correctPyFile)
 	defer tmp.Close()
+	tmp2, _ := os.OpenFile(correctPyFile, os.O_RDONLY, 0)
+	defer tmp2.Close()
 
 	type args struct {
 		from *os.File
@@ -118,6 +120,15 @@ func Test_saveLogs(t *testing.T) {
 				to:   tmp,
 			},
 			wantErr: false,
+		},
+		{
+			// Call saveLogs method to add logs code to read-only file.
+			name: "Save logs to read-only file",
+			args: args{
+				from: file,
+				to:   tmp2,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
