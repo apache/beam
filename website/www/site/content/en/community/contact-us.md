@@ -23,7 +23,7 @@ limitations under the License.
 
 # Contact us!
 
-The Apache Beam community is friendly and welcoming. We are glad to help with any 
+The Apache Beam community is friendly and welcoming. We are glad to help with any
 questions, suggestions, or ideas you have. Contact us in the following channels:
 
 ## Available contact channels
