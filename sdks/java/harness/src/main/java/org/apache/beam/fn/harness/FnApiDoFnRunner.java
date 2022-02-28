@@ -994,12 +994,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Internal class to hold the primary and residual roots when converted to an input element. */
   @AutoValue
   @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class WindowedSplitResult {
     public static WindowedSplitResult forRoots(
-        WindowedValue<?> primaryInFullyProcessedWindowsRoot,
-        WindowedValue<?> primarySplitRoot,
-        WindowedValue<?> residualSplitRoot,
-        WindowedValue<?> residualInUnprocessedWindowsRoot) {
+        WindowedValue primaryInFullyProcessedWindowsRoot,
+        WindowedValue primarySplitRoot,
+        WindowedValue residualSplitRoot,
+        WindowedValue residualInUnprocessedWindowsRoot) {
       return new AutoValue_FnApiDoFnRunner_WindowedSplitResult(
           primaryInFullyProcessedWindowsRoot,
           primarySplitRoot,
@@ -1007,17 +1008,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           residualInUnprocessedWindowsRoot);
     }
 
-    public abstract @Nullable WindowedValue<?> getPrimaryInFullyProcessedWindowsRoot();
+    public abstract @Nullable WindowedValue getPrimaryInFullyProcessedWindowsRoot();
 
-    public abstract @Nullable WindowedValue<?> getPrimarySplitRoot();
+    public abstract @Nullable WindowedValue getPrimarySplitRoot();
 
-    public abstract @Nullable WindowedValue<?> getResidualSplitRoot();
+    public abstract @Nullable WindowedValue getResidualSplitRoot();
 
-    public abstract @Nullable WindowedValue<?> getResidualInUnprocessedWindowsRoot();
+    public abstract @Nullable WindowedValue getResidualInUnprocessedWindowsRoot();
   }
 
   @AutoValue
   @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   abstract static class SplitResultsWithStopIndex {
     public static SplitResultsWithStopIndex of(
         WindowedSplitResult windowSplit,

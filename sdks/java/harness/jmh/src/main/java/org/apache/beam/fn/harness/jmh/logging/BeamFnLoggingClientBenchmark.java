@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessServerBuilder;
@@ -88,7 +89,7 @@ public class BeamFnLoggingClientBenchmark {
             ApiServiceDescriptor.newBuilder()
                 .setUrl(BeamFnLoggingClientBenchmark.class.getName() + "#" + UUID.randomUUID())
                 .build();
-        ManagedChannelFactory managedChannelFactory = ManagedChannelFactory.createInProcess();
+        ManagedChannelFactory managedChannelFactory = InProcessManagedChannelFactory.create();
         loggingService = new CallCountLoggingService();
         server =
             InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())

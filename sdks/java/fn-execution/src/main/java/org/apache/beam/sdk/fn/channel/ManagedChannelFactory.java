@@ -17,122 +17,104 @@
  */
 package org.apache.beam.sdk.fn.channel;
 
-import avro.shaded.com.google.common.collect.ImmutableList;
 import java.net.SocketAddress;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.netty.NettyChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollDomainSocketChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollEventLoopGroup;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollSocketChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.unix.DomainSocketAddress;
 
-/** A Factory which creates {@link ManagedChannel} instances. */
-public class ManagedChannelFactory {
-  /**
-   * Creates a {@link ManagedChannel} relying on the {@link ManagedChannelBuilder} to choose the
-   * channel type.
-   */
+/** A Factory which creates an underlying {@link ManagedChannel} implementation. */
+public abstract class ManagedChannelFactory {
   public static ManagedChannelFactory createDefault() {
-    return new ManagedChannelFactory(Type.DEFAULT, Collections.emptyList(), false);
+    return new Default();
   }
 
-  /**
-   * Creates a {@link ManagedChannelFactory} backed by an {@link EpollDomainSocketChannel} if the
-   * address is a {@link DomainSocketAddress}. Otherwise creates a {@link ManagedChannel} backed by
-   * an {@link EpollSocketChannel}.
-   */
   public static ManagedChannelFactory createEpoll() {
     org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.Epoll.ensureAvailability();
-    return new ManagedChannelFactory(Type.EPOLL, Collections.emptyList(), false);
-  }
-
-  /** Creates a {@link ManagedChannel} using an in-process channel. */
-  public static ManagedChannelFactory createInProcess() {
-    return new ManagedChannelFactory(Type.IN_PROCESS, Collections.emptyList(), false);
+    return new Epoll();
   }
 
   public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-    ManagedChannelBuilder<?> channelBuilder;
-    switch (type) {
-      case EPOLL:
-        SocketAddress address = SocketAddressFactory.createFrom(apiServiceDescriptor.getUrl());
-        channelBuilder =
-            NettyChannelBuilder.forAddress(address)
-                .channelType(
-                    address instanceof DomainSocketAddress
-                        ? EpollDomainSocketChannel.class
-                        : EpollSocketChannel.class)
-                .eventLoopGroup(new EpollEventLoopGroup());
-        break;
-
-      case DEFAULT:
-        channelBuilder = ManagedChannelBuilder.forTarget(apiServiceDescriptor.getUrl());
-        break;
-
-      case IN_PROCESS:
-        channelBuilder = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl());
-        break;
-
-      default:
-        throw new IllegalStateException("Unknown type " + type);
-    }
-
-    channelBuilder =
-        channelBuilder
-            .usePlaintext()
-            // Set the message size to max value here. The actual size is governed by the
-            // buffer size in the layers above.
-            .maxInboundMessageSize(Integer.MAX_VALUE)
-            .intercept(interceptors);
-    if (directExecutor) {
-      channelBuilder = channelBuilder.directExecutor();
-    }
-    return channelBuilder.build();
+    return builderFor(apiServiceDescriptor).build();
   }
 
-  /** The channel type. */
-  private enum Type {
-    EPOLL,
-    DEFAULT,
-    IN_PROCESS,
-  }
-
-  private final Type type;
-  private final List<ClientInterceptor> interceptors;
-  private final boolean directExecutor;
-
-  private ManagedChannelFactory(
-      Type type, List<ClientInterceptor> interceptors, boolean directExecutor) {
-    this.type = type;
-    this.interceptors = interceptors;
-    this.directExecutor = directExecutor;
-  }
+  /** Create a {@link ManagedChannelBuilder} for the provided {@link ApiServiceDescriptor}. */
+  protected abstract ManagedChannelBuilder<?> builderFor(ApiServiceDescriptor descriptor);
 
   /**
    * Returns a {@link ManagedChannelFactory} like this one, but which will apply the provided {@link
    * ClientInterceptor ClientInterceptors} to any channel it creates.
    */
   public ManagedChannelFactory withInterceptors(List<ClientInterceptor> interceptors) {
-    return new ManagedChannelFactory(
-        type,
-        ImmutableList.<ClientInterceptor>builder()
-            .addAll(this.interceptors)
-            .addAll(interceptors)
-            .build(),
-        directExecutor);
+    return new InterceptedManagedChannelFactory(this, interceptors);
   }
 
   /**
-   * Returns a {@link ManagedChannelFactory} like this one, but will construct the channel to use
-   * the direct executor.
+   * Creates a {@link ManagedChannel} backed by an {@link EpollDomainSocketChannel} if the address
+   * is a {@link DomainSocketAddress}. Otherwise creates a {@link ManagedChannel} backed by an
+   * {@link EpollSocketChannel}.
    */
-  public ManagedChannelFactory withDirectExecutor() {
-    return new ManagedChannelFactory(type, interceptors, true);
+  private static class Epoll extends ManagedChannelFactory {
+    @Override
+    public ManagedChannelBuilder<?> builderFor(ApiServiceDescriptor apiServiceDescriptor) {
+      SocketAddress address = SocketAddressFactory.createFrom(apiServiceDescriptor.getUrl());
+      return NettyChannelBuilder.forAddress(address)
+          .channelType(
+              address instanceof DomainSocketAddress
+                  ? EpollDomainSocketChannel.class
+                  : EpollSocketChannel.class)
+          .eventLoopGroup(new EpollEventLoopGroup())
+          .usePlaintext()
+          // Set the message size to max value here. The actual size is governed by the
+          // buffer size in the layers above.
+          .maxInboundMessageSize(Integer.MAX_VALUE);
+    }
+  }
+
+  /**
+   * Creates a {@link ManagedChannel} relying on the {@link ManagedChannelBuilder} to create
+   * instances.
+   */
+  private static class Default extends ManagedChannelFactory {
+    @Override
+    public ManagedChannelBuilder<?> builderFor(ApiServiceDescriptor apiServiceDescriptor) {
+      return ManagedChannelBuilder.forTarget(apiServiceDescriptor.getUrl())
+          .usePlaintext()
+          // Set the message size to max value here. The actual size is governed by the
+          // buffer size in the layers above.
+          .maxInboundMessageSize(Integer.MAX_VALUE);
+    }
+  }
+
+  private static class InterceptedManagedChannelFactory extends ManagedChannelFactory {
+    private final ManagedChannelFactory channelFactory;
+    private final List<ClientInterceptor> interceptors;
+
+    private InterceptedManagedChannelFactory(
+        ManagedChannelFactory managedChannelFactory, List<ClientInterceptor> interceptors) {
+      this.channelFactory = managedChannelFactory;
+      this.interceptors = interceptors;
+    }
+
+    @Override
+    public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
+      return builderFor(apiServiceDescriptor).intercept(interceptors).build();
+    }
+
+    @Override
+    protected ManagedChannelBuilder<?> builderFor(ApiServiceDescriptor descriptor) {
+      return channelFactory.builderFor(descriptor);
+    }
+
+    @Override
+    public ManagedChannelFactory withInterceptors(List<ClientInterceptor> interceptors) {
+      return new InterceptedManagedChannelFactory(channelFactory, interceptors);
+    }
   }
 }
