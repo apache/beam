@@ -27,9 +27,9 @@ func TestGetScioPreparers(t *testing.T) {
 		want int
 	}{
 		{
-			// Test case with calling GetPythonPreparers method.
-			// As a result, want to receive slice of preparers with len = 1
-			name: "get python preparers",
+			// Test case with calling GetScioPreparers method.
+			// As a result, want to receive slice of preparers with len = 3
+			name: "get scio preparers",
 			args: args{"MOCK_FILEPATH"},
 			want: 3,
 		},
