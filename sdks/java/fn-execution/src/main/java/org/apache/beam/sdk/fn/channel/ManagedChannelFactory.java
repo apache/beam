@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.fn.channel;
 
-import avro.shaded.com.google.common.collect.ImmutableList;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +30,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollDomainSoc
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollEventLoopGroup;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollSocketChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** A Factory which creates {@link ManagedChannel} instances. */
 public class ManagedChannelFactory {
