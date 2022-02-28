@@ -81,8 +81,8 @@ def run(argv=None, save_main_session=True):
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Read the text file[pattern] into a PCollection.
-    #lines = p | 'Read' >> ReadFromText(known_args.input)
-    lines = p | 'Read' >> beam.Create(['a', 'b c d', 'a d'])
+    lines = p | 'Read' >> ReadFromText(known_args.input)
+
     counts = (
         lines
         | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))
@@ -97,8 +97,8 @@ def run(argv=None, save_main_session=True):
 
     # Write the output using a "Write" transform that has side effects.
     # pylint: disable=expression-not-assigned
-    #output | 'Write' >> WriteToText(known_args.output)
-    output | 'Write' >> beam.Map(print)
+    output | 'Write' >> WriteToText(known_args.output)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
