@@ -6,6 +6,7 @@ from typing import Iterable
 from typing import TypeVar
 
 import apache_beam as beam
+from apache_beam.utils import shared
 import resource
 import sys
 import logging
@@ -31,7 +32,7 @@ InferenceType = TypeVar('InferenceType')
 class ModelSpec(Generic[ExampleType, InferenceType]):
   """Defines a model that can load into memory and run inferences."""
 
-  def load_model(self, shared: beam.Shared):
+  def load_model(self):
     """Loads an initializes a model for processing."""
     raise NotImplementedError(type(self))
 
@@ -90,23 +91,23 @@ class RunInferenceDoFn(beam.DoFn):
   def __init__(self, model_spec: ModelSpec[ExampleType, InferenceType]):
     # TODO: Also handle models coming from side inputs.
     self._model_spec = model_spec
-    self._shared_model_handle = beam.Shared()
+    self._shared_model_handle = shared.Shared()
+    # TODO: Correct namespace
+    self._metrics_collector = MetricsCollector('default_namespace')
 
   def _load_model(self):
     def load():
       """Function for constructing shared LoadedModel."""
-      self._maybe_register_addon_ops()
-      result = tf.compat.v1.Session(graph=tf.compat.v1.Graph())
       memory_before = _get_current_process_memory_in_bytes()
       start_time = self._clock.get_current_time_in_microseconds()
-      self._model_spec.load_model()
+      model = self._model_spec.load_model()
       end_time = self._clock.get_current_time_in_microseconds()
       memory_after = _get_current_process_memory_in_bytes()
       self._metrics_collector.load_model_latency_milli_secs_cache = (
           (end_time - start_time) / _MILLISECOND_TO_MICROSECOND)
       self._metrics_collector.model_byte_size_cache = (
           memory_after - memory_before)
-      return result
+      return model
 
     return self._shared_model_handle.acquire(load)
 
@@ -145,7 +146,7 @@ class RunInferenceImpl(beam.PTransform):
     return (
         pcoll
         # TODO: Hook into the batching DoFn APIs.
-        | beam.BatchElements(**self._batch_params)
+        | beam.BatchElements()
         | beam.ParDo(RunInferenceDoFn(self._model_spec))
         #TODO If there is a beam.BatchElements, why no beam.UnBatchElements?
         | beam.FlatMap(_unbatch))
