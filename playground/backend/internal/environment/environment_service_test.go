@@ -383,7 +383,7 @@ func TestConfigureBeamEnvs(t *testing.T) {
 		envsToSet map[string]string
 	}{
 		{
-			name:      "PREPARED_MOD_DIR not be specified in the environment for GO sdk",
+			name:      "PREPARED_MOD_DIR is not specified in the environment for GO sdk",
 			args:      args{workingDir: workingDir},
 			want:      nil,
 			wantErr:   true,

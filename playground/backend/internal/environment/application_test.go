@@ -63,7 +63,7 @@ func TestCacheEnvs_CacheType(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "All success",
+			name: "Get cache type",
 			fields: fields{
 				cacheType:         "MOCK_CACHE_TYPE",
 				address:           "MOCK_ADDRESS",
@@ -98,7 +98,7 @@ func TestCacheEnvs_Address(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "All success",
+			name: "Get cache address",
 			fields: fields{
 				cacheType:         "MOCK_CACHE_TYPE",
 				address:           "MOCK_ADDRESS",
@@ -133,7 +133,7 @@ func TestCacheEnvs_KeyExpirationTime(t *testing.T) {
 		want   time.Duration
 	}{
 		{
-			name: "All success",
+			name: "Get expiration time for cache keys",
 			fields: fields{
 				cacheType:         "MOCK_CACHE_TYPE",
 				address:           "MOCK_ADDRESS",
@@ -168,7 +168,7 @@ func TestApplicationEnvs_WorkingDir(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "All success",
+			name: "Get working directory",
 			fields: fields{
 				workingDir:             "MOCK_WORKING_DIR",
 				cacheEnvs:              &CacheEnvs{},
@@ -203,7 +203,7 @@ func TestApplicationEnvs_CacheEnvs(t *testing.T) {
 		want   *CacheEnvs
 	}{
 		{
-			name: "All success",
+			name: "Get cache environment variables",
 			fields: fields{
 				workingDir:             "MOCK_WORKING_DIR",
 				cacheEnvs:              &CacheEnvs{},
@@ -238,7 +238,7 @@ func TestApplicationEnvs_PipelineExecuteTimeout(t *testing.T) {
 		want   time.Duration
 	}{
 		{
-			name: "All success",
+			name: "Get pipeline execute timeout",
 			fields: fields{
 				workingDir:             "MOCK_WORKING_DIR",
 				cacheEnvs:              &CacheEnvs{},
@@ -358,7 +358,7 @@ func TestApplicationEnvs_PipelinesFolder(t *testing.T) {
 		{
 			// Test case with calling PipelinesFolder method.
 			// As a result, want to receive an expected name of pipelines folder.
-			name: "Get google project id",
+			name: "Get name of pipeline folder",
 			fields: fields{
 				workingDir:             "",
 				cacheEnvs:              &CacheEnvs{},
@@ -396,7 +396,7 @@ func TestNetworkEnvs_Protocol(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "All success",
+			name: "Get server protocol",
 			fields: fields{
 				ip:       "",
 				port:     0,

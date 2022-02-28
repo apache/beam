@@ -70,7 +70,7 @@ func TestBeamEnvs_NumOfParallelJobs(t *testing.T) {
 		want   int
 	}{
 		{
-			name: "All success",
+			name: "Get the number of parallel jobs",
 			fields: fields{
 				ApacheBeamSdk:     0,
 				ExecutorConfig:    nil,
