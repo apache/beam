@@ -54,21 +54,22 @@ func (w *workerStatusHandler) handleRequest(ctx context.Context, wg *sync.WaitGr
 }
 
 func (w *workerStatusHandler) Writer(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
-	for {
+	for atomic.LoadInt32(&w.shutdown) == 0 {
 		if w.resp == nil {
 			log.Debugf(ctx, "exiting writer")
 			return
 		}
 		res := <-w.resp
+		if res != nil {
+			log.Debugf(ctx, "RESP-status: %v", res.GetId())
 
-		log.Debugf(ctx, "RESP-status: %v", res.GetId())
-
-		if err := stub.Send(res); err != nil && err != io.EOF {
-			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
+			if err := stub.Send(res); err != nil && err != io.EOF {
+				log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
+			}
+		} else {
+			return
 		}
-
 	}
-
 }
 
 func (w *workerStatusHandler) Reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
