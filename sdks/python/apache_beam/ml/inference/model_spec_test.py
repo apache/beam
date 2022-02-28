@@ -15,28 +15,26 @@
 # limitations under the License.
 #
 
-import apache_beam as beam
-from apache_beam.ml.inference.model_spec import ModelSpec
-# TODO: import RunInferenceDoFn
+import unittest
+
+from torch import nn
+
+from apache_beam.ml.inference.model_spec_pytorch import PytorchModelSpec
 
 
-def _unbatch(maybe_keyed_batches):
-  keys, results = maybe_keyed_batches
-  if keys:
-    return zip(keys, results)
-  else:
-    return results
+class ModelSpecTest(unittest.TestCase):
+  def test_load_pytorch(self):
+    mock_model = nn.Sequential(nn.Linear(100, 50))
+    mock_url = 'test.url'
+    # TODO
+    # mock the return value when loading of a model from a url
+    pytorch_model_spec = PytorchModelSpec(model_url=mock_url)
+    runnable_model = pytorch_model_spec.load_model()
+    assert runnable_model == mock_model
+
+  def test_load_sklearn(self):
+    pass
 
 
-class RunInference(beam.PTransform):
-  def __init__(self, model: ModelSpec, batch_size=None, **kwargs):
-    self._model = model
-    self._batch_size = batch_size
-
-  def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
-    return (
-        pcoll
-        # TODO: Hook into the batching DoFn APIs.
-        | beam.BatchElements(**self._batch_params)
-        | beam.ParDo(RunInferenceDoFn(self._model))
-        | beam.FlatMap(_unbatch))
+if __name__ == '__main__':
+  unittest.main()

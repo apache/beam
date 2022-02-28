@@ -19,7 +19,13 @@ import unittest
 
 
 class RunInferenceTest(unittest.TestCase):
-  def test_delegate(self):
+  def test_unbatch(self):
+    pass
+
+  def test_keyed_batches(self):
+    pass
+
+  def test_unkeyed_batches(self):
     pass
 
 

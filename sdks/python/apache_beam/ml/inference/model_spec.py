@@ -15,16 +15,27 @@
 # limitations under the License.
 #
 
-import unittest
+import abc
+from typing import Generic, TypeVar
+
+# TODO: consolidate this definition of TypeVar if defined elsewhere
+ExampleBatchType = TypeVar('ExampleBatchType')
+InferenceBatchType = TypeVar('InferenceBatchType')
 
 
-class RunInferenceModelTest(unittest.TestCase):
-  def test_initialize_pytorch(self):
-    pass
+class ModelSpec(Generic[ExampleBatchType, InferenceBatchType]):
+  '''
+  Base class that defines the parameters for a model.
+  '''
+  def __init__(self, model_url):
+    self._model_url = model_url
+    self._validate_model()
 
-  def test_initialize_sklearn(self):
-    pass
+  @abc.abstractmethod
+  def load_model(self) -> RunnableModel[ExampleBatchType, InferenceBatchType]:
+    """Loads an initializes a model for processing."""
+    raise NotImplementedError(type(self))
 
-
-if __name__ == '__main__':
-  unittest.main()
+  @abc.abstractmethod
+  def _validate_model(self):
+    raise NotImplementedError("Please implement _validate_model")

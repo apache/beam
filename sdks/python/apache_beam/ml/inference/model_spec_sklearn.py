@@ -15,28 +15,30 @@
 # limitations under the License.
 #
 
-import apache_beam as beam
 from apache_beam.ml.inference.model_spec import ModelSpec
-# TODO: import RunInferenceDoFn
 
 
-def _unbatch(maybe_keyed_batches):
-  keys, results = maybe_keyed_batches
-  if keys:
-    return zip(keys, results)
-  else:
-    return results
+class SklearnModelSpec(ModelSpec):
+  '''
+  This class wraps the scikit-learn model, and other
+  scikit-learn-specific parameters
+  '''
+  VALID_SERIALIZATION_TYPES = ['PICKLE', 'JOBLIB']
 
+  def __init__(self, model_url, serialization_method='PICKLE'):
+    super().__init__(model_url)
+    self._serialization_method = serialization_method
 
-class RunInference(beam.PTransform):
-  def __init__(self, model: ModelSpec, batch_size=None, **kwargs):
-    self._model = model
-    self._batch_size = batch_size
+    # Do scikit-learn validations
+    self._validate_serialization()
 
-  def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
-    return (
-        pcoll
-        # TODO: Hook into the batching DoFn APIs.
-        | beam.BatchElements(**self._batch_params)
-        | beam.ParDo(RunInferenceDoFn(self._model))
-        | beam.FlatMap(_unbatch))
+  def _validate_model(self):
+    pass
+
+  def _validate_serialization(self):
+    if self._serialization_method not in self.VALID_SERIALIZATION_TYPES:
+      raise ValueError(
+          'Serialization type must be one of ' + self.VALID_SERIALIZATION_TYPES)
+
+  def load_model(self):
+    pass

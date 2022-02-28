@@ -15,28 +15,27 @@
 # limitations under the License.
 #
 
-import apache_beam as beam
 from apache_beam.ml.inference.model_spec import ModelSpec
-# TODO: import RunInferenceDoFn
 
 
-def _unbatch(maybe_keyed_batches):
-  keys, results = maybe_keyed_batches
-  if keys:
-    return zip(keys, results)
-  else:
-    return results
+class PytorchModelSpec(ModelSpec):
+  '''
+  This class wraps the PyTorch model, and other
+  PyTorch-specific parameters
+  '''
+  VALID_DEVICE_TYPES = ['CPU', 'GPU']
 
+  def __init__(self, model_url: str, device: str):
+    super().__init__(model_url)
+    self._device = device
+    self._validate_device()
 
-class RunInference(beam.PTransform):
-  def __init__(self, model: ModelSpec, batch_size=None, **kwargs):
-    self._model = model
-    self._batch_size = batch_size
+  def _validate_model(self):
+    pass
 
-  def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
-    return (
-        pcoll
-        # TODO: Hook into the batching DoFn APIs.
-        | beam.BatchElements(**self._batch_params)
-        | beam.ParDo(RunInferenceDoFn(self._model))
-        | beam.FlatMap(_unbatch))
+  def _validate_device(self):
+    if self._device.upper() not in self.VALID_DEVICE_TYPES:
+      raise ValueError('Device type must be one of ' + self.VALID_DEVICE_TYPES)
+
+  def load_model(self):
+    pass
