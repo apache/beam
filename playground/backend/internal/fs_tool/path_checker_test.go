@@ -32,7 +32,7 @@ func TestWrongExtension_Error(t *testing.T) {
 		want   string
 	}{
 		{
-			name:   "All success",
+			name:   "Get error of the WrongExtension",
 			fields: fields{error: errorMessage},
 			want:   fmt.Sprintf("File has wrong extension: %v", errorMessage),
 		},
@@ -72,7 +72,7 @@ func TestCheckPathIsValid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "All success",
+			name:    "CheckPathIsValid worked successfully",
 			args:    args{args: []interface{}{filepath.Join(sourceDir, fileName), ".txt"}},
 			want:    true,
 			wantErr: false,
