@@ -69,7 +69,7 @@ func TestWindowEquality(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := test.windowOne.Equals(test.windowTwo), test.expEquality; got != want {
-				t.Errorf("got (%v).Equals(%v) == %v, want %v", test.windowOne, test.windowTwo, got, want)
+				t.Errorf("(%v).Equals(%v) got %v, want %v", test.windowOne, test.windowTwo, got, want)
 			}
 		})
 	}
@@ -100,7 +100,7 @@ func TestMaxTimestamp(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := test.window.MaxTimestamp(), test.expTimestamp; got != want {
-				t.Errorf("got (%v).MaxTimestamp = %d, want %d", test.window, got, want)
+				t.Errorf("(%v).MaxTimestamp got %d, want %d", test.window, got, want)
 			}
 		})
 	}
@@ -147,7 +147,7 @@ func TestIsEqualList(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := IsEqualList(test.winsOne, test.winsTwo), test.expEquality; got != want {
-				t.Errorf("got IsEqualList = %v, want %v", got, want)
+				t.Errorf("IsEqualList got %v, want %v", got, want)
 			}
 		})
 	}

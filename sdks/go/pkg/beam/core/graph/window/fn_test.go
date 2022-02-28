@@ -75,11 +75,17 @@ func TestEquals(t *testing.T) {
 			NewSessions(10 * time.Minute),
 			false,
 		},
+		{
+			"mismatched type",
+			NewFixedWindows(100 * time.Millisecond),
+			NewSlidingWindows(10*time.Millisecond, 100*time.Millisecond),
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got, want := test.fnOne.Equals(test.fnTwo), test.expEquality; got != want {
-				t.Errorf("got (%v).Equals(%v) == %v, want %v", test.fnOne, test.fnTwo, got, want)
+				t.Errorf("(%v).Equals(%v) got %v, want %v", test.fnOne, test.fnTwo, got, want)
 			}
 		})
 	}
