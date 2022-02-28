@@ -223,6 +223,7 @@ class GrpcExampleClient implements ExampleClient {
       description: example.description,
       type: _exampleTypeFromString(example.type),
       path: example.cloudPath,
+      contextLine: example.contextLine,
       pipelineOptions: example.pipelineOptions,
       isMultiFile: example.multifile,
       link: example.link,
