@@ -409,23 +409,6 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(Test) { jacoco.enabled = enabled }
     }
 
-    // Add Retry Gradle Plugin to mitigate flaky tests
-    if (project.hasProperty("retryFlakyTest")) {
-      project.apply plugin: "org.gradle.test-retry"
-      project.tasks.withType(Test) {
-        reports{
-          junitXml{
-            mergeReruns = true
-          }
-        }
-        retry {
-          failOnPassedAfterRetry = false
-          maxFailures = 10
-          maxRetries = 3
-        }
-      }
-    }
-
     // Apply a plugin which provides tasks for dependency / property / task reports.
     // See https://docs.gradle.org/current/userguide/project_reports_plugin.html
     // for further details. This is typically very useful to look at the "htmlDependencyReport"
@@ -471,8 +454,12 @@ class BeamModulePlugin implements Plugin<Project> {
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
     def errorprone_version = "2.10.0"
+    // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
+    def gax_version = "2.8.1"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
+    // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
+    def google_cloud_spanner_version = "6.17.4"
     def google_code_gson_version = "2.8.9"
     def google_oauth_clients_version = "1.32.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -560,6 +547,7 @@ class BeamModulePlugin implements Plugin<Project> {
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
+        gax_grpc_test                               : "com.google.api:gax-grpc:$gax_version:testlib", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
@@ -591,6 +579,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:24.2.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
+        google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
@@ -1334,7 +1323,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (configuration.validateShadowJar) {
-          project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
+          def validateShadedJarDoesntLeakNonProjectClasses = project.tasks.register('validateShadedJarDoesntLeakNonProjectClasses') {
+            dependsOn 'shadowJar'
             ext.outFile = project.file("${project.reportsDir}/${name}.out")
             inputs.files(project.configurations.shadow.artifacts.files)
                 .withPropertyName("shadowArtifactsFiles")
@@ -1358,10 +1348,10 @@ class BeamModulePlugin implements Plugin<Project> {
               }
             }
           }
-          project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
+          project.tasks.check.dependsOn validateShadedJarDoesntLeakNonProjectClasses
         }
       } else {
-        project.task("testJar", type: Jar, {
+        project.tasks.register("testJar", Jar) {
           group = "Jar"
           description = "Create a JAR of test classes"
           classifier = "tests"
@@ -1371,7 +1361,7 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.SF"
           exclude "META-INF/*.DSA"
           exclude "META-INF/*.RSA"
-        })
+        }
         project.artifacts.testRuntimeMigration project.testJar
       }
 
@@ -1393,7 +1383,8 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
 
-        project.task("jmh", type: JavaExec, dependsOn: project.classes, {
+        project.tasks.register("jmh", JavaExec)  {
+          dependsOn project.classes
           mainClass = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
           // For a list of arguments, see
@@ -1425,12 +1416,13 @@ class BeamModulePlugin implements Plugin<Project> {
             args 'org.apache.beam'
           }
           args '-foe=true'
-        })
+        }
 
         // Single shot of JMH benchmarks ensures that they can execute.
         //
         // Note that these tests will fail on JVMs that JMH doesn't support.
-        project.task("jmhTest", type: JavaExec, dependsOn: project.classes, {
+        def jmhTest = project.tasks.register("jmhTest", JavaExec) {
+          dependsOn project.classes
           mainClass = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
 
@@ -1443,8 +1435,8 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-f=0'
           args '-wf=0'
           args '-foe=true'
-        })
-        project.check.dependsOn("jmhTest")
+        }
+        project.check.dependsOn jmhTest
       }
 
       project.ext.includeInJavaBom = configuration.publish

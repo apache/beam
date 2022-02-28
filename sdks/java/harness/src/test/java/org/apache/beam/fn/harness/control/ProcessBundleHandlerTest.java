@@ -509,6 +509,7 @@ public class ProcessBundleHandlerTest {
                 PCollection.newBuilder()
                     .setWindowingStrategyId("window-strategy")
                     .setCoderId("2L-output-coder")
+                    .setIsBounded(IsBounded.Enum.BOUNDED)
                     .build())
             .putWindowingStrategies(
                 "window-strategy",

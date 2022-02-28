@@ -40,8 +40,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
@@ -142,7 +142,7 @@ public class BeamFnControlClientTest {
       BeamFnControlClient client =
           new BeamFnControlClient(
               apiServiceDescriptor,
-              InProcessManagedChannelFactory.create(),
+              ManagedChannelFactory.createInProcess(),
               OutboundObserverFactory.trivial(),
               executor,
               handlers);
@@ -216,7 +216,7 @@ public class BeamFnControlClientTest {
       BeamFnControlClient client =
           new BeamFnControlClient(
               apiServiceDescriptor,
-              InProcessManagedChannelFactory.create(),
+              ManagedChannelFactory.createInProcess(),
               OutboundObserverFactory.trivial(),
               executor,
               handlers);

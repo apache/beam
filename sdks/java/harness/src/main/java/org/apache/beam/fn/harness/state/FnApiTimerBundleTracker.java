@@ -153,6 +153,10 @@ public class FnApiTimerBundleTracker<K> {
             });
   }
 
+  public void reset() {
+    timerModifications.clear();
+  }
+
   public void timerModified(String timerFamilyOrId, TimeDomain timeDomain, Timer<K> timer) {
     ByteString keyString = encodedCurrentKeySupplier.get();
     ByteString windowString = encodedCurrentWindowSupplier.get();
