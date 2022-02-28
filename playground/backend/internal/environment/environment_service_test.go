@@ -32,6 +32,7 @@ const (
 	pythonConfig     = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"test_cmd\": \"pytest\",\n  \"compile_args\": [],\n  \"run_args\": [],\n  \"test_args\": []\n}\n"
 	scioConfig       = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"sbt\",\n  \"test_cmd\": \"sbt\",\n  \"compile_args\": [],\n  \"run_args\": [\n    \"runMain\"\n  ],\n  \"test_args\": []\n}\n"
 	defaultProjectId = ""
+	dirPermission    = 0600
 )
 
 var executorConfig *ExecutorConfig
@@ -51,13 +52,13 @@ func setup() error {
 		return err
 	}
 	javaConfigPath := filepath.Join(configFolderName, defaultSdk.String()+jsonExt)
-	err = os.WriteFile(javaConfigPath, []byte(javaConfig), 0600)
+	err = os.WriteFile(javaConfigPath, []byte(javaConfig), dirPermission)
 	goConfigPath := filepath.Join(configFolderName, pb.Sdk_SDK_GO.String()+jsonExt)
-	err = os.WriteFile(goConfigPath, []byte(goConfig), 0600)
+	err = os.WriteFile(goConfigPath, []byte(goConfig), dirPermission)
 	pythonConfigPath := filepath.Join(configFolderName, pb.Sdk_SDK_PYTHON.String()+jsonExt)
-	err = os.WriteFile(pythonConfigPath, []byte(pythonConfig), 0600)
+	err = os.WriteFile(pythonConfigPath, []byte(pythonConfig), dirPermission)
 	scioConfigPath := filepath.Join(configFolderName, pb.Sdk_SDK_SCIO.String()+jsonExt)
-	err = os.WriteFile(scioConfigPath, []byte(scioConfig), 0600)
+	err = os.WriteFile(scioConfigPath, []byte(scioConfig), dirPermission)
 	if err != nil {
 		return err
 	}
@@ -416,19 +417,19 @@ func TestConfigureBeamEnvs(t *testing.T) {
 			envsToSet: map[string]string{beamSdkKey: "SDK_SCIO"},
 		},
 		{
-			name:      "NumOfParallelJobsKey is set with with a positive number",
+			name:      "NumOfParallelJobsKey is set with a positive number",
 			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, 1),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "1"},
 		},
 		{
-			name:      "NumOfParallelJobsKey is set with with a negative number",
+			name:      "NumOfParallelJobsKey is set with a negative number",
 			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "-1"},
 		},
 		{
-			name:      "NumOfParallelJobsKey is set with with incorrect value",
+			name:      "NumOfParallelJobsKey is set with incorrect value",
 			want:      NewBeamEnvs(pb.Sdk_SDK_PYTHON, pythonExecutorConfig, modDir, defaultNumOfParallelJobs),
 			wantErr:   false,
 			envsToSet: map[string]string{beamSdkKey: "SDK_PYTHON", numOfParallelJobsKey: "incorrectValue"},
