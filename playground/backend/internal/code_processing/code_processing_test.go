@@ -53,6 +53,7 @@ const (
 	helloWordGo     = "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\")\n}\n"
 	helloWordJava   = "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}"
 	graphFilePath   = "resources/graph.dot"
+	jsonExtension   = ".json"
 )
 
 var opt goleak.Option
@@ -72,7 +73,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	filePath := filepath.Join(configFolder, pb.Sdk_SDK_JAVA.String()+".json")
+	filePath := filepath.Join(configFolder, pb.Sdk_SDK_JAVA.String()+jsonExtension)
 	err = os.WriteFile(filePath, []byte(javaConfig), 0600)
 	if err != nil {
 		panic(err)
@@ -126,6 +127,7 @@ func Test_Process(t *testing.T) {
 	}
 	sdkGoEnv := *sdkJavaEnv
 	sdkGoEnv.ApacheBeamSdk = pb.Sdk_SDK_GO
+	incorrectGoHelloWord := "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\").\n}\n"
 	type args struct {
 		ctx             context.Context
 		appEnv          *environment.ApplicationEnvs
@@ -263,7 +265,7 @@ func Test_Process(t *testing.T) {
 			// As a result status into cache should be set as Status_STATUS_PREPARATION_ERROR.
 			name:                  "Prepare step failed",
 			createExecFile:        true,
-			code:                  "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\").\n}\n",
+			code:                  incorrectGoHelloWord,
 			cancelFunc:            false,
 			expectedStatus:        pb.Status_STATUS_PREPARATION_ERROR,
 			expectedCompileOutput: nil,
@@ -646,7 +648,7 @@ func setupSDK(sdk pb.Sdk) {
 	if err != nil {
 		panic(err)
 	}
-	filePath := filepath.Join(configFolder, sdk.String()+".json")
+	filePath := filepath.Join(configFolder, sdk.String()+jsonExtension)
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		err = os.WriteFile(filePath, []byte(javaConfig), 0600)
@@ -1015,7 +1017,7 @@ func Test_compileStep(t *testing.T) {
 		expectedStatus pb.Status
 	}{
 		{
-			name: "Test compilation step working on java sdk",
+			name: "Test compilation step finishes successfully on java sdk",
 			args: args{
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
@@ -1029,7 +1031,7 @@ func Test_compileStep(t *testing.T) {
 			expectedStatus: pb.Status_STATUS_EXECUTING,
 		},
 		{
-			name: "Test compilation step working on python sdk",
+			name: "Test compilation step finishes successfully on python sdk",
 			args: args{
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
@@ -1105,6 +1107,9 @@ func Test_runStep(t *testing.T) {
 		expectedStatus pb.Status
 	}{
 		{
+			// Test case with calling runStep method on python sdk.
+			// cmd.Run return error during saving output.
+			// As a result, the pipeline status should be Status_STATUS_RUN_ERROR.
 			name: "Test run step working on python sdk",
 			args: args{
 				ctx:                  context.Background(),
@@ -1121,6 +1126,9 @@ func Test_runStep(t *testing.T) {
 			expectedStatus: pb.Status_STATUS_RUN_ERROR,
 		},
 		{
+			// Test case with calling runStep method on go sdk.
+			// cmd.Run return error due to missing executable file.
+			// As a result, the pipeline status should be Status_STATUS_RUN_ERROR.
 			name: "Test run step working on go sdk",
 			args: args{
 				ctx:                  context.Background(),
@@ -1137,6 +1145,8 @@ func Test_runStep(t *testing.T) {
 			expectedStatus: pb.Status_STATUS_RUN_ERROR,
 		},
 		{
+			// Test case with calling runStep method without preparing files with code.
+			// As a result, the pipeline status should be Status_STATUS_ERROR.
 			name: "Test run step without preparing files with code",
 			args: args{
 				ctx:                  context.Background(),
@@ -1512,7 +1522,7 @@ func Test_readGraphFile(t *testing.T) {
 		args args
 	}{
 		{
-			name: "All success",
+			name: "Successfully saving the prepared graph to the cache",
 			args: args{
 				pipelineLifeCycleCtx: pipelineLifeCycleCtx,
 				backgroundCtx:        context.Background(),
