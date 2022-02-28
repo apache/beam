@@ -41,19 +41,19 @@ func TestCheckIsUnitTestPy(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "check that file is a python unit test",
+			name:    "Check that file is a python unit test",
 			args:    args{args: unitTestValidatorArgs},
 			want:    true,
 			wantErr: false,
 		},
 		{
-			name:    "check that file is not a python unit test",
+			name:    "Check that file is not a python unit test",
 			args:    args{args: validatorArgs},
 			want:    false,
 			wantErr: false,
 		},
 		{
-			name:    "error if file not exists",
+			name:    "Error if file not exists",
 			args:    args{args: argsWithoutRealFile},
 			want:    false,
 			wantErr: true,

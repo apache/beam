@@ -80,7 +80,7 @@ func TestGetValidators(t *testing.T) {
 		{
 			// Test case with calling GetValidators method with incorrect SDK.
 			// As a result, want to receive an error.
-			name: "incorrect sdk",
+			name: "Incorrect sdk",
 			args: args{
 				sdk:      playground.Sdk_SDK_UNSPECIFIED,
 				filepath: "",
@@ -91,7 +91,7 @@ func TestGetValidators(t *testing.T) {
 		{
 			// Test case with calling GetValidators method with correct SDK.
 			// As a result, want to receive an expected slice of validators.
-			name: "correct java sdk",
+			name: "Correct java sdk",
 			args: args{
 				sdk:      playground.Sdk_SDK_JAVA,
 				filepath: "",
@@ -102,7 +102,7 @@ func TestGetValidators(t *testing.T) {
 		{
 			// Test case with calling GetValidators method with correct SDK.
 			// As a result, want to receive an expected slice of validators.
-			name: "correct python sdk",
+			name: "Correct python sdk",
 			args: args{
 				sdk:      playground.Sdk_SDK_PYTHON,
 				filepath: "",
@@ -113,7 +113,7 @@ func TestGetValidators(t *testing.T) {
 		{
 			// Test case with calling GetValidators method with correct SDK.
 			// As a result, want to receive an expected slice of validators.
-			name: "correct go sdk",
+			name: "Correct go sdk",
 			args: args{
 				sdk:      playground.Sdk_SDK_GO,
 				filepath: "",
@@ -124,7 +124,7 @@ func TestGetValidators(t *testing.T) {
 		{
 			// Test case with calling GetValidators method with correct SDK.
 			// As a result, want to receive an expected slice of validators.
-			name: "correct scio sdk",
+			name: "Correct scio sdk",
 			args: args{
 				sdk:      playground.Sdk_SDK_SCIO,
 				filepath: "",

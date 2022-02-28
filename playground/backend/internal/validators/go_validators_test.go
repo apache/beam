@@ -46,7 +46,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "check that file is a go unit test",
+			name: "Check that file is a go unit test",
 			args: args{
 				testValidatorArgs,
 			},
@@ -54,7 +54,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "check that file is not a go unit test",
+			name: "Check that file is not a go unit test",
 			args: args{
 				validatorArgs,
 			},
@@ -62,7 +62,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "error if file not exists",
+			name:    "Error if file not exists",
 			args:    args{args: argsWithoutRealFile},
 			want:    false,
 			wantErr: true,
