@@ -73,7 +73,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	filePath := filepath.Join(configFolder, pb.Sdk_SDK_JAVA.String()+jsonExtension)
+	filePath := filepath.Join(configFolder, fmt.Sprintf("%s%s", pb.Sdk_SDK_JAVA.String(), jsonExtension))
 	err = os.WriteFile(filePath, []byte(javaConfig), 0600)
 	if err != nil {
 		panic(err)
@@ -648,7 +648,7 @@ func setupSDK(sdk pb.Sdk) {
 	if err != nil {
 		panic(err)
 	}
-	filePath := filepath.Join(configFolder, sdk.String()+jsonExtension)
+	filePath := filepath.Join(configFolder, fmt.Sprintf("%s%s", sdk.String(), jsonExtension))
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		err = os.WriteFile(filePath, []byte(javaConfig), 0600)
