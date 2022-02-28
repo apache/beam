@@ -263,7 +263,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 	catalog, err := controller.cacheService.GetCatalog(ctx)
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
-		catalog, err = utils.GetCatalogFromStorage(ctx)
+		catalog, err = utils.GetCatalogFromStorage(ctx, controller.env.ApplicationEnvs.BucketName())
 		if err != nil {
 			return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 		}
@@ -279,7 +279,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 // GetPrecompiledObjectCode returns the code of the specific example
 func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
 	cd := cloud_bucket.New()
-	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
+	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectCode(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's code", "Error with cloud connection")
@@ -291,7 +291,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 // GetPrecompiledObjectOutput returns the output of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectOutputRequest) (*pb.GetPrecompiledObjectOutputResponse, error) {
 	cd := cloud_bucket.New()
-	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath())
+	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's output", "Error with cloud connection")
@@ -303,7 +303,7 @@ func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.C
 // GetPrecompiledObjectLogs returns the logs of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Context, info *pb.GetPrecompiledObjectLogsRequest) (*pb.GetPrecompiledObjectLogsResponse, error) {
 	cd := cloud_bucket.New()
-	logs, err := cd.GetPrecompiledObjectLogs(ctx, info.GetCloudPath())
+	logs, err := cd.GetPrecompiledObjectLogs(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectLogs(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's logs", "Error with cloud connection")
@@ -315,7 +315,7 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 // GetPrecompiledObjectGraph returns the graph of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Context, info *pb.GetPrecompiledObjectGraphRequest) (*pb.GetPrecompiledObjectGraphResponse, error) {
 	cb := cloud_bucket.New()
-	logs, err := cb.GetPrecompiledObjectGraph(ctx, info.GetCloudPath())
+	logs, err := cb.GetPrecompiledObjectGraph(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectGraph(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's graph", "Error with cloud connection")

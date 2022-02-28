@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	BucketName       = "playground-precompiled-objects"
 	OutputExtension  = "output"
 	LogsExtension    = "log"
 	GraphExtension   = "graph"
@@ -114,12 +113,12 @@ func New() *CloudStorage {
 }
 
 // GetPrecompiledObject returns the source code of the example
-func (cd *CloudStorage) GetPrecompiledObject(ctx context.Context, precompiledObjectPath string) (string, error) {
+func (cd *CloudStorage) GetPrecompiledObject(ctx context.Context, precompiledObjectPath, bucketName string) (string, error) {
 	extension, err := getFileExtensionBySdk(precompiledObjectPath)
 	if err != nil {
 		return "", err
 	}
-	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, extension)
+	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, extension, bucketName)
 	if err != nil {
 		return "", err
 	}
@@ -128,8 +127,8 @@ func (cd *CloudStorage) GetPrecompiledObject(ctx context.Context, precompiledObj
 }
 
 // GetPrecompiledObjectOutput returns the run output of the example
-func (cd *CloudStorage) GetPrecompiledObjectOutput(ctx context.Context, precompiledObjectPath string) (string, error) {
-	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, OutputExtension)
+func (cd *CloudStorage) GetPrecompiledObjectOutput(ctx context.Context, precompiledObjectPath, bucketName string) (string, error) {
+	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, OutputExtension, bucketName)
 	if err != nil {
 		return "", err
 	}
@@ -138,8 +137,8 @@ func (cd *CloudStorage) GetPrecompiledObjectOutput(ctx context.Context, precompi
 }
 
 // GetPrecompiledObjectLogs returns the logs of the example
-func (cd *CloudStorage) GetPrecompiledObjectLogs(ctx context.Context, precompiledObjectPath string) (string, error) {
-	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, LogsExtension)
+func (cd *CloudStorage) GetPrecompiledObjectLogs(ctx context.Context, precompiledObjectPath, bucketName string) (string, error) {
+	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, LogsExtension, bucketName)
 	if err != nil {
 		return "", err
 	}
@@ -148,8 +147,8 @@ func (cd *CloudStorage) GetPrecompiledObjectLogs(ctx context.Context, precompile
 }
 
 // GetPrecompiledObjectGraph returns the graph of the example
-func (cd *CloudStorage) GetPrecompiledObjectGraph(ctx context.Context, precompiledObjectPath string) (string, error) {
-	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, GraphExtension)
+func (cd *CloudStorage) GetPrecompiledObjectGraph(ctx context.Context, precompiledObjectPath, bucketName string) (string, error) {
+	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, GraphExtension, bucketName)
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +156,7 @@ func (cd *CloudStorage) GetPrecompiledObjectGraph(ctx context.Context, precompil
 }
 
 // GetPrecompiledObjects returns stored at the cloud storage bucket precompiled objects for the target category
-func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.Sdk, targetCategory string) (*SdkToCategories, error) {
+func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.Sdk, targetCategory, bucketName string) (*SdkToCategories, error) {
 	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %v", err)
@@ -168,7 +167,7 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 	defer cancel()
 
 	precompiledObjects := make(SdkToCategories, 0)
-	bucket := client.Bucket(BucketName)
+	bucket := client.Bucket(bucketName)
 
 	dirs, err := cd.getPrecompiledObjectsDirs(ctx, targetSdk, bucket)
 	if err != nil {
@@ -229,7 +228,11 @@ func (cd *CloudStorage) getPrecompiledObjectsDirs(ctx context.Context, targetSdk
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("Bucket(%q).Objects: %v", BucketName, err)
+			bucketAttrs, errWithAttrs := bucket.Attrs(ctx)
+			if errWithAttrs != nil {
+				return nil, fmt.Errorf("error during receiving bucket's attributes: %s", err)
+			}
+			return nil, fmt.Errorf("Bucket(%q).Objects: %v", bucketAttrs.Name, err)
 		}
 		path := attrs.Name
 		if isPathToPrecompiledObjectFile(path) {
@@ -258,7 +261,7 @@ func appendPrecompiledObject(objectInfo ObjectInfo, sdkToCategories *SdkToCatego
 }
 
 // getFileFromBucket receives the file from the bucket by its name
-func (cd *CloudStorage) getFileFromBucket(ctx context.Context, pathToObject string, extension string) ([]byte, error) {
+func (cd *CloudStorage) getFileFromBucket(ctx context.Context, pathToObject string, extension, bucketName string) ([]byte, error) {
 	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %v", err)
@@ -268,7 +271,7 @@ func (cd *CloudStorage) getFileFromBucket(ctx context.Context, pathToObject stri
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	bucket := client.Bucket(BucketName)
+	bucket := client.Bucket(bucketName)
 
 	filePath := getFullFilePath(pathToObject, extension)
 	rc, err := bucket.Object(filePath).NewReader(ctx)
