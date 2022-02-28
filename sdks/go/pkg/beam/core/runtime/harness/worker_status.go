@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -38,55 +39,65 @@ func newWorkerStatusHandler(ctx context.Context, endpoint string) (*workerStatus
 	if err != nil {
 		return &workerStatusHandler{}, errors.Wrapf(err, "failed to connect: %v\n", endpoint)
 	}
-	return &workerStatusHandler{conn: sconn, shutdown: 0, resp: make(chan *fnpb.WorkerStatusResponse, 100)}, nil
+	return &workerStatusHandler{conn: sconn, shutdown: 0, resp: make(chan *fnpb.WorkerStatusResponse)}, nil
 }
 
-func (w *workerStatusHandler) handleRequest(ctx context.Context) {
+func (w *workerStatusHandler) handleRequest(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 	statusClient := fnpb.NewBeamFnWorkerStatusClient(w.conn)
 	stub, err := statusClient.WorkerStatus(ctx)
-	for atomic.LoadInt32(&w.shutdown) == 0 {
-
-		if err != nil {
-			log.Errorf(ctx, "status client not established: %v", err)
-		}
-
-		go w.Writer(ctx, stub)
-		w.Reader(ctx, stub)
+	if err != nil {
+		log.Errorf(ctx, "status client not established: %v", err)
 	}
+	go w.Writer(ctx, stub)
+	w.Reader(ctx, stub)
 }
 
 func (w *workerStatusHandler) Writer(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
-	for res := range w.resp {
+	for {
+		if w.resp == nil {
+			log.Debugf(ctx, "exiting writer")
+			return
+		}
+		res := <-w.resp
+
 		log.Debugf(ctx, "RESP-status: %v", res.GetId())
 
 		if err := stub.Send(res); err != nil && err != io.EOF {
 			log.Errorf(ctx, "workerStatus.Writer: Failed to respond: %v", err)
 		}
+
 	}
-	log.Debugf(ctx, "status response channel closed")
+
 }
 
 func (w *workerStatusHandler) Reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
-	req, err := stub.Recv()
-	if err != nil {
-		return
-	}
-	log.Debugf(ctx, "RECV-status: %v", req.GetId())
-	buf := make([]byte, 1<<16)
-	runtime.Stack(buf, true)
-	response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: string(buf)}
-	if atomic.LoadInt32(&w.shutdown) == 0 {
-		if w.resp != nil {
-			w.resp <- response
+	for atomic.LoadInt32(&w.shutdown) == 0 {
+		req, err := stub.Recv()
+		if err != nil {
+			return
 		}
-	} else {
-		close(w.resp)
+		log.Debugf(ctx, "RECV-status: %v", req.GetId())
+		buf := make([]byte, 1<<16)
+		runtime.Stack(buf, true)
+		response := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: string(buf)}
+		if atomic.LoadInt32(&w.shutdown) == 0 {
+			if w.resp != nil {
+				w.resp <- response
+			} else {
+				return
+			}
+		} else {
+			close(w.resp)
+			return
+		}
 	}
 }
 
-func (w *workerStatusHandler) close(ctx context.Context) {
+func (w *workerStatusHandler) close(ctx context.Context, wg *sync.WaitGroup) {
 	atomic.StoreInt32(&w.shutdown, 1)
 	close(w.resp)
+	wg.Wait()
 	if err := w.conn.Close(); err != nil {
 		log.Errorf(ctx, "error closing status endpoint connection: %v", err)
 	}

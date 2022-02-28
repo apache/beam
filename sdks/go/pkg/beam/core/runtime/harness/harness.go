@@ -36,13 +36,25 @@ import (
 	"google.golang.org/grpc"
 )
 
+type StatusAddress string
+
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
-func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint string) error {
+func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options ...interface{}) error {
 	hooks.DeserializeHooksFromOptions(ctx)
+
+	statusEndpoint := ""
+	for _, option := range options {
+		switch option := option.(type) {
+		case StatusAddress:
+			statusEndpoint = string(option)
+		default:
+			return errors.Errorf("unkown type %T, value %v in error call", option, option)
+		}
+	}
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
 	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
@@ -99,14 +111,16 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 	}()
 
 	var statusHandler *workerStatusHandler
-
 	if statusEndpoint != "" {
 		statusHandler, err = newWorkerStatusHandler(ctx, statusEndpoint)
 		if err != nil {
 			log.Error(ctx, err)
 		}
-		go statusHandler.handleRequest(ctx)
-		defer statusHandler.close(ctx)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go statusHandler.handleRequest(ctx, &wg)
+
+		defer statusHandler.close(ctx, &wg)
 	}
 
 	sideCache := statecache.SideInputCache{}

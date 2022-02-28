@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"testing"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -72,8 +73,10 @@ func TestSendStatusResponse(t *testing.T) {
 	if err != nil {
 		log.Fatalf("unable to create status handler: %v", err)
 	}
-	go statusHandler.handleRequest(ctx)
-	defer statusHandler.close(ctx)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go statusHandler.handleRequest(ctx, &wg)
+	defer statusHandler.close(ctx, &wg)
 	response := []string{}
 	response = append(response, <-srv.response)
 	if len(response) == 0 {
