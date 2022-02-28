@@ -1,0 +1,16 @@
+dispatch:
+  - url: "play.beam.apache.org/*"
+    service: frontend-beta
+  - url: "*/router/*"
+    service: backend-router-beta
+  - url: "*/scio/*"
+    service: backend-scio-beta
+  - url: "*/python/*"
+    service: backend-python-beta
+  - url: "*/go/*"
+    service: backend-go-beta
+  - url: "*/java/*"
+    service: backend-java-beta
+
+
+ 
