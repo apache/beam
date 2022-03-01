@@ -251,8 +251,8 @@ func Benchmark_GetPrecompiledObjectOutput(b *testing.B) {
 	}
 }
 
-func Benchmark_GetPrecompiledObject(b *testing.B) {
+func Benchmark_GetPrecompiledObjectCode(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = bucket.GetPrecompiledObject(ctx, precompiledObjectPath, defaultBucketName)
+		_, _ = bucket.GetPrecompiledObjectCode(ctx, precompiledObjectPath, defaultBucketName)
 	}
 }

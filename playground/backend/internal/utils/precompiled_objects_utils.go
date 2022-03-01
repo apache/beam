@@ -17,9 +17,11 @@ package utils
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
+	"fmt"
 )
 
 // PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
@@ -38,6 +40,7 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 			Link:            object.Link,
 			Multifile:       object.Multifile,
 			ContextLine:     object.ContextLine,
+			DefaultExample:  object.DefaultExample,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)
@@ -92,4 +95,45 @@ func FilterCatalog(catalog []*pb.Categories, sdk pb.Sdk, categoryName string) []
 		}
 	}
 	return result
+}
+
+// GetDefaultPrecompiledObject returns the default precompiled objects from cache for sdk
+func GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, cacheService cache.Cache, bucketName string) (*pb.PrecompiledObject, error) {
+	precompiledObject, err := cacheService.GetDefaultPrecompiledObject(ctx, sdk)
+	if err != nil {
+		logger.Errorf("GetDefaultPrecompiledObject(): error during getting default precompiled object %s", err.Error())
+		bucket := cloud_bucket.New()
+		defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx, bucketName)
+		if err != nil {
+			return nil, err
+		}
+		for sdk, precompiledObject := range defaultPrecompiledObjects {
+			if err := cacheService.SetDefaultPrecompiledObject(ctx, sdk, precompiledObject); err != nil {
+				logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+			}
+		}
+		precompiledObject, ok := defaultPrecompiledObjects[sdk]
+		if !ok {
+			return nil, fmt.Errorf("no default precompiled object found for this sdk: %s", sdk)
+		}
+		return precompiledObject, nil
+	}
+	return precompiledObject, nil
+}
+
+// GetCatalogFromCacheOrStorage returns the precompiled objects catalog from cache
+// - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
+func GetCatalogFromCacheOrStorage(ctx context.Context, cacheService cache.Cache, bucketName string) ([]*pb.Categories, error) {
+	catalog, err := cacheService.GetCatalog(ctx)
+	if err != nil {
+		logger.Errorf("GetCatalog(): cache error: %s", err.Error())
+		catalog, err = GetCatalogFromStorage(ctx, bucketName)
+		if err != nil {
+			return nil, err
+		}
+		if err = cacheService.SetCatalog(ctx, catalog); err != nil {
+			logger.Errorf("SetCatalog(): cache error: %s", err.Error())
+		}
+	}
+	return catalog, nil
 }
