@@ -466,8 +466,6 @@ public class TriggerExample {
   static void runTriggerExample(TrafficFlowOptions options) throws IOException {
     options.setStreaming(true);
 
-    options.setBigQuerySchema(getSchema());
-
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
     Pipeline pipeline = Pipeline.create(options);

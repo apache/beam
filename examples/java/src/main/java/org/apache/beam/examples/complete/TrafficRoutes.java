@@ -380,8 +380,6 @@ public class TrafficRoutes {
     TrafficRoutesOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
 
-    options.setBigQuerySchema(FormatStatsFn.getSchema());
-
     runTrafficRoutes(options);
   }
 
