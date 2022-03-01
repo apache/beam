@@ -79,4 +79,4 @@ Check out recordings from previous Meetups **[here](https://www.youtube.com/watc
 
 1. Are you interested in sharing a feature launch or sharing a step-by-step use case for Beam? Submit a **[talk idea](https://docs.google.com/forms/d/e/1FAIpQLScFg7fmOFc7fTvnJL_dmdhia4HDesW4HYxJsDeulnsHzIzqCg/viewform)**!
 2. Register for the events. Registration is now open on the **[registration page](https://clowder.space/projects/apache-beam/)**.
-3. Help us get the word out by spreading the word throughout the community to enable more knowledge sharing and collaboration! 
+3. Help us get the word out by spreading the word throughout the community to enable more knowledge sharing and collaboration!
