@@ -35,6 +35,7 @@ module "backend-go" {
   cpu                     = var.go_cpu
   memory                  = var.go_memory
   max_instance            = var.go_max_instance
+  min_instance            = var.go_min_instance
 }
 
 module "backend-java" {
@@ -53,6 +54,7 @@ module "backend-java" {
   cpu                     = var.java_cpu
   memory                  = var.java_memory
   max_instance            = var.java_max_instance
+  min_instance            = var.java_min_instance
 }
 
 module "backend-python" {
@@ -71,6 +73,7 @@ module "backend-python" {
   cpu                     = var.python_cpu
   memory                  = var.python_memory
   max_instance            = var.python_max_instance
+  min_instance            = var.python_min_instance
 }
 
 module "backend-router" {
@@ -89,6 +92,7 @@ module "backend-router" {
   cpu                     = var.router_cpu
   memory                  = var.router_memory
   max_instance            = var.router_max_instance
+  min_instance            = var.router_min_instance
 }
 
 module "backend-scio" {
@@ -107,6 +111,7 @@ module "backend-scio" {
   cpu                     = var.scio_cpu
   memory                  = var.scio_memory
   max_instance            = var.scio_max_instance
+  min_instance            = var.scio_min_instance
 }
 
 
