@@ -116,8 +116,6 @@ func dofn2x2KV(imp []byte, iter func(*string, *int64) bool, emitK func(string), 
 
 // int64Check validates that within a single bundle,
 // we received the expected int64 values.
-// Returns ints, but they are unused, because we haven't
-// handled ParDo0's yet.
 type int64Check struct {
 	Name string
 	Want []int
@@ -137,10 +135,8 @@ func (fn *int64Check) FinishBundle(_ func(int64)) error {
 	return nil
 }
 
-// int64Check validates that within a single bundle,
-// we received the expected int64 values.
-// Returns ints, but they are unused, because we haven't
-// handled ParDo0's yet.
+// stringCheck validates that within a single bundle,
+// we received the expected string values.
 type stringCheck struct {
 	Name string
 	Want []string
