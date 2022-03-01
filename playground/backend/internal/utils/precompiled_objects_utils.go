@@ -47,9 +47,9 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 }
 
 // GetCatalogFromStorage returns the precompiled objects catalog from the cloud storage
-func GetCatalogFromStorage(ctx context.Context) ([]*pb.Categories, error) {
+func GetCatalogFromStorage(ctx context.Context, bucketName string) ([]*pb.Categories, error) {
 	bucket := cloud_bucket.New()
-	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, pb.Sdk_SDK_UNSPECIFIED, "")
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, pb.Sdk_SDK_UNSPECIFIED, "", bucketName)
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
 		return nil, err

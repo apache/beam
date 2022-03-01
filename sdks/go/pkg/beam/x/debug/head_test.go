@@ -13,37 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package textio
+package debug
 
 import (
-	"context"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
-// TestReadSdf tests that readSdf successfully reads a test text file, and
-// outputs the correct number of lines for it, even for an exceedingly long
-// line.
-func TestReadSdf(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	lines := ReadSdf(s, testFilePath)
-	passert.Count(s, lines, "NumLines", 1)
+func TestHead(t *testing.T) {
+	p, s, sequence := ptest.CreateList([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	headSequence := Head(s, sequence, 5)
+	passert.Count(s, headSequence, "NumElements", 5)
+	passert.Equals(s, headSequence, 1, 2, 3, 4, 5)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
 
-func TestReadAllSdf(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	files := beam.Create(s, testFilePath)
-	lines := ReadAllSdf(s, files)
-	passert.Count(s, lines, "NumLines", 1)
+func TestHead_KV(t *testing.T) {
+	p, s, sequence := ptest.CreateList([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	kvSequence := beam.AddFixedKey(s, sequence)
+	headKvSequence := Head(s, kvSequence, 5)
+	headSequence := beam.DropKey(s, headKvSequence)
+	passert.Count(s, headSequence, "NumElements", 5)
+	passert.Equals(s, headSequence, 1, 2, 3, 4, 5)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	ptest.RunAndValidate(t, p)
 }
