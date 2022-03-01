@@ -45,11 +45,11 @@ If you have any ideas on how we can make this year’s event better, please **[r
 3. Consider sponsoring the event. If your company is interested in engaging with members of the community, please check out the **[sponsoring prospectus](https://2022.beamsummit.org/sponsors/).**
 4. Help us get the word out. Please make sure to let your colleagues and friends know about the Beam Summit.
 
-Don’t forget to follow our Beam Summit** [Twitter](https://twitter.com/BeamSummit?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor)** and **[LinkedIn](https://www.linkedin.com/company/beam-summit/?viewAsMember=true)** pages to receive event updates!
+Don’t forget to follow our Beam Summit **[Twitter](https://twitter.com/BeamSummit?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor)** and **[LinkedIn](https://www.linkedin.com/company/beam-summit/?viewAsMember=true)** pages to receive event updates!
 
 ## Beam College
 
-**[Beam College 2022](https://beamcollege.dev/) **is around the corner for the second season of training! The event will be hosted virtually from May 10-13, 2022. The training is focused on providing more hands-on experience around end-to-end code samples in an interactive environment, and helping attendees see the applications of concepts covered in other venues, such as the Beam Summit.
+**[Beam College 2022](https://beamcollege.dev/)** is around the corner for the second season of training! The event will be hosted virtually from May 10-13, 2022. The training is focused on providing more hands-on experience around end-to-end code samples in an interactive environment, and helping attendees see the applications of concepts covered in other venues, such as the Beam Summit.
 
 Check out talks from prior editions of Beam College **[here](https://www.youtube.com/playlist?list=PLjYq1UNvv2UcrfapfgKrnLXtYpkvHmpIh)**!
 
@@ -60,7 +60,7 @@ This year, the training will consist of learning modules such as:
 *   Use Cases
 *   Beam ML Use Cases
 
-Be sure to check out our **[website](https://beamcollege.dev/)** as we continue updating the schedule and follow our **[Twitter ](https://twitter.com/beam_college?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor)**and **[LinkedIn](https://www.linkedin.com/showcase/beam-college/) **pages to receive event updates!
+Be sure to check out our **[website](https://beamcollege.dev/)** as we continue updating the schedule and follow our **[Twitter](https://twitter.com/beam_college?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor)**and **[LinkedIn](https://www.linkedin.com/showcase/beam-college/)** pages to receive event updates!
 
 ### Ways to Help & Participate
 
