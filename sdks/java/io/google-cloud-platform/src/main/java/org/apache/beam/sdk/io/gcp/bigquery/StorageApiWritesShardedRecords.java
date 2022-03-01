@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -422,12 +423,15 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
               // The first context is always the one that fails.
               AppendRowsContext failedContext =
                   Preconditions.checkNotNull(Iterables.getFirst(failedContexts, null));
-              Status.Code statusCode = Status.fromThrowable(failedContext.getError()).getCode();
               // Invalidate the StreamWriter and force a new one to be created.
               LOG.error(
                   "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
               clearClients.accept(contexts);
               appendFailures.inc();
+
+              boolean explicitStreamFinalized =
+                  failedContext.getError() instanceof StreamFinalizedException;
+              Status.Code statusCode = Status.fromThrowable(failedContext.getError()).getCode();
               // This means that the offset we have stored does not match the current end of
               // the stream in the Storage API. Usually this happens because a crash or a bundle
               // failure
@@ -438,10 +442,13 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
               boolean offsetMismatch =
                   statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
               // This implies that the stream doesn't exist or has already been finalized. In this
-              // case we have no
-              // choice but to create a new stream.
-              boolean streamDoesntExist = statusCode.equals(Code.INVALID_ARGUMENT);
-              if (offsetMismatch || streamDoesntExist) {
+              // case we have no choice but to create a new stream.
+              boolean streamDoesNotExist =
+                  explicitStreamFinalized
+                      || statusCode.equals(Code.INVALID_ARGUMENT)
+                      || statusCode.equals(Code.NOT_FOUND)
+                      || statusCode.equals(Code.FAILED_PRECONDITION);
+              if (offsetMismatch || streamDoesNotExist) {
                 appendOffsetFailures.inc();
                 LOG.warn(
                     "Append to "
