@@ -36,6 +36,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
 type StatusAddress string
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
@@ -110,16 +111,15 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
-	var statusHandler *workerStatusHandler
+	// if the runner supports worker status api then expose SDK harness status
 	if statusEndpoint != "" {
-		statusHandler, err = newWorkerStatusHandler(ctx, statusEndpoint)
+		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint)
 		if err != nil {
 			log.Error(ctx, err)
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go statusHandler.handleRequest(ctx, &wg)
-
 		defer statusHandler.close(ctx, &wg)
 	}
 
