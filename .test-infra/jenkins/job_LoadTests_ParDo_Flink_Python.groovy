@@ -351,7 +351,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', 
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   // TODO(BEAM-12898): Re-enable this test once fixed.
-  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 12 * * *', this) {
@@ -360,5 +360,5 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 12 * * 
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   // TODO(BEAM-12898): Re-enable this test once fixed.
-  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }
