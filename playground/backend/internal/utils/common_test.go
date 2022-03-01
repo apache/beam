@@ -15,7 +15,42 @@
 
 package utils
 
-import "testing"
+import (
+	"fmt"
+	"github.com/google/uuid"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+const (
+	sourceDir   = "sourceDir"
+	fileName    = "file.txt"
+	fileContent = "content"
+)
+
+func TestMain(m *testing.M) {
+	err := setup()
+	if err != nil {
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
+	}
+	defer teardown()
+	m.Run()
+}
+
+func setup() error {
+	err := os.Mkdir(sourceDir, 0755)
+	if err != nil {
+		return err
+	}
+	filePath := filepath.Join(sourceDir, fileName)
+	err = os.WriteFile(filePath, []byte(fileContent), 0600)
+	return err
+}
+
+func teardown() error {
+	return os.RemoveAll(sourceDir)
+}
 
 func TestReduceWhiteSpacesToSinge(t *testing.T) {
 	type args struct {
@@ -33,6 +68,50 @@ func TestReduceWhiteSpacesToSinge(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ReduceWhiteSpacesToSinge(tt.args.s); got != tt.want {
 				t.Errorf("ReduceWhiteSpacesToSinge() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReadFile(t *testing.T) {
+	type args struct {
+		pipelineId uuid.UUID
+		path       string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "Read from existing file",
+			args: args{
+				pipelineId: uuid.New(),
+				path:       filepath.Join(sourceDir, fileName),
+			},
+			want:    fileContent,
+			wantErr: false,
+		},
+		{
+			name: "Read from non-existent file",
+			args: args{
+				pipelineId: uuid.New(),
+				path:       filepath.Join(sourceDir, "non-existent_file.txt"),
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ReadFile(tt.args.pipelineId, tt.args.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ReadFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ReadFile() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
