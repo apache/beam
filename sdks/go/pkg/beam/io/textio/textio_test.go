@@ -23,7 +23,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
