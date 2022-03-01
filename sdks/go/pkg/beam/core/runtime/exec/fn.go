@@ -128,6 +128,7 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	// if n.bfIdx, ok = fn.BundleFinalization(); !ok {
 	// 	n.bfIdx = -1
 	// }
+	n.bfIdx = -1
 
 	n.initCall()
 

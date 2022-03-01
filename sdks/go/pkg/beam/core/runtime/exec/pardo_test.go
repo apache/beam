@@ -19,12 +19,14 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 func sumFn(n int, a int, b []int, c func(*int) bool, d func() func(*int) bool, e func(int)) int {
@@ -95,6 +97,194 @@ func TestParDo(t *testing.T) {
 	expectedSum := makeValues(45, 45, 45)
 	if !equalList(sum.Elements, expectedSum) {
 		t.Errorf("pardo(sumFn) side input = %v, want %v", extractValues(sum.Elements...), extractValues(expectedSum...))
+	}
+}
+
+func TestParDo_BundleFinalization(t *testing.T) {
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+	testVar1 := 0
+	testVar2 := 0
+	bf.RegisterCallback(500*time.Minute, func() error {
+		testVar1 += 5
+		return nil
+	})
+	bf.RegisterCallback(2*time.Minute, func() error {
+		testVar2 = 25
+		return nil
+	})
+
+	fn, err := graph.NewDoFn(sumFn)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	g := graph.New()
+	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	aN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	bN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	cN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	dN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil, nil)
+	if err != nil {
+		t.Fatalf("invalid pardo: %v", err)
+	}
+
+	out := &CaptureNode{UID: 1}
+	sum := &CaptureNode{UID: 2}
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, bf: bf, Side: []SideInputAdapter{
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(1)}},       // a
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(2, 3, 4)}}, // b
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(5, 6)}},    // c
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(7, 8, 9)}}, // d
+	}}
+
+	// We can't do exact equality since this relies on real time, we'll give it a broad range
+	if got := pardo.GetBundleExpirationTime(context.Background()); got.After(time.Now().Add(600*time.Minute)) || got.Before(time.Now().Add(400*time.Minute)) {
+		t.Errorf("Before FinalizeBundle() getBundleExpirationTime=%v, want a time around 500 minutes from now", got)
+	}
+	if err := pardo.FinalizeBundle(context.Background()); err != nil {
+		t.Fatalf("FinalizeBundle() failed with error %v", err)
+	}
+	if got, want := testVar1, 5; got != want {
+		t.Errorf("After FinalizeBundle() testVar1=%v, want %v", got, want)
+	}
+	if got, want := testVar2, 25; got != want {
+		t.Errorf("After FinalizeBundle() testVar2=%v, want %v", got, want)
+	}
+	if got := pardo.GetBundleExpirationTime(context.Background()); got.After(time.Now()) {
+		t.Errorf("After FinalizeBundle() getBundleExpirationTime=%v, want a time before current time", got)
+	}
+}
+
+func TestParDo_BundleFinalization_ExpiredCallback(t *testing.T) {
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+	testVar1 := 0
+	testVar2 := 0
+	bf.RegisterCallback(-500*time.Minute, func() error {
+		testVar1 += 5
+		return nil
+	})
+	bf.RegisterCallback(200*time.Minute, func() error {
+		testVar2 = 25
+		return nil
+	})
+
+	fn, err := graph.NewDoFn(sumFn)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	g := graph.New()
+	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	aN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	bN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	cN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	dN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil, nil)
+	if err != nil {
+		t.Fatalf("invalid pardo: %v", err)
+	}
+
+	out := &CaptureNode{UID: 1}
+	sum := &CaptureNode{UID: 2}
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, bf: bf, Side: []SideInputAdapter{
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(1)}},       // a
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(2, 3, 4)}}, // b
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(5, 6)}},    // c
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(7, 8, 9)}}, // d
+	}}
+
+	// We can't do exact equality since this relies on real time, we'll give it a broad range
+	if got := pardo.GetBundleExpirationTime(context.Background()); got.After(time.Now().Add(300*time.Minute)) || got.Before(time.Now().Add(100*time.Minute)) {
+		t.Errorf("Before FinalizeBundle() getBundleExpirationTime=%v, want a time around 200 minutes from now", got)
+	}
+	if err := pardo.FinalizeBundle(context.Background()); err != nil {
+		t.Fatalf("FinalizeBundle() failed with error %v", err)
+	}
+	if got, want := testVar1, 0; got != want {
+		t.Errorf("After FinalizeBundle() testVar1=%v, want %v", got, want)
+	}
+	if got, want := testVar2, 25; got != want {
+		t.Errorf("After FinalizeBundle() testVar2=%v, want %v", got, want)
+	}
+	if got := pardo.GetBundleExpirationTime(context.Background()); got.After(time.Now()) {
+		t.Errorf("After FinalizeBundle() getBundleExpirationTime=%v, want a time before current time", got)
+	}
+}
+
+func TestParDo_BundleFinalization_CallbackErrors(t *testing.T) {
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+	testVar1 := 0
+	testVar2 := 0
+	errored := false
+	bf.RegisterCallback(500*time.Minute, func() error {
+		testVar1 += 5
+		return nil
+	})
+	bf.RegisterCallback(200*time.Minute, func() error {
+		if errored {
+			return nil
+		}
+		errored = true
+		return errors.New("Callback error")
+	})
+	bf.RegisterCallback(2*time.Minute, func() error {
+		testVar2 = 25
+		return nil
+	})
+
+	fn, err := graph.NewDoFn(sumFn)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	g := graph.New()
+	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	aN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	bN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	cN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+	dN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil, nil)
+	if err != nil {
+		t.Fatalf("invalid pardo: %v", err)
+	}
+
+	out := &CaptureNode{UID: 1}
+	sum := &CaptureNode{UID: 2}
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, bf: bf, Side: []SideInputAdapter{
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(1)}},       // a
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(2, 3, 4)}}, // b
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(5, 6)}},    // c
+		&FixedSideInputAdapter{Val: &FixedReStream{Buf: makeValues(7, 8, 9)}}, // d
+	}}
+
+	// We can't do exact equality since this relies on real time, we'll give it a broad range
+	if got := pardo.GetBundleExpirationTime(context.Background()); got.After(time.Now().Add(600*time.Minute)) || got.Before(time.Now().Add(400*time.Minute)) {
+		t.Errorf("Before FinalizeBundle() getBundleExpirationTime=%v, want a time around 500 minutes from now", got)
+	}
+	if err := pardo.FinalizeBundle(context.Background()); err == nil {
+		t.Errorf("FinalizeBundle() succeeded, expected error")
+	}
+	if got, want := testVar1, 5; got != want {
+		t.Errorf("After FinalizeBundle() testVar1=%v, want %v", got, want)
+	}
+	if got, want := testVar2, 25; got != want {
+		t.Errorf("After FinalizeBundle() testVar2=%v, want %v", got, want)
+	}
+	if got := pardo.GetBundleExpirationTime(context.Background()); got.After(time.Now().Add(300*time.Minute)) || got.Before(time.Now().Add(100*time.Minute)) {
+		t.Errorf("After FinalizeBundle() getBundleExpirationTime=%v, want a time around 200 minutes from now", got)
+	}
+	if err := pardo.FinalizeBundle(context.Background()); err != nil {
+		t.Fatalf("FinalizeBundle() failed with error %v, expected to succeed the second time", err)
 	}
 }
 

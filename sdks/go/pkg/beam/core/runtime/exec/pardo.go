@@ -247,6 +247,7 @@ func (n *ParDo) FinalizeBundle(ctx context.Context) error {
 			newFinalizer.lastValidCallback = n.bf.callbacks[idx].validUntil
 		}
 	}
+	n.bf = newFinalizer
 
 	outErr := MultiFinalizeBundle(ctx, n.Out...)
 	if len(failedIndices) > 0 {
@@ -254,6 +255,8 @@ func (n *ParDo) FinalizeBundle(ctx context.Context) error {
 		if outErr != nil {
 			return errors.Wrap(err, outErr.Error())
 		}
+
+		return err
 	}
 	return outErr
 }
