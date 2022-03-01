@@ -22,6 +22,7 @@ import (
 	"io"
 	"path"
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -74,7 +75,7 @@ func (n *Combine) Up(ctx context.Context) error {
 
 	n.states = metrics.NewPTransformState(n.PID)
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -107,7 +108,7 @@ func (n *Combine) mergeAccumulators(ctx context.Context, a, b interface{}) (inte
 	}
 
 	in := &MainInput{Key: FullValue{Elm: a}}
-	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, b)
+	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, nil, b)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking MergeAccumulators"))
 	}
@@ -206,6 +207,14 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 	return nil
 }
 
+func (n *Combine) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinalizeBundle(ctx)
+}
+
+func (n *Combine) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
+}
+
 // Down runs the ParDo's TeardownFn.
 func (n *Combine) Down(ctx context.Context) error {
 	if n.status == Down {
@@ -213,7 +222,7 @@ func (n *Combine) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -230,7 +239,7 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 		opt = &MainInput{Key: FullValue{Elm: key}}
 	}
 
-	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt)
+	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt, nil)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking CreateAccumulator"))
 	}
@@ -273,7 +282,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 	}
 	v := n.aiValConvert(value)
 
-	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, v)
+	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, nil, v)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking AddInput"))
 	}
@@ -287,7 +296,7 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 		return accum, nil
 	}
 
-	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, accum)
+	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, nil, accum)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking ExtractOutput"))
 	}
@@ -415,6 +424,14 @@ func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
 		return err
 	}
 	return n.Combine.FinishBundle(n.Combine.ctx)
+}
+
+func (n *LiftedCombine) FinalizeBundle(ctx context.Context) error {
+	return n.Combine.FinalizeBundle(ctx)
+}
+
+func (n *LiftedCombine) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Combine.GetBundleExpirationTime(ctx)
 }
 
 // Down tears down the cache.

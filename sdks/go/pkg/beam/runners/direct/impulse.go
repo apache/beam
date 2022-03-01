@@ -18,6 +18,7 @@ package direct
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -54,6 +55,14 @@ func (n *Impulse) Process(ctx context.Context) error {
 
 func (n *Impulse) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
+}
+
+func (n *Impulse) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinalizeBundle(ctx)
+}
+
+func (n *Impulse) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 func (n *Impulse) Down(ctx context.Context) error {

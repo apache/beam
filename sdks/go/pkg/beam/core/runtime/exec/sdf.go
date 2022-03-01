@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
@@ -87,6 +88,14 @@ func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue
 func (n *PairWithRestriction) FinishBundle(ctx context.Context) error {
 	n.inv.Reset()
 	return n.Out.FinishBundle(ctx)
+}
+
+func (n *PairWithRestriction) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinalizeBundle(ctx)
+}
+
+func (n *PairWithRestriction) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 // Down currently does nothing.
@@ -199,6 +208,14 @@ func (n *SplitAndSizeRestrictions) FinishBundle(ctx context.Context) error {
 	n.splitInv.Reset()
 	n.sizeInv.Reset()
 	return n.Out.FinishBundle(ctx)
+}
+
+func (n *SplitAndSizeRestrictions) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinalizeBundle(ctx)
+}
+
+func (n *SplitAndSizeRestrictions) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 // Down currently does nothing.
@@ -377,6 +394,14 @@ func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) 
 	n.ctInv.Reset()
 	n.sizeInv.Reset()
 	return n.PDo.FinishBundle(ctx)
+}
+
+func (n *ProcessSizedElementsAndRestrictions) FinalizeBundle(ctx context.Context) error {
+	return n.PDo.FinalizeBundle(ctx)
+}
+
+func (n *ProcessSizedElementsAndRestrictions) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.PDo.GetBundleExpirationTime(ctx)
 }
 
 // Down calls the ParDo's Down method.
@@ -743,6 +768,14 @@ func (n *SdfFallback) FinishBundle(ctx context.Context) error {
 	n.splitInv.Reset()
 	n.trackerInv.Reset()
 	return n.PDo.FinishBundle(ctx)
+}
+
+func (n *SdfFallback) FinalizeBundle(ctx context.Context) error {
+	return n.PDo.FinalizeBundle(ctx)
+}
+
+func (n *SdfFallback) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.PDo.GetBundleExpirationTime(ctx)
 }
 
 // Down calls the ParDo's Down method.

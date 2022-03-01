@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -617,6 +618,14 @@ func (n *simpleGBK) FinishBundle(ctx context.Context) error {
 		}
 	}
 	return n.Out.FinishBundle(ctx)
+}
+
+func (n *simpleGBK) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinalizeBundle(ctx)
+}
+
+func (n *simpleGBK) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 func (n *simpleGBK) Down(ctx context.Context) error {

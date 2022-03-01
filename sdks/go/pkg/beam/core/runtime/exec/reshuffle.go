@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -77,6 +78,14 @@ func (n *ReshuffleInput) FinishBundle(ctx context.Context) error {
 	n.b = bytes.Buffer{}
 	n.ret = FullValue{}
 	return MultiFinishBundle(ctx, n.Out)
+}
+
+func (n *ReshuffleInput) FinalizeBundle(ctx context.Context) error {
+	return MultiFinalizeBundle(ctx, n.Out)
+}
+
+func (n *ReshuffleInput) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return MultiGetBundleExpirationTime(ctx, n.Out)
 }
 
 // Down is a no-op.
@@ -156,6 +165,14 @@ func (n *ReshuffleOutput) FinishBundle(ctx context.Context) error {
 	n.b = bytes.Buffer{}
 	n.ret = FullValue{}
 	return MultiFinishBundle(ctx, n.Out)
+}
+
+func (n *ReshuffleOutput) FinalizeBundle(ctx context.Context) error {
+	return MultiFinalizeBundle(ctx, n.Out)
+}
+
+func (n *ReshuffleOutput) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return MultiGetBundleExpirationTime(ctx, n.Out)
 }
 
 // Down is a no-op.

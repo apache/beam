@@ -15,7 +15,10 @@
 
 package exec
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Discard silently discard all elements. It is implicitly inserted for any
 // loose ends in the pipeline.
@@ -42,6 +45,14 @@ func (d *Discard) ProcessElement(ctx context.Context, value *FullValue, values .
 
 func (d *Discard) FinishBundle(ctx context.Context) error {
 	return nil
+}
+
+func (d *Discard) FinalizeBundle(ctx context.Context) error {
+	return nil
+}
+
+func (d *Discard) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return time.Now()
 }
 
 func (d *Discard) Down(ctx context.Context) error {

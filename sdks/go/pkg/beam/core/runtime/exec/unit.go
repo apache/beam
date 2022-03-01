@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"time"
 )
 
 // UnitID is a unit identifier. Used for debugging.
@@ -41,6 +42,17 @@ type Unit interface {
 	// FinishBundle signals end of input and thus finishes the bundle. Any
 	// data connections must be closed.
 	FinishBundle(ctx context.Context) error
+
+	// FinalizeBundle runs any non-expired user callbacks registered via the
+	// BundleFinalizer during function execution.
+	FinalizeBundle(ctx context.Context) error
+
+	// GetBundleExpirationTime gets the earliest time when it is safe to
+	// expire all of the bundle's finalization callbacks. If it returns a
+	// time earlier than the current time, that indicates that we are
+	// completely done with the bundle. If no callbacks are registered for the
+	// bundle, returns the current time.
+	GetBundleExpirationTime(ctx context.Context) time.Time
 
 	// Down tears down the processing node. It is notably called if the unit
 	// or plan encounters an error and must thus robustly handle cleanup of

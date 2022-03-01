@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -42,6 +43,7 @@ type ParDo struct {
 	emitters []ReusableEmitter
 	ctx      context.Context
 	inv      *invoker
+	bf       bundleFinalizer
 
 	reader StateReader
 	cache  *cacheElm
@@ -76,6 +78,10 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
+	n.bf = bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
 
 	n.states = metrics.NewPTransformState(n.PID)
 
@@ -83,7 +89,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -220,6 +226,46 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	return nil
 }
 
+func (n *ParDo) FinalizeBundle(ctx context.Context) error {
+	failedIndices := []int{}
+	for idx, bfc := range n.bf.callbacks {
+		if time.Now().Before(bfc.validUntil) {
+			if err := bfc.callback(); err != nil {
+				failedIndices = append(failedIndices, idx)
+			}
+		}
+	}
+
+	newFinalizer := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+
+	for _, idx := range failedIndices {
+		newFinalizer.callbacks = append(newFinalizer.callbacks, n.bf.callbacks[idx])
+		if newFinalizer.lastValidCallback.Before(n.bf.callbacks[idx].validUntil) {
+			newFinalizer.lastValidCallback = n.bf.callbacks[idx].validUntil
+		}
+	}
+
+	outErr := MultiFinalizeBundle(ctx, n.Out...)
+	if len(failedIndices) > 0 {
+		err := errors.Errorf("Pardo %v failed %v callbacks", n.Fn.Fn.String(), len(failedIndices))
+		if outErr != nil {
+			return errors.Wrap(err, outErr.Error())
+		}
+	}
+	return outErr
+}
+
+func (n *ParDo) GetBundleExpirationTime(ctx context.Context) time.Time {
+	outExp := MultiGetBundleExpirationTime(ctx, n.Out...)
+	if outExp.Before(n.bf.lastValidCallback) {
+		return n.bf.lastValidCallback
+	}
+	return outExp
+}
+
 // Down performs best-effort teardown of DoFn resources. (May not run.)
 func (n *ParDo) Down(ctx context.Context) error {
 	if n.status == Down {
@@ -229,7 +275,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.reader = nil
 	n.cache = nil
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -295,7 +341,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.cache.extra...)
+	val, err = Invoke(ctx, pn, ws, ts, fn, opt, &n.bf, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +359,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, &n.bf, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}

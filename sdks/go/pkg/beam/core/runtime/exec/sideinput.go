@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -203,6 +204,14 @@ func (n *FixedKey) ProcessElement(ctx context.Context, elm *FullValue, values ..
 
 func (n *FixedKey) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
+}
+
+func (n *FixedKey) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinalizeBundle(ctx)
+}
+
+func (n *FixedKey) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 func (n *FixedKey) Down(ctx context.Context) error {

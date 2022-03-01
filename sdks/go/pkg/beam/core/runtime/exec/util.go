@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -72,7 +73,7 @@ func MultiStartBundle(ctx context.Context, id string, data DataContext, list ...
 	return nil
 }
 
-// MultiFinishBundle calls StartBundle on multiple nodes. Convenience function.
+// MultiFinishBundle calls FinishBundle on multiple nodes. Convenience function.
 func MultiFinishBundle(ctx context.Context, list ...Node) error {
 	for _, n := range list {
 		if err := n.FinishBundle(ctx); err != nil {
@@ -80,6 +81,28 @@ func MultiFinishBundle(ctx context.Context, list ...Node) error {
 		}
 	}
 	return nil
+}
+
+// MultiFinalizeBundle calls FinalizeBundle on multiple nodes. Convenience function.
+func MultiFinalizeBundle(ctx context.Context, list ...Node) error {
+	for _, n := range list {
+		if err := n.FinalizeBundle(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MultiGetBundleExpirationTime calls GetBundleExpirationTime on multiple nodes. Convenience function.
+func MultiGetBundleExpirationTime(ctx context.Context, list ...Node) time.Time {
+	exp := time.Now()
+	for _, n := range list {
+		exp2 := n.GetBundleExpirationTime(ctx)
+		if exp.Before(exp2) {
+			exp = exp2
+		}
+	}
+	return exp
 }
 
 // IDs returns the unit IDs of the given nodes.

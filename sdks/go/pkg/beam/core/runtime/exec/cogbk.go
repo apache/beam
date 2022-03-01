@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -77,6 +78,14 @@ func (n *Inject) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
 }
 
+func (n *Inject) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinishBundle(ctx)
+}
+
+func (n *Inject) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
+}
+
 func (n *Inject) Down(ctx context.Context) error {
 	return nil
 }
@@ -117,6 +126,14 @@ func (n *Expand) ProcessElement(ctx context.Context, elm *FullValue, values ...R
 
 func (n *Expand) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
+}
+
+func (n *Expand) FinalizeBundle(ctx context.Context) error {
+	return n.Out.FinalizeBundle(ctx)
+}
+
+func (n *Expand) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 func (n *Expand) Down(ctx context.Context) error {

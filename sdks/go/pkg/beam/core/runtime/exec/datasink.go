@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -95,6 +96,14 @@ func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values 
 // FinishBundle closes the write to the data channel.
 func (n *DataSink) FinishBundle(ctx context.Context) error {
 	return n.w.Close()
+}
+
+func (m *DataSink) FinalizeBundle(ctx context.Context) error {
+	return nil
+}
+
+func (m *DataSink) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return time.Now()
 }
 
 // Down is a no-op.

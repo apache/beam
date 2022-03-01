@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 )
@@ -125,6 +126,14 @@ func (p *PCollection) resetSize() {
 // FinishBundle propagates bundle termination.
 func (p *PCollection) FinishBundle(ctx context.Context) error {
 	return MultiFinishBundle(ctx, p.Out)
+}
+
+func (p *PCollection) FinalizeBundle(ctx context.Context) error {
+	return MultiFinalizeBundle(ctx, p.Out)
+}
+
+func (p *PCollection) GetBundleExpirationTime(ctx context.Context) time.Time {
+	return MultiGetBundleExpirationTime(ctx, p.Out)
 }
 
 // Down is a no-op.

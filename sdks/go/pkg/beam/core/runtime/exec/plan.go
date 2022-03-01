@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -129,6 +130,38 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 
 	p.status = Up
 	return nil
+}
+
+func (p *Plan) Finalize(ctx context.Context, id string) error {
+	if p.status != Up {
+		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
+	}
+	var err error
+	p.status = Active
+	for _, root := range p.roots {
+		if rootErr := callNoPanic(ctx, root.FinalizeBundle); rootErr != nil {
+			if err == nil {
+				err = errors.Wrapf(rootErr, "while executing FinalizeBundle for %v", p)
+			} else {
+				err = errors.Wrap(rootErr, err.Error())
+			}
+		}
+	}
+	p.status = Up
+
+	return err
+}
+
+func (p *Plan) GetExpirationTime(ctx context.Context, id string) time.Time {
+	exp := time.Now()
+	for _, root := range p.roots {
+		rootExp := root.GetBundleExpirationTime(ctx)
+		if exp.Before(rootExp) {
+			exp = rootExp
+		}
+	}
+
+	return exp
 }
 
 // Down takes the plan and associated units down. Does not panic.
