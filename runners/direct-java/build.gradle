@@ -216,6 +216,7 @@ task examplesIntegrationTest(type: Test) {
   useJUnit {
     filter{
       // TODO (BEAM-14019) Fix integration Tests to run with DirectRunner: Timeout error
+      excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
     }
   }
