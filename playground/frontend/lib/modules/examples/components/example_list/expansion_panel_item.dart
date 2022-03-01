@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
+import 'package:playground/modules/examples/components/example_list/example_item_actions.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
@@ -72,12 +72,7 @@ class ExpansionPanelItem extends StatelessWidget {
                         ? const TextStyle(fontWeight: FontWeight.bold)
                         : const TextStyle(),
                   ),
-                  DescriptionPopoverButton(
-                    parentContext: context,
-                    example: example,
-                    followerAnchor: Alignment.topLeft,
-                    targetAnchor: Alignment.topRight,
-                  ),
+                  ExampleItemActions(parentContext: context, example: example),
                 ],
               ),
             ),

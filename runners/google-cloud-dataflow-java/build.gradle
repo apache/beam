@@ -367,7 +367,13 @@ task printRunnerV2PipelineOptions {
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
-  dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTest'))
+  dependsOn(createLegacyWorkerValidatesRunnerTest(
+    name: 'validatesRunnerLegacyWorkerTest',
+    excludedTests: [
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+    ]
+  ))
 }
 
 task validatesRunnerStreaming {
@@ -382,6 +388,10 @@ task validatesRunnerStreaming {
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
       'org.apache.beam.sdk.testing.UsesSetState',
     ],
+    excludedTests: [
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+    ]
   ))
 }
 
@@ -473,6 +483,9 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
 
       'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
+
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
     ]
   ))
 }
