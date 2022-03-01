@@ -16,6 +16,7 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
@@ -58,6 +59,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+javaCompiledFileExtension),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 					ExecutableName:                   executableName,
 				},
 			},

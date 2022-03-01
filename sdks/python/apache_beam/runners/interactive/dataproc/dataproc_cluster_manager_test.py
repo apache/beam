@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-  from google.cloud import dataproc_v1
+  from google.cloud import dataproc_v1  # pylint: disable=unused-import
   from apache_beam.runners.interactive.dataproc import dataproc_cluster_manager
 except ImportError:
   _dataproc_imported = False
@@ -43,30 +43,16 @@ class DataprocClusterManagerTest(unittest.TestCase):
   def test_create_cluster_default_already_exists(self, mock_cluster_client):
     """
     Tests that no exception is thrown when a cluster already exists,
-    but is using DataprocClusterManager.DEFAULT_NAME.
+    but is using ie.current_env().clusters.default_cluster_name.
     """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager()
+    cluster_metadata = dataproc_cluster_manager.MasterURLIdentifier(
+        project_id='test-project', region='test-region')
+    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
+        cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(_LOGGER, level='INFO') as context_manager:
       cluster_manager.create_cluster({})
-      self.assertTrue(
-          'Cluster {} already exists'.format(cluster_manager.DEFAULT_NAME) in
-          context_manager.output[0])
-
-  @patch(
-      'google.cloud.dataproc_v1.ClusterControllerClient.create_cluster',
-      side_effect=MockException(409))
-  def test_create_cluster_custom_already_exists(self, mock_cluster_client):
-    """
-    Tests that an exception is thrown when a cluster already exists,
-    but is using a user-specified name.
-    """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
-        cluster_name='test-cluster')
-    from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
-    with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
-      self.assertRaises(ValueError, cluster_manager.create_cluster, {})
-      self.assertTrue('Cluster already exists' in context_manager.output[0])
+      self.assertTrue('already exists' in context_manager.output[0])
 
   @patch(
       'google.cloud.dataproc_v1.ClusterControllerClient.create_cluster',
@@ -76,7 +62,10 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when a user is trying to write to
     a project while having insufficient permissions.
     """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager()
+    cluster_metadata = dataproc_cluster_manager.MasterURLIdentifier(
+        project_id='test-project', region='test-region')
+    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
+        cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
       self.assertRaises(ValueError, cluster_manager.create_cluster, {})
@@ -92,7 +81,10 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when a user specifies a region
     that does not exist.
     """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager()
+    cluster_metadata = dataproc_cluster_manager.MasterURLIdentifier(
+        project_id='test-project', region='test-region')
+    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
+        cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
       self.assertRaises(ValueError, cluster_manager.create_cluster, {})
@@ -106,7 +98,10 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when the exception is not handled by
     any other case under _create_cluster.
     """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager()
+    cluster_metadata = dataproc_cluster_manager.MasterURLIdentifier(
+        project_id='test-project', region='test-region')
+    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
+        cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
       self.assertRaises(MockException, cluster_manager.create_cluster, {})
@@ -120,7 +115,10 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when a user is trying to delete
     a project that they have insufficient permissions for.
     """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager()
+    cluster_metadata = dataproc_cluster_manager.MasterURLIdentifier(
+        project_id='test-project', region='test-region')
+    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
+        cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
       self.assertRaises(ValueError, cluster_manager.cleanup)
@@ -136,7 +134,10 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when cleanup attempts to delete
     a cluster that does not exist.
     """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager()
+    cluster_metadata = dataproc_cluster_manager.MasterURLIdentifier(
+        project_id='test-project', region='test-region')
+    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
+        cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
       self.assertRaises(ValueError, cluster_manager.cleanup)
@@ -150,7 +151,10 @@ class DataprocClusterManagerTest(unittest.TestCase):
     Tests that an exception is thrown when the exception is not handled by
     any other case under cleanup.
     """
-    cluster_manager = dataproc_cluster_manager.DataprocClusterManager()
+    cluster_metadata = dataproc_cluster_manager.MasterURLIdentifier(
+        project_id='test-project', region='test-region')
+    cluster_manager = dataproc_cluster_manager.DataprocClusterManager(
+        cluster_metadata)
     from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import _LOGGER
     with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
       self.assertRaises(MockException, cluster_manager.cleanup)

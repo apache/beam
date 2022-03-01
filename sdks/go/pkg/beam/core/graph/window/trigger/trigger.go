@@ -66,6 +66,9 @@ func (t *AfterCountTrigger) ElementCount() int32 {
 // AfterCount constructs a trigger that fires after
 // at least `count` number of elements are processed.
 func AfterCount(count int32) *AfterCountTrigger {
+	if count < 1 {
+		panic(fmt.Errorf("trigger.AfterCount(%v) must be a positive integer", count))
+	}
 	return &AfterCountTrigger{elementCount: count}
 }
 

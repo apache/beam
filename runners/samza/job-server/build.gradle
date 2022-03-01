@@ -185,7 +185,7 @@ def portableValidatesRunnerTask(String name, boolean docker) {
 project.ext.validatesPortableRunnerDocker = portableValidatesRunnerTask("Docker", true)
 project.ext.validatesPortableRunnerEmbedded = portableValidatesRunnerTask("Embedded", false)
 
-task validatesPortableRunner() {
+tasks.register("validatesPortableRunner") {
     dependsOn validatesPortableRunnerDocker
     dependsOn validatesPortableRunnerEmbedded
 }

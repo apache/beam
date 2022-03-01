@@ -1305,20 +1305,31 @@ public class BigQueryIOWriteTest implements Serializable {
     if (useStorageApi || !useStreaming) {
       return;
     }
-    p.apply(
-            Create.of(
-                new SchemaPojo("a", 1),
-                new SchemaPojo("b", 2),
-                new SchemaPojo("c", 3),
-                new SchemaPojo("d", 4)))
-        .apply(
-            BigQueryIO.<SchemaPojo>write()
-                .to("project-id:dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withMethod(Method.STREAMING_INSERTS)
-                .useBeamSchema()
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
+    WriteResult result =
+        p.apply(
+                Create.of(
+                    new SchemaPojo("a", 1),
+                    new SchemaPojo("b", 2),
+                    new SchemaPojo("c", 3),
+                    new SchemaPojo("d", 4)))
+            .apply(
+                BigQueryIO.<SchemaPojo>write()
+                    .to("project-id:dataset-id.table-id")
+                    .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                    .withMethod(Method.STREAMING_INSERTS)
+                    .useBeamSchema()
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    PAssert.that(result.getSuccessfulInserts())
+        .satisfies(
+            new SerializableFunction<Iterable<TableRow>, Void>() {
+              @Override
+              public Void apply(Iterable<TableRow> input) {
+                assertThat(Lists.newArrayList(input).size(), is(4));
+                return null;
+              }
+            });
     p.run();
 
     assertThat(

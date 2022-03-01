@@ -88,7 +88,7 @@ versions denoted `0.x.y`.
 
 ## Releases
 
-### 2.36.0 (2021-02-07)
+### 2.36.0 (2022-02-07)
 Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.36.0/apache-beam-2.36.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.36.0/apache-beam-2.36.0-source-release.zip.sha512).
 [signature](https://downloads.apache.org/beam/2.36.0/apache-beam-2.36.0-source-release.zip.asc).

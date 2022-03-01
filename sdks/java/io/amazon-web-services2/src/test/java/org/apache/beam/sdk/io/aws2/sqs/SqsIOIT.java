@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SQS;
 
 import java.io.Serializable;
-import java.net.URI;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -66,28 +65,18 @@ public class SqsIOIT {
   @Test
   public void testWriteThenRead() {
     int rows = env.options().getNumberOfRows();
-    SqsClientProvider provider =
-        new BasicSqsClientProvider(
-            env.options().getAwsCredentialsProvider(),
-            env.options().getAwsRegion(),
-            env.options().getEndpoint() != null ? URI.create(env.options().getEndpoint()) : null);
 
     // Write test dataset to SQS.
     pipelineWrite
         .apply("Generate Sequence", GenerateSequence.from(0).to(rows))
         .apply("Prepare TestRows", ParDo.of(new DeterministicallyConstructTestRowFn()))
         .apply("Prepare SQS message", MapElements.into(requestType).via(sqsQueue::messageRequest))
-        .apply("Write to SQS", SqsIO.write().withSqsClientProvider(provider));
+        .apply("Write to SQS", SqsIO.write());
 
     // Read test dataset from SQS.
     PCollection<String> output =
         pipelineRead
-            .apply(
-                "Read from SQS",
-                SqsIO.read()
-                    .withSqsClientProvider(provider)
-                    .withQueueUrl(sqsQueue.url)
-                    .withMaxNumRecords(rows))
+            .apply("Read from SQS", SqsIO.read().withQueueUrl(sqsQueue.url).withMaxNumRecords(rows))
             .apply("Extract body", MapElements.into(strings()).via(SqsMessage::getBody));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo((long) rows);
