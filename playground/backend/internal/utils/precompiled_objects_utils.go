@@ -98,12 +98,12 @@ func FilterCatalog(catalog []*pb.Categories, sdk pb.Sdk, categoryName string) []
 }
 
 // GetDefaultPrecompiledObject returns the default precompiled objects from cache for sdk
-func GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, cacheService cache.Cache) (*pb.PrecompiledObject, error) {
+func GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, cacheService cache.Cache, bucketName string) (*pb.PrecompiledObject, error) {
 	precompiledObject, err := cacheService.GetDefaultPrecompiledObject(ctx, sdk)
 	if err != nil {
 		logger.Errorf("GetDefaultPrecompiledObject(): error during getting default precompiled object %s", err.Error())
 		bucket := cloud_bucket.New()
-		defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx)
+		defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx, bucketName)
 		if err != nil {
 			return nil, err
 		}
@@ -123,11 +123,11 @@ func GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, cacheService c
 
 // GetCatalogFromCacheOrStorage returns the precompiled objects catalog from cache
 // - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
-func GetCatalogFromCacheOrStorage(ctx context.Context, cacheService cache.Cache) ([]*pb.Categories, error) {
+func GetCatalogFromCacheOrStorage(ctx context.Context, cacheService cache.Cache, bucketName string) ([]*pb.Categories, error) {
 	catalog, err := cacheService.GetCatalog(ctx)
 	if err != nil {
 		logger.Errorf("GetCatalog(): cache error: %s", err.Error())
-		catalog, err = GetCatalogFromStorage(ctx)
+		catalog, err = GetCatalogFromStorage(ctx, bucketName)
 		if err != nil {
 			return nil, err
 		}

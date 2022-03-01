@@ -260,7 +260,7 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 // - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
 // - If SDK or category is specified in the request, gets the catalog from the cache and filters it by SDK and category
 func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
-	catalog, err := utils.GetCatalogFromCacheOrStorage(ctx, controller.cacheService)
+	catalog, err := utils.GetCatalogFromCacheOrStorage(ctx, controller.cacheService, controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjects(): error during getting catalog: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
@@ -273,7 +273,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 // GetPrecompiledObjectCode returns the code of the specific example
 func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
 	cd := cloud_bucket.New()
-	codeString, err := cd.GetPrecompiledObjectCode(ctx, info.GetCloudPath())
+	codeString, err := cd.GetPrecompiledObjectCode(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectCode(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's code", "Error with cloud connection")
@@ -325,7 +325,7 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		logger.Errorf("GetDefaultPrecompiledObject(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
-	precompiledObject, err := utils.GetDefaultPrecompiledObject(ctx, info.Sdk, controller.cacheService)
+	precompiledObject, err := utils.GetDefaultPrecompiledObject(ctx, info.Sdk, controller.cacheService, controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetDefaultPrecompiledObject(): error during getting catalog: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")

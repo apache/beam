@@ -124,7 +124,7 @@ func New() *CloudStorage {
 }
 
 // GetPrecompiledObjectCode returns the source code of the example
-func (cd *CloudStorage) GetPrecompiledObjectCode(ctx context.Context, precompiledObjectPath string) (string, error) {
+func (cd *CloudStorage) GetPrecompiledObjectCode(ctx context.Context, precompiledObjectPath, bucketName string) (string, error) {
 	extension, err := getFileExtensionBySdk(precompiledObjectPath)
 	if err != nil {
 		return "", err
@@ -222,13 +222,13 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 }
 
 // GetDefaultPrecompiledObjects returns the default precompiled objects
-func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[pb.Sdk]*pb.PrecompiledObject, error) {
+func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context, bucketName string) (map[pb.Sdk]*pb.PrecompiledObject, error) {
 	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %v", err)
 	}
 	defer client.Close()
-	bucket := client.Bucket(BucketName)
+	bucket := client.Bucket(bucketName)
 
 	paths := make(map[pb.Sdk]string, 0)
 	for _, sdkName := range pb.Sdk_name {

@@ -130,7 +130,7 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache, bucketN
 	}
 
 	bucket := cloud_bucket.New()
-	defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx)
+	defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx, bucketName)
 	if err != nil {
 		return err
 	}

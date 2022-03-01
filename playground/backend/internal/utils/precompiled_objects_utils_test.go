@@ -262,7 +262,7 @@ func TestGetDefaultPrecompiledObject(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetDefaultPrecompiledObject(tt.args.ctx, tt.args.sdk, tt.args.cacheService)
+			got, err := GetDefaultPrecompiledObject(tt.args.ctx, tt.args.sdk, tt.args.cacheService, "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetDefaultPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
 				return
