@@ -28,7 +28,7 @@ class BaseModelSpec:
 
 
 @dataclass
-class PyTorchModel(BaseModelSpec):
+class PyTorchModelSpec(BaseModelSpec):
   device: str
 
   def __post_init__(self):
@@ -36,7 +36,7 @@ class PyTorchModel(BaseModelSpec):
 
 
 @dataclass
-class SklearnModel(BaseModelSpec):
+class SklearnModelSpec(BaseModelSpec):
   serialization_type: str
 
   def __post_init__(self):

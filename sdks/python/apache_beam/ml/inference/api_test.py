@@ -16,34 +16,34 @@
 #
 
 import unittest
-from apache_beam.ml.inference.api import PyTorchModel
-from apache_beam.ml.inference.api import SklearnModel
+from apache_beam.ml.inference.api import PyTorchModelSpec
+from apache_beam.ml.inference.api import SklearnModelSpec
 import pytest  # pylint: disable=unused-import
 
 
 class RunInferenceTest(unittest.TestCase):
   def test_valid_pytorch_model(self):
-    model = PyTorchModel(model_url='pytorch_model.pth', device='gpu')
+    model = PyTorchModelSpec(model_url='pytorch_model.pth', device='gpu')
     assert model.model_url == 'pytorch_model.pth'
     assert model.device == 'GPU'
 
   def test_invalid_pytorch_model(self):
     with pytest.raises(TypeError, match='device'):
-      PyTorchModel(model_url='pytorch_model.pth')
+      PyTorchModelSpec(model_url='pytorch_model.pth')
     with pytest.raises(TypeError, match='model_url'):
-      PyTorchModel(device='cpu')
+      PyTorchModelSpec(device='cpu')
 
   def test_valid_sklearn_model(self):
-    model = SklearnModel(
+    model = SklearnModelSpec(
         model_url='sklearn_model.pickle', serialization_type='Pickle')
     assert model.model_url == 'sklearn_model.pickle'
     assert model.serialization_type == 'PICKLE'
 
   def test_invalid_sklearn_model(self):
     with pytest.raises(TypeError, match='serialization_type'):
-      SklearnModel(model_url='sklearn_model.pickle')
+      SklearnModelSpec(model_url='sklearn_model.pickle')
     with pytest.raises(TypeError, match='model_url'):
-      SklearnModel(serialization_type='Pickle')
+      SklearnModelSpec(serialization_type='Pickle')
 
 
 if __name__ == '__main__':
