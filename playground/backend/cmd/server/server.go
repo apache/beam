@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
 	"beam.apache.org/playground/backend/internal/cache/redis"
+	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
@@ -126,6 +127,18 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache, bucketN
 	}
 	if err = cacheService.SetCatalog(ctx, catalog); err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+	}
+
+	bucket := cloud_bucket.New()
+	defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx, bucketName)
+	if err != nil {
+		return err
+	}
+	for sdk, precompiledObject := range defaultPrecompiledObjects {
+		if err := cacheService.SetDefaultPrecompiledObject(ctx, sdk, precompiledObject); err != nil {
+			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+			return err
+		}
 	}
 	return nil
 }
