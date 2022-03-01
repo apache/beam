@@ -4,12 +4,18 @@ from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import TypeVar
+import logging
+import resource
+import sys
+import time
 
 import apache_beam as beam
 from apache_beam.utils import shared
-import resource
-import sys
-import logging
+
+_MILLISECOND_TO_MICROSECOND = 1000
+_MICROSECOND_TO_NANOSECOND = 1000
+_SECOND_TO_MICROSECOND = 1000000
+
 
 @dataclass
 class PredictionResult:
@@ -29,17 +35,19 @@ def _unbatch(maybe_keyed_batches):
 ExampleType = TypeVar('ExampleType')
 InferenceType = TypeVar('InferenceType')
 
-class ModelSpec(Generic[ExampleType, InferenceType]):
+# TODO: make model generic, right now, that causes a pickle error
+class ModelSpec:
   """Defines a model that can load into memory and run inferences."""
 
   def load_model(self):
     """Loads an initializes a model for processing."""
     raise NotImplementedError(type(self))
 
-  def run_inference(self, batch: ExampleType) -> InferenceType:
+  #TODO add typing
+  def run_inference(self, batch, model):
     raise NotImplementedError(type(self))
 
-  def clean_up(self):
+  def cleanup(self):
     pass
 
 class MetricsCollector:
@@ -88,12 +96,14 @@ class MetricsCollector:
     self._inference_request_batch_byte_size.update(examples_byte_size)
 
 class RunInferenceDoFn(beam.DoFn):
-  def __init__(self, model_spec: ModelSpec[ExampleType, InferenceType]):
+  def __init__(self, model_spec):
     # TODO: Also handle models coming from side inputs.
     self._model_spec = model_spec
     self._shared_model_handle = shared.Shared()
     # TODO: Correct namespace
     self._metrics_collector = MetricsCollector('default_namespace')
+    self._clock = _ClockFactory.make_clock()
+    self._model = None
 
   def _load_model(self):
     def load():
@@ -114,32 +124,31 @@ class RunInferenceDoFn(beam.DoFn):
 
   def setup(self):
     super().setup()
-    self._load_model(self._shared)
+    # TODO validate fail on error loading model
+    self._model = self._load_model()
 
   def process(self, batch):
     has_keys = isinstance(batch[0], tuple)
     start_time = self._clock.get_current_time_in_microseconds()
     if has_keys:
-      examples = batch
-    else:
       examples = [example for _, example in batch]
       keys = [key for key, _ in batch]
-    inferences = self._model_spec.run_inference(examples)
+    else:
+      examples = batch
+      keys = None
+    inferences = self._model_spec.run_inference(examples, self._model)
     inference_latency = self._clock.get_current_time_in_microseconds() - start_time
     num_bytes = sys.getsizeof(batch)
     num_elements = len(batch)
-    self._metrics.update(num_elements, sys.getsizeof(batch), inference_latency)
-    if has_keys:
-      yield [(k, PredictionResult(e, r)) for k, e, r in zip(keys, examples, inferences)]
-    else:
-      yield [PredictionResult(e, r) for e, r in zip(examples, inferences)]
+    self._metrics_collector.update(num_elements, sys.getsizeof(batch), inference_latency)
+    yield keys, [PredictionResult(e, r) for e, r in zip(examples, inferences)]
 
   def teardown(self):
     self._model_spec.cleanup()
 
 
 class RunInferenceImpl(beam.PTransform):
-  def __init__(self, model_spec: ModelSpec[ExampleType, InferenceType]):
+  def __init__(self, model_spec):
     self._model_spec = model_spec
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
@@ -148,7 +157,7 @@ class RunInferenceImpl(beam.PTransform):
         # TODO: Hook into the batching DoFn APIs.
         | beam.BatchElements()
         | beam.ParDo(RunInferenceDoFn(self._model_spec))
-        #TODO If there is a beam.BatchElements, why no beam.UnBatchElements?
+        # TODO If there is a beam.BatchElements, why no beam.UnBatchElements?
         | beam.FlatMap(_unbatch))
 
 
@@ -167,3 +176,35 @@ def _get_current_process_memory_in_bytes():
     logging.warning('Resource module is not available for current platform, '
                     'memory usage cannot be fetched.')
   return 0
+
+
+def _is_windows() -> bool:
+  return platform.system() == 'Windows' or os.name == 'nt'
+
+
+def _is_cygwin() -> bool:
+  return platform.system().startswith('CYGWIN_NT')
+
+
+class _Clock(object):
+
+  def get_current_time_in_microseconds(self) -> int:
+    return int(time.time() * _SECOND_TO_MICROSECOND)
+
+
+class _FineGrainedClock(_Clock):
+
+  def get_current_time_in_microseconds(self) -> int:
+    return int(
+        time.clock_gettime_ns(time.CLOCK_REALTIME) /  # pytype: disable=module-attr
+        _MICROSECOND_TO_NANOSECOND)
+
+
+class _ClockFactory(object):
+
+  @staticmethod
+  def make_clock() -> _Clock:
+    if (hasattr(time, 'clock_gettime_ns') and not _is_windows() and
+        not _is_cygwin()):
+      return _FineGrainedClock()
+    return _Clock()
