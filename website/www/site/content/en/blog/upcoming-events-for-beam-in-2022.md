@@ -60,7 +60,7 @@ This year, the training will consist of learning modules such as:
 *   Use Cases
 *   Beam ML Use Cases
 
-Be sure to check out our **[website](https://beamcollege.dev/)** as we continue updating the schedule and follow our **[Twitter](https://twitter.com/beam_college?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor)**and **[LinkedIn](https://www.linkedin.com/showcase/beam-college/)** pages to receive event updates!
+Be sure to check out our **[website](https://beamcollege.dev/)** as we continue updating the schedule and follow our **[Twitter](https://twitter.com/beam_college?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor)** and **[LinkedIn](https://www.linkedin.com/showcase/beam-college/)** pages to receive event updates!
 
 ### Ways to Help & Participate
 
