@@ -44,7 +44,10 @@ jobs:
         run: "cd sdks/go/pkg && rm -rf .coverage || :"
       - name: Run coverage
         run: cd sdks/go/pkg && go test -coverprofile=coverage.txt -covermode=atomic ./...
-      - name: Upload to codecov
-        run: bash <(curl -s https://codecov.io/bash)
+      - uses: codecov/codecov-action@v2
+        with:
+          flags: go 
+          files: ./sdks/go/pkg/coverage.txt
+          name: go-unittests
       - name: Run vet
         run: cd sdks/go/pkg/beam && go vet --copylocks=false --unsafeptr=false ./...
