@@ -13,27 +13,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build linux
-// +build linux
+package gcsx_test
 
-package syscallx
+import (
+	"context"
+	"time"
 
-import "syscall"
+	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
+)
 
-// PhysicalMemorySize returns the total physical memory size.
-func PhysicalMemorySize() (uint64, error) {
-	var info syscall.Sysinfo_t
-	if err := syscall.Sysinfo(&info); err != nil {
-		return 0, err
+func Example() {
+	ctx := context.Background()
+	c, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
+	if err != nil {
+		// do something
 	}
-	return info.Totalram, nil
-}
 
-// FreeDiskSpace returns the free disk space for a given path.
-func FreeDiskSpace(path string) (uint64, error) {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return 0, err
+	buckets, object, err := gcsx.ParseObject("gs://some-bucket/some-object")
+	if err != nil {
+		// do something
 	}
-	return stat.Bavail * uint64(stat.Bsize), nil
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	bytes, err := gcsx.ReadObject(ctx, c, buckets, object)
+	if err != nil {
+		// do something
+	}
+
+	_ = bytes
 }
