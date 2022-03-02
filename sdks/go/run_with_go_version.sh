@@ -39,11 +39,11 @@ set -e
 # The list of downloadable versions are at https://go.dev/dl/ 
 GOVERS=go1.16.12
 
-#if ! command -v go &> /dev/null
-#then
-#    echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
-#    exit 1
-#fi
+if ! command -v go &> /dev/null
+then
+    echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
+    exit 1
+fi
 
 while [[ $# -gt 0 ]]
 do
