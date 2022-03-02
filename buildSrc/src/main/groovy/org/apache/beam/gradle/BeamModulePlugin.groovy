@@ -1749,10 +1749,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
             // versions for only handful libraries when building the project (BEAM-9542).
             def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
+            librariesWithVersion = librariesWithVersion.findAll { !it.contains("checkerframework") }
             force librariesWithVersion
 
-            force "org.checkerframework:checker:3.21.3"
-            force "org.checkerframework:checker-qual:3.21.3"
             // hamcrest-core and hamcrest-library have been superseded by hamcrest.
             // We force their versions here to ensure that any resolved version provides
             // the same classes as hamcrest.

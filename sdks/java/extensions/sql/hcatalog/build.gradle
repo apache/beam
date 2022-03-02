@@ -49,6 +49,9 @@ dependencies {
   implementation "com.alibaba:fastjson:1.2.69"
   implementation library.java.vendored_guava_26_0_jre
 
+  checkerFramework("org.checkerframework:checker:3.21.3")
+  implementation "org.checkerframework:checker-qual:3.21.3"
+
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
   testImplementation "io.netty:netty-all:$netty_version"
