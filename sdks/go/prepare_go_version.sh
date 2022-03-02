@@ -33,6 +33,7 @@ set -e
 GOVERS="invalid"
 echo "USER :"
 echo $(whoami)
+echo $(go)
 if ! command -v go &> /dev/null
 then
     echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
