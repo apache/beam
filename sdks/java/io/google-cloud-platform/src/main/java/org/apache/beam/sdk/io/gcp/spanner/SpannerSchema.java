@@ -199,6 +199,13 @@ abstract class SpannerSchema implements Serializable {
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         case POSTGRESQL:
+          if (spannerType.endsWith("[]")) {
+            // Substring "xxx[]"
+            // Must check array type first
+            String spannerArrayType = spannerType.substring(0, spannerType.length() - 2);
+            Type itemType = parseSpannerType(spannerArrayType, dialect);
+            return Type.array(itemType);
+          }
           if ("BOOLEAN".equals(spannerType)) {
             return Type.bool();
           }
@@ -220,14 +227,8 @@ abstract class SpannerSchema implements Serializable {
           if ("DATE".equals(spannerType)) {
             return Type.date();
           }
-          if ("NUMERIC".equals(spannerType)) {
+          if (spannerType.startsWith("NUMERIC")) {
             return Type.pgNumeric();
-          }
-          if (spannerType.startsWith("ARRAY")) {
-            // Substring "ARRAY<xxx>"
-            String spannerArrayType = spannerType.substring(6, spannerType.length() - 1);
-            Type itemType = parseSpannerType(spannerArrayType, dialect);
-            return Type.array(itemType);
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         default:

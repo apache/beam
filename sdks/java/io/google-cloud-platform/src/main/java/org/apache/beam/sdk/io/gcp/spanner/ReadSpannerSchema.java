@@ -117,7 +117,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
                 "SELECT"
                     + "    c.table_name"
                     + "  , c.column_name"
-                    + "  , c.data_type"
+                    + "  , c.spanner_type"
                     + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
                     + "  FROM ("
                     + "    SELECT c.table_name, c.column_name, c.data_type, c.ordinal_position"
