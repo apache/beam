@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -43,7 +42,7 @@ type ParDo struct {
 	emitters []ReusableEmitter
 	ctx      context.Context
 	inv      *invoker
-	bf       bundleFinalizer
+	bf       *bundleFinalizer
 
 	reader StateReader
 	cache  *cacheElm
@@ -78,10 +77,6 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
-	n.bf = bundleFinalizer{
-		callbacks:         []bundleFinalizationCallback{},
-		lastValidCallback: time.Now(),
-	}
 
 	n.states = metrics.NewPTransformState(n.PID)
 
@@ -226,46 +221,6 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	return nil
 }
 
-// FinalizeBundle runs any non-expired user callbacks registered via the
-// BundleFinalizer during function execution.
-func (n *ParDo) FinalizeBundle(ctx context.Context) error {
-	failedIndices := []int{}
-	for idx, bfc := range n.bf.callbacks {
-		if time.Now().Before(bfc.validUntil) {
-			if err := bfc.callback(); err != nil {
-				failedIndices = append(failedIndices, idx)
-			}
-		}
-	}
-
-	newFinalizer := bundleFinalizer{
-		callbacks:         []bundleFinalizationCallback{},
-		lastValidCallback: time.Now(),
-	}
-
-	for _, idx := range failedIndices {
-		newFinalizer.callbacks = append(newFinalizer.callbacks, n.bf.callbacks[idx])
-		if newFinalizer.lastValidCallback.Before(n.bf.callbacks[idx].validUntil) {
-			newFinalizer.lastValidCallback = n.bf.callbacks[idx].validUntil
-		}
-	}
-	n.bf = newFinalizer
-
-	if len(failedIndices) > 0 {
-		return errors.Errorf("Pardo %v failed %v callbacks", n.Fn.Fn.String(), len(failedIndices))
-	}
-	return nil
-}
-
-// GetBundleExpirationTime gets the earliest time when it is safe to
-// expire all of the bundle's finalization callbacks. If it returns a
-// time earlier than the current time, that indicates that we are
-// completely done with the bundle. If no callbacks are registered for the
-// bundle, returns the current time.
-func (n *ParDo) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return n.bf.lastValidCallback
-}
-
 // Down performs best-effort teardown of DoFn resources. (May not run.)
 func (n *ParDo) Down(ctx context.Context) error {
 	if n.status == Down {
@@ -341,7 +296,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = Invoke(ctx, pn, ws, ts, fn, opt, &n.bf, n.cache.extra...)
+	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +314,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, &n.bf, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}

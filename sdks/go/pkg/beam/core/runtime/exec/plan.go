@@ -30,11 +30,11 @@ import (
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id     string // id of the bundle descriptor for this plan
-	roots  []Root
-	units  []Unit
-	pcols  []*PCollection
-	pardos []*ParDo
+	id    string // id of the bundle descriptor for this plan
+	roots []Root
+	units []Unit
+	pcols []*PCollection
+	bf    bundleFinalizer
 
 	status Status
 
@@ -46,8 +46,11 @@ type Plan struct {
 func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
 	var pcols []*PCollection
-	var pardos []*ParDo
 	var source *DataSource
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
 
 	for _, u := range units {
 		if u == nil {
@@ -63,7 +66,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 			pcols = append(pcols, p)
 		}
 		if p, ok := u.(*ParDo); ok {
-			pardos = append(pardos, p)
+			p.bf = &bf
 		}
 	}
 	if len(roots) == 0 {
@@ -76,7 +79,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		roots:  roots,
 		units:  units,
 		pcols:  pcols,
-		pardos: pardos,
+		bf:     bf,
 		source: source,
 	}, nil
 }
@@ -142,32 +145,35 @@ func (p *Plan) Finalize(ctx context.Context, id string) error {
 	if p.status != Up {
 		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
 	}
-	var err error
-	p.status = Active
-	for _, root := range p.pardos {
-		if rootErr := callNoPanic(ctx, root.FinalizeBundle); rootErr != nil {
-			if err == nil {
-				err = errors.Wrapf(rootErr, "while executing FinalizeBundle for %v", p)
-			} else {
-				err = errors.Wrap(rootErr, err.Error())
+	failedIndices := []int{}
+	for idx, bfc := range p.bf.callbacks {
+		if time.Now().Before(bfc.validUntil) {
+			if err := bfc.callback(); err != nil {
+				failedIndices = append(failedIndices, idx)
 			}
 		}
 	}
-	p.status = Up
 
-	return err
-}
+	newFinalizer := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
 
-func (p *Plan) GetExpirationTime(ctx context.Context, id string) time.Time {
-	exp := time.Now()
-	for _, root := range p.pardos {
-		rootExp := root.GetBundleExpirationTime(ctx)
-		if exp.Before(rootExp) {
-			exp = rootExp
+	for _, idx := range failedIndices {
+		newFinalizer.callbacks = append(newFinalizer.callbacks, p.bf.callbacks[idx])
+		if newFinalizer.lastValidCallback.Before(p.bf.callbacks[idx].validUntil) {
+			newFinalizer.lastValidCallback = p.bf.callbacks[idx].validUntil
 		}
 	}
 
-	return exp
+	if len(failedIndices) > 0 {
+		return errors.Errorf("Plan %v failed %v callbacks", p.ID(), len(failedIndices))
+	}
+	return nil
+}
+
+func (p *Plan) GetExpirationTime(ctx context.Context, id string) time.Time {
+	return p.bf.lastValidCallback
 }
 
 // Down takes the plan and associated units down. Does not panic.
