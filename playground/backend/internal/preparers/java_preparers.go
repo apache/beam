@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -35,6 +36,14 @@ const (
 	pathSeparatorPattern              = os.PathSeparator
 	tmpFileSuffix                     = "tmp"
 	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
+	pipelineNamePattern               = `Pipeline\s([A-z|0-9_]*)\s=\sPipeline\.create`
+	graphSavePattern                  = "String dotString = org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer.toDotString(%s);\n" +
+		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"%s\")) {\n      " +
+		"		out.println(dotString);\n    " +
+		"	} catch (java.io.FileNotFoundException e) {\n" +
+		"      e.printStackTrace();\n    " +
+		"\n}\n"
+	graphRunPattern = "(.*%s.run.*;)"
 )
 
 //JavaPreparersBuilder facet of PreparersBuilder
@@ -87,12 +96,48 @@ func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder
 	return builder
 }
 
+//WithGraphHandler adds code to save the graph
+func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
+	graphCodeAdder := Preparer{
+		Prepare: addCodeToSaveGraph,
+		Args:    []interface{}{builder.filePath},
+	}
+	builder.AddPreparer(graphCodeAdder)
+	return builder
+}
+
+func addCodeToSaveGraph(args ...interface{}) error {
+	filePath := args[0].(string)
+	pipelineObjectName, _ := findPipelineObjectName(filePath)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, utils.GraphFileName)
+
+	if pipelineObjectName != utils.EmptyLine {
+		reg := regexp.MustCompile(fmt.Sprintf(graphRunPattern, pipelineObjectName))
+		code, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			logger.Error("Can't read file")
+			return err
+		}
+		result := reg.ReplaceAllString(string(code), fmt.Sprintf(`%s$1`, graphSaveCode))
+		if err != nil {
+			logger.Error("Can't add graph extraction code")
+			return err
+		}
+		if err = ioutil.WriteFile(filePath, []byte(result), 0666); err != nil {
+			logger.Error("Can't rewrite file %s", filePath)
+			return err
+		}
+	}
+	return nil
+}
+
 // GetJavaPreparers returns preparation methods that should be applied to Java code
 func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if !isUnitTest && !isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
-			WithPackageChanger()
+			WithPackageChanger().
+			WithGraphHandler()
 	}
 	if isUnitTest {
 		builder.JavaPreparers().
@@ -102,8 +147,25 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
-			WithPackageRemover()
+			WithPackageRemover().
+			WithGraphHandler()
 	}
+}
+
+// findPipelineObjectName finds name of pipeline in JAVA code when pipeline is created
+func findPipelineObjectName(filepath string) (string, error) {
+	reg := regexp.MustCompile(pipelineNamePattern)
+	b, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return "", err
+	}
+	matches := reg.FindStringSubmatch(string(b))
+	if len(matches) > 0 {
+		return matches[1], nil
+	} else {
+		return "", nil
+	}
+
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern

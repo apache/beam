@@ -17,13 +17,14 @@
  */
 
 import 'package:grpc/grpc_web.dart';
-import 'package:playground/config.g.dart';
 import 'package:playground/api/iis_workaround_channel.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
+import 'package:playground/config.g.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
+import 'package:playground/modules/examples/repositories/models/get_default_example_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
@@ -51,6 +52,19 @@ class GrpcExampleClient implements ExampleClient {
               _getListOfExamplesRequestToGrpcRequest(request))
           .then((response) => GetListOfExampleResponse(
               _toClientCategories(response.sdkCategories))),
+    );
+  }
+
+  @override
+  Future<GetDefaultExampleResponse> getDefaultExample(
+    GetExampleRequestWrapper request,
+  ) {
+    return _runSafely(
+      () => _defaultClient
+          .getDefaultPrecompiledObject(
+              _getDefaultExampleRequestToGrpcRequest(request))
+          .then((response) => GetDefaultExampleResponse(
+              _toExampleModel(response.precompiledObject))),
     );
   }
 
@@ -124,6 +138,14 @@ class GrpcExampleClient implements ExampleClient {
       ..sdk = request.sdk == null
           ? grpc.Sdk.SDK_UNSPECIFIED
           : _getGrpcSdk(request.sdk!);
+  }
+
+  grpc.GetDefaultPrecompiledObjectRequest
+      _getDefaultExampleRequestToGrpcRequest(
+    GetExampleRequestWrapper request,
+  ) {
+    return grpc.GetDefaultPrecompiledObjectRequest()
+      ..sdk = _getGrpcSdk(request.sdk);
   }
 
   grpc.GetPrecompiledObjectCodeRequest _getExampleCodeRequestToGrpcRequest(
@@ -223,7 +245,10 @@ class GrpcExampleClient implements ExampleClient {
       description: example.description,
       type: _exampleTypeFromString(example.type),
       path: example.cloudPath,
+      contextLine: example.contextLine,
       pipelineOptions: example.pipelineOptions,
+      isMultiFile: example.multifile,
+      link: example.link,
     );
   }
 }

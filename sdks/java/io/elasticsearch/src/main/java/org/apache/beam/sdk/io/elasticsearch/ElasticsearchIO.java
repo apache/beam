@@ -2359,9 +2359,10 @@ public class ElasticsearchIO {
 
         @Override
         public void output(
-            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow ignored) {
-          // Note: window is intentionally unused, but required as a param to fit the interface
-          context.outputWithTimestamp(tag, document, timestamp);
+            TupleTag<Document> tag, Document document, Instant ignored1, BoundedWindow ignored2) {
+          // Note: window and timestamp are intentionally unused, but required as params to fit the
+          // interface
+          context.output(tag, document);
         }
       }
 
