@@ -33,10 +33,10 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.io.aws2.sqs.EmbeddedSqsServer.TestCaseEnv;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,6 +56,8 @@ public class SqsUnboundedReaderTest {
   @Mock(answer = RETURNS_DEEP_STUBS)
   public SqsUnboundedSource mockSource;
 
+  @Mock public AwsOptions options;
+
   private void setupMessages(String... messages) {
     final SqsClient client = testCase.getClient();
     final String queueUrl = testCase.getQueueUrl();
@@ -70,7 +72,7 @@ public class SqsUnboundedReaderTest {
   @Test
   public void testReadOneMessage() throws IOException {
     setupMessages(DATA);
-    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null);
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options);
 
     // Read one message.
     assertTrue(reader.start());
@@ -86,7 +88,7 @@ public class SqsUnboundedReaderTest {
   @Test
   public void testAckDeletedMessage() throws IOException {
     setupMessages(DATA);
-    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null);
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options);
 
     // Read one message
     assertTrue(reader.start());
@@ -107,13 +109,12 @@ public class SqsUnboundedReaderTest {
   }
 
   @Test
-  @Ignore("Behavior of SQSRestServer is broken: https://issues.apache.org/jira/browse/BEAM-13738")
   public void testExtendDeletedMessage() throws IOException {
     setupMessages(DATA);
     Clock clock = mock(Clock.class);
     when(clock.millis()).thenReturn(currentTimeMillis());
 
-    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, clock);
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options, clock);
 
     // Read one message
     assertTrue(reader.start());
@@ -137,7 +138,7 @@ public class SqsUnboundedReaderTest {
   @Test
   public void testRereadExpiredMessage() throws IOException {
     setupMessages(DATA);
-    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null);
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options);
 
     // Read one message
     assertTrue(reader.start());
@@ -167,7 +168,7 @@ public class SqsUnboundedReaderTest {
   @Test
   public void testRestoreReaderFromCheckpoint() throws IOException {
     setupMessages("data_0", "data_1");
-    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null);
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options);
     // Consume two messages, only read one.
     assertTrue(reader.start());
     assertEquals("data_0", reader.getCurrent().getBody());
@@ -188,7 +189,7 @@ public class SqsUnboundedReaderTest {
     assertEquals(1, checkpoint.notYetReadReceipts.size());
 
     // Re-read second message.
-    reader = new SqsUnboundedReader(mockSource, checkpoint);
+    reader = new SqsUnboundedReader(mockSource, checkpoint, options);
     assertTrue(reader.start());
     assertEquals("data_1", reader.getCurrent().getBody());
 
@@ -206,7 +207,7 @@ public class SqsUnboundedReaderTest {
     List<String> receivedMessages = new ArrayList<>();
     setupMessages(range(0, 100).mapToObj(Integer::toString).toArray(String[]::new));
 
-    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null);
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options);
 
     assertTrue(reader.start());
     do {
@@ -226,7 +227,7 @@ public class SqsUnboundedReaderTest {
   @Test
   public void testCloseWithActiveCheckpoints() throws Exception {
     setupMessages(DATA);
-    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null);
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options);
     reader.start();
     UnboundedSource.CheckpointMark checkpoint = reader.getCheckpointMark();
     reader.close();

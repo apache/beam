@@ -22,7 +22,9 @@
 //
 // Running this example requires a Kafka cluster accessible to the runner, and
 // a cross-language expansion service that can expand Kafka read and write
-// transforms.
+// transforms. An address to a persistent expansion service can be provided as
+// a flag, or if none is specified then the SDK will attempt to automatically
+// start an appropriate expansion service.
 //
 // Setting Up a Kafka Cluster
 //
@@ -34,22 +36,24 @@
 //
 // Running an Expansion Server
 //
-// These instructions will cover running the Java IO Expansion Service, and
-// therefore requires a JDK installation in a version supported by Beam.
-// Depending on whether you are running this from a numbered Beam release, or a
-// development environment, there are two sources you may use for the Expansion
-// service.
+// If the automatic expansion service functionality is not available for your
+// environment, or if you want improved performance, you will need to start a
+// persistent expansion service. These instructions will cover running the Java
+// IO Expansion Service, and therefore requires a JDK installation in a version
+// supported by Beam. Depending on whether you are running this from a numbered
+// Beam release, or a development environment, there are two sources you may
+// use for the Expansion service.
 //
 // Numbered release: The expansion service jar is vendored as module
-//   org.apache.beam:beam-sdks-java-io-expansion-service in Maven Repository.
-//   This jar can be executed directly with the following command:
+// org.apache.beam:beam-sdks-java-io-expansion-service in Maven Repository.
+// This jar can be executed directly with the following command:
 //   `java -jar <jar_name> <port_number>`
 // Development env: This requires that the JAVA_HOME environment variable
-//   points to your JDK installation. From the root `beam/` directory of the
-//   Apache Beam repository, the jar can be built (or built and run) with the
-//   following commands:
-//     Build: ./gradlew :sdks:java:io:expansion-service:build
-//     Build and Run: ./gradlew :sdks:java:io:expansion-service:runExpansionService -PconstructionService.port=<port_num>
+// points to your JDK installation. From the root `beam/` directory of the
+// Apache Beam repository, the jar can be built (or built and run) with the
+// following commands:
+//   Build: ./gradlew :sdks:java:io:expansion-service:build
+//   Build and Run: ./gradlew :sdks:java:io:expansion-service:runExpansionService -PconstructionService.port=<port_num>
 //
 // Running the Example on GCP
 //
@@ -64,7 +68,7 @@
 //   export JOB_NAME="kafka-taxi-`date +%Y%m%d-%H%M%S`"
 //   export BOOTSTRAP_SERVERS="123.45.67.89:1234"
 //   export EXPANSION_ADDR="localhost:1234"
-//   go run ./sdks/go/examples/kafka/types/types.go \
+//   go run ./sdks/go/examples/kafka/taxi.go \
 //     --runner=DataflowRunner \
 //     --temp_location=$TEMP_LOCATION \
 //     --staging_location=$STAGING_LOCATION \
@@ -72,7 +76,6 @@
 //     --region=$REGION \
 //     --job_name="${JOB_NAME}" \
 //     --bootstrap_servers=$BOOTSTRAP_SERVER \
-//     --experiments=use_portable_job_submission,use_runner_v2 \
 //     --expansion_addr=$EXPANSION_ADDR
 //
 // Running the Example From a Git Clone
@@ -91,9 +94,11 @@
 // accessible locally.
 //
 // Additionally, you must provide the location of your custom container to the
-// pipeline with the --sdk_harness_container_image_override flag. For example:
+// pipeline with the --sdk_harness_container_image_override flag for Java, or
+// --environment_config flag for Go. For example:
 //
-//   --sdk_harness_container_image_override=".*java.*,${DOCKER_ROOT}/beam_java8_sdk:latest"
+//   --sdk_harness_container_image_override=".*java.*,${DOCKER_ROOT}/beam_java8_sdk:latest" \
+//   --environment_config=${DOCKER_ROOT}/beam_go_sdk:latest
 package main
 
 import (
@@ -111,9 +116,10 @@ import (
 )
 
 var (
-	expansionAddr    = flag.String("expansion_addr", "", "Address of Expansion Service")
+	expansionAddr = flag.String("expansion_addr", "",
+		"Address of Expansion Service. If not specified, attempts to automatically start an appropriate expansion service.")
 	bootstrapServers = flag.String("bootstrap_servers", "",
-		"URL of the bootstrap servers for the Kafka cluster. Should be accessible by the runner.")
+		"(Required) URL of the bootstrap servers for the Kafka cluster. Should be accessible by the runner.")
 	topic = flag.String("topic", "kafka_taxirides_realtime", "Kafka topic to write to and read from.")
 )
 
@@ -139,9 +145,6 @@ func main() {
 	beam.Init()
 
 	ctx := context.Background()
-	if *expansionAddr == "" {
-		log.Fatal(ctx, "No expansion address provided")
-	}
 
 	p := beam.NewPipeline()
 	s := p.Root()

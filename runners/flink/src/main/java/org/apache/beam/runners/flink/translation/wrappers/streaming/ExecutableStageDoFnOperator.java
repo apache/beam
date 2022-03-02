@@ -698,7 +698,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
-  public void close() throws Exception {
+  public void flushData() throws Exception {
     closed = true;
     // We might still holding back the watermark and Flink does not trigger the timer
     // callback for watermark advancement anymore.
@@ -717,11 +717,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         }
       }
     }
-    super.close();
+    super.flushData();
   }
 
   @Override
-  public void dispose() throws Exception {
+  public void cleanUp() throws Exception {
     // may be called multiple times when an exception is thrown
     if (stageContext != null) {
       // Remove the reference to stageContext and make stageContext available for garbage
@@ -730,7 +730,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           AutoCloseable closable = stageContext) {
         // DoFnOperator generates another "bundle" for the final watermark
         // https://issues.apache.org/jira/browse/BEAM-5816
-        super.dispose();
+        super.cleanUp();
       } finally {
         stageContext = null;
       }

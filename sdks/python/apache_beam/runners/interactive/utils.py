@@ -54,6 +54,47 @@ _INTERACTIVE_LOG_STYLE = """
 """
 
 
+class bidict(dict):
+  """ Forces a 1:1 bidirectional mapping between key-value pairs.
+
+  Deletion is automatically handled both ways.
+
+  Example setting usage:
+    bd = bidict()
+    bd['foo'] = 'bar'
+
+    In this case, bd will contain the following values:
+      bd = {'foo': 'bar'}
+      bd.inverse = {'bar': 'foo'}
+
+  Example deletion usage:
+    bd = bidict()
+    bd['foo'] = 'bar'
+    del bd['foo']
+
+    In this case, bd and bd.inverse will both be {}.
+  """
+  def __init__(self):
+    self.inverse = {}
+
+  def __setitem__(self, key, value):
+    super().__setitem__(key, value)
+    self.inverse.setdefault(value, key)
+
+  def __delitem__(self, key):
+    if self[key] in self.inverse:
+      del self.inverse[self[key]]
+    super().__delitem__(key)
+
+  def clear(self):
+    super().clear()
+    self.inverse.clear()
+
+  def pop(self, key, default_value=None):
+    value = super().pop(key, default_value)
+    inverse_value = self.inverse.pop(value, default_value)
+    return value, inverse_value
+
 def to_element_list(
     reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
     coder,  # type: Coder

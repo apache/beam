@@ -108,7 +108,6 @@ disable =
   locally-disabled,
   locally-enabled,
   logging-not-lazy,
-  misplaced-bare-raise,
   missing-docstring,
   multiple-statements,
   no-else-break,

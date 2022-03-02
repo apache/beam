@@ -589,7 +589,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     // close() will also call dispose(), but call again to verify no new bundle
     // is created afterwards
-    operator.dispose();
+    operator.cleanUp();
     verifyNoMoreInteractions(bundle);
   }
 

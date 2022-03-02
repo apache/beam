@@ -37,9 +37,11 @@ def get_mean_delay_at_top_airports(airline_df):
       'departure_airport': 'airport'
   }).airport.value_counts()
   total = arr + dep
-  # Note we keep all to include duplicates.
-  # This ensures the result is deterministic
-  top_airports = total.nlargest(10, keep='all')
+  # Note we keep all to include duplicates - this ensures the result is
+  # deterministic.
+  # NaNs can be included in the output in pandas 1.4.0 and above, so we
+  # explicitly drop them.
+  top_airports = total.nlargest(10, keep='all').dropna()
   at_top_airports = airline_df['arrival_airport'].isin(
       top_airports.index.values)
   return airline_df[at_top_airports].mean()
