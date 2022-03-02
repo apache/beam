@@ -1759,6 +1759,8 @@ class BeamModulePlugin implements Plugin<Project> {
             def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
             force librariesWithVersion
 
+            force "org.checkerframework:checker:3.21.3"
+            force "org.checkerframework:checker-qual:3.21.3"
             // hamcrest-core and hamcrest-library have been superseded by hamcrest.
             // We force their versions here to ensure that any resolved version provides
             // the same classes as hamcrest.
