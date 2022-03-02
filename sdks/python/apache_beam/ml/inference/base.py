@@ -1,30 +1,25 @@
-from dataclasses import dataclass
-
 from typing import Any
 from typing import Generic
 from typing import Iterable
+from typing import List
 from typing import TypeVar
 import logging
 import resource
+import platform
 import sys
 import time
 
+
 import apache_beam as beam
 from apache_beam.utils import shared
+from apache_beam.ml.inference.apis import PredictionResult
 
 _MILLISECOND_TO_MICROSECOND = 1000
 _MICROSECOND_TO_NANOSECOND = 1000
 _SECOND_TO_MICROSECOND = 1000000
 
 
-@dataclass
-class PredictionResult:
-  example: Any
-  inference: Any
-
-
-#  metadata: Any
-def _unbatch(maybe_keyed_batches):
+def _unbatch(maybe_keyed_batches: Any):
   keys, results = maybe_keyed_batches
   if keys:
     return zip(keys, results)
@@ -36,19 +31,20 @@ ExampleType = TypeVar('ExampleType')
 InferenceType = TypeVar('InferenceType')
 
 # TODO: make model generic, right now, that causes a pickle error
-class ModelSpec:
-  """Defines a model that can load into memory and run inferences."""
+class ModelLoader:
+  """Has the ability to load an ML model."""
 
   def load_model(self):
     """Loads an initializes a model for processing."""
     raise NotImplementedError(type(self))
 
-  #TODO add typing
-  def run_inference(self, batch, model):
+class InferenceRunner:
+  "Implements runnning inferences."
+
+  def run_inference(self, batch:Any, model: Any) -> List[PredictionResult]:
+    """Runs inferences on a batch of examples and returns a list of Predictions."""
     raise NotImplementedError(type(self))
 
-  def cleanup(self):
-    pass
 
 class MetricsCollector:
   """A collector for beam metrics."""
@@ -96,11 +92,12 @@ class MetricsCollector:
     self._inference_request_batch_byte_size.update(examples_byte_size)
 
 class RunInferenceDoFn(beam.DoFn):
-  def __init__(self, model_spec):
-    # TODO: Also handle models coming from side inputs.
-    self._model_spec = model_spec
+  def __init__(self, model_loader, inference_runner):
+    # TODO: Handle model updated coming from side inputs.
+    self._model_loader = model_loader
+    self._inference_runner = inference_runner
     self._shared_model_handle = shared.Shared()
-    # TODO: Correct namespace
+    # TODO: Compute a good metrics namespace
     self._metrics_collector = MetricsCollector('default_namespace')
     self._clock = _ClockFactory.make_clock()
     self._model = None
@@ -110,7 +107,7 @@ class RunInferenceDoFn(beam.DoFn):
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = self._clock.get_current_time_in_microseconds()
-      model = self._model_spec.load_model()
+      model = self._model_loader.load_model()
       end_time = self._clock.get_current_time_in_microseconds()
       memory_after = _get_current_process_memory_in_bytes()
       self._metrics_collector.load_model_latency_milli_secs_cache = (
@@ -124,7 +121,6 @@ class RunInferenceDoFn(beam.DoFn):
 
   def setup(self):
     super().setup()
-    # TODO validate fail on error loading model
     self._model = self._load_model()
 
   def process(self, batch):
@@ -136,28 +132,25 @@ class RunInferenceDoFn(beam.DoFn):
     else:
       examples = batch
       keys = None
-    inferences = self._model_spec.run_inference(examples, self._model)
+    inferences = self._inference_runner.run_inference(examples, self._model)
     inference_latency = self._clock.get_current_time_in_microseconds() - start_time
     num_bytes = sys.getsizeof(batch)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, sys.getsizeof(batch), inference_latency)
     yield keys, [PredictionResult(e, r) for e, r in zip(examples, inferences)]
 
-  def teardown(self):
-    self._model_spec.cleanup()
-
 
 class RunInferenceImpl(beam.PTransform):
-  def __init__(self, model_spec):
-    self._model_spec = model_spec
+  def __init__(self, model_loader, inference_runner):
+    self._model_loader = model_loader
+    self._inference_runner = inference_runner
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     return (
         pcoll
         # TODO: Hook into the batching DoFn APIs.
         | beam.BatchElements()
-        | beam.ParDo(RunInferenceDoFn(self._model_spec))
-        # TODO If there is a beam.BatchElements, why no beam.UnBatchElements?
+        | beam.ParDo(RunInferenceDoFn(self._model_loader, self._inference_runner))
         | beam.FlatMap(_unbatch))
 
 
