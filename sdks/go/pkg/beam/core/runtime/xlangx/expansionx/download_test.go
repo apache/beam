@@ -53,12 +53,12 @@ func TestGetAndSetRepositoryURL(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			j := newJarGetter()
-			err := j.SetRepositoryURL(test.newRepo)
+			err := j.setRepositoryURL(test.newRepo)
 			if err != nil {
 				t.Errorf("failed to set repository URL, got %v", err)
 			}
-			if got, want := j.GetRepositoryURL(), test.expRepo; got != want {
-				t.Errorf("GetRepositoryURL() got %v, want %v", got, want)
+			if got, want := j.getRepositoryURL(), test.expRepo; got != want {
+				t.Errorf("getRepositoryURL() got %v, want %v", got, want)
 			}
 		})
 	}
@@ -77,13 +77,13 @@ func TestGetAndSetRepositoryURL_bad(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			j := newJarGetter()
-			err := j.SetRepositoryURL(test.newRepo)
+			err := j.setRepositoryURL(test.newRepo)
 			if err == nil {
-				t.Errorf("SetRepositoryURL(%v) succeeded when it should have failed", test.newRepo)
+				t.Errorf("setRepositoryURL(%v) succeeded when it should have failed", test.newRepo)
 			}
 			// Check that the failed Set call did not change the URL.
-			if got, want := j.GetRepositoryURL(), string(apacheRepository); got != want {
-				t.Errorf("GetRepositoryURL() got %v, want %v", got, want)
+			if got, want := j.getRepositoryURL(), string(apacheRepository); got != want {
+				t.Errorf("getRepositoryURL() got %v, want %v", got, want)
 			}
 		})
 	}

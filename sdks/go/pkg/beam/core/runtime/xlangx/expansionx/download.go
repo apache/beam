@@ -53,7 +53,7 @@ func newJarGetter() *jarGetter {
 // GetRepositoryURL returns the current target URL for the defaultJarGetter,
 // indicating what repository will be connected to when getting a Beam JAR.
 func GetDefaultRepositoryURL() string {
-	return defaultJarGetter.GetRepositoryURL()
+	return defaultJarGetter.getRepositoryURL()
 }
 
 // SetRepositoryURL updates the target URL for the defaultJarGetter, changing
@@ -65,7 +65,7 @@ func GetDefaultRepositoryURL() string {
 // that of the default from that point on to ensure that the conversion of the
 // Gradle target to the JAR name is correct.
 func SetDefaultRepositoryURL(repoURL string) error {
-	return defaultJarGetter.SetRepositoryURL(repoURL)
+	return defaultJarGetter.setRepositoryURL(repoURL)
 }
 
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the
@@ -75,17 +75,11 @@ func GetBeamJar(gradleTarget, version string) (string, error) {
 	return defaultJarGetter.getJar(gradleTarget, version)
 }
 
-// GetRepositoryURL returns the current target URL for the jarGetter,
-// indicating what repository will be connected to when getting a Beam JAR.
-func (j *jarGetter) GetRepositoryURL() string {
+func (j *jarGetter) getRepositoryURL() string {
 	return string(j.repository)
 }
 
-// SetRepositoryURL updates the target URL for the jarGetter, changing
-// which Maven repository will be connected to when getting a Beam JAR. Also
-// does some minor validation that it has been passed a URL and returns an
-// error if not.
-func (j *jarGetter) SetRepositoryURL(repoURL string) error {
+func (j *jarGetter) setRepositoryURL(repoURL string) error {
 	if !strings.HasPrefix(repoURL, "http") {
 		return fmt.Errorf("repo URL %v does not have an http or https prefix", repoURL)
 	}
