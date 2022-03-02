@@ -35,6 +35,7 @@ import { CheckStatus } from "./shared/checks";
  * 5) Have already been processed
  * 6) Have notifications stopped
  * 7) The pr doesn't contain the go label (temporary). TODO(damccorm) - remove this when we're ready to roll this out to everyone.
+ * 8) The pr happens after the date we turn on the automation. TODO(damccorm) - remove this once this has been rolled out for a while.
  * unless we're supposed to remind the user after tests pass
  * (in which case that's all we need to do).
  */
@@ -43,6 +44,10 @@ function needsProcessed(pull: any, prState: typeof Pr): boolean {
     console.log(
       `Skipping PR ${pull.number} because it doesn't contain the go label`
     );
+    return false;
+  }
+  let firstPrToProcess = new Date(2022, 3, 2, 20);
+  if (new Date(pull.created_at) < firstPrToProcess) {
     return false;
   }
   if (prState.remindAfterTestsPass && prState.remindAfterTestsPass.length > 0) {
@@ -164,6 +169,9 @@ async function processPull(
   }
 
   if (!checkState.succeeded) {
+    if (!checkState.completed) {
+      return;
+    }
     return await notifyChecksFailed(pull, stateClient, prState);
   }
   prState.commentedAboutFailingChecks = false;
