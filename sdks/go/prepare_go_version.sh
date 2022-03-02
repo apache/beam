@@ -31,7 +31,7 @@ set -e
 # This variable is also used as the execution command downscript.
 # The list of downloadable versions are at https://go.dev/dl/ 
 GOVERS="invalid"
-
+echo pwd 
 #if ! command -v go &> /dev/null
 #then
 #    echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
