@@ -32,7 +32,6 @@ const (
 	indentationPattern      = `^(%s){0,1}\w+`
 	findPipelinePattern     = `^(\s*)(.+) = beam.Pipeline`
 	runPipelinePattern      = `^(\s*).*%s.run\(\)`
-	GraphFileName           = "graph.dot"
 )
 
 // GetPythonPreparers returns preparation methods that should be applied to Python code

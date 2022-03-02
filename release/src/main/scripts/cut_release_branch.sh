@@ -125,7 +125,7 @@ echo "==================Current working branch======================="
 echo ${RELEASE_BRANCH}
 echo "==============================================================="
 
-sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
+sed -i -e "s/'beam-master-.*'/'${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
 
 echo "===============Update release branch as following=============="
 git diff

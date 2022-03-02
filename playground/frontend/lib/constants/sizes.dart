@@ -52,6 +52,7 @@ const double kCursorSize = 1.0;
 // container size
 const double kContainerHeight = 40.0;
 
+const double kCaptionFontSize = 10.0;
 const double kCodeFontSize = 14.0;
 const double kLabelFontSize = 16.0;
 const double kHintFontSize = 16.0;

@@ -384,7 +384,7 @@ addTestJavaJarCreator("FlinkRunner", tasks.getByPath(":runners:flink:${latestFli
 addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:2:job-server:shadowJar"))
 
 def addTestFlinkUberJar(boolean saveMainSession) {
-  project.tasks.create(name: "testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {
+  project.tasks.register("testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {
     dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
     dependsOn ":runners:flink:${latestFlinkVersion}:job-server:miniCluster"
     dependsOn pythonContainerTask
