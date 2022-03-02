@@ -48,7 +48,7 @@
     and make sure that 'java' command is available.
 
   In this option, Python SDK will either download (for released Beam version) or
-  build (when running from a Beam Git clone) a expansion service jar and use
+  build (when running from a Beam Git clone) an expansion service jar and use
   that to expand transforms. Currently Kafka transforms use the
   'beam-sdks-java-io-expansion-service' jar for this purpose.
 

@@ -68,7 +68,7 @@ dependencies {
     }
 }
 
-task validatesRunnerBatch(type: Test) {
+def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     group = "Verification"
     def pipelineOptions = JsonOutput.toJson([
             "--runner=Twister2TestRunner",
@@ -101,7 +101,7 @@ task validatesRunnerBatch(type: Test) {
     maxHeapSize = '6g'
 }
 
-task validatesRunner {
+tasks.register("validatesRunner") {
     group = "Verification"
     description "Validates Twister2 Runner"
     dependsOn validatesRunnerBatch

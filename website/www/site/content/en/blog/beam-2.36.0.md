@@ -34,7 +34,8 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 
 ## New Features / Improvements
 
-* Added support for cloudpickle as a pickling library for Python SDK ([BEAM-8123](https://issues.apache.org/jira/browse/BEAM-8123)). To use cloudpickle, set pipeline option: --pickler_lib=cloudpickle
+* 💻 Support for ARM64 / Mac M1 out of the box. ([BEAM-11703](https://issues.apache.org/jira/browse/BEAM-11703)).
+* Added support for cloudpickle as a pickling library for Python SDK ([BEAM-8123](https://issues.apache.org/jira/browse/BEAM-8123)). To use cloudpickle, set pipeline option: --pickle_library=cloudpickle
 * Added option to specify triggering frequency when streaming to BigQuery (Python) ([BEAM-12865](https://issues.apache.org/jira/browse/BEAM-12865)).
 * Added option to enable caching uploaded artifacts across job runs for Python Dataflow jobs ([BEAM-13459](https://issues.apache.org/jira/browse/BEAM-13459)).  To enable, set pipeline option: --enable_artifact_caching, this will be enabled by default in a future release.
 
@@ -51,6 +52,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Users may encounter an unexpected java.lang.ArithmeticException when outputting a timestamp
   for an element further than allowedSkew from an allowed DoFN skew set to a value more than
   Integer.MAX_VALUE.
+* S3 object metadata retrieval broken in Python SDK ([BEAM-13980](https://issues.apache.org/jira/browse/BEAM-13980))
 * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.36.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
 
 

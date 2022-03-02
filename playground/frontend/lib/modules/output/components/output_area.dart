@@ -17,14 +17,20 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/output/components/graph.dart';
 import 'package:playground/modules/output/components/output_result.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
 class OutputArea extends StatelessWidget {
   final TabController tabController;
+  final bool showGraph;
 
-  const OutputArea({Key? key, required this.tabController}) : super(key: key);
+  const OutputArea({
+    Key? key,
+    required this.tabController,
+    required this.showGraph,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -44,8 +50,11 @@ class OutputArea extends StatelessWidget {
                 text: state.result?.log ?? '',
                 isSelected: tabController.index == 1,
               ),
-              // Not supported yet
-              // Center(child: Text(AppLocalizations.of(context)!.graph)),
+              if (showGraph)
+                GraphTab(
+                  graph: state.result?.graph ?? '',
+                  sdk: state.sdk,
+                ),
             ],
           );
         },

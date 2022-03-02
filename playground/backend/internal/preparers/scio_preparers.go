@@ -15,9 +15,15 @@
 
 package preparers
 
+import (
+	"beam.apache.org/playground/backend/internal/utils"
+)
+
 const (
 	scioPublicClassNamePattern = "object (.*?) [{]"
-	scioPackagePattern         = `^package [\w]+`
+	scioPackagePattern         = `^package .*$`
+	scioExampleImport          = `^import com.spotify.scio.examples.*$`
+	emptyStr                   = ""
 )
 
 //ScioPreparersBuilder facet of PreparersBuilder
@@ -50,18 +56,31 @@ func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder 
 	return builder
 }
 
+//WithImportRemover adds preparer to remove examples import from the code
+func (builder *ScioPreparersBuilder) WithImportRemover() *ScioPreparersBuilder {
+	removeImportPreparer := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, scioExampleImport, emptyStr},
+	}
+	builder.AddPreparer(removeImportPreparer)
+	return builder
+}
+
 // GetScioPreparers returns preparation methods that should be applied to Scio code
 func GetScioPreparers(builder *PreparersBuilder) {
-	builder.ScioPreparers().WithPackageRemover().WithFileNameChanger()
+	builder.ScioPreparers().
+		WithPackageRemover().
+		WithImportRemover().
+		WithFileNameChanger()
 }
 
 func changeScioFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	className, err := getPublicClassName(filePath, scioPublicClassNamePattern)
+	className, err := utils.GetPublicClassName(filePath, scioPublicClassNamePattern)
 	if err != nil {
 		return err
 	}
-	err = renameSourceCodeFile(filePath, className)
+	err = utils.RenameSourceCodeFile(filePath, className)
 	if err != nil {
 		return err
 	}

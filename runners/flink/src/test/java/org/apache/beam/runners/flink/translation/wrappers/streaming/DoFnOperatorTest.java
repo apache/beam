@@ -1656,7 +1656,7 @@ public class DoFnOperatorTest {
 
     // close() will also call dispose(), but call again to verify no new bundle
     // is created afterwards
-    newDoFnOperator.dispose();
+    newDoFnOperator.cleanUp();
 
     assertThat(
         stripStreamRecordFromWindowedValue(newHarness.getOutput()),
@@ -2268,7 +2268,7 @@ public class DoFnOperatorTest {
     // Closes and disposes the operator
     testHarness.close();
     // Ensure that dispose has the metrics code
-    doFnOperator.dispose();
+    doFnOperator.cleanUp();
     Mockito.verify(monitoredContainer, Mockito.times(2)).registerMetricsForPipelineResult();
   }
 
