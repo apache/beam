@@ -1,10 +1,10 @@
-from typing import Any
-from typing import List
 import logging
-import resource
 import platform
+import resource
 import sys
 import time
+from typing import Any
+from typing import List
 
 import apache_beam as beam
 from apache_beam.utils import shared
