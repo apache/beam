@@ -34,7 +34,7 @@ type Plan struct {
 	roots []Root
 	units []Unit
 	pcols []*PCollection
-	bf    bundleFinalizer
+	bf    *bundleFinalizer
 
 	status Status
 
@@ -79,7 +79,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		roots:  roots,
 		units:  units,
 		pcols:  pcols,
-		bf:     bf,
+		bf:     &bf,
 		source: source,
 	}, nil
 }
