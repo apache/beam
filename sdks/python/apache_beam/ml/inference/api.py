@@ -16,10 +16,20 @@
 #
 
 from dataclasses import dataclass
-import apache_beam as beam
+from enum import Enum
 from typing import Tuple, TypeVar, Union
-# TODO: implement RunInferenceImpl
-# from apache_beam.ml.inference.base import RunInferenceImpl
+
+import apache_beam as beam
+
+
+class PyTorchDevice(Enum):
+  CPU = 1
+  GPU = 2
+
+
+class SklearnSerializationType(Enum):
+  PICKLE = 1
+  JOBLIB = 2
 
 
 @dataclass
@@ -29,18 +39,12 @@ class BaseModelSpec:
 
 @dataclass
 class PyTorchModelSpec(BaseModelSpec):
-  device: str
-
-  def __post_init__(self):
-    self.device = self.device.upper()
+  device: PyTorchDevice
 
 
 @dataclass
 class SklearnModelSpec(BaseModelSpec):
-  serialization_type: str
-
-  def __post_init__(self):
-    self.serialization_type = self.serialization_type.upper()
+  serialization_type: SklearnSerializationType
 
 
 _K = TypeVar('_K')
@@ -50,14 +54,14 @@ _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 
 @dataclass
 class PredictionResult:
-  key: _K
   example: _INPUT_TYPE
   inference: _OUTPUT_TYPE
 
 
 @beam.ptransform_fn
 @beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[_K, _INPUT_TYPE]])
-@beam.typehints.with_output_types(PredictionResult)
+@beam.typehints.with_output_types(
+    Union[PredictionResult, Tuple[_K, PredictionResult]])
 def RunInference(
     examples: beam.pvalue.PCollection,
     model: BaseModelSpec) -> beam.pvalue.PCollection:
@@ -77,8 +81,4 @@ def RunInference(
   Returns:
     A PCollection (possibly keyed) containing PredictionResults.
   """
-  pass
-  # TODO: implement RunInferenceImpl
-  # return (
-  #     examples |
-  #     'RunInferenceImpl' >> RunInferenceImpl(model))
+  pass  # TODO: add implementation (RunInferenceImpl)
