@@ -33,6 +33,7 @@ set -e
 GOVERS="invalid"
 echo "USER :"
 echo $(whoami)
+export GOPATH="/home/jenkins/go/bin/"
 echo $(go)
 if ! command -v go &> /dev/null
 then
