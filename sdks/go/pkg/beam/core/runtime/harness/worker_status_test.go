@@ -28,7 +28,6 @@ import (
 
 type BeamFnWorkerStatusServicer struct {
 	fnpb.UnimplementedBeamFnWorkerStatusServer
-
 	response   chan string
 	numRequest int
 }
