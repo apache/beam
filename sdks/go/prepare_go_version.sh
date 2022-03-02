@@ -31,12 +31,12 @@ set -e
 # This variable is also used as the execution command downscript.
 # The list of downloadable versions are at https://go.dev/dl/ 
 GOVERS="invalid"
-echo $(pwd) 
-#if ! command -v go &> /dev/null
-#then
-#    echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
-#    exit 1
-#fi
+
+if ! command -v go &> /dev/null
+then
+    echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
+    exit 1
+fi
 
 while [[ $# -gt 0 ]]
 do
@@ -54,10 +54,10 @@ case $key in
 esac
 done
 
-GOPATH=`/home/jenkins/go/bin/go`
+GOPATH=`go env GOPATH`
 GOBIN=$GOPATH/bin
-GOHOSTOS=`linux `
-GOHOSTARCH=`amd64`
+GOHOSTOS=`go env GOHOSTOS`
+GOHOSTARCH=`go env GOHOSTARCH`
 
 # Outputing the system Go version for debugging purposes.
 echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
