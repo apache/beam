@@ -306,15 +306,16 @@ class InteractiveBeamClustersTest(unittest.TestCase):
             region=region,
         ))
     cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
-    clusters.dataproc_cluster_managers[p] = DataprocClusterManager(
-        cluster_metadata)
-    self.assertEqual('test-project', clusters.describe()[None] \
-    ['cluster_metadata'].project_id)
+    clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    self.assertEqual(
+        'test-project',
+        clusters.describe()[str(id(p))]['cluster_metadata'].project_id)
 
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
-      'DataprocClusterManager.get_master_url',
-      return_value='test-master-url')
+      'DataprocClusterManager.get_master_url_and_dashboard',
+      return_value=('test-master-url', None))
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
       'DataprocClusterManager.cleanup',
@@ -350,8 +351,8 @@ class InteractiveBeamClustersTest(unittest.TestCase):
 
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
-      'DataprocClusterManager.get_master_url',
-      return_value='test-master-url')
+      'DataprocClusterManager.get_master_url_and_dashboard',
+      return_value=('test-master-url', None))
   def test_clusters_cleanup_skip_on_duplicate(self, mock_master_url):
     clusters = ib.Clusters()
     project = 'test-project'
