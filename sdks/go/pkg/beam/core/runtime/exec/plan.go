@@ -30,10 +30,11 @@ import (
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id    string // id of the bundle descriptor for this plan
-	roots []Root
-	units []Unit
-	pcols []*PCollection
+	id     string // id of the bundle descriptor for this plan
+	roots  []Root
+	units  []Unit
+	pcols  []*PCollection
+	pardos []*ParDo
 
 	status Status
 
@@ -45,6 +46,7 @@ type Plan struct {
 func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
 	var pcols []*PCollection
+	var pardos []*ParDo
 	var source *DataSource
 
 	for _, u := range units {
@@ -60,6 +62,9 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if p, ok := u.(*PCollection); ok {
 			pcols = append(pcols, p)
 		}
+		if p, ok := u.(*ParDo); ok {
+			pardos = append(pardos, p)
+		}
 	}
 	if len(roots) == 0 {
 		return nil, errors.Errorf("no root units")
@@ -71,6 +76,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		roots:  roots,
 		units:  units,
 		pcols:  pcols,
+		pardos: pardos,
 		source: source,
 	}, nil
 }
@@ -138,7 +144,7 @@ func (p *Plan) Finalize(ctx context.Context, id string) error {
 	}
 	var err error
 	p.status = Active
-	for _, root := range p.roots {
+	for _, root := range p.pardos {
 		if rootErr := callNoPanic(ctx, root.FinalizeBundle); rootErr != nil {
 			if err == nil {
 				err = errors.Wrapf(rootErr, "while executing FinalizeBundle for %v", p)
@@ -154,7 +160,7 @@ func (p *Plan) Finalize(ctx context.Context, id string) error {
 
 func (p *Plan) GetExpirationTime(ctx context.Context, id string) time.Time {
 	exp := time.Now()
-	for _, root := range p.roots {
+	for _, root := range p.pardos {
 		rootExp := root.GetBundleExpirationTime(ctx)
 		if exp.Before(rootExp) {
 			exp = rootExp

@@ -22,7 +22,6 @@ import (
 	"io"
 	"path"
 	"reflect"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -205,14 +204,6 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 		return n.fail(err)
 	}
 	return nil
-}
-
-func (n *Combine) FinalizeBundle(ctx context.Context) error {
-	return n.Out.FinalizeBundle(ctx)
-}
-
-func (n *Combine) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 // Down runs the ParDo's TeardownFn.
@@ -424,14 +415,6 @@ func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
 		return err
 	}
 	return n.Combine.FinishBundle(n.Combine.ctx)
-}
-
-func (n *LiftedCombine) FinalizeBundle(ctx context.Context) error {
-	return n.Combine.FinalizeBundle(ctx)
-}
-
-func (n *LiftedCombine) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return n.Combine.GetBundleExpirationTime(ctx)
 }
 
 // Down tears down the cache.

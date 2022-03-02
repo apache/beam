@@ -268,14 +268,6 @@ func (n *DataSource) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
 }
 
-func (n *DataSource) FinalizeBundle(ctx context.Context) error {
-	return n.Out.FinalizeBundle(ctx)
-}
-
-func (n *DataSource) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return n.Out.GetBundleExpirationTime(ctx)
-}
-
 // Down resets the source.
 func (n *DataSource) Down(ctx context.Context) error {
 	n.source = nil

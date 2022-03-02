@@ -18,7 +18,6 @@ package exec
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 // Multiplex is a fan-out node. It simply forwards any call to all downstream nodes.
@@ -52,14 +51,6 @@ func (m *Multiplex) ProcessElement(ctx context.Context, elm *FullValue, values .
 
 func (m *Multiplex) FinishBundle(ctx context.Context) error {
 	return MultiFinishBundle(ctx, m.Out...)
-}
-
-func (m *Multiplex) FinalizeBundle(ctx context.Context) error {
-	return MultiFinalizeBundle(ctx, m.Out...)
-}
-
-func (m *Multiplex) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return MultiGetBundleExpirationTime(ctx, m.Out...)
 }
 
 func (m *Multiplex) Down(ctx context.Context) error {

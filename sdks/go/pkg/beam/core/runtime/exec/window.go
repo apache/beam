@@ -89,14 +89,6 @@ func (w *WindowInto) FinishBundle(ctx context.Context) error {
 	return w.Out.FinishBundle(ctx)
 }
 
-func (w *WindowInto) FinalizeBundle(ctx context.Context) error {
-	return w.Out.FinalizeBundle(ctx)
-}
-
-func (w *WindowInto) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return w.Out.GetBundleExpirationTime(ctx)
-}
-
 func (w *WindowInto) Down(ctx context.Context) error {
 	return nil
 }

@@ -18,7 +18,6 @@ package direct
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -59,14 +58,6 @@ func (n *buffer) ProcessElement(ctx context.Context, elm *exec.FullValue, values
 func (n *buffer) FinishBundle(ctx context.Context) error {
 	n.done = true
 	return n.notify(ctx)
-}
-
-func (n *buffer) FinalizeBundle(ctx context.Context) error {
-	return nil
-}
-
-func (n *buffer) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return time.Now()
 }
 
 func (n *buffer) Down(ctx context.Context) error {
@@ -172,14 +163,6 @@ func (w *wait) FinishBundle(ctx context.Context) error {
 	}
 	w.done = true
 	return w.next.FinishBundle(ctx)
-}
-
-func (w *wait) FinalizeBundle(ctx context.Context) error {
-	return w.next.FinalizeBundle(ctx)
-}
-
-func (w *wait) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return w.next.GetBundleExpirationTime(ctx)
 }
 
 func (w *wait) Down(ctx context.Context) error {

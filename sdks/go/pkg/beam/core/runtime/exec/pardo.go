@@ -226,6 +226,8 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	return nil
 }
 
+// FinalizeBundle runs any non-expired user callbacks registered via the
+// BundleFinalizer during function execution.
 func (n *ParDo) FinalizeBundle(ctx context.Context) error {
 	failedIndices := []int{}
 	for idx, bfc := range n.bf.callbacks {
@@ -249,24 +251,19 @@ func (n *ParDo) FinalizeBundle(ctx context.Context) error {
 	}
 	n.bf = newFinalizer
 
-	outErr := MultiFinalizeBundle(ctx, n.Out...)
 	if len(failedIndices) > 0 {
-		err := errors.Errorf("Pardo %v failed %v callbacks", n.Fn.Fn.String(), len(failedIndices))
-		if outErr != nil {
-			return errors.Wrap(err, outErr.Error())
-		}
-
-		return err
+		return errors.Errorf("Pardo %v failed %v callbacks", n.Fn.Fn.String(), len(failedIndices))
 	}
-	return outErr
+	return nil
 }
 
+// GetBundleExpirationTime gets the earliest time when it is safe to
+// expire all of the bundle's finalization callbacks. If it returns a
+// time earlier than the current time, that indicates that we are
+// completely done with the bundle. If no callbacks are registered for the
+// bundle, returns the current time.
 func (n *ParDo) GetBundleExpirationTime(ctx context.Context) time.Time {
-	outExp := MultiGetBundleExpirationTime(ctx, n.Out...)
-	if outExp.Before(n.bf.lastValidCallback) {
-		return n.bf.lastValidCallback
-	}
-	return outExp
+	return n.bf.lastValidCallback
 }
 
 // Down performs best-effort teardown of DoFn resources. (May not run.)

@@ -18,7 +18,6 @@ package exec
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 // Flatten is a fan-in node. It ensures that Start/FinishBundle are only
@@ -65,14 +64,6 @@ func (m *Flatten) FinishBundle(ctx context.Context) error {
 	m.active = false
 
 	return m.Out.FinishBundle(ctx)
-}
-
-func (m *Flatten) FinalizeBundle(ctx context.Context) error {
-	return m.Out.FinalizeBundle(ctx)
-}
-
-func (m *Flatten) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return m.Out.GetBundleExpirationTime(ctx)
 }
 
 func (m *Flatten) Down(ctx context.Context) error {

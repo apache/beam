@@ -18,7 +18,6 @@ package exec
 import (
 	"context"
 	"io"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -68,14 +67,6 @@ func (n *CaptureNode) FinishBundle(ctx context.Context) error {
 	}
 	n.status = Up
 	return nil
-}
-
-func (n *CaptureNode) FinalizeBundle(ctx context.Context) error {
-	return nil
-}
-
-func (n *CaptureNode) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return time.Now()
 }
 
 func (n *CaptureNode) Down(ctx context.Context) error {
@@ -159,14 +150,6 @@ func (n *FixedRoot) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
 }
 
-func (n *FixedRoot) FinalizeBundle(ctx context.Context) error {
-	return nil
-}
-
-func (n *FixedRoot) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return time.Now()
-}
-
 func (n *FixedRoot) Down(ctx context.Context) error {
 	return nil
 }
@@ -214,14 +197,6 @@ func (n *BenchRoot) Process(ctx context.Context) error {
 
 func (n *BenchRoot) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
-}
-
-func (n *BenchRoot) FinalizeBundle(ctx context.Context) error {
-	return nil
-}
-
-func (n *BenchRoot) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return time.Now()
 }
 
 func (n *BenchRoot) Down(ctx context.Context) error {
@@ -276,14 +251,6 @@ func (n *BlockingNode) FinishBundle(ctx context.Context) error {
 	err := n.Out.FinishBundle(ctx)
 	n.status = Up
 	return err
-}
-
-func (n *BlockingNode) FinalizeBundle(ctx context.Context) error {
-	return nil
-}
-
-func (n *BlockingNode) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return time.Now()
 }
 
 func (n *BlockingNode) Down(ctx context.Context) error {

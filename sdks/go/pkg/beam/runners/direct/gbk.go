@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -126,14 +125,6 @@ func (n *CoGBK) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
 }
 
-func (n *CoGBK) FinalizeBundle(ctx context.Context) error {
-	return n.Out.FinalizeBundle(ctx)
-}
-
-func (n *CoGBK) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return n.Out.GetBundleExpirationTime(ctx)
-}
-
 func (n *CoGBK) mergeWindows() (map[typex.Window]int, error) {
 	sort.Slice(n.wins, func(i int, j int) bool {
 		return n.wins[i].MaxTimestamp() < n.wins[j].MaxTimestamp()
@@ -220,14 +211,6 @@ func (n *Inject) ProcessElement(ctx context.Context, elm *exec.FullValue, values
 
 func (n *Inject) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
-}
-
-func (n *Inject) FinalizeBundle(ctx context.Context) error {
-	return n.Out.FinalizeBundle(ctx)
-}
-
-func (n *Inject) GetBundleExpirationTime(ctx context.Context) time.Time {
-	return n.Out.GetBundleExpirationTime(ctx)
 }
 
 func (n *Inject) Down(ctx context.Context) error {
