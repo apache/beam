@@ -262,7 +262,7 @@ public class StateFetchingIterators {
     }
 
     /**
-     * Clears the cached iterable and appends the set of values.
+     * Clears the cached iterable and appends the set of values, taking ownership of the list.
      *
      * <p>Mutations over the Beam Fn State API must have been performed before any future lookups.
      *
@@ -272,7 +272,7 @@ public class StateFetchingIterators {
     public void clearAndAppend(List<T> values) {
       cache.put(
           stateRequestForFirstChunk.getStateKey(),
-          new MutatedBlocks<>(Block.mutatedBlock(new ArrayList<>(values), Caches.weigh(values))));
+          new MutatedBlocks<>(Block.mutatedBlock(values, Caches.weigh(values))));
     }
 
     @Override
