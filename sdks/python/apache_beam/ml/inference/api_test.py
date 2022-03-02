@@ -27,8 +27,8 @@ class RunInferenceTest(unittest.TestCase):
   def test_valid_pytorch_model(self):
     model = PyTorchModelSpec(
         model_url='pytorch_model.pth', device=PyTorchDevice.GPU)
-    assert model.model_url == 'pytorch_model.pth'
-    assert model.device == PyTorchDevice.GPU
+    self.assertEqual(model.model_url, 'pytorch_model.pth')
+    self.assertEqual(model.device, PyTorchDevice.GPU)
 
   def test_invalid_pytorch_model(self):
     with pytest.raises(TypeError, match='device'):
@@ -40,8 +40,8 @@ class RunInferenceTest(unittest.TestCase):
     model = SklearnModelSpec(
         model_url='sklearn_model.pickle',
         serialization_type=SklearnSerializationType.PICKLE)
-    assert model.model_url == 'sklearn_model.pickle'
-    assert model.serialization_type == SklearnSerializationType.PICKLE
+    self.assertEqual(model.model_url, 'sklearn_model.pickle')
+    self.assertEqual(model.serialization_type, SklearnSerializationType.PICKLE)
 
   def test_invalid_sklearn_model(self):
     with pytest.raises(TypeError, match='serialization_type'):
