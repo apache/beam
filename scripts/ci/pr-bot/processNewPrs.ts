@@ -169,6 +169,9 @@ async function processPull(
   }
 
   if (!checkState.succeeded) {
+    if (!checkState.completed) {
+      return;
+    }
     return await notifyChecksFailed(pull, stateClient, prState);
   }
   prState.commentedAboutFailingChecks = false;
