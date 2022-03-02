@@ -59,7 +59,7 @@ func TestFromMonitoringInfos_Counters(t *testing.T) {
 
 	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().Counters()
 	size := len(got)
-	if size < 1 {
+	if size != 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
 	if d := cmp.Diff(want, got[0]); d != "" {
@@ -187,7 +187,7 @@ func TestFromMonitoringInfos_PColCounters(t *testing.T) {
 
 	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().PCols()
 	size := len(got)
-	if size < 1 {
+	if size != 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
 	if d := cmp.Diff(want, got[0]); d != "" {
@@ -237,7 +237,7 @@ func TestFromMonitoringInfos_SampledByteSize(t *testing.T) {
 
 	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().PCols()
 	size := len(got)
-	if size < 1 {
+	if size != 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, FromMonitoringInfos(p, attempted, committed).AllMetrics())
 	}
 	if d := cmp.Diff(want, got[0]); d != "" {
@@ -287,7 +287,7 @@ func TestFromMonitoringInfos_Distributions(t *testing.T) {
 
 	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().Distributions()
 	size := len(got)
-	if size < 1 {
+	if size != 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
 	if d := cmp.Diff(want, got[0]); d != "" {
@@ -337,7 +337,7 @@ func TestFromMonitoringInfos_Gauges(t *testing.T) {
 
 	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().Gauges()
 	size := len(got)
-	if size < 1 {
+	if size != 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
 	}
 	if d := cmp.Diff(want, got[0]); d != "" {
