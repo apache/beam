@@ -21,7 +21,6 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.extensions.sbe.SbeSchema.UnsignedOptions;
 import org.apache.beam.sdk.schemas.Schema.Field;
 
 /** Interface for SBE fields. */

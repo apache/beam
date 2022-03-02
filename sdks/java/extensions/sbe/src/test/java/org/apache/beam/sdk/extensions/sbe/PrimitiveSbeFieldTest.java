@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sbe;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.extensions.sbe.SbeField.SbeFieldOptions;
-import org.apache.beam.sdk.extensions.sbe.SbeSchema.UnsignedOptions;
+import org.apache.beam.sdk.extensions.sbe.UnsignedOptions.Behavior;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.junit.Test;
@@ -101,7 +101,7 @@ public final class PrimitiveSbeFieldTest {
     Field actual =
         field.asBeamField(
             SbeFieldOptions.builder()
-                .setUnsignedOptions(UnsignedOptions.usingHigherBitSize(true))
+                .setUnsignedOptions(UnsignedOptions.usingHigherBitSize(Behavior.CONVERT_TO_STRING))
                 .build());
 
     Field expected = Field.of(NAME, FieldType.INT64);

@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sbe;
 
-import static org.apache.beam.sdk.extensions.sbe.SbeFieldUtils.signedSbePrimitiveToBeamPrimitive;
-import static org.apache.beam.sdk.extensions.sbe.SbeFieldUtils.unsignedSbePrimitiveToBeamPrimitive;
-import static uk.co.real_logic.sbe.PrimitiveType.isUnsigned;
-
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.extensions.sbe.UnsignedOptions.Behavior;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import uk.co.real_logic.sbe.PrimitiveType;
@@ -44,11 +41,104 @@ public abstract class PrimitiveSbeField implements SbeField {
 
   @Override
   public Field asBeamField(SbeFieldOptions options) {
-    FieldType type =
-        isUnsigned(type())
-            ? unsignedSbePrimitiveToBeamPrimitive(type(), options.unsignedOptions())
-            : signedSbePrimitiveToBeamPrimitive(type());
+    FieldType type = beamType(options);
     return isRequired() ? Field.of(name(), type) : Field.nullable(name(), type);
+  }
+
+  private FieldType beamType(SbeFieldOptions options) {
+    switch (type()) {
+      case CHAR:
+        // TODO(BEAM-12697): Support char types
+        throw new UnsupportedOperationException("char type not supported yet");
+      case INT8:
+        return FieldType.BYTE;
+      case INT16:
+        return FieldType.INT16;
+      case INT32:
+        return FieldType.INT32;
+      case INT64:
+        return FieldType.INT64;
+      case FLOAT:
+        return FieldType.FLOAT;
+      case DOUBLE:
+        return FieldType.DOUBLE;
+      case UINT8:
+        return convertUint8(options);
+      case UINT16:
+        return convertUint16(options);
+      case UINT32:
+        return convertUint32(options);
+      case UINT64:
+        return convertUint64(options);
+      default:
+        throw new IllegalStateException(
+            "Got a state that is not recognized: " + type().primitiveName());
+    }
+  }
+
+  private static FieldType convertUint8(SbeFieldOptions options) {
+    Behavior behavior = options.unsignedOptions().uint8Behavior();
+    switch (behavior) {
+      case SAME_BIT_SIGNED:
+        return FieldType.BYTE;
+      case HIGHER_BIT_SIGNED:
+        return FieldType.INT16;
+      case CONVERT_TO_STRING:
+        return FieldType.STRING;
+      case CONVERT_TO_BIG_DECIMAL:
+        return FieldType.DECIMAL;
+      default:
+        throw new IllegalStateException("Unrecognized uint8 behavior: " + behavior.name());
+    }
+  }
+
+  private static FieldType convertUint16(SbeFieldOptions options) {
+    Behavior behavior = options.unsignedOptions().uint16Behavior();
+    switch (behavior) {
+      case SAME_BIT_SIGNED:
+        return FieldType.INT16;
+      case HIGHER_BIT_SIGNED:
+        return FieldType.INT32;
+      case CONVERT_TO_STRING:
+        return FieldType.STRING;
+      case CONVERT_TO_BIG_DECIMAL:
+        return FieldType.DECIMAL;
+      default:
+        throw new IllegalStateException("Unrecognized uint16 behavior: " + behavior.name());
+    }
+  }
+
+  private static FieldType convertUint32(SbeFieldOptions options) {
+    Behavior behavior = options.unsignedOptions().uint32Behavior();
+    switch (behavior) {
+      case SAME_BIT_SIGNED:
+        return FieldType.INT32;
+      case HIGHER_BIT_SIGNED:
+        return FieldType.INT64;
+      case CONVERT_TO_STRING:
+        return FieldType.STRING;
+      case CONVERT_TO_BIG_DECIMAL:
+        return FieldType.DECIMAL;
+      default:
+        throw new IllegalStateException("Unrecognized uint32 behavior: " + behavior.name());
+    }
+  }
+
+  private static FieldType convertUint64(SbeFieldOptions options) {
+    Behavior behavior = options.unsignedOptions().uint64Behavior();
+    switch (behavior) {
+      case SAME_BIT_SIGNED:
+        return FieldType.INT64;
+      case HIGHER_BIT_SIGNED:
+        throw new IllegalStateException(
+            "Options say to use higher bit type, but that is impossible for 64-bit integers.");
+      case CONVERT_TO_STRING:
+        return FieldType.STRING;
+      case CONVERT_TO_BIG_DECIMAL:
+        return FieldType.DECIMAL;
+      default:
+        throw new IllegalStateException("Unrecognized uint64 behavior: " + behavior.name());
+    }
   }
 
   public static Builder builder() {
