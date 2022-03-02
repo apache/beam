@@ -50,11 +50,47 @@ func newJarGetter() *jarGetter {
 	return &jarGetter{repository: apacheRepository, groupID: beamGroupID, jarCache: cacheDir}
 }
 
+// GetRepositoryURL returns the current target URL for the defaultJarGetter,
+// indicating what repository will be connected to when getting a Beam JAR.
+func GetDefaultRepositoryURL() string {
+	return defaultJarGetter.GetRepositoryURL()
+}
+
+// SetRepositoryURL updates the target URL for the defaultJarGetter, changing
+// which Maven repository will be connected to when getting a Beam JAR. Also
+// validates that it has been passed a URL and returns an error if not.
+//
+// When changing the target repository, make sure that the value is the prefix
+// up to "org/apache/beam" and that the organization of the repository matches
+// that of the default from that point on to ensure that the conversion of the
+// Gradle target to the JAR name is correct.
+func SetDefaultRepositoryURL(repoURL string) error {
+	return defaultJarGetter.SetRepositoryURL(repoURL)
+}
+
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the
 // appropriate JAR from Maven if not present, then returns the file path to the
 // JAR.
 func GetBeamJar(gradleTarget, version string) (string, error) {
 	return defaultJarGetter.getJar(gradleTarget, version)
+}
+
+// GetRepositoryURL returns the current target URL for the jarGetter,
+// indicating what repository will be connected to when getting a Beam JAR.
+func (j *jarGetter) GetRepositoryURL() string {
+	return string(j.repository)
+}
+
+// SetRepositoryURL updates the target URL for the jarGetter, changing
+// which Maven repository will be connected to when getting a Beam JAR. Also
+// does some minor validation that it has been passed a URL and returns an
+// error if not.
+func (j *jarGetter) SetRepositoryURL(repoURL string) error {
+	if !strings.HasPrefix(repoURL, "http") {
+		return fmt.Errorf("repo URL %v does not have an http or https prefix", repoURL)
+	}
+	j.repository = url(strings.TrimSuffix(repoURL, "/"))
+	return nil
 }
 
 func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
@@ -84,7 +120,7 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("received non 200 response code, got %v", resp.StatusCode)
+		return "", fmt.Errorf("failed to connect to %v: received non 200 response code, got %v", fullURL, resp.StatusCode)
 	}
 
 	file, err := os.Create(jarPath)
