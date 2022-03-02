@@ -54,10 +54,10 @@ case $key in
 esac
 done
 
-GOPATH=`go env GOPATH`
+GOPATH=`/home/jenkins/go`
 GOBIN=$GOPATH/bin
-GOHOSTOS=`go env GOHOSTOS`
-GOHOSTARCH=`go env GOHOSTARCH`
+GOHOSTOS=`linux `
+GOHOSTARCH=`amd64`
 
 # Outputing the system Go version for debugging purposes.
 echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
