@@ -439,7 +439,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     changeStreamDaoInstanceField.set(null, null);
   }
 
-  private final ResultSetMetadata PARTITION_METADATA_RESULT_SET_METADATA =
+  private static final ResultSetMetadata PARTITION_METADATA_RESULT_SET_METADATA =
       ResultSetMetadata.newBuilder()
           .setRowType(
               StructType.newBuilder()
