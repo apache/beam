@@ -510,8 +510,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private final String stateFamily;
     private final Supplier<Closeable> scopedReadStateSupplier;
 
-    public StepContext(
-        DataflowOperationContext operationContext) {
+    public StepContext(DataflowOperationContext operationContext) {
       super(operationContext.nameContext());
       this.stateFamily = getStateFamily(operationContext.nameContext());
 
