@@ -206,6 +206,14 @@ task runBasicExample(type: JavaExec) {
   args = ["--runner=DirectRunner"]
 }
 
+// Run basic SQL example
+task runNestedRowInArrayExample(type: JavaExec) {
+  description = "Run basic SQL example"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlNestedExample"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner"]
+}
+
 // Run SQL example on POJO inputs
 task runPojoExample(type: JavaExec) {
   description = "Run SQL example for PCollections of POJOs"

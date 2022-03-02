@@ -35,7 +35,7 @@ import java.util.Arrays;
  * <p>Run the example from the Beam source root with
  *
  * <pre>
- *   ./gradlew :sdks:java:extensions:sql:runBasicExample
+ *   ./gradlew :sdks:java:extensions:sql:runNestedRowInArrayExample
  * </pre>
  *
  * <p>The above command executes the example locally using direct runner. Running the pipeline in
