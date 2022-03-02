@@ -49,13 +49,13 @@ public final class SbeSchemaTest {
 
   @Test
   public void testIrOptionsBuildWithAmbiguousIdentifier() {
-    IrOptions.Builder builder = IrOptions.builder().setMessageId(1).setMessageName("msg");
+    IrOptions.Builder builder = IrOptions.builder().setMessageId(1L).setMessageName("msg");
     assertThrows(IllegalStateException.class, builder::build);
   }
 
   @Test
   public void testFromIrWithInvalidMessageId() {
-    IrOptions options = IrOptions.builder().setMessageId(Integer.MAX_VALUE).build();
+    IrOptions options = IrOptions.builder().setMessageId(Long.MAX_VALUE).build();
     assertThrows(
         IllegalArgumentException.class,
         () -> SbeSchema.fromIr(getIr(Person.RESOURCE_PATH), options));

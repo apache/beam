@@ -128,23 +128,18 @@ public final class SbeSchema implements Serializable {
   public abstract static class IrOptions implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public static final long UNSET_MESSAGE_ID = -1;
-    public static final String UNSET_MESSAGE_NAME = "";
-
     public static final IrOptions DEFAULT = IrOptions.builder().build();
 
-    public abstract long messageId();
+    public abstract @Nullable Long messageId();
 
-    public abstract String messageName();
+    public abstract @Nullable String messageName();
 
     public boolean assumeSingleMessageSchema() {
-      return messageId() == UNSET_MESSAGE_ID && messageName().equals(UNSET_MESSAGE_NAME);
+      return messageId() == null && messageName() == null;
     }
 
     public static Builder builder() {
-      return new AutoValue_SbeSchema_IrOptions.Builder()
-          .setMessageId(UNSET_MESSAGE_ID)
-          .setMessageName(UNSET_MESSAGE_NAME);
+      return new AutoValue_SbeSchema_IrOptions.Builder().setMessageId(null).setMessageName(null);
     }
 
     public abstract Builder toBuilder();
@@ -153,9 +148,9 @@ public final class SbeSchema implements Serializable {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setMessageId(long value);
+      public abstract Builder setMessageId(@Nullable Long value);
 
-      public abstract Builder setMessageName(String value);
+      public abstract Builder setMessageName(@Nullable String value);
 
       abstract IrOptions autoBuild();
 
@@ -163,7 +158,7 @@ public final class SbeSchema implements Serializable {
         IrOptions opts = autoBuild();
 
         boolean messageIdentifierValid =
-            (opts.messageId() > UNSET_MESSAGE_ID ^ !opts.messageName().equals(UNSET_MESSAGE_NAME))
+            (opts.messageId() != null ^ opts.messageName() != null)
                 || opts.assumeSingleMessageSchema();
         checkState(messageIdentifierValid, "At most one of messageId or messageName can be set");
 

@@ -82,7 +82,7 @@ public final class IrFieldGeneratorTest {
   @Test
   public void testGenerateFieldsWithInvalidMessageId() throws Exception {
     Ir ir = getIr(OnlyPrimitives.RESOURCE_PATH);
-    IrOptions options = IrOptions.builder().setMessageId(100).build();
+    IrOptions options = IrOptions.builder().setMessageId(100L).build();
 
     assertThrows(
         IllegalArgumentException.class, () -> IrFieldGenerator.generateFields(ir, options));

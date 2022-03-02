@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.sbe;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -5,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
  * Options for controlling what to do with unsigned types, specifically whether to use a higher bit
@@ -70,9 +86,7 @@ public abstract class UnsignedOptions implements Serializable {
 
   public abstract Builder toBuilder();
 
-  /**
-   * Builder for {@link UnsignedOptions}.
-   */
+  /** Builder for {@link UnsignedOptions}. */
   @AutoValue.Builder
   public abstract static class Builder {
 
@@ -88,51 +102,52 @@ public abstract class UnsignedOptions implements Serializable {
 
     public final UnsignedOptions build() {
       UnsignedOptions options = autoBuild();
-      checkState(options.uint64Behavior() != Behavior.HIGHER_BIT_SIGNED, UINT64_HIGHER_BIT_ERROR_MESSAGE);
+      checkState(
+          options.uint64Behavior() != Behavior.HIGHER_BIT_SIGNED, UINT64_HIGHER_BIT_ERROR_MESSAGE);
       return options;
     }
   }
 
-  /** Defines the exact behavior for unsigned types.  */
+  /** Defines the exact behavior for unsigned types. */
   public enum Behavior {
     /**
      * Uses the signed primitive with the same bit count.
      *
-     * <p> If this option is chosen, unsigned types may appear to have negative values when printing
+     * <p>If this option is chosen, unsigned types may appear to have negative values when printing
      * or doing math.
      *
-     * <p> This option is compatible with all types.
+     * <p>This option is compatible with all types.
      */
     SAME_BIT_SIGNED,
 
     /**
      * Uses the signed primitive with the next higher bit count.
      *
-     * <p> If this option is chosen, then all unsigned fields will consume twice as much of the
+     * <p>If this option is chosen, then all unsigned fields will consume twice as much of the
      * available memory and networking bandwidth.
      *
-     * <p> This option is incompatible with unsigned 64-bit types. Another option must be chosen
-     * for that use case. If provided for 64-bit, then an exception will be thrown.
+     * <p>This option is incompatible with unsigned 64-bit types. Another option must be chosen for
+     * that use case. If provided for 64-bit, then an exception will be thrown.
      */
     HIGHER_BIT_SIGNED,
 
     /**
      * Converts the unsigned value to a string representation.
      *
-     * <p> This will be represented by a {@link org.apache.beam.sdk.schemas.Schema.FieldType#STRING}
+     * <p>This will be represented by a {@link org.apache.beam.sdk.schemas.Schema.FieldType#STRING}
      * in the schema.
      *
-     * <p> This option is compatible with all types.
+     * <p>This option is compatible with all types.
      */
     CONVERT_TO_STRING,
 
     /**
      * Converts the unsigned value to a {@link java.math.BigDecimal} value.
      *
-     * <p> This will be represented by a
-     * {@link org.apache.beam.sdk.schemas.Schema.FieldType#DECIMAL} in the schema.
+     * <p>This will be represented by a {@link org.apache.beam.sdk.schemas.Schema.FieldType#DECIMAL}
+     * in the schema.
      *
-     * <p> this option is compatible with all types.
+     * <p>this option is compatible with all types.
      */
     CONVERT_TO_BIG_DECIMAL
   }

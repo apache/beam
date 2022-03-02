@@ -63,10 +63,11 @@ public final class IrFieldGenerator {
   }
 
   /** Helper for getting the tokens for the target message. */
+  @SuppressWarnings("nullness") // False positive on already-checked messageId
   private static TokenIterator getIteratorForMessage(Ir ir, IrOptions irOptions) {
     List<Token> messages;
 
-    if (irOptions.assumeSingleMessageSchema()) {
+    if (irOptions.messageId() == null && irOptions.messageName() == null) {
       messages =
           ir.messages().stream()
               .collect(
@@ -79,7 +80,7 @@ public final class IrFieldGenerator {
                             "More than one message in IR but no identifier provided.");
                         return lists.get(0);
                       }));
-    } else if (!irOptions.messageName().equals(IrOptions.UNSET_MESSAGE_NAME)) {
+    } else if (irOptions.messageName() != null) {
       String name = irOptions.messageName();
       messages =
           ir.messages().stream()
