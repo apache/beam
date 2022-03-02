@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -86,8 +87,8 @@ import org.joda.time.ReadableInstant;
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "rawtypes"
+        "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+        "rawtypes"
 })
 public abstract class Row implements Serializable {
   private final Schema schema;
@@ -111,8 +112,21 @@ public abstract class Row implements Serializable {
   /** Return a list of data values. Any LogicalType values are returned as base values. * */
   public List<Object> getBaseValues() {
     return IntStream.range(0, getFieldCount())
-        .mapToObj(i -> getBaseValue(i))
-        .collect(Collectors.toList());
+            .mapToObj(i -> {
+              List<Object> values = new ArrayList<>();
+              FieldType fieldType = this.getSchema().getField(i).getType();
+              if(fieldType.getTypeName().equals(TypeName.ROW)) {
+                Row row = this.getBaseValue(i, Row.class);
+                List<Object> rowValues = row.getBaseValues();
+                if(null != rowValues) {
+                  values.addAll(rowValues);
+                }
+              } else {
+                values.add(this.getBaseValue(i));
+              }
+              return values.stream();
+            }).flatMap(Function.identity()).collect(Collectors.toList());
+
   }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
@@ -465,13 +479,13 @@ public abstract class Row implements Serializable {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == TypeName.ARRAY) {
         return deepEqualsForCollection(
-            (Collection<Object>) a, (Collection<Object>) b, fieldType.getCollectionElementType());
+                (Collection<Object>) a, (Collection<Object>) b, fieldType.getCollectionElementType());
       } else if (fieldType.getTypeName() == TypeName.ITERABLE) {
         return deepEqualsForIterable(
-            (Iterable<Object>) a, (Iterable<Object>) b, fieldType.getCollectionElementType());
+                (Iterable<Object>) a, (Iterable<Object>) b, fieldType.getCollectionElementType());
       } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
         return deepEqualsForMap(
-            (Map<Object, Object>) a, (Map<Object, Object>) b, fieldType.getMapValueType());
+                (Map<Object, Object>) a, (Map<Object, Object>) b, fieldType.getMapValueType());
       } else {
         return Objects.equals(a, b);
       }
@@ -488,7 +502,7 @@ public abstract class Row implements Serializable {
         return deepHashCodeForIterable((Iterable<Object>) a, fieldType.getCollectionElementType());
       } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
         return deepHashCodeForMap(
-            (Map<Object, Object>) a, fieldType.getMapKeyType(), fieldType.getMapValueType());
+                (Map<Object, Object>) a, fieldType.getMapKeyType(), fieldType.getMapValueType());
       } else {
         return Objects.hashCode(a);
       }
@@ -523,7 +537,7 @@ public abstract class Row implements Serializable {
     }
 
     static int deepHashCodeForMap(
-        Map<Object, Object> a, Schema.FieldType keyType, Schema.FieldType valueType) {
+            Map<Object, Object> a, Schema.FieldType keyType, Schema.FieldType valueType) {
       int h = 0;
 
       for (Map.Entry<Object, Object> e : a.entrySet()) {
@@ -537,7 +551,7 @@ public abstract class Row implements Serializable {
     }
 
     static boolean deepEqualsForCollection(
-        Collection<Object> a, Collection<Object> b, Schema.FieldType elementType) {
+            Collection<Object> a, Collection<Object> b, Schema.FieldType elementType) {
       if (a == b) {
         return true;
       }
@@ -550,7 +564,7 @@ public abstract class Row implements Serializable {
     }
 
     static boolean deepEqualsForIterable(
-        Iterable<Object> a, Iterable<Object> b, Schema.FieldType elementType) {
+            Iterable<Object> a, Iterable<Object> b, Schema.FieldType elementType) {
       if (a == b) {
         return true;
       }
@@ -605,7 +619,7 @@ public abstract class Row implements Serializable {
         builder.append("[");
         for (Object element : (Iterable<?>) value) {
           builder.append(
-              toString(fieldType.getCollectionElementType(), element, includeFieldNames));
+                  toString(fieldType.getCollectionElementType(), element, includeFieldNames));
           builder.append(", ");
         }
         builder.append("]");
@@ -617,7 +631,7 @@ public abstract class Row implements Serializable {
           builder.append(toString(fieldType.getMapKeyType(), entry.getKey(), includeFieldNames));
           builder.append(", ");
           builder.append(
-              toString(fieldType.getMapValueType(), entry.getValue(), includeFieldNames));
+                  toString(fieldType.getMapValueType(), entry.getValue(), includeFieldNames));
           builder.append("), ");
         }
         builder.append("}");
@@ -684,7 +698,7 @@ public abstract class Row implements Serializable {
 
     /** Set a field value using a FieldAccessDescriptor. */
     public FieldValueBuilder withFieldValue(
-        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+            FieldAccessDescriptor fieldAccessDescriptor, Object value) {
       FieldAccessDescriptor fieldAccess = fieldAccessDescriptor.resolve(getSchema());
       checkArgument(fieldAccess.referencesSingleField(), "");
       fieldOverrides.addOverride(fieldAccess, new FieldOverride(value));
@@ -697,11 +711,11 @@ public abstract class Row implements Serializable {
      */
     public FieldValueBuilder withFieldValues(Map<String, Object> values) {
       values.entrySet().stream()
-          .forEach(
-              e ->
-                  fieldOverrides.addOverride(
-                      FieldAccessDescriptor.withFieldNames(e.getKey()).resolve(getSchema()),
-                      new FieldOverride(e.getValue())));
+              .forEach(
+                      e ->
+                              fieldOverrides.addOverride(
+                                      FieldAccessDescriptor.withFieldNames(e.getKey()).resolve(getSchema()),
+                                      new FieldOverride(e.getValue())));
       return this;
     }
 
@@ -711,19 +725,19 @@ public abstract class Row implements Serializable {
      */
     public FieldValueBuilder withFieldAccessDescriptors(Map<FieldAccessDescriptor, Object> values) {
       values.entrySet().stream()
-          .forEach(e -> fieldOverrides.addOverride(e.getKey(), new FieldOverride(e.getValue())));
+              .forEach(e -> fieldOverrides.addOverride(e.getKey(), new FieldOverride(e.getValue())));
       return this;
     }
 
     public Row build() {
       Row row =
-          (Row)
-              new RowFieldMatcher()
-                  .match(
-                      new CapturingRowCases(getSchema(), this.fieldOverrides),
-                      FieldType.row(getSchema()),
-                      new RowPosition(FieldAccessDescriptor.create()),
-                      sourceRow);
+              (Row)
+                      new RowFieldMatcher()
+                              .match(
+                                      new CapturingRowCases(getSchema(), this.fieldOverrides),
+                                      FieldType.row(getSchema()),
+                                      new RowPosition(FieldAccessDescriptor.create()),
+                                      sourceRow);
       return row;
     }
   }
@@ -759,7 +773,7 @@ public abstract class Row implements Serializable {
 
     /** Set a field value using a FieldAccessDescriptor. */
     public FieldValueBuilder withFieldValue(
-        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+            FieldAccessDescriptor fieldAccessDescriptor, Object value) {
       checkState(values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValue(fieldAccessDescriptor, value);
     }
@@ -829,7 +843,7 @@ public abstract class Row implements Serializable {
 
     @Internal
     public Row withFieldValueGetters(
-        Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
+            Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
       checkState(getterTarget != null, "getters require withGetterTarget.");
       return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
     }
@@ -839,23 +853,23 @@ public abstract class Row implements Serializable {
 
       if (!values.isEmpty() && values.size() != schema.getFieldCount()) {
         throw new IllegalArgumentException(
-            "Row expected "
-                + schema.getFieldCount()
-                + " fields. initialized with "
-                + values.size()
-                + " fields.");
+                "Row expected "
+                        + schema.getFieldCount()
+                        + " fields. initialized with "
+                        + values.size()
+                        + " fields.");
       }
 
       if (!values.isEmpty()) {
         FieldOverrides fieldOverrides = new FieldOverrides(schema, this.values);
         if (!fieldOverrides.isEmpty()) {
           return (Row)
-              new RowFieldMatcher()
-                  .match(
-                      new CapturingRowCases(schema, fieldOverrides),
-                      FieldType.row(schema),
-                      new RowPosition(FieldAccessDescriptor.create()),
-                      null);
+                  new RowFieldMatcher()
+                          .match(
+                                  new CapturingRowCases(schema, fieldOverrides),
+                                  FieldType.row(schema),
+                                  new RowPosition(FieldAccessDescriptor.create()),
+                                  null);
         }
       }
       return new RowWithStorage(schema, Collections.emptyList());
@@ -865,19 +879,19 @@ public abstract class Row implements Serializable {
   /** Creates a {@link Row} from the list of values and {@link #getSchema()}. */
   public static <T> Collector<T, List<Object>, Row> toRow(Schema schema) {
     return Collector.of(
-        () -> new ArrayList<>(schema.getFieldCount()),
-        List::add,
-        (left, right) -> {
-          left.addAll(right);
-          return left;
-        },
-        values -> Row.withSchema(schema).addValues(values).build());
+            () -> new ArrayList<>(schema.getFieldCount()),
+            List::add,
+            (left, right) -> {
+              left.addAll(right);
+              return left;
+            },
+            values -> Row.withSchema(schema).addValues(values).build());
   }
 
   /** Creates a new record filled with nulls. */
   public static Row nullRow(Schema schema) {
     return Row.withSchema(schema)
-        .addValues(Collections.nCopies(schema.getFieldCount(), null))
-        .build();
+            .addValues(Collections.nCopies(schema.getFieldCount(), null))
+            .build();
   }
 }
