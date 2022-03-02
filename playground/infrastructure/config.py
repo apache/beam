@@ -43,6 +43,7 @@ class Config:
       Sdk.Name(SDK_SCIO))
   BUCKET_NAME = "playground-precompiled-objects"
   TEMP_FOLDER = "temp"
+  DEFAULT_PRECOMPILED_OBJECT = "defaultPrecompiledObject.info"
   SDK_TO_EXTENSION = {
       SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
   }

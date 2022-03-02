@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
 	"reflect"
@@ -625,7 +626,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := New(tt.args.ctx); !reflect.DeepEqual(got, tt.want) {
+			if got := New(tt.args.ctx); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
 				t.Errorf("New() = %v, want %v", got, tt.want)
 			}
 		})
