@@ -1,14 +1,10 @@
 from typing import Any
-from typing import Generic
-from typing import Iterable
 from typing import List
-from typing import TypeVar
 import logging
 import resource
 import platform
 import sys
 import time
-
 
 import apache_beam as beam
 from apache_beam.utils import shared
@@ -27,34 +23,26 @@ def _unbatch(maybe_keyed_batches: Any):
     return results
 
 
-ExampleType = TypeVar('ExampleType')
-InferenceType = TypeVar('InferenceType')
-
-# TODO: make model generic, right now, that causes a pickle error
 class ModelLoader:
   """Has the ability to load an ML model."""
-
   def load_model(self):
     """Loads an initializes a model for processing."""
     raise NotImplementedError(type(self))
 
-class InferenceRunner:
-  "Implements runnning inferences."
 
-  def run_inference(self, batch:Any, model: Any) -> List[PredictionResult]:
+class InferenceRunner:
+  """Implements running inferences for a framework."""
+  def run_inference(self, batch: Any, model: Any) -> List[PredictionResult]:
     """Runs inferences on a batch of examples and returns a list of Predictions."""
     raise NotImplementedError(type(self))
 
 
 class MetricsCollector:
-  """A collector for beam metrics."""
-
+  """A metrics collector that tracks ML related performance and memory usage."""
   def __init__(self, namespace: str):
     # Metrics
     self._inference_counter = beam.metrics.Metrics.counter(
         namespace, 'num_inferences')
-    self._num_instances = beam.metrics.Metrics.counter(
-        namespace, 'num_instances')
     self._inference_request_batch_size = beam.metrics.Metrics.distribution(
         namespace, 'inference_request_batch_size')
     self._inference_request_batch_byte_size = (
@@ -83,17 +71,19 @@ class MetricsCollector:
       self._model_byte_size.update(self.model_byte_size_cache)
       self.model_byte_size_cache = None
 
-  def update(self, examples_count: int, examples_byte_size: int,
-             latency_micro_secs: int):
+  def update(
+      self,
+      examples_count: int,
+      examples_byte_size: int,
+      latency_micro_secs: int):
     self._inference_batch_latency_micro_secs.update(latency_micro_secs)
-    self._num_instances.inc(examples_count)
     self._inference_counter.inc(examples_count)
     self._inference_request_batch_size.update(examples_count)
     self._inference_request_batch_byte_size.update(examples_byte_size)
 
+
 class RunInferenceDoFn(beam.DoFn):
   def __init__(self, model_loader, inference_runner):
-    # TODO: Handle model updated coming from side inputs.
     self._model_loader = model_loader
     self._inference_runner = inference_runner
     self._shared_model_handle = shared.Shared()
@@ -118,7 +108,6 @@ class RunInferenceDoFn(beam.DoFn):
 
     return self._shared_model_handle.acquire(load)
 
-
   def setup(self):
     super().setup()
     self._model = self._load_model()
@@ -133,10 +122,12 @@ class RunInferenceDoFn(beam.DoFn):
       examples = batch
       keys = None
     inferences = self._inference_runner.run_inference(examples, self._model)
-    inference_latency = self._clock.get_current_time_in_microseconds() - start_time
+    inference_latency = self._clock.get_current_time_in_microseconds(
+    ) - start_time
     num_bytes = sys.getsizeof(batch)
     num_elements = len(batch)
-    self._metrics_collector.update(num_elements, sys.getsizeof(batch), inference_latency)
+    self._metrics_collector.update(
+        num_elements, sys.getsizeof(batch), inference_latency)
     yield keys, [PredictionResult(e, r) for e, r in zip(examples, inferences)]
 
 
@@ -150,12 +141,14 @@ class RunInferenceImpl(beam.PTransform):
         pcoll
         # TODO: Hook into the batching DoFn APIs.
         | beam.BatchElements()
-        | beam.ParDo(RunInferenceDoFn(self._model_loader, self._inference_runner))
+        | beam.ParDo(
+            RunInferenceDoFn(self._model_loader, self._inference_runner))
         | beam.FlatMap(_unbatch))
 
 
 def _is_darwin() -> bool:
   return sys.platform == 'darwin'
+
 
 def _get_current_process_memory_in_bytes():
   """Returns memory usage in bytes."""
@@ -166,8 +159,9 @@ def _get_current_process_memory_in_bytes():
       return usage
     return usage * 1024
   else:
-    logging.warning('Resource module is not available for current platform, '
-                    'memory usage cannot be fetched.')
+    logging.warning(
+        'Resource module is not available for current platform, '
+        'memory usage cannot be fetched.')
   return 0
 
 
@@ -180,13 +174,11 @@ def _is_cygwin() -> bool:
 
 
 class _Clock(object):
-
   def get_current_time_in_microseconds(self) -> int:
     return int(time.time() * _SECOND_TO_MICROSECOND)
 
 
 class _FineGrainedClock(_Clock):
-
   def get_current_time_in_microseconds(self) -> int:
     return int(
         time.clock_gettime_ns(time.CLOCK_REALTIME) /  # pytype: disable=module-attr
@@ -194,7 +186,6 @@ class _FineGrainedClock(_Clock):
 
 
 class _ClockFactory(object):
-
   @staticmethod
   def make_clock() -> _Clock:
     if (hasattr(time, 'clock_gettime_ns') and not _is_windows() and
