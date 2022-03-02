@@ -40,8 +40,9 @@ require (
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nightlyone/lockfile v1.0.0
-	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
+	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/spf13/cobra v1.3.0
+	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939 // indirect
 	github.com/testcontainers/testcontainers-go v0.12.0
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
