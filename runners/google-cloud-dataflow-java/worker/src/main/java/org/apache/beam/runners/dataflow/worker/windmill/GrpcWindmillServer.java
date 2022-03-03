@@ -1493,23 +1493,24 @@ public class GrpcWindmillServer extends WindmillServerStub {
     private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
       Preconditions.checkNotNull(pendingRequest.computation);
       AtomicLong remaining = new AtomicLong(pendingRequest.request.getSerializedSize());
-      Consumer<ByteString> chunkWriter = chunk -> {
-        StreamingCommitRequestChunk.Builder chunkBuilder =
-            StreamingCommitRequestChunk.newBuilder()
-                .setRequestId(id)
-                .setSerializedWorkItemCommit(chunk)
-                .setComputationId(pendingRequest.computation)
-                .setShardingKey(pendingRequest.request.getShardingKey());
-        if (remaining.addAndGet(-chunk.size()) > 0) {
-          chunkBuilder.setRemainingBytesForWorkItem(remaining.get());
-        }
-        StreamingCommitWorkRequest requestChunk =
-            StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
-        send(requestChunk);
-      };
+      Consumer<ByteString> chunkWriter =
+          chunk -> {
+            StreamingCommitRequestChunk.Builder chunkBuilder =
+                StreamingCommitRequestChunk.newBuilder()
+                    .setRequestId(id)
+                    .setSerializedWorkItemCommit(chunk)
+                    .setComputationId(pendingRequest.computation)
+                    .setShardingKey(pendingRequest.request.getShardingKey());
+            if (remaining.addAndGet(-chunk.size()) > 0) {
+              chunkBuilder.setRemainingBytesForWorkItem(remaining.get());
+            }
+            StreamingCommitWorkRequest requestChunk =
+                StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
+            send(requestChunk);
+          };
       try (ChunkingByteStream s = new ChunkingByteStream(chunkWriter)) {
         pendingRequest.request.writeTo(s);
-      } catch (IllegalStateException|IOException e) {
+      } catch (IllegalStateException | IOException e) {
         LOG.info("Stream was broken, request will be retried when stream is reopened.", e);
       }
     }
