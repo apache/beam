@@ -100,7 +100,7 @@ class DirectImpulseOperator implements operators.IOperator {
     );
   }
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     return operators.NonPromise;
   }
 
@@ -124,9 +124,9 @@ operators.registerOperator(Impulse.urn, DirectImpulseOperator);
 // concat-to-list CombineFn.
 class DirectGbkOperator implements operators.IOperator {
   receiver: operators.Receiver;
-  groups: Map<any, any[]>;
-  keyCoder: Coder<any>;
-  windowCoder: Coder<any>;
+  groups: Map<string, unknown[]>;
+  keyCoder: Coder<unknown>;
+  windowCoder: Coder<Window>;
 
   constructor(
     transformId: string,
@@ -331,7 +331,7 @@ class CollectSideOperator implements operators.IOperator {
 
   receiver: operators.Receiver;
   windowCoder: Coder<Window>;
-  elementCoder: Coder<any>;
+  elementCoder: Coder<unknown>;
 
   constructor(
     transformId: string,
@@ -363,7 +363,7 @@ class CollectSideOperator implements operators.IOperator {
 
   async startBundle() {}
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     for (const window of wvalue.windows) {
       const writer = new protobufjs.Writer();
       this.elementCoder.encode(
@@ -394,7 +394,7 @@ operators.registerOperator(CollectSideOperator.urn, CollectSideOperator);
 class BufferOperator implements operators.IOperator {
   static urn = "beam:transforms:node_ts_direct:buffer:v1";
   receiver: operators.Receiver;
-  elements: WindowedValue<any>[];
+  elements: WindowedValue<unknown>[];
 
   constructor(
     transformId: string,
@@ -406,7 +406,7 @@ class BufferOperator implements operators.IOperator {
     );
   }
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     this.elements.push(wvalue);
     return operators.NonPromise;
   }

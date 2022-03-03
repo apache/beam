@@ -35,8 +35,8 @@ interface Class<T> {
  */
 class CoderRegistry {
   internal_registry = {};
-  get(urn: string): Class<Coder<any>> {
-    const constructor: Class<Coder<any>> = this.internal_registry[urn];
+  get(urn: string): Class<Coder<unknown>> {
+    const constructor: Class<Coder<unknown>> = this.internal_registry[urn];
     if (constructor === undefined) {
       throw new Error("Could not find coder for URN " + urn);
     }
