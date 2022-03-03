@@ -69,11 +69,9 @@ export class GroupBy<T, K> extends PTransform<
   }
 
   expand(input: PCollection<T>): PCollection<KV<K, Iterable<T>>> {
-    const this_ = this;
+    const keyFn = this.keyFn;
     return input
-      .map(function (x) {
-        return { key: this_.keyFn(x), value: x };
-      })
+      .map((x) => ({ key: keyFn(x), value: x }))
       .apply(new GroupByKey());
   }
 
@@ -162,7 +160,7 @@ class GroupByAndCombine<T, O> extends PTransform<
   expand(input: PCollection<T>) {
     const this_ = this;
     return input
-      .map(function (element) {
+      .map(function extractKeys(element) {
         return {
           key: this_.keyFn(element),
           value: this_.combiners.map((c) => c.expr(element)),
@@ -173,7 +171,7 @@ class GroupByAndCombine<T, O> extends PTransform<
           new MultiCombineFn(this_.combiners.map((c) => c.combineFn))
         )
       )
-      .map(function (kv) {
+      .map(function constructResult(kv) {
         const result = {};
         if (this_.keyNames == undefined) {
           // Don't populate a key at all.

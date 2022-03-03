@@ -30,7 +30,7 @@ function wordCount(
 ): beam.PCollection<beam.KV<string, number>> {
   return lines
     .map((s: string) => s.toLowerCase())
-    .flatMap(function* (line: string) {
+    .flatMap(function* splitWords(line: string) {
       yield* line.split(/[^a-z]+/);
     })
     .apply(new CountElements("Count"));

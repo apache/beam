@@ -37,6 +37,7 @@ import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runne
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
+import { withName } from "../src/apache_beam/transforms";
 
 describe("primitives module", function () {
   describe("runs basic transforms", function () {
@@ -123,15 +124,18 @@ describe("primitives module", function () {
           .apply(new beam.WindowInto(new windowings.FixedWindows(10)))
           .apply(new beam.GroupBy((e: number) => ""))
           .map(
-            // This is the function to apply.
-            (kv, context) => {
-              return {
-                key: kv.key,
-                value: kv.value,
-                window_start_ms: context.window.lookup().start.low,
-                a: context.other,
-              };
-            },
+            withName(
+              "MapWithContext",
+              // This is the function to apply.
+              (kv, context) => {
+                return {
+                  key: kv.key,
+                  value: kv.value,
+                  window_start_ms: context.window.lookup().start.low,
+                  a: context.other,
+                };
+              }
+            ),
             // This is the context to pass as the second argument.
             // At each element, window.get() will return the associated window.
             { window: new pardo.WindowParam(), other: "A" }
@@ -208,7 +212,7 @@ describe("primitives module", function () {
       var p = new beam.Pipeline();
       var res = new beam.Root(p)
         .apply(new beam.Impulse())
-        .map(function (v) {
+        .map(function createElement(v) {
           return { name: "pablo", lastName: "wat" };
         })
         .apply(new GroupBy("lastName"));

@@ -46,7 +46,7 @@ describe("Apache Beam combiners", function () {
 
       lines
         .map((s: string) => s.toLowerCase())
-        .flatMap(function* (line: string) {
+        .flatMap(function* splitWords(line: string) {
           yield* line.split(/[^a-z]+/);
         })
         .map((elm) => ({ key: elm, value: 1 }))
@@ -94,7 +94,7 @@ describe("Apache Beam combiners", function () {
 
       lines
         .map((s: string) => s.toLowerCase())
-        .flatMap(function* (line: string) {
+        .flatMap(function* splitWords(line: string) {
           yield* line.split(/[^a-z]+/);
         })
         .apply(new CountGlobally())
@@ -148,7 +148,7 @@ describe("Apache Beam combiners", function () {
 
       lines
         .map((s: string) => s.toLowerCase())
-        .flatMap(function* (line: string) {
+        .flatMap(function* splitWords(line: string) {
           yield* line.split(/[^a-z]+/);
         })
         .map((word) => word.length)

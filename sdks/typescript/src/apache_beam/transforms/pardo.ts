@@ -22,10 +22,12 @@ import * as urns from "../internal/urns";
 import { GeneralObjectCoder } from "../coders/js_coders";
 import { PCollection } from "../pvalue";
 import { Pipeline, fakeSeralize } from "../base";
-import { PTransform } from "./transform";
+import { PTransform, extractName } from "./transform";
 import { PaneInfo, Instant, Window, WindowedValue } from "../values";
 
 export class DoFn<InputT, OutputT, ContextT = undefined> {
+  public beamName: string;
+
   *process(element: InputT, context: ContextT): Iterable<OutputT> | void {
     throw new Error("Method process has not been implemented!");
   }
@@ -59,7 +61,7 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
     doFn: DoFn<InputT, OutputT, ContextT>,
     context: ContextT = undefined!
   ) {
-    super("ParDo(" + doFn + ")");
+    super(() => "ParDo(" + extractName(doFn) + ")");
     this.doFn = doFn;
     this.context = context;
   }
@@ -67,7 +69,7 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
   expandInternal(
     input: PCollection<InputT>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ) {
     // Extract and populate side inputs from the context.
     var context;
@@ -165,7 +167,7 @@ export class Split<T> extends PTransform<
   expandInternal(
     input: PCollection<T>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,
@@ -206,7 +208,7 @@ export class Split2<T extends { [key: string]: unknown }> extends PTransform<
   expandInternal(
     input: PCollection<T>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,

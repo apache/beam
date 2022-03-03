@@ -20,14 +20,43 @@ import * as runnerApi from "../proto/beam_runner_api";
 import { PValue } from "../pvalue";
 import { Pipeline } from "../base";
 
+export function withName<T>(name: string | (() => string), arg: T) {
+  (arg as any).beamName = name;
+  return arg;
+}
+
+export function extractName<T>(withName: T): string {
+  const untyped = withName as any;
+  if (untyped.beamName != undefined) {
+    if (typeof untyped.beamName == "string") {
+      return untyped.beamName;
+    } else {
+      return untyped.beamName();
+    }
+  } else if (
+    untyped.name != undefined &&
+    untyped.name &&
+    untyped.name != "anonymous"
+  ) {
+    return untyped.name;
+  } else {
+    const stringified = ("" + withName).replace(/s+/, " ");
+    if (stringified.length < 60) {
+      return stringified;
+    } else {
+      throw new Error("Unable to deduce name, please use withName(...).");
+    }
+  }
+}
+
 export class AsyncPTransform<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
 > {
-  name: string;
+  beamName: string | (() => string);
 
-  constructor(name: string | null = null) {
-    this.name = name || typeof this;
+  constructor(name: string | (() => string) | null = null) {
+    this.beamName = name || this.constructor.name;
   }
 
   async asyncExpand(input: InputT): Promise<OutputT> {
@@ -37,7 +66,7 @@ export class AsyncPTransform<
   async asyncExpandInternal(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ): Promise<OutputT> {
     return this.asyncExpand(input);
   }
@@ -58,7 +87,7 @@ export class PTransform<
   expandInternal(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ): OutputT {
     return this.expand(input);
   }
@@ -66,7 +95,7 @@ export class PTransform<
   async asyncExpandInternal(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ): Promise<OutputT> {
     return this.expandInternal(input, pipeline, transformProto);
   }

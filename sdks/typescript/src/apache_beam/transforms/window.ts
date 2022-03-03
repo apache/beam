@@ -83,7 +83,7 @@ export class WindowInto<T, W extends Window> extends PTransform<
   expandInternal(
     input: PCollection<T>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,
@@ -121,7 +121,7 @@ export class AssignTimestamps<T> extends PTransform<
   expandInternal(
     input: PCollection<T>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,

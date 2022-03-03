@@ -19,7 +19,7 @@
 import * as runnerApi from "../proto/beam_runner_api";
 import * as urns from "../internal/urns";
 
-import { PTransform } from "./transform";
+import { PTransform, withName } from "./transform";
 import { PCollection, Root } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { Coder } from "../coders/coders";
@@ -49,7 +49,7 @@ export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
   expandInternal(
     input: Root,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ): PCollection<Uint8Array> {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: Impulse.urn,
@@ -70,7 +70,7 @@ export class WithCoderInternal<T> extends PTransform<
   expandInternal(
     input: PCollection<T>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ) {
     // IDENTITY rather than Flatten for better fusion.
     transformProto.spec = {
@@ -111,7 +111,7 @@ export class GroupByKey<K, V> extends PTransform<
   expandInternal(
     input: PCollection<KV<K, V>>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform,
+    transformProto: runnerApi.PTransform
   ) {
     const pipelineComponents: runnerApi.Components =
       pipeline.getProto().components!;
@@ -169,14 +169,16 @@ export class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<
   // windowing, and triggering as needed.
   expand(input: PCollection<KV<any, InputT>>) {
     const combineFn = this.combineFn;
-    return input.apply(new GroupByKey()).map((kv) => ({
-      key: kv.key,
-      value: combineFn.extractOutput(
-        kv.value.reduce(
-          combineFn.addInput.bind(combineFn),
-          combineFn.createAccumulator()
-        )
-      ),
-    }));
+    return input.apply(new GroupByKey()).map(
+      withName("applyCombine", (kv) => ({
+        key: kv.key,
+        value: combineFn.extractOutput(
+          kv.value.reduce(
+            combineFn.addInput.bind(combineFn),
+            combineFn.createAccumulator()
+          )
+        ),
+      }))
+    );
   }
 }
