@@ -50,7 +50,7 @@ func TestSetToCache(t *testing.T) {
 		{
 			// Test case with calling SetToCache method with correct cacheService.
 			// As a result, want to expected value from cache.
-			name: "set value without error",
+			name: "Set value without error",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: localCache,
