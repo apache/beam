@@ -19,19 +19,21 @@ package org.apache.beam.sdk.io.aws2.common;
 
 import static org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils.deserializeAwsCredentialsProvider;
 import static org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils.serializeAwsCredentialsProvider;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.checkerframework.dataflow.qual.Pure;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 
@@ -47,18 +49,28 @@ import software.amazon.awssdk.regions.Region;
  * uses a backoff strategy with equal jitter for computing the delay before the next retry.
  */
 @AutoValue
+@JsonInclude(value = JsonInclude.Include.NON_EMPTY)
+@JsonDeserialize(builder = ClientConfiguration.Builder.class)
 public abstract class ClientConfiguration implements Serializable {
 
   /**
    * Optional {@link AwsCredentialsProvider}. If set, this overwrites the default in {@link
    * AwsOptions#getAwsCredentialsProvider()}.
    */
-  public abstract @Nullable @Pure AwsCredentialsProvider credentialsProvider();
+  @JsonProperty
+  @Memoized
+  public @Nullable @Pure AwsCredentialsProvider credentialsProvider() {
+    return credentialsProviderAsJson() != null
+        ? deserializeAwsCredentialsProvider(credentialsProviderAsJson())
+        : null;
+  }
 
   /**
    * Optional {@link Region}. If set, this overwrites the default in {@link
    * AwsOptions#getAwsRegion()}.
    */
+  @JsonProperty
+  @Memoized
   public @Nullable @Pure Region region() {
     return regionId() != null ? Region.of(regionId()) : null;
   }
@@ -67,20 +79,24 @@ public abstract class ClientConfiguration implements Serializable {
    * Optional service endpoint to use AWS compatible services instead, e.g. for testing. If set,
    * this overwrites the default in {@link AwsOptions#getEndpoint()}.
    */
+  @JsonProperty
   public abstract @Nullable @Pure URI endpoint();
 
   /**
    * Optional {@link RetryConfiguration} for AWS clients. If unset, retry behavior will be unchanged
    * and use SDK defaults.
    */
+  @JsonProperty
   public abstract @Nullable @Pure RetryConfiguration retry();
 
   abstract @Nullable @Pure String regionId();
 
+  abstract @Nullable @Pure String credentialsProviderAsJson();
+
   public abstract Builder toBuilder();
 
   public static Builder builder() {
-    return new AutoValue_ClientConfiguration.Builder();
+    return Builder.builder();
   }
 
   public static ClientConfiguration create(
@@ -93,12 +109,20 @@ public abstract class ClientConfiguration implements Serializable {
   }
 
   @AutoValue.Builder
+  @JsonPOJOBuilder(withPrefix = "")
   public abstract static class Builder {
+    @JsonCreator
+    static Builder builder() {
+      return new AutoValue_ClientConfiguration.Builder();
+    }
+
     /**
      * Optional {@link AwsCredentialsProvider}. If set, this overwrites the default in {@link
      * AwsOptions#getAwsCredentialsProvider()}.
      */
-    public abstract Builder credentialsProvider(AwsCredentialsProvider credentialsProvider);
+    public Builder credentialsProvider(AwsCredentialsProvider credentialsProvider) {
+      return credentialsProviderAsJson(serializeAwsCredentialsProvider(credentialsProvider));
+    }
 
     /**
      * Optional {@link Region}. If set, this overwrites the default in {@link
@@ -118,6 +142,7 @@ public abstract class ClientConfiguration implements Serializable {
      * Optional {@link RetryConfiguration} for AWS clients. If unset, retry behavior will be
      * unchanged and use SDK defaults.
      */
+    @JsonSetter
     public abstract Builder retry(RetryConfiguration retry);
 
     /**
@@ -132,58 +157,8 @@ public abstract class ClientConfiguration implements Serializable {
 
     abstract Builder regionId(String region);
 
-    abstract AwsCredentialsProvider credentialsProvider();
+    abstract Builder credentialsProviderAsJson(String credentialsProvider);
 
-    abstract ClientConfiguration autoBuild();
-
-    public ClientConfiguration build() {
-      if (credentialsProvider() != null) {
-        credentialsProvider(new SerializableAwsCredentialsProvider(credentialsProvider()));
-      }
-      return autoBuild();
-    }
-  }
-
-  /** Internal serializable {@link AwsCredentialsProvider}. */
-  private static class SerializableAwsCredentialsProvider
-      implements AwsCredentialsProvider, Serializable {
-    private transient AwsCredentialsProvider provider;
-    private String serializedProvider;
-
-    SerializableAwsCredentialsProvider(AwsCredentialsProvider provider) {
-      this.provider = checkNotNull(provider, "AwsCredentialsProvider cannot be null");
-      this.serializedProvider = serializeAwsCredentialsProvider(provider);
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-      out.writeUTF(serializedProvider);
-    }
-
-    private void readObject(ObjectInputStream in) throws IOException {
-      serializedProvider = in.readUTF();
-      provider = deserializeAwsCredentialsProvider(serializedProvider);
-    }
-
-    @Override
-    public AwsCredentials resolveCredentials() {
-      return provider.resolveCredentials();
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      SerializableAwsCredentialsProvider that = (SerializableAwsCredentialsProvider) o;
-      return serializedProvider.equals(that.serializedProvider);
-    }
-
-    @Override
-    public int hashCode() {
-      return serializedProvider.hashCode();
-    }
+    public abstract ClientConfiguration build();
   }
 }
