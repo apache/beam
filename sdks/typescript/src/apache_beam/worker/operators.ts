@@ -38,30 +38,9 @@ import {
 } from "./pardo_context";
 
 // Trying to get some of https://github.com/microsoft/TypeScript/issues/8240
-// TODO: (Typescript) Is there a more idiomatic way to get a singleton?
-// I think the idiomatic way in TypeScript is a string or objects with a string key.
-// See: https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions
-// Examples:
-//
-// type ProcessResult = 'nonpromise' | Promise<void>;
-//
-// type ProcessResult = void | Promise<void>;
-//
-// interface NonPromiseResult {
-//   kind: 'nonpromise';
-// }
-// interface PromiseResult {
-//   kind: 'promise';
-//   promise: Promise<void>;
-// }
-// type ProcessResult = NonPromiseResult | PromiseResult;
-class NonPromiseClass {
-  static INSTANCE = new NonPromiseClass();
-  private constructor() {}
-}
-export const NonPromise = NonPromiseClass.INSTANCE;
+export const NonPromise = null;
 
-export type ProcessResult = NonPromiseClass | Promise<void>;
+export type ProcessResult = null | Promise<void>;
 
 export class ProcessResultBuilder {
   promises: Promise<void>[] = [];
@@ -76,7 +55,7 @@ export class ProcessResultBuilder {
     } else if (this.promises.length == 1) {
       return this.promises[0];
     } else {
-      return Promise.all(this.promises).then(() => null);
+      return Promise.all(this.promises).then(() => void null);
     }
   }
 }
