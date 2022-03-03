@@ -27,12 +27,12 @@ import (
 func TestGetEndpoint(t *testing.T) {
 	address := "localhost:8099"
 	Endpoint = &address
-	if v, err := GetEndpoint(); err == nil {
-		if v != address {
-			t.Errorf("GetEndpoint() = %v, want %v", v, address)
-		}
-	} else {
-		t.Errorf("unexpected error GetEndpoint(): %v", err)
+	v, err := GetEndpoint()
+	if err != nil {
+		t.Fatalf("unexpected error GetEndpoint(): %v", err)
+	}
+	if v != address {
+		t.Errorf("GetEndpoint() = %v, want %v", v, address)
 	}
 }
 
