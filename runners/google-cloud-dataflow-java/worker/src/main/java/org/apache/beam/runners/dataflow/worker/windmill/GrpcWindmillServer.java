@@ -1463,6 +1463,10 @@ public class GrpcWindmillServer extends WindmillServerStub {
       }
     }
 
+    // An OutputStream which splits the output into chunks of no more than COMMIT_STREAM_CHUNK_SIZE
+    // before calling the chunkWriter on each.
+    //
+    // This avoids materializing the whole serialized request in the case it is large.
     private class ChunkingByteStream extends OutputStream {
       private final ByteString.Output output = ByteString.newOutput(COMMIT_STREAM_CHUNK_SIZE);
       private final Consumer<ByteString> chunkWriter;
@@ -1484,7 +1488,22 @@ public class GrpcWindmillServer extends WindmillServerStub {
         }
       }
 
+      @Override
+      public void write(byte b[], int off, int len) throws IOException {
+        // Fast path for larger writes that don't make the chunk too large.
+        if (len + output.size() < COMMIT_STREAM_CHUNK_SIZE) {
+          output.write(b, off, len);
+          return;
+        }
+        for (int i = 0; i < len; i++) {
+          write(b[off + i]);
+        }
+      }
+
       private void flushBytes() {
+        if (output.size() == 0) {
+          return;
+        }
         chunkWriter.accept(output.toByteString());
         output.reset();
       }
@@ -1492,21 +1511,26 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
       Preconditions.checkNotNull(pendingRequest.computation);
-      AtomicLong remaining = new AtomicLong(pendingRequest.request.getSerializedSize());
       Consumer<ByteString> chunkWriter =
-          chunk -> {
-            StreamingCommitRequestChunk.Builder chunkBuilder =
-                StreamingCommitRequestChunk.newBuilder()
-                    .setRequestId(id)
-                    .setSerializedWorkItemCommit(chunk)
-                    .setComputationId(pendingRequest.computation)
-                    .setShardingKey(pendingRequest.request.getShardingKey());
-            if (remaining.addAndGet(-chunk.size()) > 0) {
-              chunkBuilder.setRemainingBytesForWorkItem(remaining.get());
+          new Consumer<ByteString>() {
+            private long remaining = pendingRequest.request.getSerializedSize();
+
+            @Override
+            public void accept(ByteString byteString) {
+              StreamingCommitRequestChunk.Builder chunkBuilder =
+                  StreamingCommitRequestChunk.newBuilder()
+                      .setRequestId(id)
+                      .setSerializedWorkItemCommit(chunk)
+                      .setComputationId(pendingRequest.computation)
+                      .setShardingKey(pendingRequest.request.getShardingKey());
+              remaining -= chunk.size();
+              if (remaining > 0) {
+                chunkBuilder.setRemainingBytesForWorkItem(remaining.get());
+              }
+              StreamingCommitWorkRequest requestChunk =
+                  StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
+              send(requestChunk);
             }
-            StreamingCommitWorkRequest requestChunk =
-                StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
-            send(requestChunk);
           };
       try (ChunkingByteStream s = new ChunkingByteStream(chunkWriter)) {
         pendingRequest.request.writeTo(s);
