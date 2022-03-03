@@ -42,7 +42,7 @@ import java.util.Arrays;
  * other runners require additional setup and are out of scope of the SQL examples. Please consult
  * Beam documentation on how to run pipelines.
  */
-class BeamSqlNestedExample {
+class BeamSqlUnnestExample {
 
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
@@ -87,8 +87,7 @@ class BeamSqlNestedExample {
     PCollection<Row> inputTable =
             PBegin.in(p).apply(Create.of(level1Row1, level1Row2, level1Row3).withRowSchema(level1Type));
 
-    String sql = "select t.a1, t.a2, t.a3, d.b1, d.b2, d.b4, " +
-            "d.b3.c1, d.b3.c2, d.b3.c3 from test t cross join unnest(t.a4) d";
+    String sql = "select t.a1, t.a2, t.a3, d.b1, d.b2, d.b4, d.b3.c1, d.b3.c2, d.b3.c3 from test t cross join unnest(t.a4) d";
     // Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<Row> dfTemp =
             PCollectionTuple.of(new TupleTag<>("test"), inputTable).apply(SqlTransform.query(sql));

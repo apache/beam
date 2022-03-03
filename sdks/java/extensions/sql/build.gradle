@@ -209,7 +209,7 @@ task runBasicExample(type: JavaExec) {
 // Run basic SQL example
 task runNestedRowInArrayExample(type: JavaExec) {
   description = "Run basic SQL example"
-  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlNestedExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlUnnestExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }

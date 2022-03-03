@@ -157,7 +157,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
           out.output(
               Row.withSchema(outputSchema)
                   .addValues(row.getBaseValues())
-                  .addValues(nestedRow.getBaseValues())
+                  .addValues(nestedRow.getNestedRowBaseValues())
                   .build());
         } else {
           out.output(

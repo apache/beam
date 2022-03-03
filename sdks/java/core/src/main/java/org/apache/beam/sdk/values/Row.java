@@ -109,15 +109,17 @@ public abstract class Row implements Serializable {
   /** Return the list of data values. */
   public abstract List<Object> getValues();
 
-  /** Return a list of data values. Any LogicalType values are returned as base values. * */
-  public List<Object> getBaseValues() {
+  /** This is recursive call to get all the values of the nested rows.
+  The recusion is bounded by the amount of nesting with in the data
+   This mirrors the unnest behavior of calcite towards schema **/
+  public List<Object> getNestedRowBaseValues() {
     return IntStream.range(0, getFieldCount())
             .mapToObj(i -> {
               List<Object> values = new ArrayList<>();
               FieldType fieldType = this.getSchema().getField(i).getType();
               if(fieldType.getTypeName().equals(TypeName.ROW)) {
                 Row row = this.getBaseValue(i, Row.class);
-                List<Object> rowValues = row.getBaseValues();
+                List<Object> rowValues = row.getNestedRowBaseValues();
                 if(null != rowValues) {
                   values.addAll(rowValues);
                 }
@@ -126,7 +128,13 @@ public abstract class Row implements Serializable {
               }
               return values.stream();
             }).flatMap(Function.identity()).collect(Collectors.toList());
+  }
 
+  /** Return a list of data values. Any LogicalType values are returned as base values. * */
+  public List<Object> getBaseValues() {
+    return IntStream.range(0, getFieldCount())
+            .mapToObj(i -> getBaseValue(i))
+            .collect(Collectors.toList());
   }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
