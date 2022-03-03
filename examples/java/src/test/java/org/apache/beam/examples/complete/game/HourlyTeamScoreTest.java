@@ -17,10 +17,15 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.base.Splitter;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -35,12 +40,15 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests of HourlyTeamScore. Because the pipeline was designed for easy readability and
@@ -60,10 +68,8 @@ public class HourlyTeamScoreTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testUserScoresFilter() throws Exception {
 
-    List<String> gameEvents =
-        UserScoreTest.getRecordsFromCSVFile("hourly_team_score_game_events.csv");
-    List<String> filteredEvents =
-        UserScoreTest.getRecordsFromCSVFile("hourly_team_score_filtered_events.csv");
+    List<String> gameEvents = UserScoreTest.getRecordsFromCSVFile("hourly_team_score_game_events.csv");
+    List<String> filteredEvents = UserScoreTest.getRecordsFromCSVFile("hourly_team_score_filtered_events.csv");
     List<KV> kvFilteredEvents = new ArrayList<>();
 
     filteredEvents.forEach(
