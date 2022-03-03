@@ -62,7 +62,6 @@ export function extractName<T>(withName: T): string {
 // call rather than forcing the asynchronous nature all the way up the call
 // hierarchy).
 
-
 export class AsyncPTransform<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
