@@ -105,6 +105,12 @@ these volumes. (List volumes via `docker volume ls`)
 
 ## Kubernetes setup
 
+### Cluster Specification:
+  GKE Version: 1.18.20
+  Runtime: Docker
+  Authenticaction method: OAuth Client Certificate.
+  
+
 Kubernetes deployment instructions are maintained in the wiki:
 * [Community metrics](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics)
 * [Test Results Monitoring](https://cwiki.apache.org/confluence/display/BEAM/Test+Results+Monitoring)
