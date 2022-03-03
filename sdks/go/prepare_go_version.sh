@@ -67,7 +67,7 @@ GOHOSTARCH=`/home/jenkins/go/bin/go env GOHOSTARCH`
 echo "System Go installation: `which /home/jenkins/go/bin/go` is `/home/jenkins/go/bin/go version`; Preparing to use $GOBIN/$GOVERS"
 
 # Ensure it's installed in the GOBIN directory, using the local host platform.
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
+GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN /home/jenkins/go/bin/go install golang.org/dl/$GOVERS@latest
 
 # The download command isn't concurrency safe so prepare should be done at most once
 # per gogradle chain.
