@@ -351,9 +351,6 @@ class GenericParDoOperator implements IOperator {
   }
 
   async startBundle() {
-    if (this.doFn.startBundle) {
-      this.doFn.startBundle();
-    }
     this.paramProvider = new ParamProviderImpl(
       this.transformId,
       this.sideInputInfo,
@@ -362,6 +359,9 @@ class GenericParDoOperator implements IOperator {
     this.augmentedContext = this.paramProvider.augmentContext(
       this.originalContext
     );
+    if (this.doFn.startBundle) {
+      this.doFn.startBundle(this.augmentedContext);
+    }
   }
 
   process(wvalue: WindowedValue<any>) {
@@ -430,7 +430,7 @@ class GenericParDoOperator implements IOperator {
 
   async finishBundle() {
     if (this.doFn.finishBundle) {
-      const finishBundleOutput = this.doFn.finishBundle();
+      const finishBundleOutput = this.doFn.finishBundle(this.augmentedContext);
       if (!finishBundleOutput) {
         return;
       }
