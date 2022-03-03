@@ -25,18 +25,16 @@ import { Pipeline, fakeSeralize } from "../base";
 import { PTransform, extractName } from "./transform";
 import { PaneInfo, Instant, Window, WindowedValue } from "../values";
 
-export class DoFn<InputT, OutputT, ContextT = undefined> {
-  public beamName: string;
+export interface DoFn<InputT, OutputT, ContextT = undefined> {
+  beamName?: string;
 
-  *process(element: InputT, context: ContextT): Iterable<OutputT> | void {
-    throw new Error("Method process has not been implemented!");
-  }
+  process: (element: InputT, context: ContextT) => Iterable<OutputT> | void;
 
   // TODO: (API) Should these get context as well?
-  startBundle() {}
+  startBundle?: () => void;
 
   // TODO: (API) Re-consider this API.
-  *finishBundle(): Generator<WindowedValue<OutputT>> | void {}
+  finishBundle?: () => Iterable<WindowedValue<OutputT>> | void;
 }
 
 // TODO: (API) Do we need an AsyncDoFn (and async[Flat]Map) to be able to call

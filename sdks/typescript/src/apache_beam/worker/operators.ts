@@ -167,7 +167,6 @@ export function registerOperatorConstructor(
 // the IOperator interface here, but classes are used to make a clearer pattern
 // potential SDK authors that are less familiar with javascript.
 
-
 class DataSourceOperator implements IOperator {
   transformId: string;
   getBundleId: () => string;
@@ -352,7 +351,9 @@ class GenericParDoOperator implements IOperator {
   }
 
   async startBundle() {
-    this.doFn.startBundle();
+    if (this.doFn.startBundle) {
+      this.doFn.startBundle();
+    }
     this.paramProvider = new ParamProviderImpl(
       this.transformId,
       this.sideInputInfo,
@@ -428,17 +429,19 @@ class GenericParDoOperator implements IOperator {
   }
 
   async finishBundle() {
-    const finishBundleOutput = this.doFn.finishBundle();
-    if (!finishBundleOutput) {
-      return;
-    }
-    // The finishBundle method must return `void` or a Generator<WindowedValue<OutputT>>. It may not
-    // return Generator<OutputT> without windowing information because a single bundle may contain
-    // elements from different windows, so each element must specify its window.
-    for (const element of finishBundleOutput) {
-      const maybePromise = this.receiver.receive(element);
-      if (maybePromise != NonPromise) {
-        await maybePromise;
+    if (this.doFn.finishBundle) {
+      const finishBundleOutput = this.doFn.finishBundle();
+      if (!finishBundleOutput) {
+        return;
+      }
+      // The finishBundle method must return `void` or a Generator<WindowedValue<OutputT>>. It may not
+      // return Generator<OutputT> without windowing information because a single bundle may contain
+      // elements from different windows, so each element must specify its window.
+      for (const element of finishBundleOutput) {
+        const maybePromise = this.receiver.receive(element);
+        if (maybePromise != NonPromise) {
+          await maybePromise;
+        }
       }
     }
   }

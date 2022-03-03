@@ -111,7 +111,15 @@ export class PCollection<T> {
       withName(
         "map(" + extractName(fn) + ")",
         new ParDo<T, OutputT, ContextT>(
-          new MapDoFn<T, OutputT, ContextT>(fn),
+          {
+            process: function* (element: T, context: ContextT) {
+              // While it's legal to call a function with extra arguments which will
+              // be ignored, this can have surprising behavior (e.g. for map(console.log))
+              yield context == undefined
+                ? (fn as (T) => OutputT)(element)
+                : fn(element, context);
+            },
+          },
           context
         )
       )
@@ -128,7 +136,15 @@ export class PCollection<T> {
       withName(
         "flatMap(" + extractName(fn) + ")",
         new ParDo<T, OutputT, ContextT>(
-          new FlatMapDoFn<T, OutputT, ContextT>(fn),
+          {
+            process: function* (element: T, context: ContextT) {
+              // While it's legal to call a function with extra arguments which will
+              // be ignored, this can have surprising behavior (e.g. for map(console.log))
+              yield* context == undefined
+                ? (fn as (T) => Iterable<OutputT>)(element)
+                : fn(element, context);
+            },
+          },
           context
         )
       )
@@ -265,43 +281,5 @@ class AsyncPTransformFromCallable<
 
   async asyncExpand(input: InputT) {
     return this.expander(input);
-  }
-}
-
-// If this is exported, should probably move out of this module.
-class MapDoFn<InputT, OutputT, ContextT> extends DoFn<
-  InputT,
-  OutputT,
-  ContextT
-> {
-  private fn: (element: InputT, context: ContextT) => OutputT;
-  constructor(fn: (element: InputT, context: ContextT) => OutputT) {
-    super();
-    this.beamName = extractName(fn);
-    this.fn = fn;
-  }
-  *process(element: InputT, context: ContextT) {
-    // While it's legal to call a function with extra arguments which will
-    // be ignored, this can have surprising behavior (e.g. for map(console.log))
-    yield context == undefined
-      ? (this.fn as (InputT) => OutputT)(element)
-      : this.fn(element, context);
-  }
-}
-
-// If this is exported, should probably move out of this module.
-class FlatMapDoFn<InputT, OutputT, ContextT> extends DoFn<
-  InputT,
-  OutputT,
-  ContextT
-> {
-  private fn: (element: InputT, context: ContextT) => Iterable<OutputT>;
-  constructor(fn: (element: InputT, context: ContextT) => Iterable<OutputT>) {
-    super();
-    this.beamName = extractName(fn);
-    this.fn = fn;
-  }
-  *process(element: InputT, context: ContextT) {
-    yield* this.fn(element, context);
   }
 }
