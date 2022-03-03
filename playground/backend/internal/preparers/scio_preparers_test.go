@@ -29,7 +29,7 @@ func TestGetScioPreparers(t *testing.T) {
 		{
 			// Test case with calling GetScioPreparers method.
 			// As a result, want to receive slice of preparers with len = 3
-			name: "get scio preparers",
+			name: "Get scio preparers",
 			args: args{"MOCK_FILEPATH"},
 			want: 3,
 		},

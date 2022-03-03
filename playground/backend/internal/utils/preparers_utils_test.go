@@ -33,17 +33,17 @@ func TestSpacesToEqualsOption(t *testing.T) {
 		want string
 	}{
 		{
-			name: "args is empty string",
+			name: "Args is empty string",
 			args: args{pipelineOptions: ""},
 			want: "",
 		},
 		{
-			name: "args with one option",
+			name: "Args with one option",
 			args: args{pipelineOptions: "--opt1 valOpt"},
 			want: "--opt1=valOpt",
 		},
 		{
-			name: "args with some options",
+			name: "Args with some options",
 			args: args{pipelineOptions: "--opt1 valOpt --opt2 valOpt --opt3 valOpt"},
 			want: "--opt1=valOpt --opt2=valOpt --opt3=valOpt",
 		},
@@ -79,7 +79,7 @@ func Test_ChangeTestFileName(t *testing.T) {
 	}{
 		{
 			// Test that file changes its name to the name of its public class
-			name:     "file with java unit test code to be renamed",
+			name:     "File with java unit test code to be renamed",
 			args:     args{[]interface{}{path, "public class (.*?) [{|implements(.*)]"}},
 			wantErr:  false,
 			wantName: "Class.java",
