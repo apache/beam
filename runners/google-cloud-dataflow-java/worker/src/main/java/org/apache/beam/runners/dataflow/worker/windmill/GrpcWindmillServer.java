@@ -1527,7 +1527,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
                       .setShardingKey(pendingRequest.request.getShardingKey());
               remaining -= chunk.size();
               if (remaining > 0) {
-                chunkBuilder.setRemainingBytesForWorkItem(remaining.get());
+                chunkBuilder.setRemainingBytesForWorkItem(remaining);
               }
               StreamingCommitWorkRequest requestChunk =
                   StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
