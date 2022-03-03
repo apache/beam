@@ -31,11 +31,13 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import GlobalWindow
@@ -482,6 +484,70 @@ class InteractiveRunnerTest(unittest.TestCase):
     for producer, consumer in trace:
       self.assertEqual(producer, prev_producer, trace_string)
       prev_producer = consumer
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.create_flink_cluster',
+      return_value=None)
+  def test_get_master_url_no_flink_master_or_provided_master_url(
+      self, mock_create_cluster):
+    from apache_beam.runners.portability.flink_runner import FlinkRunner
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project='test-project',
+            region='test-region',
+        ))
+    runner._get_dataproc_cluster_master_url_if_applicable(p)
+    self.assertEqual(
+        ie.current_env().clusters.describe(p)['cluster_metadata'].project_id,
+        'test-project')
+    ie.current_env().clusters = ib.Clusters()
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  def test_get_master_url_no_flink_master_and_master_url_exists(self):
+    from apache_beam.runners.portability.flink_runner import FlinkRunner
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project='test-project',
+            region='test-region',
+        ))
+    cluster_name = ie.current_env().clusters.default_cluster_name
+    cluster_metadata = MasterURLIdentifier(
+        project_id='test-project',
+        region='test-region',
+        cluster_name=cluster_name)
+    ie.current_env().clusters.master_urls['test-url'] = cluster_metadata
+    ie.current_env(
+    ).clusters.master_urls_to_dashboards['test-url'] = 'test-dashboard'
+    flink_master = runner._get_dataproc_cluster_master_url_if_applicable(p)
+    self.assertEqual(
+        ie.current_env().clusters.describe(p)['cluster_metadata'].project_id,
+        'test-project')
+    self.assertEqual(
+        flink_master, ie.current_env().clusters.describe(p)['master_url'])
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  def test_get_master_url_flink_master_provided(self):
+    runner = interactive_runner.InteractiveRunner()
+    from apache_beam.runners.portability.flink_runner import FlinkRunner
+    p = beam.Pipeline(
+        interactive_runner.InteractiveRunner(underlying_runner=FlinkRunner()),
+        options=PipelineOptions(
+            flink_master='--flink_master=example.internal:1'))
+    runner._get_dataproc_cluster_master_url_if_applicable(p)
+    self.assertEqual(ie.current_env().clusters.describe(), {})
+    ie.current_env().clusters = ib.Clusters()
 
 
 if __name__ == '__main__':

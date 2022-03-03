@@ -211,13 +211,13 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-*"},
-          {"os": [macos-latest], "python": "cp36-* cp37-* cp38-*"},
-          {"os": [self-hosted,windows-server-2019], "python": "cp36-* cp37-* cp38-*"},
+          {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-* cp39-*"},
+          {"os": [macos-latest], "python": "cp36-* cp37-* cp38-* cp39-*"},
+          {"os": [self-hosted,windows-server-2019], "python": "cp36-* cp37-* cp38-* cp39-*"},
         ]
         arch: [auto]
         include:
-          - os_python: {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-*"}
+          - os_python: {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-* cp39-*"}
             arch: aarch64
     steps:
     - name: Clean wheels folder (Windows)

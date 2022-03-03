@@ -290,7 +290,7 @@ tasks.register('validatesRunner') {
 // Generates :runners:flink:1.13:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
 
-task examplesIntegrationTest(type: Test) {
+tasks.register("examplesIntegrationTest", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }

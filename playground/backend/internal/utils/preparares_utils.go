@@ -29,7 +29,7 @@ import (
 
 const (
 	indentationReplacement = "$0"
-	emptyLine              = ""
+	EmptyLine              = ""
 	GraphFileName          = "graph.dot"
 	pythonGraphCodePattern = "$0# Write graph to file\n$0from apache_beam.runners.interactive.display import pipeline_graph\n$0dot = pipeline_graph.PipelineGraph(%s).get_dot()\n$0with open('%s', 'w') as file:\n$0  file.write(dot)\n"
 	newLinePattern         = "\n"
@@ -50,12 +50,12 @@ func ReplaceSpacesWithEquals(pipelineOptions string) string {
 
 // InitVars creates empty variables
 func InitVars() (string, string, error, bool, PipelineDefinitionType) {
-	return emptyLine, emptyLine, errors.New(emptyLine), false, RegularDefinition
+	return EmptyLine, EmptyLine, errors.New(EmptyLine), false, RegularDefinition
 }
 
 // AddGraphToEndOfFile if no place for graph was found adds graph code to the end of the file
 func AddGraphToEndOfFile(spaces string, err error, tempFile *os.File, pipelineName string) {
-	line := emptyLine
+	line := EmptyLine
 	regs := []*regexp.Regexp{regexp.MustCompile("^")}
 	_, err = wrap(addGraphCode)(tempFile, &line, &spaces, &pipelineName, &regs)
 }

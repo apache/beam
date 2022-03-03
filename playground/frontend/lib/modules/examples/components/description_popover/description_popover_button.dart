@@ -28,6 +28,8 @@ class DescriptionPopoverButton extends StatelessWidget {
   final ExampleModel example;
   final Alignment followerAnchor;
   final Alignment targetAnchor;
+  final void Function()? onOpen;
+  final void Function()? onClose;
 
   const DescriptionPopoverButton({
     Key? key,
@@ -35,6 +37,8 @@ class DescriptionPopoverButton extends StatelessWidget {
     required this.example,
     required this.followerAnchor,
     required this.targetAnchor,
+    this.onOpen,
+    this.onClose,
   }) : super(key: key);
 
   @override
@@ -62,12 +66,15 @@ class DescriptionPopoverButton extends StatelessWidget {
     ExampleModel example,
     Alignment followerAnchor,
     Alignment targetAnchor,
-  ) {
+  ) async {
     // close previous description dialog
     Navigator.of(context, rootNavigator: true).popUntil((route) {
       return route.isFirst;
     });
-    showAlignedDialog(
+    if (onOpen != null) {
+      onOpen!();
+    }
+    await showAlignedDialog(
       context: context,
       builder: (dialogContext) => DescriptionPopover(
         example: example,
@@ -76,5 +83,8 @@ class DescriptionPopoverButton extends StatelessWidget {
       targetAnchor: targetAnchor,
       barrierColor: Colors.transparent,
     );
+    if (onClose != null) {
+      onClose!();
+    }
   }
 }

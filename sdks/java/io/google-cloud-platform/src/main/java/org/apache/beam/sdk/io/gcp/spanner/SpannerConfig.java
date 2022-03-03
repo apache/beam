@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
@@ -28,6 +30,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -56,9 +59,17 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getEmulatorHost();
 
+  public abstract @Nullable ValueProvider<Boolean> getIsLocalChannelProvider();
+
   public abstract @Nullable ValueProvider<Duration> getCommitDeadline();
 
   public abstract @Nullable ValueProvider<Duration> getMaxCumulativeBackoff();
+
+  public abstract @Nullable RetrySettings getExecuteStreamingSqlRetrySettings();
+
+  public abstract @Nullable RetrySettings getCommitRetrySettings();
+
+  public abstract @Nullable ImmutableSet<Code> getRetryableCodes();
 
   public abstract @Nullable ValueProvider<RpcPriority> getRpcPriority();
 
@@ -117,9 +128,18 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setEmulatorHost(ValueProvider<String> emulatorHost);
 
+    abstract Builder setIsLocalChannelProvider(ValueProvider<Boolean> isLocalChannelProvider);
+
     abstract Builder setCommitDeadline(ValueProvider<Duration> commitDeadline);
 
     abstract Builder setMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff);
+
+    abstract Builder setExecuteStreamingSqlRetrySettings(
+        RetrySettings executeStreamingSqlRetrySettings);
+
+    abstract Builder setCommitRetrySettings(RetrySettings commitRetrySettings);
+
+    abstract Builder setRetryableCodes(ImmutableSet<Code> retryableCodes);
 
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
@@ -160,6 +180,10 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
+  public SpannerConfig withIsLocalChannelProvider(ValueProvider<Boolean> isLocalChannelProvider) {
+    return toBuilder().setIsLocalChannelProvider(isLocalChannelProvider).build();
+  }
+
   public SpannerConfig withCommitDeadline(Duration commitDeadline) {
     return withCommitDeadline(ValueProvider.StaticValueProvider.of(commitDeadline));
   }
@@ -174,6 +198,21 @@ public abstract class SpannerConfig implements Serializable {
 
   public SpannerConfig withMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff) {
     return toBuilder().setMaxCumulativeBackoff(maxCumulativeBackoff).build();
+  }
+
+  public SpannerConfig withExecuteStreamingSqlRetrySettings(
+      RetrySettings executeStreamingSqlRetrySettings) {
+    return toBuilder()
+        .setExecuteStreamingSqlRetrySettings(executeStreamingSqlRetrySettings)
+        .build();
+  }
+
+  public SpannerConfig withCommitRetrySettings(RetrySettings commitRetrySettings) {
+    return toBuilder().setCommitRetrySettings(commitRetrySettings).build();
+  }
+
+  public SpannerConfig withRetryableCodes(ImmutableSet<Code> retryableCodes) {
+    return toBuilder().setRetryableCodes(retryableCodes).build();
   }
 
   @VisibleForTesting
