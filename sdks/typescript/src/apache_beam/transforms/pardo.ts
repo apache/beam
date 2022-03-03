@@ -30,11 +30,10 @@ export interface DoFn<InputT, OutputT, ContextT = undefined> {
 
   process: (element: InputT, context: ContextT) => Iterable<OutputT> | void;
 
-  // TODO: (API) Should these get context as well?
-  startBundle?: () => void;
+  startBundle?: (context: ContextT) => void;
 
   // TODO: (API) Re-consider this API.
-  finishBundle?: () => Iterable<WindowedValue<OutputT>> | void;
+  finishBundle?: (context: ContextT) => Iterable<WindowedValue<OutputT>> | void;
 }
 
 // TODO: (API) Do we need an AsyncDoFn (and async[Flat]Map) to be able to call
