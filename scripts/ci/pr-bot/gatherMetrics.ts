@@ -47,9 +47,8 @@ interface AggregatedMetrics {
 }
 
 async function getCompletedPullsFromLastYear(): Promise<any[]> {
-  const cutoffDate = new Date(
-    new Date().setFullYear(new Date().getFullYear() - 1)
-  );
+  const cutoffDate = new Date();
+  cutoffDate.setFullYear(new Date().getFullYear() - 1);
   console.log(`Getting PRs newer than ${cutoffDate}`);
   const githubClient = github.getGitHubClient();
   let result = await githubClient.rest.pulls.list({
@@ -82,13 +81,13 @@ async function getCompletedPullsFromLastYear(): Promise<any[]> {
         page: page,
       });
       pulls = pulls.concat(result.data);
-      page += 1;
+      page++;
       retries = 0;
     } catch (err) {
       if (retries >= 3) {
         throw err;
       }
-      retries += 1;
+      retries++;
     }
   }
   console.log("Got all PRs, moving to the processing stage");
@@ -102,16 +101,11 @@ function checkIfFirstTimeContributor(
   pull: any,
   pullsFromLastYear: any[]
 ): boolean {
-  for (const pullFromLastYear of pullsFromLastYear) {
-    if (
+  return !pullsFromLastYear.some(
+    (pullFromLastYear) =>
       pullFromLastYear.created_at < pull.created_at &&
       pullFromLastYear.user.login === pull.user.login
-    ) {
-      return false;
-    }
-  }
-
-  return true;
+  );
 }
 
 // Get time between pr creation and the first comment, approval, or merge that isn't done by:
@@ -125,12 +119,12 @@ function getTimeToFirstReview(
   mergedDate: Date
 ): number {
   let timeToFirstReview = mergedDate.getTime() - creationDate.getTime();
-  let i = 0;
-  while (i < reviews.length && reviews[i].user.login === pull.user.login) {
-    i++;
-  }
-  if (i < reviews.length) {
-    const firstReviewDate = new Date(reviews[i].submitted_at);
+
+  const firstReviewed = reviews.find(
+    (review) => review.user.login == pull.user.login
+  );
+  if (firstReviewed) {
+    const firstReviewDate = new Date(firstReviewed.submitted_at);
     timeToFirstReview = Math.min(
       timeToFirstReview,
       firstReviewDate.getTime() - creationDate.getTime()
@@ -158,19 +152,21 @@ function extractReviewersTaggedFromCommentBody(body: string): string[] {
     return [];
   }
   body = body.toLowerCase();
-  if (body.indexOf("r: @") < -1) {
+  if (body.indexOf("r: @") < 0) {
     return [];
   }
   let usernames: string[] = [];
-  let usernameIndex = 0;
-  while (body.indexOf(" @", usernameIndex) > -1) {
-    usernameIndex = body.indexOf(" @", usernameIndex) + 2;
+  const reviewerStrings = body.split(" @");
+  // Start at index 1 since we don't care about anything before the first @
+  for (let i = 1; i < reviewerStrings.length; i++) {
+    const curBlock = reviewerStrings[i];
+    let usernameIndex = 0;
     let curUsername = "";
     while (
-      usernameIndex < body.length &&
-      body[usernameIndex].match(/^[0-9a-z]+$/)
+      usernameIndex < curBlock.length &&
+      curBlock[usernameIndex].match(/^[0-9a-z]+$/)
     ) {
-      curUsername += body[usernameIndex];
+      curUsername += curBlock[usernameIndex];
       usernameIndex += 1;
     }
     // Filter out username from PR template
@@ -178,6 +174,7 @@ function extractReviewersTaggedFromCommentBody(body: string): string[] {
       usernames.push(curUsername);
     }
   }
+
   return usernames;
 }
 
@@ -191,11 +188,12 @@ function getTimeFromReviewerMentionedToCompletion(
   comments = comments.concat(reviewComments);
   comments.push(pull);
   let timeToCompletionPerReviewer = {};
-  comments.forEach((comment) => {
-    let reviewersTagged = extractReviewersTaggedFromCommentBody(comment.body);
-    let commentCreationDate = new Date(comment.created_at);
-    let timeToCompletion = mergedDate.getTime() - commentCreationDate.getTime();
-    reviewersTagged.forEach((reviewer) => {
+  for (const comment of comments) {
+    const reviewersTagged = extractReviewersTaggedFromCommentBody(comment.body);
+    const commentCreationDate = new Date(comment.created_at);
+    const timeToCompletion =
+      mergedDate.getTime() - commentCreationDate.getTime();
+    for (const reviewer of reviewersTagged) {
       if (reviewer in timeToCompletionPerReviewer) {
         timeToCompletionPerReviewer[reviewer] = Math.max(
           timeToCompletion,
@@ -204,8 +202,8 @@ function getTimeFromReviewerMentionedToCompletion(
       } else {
         timeToCompletionPerReviewer[reviewer] = timeToCompletion;
       }
-    });
-  });
+    }
+  }
 
   return timeToCompletionPerReviewer;
 }
@@ -239,7 +237,7 @@ async function extractPrStats(
       pull_number: pull.number,
     })
   ).data;
-  let prStats: PrStats = {
+  const prStats: PrStats = {
     firstTimeContribution: checkIfFirstTimeContributor(pull, pullsFromLastYear),
     timeToFirstReview: getTimeToFirstReview(
       pull,
@@ -263,7 +261,7 @@ async function extractPrStats(
 }
 
 function getMetricBucketStartDate(pullStat: PrStats, bucketEnd: Date): number {
-  let bucketStart = bucketEnd;
+  const bucketStart = bucketEnd;
   while (bucketStart.getTime() > pullStat.mergedDate.getTime()) {
     bucketStart.setDate(bucketStart.getDate() - 7);
   }
@@ -273,20 +271,19 @@ function getMetricBucketStartDate(pullStat: PrStats, bucketEnd: Date): number {
 
 function distinctReviewers(pullStats: PrStats[]): string[] {
   let users: Set<string> = new Set();
-  pullStats.forEach((pullStat) => {
-    Object.keys(pullStat.timeFromReviewersMentionedToCompletion).forEach(
-      (user) => {
-        users.add(user);
-      }
-    );
-  });
+  for (const pullStat of pullStats) {
+    for (const user of Object.keys(
+      pullStat.timeFromReviewersMentionedToCompletion
+    )) {
+      users.add(user);
+    }
+  }
   return Array.from(users);
 }
 
 async function committersFromReviewers(users: string[]): Promise<string[]> {
   let committers: string[] = [];
-  for (let i = 0; i < users.length; i++) {
-    let user = users[i];
+  for (const user of users) {
     if (await github.checkIfCommitter(user)) {
       committers.push(user);
     }
@@ -303,17 +300,21 @@ function averageTimeFromCommitterAssignmentToPrMerge(
   }
   let numCommitterReviews = 0;
   let totalTimeFromAssignToMerge = 0;
-  pullStats.forEach((pullStat) => {
-    Object.keys(pullStat.timeFromReviewersMentionedToCompletion).forEach(
-      (reviewer) => {
-        if (committers.indexOf(reviewer) > -1) {
-          numCommitterReviews++;
-          totalTimeFromAssignToMerge +=
-            pullStat.timeFromReviewersMentionedToCompletion[reviewer];
-        }
+  for (const pullStat of pullStats) {
+    for (const reviewer of Object.keys(
+      pullStat.timeFromReviewersMentionedToCompletion
+    )) {
+      if (committers.indexOf(reviewer) > -1) {
+        numCommitterReviews++;
+        totalTimeFromAssignToMerge +=
+          pullStat.timeFromReviewersMentionedToCompletion[reviewer];
       }
-    );
-  });
+    }
+  }
+  if (numCommitterReviews === 0) {
+    return 0;
+  }
+
   return totalTimeFromAssignToMerge / numCommitterReviews;
 }
 
@@ -324,19 +325,19 @@ function getGiniIndexForCommitterReviews(
   committers: string[]
 ) {
   let reviewsPerCommitter: { [key: string]: number } = {};
-  pullStats.forEach((pullStat) => {
-    Object.keys(pullStat.timeFromReviewersMentionedToCompletion).forEach(
-      (reviewer) => {
-        if (committers.indexOf(reviewer) > -1) {
-          if (reviewer in reviewsPerCommitter) {
-            reviewsPerCommitter[reviewer]++;
-          } else {
-            reviewsPerCommitter[reviewer] = 1;
-          }
+  for (const pullStat of pullStats) {
+    for (const reviewer of Object.keys(
+      pullStat.timeFromReviewersMentionedToCompletion
+    )) {
+      if (committers.indexOf(reviewer) > -1) {
+        if (reviewer in reviewsPerCommitter) {
+          reviewsPerCommitter[reviewer]++;
+        } else {
+          reviewsPerCommitter[reviewer] = 1;
         }
       }
-    );
-  });
+    }
+  }
   let reviewCounts = Object.values(reviewsPerCommitter);
   reviewCounts.sort();
   let giniNumerator = 0;
@@ -394,7 +395,7 @@ async function aggregateStatsForBucket(
 }
 
 function convertMsToRoundedMinutes(milliseconds: number): number {
-  return Math.floor(milliseconds / 60000);
+  return Math.floor(milliseconds / 60_000);
 }
 
 async function reportMetrics(statBuckets: { [key: number]: PrStats[] }) {
