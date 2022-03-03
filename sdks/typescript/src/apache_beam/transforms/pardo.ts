@@ -301,7 +301,7 @@ export class SideInputParam<
   ValueT
 > extends ParDoParam<ValueT> {
   // Populated by user.
-  pcoll: PCollection<any>;
+  pcoll: PCollection<PCollT>;
   // Typically populated by subclass.
   accessor: SideInputAccessor<PCollT, AccessorT, ValueT>;
 

@@ -57,9 +57,9 @@ import {
  */
 
 export class ParamProviderImpl implements ParamProvider {
-  wvalue: WindowedValue<any> | undefined = undefined;
+  wvalue: WindowedValue<unknown> | undefined = undefined;
   prefetchCallbacks: ((window: Window) => ProcessResult)[];
-  sideInputValues: Map<string, any> = new Map();
+  sideInputValues: Map<string, unknown> = new Map();
 
   constructor(
     private transformId: string,
@@ -85,9 +85,11 @@ export class ParamProviderImpl implements ParamProvider {
       ) {
         result[name] = Object.create(value);
         result[name].provider = this;
-        if ((value as ParDoParam<any>).parDoParamName == "sideInput") {
+        if ((value as ParDoParam<unknown>).parDoParamName == "sideInput") {
           this.prefetchCallbacks.push(
-            this.prefetchSideInput(value as SideInputParam<any, any, any>)
+            this.prefetchSideInput(
+              value as SideInputParam<unknown, unknown, unknown>
+            )
           );
         }
       }
@@ -96,7 +98,7 @@ export class ParamProviderImpl implements ParamProvider {
   }
 
   prefetchSideInput(
-    param: SideInputParam<any, any, any>
+    param: SideInputParam<unknown, unknown, unknown>
   ): (window: Window) => ProcessResult {
     const this_ = this;
     const stateProvider = this.getStateProvider();
@@ -136,7 +138,7 @@ export class ParamProviderImpl implements ParamProvider {
     };
   }
 
-  update(wvalue: WindowedValue<any> | undefined): ProcessResult {
+  update(wvalue: WindowedValue<unknown> | undefined): ProcessResult {
     this.wvalue = wvalue;
     if (wvalue == undefined) {
       return NonPromise;
@@ -173,7 +175,7 @@ export class ParamProviderImpl implements ParamProvider {
         return this.wvalue.pane;
 
       case "sideInput":
-        return this.sideInputValues.get(param.sideInputId);
+        return this.sideInputValues.get(param.sideInputId) as any;
 
       default:
         throw new Error("Unknown context parameter: " + param.parDoParamName);
@@ -182,7 +184,7 @@ export class ParamProviderImpl implements ParamProvider {
 }
 
 export interface SideInputInfo {
-  elementCoder: Coder<any>;
+  elementCoder: Coder<unknown>;
   windowCoder: Coder<Window>;
   windowMappingFn: (window: Window) => Window;
 }

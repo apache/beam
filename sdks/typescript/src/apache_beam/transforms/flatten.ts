@@ -29,7 +29,7 @@ export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
   name = "Flatten";
 
   expandInternal(
-    inputs: PCollection<any>[],
+    inputs: PCollection<T>[],
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ) {

@@ -65,14 +65,14 @@ export interface IOperator {
   // As this is called at every operator at every element, and the vast majority
   // of the time Promises are not needed, we wish to avoid the overhead of
   // creating promisses and await as much as possible.
-  process: (wv: WindowedValue<any>) => ProcessResult;
+  process: (wv: WindowedValue<unknown>) => ProcessResult;
   finishBundle: () => Promise<void>;
 }
 
 export class Receiver {
   constructor(private operators: IOperator[]) {}
 
-  receive(wvalue: WindowedValue<any>): ProcessResult {
+  receive(wvalue: WindowedValue<unknown>): ProcessResult {
     if (this.operators.length == 1) {
       return this.operators[0].process(wvalue);
     } else {
@@ -151,7 +151,7 @@ class DataSourceOperator implements IOperator {
   getBundleId: () => string;
   multiplexingDataChannel: MultiplexingDataChannel;
   receiver: Receiver;
-  coder: Coder<any>;
+  coder: Coder<WindowedValue<unknown>>;
   endOfData: Promise<void>;
 
   constructor(
@@ -208,7 +208,7 @@ class DataSourceOperator implements IOperator {
     );
   }
 
-  process(wvalue: WindowedValue<any>): ProcessResult {
+  process(wvalue: WindowedValue<unknown>): ProcessResult {
     throw Error("Data should not come in via process.");
   }
 
@@ -231,7 +231,7 @@ class DataSinkOperator implements IOperator {
   getBundleId: () => string;
   multiplexingDataChannel: MultiplexingDataChannel;
   channel: IDataChannel;
-  coder: Coder<any>;
+  coder: Coder<WindowedValue<unknown>>;
   buffer: protobufjs.Writer;
 
   constructor(
@@ -256,7 +256,7 @@ class DataSinkOperator implements IOperator {
     this.buffer = new protobufjs.Writer();
   }
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     this.coder.encode(wvalue, this.buffer, CoderContext.needsDelimiters);
     if (this.buffer.len > 1e6) {
       return this.flush();
@@ -294,7 +294,7 @@ class FlattenOperator implements IOperator {
 
   async startBundle() {}
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     return this.receiver.receive(wvalue);
   }
 
@@ -304,7 +304,7 @@ class FlattenOperator implements IOperator {
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
 
 class GenericParDoOperator implements IOperator {
-  private doFn: base.DoFn<any, any, any>;
+  private doFn: base.DoFn<unknown, unknown, unknown>;
   private getStateProvider: () => StateProvider;
   private sideInputInfo: Map<string, SideInputInfo> = new Map();
   private originalContext: object | undefined;
@@ -315,7 +315,10 @@ class GenericParDoOperator implements IOperator {
     private transformId: string,
     private receiver: Receiver,
     private spec: runnerApi.ParDoPayload,
-    private payload: { doFn: base.DoFn<any, any, any>; context: any },
+    private payload: {
+      doFn: base.DoFn<unknown, unknown, unknown>;
+      context: any;
+    },
     transformProto: runnerApi.PTransform,
     operatorContext: OperatorContext
   ) {
@@ -343,7 +346,7 @@ class GenericParDoOperator implements IOperator {
     }
   }
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     if (this.augmentedContext && wvalue.windows.length != 1) {
       // We need to process each window separately.
       // TODO: (Perf) We could inspect the context more deeply and allow some
@@ -431,7 +434,7 @@ class IdentityParDoOperator implements IOperator {
 
   async startBundle() {}
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     return this.receiver.receive(wvalue);
   }
 
@@ -446,7 +449,7 @@ class SplittingDoFnOperator implements IOperator {
 
   async startBundle() {}
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     const tag = this.splitter(wvalue.value);
     const receiver = this.receivers[tag];
     if (receiver) {
@@ -472,15 +475,15 @@ class Splitting2DoFnOperator implements IOperator {
 
   async startBundle() {}
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     const result = new ProcessResultBuilder();
     // TODO: (API) Should I exactly one instead of allowing a union?
-    for (const tag of Object.keys(wvalue.value)) {
+    for (const tag of Object.keys(wvalue.value as object)) {
       const receiver = this.receivers[tag];
       if (receiver) {
         result.add(
           receiver.receive({
-            value: wvalue.value[tag],
+            value: (wvalue.value as object)[tag],
             windows: wvalue.windows,
             timestamp: wvalue.timestamp,
             pane: wvalue.pane,
@@ -507,12 +510,12 @@ class Splitting2DoFnOperator implements IOperator {
 class AssignWindowsParDoOperator implements IOperator {
   constructor(
     private receiver: Receiver,
-    private windowFn: base.WindowFn<any>
+    private windowFn: base.WindowFn<Window>
   ) {}
 
   async startBundle() {}
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     const newWindowsOnce = this.windowFn.assignWindows(wvalue.timestamp);
     if (newWindowsOnce.length > 0) {
       const newWindows: Window[] = [];
@@ -541,7 +544,7 @@ class AssignTimestampsParDoOperator implements IOperator {
 
   async startBundle() {}
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<unknown>) {
     return this.receiver.receive({
       value: wvalue.value,
       windows: wvalue.windows,
