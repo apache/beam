@@ -102,7 +102,6 @@ export class RawExternalTransform<
     // Some SDKs are not happy with PCollections created out of thin air.
     const fakeImpulseNamespace = RawExternalTransform.freshNamespace();
     for (const pcId of Object.values(transformProto.inputs)) {
-      console.log("COPYING", pcId, pipelineComponents.pcollections![pcId]);
       request.components!.pcollections[pcId] =
         pipelineComponents.pcollections![pcId];
       request.components!.transforms[fakeImpulseNamespace + pcId] =

@@ -103,12 +103,6 @@ on a portable runner) but the following big-ticket items remain.
 
   * Actually use worker threads for multiple bundles.
 
-* External transforms
-
-  * Using external transforms requires that the external expansion service
-  already be started and its address provided.  We would like to automatically
-  start it as we do in Python.
-
 * API
 
   * There are several TODOs of minor features or design decisions to finalize.
@@ -130,28 +124,25 @@ on a portable runner) but the following big-ticket items remain.
   * Advanced features like metrics, state, timers, and SDF.
   Possibly some of these can wait.
 
-  * PipelineOptions should be a Javascript Object, not a proto Struct.
-
 * Infrastructure
 
   * Gradle and Jenkins integration for tests and style enforcement.
 
 * Other
 
-  * Standardize on a way for users to pass PTransform names, and enforce
-  unique names for pipeline update.
+  * Enforce unique names for pipeline update.
 
-  * Use a Javascript Object rather than proto Struct for pipeline options.
+  * PipelineOptions should be a Javascript Object, not a proto Struct.
 
   * Though Dataflow Runner v2 supports portability, submission is still done
   via v1beta3 and interaction with GCS rather than the job submission API.
 
   * Cleanup uses of var, this. Arrow functions. `===` vs `==`.
 
-  * Avoid any return types (and re-enable check in compiler).
+  * Avoid `any` return types (and re-enable check in compiler).
 
   * Relative vs. absoute imports, possibly via setting a base url with a
-  `jsconfig.json``.  Also remove imports from base.ts.
+  `jsconfig.json`.  Also remove imports from base.ts.
 
   * More/better tests, including tests of illegal/unsupported use.
 
