@@ -17,15 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import com.google.common.base.Splitter;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Scanner;
 import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,15 +34,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tests of HourlyTeamScore. Because the pipeline was designed for easy readability and
@@ -61,6 +52,40 @@ import org.slf4j.LoggerFactory;
 })
 public class HourlyTeamScoreTest implements Serializable {
 
+  static final String[] GAME_EVENTS_ARRAY =
+      new String[] {
+        "user0_MagentaKangaroo,MagentaKangaroo,3,1447955630000,2015-11-19 09:53:53.444",
+        "user13_ApricotQuokka,ApricotQuokka,15,1447955630000,2015-11-19 09:53:53.444",
+        "user6_AmberNumbat,AmberNumbat,11,1447955630000,2015-11-19 09:53:53.444",
+        "user7_AlmondWallaby,AlmondWallaby,15,1447955630000,2015-11-19 09:53:53.444",
+        "user7_AndroidGreenKookaburra,AndroidGreenKookaburra,12,1447955630000,2015-11-19 09:53:53.444",
+        "user7_AndroidGreenKookaburra,AndroidGreenKookaburra,11,1447955630000,2015-11-19 09:53:53.444",
+        "user19_BisqueBilby,BisqueBilby,6,1447955630000,2015-11-19 09:53:53.444",
+        "user19_BisqueBilby,BisqueBilby,8,1447955630000,2015-11-19 09:53:53.444",
+        // time gap...
+        "user0_AndroidGreenEchidna,AndroidGreenEchidna,0,1447965690000,2015-11-19 12:41:31.053",
+        "user0_MagentaKangaroo,MagentaKangaroo,4,1447965690000,2015-11-19 12:41:31.053",
+        "user2_AmberCockatoo,AmberCockatoo,13,1447965690000,2015-11-19 12:41:31.053",
+        "user18_BananaEmu,BananaEmu,7,1447965690000,2015-11-19 12:41:31.053",
+        "user3_BananaEmu,BananaEmu,17,1447965690000,2015-11-19 12:41:31.053",
+        "user18_BananaEmu,BananaEmu,1,1447965690000,2015-11-19 12:41:31.053",
+        "user18_ApricotCaneToad,ApricotCaneToad,14,1447965690000,2015-11-19 12:41:31.053"
+      };
+
+  static final List<String> GAME_EVENTS = Arrays.asList(GAME_EVENTS_ARRAY);
+
+  // Used to check the filtering.
+  static final KV[] FILTERED_EVENTS =
+      new KV[] {
+        KV.of("user0_AndroidGreenEchidna", 0),
+        KV.of("user0_MagentaKangaroo", 4),
+        KV.of("user2_AmberCockatoo", 13),
+        KV.of("user18_BananaEmu", 7),
+        KV.of("user3_BananaEmu", 17),
+        KV.of("user18_BananaEmu", 1),
+        KV.of("user18_ApricotCaneToad", 14)
+      };
+
   @Rule public TestPipeline p = TestPipeline.create();
 
   /** Test the filtering. */
@@ -68,21 +93,9 @@ public class HourlyTeamScoreTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testUserScoresFilter() throws Exception {
 
-    List<String> gameEvents = UserScoreTest.getRecordsFromCSVFile("hourly_team_score_game_events.csv");
-    List<String> filteredEvents = UserScoreTest.getRecordsFromCSVFile("hourly_team_score_filtered_events.csv");
-    List<KV> kvFilteredEvents = new ArrayList<>();
-
-    filteredEvents.forEach(
-        s -> {
-          List<String> listRow = Splitter.on(',').splitToList(s);
-          kvFilteredEvents.add(KV.of(listRow.get(0), Integer.parseInt(listRow.get(1))));
-        });
-
-    KV[] akvFilteredEvents = new KV[kvFilteredEvents.size()];
-
     final Instant startMinTimestamp = new Instant(1447965680000L);
 
-    PCollection<String> input = p.apply(Create.of(gameEvents).withCoder(StringUtf8Coder.of()));
+    PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
 
     PCollection<KV<String, Integer>> output =
         input
@@ -97,7 +110,7 @@ public class HourlyTeamScoreTest implements Serializable {
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
                     .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
-    PAssert.that(output).containsInAnyOrder(kvFilteredEvents.toArray(akvFilteredEvents));
+    PAssert.that(output).containsInAnyOrder(FILTERED_EVENTS);
 
     p.run().waitUntilFinish();
   }
