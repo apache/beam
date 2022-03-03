@@ -34,9 +34,9 @@ GOVERS="invalid"
 echo "USER :"
 echo $(whoami)
 echo $(pwd)
-export GOPATH="/home/jenkins/go2/bin/go"
-echo $(/home/jenkins/go2/bin/go)
-if ! command -v /home/jenkins/go2/bin/go &> /dev/null
+export GOPATH="/home/jenkins/go/bin/go"
+echo $(/home/jenkins/go/bin/go)
+if ! command -v /home/jenkins/go/bin/go &> /dev/null
 then
     echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
     exit 1
@@ -58,16 +58,16 @@ case $key in
 esac
 done
 
-GOPATH=`/home/jenkins/go2/bin/go env GOPATH`
+GOPATH=`/home/jenkins/go/bin/go env GOPATH`
 GOBIN=$GOPATH/bin
-GOHOSTOS=`/home/jenkins/go2/bin/go env GOHOSTOS`
-GOHOSTARCH=`/home/jenkins/go2/bin/go env GOHOSTARCH`
+GOHOSTOS=`/home/jenkins/go/bin/go env GOHOSTOS`
+GOHOSTARCH=`/home/jenkins/go/bin/go env GOHOSTARCH`
 
 # Outputing the system Go version for debugging purposes.
-echo "System Go installation: `which /home/jenkins/go2/bin/go` is `/home/jenkins/go2/bin/go version`; Preparing to use $GOBIN/$GOVERS"
+echo "System Go installation: `which /home/jenkins/go/bin/go` is `/home/jenkins/go/bin/go version`; Preparing to use $GOBIN/$GOVERS"
 
 # Ensure it's installed in the GOBIN directory, using the local host platform.
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN /home/jenkins/go2/bin/go install golang.org/dl/$GOVERS@latest
+#GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN /home/jenkins/go/bin/go install golang.org/dl/$GOVERS@latest
 
 # The download command isn't concurrency safe so prepare should be done at most once
 # per gogradle chain.
