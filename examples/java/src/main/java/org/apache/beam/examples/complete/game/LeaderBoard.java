@@ -124,6 +124,16 @@ public class LeaderBoard extends HourlyTeamScore {
     String getLeaderBoardTableName();
 
     void setLeaderBoardTableName(String value);
+
+    @Description("Path to the data file(s) containing game data.")
+    /* The default maps to a small Google Cloud Storage file (each ~8MB)
+
+    Note: You may want to use a small sample dataset to test it locally/quickly : gs://apache-beam-samples/game/small/gaming_data.csv
+    You can also download it via the command line gsutil cp gs://apache-beam-samples/game/small/gaming_data.csv ./destination_folder/gaming_data.csv */
+    @Default.String("gs://apache-beam-samples/game/small/gaming_data.csv")
+    String getInput();
+
+    void setInput(String value);
   }
 
   /**
@@ -198,6 +208,14 @@ public class LeaderBoard extends HourlyTeamScore {
     ExampleUtils exampleUtils = new ExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 
+    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
+    // command line.
+    PipelineResult result = runLeaderBoard(options, pipeline);
+    exampleUtils.waitToFinish(result);
+  }
+
+  static PipelineResult runLeaderBoard(Options options, Pipeline pipeline) {
+
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
     // data elements, and parse the data.
     PCollection<GameActionInfo> gameEvents =
@@ -214,7 +232,6 @@ public class LeaderBoard extends HourlyTeamScore {
             new CalculateTeamScores(
                 Duration.standardMinutes(options.getTeamWindowDuration()),
                 Duration.standardMinutes(options.getAllowedLateness())))
-        // Write the results to BigQuery.
         .apply(
             "WriteTeamScoreSums",
             new WriteWindowedToBigQuery<>(
@@ -222,10 +239,12 @@ public class LeaderBoard extends HourlyTeamScore {
                 options.getDataset(),
                 options.getLeaderBoardTableName() + "_team",
                 configureWindowedTableWrite()));
+
     gameEvents
         .apply(
             "CalculateUserScores",
             new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())))
+
         // Write the results to BigQuery.
         .apply(
             "WriteUserScoreSums",
@@ -235,10 +254,7 @@ public class LeaderBoard extends HourlyTeamScore {
                 options.getLeaderBoardTableName() + "_user",
                 configureGlobalWindowBigQueryWrite()));
 
-    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
-    // command line.
-    PipelineResult result = pipeline.run();
-    exampleUtils.waitToFinish(result);
+    return pipeline.run(options);
   }
 
   /** Calculates scores for each team within the configured window duration. */
