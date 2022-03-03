@@ -1489,14 +1489,16 @@ public class GrpcWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void write(byte b[], int off, int len) throws IOException {
-        // Fast path for larger writes that don't make the chunk too large.
-        if (len + output.size() < COMMIT_STREAM_CHUNK_SIZE) {
-          output.write(b, off, len);
-          return;
+      public void write(byte b[], int currentOffset, int len) throws IOException {
+        final int endOffset = currentOffset + len;
+        while ((endOffset - currentOffset) + output.size() >= COMMIT_STREAM_CHUNK_SIZE) {
+          int writeSize = COMMIT_STREAM_CHUNK_SIZE - output.size();
+          output.write(b, currentOffset, writeSize);
+          currentOffset += writeSize;
+          flushBytes();
         }
-        for (int i = 0; i < len; i++) {
-          write(b[off + i]);
+        if (currentOffset != endOffset) {
+          output.write(b, currentOffset, endOffset - currentOffset);
         }
       }
 
@@ -1516,7 +1518,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
             private long remaining = pendingRequest.request.getSerializedSize();
 
             @Override
-            public void accept(ByteString byteString) {
+            public void accept(ByteString chunk) {
               StreamingCommitRequestChunk.Builder chunkBuilder =
                   StreamingCommitRequestChunk.newBuilder()
                       .setRequestId(id)
