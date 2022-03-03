@@ -163,6 +163,11 @@ export function registerOperatorConstructor(
 
 ////////// Actual operator implementation. //////////
 
+// NOTE: It may have been more idiomatic to use objects in closures satisfying
+// the IOperator interface here, but classes are used to make a clearer pattern
+// potential SDK authors that are less familiar with javascript.
+
+
 class DataSourceOperator implements IOperator {
   transformId: string;
   getBundleId: () => string;

@@ -49,6 +49,20 @@ export function extractName<T>(withName: T): string {
   }
 }
 
+// NOTE: It could be more idiomatic javascript to simply use the function type
+// (InputT, Pipeline, runnerApi.PTransform) => OutputT rather than a transform
+// class hierarchy here, a class is chosen to serve as a more obvious
+// representative for other languages to follow.
+// This more functional form is still preferred for users, and accepted
+// as an argument to apply for the various pvalues (see pvalue.ts).
+//
+// Note also that the requirement for both a synchronous and asynchronous
+// variant is imposed by javascript, and is not necessarily relevant in other
+// languages (especially if an asynchronous call can be turned into a blocking
+// call rather than forcing the asynchronous nature all the way up the call
+// hierarchy).
+
+
 export class AsyncPTransform<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
