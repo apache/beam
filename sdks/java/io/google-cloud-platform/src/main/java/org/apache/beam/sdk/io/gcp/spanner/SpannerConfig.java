@@ -148,42 +148,42 @@ public abstract class SpannerConfig implements Serializable {
     public abstract SpannerConfig build();
   }
 
-  /** Specifies the Cloud Spanner project ID */
+  /** Specifies the Cloud Spanner project ID. */
   public SpannerConfig withProjectId(ValueProvider<String> projectId) {
     return toBuilder().setProjectId(projectId).build();
   }
 
-  /** Specifies the Cloud Spanner project ID */
+  /** Specifies the Cloud Spanner project ID. */
   public SpannerConfig withProjectId(String projectId) {
     return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
   }
 
-  /** Specifies the Cloud Spanner instance ID */
+  /** Specifies the Cloud Spanner instance ID. */
   public SpannerConfig withInstanceId(ValueProvider<String> instanceId) {
     return toBuilder().setInstanceId(instanceId).build();
   }
 
-  /** Specifies the Cloud Spanner instance ID */
+  /** Specifies the Cloud Spanner instance ID. */
   public SpannerConfig withInstanceId(String instanceId) {
     return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
   }
 
-  /** Specifies the Cloud Spanner database ID */
+  /** Specifies the Cloud Spanner database ID. */
   public SpannerConfig withDatabaseId(ValueProvider<String> databaseId) {
     return toBuilder().setDatabaseId(databaseId).build();
   }
 
-  /** Specifies the Cloud Spanner database ID */
+  /** Specifies the Cloud Spanner database ID. */
   public SpannerConfig withDatabaseId(String databaseId) {
     return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
   }
 
-  /** Specifies the Cloud Spanner host */
+  /** Specifies the Cloud Spanner host. */
   public SpannerConfig withHost(ValueProvider<String> host) {
     return toBuilder().setHost(host).build();
   }
 
-  /** Specifies the Cloud Spanner host, when an emulator is used */
+  /** Specifies the Cloud Spanner host, when an emulator is used. */
   public SpannerConfig withEmulatorHost(ValueProvider<String> emulatorHost) {
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
