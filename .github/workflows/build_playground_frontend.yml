@@ -43,7 +43,7 @@ jobs:
           distribution: 'zulu'
           java-version: '8'
       - name: Clean Flutter Directory
-          run: if [ -d "/opt/flutter" ]; then sudo rm -rf /opt/flutter ; fi
+        run: if [ -d "/opt/flutter" ]; then sudo rm -rf /opt/flutter ; fi
       - name: Install Flutter
         run: |
             wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION.tar.xz &&\
