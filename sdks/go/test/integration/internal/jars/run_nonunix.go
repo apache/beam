@@ -22,16 +22,17 @@ package jars
 import (
 	"fmt"
 	"runtime"
+	"time"
 )
 
 // getTimeoutRunner is an OS-specific branch for determining what behavior to use for Run. This
 // non-unix version does not handle timeout durations.
 func getTimeoutRunner() runCallback {
 	// Wrap run with error handling for OS that does not support timeout duration.
-	return func(duration, jar string, args ...string) (*Process, error) {
+	return func(dur time.Duration, jar string, args ...string) (*Process, error) {
 		// Currently, we hard-fail here if a duration is provided but timeout is unsupported. If
 		// we ever decide to soft-fail instead, this is the code to change.
-		if len(duration) != 0 {
+		if dur != 0 {
 			return nil, fmt.Errorf("cannot run jar: duration parameter provided but timeouts are unsupported on os %s", runtime.GOOS)
 		}
 		return run(jar, args...)

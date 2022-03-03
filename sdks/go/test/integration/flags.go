@@ -72,9 +72,9 @@ var (
 
 	// ExpansionTimeout attempts to apply an auto-shutdown timeout to any
 	// expansion services started by integration tests.
-	ExpansionTimeout = flag.String("expansion_timeout", "",
+	ExpansionTimeout = flag.Duration("expansion_timeout", 0,
 		"Sets an auto-shutdown timeout to any started expansion services. "+
-			"Requires the timeout command to be present in Path, unless the value is set to \"\".")
+			"Requires the timeout command to be present in Path, unless the value is set to 0.")
 )
 
 func init() {

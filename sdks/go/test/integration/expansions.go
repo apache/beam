@@ -45,6 +45,7 @@ import (
 //   defer func() { services.Shutdown() }()
 //   addr, err := services.GetAddr("example")
 //   if err != nil {
+//     retCode = 1
 //     panic(err)
 //   }
 //   expansionAddr = addr  // Save address to a package-level variable used by tests.
@@ -54,16 +55,18 @@ type ExpansionServices struct {
 	jars  map[string]string
 	procs []jars.Process
 	// Callback for running jars, stored this way for testing purposes.
-	run func(string, string, ...string) (jars.Process, error)
+	run      func(time.Duration, string, ...string) (jars.Process, error)
+	waitTime time.Duration // Time to sleep after running jar. Tests can adjust this.
 }
 
 // NewExpansionServices creates and initializes an ExpansionServices instance.
 func NewExpansionServices() *ExpansionServices {
 	return &ExpansionServices{
-		addrs: GetExpansionAddrs(),
-		jars:  GetExpansionJars(),
-		procs: make([]jars.Process, 0),
-		run:   jars.Run,
+		addrs:    GetExpansionAddrs(),
+		jars:     GetExpansionJars(),
+		procs:    make([]jars.Process, 0),
+		run:      jars.Run,
+		waitTime: 3 * time.Second,
 	}
 }
 
@@ -97,7 +100,7 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
 	}
-	time.Sleep(3 * time.Second) // Wait a bit for the jar to start.
+	time.Sleep(es.waitTime) // Wait a bit for the jar to start.
 	es.procs = append(es.procs, proc)
 	addr := "localhost:" + portStr
 	es.addrs[label] = addr

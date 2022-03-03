@@ -21,9 +21,10 @@ package jars
 import (
 	"fmt"
 	"os/exec"
+	"time"
 )
 
-type runCallback func(duration, jar string, args ...string) (Process, error)
+type runCallback func(dur time.Duration, jar string, args ...string) (Process, error)
 
 var runner runCallback // Saves which behavior to use when Run is called.
 
@@ -40,7 +41,7 @@ func getRunner() runCallback {
 	_, err := exec.LookPath("java")
 	if err != nil {
 		err := fmt.Errorf("cannot run jar: 'java' command not installed: %w", err)
-		return func(_, _ string, _ ...string) (Process, error) {
+		return func(_ time.Duration, _ string, _ ...string) (Process, error) {
 			return nil, err
 		}
 	}
@@ -52,11 +53,12 @@ func getRunner() runCallback {
 // Run runs a jar given an optional duration, a path to the jar, and any desired arguments to the
 // jar. It returns a Process object which can be used to shut down the jar once finished.
 //
-// The duration parameter is a duration for the timeout command which can be used to automatically
-// kill the jar after a set duration, in order to avoid resource leakage. It is described here:
-// https://man7.org/linux/man-pages/man1/timeout.1.html. If a duration is provided but the system
-// is unable to use the timeout command, this function will return an error. To indicate that a
-// duration isn't needed, pass in an empty string.
-func Run(duration, jar string, args ...string) (Process, error) {
-	return runner(duration, jar, args...)
+// The dur parameter is a duration for the timeout command which can be used to automatically kill
+// the jar after a set duration, in order to avoid resource leakage. Timeout is described here:
+// https://man7.org/linux/man-pages/man1/timeout.1.html. Durations will be translated from
+// time.Duration to a string based on the number of minutes. If a duration is provided but the
+// system is unable to use the timeout is unable to use the timeout command, this function will
+// return an error. To indicate that a duration isn't needed, pass in 0.
+func Run(dur time.Duration, jar string, args ...string) (Process, error) {
+	return runner(dur, jar, args...)
 }

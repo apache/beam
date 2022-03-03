@@ -22,6 +22,7 @@ package jars
 import (
 	"fmt"
 	"os/exec"
+	"time"
 )
 
 // getTimeoutRunner is an OS-specific branch for determining what behavior to use for Run. This
@@ -30,13 +31,13 @@ func getTimeoutRunner() runCallback {
 	_, err := exec.LookPath("timeout")
 	if err != nil {
 		// Wrap run with Unix-specific error handling for missing timeout command.
-		return func(duration, jar string, args ...string) (Process, error) {
+		return func(dur time.Duration, jar string, args ...string) (Process, error) {
 			// Currently, we hard-fail here if a duration is provided but timeout is unsupported. If
 			// we ever decide to soft-fail instead, this is the code to change.
-			if len(duration) != 0 {
+			if dur != 0 {
 				return nil, fmt.Errorf("cannot run jar: duration parameter provided but 'timeout' command not installed: %w", err)
 			}
-			return run(duration, jar, args...)
+			return run(dur, jar, args...)
 		}
 	}
 
@@ -46,10 +47,11 @@ func getTimeoutRunner() runCallback {
 
 // run starts up a jar, and wraps it in "timeout" only if a duration is provided. Processes are
 // returned wrapped as Unix processes that provide graceful shutdown for unix specifically.
-func run(duration, jar string, args ...string) (Process, error) {
+func run(dur time.Duration, jar string, args ...string) (Process, error) {
 	var cmdArr []string
-	if len(duration) != 0 {
-		cmdArr = append(cmdArr, "timeout", duration)
+	if dur != 0 {
+		durStr := fmt.Sprintf("%.2fm", dur.Minutes())
+		cmdArr = append(cmdArr, "timeout", durStr)
 	}
 	cmdArr = append(cmdArr, "java", "-jar", jar)
 	cmdArr = append(cmdArr, args...)

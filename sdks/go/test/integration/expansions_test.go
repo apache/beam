@@ -18,9 +18,11 @@ package integration
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/test/integration/internal/jars"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 type testProcess struct {
@@ -33,11 +35,11 @@ func (p *testProcess) Kill() error {
 	return nil
 }
 
-func failRun(_, _ string, _ ...string) (jars.Process, error) {
+func failRun(_ time.Duration, _ string, _ ...string) (jars.Process, error) {
 	return nil, fmt.Errorf("unexpectedly running a jar, failing")
 }
 
-func succeedRun(_, jar string, _ ...string) (jars.Process, error) {
+func succeedRun(_ time.Duration, jar string, _ ...string) (jars.Process, error) {
 	return &testProcess{jar: jar}, nil
 }
 
@@ -52,10 +54,11 @@ func TestExpansionServices_GetAddr_Addresses(t *testing.T) {
 		"label2": "jarFilepath2",
 	}
 	es := &ExpansionServices{
-		addrs: addrsMap,
-		jars:  jarsMap,
-		procs: make([]jars.Process, 0),
-		run:   failRun,
+		addrs:    addrsMap,
+		jars:     jarsMap,
+		procs:    make([]jars.Process, 0),
+		run:      failRun,
+		waitTime: 0,
 	}
 
 	// Ensure we get the same map we put in, and that addresses take priority over jars if
@@ -85,10 +88,11 @@ func TestExpansionServices_GetAddr_Jars(t *testing.T) {
 		"label3": "jarFilepath3",
 	}
 	es := &ExpansionServices{
-		addrs: addrsMap,
-		jars:  jarsMap,
-		procs: make([]jars.Process, 0),
-		run:   succeedRun,
+		addrs:    addrsMap,
+		jars:     jarsMap,
+		procs:    make([]jars.Process, 0),
+		run:      succeedRun,
+		waitTime: 0,
 	}
 
 	// Call GetAddr on each jar twice, checking that the addresses remain consistent.
@@ -122,7 +126,8 @@ func TestExpansionServices_GetAddr_Jars(t *testing.T) {
 	for _, jar := range jarsMap {
 		wantJars = append(wantJars, jar)
 	}
-	if diff := cmp.Diff(wantJars, gotJars); diff != "" {
+	lessFunc := func(a, b string) bool { return a < b }
+	if diff := cmp.Diff(wantJars, gotJars, cmpopts.SortSlices(lessFunc)); diff != "" {
 		t.Errorf("processes in ExpansionServices does not match jars that should be running: diff(-want,+got):\n%v", diff)
 	}
 }
@@ -137,10 +142,11 @@ func TestExpansionServices_Shutdown(t *testing.T) {
 		"label3": "jarFilepath3",
 	}
 	es := &ExpansionServices{
-		addrs: addrsMap,
-		jars:  jarsMap,
-		procs: make([]jars.Process, 0),
-		run:   succeedRun,
+		addrs:    addrsMap,
+		jars:     jarsMap,
+		procs:    make([]jars.Process, 0),
+		run:      succeedRun,
+		waitTime: 0,
 	}
 	// Call getAddr on each label to run jars.
 	for label := range addrsMap {
