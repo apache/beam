@@ -74,7 +74,7 @@ At first glance we considered implementing Windows runners using K8s, however th
 
 Depending on the termination event, sometimes the removal script for offline runners is not triggered correctly from inside the VMs or K8s pod, because of that an additional pipeline was created in order to clean up the list of GitHub runners in the group.
 
-This was implemented using a Cloud function subscribed to a Pub/Sub Topic, the topic is triggered through a Cloud Scheduler that is executed once per day, the function consumes a GitHub API to delete offline self-hosted runners from the organization retrieving the token with its service account to secrets manager.
+This was implemented using a [Cloud Function](https://console.cloud.google.com/functions/details/us-central1/remove-self-hosted-runners-group?env=gen1&project=apache-beam-testing&tab=source) subscribed to a [Pub/Sub](https://console.cloud.google.com/cloudpubsub/topic/detail/remove-runners?referrer=search&project=apache-beam-testing) topic, the topic is triggered through a [Cloud Scheduler](https://console.cloud.google.com/cloudscheduler/jobs/edit/us-central1/runners-clean-up-schedule?project=apache-beam-testing) that is executed once per day, the function consumes a [GitHub API](https://docs.github.com/en/rest/reference/actions#delete-a-self-hosted-runner-from-an-organization) to delete offline self-hosted runners from the organization retrieving the token with its service account to secrets manager.
 
 
 ![Delete Offline Self-hosted Runners](diagrams/self-hosted-runners-delete-function.png)
