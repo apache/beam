@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { PTransform } from "./transform";
+import { PTransform, withName } from "./transform";
 import { Impulse } from "./internal";
 import { Root, PCollection } from "../pvalue";
 
@@ -41,8 +41,10 @@ export class Create<T> extends PTransform<Root, PCollection<T>> {
   expand(root: Root) {
     const this_ = this;
     // TODO: (Cleanup) Store encoded values and conditionally shuffle.
-    return root.apply(new Impulse()).flatMap(function* (_) {
-      yield* this_.elements;
-    });
+    return root.apply(new Impulse()).flatMap(
+      withName("ExtractElements", function* (_) {
+        yield* this_.elements;
+      })
+    );
   }
 }

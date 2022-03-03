@@ -19,7 +19,11 @@
 import equal from "fast-deep-equal";
 
 import * as runnerApi from "../proto/beam_runner_api";
-import { PTransform, AsyncPTransform } from "../transforms/transform";
+import {
+  PTransform,
+  AsyncPTransform,
+  extractName,
+} from "../transforms/transform";
 import { GlobalWindows } from "../transforms/windowings";
 import { PValue, PCollection, flattenPValue } from "../pvalue";
 import { PipelineContext } from "../base";
@@ -54,25 +58,23 @@ export class Pipeline {
 
   preApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
     transform: AsyncPTransform<InputT, OutputT>,
-    input: InputT,
-    name: string
+    input: InputT
   ) {
     const this_ = this;
     const transformId = this.context.createUniqueName("transform");
+    let parent: runnerApi.PTransform | undefined = undefined;
     if (this.transformStack.length) {
-      this.proto!.components!.transforms![
-        this.transformStack[this.transformStack.length - 1]
-      ].subtransforms.push(transformId);
+      parent =
+        this.proto!.components!.transforms![
+          this.transformStack[this.transformStack.length - 1]
+        ];
+      parent.subtransforms.push(transformId);
     } else {
       this.proto.rootTransformIds.push(transformId);
     }
     const transformProto: runnerApi.PTransform = {
       uniqueName:
-        transformId +
-        this.transformStack
-          .map((id) => this_.proto?.components?.transforms![id].uniqueName)
-          .concat([name || transform.name])
-          .join("/"),
+        (parent ? parent.uniqueName + "/" : "") + extractName(transform),
       subtransforms: [],
       inputs: objectMap(flattenPValue(input), (pc) => pc.getId()),
       outputs: {},
@@ -86,13 +88,11 @@ export class Pipeline {
 
   applyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
     transform: PTransform<InputT, OutputT>,
-    input: InputT,
-    name: string
+    input: InputT
   ) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
-      input,
-      name
+      input
     );
     let result: OutputT;
     try {
@@ -107,11 +107,10 @@ export class Pipeline {
   async asyncApplyTransform<
     InputT extends PValue<any>,
     OutputT extends PValue<any>
-  >(transform: AsyncPTransform<InputT, OutputT>, input: InputT, name: string) {
+  >(transform: AsyncPTransform<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
-      input,
-      name
+      input
     );
     let result: OutputT;
     try {

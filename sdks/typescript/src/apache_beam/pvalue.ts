@@ -17,8 +17,14 @@
  */
 
 import { Pipeline } from "./base";
-import { PTransform, AsyncPTransform } from "./transforms/transform";
+import {
+  PTransform,
+  AsyncPTransform,
+  extractName,
+  withName,
+} from "./transforms/transform";
 import { ParDo, DoFn } from "./transforms/pardo";
+import * as runnerApi from "./proto/beam_runner_api";
 
 /**
  * The base object on which one can start building a Beam DAG.
@@ -35,18 +41,18 @@ export class Root {
     transform: PTransform<Root, OutputT> | ((Root) => OutputT)
   ) {
     if (!(transform instanceof PTransform)) {
-      transform = new PTransformFromCallable(transform, "" + transform);
+      transform = new PTransformFromCallable(transform);
     }
-    return this.pipeline.applyTransform(transform, this, "");
+    return this.pipeline.applyTransform(transform, this);
   }
 
   async asyncApply<OutputT extends PValue<any>>(
     transform: AsyncPTransform<Root, OutputT> | ((Root) => Promise<OutputT>)
   ) {
     if (!(transform instanceof AsyncPTransform)) {
-      transform = new AsyncPTransformFromCallable(transform, "" + transform);
+      transform = new AsyncPTransformFromCallable(transform);
     }
-    return await this.pipeline.asyncApplyTransform(transform, this, "");
+    return await this.pipeline.asyncApplyTransform(transform, this);
   }
 }
 
@@ -79,9 +85,9 @@ export class PCollection<T> {
     transform: PTransform<PCollection<T>, OutputT> | ((PCollection) => OutputT)
   ) {
     if (!(transform instanceof PTransform)) {
-      transform = new PTransformFromCallable(transform, "" + transform);
+      transform = new PTransformFromCallable(transform);
     }
-    return this.pipeline.applyTransform(transform, this, "");
+    return this.pipeline.applyTransform(transform, this);
   }
 
   asyncApply<OutputT extends PValue<any>>(
@@ -90,9 +96,9 @@ export class PCollection<T> {
       | ((PCollection) => Promise<OutputT>)
   ) {
     if (!(transform instanceof AsyncPTransform)) {
-      transform = new AsyncPTransformFromCallable(transform, "" + transform);
+      transform = new AsyncPTransformFromCallable(transform);
     }
-    return this.pipeline.asyncApplyTransform(transform, this, "");
+    return this.pipeline.asyncApplyTransform(transform, this);
   }
 
   map<OutputT, ContextT>(
@@ -102,9 +108,12 @@ export class PCollection<T> {
     context: ContextT = undefined!
   ): PCollection<OutputT> {
     return this.apply(
-      new ParDo<T, OutputT, ContextT>(
-        new MapDoFn<T, OutputT, ContextT>(fn),
-        context
+      withName(
+        "map(" + extractName(fn) + ")",
+        new ParDo<T, OutputT, ContextT>(
+          new MapDoFn<T, OutputT, ContextT>(fn),
+          context
+        )
       )
     );
   }
@@ -116,9 +125,12 @@ export class PCollection<T> {
     context: ContextT = undefined!
   ): PCollection<OutputT> {
     return this.apply(
-      new ParDo<T, OutputT, ContextT>(
-        new FlatMapDoFn<T, OutputT, ContextT>(fn),
-        context
+      withName(
+        "flatMap(" + extractName(fn) + ")",
+        new ParDo<T, OutputT, ContextT>(
+          new FlatMapDoFn<T, OutputT, ContextT>(fn),
+          context
+        )
       )
     );
   }
@@ -192,20 +204,25 @@ class PValueWrapper<T extends PValue<any>> {
   constructor(private pvalue: T) {}
 
   apply<O extends PValue<any>>(
-    transform: PTransform<T, O>,
+    transform: PTransform<T, O> | ((input: T) => O),
     root: Root | null = null
   ) {
-    return this.pipeline(root).applyTransform(transform, this.pvalue, "");
+    if (!(transform instanceof PTransform)) {
+      transform = new PTransformFromCallable(transform);
+    }
+    return this.pipeline(root).applyTransform(transform, this.pvalue);
   }
 
   async asyncApply<O extends PValue<any>>(
-    transform: AsyncPTransform<T, O>,
+    transform: AsyncPTransform<T, O> | ((input: T) => Promise<O>),
     root: Root | null = null
   ) {
+    if (!(transform instanceof AsyncPTransform)) {
+      transform = new AsyncPTransformFromCallable(transform);
+    }
     return await this.pipeline(root).asyncApplyTransform(
       transform,
-      this.pvalue,
-      ""
+      this.pvalue
     );
   }
 
@@ -225,8 +242,8 @@ class PTransformFromCallable<
 > extends PTransform<InputT, OutputT> {
   expander: (InputT) => OutputT;
 
-  constructor(expander: (InputT) => OutputT, name: string) {
-    super(name);
+  constructor(expander: (InputT) => OutputT) {
+    super(extractName(expander));
     this.expander = expander;
   }
 
@@ -241,8 +258,8 @@ class AsyncPTransformFromCallable<
 > extends AsyncPTransform<InputT, OutputT> {
   expander: (InputT) => Promise<OutputT>;
 
-  constructor(expander: (InputT) => Promise<OutputT>, name: string) {
-    super(name);
+  constructor(expander: (InputT) => Promise<OutputT>) {
+    super(extractName(expander));
     this.expander = expander;
   }
 
@@ -260,6 +277,7 @@ class MapDoFn<InputT, OutputT, ContextT> extends DoFn<
   private fn: (element: InputT, context: ContextT) => OutputT;
   constructor(fn: (element: InputT, context: ContextT) => OutputT) {
     super();
+    this.beamName = extractName(fn);
     this.fn = fn;
   }
   *process(element: InputT, context: ContextT) {
@@ -280,6 +298,7 @@ class FlatMapDoFn<InputT, OutputT, ContextT> extends DoFn<
   private fn: (element: InputT, context: ContextT) => Iterable<OutputT>;
   constructor(fn: (element: InputT, context: ContextT) => Iterable<OutputT>) {
     super();
+    this.beamName = extractName(fn);
     this.fn = fn;
   }
   *process(element: InputT, context: ContextT) {

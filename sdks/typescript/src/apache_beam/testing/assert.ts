@@ -75,15 +75,17 @@ export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
       .apply(new beam.Flatten())
       .map((e) => ({ key: 0, value: e }))
       .apply(new beam.GroupByKey())
-      .map((kv) => {
-        // Javascript list comprehension?
-        const actual: any[] = [];
-        for (const o of kv.value) {
-          if (o.tag == "actual") {
-            actual.push(o.value);
+      .map(
+        beam.withName("extractActual", (kv) => {
+          // Javascript list comprehension?
+          const actual: any[] = [];
+          for (const o of kv.value) {
+            if (o.tag == "actual") {
+              actual.push(o.value);
+            }
           }
-        }
-        check(actual);
-      });
+          check(actual);
+        })
+      );
   }
 }
