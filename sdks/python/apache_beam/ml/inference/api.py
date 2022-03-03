@@ -34,7 +34,7 @@ class SklearnSerializationType(Enum):
 
 @dataclass
 class BaseModelSpec:
-  model_url: str
+  model_uri: str
 
 
 @dataclass
@@ -60,25 +60,22 @@ class PredictionResult:
 
 @beam.ptransform_fn
 @beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[_K, _INPUT_TYPE]])
-@beam.typehints.with_output_types(
-    Union[PredictionResult, Tuple[_K, PredictionResult]])
+@beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
 def RunInference(
     examples: beam.pvalue.PCollection,
     model: BaseModelSpec) -> beam.pvalue.PCollection:
-  """Run inference with a model.
+  """
+  A transform that takes a PCollection of examples (or features) to be used on
+  an ML model. It will then output inferences (or predictions) for those
+  examples in a PCollection of PredictionResults, containing the input examples
+  and output inferences.
 
-  There one type of inference you can perform using this PTransform:
-    1. In-process inference from a SavedModel instance.
-    TODO: Add remote inference by using a service endpoint.
+  If examples are paired with keys, it will output a tuple
+  (key, PredictionResult) for each (key, example) input.
 
-  Args:
-    examples: A PCollection containing examples of the following possible kinds,
-      each with their corresponding return type.
-        - PCollection[Example]                 -> PCollection[PredictionResult]
-        - PCollection[Tuple[K, Example]]       -> PCollection[
-                                                    Tuple[K, PredictionResult]]
-    model: Model inference endpoint.
-  Returns:
-    A PCollection (possibly keyed) containing PredictionResults.
+  Models for supported frameworks can be loaded via a URI. Supported services
+  can also be used.
+
+  TODO(BEAM-14046): Add and link to help documentation
   """
   pass  # TODO: add implementation (RunInferenceImpl)
