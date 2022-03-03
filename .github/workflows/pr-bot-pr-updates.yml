@@ -26,7 +26,7 @@ jobs:
   process-pr-update:
     # Don't run on forks
     if: github.repository == 'apache/beam'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
 
     steps:
       - uses: actions/checkout@v2
