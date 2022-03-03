@@ -44,7 +44,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc.BeamFnWorkerS
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
@@ -81,7 +80,7 @@ public class BeamFnStatusClientTest {
     when(handler.getBundleProcessorCache()).thenReturn(processorCache);
     when(processorCache.getActiveBundleProcessors()).thenReturn(bundleProcessorMap);
 
-    ManagedChannelFactory channelFactory = InProcessManagedChannelFactory.create();
+    ManagedChannelFactory channelFactory = ManagedChannelFactory.createInProcess();
     BeamFnStatusClient client =
         new BeamFnStatusClient(
             apiServiceDescriptor,
@@ -125,7 +124,7 @@ public class BeamFnStatusClientTest {
     try {
       BundleProcessorCache processorCache = mock(BundleProcessorCache.class);
       when(processorCache.getActiveBundleProcessors()).thenReturn(Collections.emptyMap());
-      ManagedChannelFactory channelFactory = InProcessManagedChannelFactory.create();
+      ManagedChannelFactory channelFactory = ManagedChannelFactory.createInProcess();
       new BeamFnStatusClient(
           apiServiceDescriptor,
           channelFactory::forDescriptor,
@@ -144,7 +143,7 @@ public class BeamFnStatusClientTest {
 
   @Test
   public void testCacheStatsExist() {
-    ManagedChannelFactory channelFactory = InProcessManagedChannelFactory.create();
+    ManagedChannelFactory channelFactory = ManagedChannelFactory.createInProcess();
     BeamFnStatusClient client =
         new BeamFnStatusClient(
             apiServiceDescriptor,

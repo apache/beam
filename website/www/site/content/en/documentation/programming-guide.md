@@ -6982,7 +6982,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 #### 13.2.3. Using cross-language transforms in a Go pipeline
 
 If a Go-specific wrapper for a cross-language is available, use that. Otherwise, you have to use the
-lower-level [CrossLanguage](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguage)
+lower-level [CrossLanguage](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#CrossLanguage)
 function to access the transform.
 
 **Expansion Services**
@@ -7021,10 +7021,10 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
    Refer to [Creating cross-language transforms](#create-x-lang-transforms) for details.
 3. Use the `beam.CrossLanguage` function in your pipeline as appropriate. Reference the URN, payload,
    expansion service address, and define inputs and outputs. You can use the
-   [beam.CrossLanguagePayload](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguagePayload)
+   [beam.CrossLanguagePayload](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#CrossLanguagePayload)
    function as a helper for encoding a payload. You can use the
-   [beam.UnnamedInput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedInput) and
-   [beam.UnnamedOutput](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedOutput)
+   [beam.UnnamedInput](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#UnnamedInput) and
+   [beam.UnnamedOutput](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#UnnamedOutput)
    functions as shortcuts for single, unnamed inputs/outputs or define a map for named ones.
 
    ```go

@@ -78,6 +78,31 @@ class Client(object):
     self._download_stream = None
     self._download_pos = 0
 
+  def get_object_metadata(self, request):
+    """Retrieves an object's metadata.
+
+    Args:
+      request: (GetRequest) input message
+
+    Returns:
+      (Object) The response message.
+    """
+    kwargs = {'Bucket': request.bucket, 'Key': request.object}
+
+    try:
+      boto_response = self.client.head_object(**kwargs)
+    except Exception as e:
+      raise messages.S3ClientError(str(e), get_http_error_code(e))
+
+    item = messages.Item(
+        boto_response['ETag'],
+        request.object,
+        boto_response['LastModified'],
+        boto_response['ContentLength'],
+        boto_response['ContentType'])
+
+    return item
+
   def get_stream(self, request, start):
     """Opens a stream object starting at the given position.
 
