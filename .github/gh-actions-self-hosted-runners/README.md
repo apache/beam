@@ -21,7 +21,11 @@ The current GitHub Actions workflows are being tested on multiple operating syst
 In addition, we are working on researching the best way to implement the MacOS self-hosted runners.
 
 ## Ubuntu
-Ubuntu Self-hosted runners are implemented using Google Kubernetes Engine with the following specifications:
+Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using Google Kubernetes Engine with the following specifications:
+
+#### Cluster
+* Cluster: [github-actions-linux-runners](https://console.cloud.google.com/kubernetes/clusters/details/us-central1-a/github-actions-linux-runners/details?project=apache-beam-testing)
+* Image: [linux-github-actions-runner](https://console.cloud.google.com/artifacts/docker/apache-beam-testing/us-central1/beam-github-actions/linux-github-actions-runner?project=apache-beam-testing)
 
 #### Node
 * Machine Type: 2-custom-6-18432
@@ -50,8 +54,10 @@ Ubuntu Self-hosted runners are implemented using Google Kubernetes Engine with t
 Windows Virtual machines have the following specifications
 
 #### VM specifications
+* Instace Template: _TODO: Add GCP link when final resources are in place._
 * Machine Type: n2-standard-2
 * Disk Size: 70 GB
+* Disk Image: [disk-image-windows-runner](https://console.cloud.google.com/compute/imagesDetail/projects/apache-beam-testing/global/images/disk-image-windows-runner?project=apache-beam-testing)
 * CPU: 2 vCPUs
 * Memory : 8 GB
 
