@@ -5,7 +5,7 @@ import unittest
 import apache_beam as beam
 import apache_beam.ml.inference.base as base
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.ml.inference.apis import PredictionResult
+from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.test_pipeline import TestPipeline
