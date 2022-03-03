@@ -4722,14 +4722,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       reason='non-deferred-columns')
 
   def _split_helper(self, rsplit=False, **kwargs):
-    pat = kwargs.get('pat', None)
     expand = kwargs.get('expand', False)
-    regex = kwargs.get('regex', None)
-
-    # regex introduced in pandas 1.4 but only for split, not
-    # rsplit, so removing it from kwargs
-    if PD_VERSION < (1, 4) and not rsplit:
-      kwargs.pop('regex', None)
 
     if not expand:
       # Not creating separate columns
@@ -4749,28 +4742,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             "pd.CategoricalDtype with explicit categories.",
             reason="non-deferred-columns")
 
-      # Split (if applicable) the categories
-      if regex is False or (
-        regex is None and (
-          (not pat) or (isinstance(pat, str) and len(pat) == 1)
-        )
-      ):
-        # Treat pat as literal string
-        split_cats = [
-          cat.split(
-            sep=kwargs.get('pat'),
-            maxsplit=kwargs.get('n', -1)
-          ) for cat in dtype.categories
-        ]
-      else:
-        # Treat pat as regex
-        split_cats = [
-          re.split(
-            pattern=pat,
-            string=cat,
-            maxsplit=kwargs.get('n', 0)
-          ) for cat in dtype.categories
-        ]
+      # Split the categories
+      split_cats = dtype.categories.str.split(**kwargs)
 
       # Count the number of new columns to create for proxy
       max_splits = len(max(split_cats, key=len))
