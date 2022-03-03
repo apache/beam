@@ -358,7 +358,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			// or to plans so they can be re-used.
 			expiration := plan.GetExpirationTime(ctx, string(instID))
 			if time.Now().Before(expiration) {
-				// TODO(damccorm) - we can be a little smarter about data structures here by
+				// TODO(BEAM-10976) - we can be a little smarter about data structures here by
 				// by storing plans awaiting finalization in a heap. That way when we expire plans
 				// here its O(1) instead of O(n) (though adding/finalizing will still be O(logn))
 				requiresFinalization = true

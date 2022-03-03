@@ -124,7 +124,7 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	if n.outErrIdx, ok = fn.Error(); !ok {
 		n.outErrIdx = -1
 	}
-	// TODO(@damccorm) - add this back in once BundleFinalization is implemented
+	// TODO(BEAM-10976) - add this back in once BundleFinalization is implemented
 	// if n.bfIdx, ok = fn.BundleFinalization(); !ok {
 	// 	n.bfIdx = -1
 	// }
