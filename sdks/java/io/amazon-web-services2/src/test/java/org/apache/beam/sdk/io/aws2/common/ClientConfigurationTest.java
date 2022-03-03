@@ -22,16 +22,18 @@ import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URI;
+import org.apache.beam.sdk.io.aws2.options.SerializationTestUtil;
 import org.junit.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 
 public class ClientConfigurationTest {
 
   @Test
-  public void testSerialization() {
+  public void testJavaSerialization() {
     AwsCredentialsProvider credentials =
         StaticCredentialsProvider.create(AwsBasicCredentials.create("key", "secret"));
 
@@ -49,5 +51,32 @@ public class ClientConfigurationTest {
         (ClientConfiguration) deserializeFromByteArray(serializedBytes, "ClientConfiguration");
 
     assertThat(deserializedConfig).isEqualTo(config);
+  }
+
+  @Test
+  public void testJsonSerialization() {
+    ClientConfiguration config = ClientConfiguration.builder().build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().region(Region.US_WEST_1).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().credentialsProvider(DefaultCredentialsProvider.create()).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    AwsBasicCredentials credentials = AwsBasicCredentials.create("key", "secret");
+    StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
+    config = config.toBuilder().credentialsProvider(credentialsProvider).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().endpoint(URI.create("https://localhost:8080")).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().retry(r -> r.numRetries(10)).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+  }
+
+  private ClientConfiguration jsonSerializeDeserialize(ClientConfiguration obj) {
+    return SerializationTestUtil.serializeDeserialize(ClientConfiguration.class, obj);
   }
 }
