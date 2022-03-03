@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.net.URI;
@@ -1462,36 +1463,54 @@ public class GrpcWindmillServer extends WindmillServerStub {
       }
     }
 
+    private class ChunkingByteStream extends OutputStream {
+      private final ByteString.Output output = ByteString.newOutput(COMMIT_STREAM_CHUNK_SIZE);
+      private final Consumer<ByteString> chunkWriter;
+
+      ChunkingByteStream(Consumer<ByteString> chunkWriter) {
+        this.chunkWriter = chunkWriter;
+      }
+
+      @Override
+      public void close() {
+        flushBytes();
+      }
+
+      @Override
+      public void write(int b) throws IOException {
+        output.write(b);
+        if (output.size() == COMMIT_STREAM_CHUNK_SIZE) {
+          flushBytes();
+        }
+      }
+
+      private void flushBytes() {
+        chunkWriter.accept(output.toByteString());
+        output.reset();
+      }
+    }
+
     private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
       Preconditions.checkNotNull(pendingRequest.computation);
-      final ByteString serializedCommit = pendingRequest.request.toByteString();
-
-      synchronized (this) {
-        pending.put(id, pendingRequest);
-        for (int i = 0; i < serializedCommit.size(); i += COMMIT_STREAM_CHUNK_SIZE) {
-          int end = i + COMMIT_STREAM_CHUNK_SIZE;
-          ByteString chunk = serializedCommit.substring(i, Math.min(end, serializedCommit.size()));
-
-          StreamingCommitRequestChunk.Builder chunkBuilder =
-              StreamingCommitRequestChunk.newBuilder()
-                  .setRequestId(id)
-                  .setSerializedWorkItemCommit(chunk)
-                  .setComputationId(pendingRequest.computation)
-                  .setShardingKey(pendingRequest.request.getShardingKey());
-          int remaining = serializedCommit.size() - end;
-          if (remaining > 0) {
-            chunkBuilder.setRemainingBytesForWorkItem(remaining);
-          }
-
-          StreamingCommitWorkRequest requestChunk =
-              StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
-          try {
-            send(requestChunk);
-          } catch (IllegalStateException e) {
-            // Stream was broken, request will be retried when stream is reopened.
-            break;
-          }
+      AtomicLong remaining = new AtomicLong(pendingRequest.request.getSerializedSize());
+      Consumer<ByteString> chunkWriter = chunk -> {
+        StreamingCommitRequestChunk.Builder chunkBuilder =
+            StreamingCommitRequestChunk.newBuilder()
+                .setRequestId(id)
+                .setSerializedWorkItemCommit(chunk)
+                .setComputationId(pendingRequest.computation)
+                .setShardingKey(pendingRequest.request.getShardingKey());
+        if (remaining.addAndGet(-chunk.size()) > 0) {
+          chunkBuilder.setRemainingBytesForWorkItem(remaining.get());
         }
+        StreamingCommitWorkRequest requestChunk =
+            StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
+        send(requestChunk);
+      };
+      try (ChunkingByteStream s = new ChunkingByteStream(chunkWriter)) {
+        pendingRequest.request.writeTo(s);
+      } catch (IllegalStateException|IOException e) {
+        LOG.info("Stream was broken, request will be retried when stream is reopened.", e);
       }
     }
   }
