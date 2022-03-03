@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.aws2.s3;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
+import org.apache.beam.sdk.io.aws2.options.SerializationTestUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -30,7 +32,6 @@ import org.junit.runners.JUnit4;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SSECustomerKeyTest {
-
   @Test
   public void testBuild() {
     assertThrows(
@@ -53,5 +54,19 @@ public class SSECustomerKeyTest {
     assertEquals(key, sseCustomerKey.getKey());
     assertEquals(algorithm, sseCustomerKey.getAlgorithm());
     assertEquals(encodedMD5, sseCustomerKey.getMD5());
+  }
+
+  @Test
+  public void testJsonSerializeDeserialize() {
+    // default key created by S3Options.SSECustomerKeyFactory
+    SSECustomerKey emptyKey = SSECustomerKey.builder().build();
+    assertThat(jsonSerializeDeserialize(emptyKey)).isEqualToComparingFieldByField(emptyKey);
+
+    SSECustomerKey key = SSECustomerKey.builder().key("key").algorithm("algo").md5("md5").build();
+    assertThat(jsonSerializeDeserialize(key)).isEqualToComparingFieldByField(key);
+  }
+
+  private SSECustomerKey jsonSerializeDeserialize(SSECustomerKey key) {
+    return SerializationTestUtil.serializeDeserialize(SSECustomerKey.class, key);
   }
 }
