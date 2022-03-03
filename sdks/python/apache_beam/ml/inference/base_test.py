@@ -1,5 +1,5 @@
 from typing import Any
-from typing import List
+from typing import Iterable
 import unittest
 
 import apache_beam as beam
@@ -17,7 +17,7 @@ class MockModel:
 
 
 class MockInferenceRunner(base.InferenceRunner):
-  def run_inference(self, batch: Any, model: Any) -> List[PredictionResult]:
+  def run_inference(self, batch: Any, model: Any) -> Iterable[PredictionResult]:
     for example in batch:
       yield model.predict(example)
 

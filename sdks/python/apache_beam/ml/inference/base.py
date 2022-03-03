@@ -4,11 +4,11 @@ import resource
 import sys
 import time
 from typing import Any
-from typing import List
+from typing import Iterable
 
 import apache_beam as beam
 from apache_beam.utils import shared
-from apache_beam.ml.inference.apis import PredictionResult
+from apache_beam.ml.inference.api import PredictionResult
 
 _MILLISECOND_TO_MICROSECOND = 1000
 _MICROSECOND_TO_NANOSECOND = 1000
@@ -32,8 +32,8 @@ class ModelLoader:
 
 class InferenceRunner:
   """Implements running inferences for a framework."""
-  def run_inference(self, batch: Any, model: Any) -> List[PredictionResult]:
-    """Runs inferences on a batch of examples and returns a list of Predictions."""
+  def run_inference(self, batch: Any, model: Any) -> Iterable[PredictionResult]:
+    """Runs inferences on a batch of examples and returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
 
 
@@ -139,7 +139,7 @@ class RunInferenceImpl(beam.PTransform):
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     return (
         pcoll
-        # TODO: Hook into the batching DoFn APIs.
+        # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
         | beam.ParDo(
             RunInferenceDoFn(self._model_loader, self._inference_runner))
