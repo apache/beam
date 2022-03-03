@@ -4721,33 +4721,35 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       pd.core.strings.StringMethods, 'get_dummies',
       reason='non-deferred-columns')
 
-  def _split_helper(
-    self, rsplit=False, pat=None, expand=False, regex=None, **kwargs):
+  def _split_helper(self, rsplit=False, **kwargs):
+    pat = kwargs.get('pat', None)
+    expand = kwargs.get('expand', False)
+    regex = kwargs.get('regex', None)
 
-    # Adding arguments to kwargs. regex introduced in pandas 1.4
-    # but only for split, not rsplit
-    kwargs['pat'] = pat
-    kwargs['expand'] = expand
-    if PD_VERSION >= (1, 4) and not rsplit:
-      kwargs['regex'] = regex
+    # regex introduced in pandas 1.4 but only for split, not
+    # rsplit, so removing it from kwargs
+    if PD_VERSION < (1, 4) and not rsplit:
+      kwargs.pop('regex', None)
 
     if not expand:
       # Not creating separate columns
       proxy = self._expr.proxy()
-      func = lambda s: pd.concat([proxy,
-        (s.str.split(**kwargs) if not rsplit else s.str.rsplit(**kwargs))]
-      )
+      if not rsplit:
+        func = lambda s: pd.concat([proxy, s.str.split(**kwargs)])
+      else:
+        func = lambda s: pd.concat([proxy, s.str.rsplit(**kwargs)])
     else:
       # Creating separate columns, so must be more strict on dtype
       dtype = self._expr.proxy().dtype
       if not isinstance(dtype, pd.CategoricalDtype):
         method_name = 'rsplit' if rsplit else 'split'
         raise frame_base.WontImplementError(
-            method_name + "() of non-categorical type is not supported because "
+            f"{method_name}() of non-categorical type is not supported because "
             "the type of the output column depends on the data. Please use "
             "pd.CategoricalDtype with explicit categories.",
             reason="non-deferred-columns")
 
+      # Split (if applicable) the categories
       if regex is False or (
         regex is None and (
           (not pat) or (isinstance(pat, str) and len(pat) == 1)
@@ -4770,12 +4772,17 @@ class _DeferredStringMethods(frame_base.DeferredBase):
           ) for cat in dtype.categories
         ]
 
+      # Count the number of new columns to create for proxy
       max_splits = len(max(split_cats, key=len))
       proxy = pd.DataFrame(columns=range(max_splits))
 
-      func = lambda s: pd.concat([proxy,
-        (s.str.split(**kwargs) if not rsplit else s.str.rsplit(**kwargs))]
-      ).replace(np.nan, value=None)
+      def func(s):
+        if not rsplit:
+          result = s.str.split(**kwargs)
+        else:
+          result = s.str.rsplit(**kwargs)
+        result[~result.isna()].replace(np.nan, value=None)
+        return result
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -4788,24 +4795,25 @@ class _DeferredStringMethods(frame_base.DeferredBase):
 
   @frame_base.with_docs_from(pd.core.strings.StringMethods)
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  def split(self, pat=None, expand=False, regex=None, **kwargs):
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def split(self, **kwargs):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
     One exception is when ``expand`` is ``False``. Because we are not
     creating new columns at construction time, dtype can be `str`.
     """
-    return self._split_helper(
-      rsplit=False, pat=pat, expand=expand, regex=regex, **kwargs)
+    return self._split_helper(rsplit=False, **kwargs)
 
   @frame_base.with_docs_from(pd.core.strings.StringMethods)
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  def rsplit(self, pat=None, expand=False, **kwargs):
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def rsplit(self, **kwargs):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
     One exception is when ``expand`` is ``False``. Because we are not
     creating new columns at construction time, dtype can be `str`.
     """
-    return self._split_helper(rsplit=True, pat=pat, expand=expand, **kwargs)
+    return self._split_helper(rsplit=True, **kwargs)
 
 
 ELEMENTWISE_STRING_METHODS = [
