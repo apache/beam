@@ -30,6 +30,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_status
+from apache_beam.utils.plugin import BeamPlugin
 
 
 class SdkWorkerMainTest(unittest.TestCase):
@@ -98,6 +99,13 @@ class SdkWorkerMainTest(unittest.TestCase):
                                    dry_run=True)
     self.assertTrue(test_runtime_provider.is_accessible())
     self.assertEqual(test_runtime_provider.get(), 37)
+
+  def test_import_beam_plugins(self):
+    sdk_worker_main._import_beam_plugins(BeamPlugin.get_all_plugin_paths())
+
+  def test_import_beam_plugins_failure(self):
+    with self.assertRaises(RuntimeError):
+      sdk_worker_main._import_beam_plugins(['this.plugin.does.not.exist'])
 
 
 if __name__ == '__main__':
