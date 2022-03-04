@@ -34,14 +34,32 @@ class MockModel:
 
 
 class MockInferenceRunner(base.InferenceRunner):
+  def __init__(self, clock=None):
+    self._mock_clock = clock
+
   def run_inference(self, batch: Any, model: Any) -> Iterable[PredictionResult]:
+    if self._mock_clock:
+      self._mock_clock.current_time += 3000
     for example in batch:
       yield model.predict(example)
 
 
 class MockModelLoader(base.ModelLoader):
+  def __init__(self, clock=None):
+    self._mock_clock = clock
+
   def load_model(self):
+    if self._mock_clock:
+      self._mock_clock.current_time += 50000
     return MockModel()
+
+
+class MockClock(base.Clock):
+  def __init__(self):
+    self.current_time = 10000
+
+  def get_current_time_in_microseconds(self) -> int:
+    return self.current_time
 
 
 class ExtractInferences(beam.DoFn):
@@ -88,3 +106,29 @@ class BaseTest(unittest.TestCase):
         res.metrics().query(MetricsFilter().with_name('num_inferences')))
     num_inferences_counter = metric_results['counters'][0]
     self.assertEqual(num_inferences_counter.committed, 4)
+
+  def test_timing_metrics(self):
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    mock_clock = MockClock()
+    actual = pcoll | base.RunInferenceImpl(
+        MockModelLoader(clock=mock_clock),
+        MockInferenceRunner(clock=mock_clock),
+        clock=mock_clock)
+    res = pipeline.run()
+    res.wait_until_finish()
+
+    metric_results = (
+        res.metrics().query(
+            MetricsFilter().with_name('inference_batch_latency_micro_secs')))
+    batch_latency = metric_results['distributions'][0]
+    self.assertEqual(batch_latency.result.count, 2)
+    self.assertEqual(batch_latency.result.mean, 3000)
+
+    metric_results = (
+        res.metrics().query(
+            MetricsFilter().with_name('load_model_latency_milli_secs')))
+    load_model_latency = metric_results['distributions'][0]
+    self.assertEqual(load_model_latency.result.count, 1)
+    self.assertEqual(load_model_latency.result.mean, 50)

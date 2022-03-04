@@ -100,13 +100,15 @@ class MetricsCollector:
 
 
 class RunInferenceDoFn(beam.DoFn):
-  def __init__(self, model_loader, inference_runner):
+  def __init__(self, model_loader, inference_runner, clock=None):
     self._model_loader = model_loader
     self._inference_runner = inference_runner
     self._shared_model_handle = shared.Shared()
     # TODO: Compute a good metrics namespace
     self._metrics_collector = MetricsCollector('default_namespace')
-    self._clock = _ClockFactory.make_clock()
+    self._clock = clock
+    if not clock:
+      self._clock = _ClockFactory.make_clock()
     self._model = None
 
   def _load_model(self):
@@ -138,28 +140,37 @@ class RunInferenceDoFn(beam.DoFn):
     else:
       examples = batch
       keys = None
-    inferences = self._inference_runner.run_inference(examples, self._model)
+    inference_generator = self._inference_runner.run_inference(
+        examples, self._model)
+    predictions = [
+        PredictionResult(e, r) for e, r in zip(examples, inference_generator)
+    ]
     inference_latency = self._clock.get_current_time_in_microseconds(
     ) - start_time
     num_bytes = sys.getsizeof(batch)
     num_elements = len(batch)
     self._metrics_collector.update(
         num_elements, sys.getsizeof(batch), inference_latency)
-    yield keys, [PredictionResult(e, r) for e, r in zip(examples, inferences)]
+    yield keys, predictions
+
+  def finish_bundle(self):
+    self._metrics_collector.update_metrics_with_cache()
 
 
 class RunInferenceImpl(beam.PTransform):
-  def __init__(self, model_loader, inference_runner):
+  def __init__(self, model_loader, inference_runner, clock=None):
     self._model_loader = model_loader
     self._inference_runner = inference_runner
+    self._clock = clock
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
-        | beam.BatchElements()
+        | beam.BatchElements(min_batch_size=2)
         | beam.ParDo(
-            RunInferenceDoFn(self._model_loader, self._inference_runner))
+            RunInferenceDoFn(
+                self._model_loader, self._inference_runner, clock=self._clock))
         | beam.FlatMap(_unbatch))
 
 
@@ -190,12 +201,12 @@ def _is_cygwin() -> bool:
   return platform.system().startswith('CYGWIN_NT')
 
 
-class _Clock(object):
+class Clock(object):
   def get_current_time_in_microseconds(self) -> int:
     return int(time.time() * _SECOND_TO_MICROSECOND)
 
 
-class _FineGrainedClock(_Clock):
+class _FineGrainedClock(Clock):
   def get_current_time_in_microseconds(self) -> int:
     return int(
         time.clock_gettime_ns(time.CLOCK_REALTIME) /  # pytype: disable=module-attr
@@ -204,8 +215,8 @@ class _FineGrainedClock(_Clock):
 
 class _ClockFactory(object):
   @staticmethod
-  def make_clock() -> _Clock:
+  def make_clock() -> Clock:
     if (hasattr(time, 'clock_gettime_ns') and not _is_windows() and
         not _is_cygwin()):
       return _FineGrainedClock()
-    return _Clock()
+    return Clock()
