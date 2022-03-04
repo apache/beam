@@ -34,7 +34,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/avroio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/avroio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/avroio
       - transform: TextIO
         description: PTransforms for reading and writing text files.
         implementations:
@@ -46,7 +46,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/textio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/textio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio
       - transform: TFRecordIO
         description: PTransforms for reading and writing [TensorFlow TFRecord](https://www.tensorflow.org/tutorials/load_data/tfrecord) files.
         implementations:
@@ -119,7 +119,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsfilesystem.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs
       - transform: LocalFileSystem
         description: "`FileSystem` implementation for accessing files on disk."
         implementations:
@@ -131,7 +131,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.localfilesystem.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local
       - transform: S3FileSystem
         description: "`FileSystem` implementation for [Amazon S3](https://aws.amazon.com/s3/)."
         implementations:
@@ -143,7 +143,7 @@ categories:
         implementations:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs
   - name: Messaging
     description: These I/O connectors typically involve working with unbounded sources that come from messaging sources.
     rows:
@@ -182,7 +182,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.gcp.pubsub.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio
       - transform: JmsIO
         description: An unbounded source for [JMS](https://www.oracle.com/java/technologies/java-message-service.html) destinations (queues or topics).
         implementations:
@@ -278,9 +278,9 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio
       - transform: BigTableIO
-        description: Read from and write to [Google Cloud Bigtable](https://cloud.google.com/bigtable/).
+        description: Read from (only for Java SDK) and write to [Google Cloud Bigtable](https://cloud.google.com/bigtable/).
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.gcp.bigtable.BigtableIO
@@ -304,6 +304,9 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.snowflake.SnowflakeIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html
+          - language: py
+            name: apache_beam.io.snowflake
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.snowflake.html
       - transform: SpannerIO
         description: Experimental Transforms for reading from and writing to [Google Cloud Spanner](https://cloud.google.com/spanner).
         implementations:
@@ -357,7 +360,7 @@ categories:
         implementations:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
-            url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
+            url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/databaseio
   - name: Miscellaneous
     description: Miscellaneous I/O sources.
     rows:

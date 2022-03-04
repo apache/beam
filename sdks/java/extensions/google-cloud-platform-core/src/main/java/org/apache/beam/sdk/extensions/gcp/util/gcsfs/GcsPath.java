@@ -126,6 +126,9 @@ public class GcsPath implements Path, Serializable {
   private static final Pattern GCS_RESOURCE_NAME =
       Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
 
+  /** Pattern that is used to validate a GCS bucket name. */
+  private static final Pattern GCS_BUCKET_NAME = Pattern.compile("[a-z0-9][-_a-z0-9.]+[a-z0-9]");
+
   /** Creates a GcsPath from a OnePlatform resource name in string form. */
   public static GcsPath fromResourceName(String name) {
     Matcher m = GCS_RESOURCE_NAME.matcher(name);
@@ -186,7 +189,7 @@ public class GcsPath implements Path, Serializable {
     }
     checkArgument(!bucket.contains("/"), "GCS bucket may not contain a slash");
     checkArgument(
-        bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
+        bucket.isEmpty() || GCS_BUCKET_NAME.matcher(bucket).matches(),
         "GCS bucket names must contain only lowercase letters, numbers, "
             + "dashes (-), underscores (_), and dots (.). Bucket names "
             + "must start and end with a number or letter. "

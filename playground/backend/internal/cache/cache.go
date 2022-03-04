@@ -16,6 +16,7 @@
 package cache
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"context"
 	"github.com/google/uuid"
 	"time"
@@ -24,7 +25,7 @@ import (
 // SubKey is used to keep value with Cache using nested structure like pipelineId:subKey:value
 type SubKey string
 
-// All possible subKeys to process with Cache
+// All possible subKeys and string keys to process with Cache
 const (
 	// Status is used to keep playground.Status value
 	Status SubKey = "STATUS"
@@ -34,6 +35,12 @@ const (
 
 	// RunError is used to keep run code error value
 	RunError SubKey = "RUN_ERROR"
+
+	// ValidationOutput is used to keep validation output value
+	ValidationOutput SubKey = "VALIDATION_OUTPUT"
+
+	// PreparationOutput is used to keep prepare step output value
+	PreparationOutput SubKey = "PREPARATION_OUTPUT"
 
 	// CompileOutput is used to keep compilation output value
 	CompileOutput SubKey = "COMPILE_OUTPUT"
@@ -49,6 +56,15 @@ const (
 
 	// LogsIndex is the index of the start of the log
 	LogsIndex SubKey = "LOGS_INDEX"
+
+	// Graph is used to keep graph of the execution
+	Graph SubKey = "GRAPH"
+
+	// ExamplesCatalog is catalog of examples available in Playground
+	ExamplesCatalog string = "EXAMPLES_CATALOG"
+
+	// DefaultPrecompiledExamples is used to keep default examples
+	DefaultPrecompiledExamples string = "DEFAULT_PRECOMPILED_OBJECTS"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground
@@ -69,4 +85,16 @@ type Cache interface {
 
 	// SetExpTime adds expiration time of the pipeline to cache by pipelineId.
 	SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime time.Duration) error
+
+	// SetCatalog adds the given catalog to cache by ExamplesCatalog key.
+	SetCatalog(ctx context.Context, catalog []*pb.Categories) error
+
+	// GetCatalog returns catalog from cache by ExamplesCatalog key.
+	GetCatalog(ctx context.Context) ([]*pb.Categories, error)
+
+	// SetDefaultPrecompiledObject adds default precompiled object for SDK into cache.
+	SetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, precompiledObject *pb.PrecompiledObject) error
+
+	// GetDefaultPrecompiledObject returns default precompiled object for SDK from cache.
+	GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*pb.PrecompiledObject, error)
 }

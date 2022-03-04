@@ -60,7 +60,7 @@ class QuiescenceDriver implements ExecutionDriver {
       BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
           bundleProcessor,
       PipelineMessageReceiver messageReceiver,
-      Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>> initialBundles) {
+      Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> initialBundles) {
     return new QuiescenceDriver(context, graph, bundleProcessor, messageReceiver, initialBundles);
   }
 
@@ -73,8 +73,7 @@ class QuiescenceDriver implements ExecutionDriver {
   private final CompletionCallback defaultCompletionCallback =
       new TimerIterableCompletionCallback(Collections.emptyList());
 
-  private final Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-      pendingRootBundles;
+  private final Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles;
   private final Queue<WorkUpdate> pendingWork = new ConcurrentLinkedQueue<>();
   // We collect here bundles and AppliedPTransforms that have started to process bundle, but have
   // not completed it yet. The reason for that is that the bundle processing might change output
@@ -94,8 +93,7 @@ class QuiescenceDriver implements ExecutionDriver {
       BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
           bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,
-      Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootBundles) {
+      Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles) {
     this.evaluationContext = evaluationContext;
     this.graph = graph;
     this.bundleProcessor = bundleProcessor;
@@ -216,19 +214,21 @@ class QuiescenceDriver implements ExecutionDriver {
   private void addWorkIfNecessary() {
     // If any timers have fired, they will add more work; We don't need to add more
     if (state.get() == ExecutorState.QUIESCENT) {
-      // All current TransformExecutors are blocked; add more work from the roots.
-      for (Map.Entry<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
-          pendingRootEntry : pendingRootBundles.entrySet()) {
-        Collection<CommittedBundle<?>> bundles = new ArrayList<>();
-        // Pull all available work off of the queue, then schedule it all, so this loop
-        // terminates
-        while (!pendingRootEntry.getValue().isEmpty()) {
-          CommittedBundle<?> bundle = pendingRootEntry.getValue().poll();
-          bundles.add(bundle);
-        }
-        for (CommittedBundle<?> bundle : bundles) {
-          processBundle(bundle, pendingRootEntry.getKey());
-          state.set(ExecutorState.ACTIVE);
+      synchronized (pendingRootBundles) {
+        // All current TransformExecutors are blocked; add more work from the roots.
+        for (Map.Entry<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootEntry :
+            pendingRootBundles.entrySet()) {
+          Collection<CommittedBundle<?>> bundles = new ArrayList<>();
+          // Pull all available work off of the queue, then schedule it all, so this loop
+          // terminates
+          while (!pendingRootEntry.getValue().isEmpty()) {
+            CommittedBundle<?> bundle = pendingRootEntry.getValue().poll();
+            bundles.add(bundle);
+          }
+          for (CommittedBundle<?> bundle : bundles) {
+            processBundle(bundle, pendingRootEntry.getKey());
+            state.set(ExecutorState.ACTIVE);
+          }
         }
       }
     }
@@ -300,7 +300,9 @@ class QuiescenceDriver implements ExecutionDriver {
       if (unprocessedInputs.isPresent()) {
         if (inputBundle.getPCollection() == null) {
           // TODO: Split this logic out of an if statement
-          pendingRootBundles.get(result.getTransform()).offer(unprocessedInputs.get());
+          synchronized (pendingRootBundles) {
+            pendingRootBundles.get(result.getTransform()).offer(unprocessedInputs.get());
+          }
         } else {
           pendingWork.offer(
               WorkUpdate.fromBundle(

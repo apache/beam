@@ -134,8 +134,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
@@ -191,10 +191,6 @@ public class StreamingDataflowWorker {
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
   static final long THREAD_EXPIRATION_TIME_SEC = 60;
-  // Maximum work units retrieved from Windmill and queued before processing. Limiting this delays
-  // retrieving extra work from Windmill without working on it, leading to better
-  // prioritization / utilization.
-  static final int MAX_WORK_UNITS_QUEUED = 100;
   static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
   static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
   static final int NUM_COMMIT_STREAMS = 1;
@@ -209,9 +205,6 @@ public class StreamingDataflowWorker {
   // Reserved ID for counter updates.
   // Matches kWindmillCounterUpdate in workflow_worker_service_multi_hubs.cc.
   private static final String WINDMILL_COUNTER_UPDATE_WORK_ID = "3";
-
-  /** Maximum number of items to return in a GetWork request. */
-  private static final long MAX_GET_WORK_ITEMS = MAX_WORK_UNITS_QUEUED + MAX_PROCESSING_THREADS;
 
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
@@ -666,7 +659,8 @@ public class StreamingDataflowWorker {
             chooseMaximumNumberOfThreads(),
             THREAD_EXPIRATION_TIME_SEC,
             TimeUnit.SECONDS,
-            MAX_WORK_UNITS_QUEUED,
+            chooseMaximumBundlesOutstanding(),
+            chooseMaximumBytesOutstanding(),
             threadFactory);
 
     maxSinkBytes =
@@ -785,6 +779,22 @@ public class StreamingDataflowWorker {
     return MAX_PROCESSING_THREADS;
   }
 
+  private int chooseMaximumBundlesOutstanding() {
+    int maxBundles = options.getMaxBundlesFromWindmillOutstanding();
+    if (maxBundles > 0) {
+      return maxBundles;
+    }
+    return chooseMaximumNumberOfThreads() + 100;
+  }
+
+  private long chooseMaximumBytesOutstanding() {
+    long maxMem = options.getMaxBytesFromWindmillOutstanding();
+    if (maxMem > 0) {
+      return maxMem;
+    }
+    return Runtime.getRuntime().maxMemory() / 2;
+  }
+
   void addStateNameMappings(Map<String, String> nameMap) {
     stateNameMap.putAll(nameMap);
   }
@@ -804,7 +814,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.getQueue().isEmpty();
+    return workUnitExecutor.executorQueueIsEmpty();
   }
 
   public void start() {
@@ -949,9 +959,6 @@ public class StreamingDataflowWorker {
       memoryMonitor.stop();
       memoryMonitorThread.join();
       workUnitExecutor.shutdown();
-      if (!workUnitExecutor.awaitTermination(5, TimeUnit.MINUTES)) {
-        throw new RuntimeException("Work executor did not terminate within 5 minutes");
-      }
       for (ComputationState state : computationMap.values()) {
         state.close();
       }
@@ -1065,7 +1072,7 @@ public class StreamingDataflowWorker {
           windmillServer.getWorkStream(
               Windmill.GetWorkRequest.newBuilder()
                   .setClientId(clientId)
-                  .setMaxItems(MAX_GET_WORK_ITEMS)
+                  .setMaxItems(chooseMaximumBundlesOutstanding())
                   .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
               (String computation,
@@ -1236,7 +1243,8 @@ public class StreamingDataflowWorker {
               } catch (Throwable t) {
                 LOG.error("Source checkpoint finalization failed:", t);
               }
-            });
+            },
+            0);
       }
     }
   }
@@ -1548,7 +1556,7 @@ public class StreamingDataflowWorker {
       if (retryLocally) {
         // Try again after some delay and at the end of the queue to avoid a tight loop.
         sleep(retryLocallyDelayMs);
-        workUnitExecutor.forceExecute(work);
+        workUnitExecutor.forceExecute(work, work.getWorkItem().getSerializedSize());
       } else {
         // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
         // be processed.
@@ -1726,7 +1734,7 @@ public class StreamingDataflowWorker {
     return windmillServer.getWork(
         Windmill.GetWorkRequest.newBuilder()
             .setClientId(clientId)
-            .setMaxItems(MAX_GET_WORK_ITEMS)
+            .setMaxItems(chooseMaximumBundlesOutstanding())
             .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
             .build());
   }
@@ -2285,7 +2293,7 @@ public class StreamingDataflowWorker {
           // Fall through to execute without the lock held.
         }
       }
-      executor.execute(work);
+      executor.execute(work, work.getWorkItem().getSerializedSize());
       return true;
     }
 
@@ -2327,7 +2335,7 @@ public class StreamingDataflowWorker {
         }
       }
       if (nextWork != null) {
-        executor.forceExecute(nextWork);
+        executor.forceExecute(nextWork, nextWork.getWorkItem().getSerializedSize());
       }
     }
 
@@ -2511,27 +2519,9 @@ public class StreamingDataflowWorker {
   }
 
   private class MetricsDataProvider implements StatusDataProvider {
-
     @Override
     public void appendSummaryHtml(PrintWriter writer) {
-      writer.println(
-          "Worker Threads: "
-              + workUnitExecutor.getPoolSize()
-              + "/"
-              + workUnitExecutor.getMaximumPoolSize()
-              + "<br>");
-      writer.println("Active Threads: " + workUnitExecutor.getActiveCount() + "<br>");
-      writer.println(
-          "Work Queue Size: "
-              + workUnitExecutor.getQueue().size()
-              + "/"
-              + MAX_WORK_UNITS_QUEUED
-              + "<br>");
-      writer.print("Commit Queue: ");
-      appendHumanizedBytes(commitQueue.weight(), writer);
-      writer.print(", ");
-      writer.print(commitQueue.size());
-      writer.println(" elements<br>");
+      writer.println(workUnitExecutor.summaryHtml());
 
       writer.print("Active commit: ");
       appendHumanizedBytes(activeCommitBytes.get(), writer);

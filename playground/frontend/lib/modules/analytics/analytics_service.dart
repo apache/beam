@@ -91,11 +91,11 @@ class AnalyticsService {
     safeSendEvent(kFeedbackCategory, kClickReportIssueEvent);
   }
 
-  void trackClickRunEvent(ExampleModel? example) {
+  void trackClickRunEvent(String exampleName) {
     safeSendEvent(
       kRunCodeCategory,
       kClickRunEvent,
-      label: example?.path ?? '',
+      label: exampleName,
     );
   }
 

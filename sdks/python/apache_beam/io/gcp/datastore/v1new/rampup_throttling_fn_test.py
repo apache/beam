@@ -16,6 +16,8 @@
 #
 
 import datetime
+import math
+import sys
 import unittest
 
 from mock import patch
@@ -56,6 +58,20 @@ class RampupThrottlerTransformTest(unittest.TestCase):
       # Delay after budget is exhausted
       with self.assertRaises(_RampupDelayException):
         next(throttling_fn.process(None))
+
+  def test_budget_overflow(self):
+    throttling_fn = RampupThrottlingFn(num_workers=1)
+
+    normal_date = DATE_ZERO + datetime.timedelta(minutes=2000)
+    normal_budget = throttling_fn._calc_max_ops_budget(DATE_ZERO, normal_date)
+    self.assertNotEqual(normal_budget, float('inf'))
+
+    # This tests that a previously thrown OverflowError is caught.
+    overflow_minutes = math.log(sys.float_info.max) / math.log(1.5) * 5
+    overflow_date = DATE_ZERO + datetime.timedelta(minutes=overflow_minutes)
+    overflow_budget = throttling_fn._calc_max_ops_budget(
+        DATE_ZERO, overflow_date)
+    self.assertEqual(overflow_budget, float('inf'))
 
 
 if __name__ == '__main__':

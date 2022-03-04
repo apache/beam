@@ -66,8 +66,27 @@ try:
 
     def flush(self):
       if len(self.rows) != 0:
-        rows = self.table.mutate_rows(self.rows)
-        self.callback_fn(rows)
+        status_list = self.table.mutate_rows(self.rows)
+        self.callback_fn(status_list)
+
+        # If even one request fails we retry everything. BigTable mutations are
+        # idempotent so this should be correct.
+        # TODO(BEAM-13849): make this more efficient by retrying only
+        # re-triable failed requests.
+        for status in status_list:
+          if not status:
+            # BigTable client may return 'None' instead of a valid status in
+            # some cases due to
+            # https://github.com/googleapis/python-bigtable/issues/485
+            raise Exception(
+                'Failed to write a batch of %r records' % len(self.rows))
+          elif status.code != 0:
+            raise Exception(
+                'Failed to write a batch of %r records due to %r' % (
+                    len(self.rows),
+                    ServiceCallMetric.bigtable_error_code_to_grpc_status_string(
+                        status.code)))
+
         self.total_mutation_count = 0
         self.total_size = 0
         self.rows = []
@@ -116,11 +135,11 @@ class _BigTableWriteFn(beam.DoFn):
     self.service_call_metric = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
-  def write_mutate_metrics(self, rows):
-    for status in rows:
+  def write_mutate_metrics(self, status_list):
+    for status in status_list:
+      code = status.code if status else None
       grpc_status_string = (
-          ServiceCallMetric.bigtable_error_code_to_grpc_status_string(
-              status.code))
+          ServiceCallMetric.bigtable_error_code_to_grpc_status_string(code))
       self.service_call_metric.call(grpc_status_string)
 
   def start_service_call_metrics(self, project_id, instance_id, table_id):

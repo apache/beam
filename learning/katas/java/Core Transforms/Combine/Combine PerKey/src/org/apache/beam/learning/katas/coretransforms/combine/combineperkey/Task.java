@@ -18,6 +18,15 @@
 
 package org.apache.beam.learning.katas.coretransforms.combine.combineperkey;
 
+// beam-playground:
+//   name: CombinePerKey
+//   description: Task from katas to implement the summation of scores per player.
+//   multifile: false
+//   context_line: 40
+//   categories:
+//     - Combiners
+//     - Core Transforms
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

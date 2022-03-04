@@ -46,9 +46,6 @@ import org.slf4j.LoggerFactory;
  * A base class for {@link BoundedSource} implementations which read from BigQuery using the
  * BigQuery storage API.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);
@@ -67,8 +64,8 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   private static final int MIN_SPLIT_COUNT = 10;
 
   protected final DataFormat format;
-  protected final ValueProvider<List<String>> selectedFieldsProvider;
-  protected final ValueProvider<String> rowRestrictionProvider;
+  protected final @Nullable ValueProvider<List<String>> selectedFieldsProvider;
+  protected final @Nullable ValueProvider<String> rowRestrictionProvider;
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
@@ -107,16 +104,18 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     Table targetTable = getTargetTable(bqOptions);
 
-    String tableReferenceId = "";
+    ReadSession.Builder readSessionBuilder = ReadSession.newBuilder();
     if (targetTable != null) {
-      tableReferenceId = BigQueryHelpers.toTableResourceName(targetTable.getTableReference());
+      readSessionBuilder.setTable(
+          BigQueryHelpers.toTableResourceName(targetTable.getTableReference()));
     } else {
       // If the table does not exist targetTable will be null.
       // Construct the table id if we can generate it. For error recording/logging.
-      tableReferenceId = getTargetTableId(bqOptions);
+      @Nullable String tableReferenceId = getTargetTableId(bqOptions);
+      if (tableReferenceId != null) {
+        readSessionBuilder.setTable(tableReferenceId);
+      }
     }
-
-    ReadSession.Builder readSessionBuilder = ReadSession.newBuilder().setTable(tableReferenceId);
 
     if (selectedFieldsProvider != null || rowRestrictionProvider != null) {
       ReadSession.TableReadOptions.Builder tableReadOptionsBuilder =

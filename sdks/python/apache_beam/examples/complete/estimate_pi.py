@@ -83,7 +83,7 @@ def combine_results(results):
 class JsonCoder(object):
   """A JSON coder used to format the final result."""
   def encode(self, x):
-    return json.dumps(x)
+    return json.dumps(x).encode('utf-8')
 
 
 class EstimatePiTransform(beam.PTransform):

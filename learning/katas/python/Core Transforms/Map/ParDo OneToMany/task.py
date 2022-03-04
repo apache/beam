@@ -14,6 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: MapParDoOneToMany
+#   description: Task from katas is a ParDo that maps each input sentence into
+#     words splitter by whitespace (" ").
+#   multifile: false
+#   context_line: 31
+#   categories:
+#     - Core Transforms
+
 import apache_beam as beam
 
 from log_elements import LogElements

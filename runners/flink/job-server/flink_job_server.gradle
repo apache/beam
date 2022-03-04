@@ -80,11 +80,9 @@ dependencies {
   implementation project(flinkRunnerProject)
   permitUnusedDeclared project(flinkRunnerProject) // BEAM-11761
   runtimeOnly group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  validatesPortableRunner project(path: flinkRunnerProject)
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-  validatesPortableRunner project(path: ":runners:portability:java")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntimeMigration")
   runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
   runtimeOnly library.java.slf4j_simple
@@ -214,7 +212,7 @@ project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", 
 project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, false)
 project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true, false)
 
-task validatesPortableRunner() {
+tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
@@ -224,7 +222,7 @@ task validatesPortableRunner() {
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
 
-def setupTask = project.tasks.create(name: "flinkJobServerSetup", type: Exec) {
+def setupTask = project.tasks.register("flinkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
   def flinkJobServerJar = shadowJar.archivePath
@@ -233,7 +231,7 @@ def setupTask = project.tasks.create(name: "flinkJobServerSetup", type: Exec) {
   args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar}"
 }
 
-def cleanupTask = project.tasks.create(name: "flinkJobServerCleanup", type: Exec) {
+def cleanupTask = project.tasks.register("flinkJobServerCleanup", Exec) {
   def pythonDir = project.project(":sdks:python").projectDir
 
   executable 'sh'
@@ -267,7 +265,8 @@ createCrossLanguageValidatesRunnerTask(
 )
 
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.
-task miniCluster(type: Jar, dependsOn: shadowJar) {
+tasks.register("miniCluster", Jar) {
+  dependsOn shadowJar
   archiveBaseName = "${project.archivesBaseName}-mini-cluster"
   dependencies {
     runtimeOnly project(path: flinkRunnerProject, configuration: "miniCluster")

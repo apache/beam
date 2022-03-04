@@ -15,6 +15,16 @@
 
 package main
 
+// beam-playground:
+//   name: Grades
+//   description: An example that combines grades data.
+//   multifile: false
+//   context_line: 41
+//   categories:
+//     - Debugging
+//     - Combiners
+//     - Filtering
+
 import (
 	"context"
 	"flag"

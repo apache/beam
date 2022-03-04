@@ -24,6 +24,7 @@ import collections
 import logging
 import random
 import time
+from collections import abc
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -937,8 +938,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert not self.global_state.get_state(
         None, _GroupByKeyOnlyEvaluator.COMPLETION_TAG)
     if (isinstance(element, WindowedValue) and
-        isinstance(element.value, collections.Iterable) and
-        len(element.value) == 2):
+        isinstance(element.value, abc.Iterable) and len(element.value) == 2):
       k, v = element.value
       encoded_k = self.key_coder.encode(k)
       state = self._step_context.get_keyed_state(encoded_k)

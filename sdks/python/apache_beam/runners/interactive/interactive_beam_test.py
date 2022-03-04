@@ -18,6 +18,7 @@
 """Tests for apache_beam.runners.interactive.interactive_beam."""
 # pytype: skip-file
 
+import dataclasses
 import importlib
 import sys
 import time
@@ -31,9 +32,16 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_stream import TestStream
+
+
+@dataclasses.dataclass
+class MockMasterURLIdentifier:
+  master_url = 'mock_url'
 
 
 class Record(NamedTuple):
@@ -282,6 +290,116 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.recordings.clear(p)
     self.assertTrue(ib.recordings.record(p))
     ib.recordings.stop(p)
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+class InteractiveBeamClustersTest(unittest.TestCase):
+  def test_clusters_describe(self):
+    clusters = ib.Clusters()
+    project = 'test-project'
+    region = 'test-region'
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
+    clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    self.assertEqual(
+        'test-project',
+        clusters.describe()[str(id(p))]['cluster_metadata'].project_id)
+
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.get_master_url_and_dashboard',
+      return_value=('test-master-url', None))
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.cleanup',
+      return_value=None)
+  def test_clusters_cleanup_forcefully(self, mock_cleanup, mock_master_url):
+    clusters = ib.Clusters()
+    project = 'test-project'
+    region = 'test-region'
+    p1 = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    p2 = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata_1 = MasterURLIdentifier(project_id=project, region=region)
+    clusters.dataproc_cluster_managers[str(
+        id(p1))] = DataprocClusterManager(cluster_metadata_1)
+    clusters.dataproc_cluster_managers[str(id(p1))].master_url = 'test_url'
+    clusters.master_urls_to_pipelines['test_url'].append(str(id(p1)))
+    cluster_metadata_2 = MasterURLIdentifier(project_id=project, region=region)
+    clusters.dataproc_cluster_managers[str(
+        id(p1))] = DataprocClusterManager(cluster_metadata_2)
+    clusters.dataproc_cluster_managers[str(id(p1))].master_url = 'test_url'
+    clusters.master_urls_to_pipelines['test_url'].append(str(id(p2)))
+    from apache_beam.runners.interactive.interactive_beam import _LOGGER
+    with self.assertLogs(_LOGGER, level='WARNING') as context_manager:
+      clusters.cleanup(p1, force=True)
+      self.assertTrue('forcefully cleaned up' in context_manager.output[0])
+
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.get_master_url_and_dashboard',
+      return_value=('test-master-url', None))
+  def test_clusters_cleanup_skip_on_duplicate(self, mock_master_url):
+    clusters = ib.Clusters()
+    project = 'test-project'
+    region = 'test-region'
+    p1 = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    p2 = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata_1 = MasterURLIdentifier(project_id=project, region=region)
+    clusters.dataproc_cluster_managers[str(
+        id(p1))] = DataprocClusterManager(cluster_metadata_1)
+    clusters.dataproc_cluster_managers[str(id(p1))].master_url = 'test_url'
+    clusters.master_urls_to_pipelines['test_url'].append(str(id(p1)))
+    cluster_metadata_2 = MasterURLIdentifier(project_id=project, region=region)
+    clusters.dataproc_cluster_managers[str(
+        id(p1))] = DataprocClusterManager(cluster_metadata_2)
+    clusters.dataproc_cluster_managers[str(id(p1))].master_url = 'test_url'
+    clusters.master_urls_to_pipelines['test_url'].append(str(id(p2)))
+    from apache_beam.runners.interactive.interactive_beam import _LOGGER
+    with self.assertLogs(_LOGGER, level='WARNING') as context_manager:
+      clusters.cleanup(p1)
+      self.assertTrue('skipping deletion' in context_manager.output[0])
+
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.cleanup',
+      return_value=None)
+  def test_clusters_cleanup_otherwise(self, mock_cleanup):
+    clusters = ie.current_env().clusters
+    project = 'test-project'
+    region = 'test-region'
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
+    clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    clusters.dataproc_cluster_managers[str(id(p))].master_url = 'test_url'
+    clusters.cleanup(p)
 
 
 if __name__ == '__main__':

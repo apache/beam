@@ -624,6 +624,16 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True,
         check_proxy=False)
 
+  def test_swaplevel(self):
+    df = pd.DataFrame(
+        {"Grade": ["A", "B", "A", "C"]},
+        index=[
+            ["Final exam", "Final exam", "Coursework", "Coursework"],
+            ["History", "Geography", "History", "Geography"],
+            ["January", "February", "March", "April"],
+        ])
+    self._run_test(lambda df: df.swaplevel(), df)
+
   def test_value_counts_with_nans(self):
     # similar to doctests that verify value_counts, but include nan values to
     # make sure we handle them correctly.
@@ -1260,6 +1270,30 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s2: s2.idxmax(), s2)
     self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
 
+  def test_pipe(self):
+    def df_times(df, column, times):
+      df[column] = df[column] * times
+      return df
+
+    def df_times_shuffled(column, times, df):
+      return df_times(df, column, times)
+
+    def s_times(s, times):
+      return s * times
+
+    def s_times_shuffled(times, s):
+      return s_times(s, times)
+
+    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
+    s = pd.Series([1, 2, 3, 4, 5], index=[0, 1, 2, 3, 4])
+
+    self._run_inplace_test(lambda df: df.pipe(df_times, 'A', 2), df)
+    self._run_inplace_test(
+        lambda df: df.pipe((df_times_shuffled, 'df'), 'A', 2), df)
+
+    self._run_test(lambda s: s.pipe(s_times, 2), s)
+    self._run_test(lambda s: s.pipe((s_times_shuffled, 's'), 2), s)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
@@ -1443,6 +1477,18 @@ class GroupByTest(_AbstractFrameTest):
         lambda df: df.groupby('Date')['Data'].transform(
             lambda x: (x - x.mean()) / x.std()),
         df)
+
+  def test_groupby_pipe(self):
+    df = GROUPBY_DF
+
+    self._run_test(lambda df: df.groupby('group').pipe(lambda x: x.sum()), df)
+    self._run_test(
+        lambda df: df.groupby('group')['bool'].pipe(lambda x: x.any()), df)
+    self._run_test(
+        lambda df: df.groupby(['group', 'foo']).pipe(
+            (lambda a, x: x.sum(numeric_only=a), 'x'), False),
+        df,
+        check_proxy=False)
 
   def test_groupby_apply_modified_index(self):
     df = GROUPBY_DF
@@ -1914,9 +1960,55 @@ class BeamSpecificTest(unittest.TestCase):
   """Tests for functionality that's specific to the Beam DataFrame API.
 
   These features don't exist in pandas so we must verify them independently."""
-  def assert_frame_data_equivalent(self, actual, expected):
+  def assert_frame_data_equivalent(
+      self, actual, expected, check_column_subset=False, extra_col_value=0):
     """Verify that actual is the same as expected, ignoring the index and order
-    of the data."""
+    of the data.
+
+    Note: In order to perform non-deferred column operations in Beam, we have
+    to enumerate all possible categories of data, even if they are ultimately
+    unobserved. The default Pandas implementation on the other hand does not
+    produce unobserved columns. This means when conducting tests, we need to
+    account for the fact that the Beam result may be a superset of that of the
+    Pandas result.
+
+    If ``check_column_subset`` is `True`, we verify that all of the columns in
+    the Dataframe returned from the Pandas implementation is contained in the
+    Dataframe created from the Beam implementation.
+
+    We also check if all columns that exist in the Beam implementation but
+    not in the Pandas implementation are all equal to the ``extra_col_value``
+    to ensure that they were not erroneously populated.
+    """
+    if check_column_subset:
+      if isinstance(expected, pd.DataFrame):
+        expected_cols = set(expected.columns)
+        actual_cols = set(actual.columns)
+        # Verifying that expected columns is a subset of the actual columns
+        if not set(expected_cols).issubset(set(actual_cols)):
+          raise AssertionError(
+              f"Expected columns:\n{expected.columns}\n is not a"
+              f"subset of {actual.columns}.")
+
+        # Verifying that columns that don't exist in expected
+        # but do in actual, are all equal to `extra_col_value` (default of 0)
+        extra_columns = actual_cols - expected_cols
+        if extra_columns:
+          actual_extra_only = actual[list(extra_columns)]
+
+          if np.isnan(extra_col_value):
+            extra_cols_all_match = actual_extra_only.isna().all().all()
+          else:
+            extra_cols_all_match = actual_extra_only.eq(
+                extra_col_value).all().all()
+          if not extra_cols_all_match:
+            raise AssertionError(
+                f"Extra columns:{extra_columns}\n should all "
+                f"be {extra_col_value}, but got \n{actual_extra_only}.")
+
+        # Filtering actual to contain only columns in expected
+        actual = actual[expected.columns]
+
     def sort_and_drop_index(df):
       if isinstance(df, pd.Series):
         df = df.sort_values()
@@ -1992,6 +2084,59 @@ class BeamSpecificTest(unittest.TestCase):
 
     # Verify that the result is the same as conventional duplicated
     self.assert_frame_data_equivalent(result, df.duplicated())
+
+  def test_get_dummies_not_categoricaldtype(self):
+    # Should not work because series is not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series(['a ,b', 'a', 'a, d'])
+      self._evaluate(lambda s: s.str.get_dummies(','), s)
+
+    # bool series do not work because they are not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series([True, False, False, True])
+      self._evaluate(lambda s: s.str.get_dummies(), s)
+
+  def test_get_dummies_comma_separator(self):
+    s = pd.Series(['a ,b', 'a', 'a, d', 'c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a ,b', 'c', 'b', 'a,d']))
+    result = self._evaluate(lambda s: s.str.get_dummies(','), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(','), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example1(self):
+    s = pd.Series(['a|b', 'a', 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example2(self):
+    # Shouldn't still work even though np.nan is not considered a category
+    # because we automatically create a nan column
+    s = pd.Series(['a|b', np.nan, 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pass_nan_as_category(self):
+    # Explicitly pass 'nan' as a category
+    s = pd.Series(['a|b', 'b|c', 'a|c', 'c', 'd'])
+    s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c', 'nan']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_bools_casted_to_string(self):
+    s = pd.Series([True, False, False, True]).astype('str')
+    s = s.astype(pd.CategoricalDtype(categories=['True', 'False']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
 
   def test_nsmallest_any(self):
     df = pd.DataFrame({

@@ -129,3 +129,4 @@ sdks/typescript/node_modules
 **/*.tfstate
 **/*.tfstate.*
 **/*.hcl
+**/*.tfvars
