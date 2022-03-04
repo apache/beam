@@ -129,7 +129,14 @@ tasks.rat {
     "**/.gitkeep",
 
     // Ignore Flutter localization .arb files (doesn't support comments)
-    "playground/frontend/lib/l10n/**/*.arb"
+    "playground/frontend/lib/l10n/**/*.arb",
+
+    // Ignore autogenrated proto files.
+    "sdks/typescript/src/apache_beam/proto/**/*.ts",
+
+    // Ignore typesciript package management.
+    "sdks/typescript/package-lock.json",
+    "sdks/typescript/node_modules/**/*",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
