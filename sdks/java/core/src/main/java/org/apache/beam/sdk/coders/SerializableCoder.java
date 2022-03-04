@@ -119,7 +119,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     if (warn && MISSING_EQUALS_METHOD.add(clazz)) {
       LOG.warn(
           "Can't verify serialized elements of type {} have well defined equals method. "
-              + "This may produce incorrect results on some {}",
+              + "This may produce incorrect results on some {} implementations",
           clazz.getSimpleName(),
           PipelineRunner.class.getSimpleName());
     }
