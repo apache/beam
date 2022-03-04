@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.37.0"
-date:   2022-02-TODO 10:11:00 -0800
+date:   2022-03-04 08:30:00 -0800
 categories:
   - blog
 authors:
@@ -9,7 +9,7 @@ authors:
 
 We are happy to present the new 2.37.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/2370-2022-02-TODO) for this release.
+See the [download page](/get-started/downloads/2370-2022-03-04) for this release.
 
 <!--more-->
 
