@@ -40,7 +40,12 @@ export function extractName<T>(withName: T): string {
   ) {
     return untyped.name;
   } else {
-    const stringified = ("" + withName).replace(/s+/, " ");
+    const stringified = ("" + withName)
+      // Remove injected code coverage boilerplate.
+      .replace(/__cov_.*?[+][+]/g, " ")
+      // Normalize whitespace.
+      .replace(/\s+/gm, " ")
+      .trim();
     if (stringified.length < 60) {
       return stringified;
     } else {
