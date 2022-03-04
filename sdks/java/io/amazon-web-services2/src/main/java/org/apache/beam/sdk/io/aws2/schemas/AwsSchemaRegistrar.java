@@ -15,23 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sqs;
+package org.apache.beam.sdk.io.aws2.schemas;
 
 import com.google.auto.service.AutoService;
 import java.util.List;
-import org.apache.beam.sdk.coders.CoderProvider;
-import org.apache.beam.sdk.coders.CoderProviderRegistrar;
-import org.apache.beam.sdk.coders.CoderProviders;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.schemas.SchemaProvider;
+import org.apache.beam.sdk.schemas.SchemaProviderRegistrar;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import software.amazon.awssdk.services.sqs.model.Message;
 
-/** A {@link CoderProviderRegistrar} for standard types used with {@link SqsIO}. */
-@AutoService(CoderProviderRegistrar.class)
-public class MessageCoderRegistrar implements CoderProviderRegistrar {
+@AutoService(SchemaProviderRegistrar.class)
+public class AwsSchemaRegistrar implements SchemaProviderRegistrar {
   @Override
-  public List<CoderProvider> getCoderProviders() {
-    return ImmutableList.of(
-        CoderProviders.forCoder(TypeDescriptor.of(Message.class), MessageCoder.of()));
+  public List<SchemaProvider> getSchemaProviders() {
+    return ImmutableList.of(new AwsSchemaProvider());
   }
 }

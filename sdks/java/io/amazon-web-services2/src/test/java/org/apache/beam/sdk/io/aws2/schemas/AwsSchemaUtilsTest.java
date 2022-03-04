@@ -15,24 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sqs;
+package org.apache.beam.sdk.io.aws2.schemas;
 
-import com.google.auto.service.AutoService;
-import java.util.List;
-import org.apache.beam.sdk.coders.CoderProvider;
-import org.apache.beam.sdk.coders.CoderProviderRegistrar;
-import org.apache.beam.sdk.coders.CoderProviders;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.Test;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
-/** A {@link CoderProviderRegistrar} for standard types used with {@link SqsIO}. */
-@AutoService(CoderProviderRegistrar.class)
-public class SendMessageRequestCoderRegistrar implements CoderProviderRegistrar {
-  @Override
-  public List<CoderProvider> getCoderProviders() {
-    return ImmutableList.of(
-        CoderProviders.forCoder(
-            TypeDescriptor.of(SendMessageRequest.class), SendMessageRequestCoder.of()));
+public class AwsSchemaUtilsTest {
+
+  @Test
+  public void generateBuilderFactory() {
+    AwsBuilderFactory<SendMessageRequest, SendMessageRequest.Builder> factory =
+        AwsSchemaUtils.builderFactory(SendMessageRequest.class);
+
+    assertThat(factory.getClass().getPackage()).isEqualTo(SendMessageRequest.class.getPackage());
+    assertThat(factory.get()).isInstanceOf(SendMessageRequest.Builder.class);
+    assertThat(factory.sdkFields()).isEqualTo(SendMessageRequest.builder().sdkFields());
   }
 }

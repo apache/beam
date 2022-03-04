@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
+import org.apache.beam.sdk.io.aws2.schemas.AwsSchemaProvider;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -281,22 +282,34 @@ public final class SnsIO {
     }
 
     /**
-     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
      * sdkHttpMetadata with the HTTP response headers.
+     *
+     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
      */
+    @Deprecated
     public Write<T> withFullPublishResponse() {
       return withCoder(PublishResponseCoders.fullPublishResponse());
     }
 
     /**
-     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
      * sdkHttpMetadata but excluding the HTTP response headers.
+     *
+     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
      */
+    @Deprecated
     public Write<T> withFullPublishResponseWithoutHeaders() {
       return withCoder(PublishResponseCoders.fullPublishResponseWithoutHeaders());
     }
 
-    /** Encode the {@code PublishResult} with the given coder. */
+    /**
+     * Encode the {@link PublishResponse} with the given coder.
+     *
+     * @deprecated Explicit usage of coders is deprecated. Inferred schemas provided by {@link
+     *     AwsSchemaProvider} will be used instead.
+     */
+    @Deprecated
     public Write<T> withCoder(Coder<PublishResponse> coder) {
       return builder().setCoder(coder).build();
     }
