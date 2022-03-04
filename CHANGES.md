@@ -79,7 +79,7 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fix S3 copy for large objects (Java) ([BEAM-14011](https://issues.apache.org/jira/browse/BEAM-14011))
 
 ## Known Issues
 
