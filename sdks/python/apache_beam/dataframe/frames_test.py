@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 import unittest
 
 import numpy as np
@@ -2355,6 +2356,117 @@ class BeamSpecificTest(unittest.TestCase):
     # (as computed using the Bernoulli distribution) is about 0.0012%.
     expected = num_samples * target_prob
     self.assertTrue(expected / 3 < result < expected * 2, (expected, result))
+
+  def test_split_pandas_examples_no_expand(self):
+    # if expand=False (default), then no need to cast dtype to be
+    # CategoricalDtype.
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    result = self._evaluate(lambda s: s.str.split(), s)
+    self.assert_frame_data_equivalent(result, s.str.split())
+
+    result = self._evaluate(lambda s: s.str.rsplit(), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit())
+
+    result = self._evaluate(lambda s: s.str.split(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.split(n=2))
+
+    result = self._evaluate(lambda s: s.str.rsplit(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit(n=2))
+
+    result = self._evaluate(lambda s: s.str.split(pat="/"), s)
+    self.assert_frame_data_equivalent(result, s.str.split(pat="/"))
+
+  def test_split_pandas_examples_expand_not_categorical(self):
+    # When expand=True, there is exception because series is not categorical
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"split\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.split(expand=True), s)
+
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"rsplit\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.rsplit(expand=True), s)
+
+  def test_split_pandas_examples_expand_pat_is_string_literal1(self):
+    # When expand=True and pattern is treated as a string literal
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    s = s.astype(
+        pd.CategoricalDtype(
+            categories=[
+                'this is a regular sentence',
+                'https://docs.python.org/3/tutorial/index.html'
+            ]))
+    result = self._evaluate(lambda s: s.str.split(expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(expand=True))
+
+    result = self._evaluate(lambda s: s.str.rsplit("/", n=1, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.rsplit("/", n=1, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_string_literal2(self):
+    # when regex is None (default) regex pat is string literal if len(pat) == 1
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r".", expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(r".", expand=True))
+
+    # When regex=False, pat is interpreted as the string itself
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=False, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=False, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_regex(self):
+    # when regex is None (default) regex pat is compiled if len(pat) != 1
+    s = pd.Series(["foo and bar plus baz"])
+    s = s.astype(pd.CategoricalDtype(categories=["foo and bar plus baz"]))
+    result = self._evaluate(lambda s: s.str.split(r"and|plus", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"and|plus", expand=True))
+
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r"\.jpg", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", expand=True))
+
+    # When regex=True, pat is interpreted as a regex
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=True))
+
+    # A compiled regex can be passed as pat
+    result = self._evaluate(
+        lambda s: s.str.split(re.compile(r"\.jpg"), expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(re.compile(r"\.jpg"), expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pat_is_regex(self):
+    # regex=True, but expand=False
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=False), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=False))
 
 
 class AllowNonParallelTest(unittest.TestCase):
