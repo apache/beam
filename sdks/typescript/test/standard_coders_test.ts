@@ -51,9 +51,12 @@ type CoderSpec = {
 const UNSUPPORTED_CODERS = [
   "beam:coder:timer:v1",
   "beam:coder:param_windowed_value:v1",
-  "beam:coder:row:v1",
+  "beam:coder:sharded_key:v1",
   "beam:coder:sharded_key:v1",
   "beam:coder:custom_window:v1",
+  "beam:coder:state_backed_iterable:v1",
+  // Tested elsewhere (though it'd still be good to enable).
+  "beam:coder:row:v1",
 ];
 
 const UNSUPPORTED_EXAMPLES = {
