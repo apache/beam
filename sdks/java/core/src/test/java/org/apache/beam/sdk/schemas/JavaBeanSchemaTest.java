@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ALL_NULLABLE_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ANNOTATED_SIMPLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.CASE_FORMAT_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
@@ -464,14 +465,16 @@ public class JavaBeanSchemaTest {
   public void testAnnotations() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(SimpleBeanWithAnnotations.class);
-    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
+    SchemaTestUtils.assertSchemaEquivalent(ANNOTATED_SIMPLE_BEAN_SCHEMA, schema);
 
     SimpleBeanWithAnnotations pojo = createAnnotated("string");
     Row row = registry.getToRowFunction(SimpleBeanWithAnnotations.class).apply(pojo);
     assertEquals(12, row.getFieldCount());
     assertEquals("string", row.getString("str"));
     assertEquals((byte) 1, (Object) row.getByte("aByte"));
+    assertEquals(row.getValue(2), (Object) row.getByte("aByte"));
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
+    assertEquals(row.getValue(1), (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
     assertTrue(row.getBoolean("aBoolean"));

@@ -157,20 +157,15 @@ def typing_to_runner_api(type_):
   if isinstance(type_, schema_pb2.Schema):
     return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=type_))
 
-  elif match_is_named_tuple(type_) or isinstance(type_,
-                                                 row_type.RowTypeConstraint):
+  elif match_is_named_tuple(type_):
     schema = None
     if hasattr(type_, _BEAM_SCHEMA_ID):
       schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
     if schema is None:
-      if match_is_named_tuple(type_):
-        names_and_types = [(name, type_.__annotations__[name])
-                           for name in type_._fields]
-      else:
-        names_and_types = type_._fields
       fields = [
-          schema_pb2.Field(name=name, type=typing_to_runner_api(field_type))
-          for (name, field_type) in names_and_types
+          schema_pb2.Field(
+              name=name, type=typing_to_runner_api(type_.__annotations__[name]))
+          for name in type_._fields
       ]
       type_id = str(uuid4())
       schema = schema_pb2.Schema(fields=fields, id=type_id)
@@ -178,6 +173,17 @@ def typing_to_runner_api(type_):
       SCHEMA_REGISTRY.add(type_, schema)
 
     return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
+
+  elif isinstance(type_, row_type.RowTypeConstraint):
+    return schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    schema_pb2.Field(
+                        name=name, type=typing_to_runner_api(field_type))
+                    for (name, field_type) in type_._fields
+                ],
+                id=str(uuid4()))))
 
   # All concrete types (other than NamedTuple sub-classes) should map to
   # a supported primitive type.

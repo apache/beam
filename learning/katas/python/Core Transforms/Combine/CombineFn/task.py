@@ -14,6 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: CombineFn
+#   description: Task from katas averaging.
+#   multifile: false
+#   context_line: 30
+#   categories:
+#     - Combiners
+
 import apache_beam as beam
 
 from log_elements import LogElements

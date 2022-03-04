@@ -17,39 +17,19 @@
  */
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
-import static java.util.Collections.synchronizedMap;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.beam.sdk.io.aws2.StaticSupplier;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 /** Client provider supporting unserializable clients such as mock instances for unit tests. */
-class StaticDynamoDBClientProvider implements DynamoDbClientProvider {
-  private static final Map<Integer, DynamoDbClient> clients = synchronizedMap(new HashMap<>());
-
-  private final int id;
-  private final transient boolean cleanup;
-
-  private StaticDynamoDBClientProvider(DynamoDbClient client) {
-    this.id = System.identityHashCode(client);
-    this.cleanup = true;
-  }
-
+class StaticDynamoDBClientProvider
+    extends StaticSupplier<DynamoDbClient, StaticDynamoDBClientProvider>
+    implements DynamoDbClientProvider {
   static DynamoDbClientProvider of(DynamoDbClient client) {
-    StaticDynamoDBClientProvider provider = new StaticDynamoDBClientProvider(client);
-    clients.put(provider.id, client);
-    return provider;
+    return new StaticDynamoDBClientProvider().withObject(client);
   }
 
   @Override
   public DynamoDbClient getDynamoDbClient() {
-    return clients.get(id);
-  }
-
-  @Override
-  protected void finalize() {
-    if (cleanup) {
-      clients.remove(id);
-    }
+    return get();
   }
 }

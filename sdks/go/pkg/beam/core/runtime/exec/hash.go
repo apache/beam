@@ -19,7 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash"
-	"hash/fnv"
+	"hash/maphash"
 	"math"
 	"reflect"
 
@@ -35,8 +35,7 @@ type elementHasher interface {
 }
 
 func makeElementHasher(c *coder.Coder, wc *coder.WindowCoder) elementHasher {
-	// TODO(lostluck): move to a faster hashing library once we can take dependencies easily.
-	hasher := fnv.New64a()
+	hasher := &maphash.Hash{}
 	we := MakeWindowEncoder(wc)
 	switch c.Kind {
 	case coder.Bytes:
@@ -124,7 +123,7 @@ func newNumberHasher(hash hash.Hash64, we WindowEncoder) *numberHasher {
 		hash: hash,
 		we:   we,
 		// Pre allocate slice to avoid re-allocations.
-		cache: make([]byte, 8, 8),
+		cache: make([]byte, 8),
 	}
 }
 

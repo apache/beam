@@ -23,6 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
@@ -51,6 +52,7 @@ type JobOptions struct {
 	NoUsePublicIPs      bool
 	NumWorkers          int64
 	DiskSizeGb          int64
+	DiskType            string
 	MachineType         string
 	Labels              map[string]string
 	ServiceAccountEmail string
@@ -177,6 +179,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
 				DiskSizeGb:                  opts.DiskSizeGb,
+				DiskType:                    opts.DiskType,
 				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
@@ -221,7 +224,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 
 // Submit submits a prepared job to Cloud Dataflow.
 func Submit(ctx context.Context, client *df.Service, project, region string, job *df.Job) (*df.Job, error) {
-	return client.Projects.Locations.Jobs.Create(project, region, job).Do()
+	upd, err := client.Projects.Locations.Jobs.Create(project, region, job).Do()
+	if err == nil {
+		log.Infof(ctx, "Submitted job: %v", upd.Id)
+	}
+	return upd, err
 }
 
 // WaitForCompletion monitors the given job until completion. It logs any messages
@@ -272,6 +279,28 @@ func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
 		client.BasePath = endpoint
 	}
 	return client, nil
+}
+
+// GetRunningJobByName gets a Dataflow job running by its name and returns an
+// error if none match.
+func GetRunningJobByName(client *df.Service, project, region string, name string) (*df.Job, error) {
+	jobsListCall := client.Projects.Locations.Jobs.List(project, region)
+	jobsListCall.Filter("ACTIVE")
+	jobsResponse, err := jobsListCall.Do()
+	for len(jobsResponse.Jobs) > 0 {
+		if err != nil {
+			return nil, err
+		}
+		for _, job := range jobsResponse.Jobs {
+			if job.Name == name {
+				return job, nil
+			}
+		}
+
+		jobsListCall.PageToken(jobsResponse.NextPageToken)
+		jobsResponse, err = jobsListCall.Do()
+	}
+	return nil, errors.New(fmt.Sprintf("Unable to find running job with name %s", name))
 }
 
 // GetMetrics returns a collection of metrics describing the progress of a

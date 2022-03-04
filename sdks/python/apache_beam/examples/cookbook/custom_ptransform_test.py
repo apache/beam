@@ -20,6 +20,8 @@
 # pytype: skip-file
 
 import logging
+import os
+import tempfile
 import unittest
 
 import pytest
@@ -29,10 +31,17 @@ from apache_beam.examples.cookbook import custom_ptransform
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import open_shards
 
 
-@pytest.mark.examples_postcommit
 class CustomCountTest(unittest.TestCase):
+  WORDS = ['CAT', 'DOG', 'CAT', 'CAT', 'DOG']
+
+  def create_content_input_file(self, path, contents):
+    logging.info('Creating temp file: %s', path)
+    with open(path, 'w') as f:
+      f.write(contents)
+
   def test_count1(self):
     self.run_pipeline(custom_ptransform.Count1())
 
@@ -45,10 +54,30 @@ class CustomCountTest(unittest.TestCase):
 
   def run_pipeline(self, count_implementation, factor=1):
     with TestPipeline() as p:
-      words = p | beam.Create(['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
+      words = p | beam.Create(self.WORDS)
       result = words | count_implementation
       assert_that(
           result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))
+
+  @pytest.mark.examples_postcommit
+  def test_custom_ptransform_output_files_on_small_input(self):
+    EXPECTED_RESULT = "('CAT DOG CAT CAT DOG', 2)"
+
+    # Setup the files with expected content.
+    temp_folder = tempfile.mkdtemp()
+    self.create_content_input_file(
+        os.path.join(temp_folder, 'input.txt'), ' '.join(self.WORDS))
+    custom_ptransform.run([
+        '--input=%s/input.txt' % temp_folder,
+        '--output',
+        os.path.join(temp_folder, 'result')
+    ])
+
+    # Load result file and compare.
+    with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
+      result = result_file.read().strip()
+
+    self.assertEqual(result, EXPECTED_RESULT)
 
 
 if __name__ == '__main__':

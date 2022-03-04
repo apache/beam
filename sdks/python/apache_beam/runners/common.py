@@ -558,7 +558,7 @@ class PerWindowInvoker(DoFnInvoker):
     default_arg_values = signature.process_method.defaults
     self.has_windowed_inputs = (
         not all(si.is_globally_windowed() for si in side_inputs) or
-        (core.DoFn.WindowParam in default_arg_values) or
+        any(core.DoFn.WindowParam == arg for arg in default_arg_values) or
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
     self.is_splittable = signature.is_splittable_dofn()
@@ -592,7 +592,7 @@ class PerWindowInvoker(DoFnInvoker):
       def __init__(self, placeholder):
         self.placeholder = placeholder
 
-    if core.DoFn.ElementParam not in default_arg_values:
+    if all(core.DoFn.ElementParam != arg for arg in default_arg_values):
       # TODO(BEAM-7867): Handle cases in which len(arg_names) ==
       #   len(default_arg_values).
       args_to_pick = len(arg_names) - len(default_arg_values) - 1
@@ -1262,7 +1262,7 @@ class DoFnRunner:
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
-      raise
+      raise exn
     step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
     try:
@@ -1475,6 +1475,7 @@ class DoFnContext(object):
 
 def group_by_key_input_visitor(deterministic_key_coders=True):
   # Importing here to avoid a circular dependency
+  # pylint: disable=wrong-import-order, wrong-import-position
   from apache_beam.pipeline import PipelineVisitor
   from apache_beam.transforms.core import GroupByKey
 
@@ -1492,8 +1493,6 @@ def group_by_key_input_visitor(deterministic_key_coders=True):
       self.visit_transform(transform_node)
 
     def visit_transform(self, transform_node):
-      # Imported here to avoid circular dependencies.
-      # pylint: disable=wrong-import-order, wrong-import-position
       if isinstance(transform_node.transform, GroupByKey):
         pcoll = transform_node.inputs[0]
         pcoll.element_type = typehints.coerce_to_kv_type(

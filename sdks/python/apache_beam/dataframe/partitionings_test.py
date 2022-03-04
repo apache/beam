@@ -20,6 +20,7 @@ import pandas as pd
 
 from apache_beam.dataframe.partitionings import Arbitrary
 from apache_beam.dataframe.partitionings import Index
+from apache_beam.dataframe.partitionings import JoinIndex
 from apache_beam.dataframe.partitionings import Singleton
 
 
@@ -35,7 +36,13 @@ class PartitioningsTest(unittest.TestCase):
 
   def test_index_is_subpartition(self):
     ordered_list = [
-        Singleton(), Index([3]), Index([1, 3]), Index(), Arbitrary()
+        Singleton(),
+        Index([3]),
+        Index([1, 3]),
+        Index(),
+        JoinIndex('ref'),
+        JoinIndex(),
+        Arbitrary()
     ]
     for loose, strict in zip(ordered_list[:-1], ordered_list[1:]):
       self.assertTrue(strict.is_subpartitioning_of(loose), (strict, loose))
@@ -43,6 +50,8 @@ class PartitioningsTest(unittest.TestCase):
     # Incomparable.
     self.assertFalse(Index([1, 2]).is_subpartitioning_of(Index([1, 3])))
     self.assertFalse(Index([1, 3]).is_subpartitioning_of(Index([1, 2])))
+    self.assertFalse(JoinIndex('a').is_subpartitioning_of(JoinIndex('b')))
+    self.assertFalse(JoinIndex('b').is_subpartitioning_of(JoinIndex('a')))
 
   def _check_partition(self, partitioning, min_non_empty, max_non_empty=None):
     num_partitions = 1000

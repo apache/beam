@@ -47,3 +47,7 @@ The Java SDK has the following extensions:
 - [euphoria](/documentation/sdks/java/euphoria) is easy to use Java 8 DSL for BEAM.
 
 In addition several [3rd party Java libraries](/documentation/sdks/java-thirdparty/) exist.
+
+## Java multi-language pipelines quickstart
+
+Apache Beam lets you combine transforms written in any supported SDK language and use them in one multi-language pipeline. To learn how to create a multi-language pipeline using the Java SDK, see the [Java multi-language pipelines quickstart](/documentation/sdks/java-multi-language-pipelines).

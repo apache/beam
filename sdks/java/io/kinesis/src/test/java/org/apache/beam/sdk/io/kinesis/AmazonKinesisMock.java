@@ -87,6 +87,8 @@ import com.amazonaws.services.kinesis.model.StopStreamEncryptionRequest;
 import com.amazonaws.services.kinesis.model.StopStreamEncryptionResult;
 import com.amazonaws.services.kinesis.model.UpdateShardCountRequest;
 import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
+import com.amazonaws.services.kinesis.model.UpdateStreamModeRequest;
+import com.amazonaws.services.kinesis.model.UpdateStreamModeResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
@@ -102,7 +104,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
 
-/** Mock implemenation of {@link AmazonKinesis} for testing. */
+/** Mock implementation of {@link AmazonKinesis} for testing. */
 class AmazonKinesisMock implements AmazonKinesis {
 
   static class TestData implements Serializable {
@@ -180,7 +182,7 @@ class AmazonKinesisMock implements AmazonKinesis {
       AmazonKinesisMock client =
           new AmazonKinesisMock(
               shardedData.stream()
-                  .map(testDatas -> transform(testDatas, TestData::convertToRecord))
+                  .map(testData -> transform(testData, TestData::convertToRecord))
                   .collect(Collectors.toList()),
               numberOfRecordsPerGet);
       if (expectedListShardsLimitExceededException) {
@@ -479,6 +481,11 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public UpdateShardCountResult updateShardCount(UpdateShardCountRequest updateShardCountRequest) {
+    throw new RuntimeException("Not implemented");
+  }
+
+  @Override
+  public UpdateStreamModeResult updateStreamMode(UpdateStreamModeRequest updateStreamModeRequest) {
     throw new RuntimeException("Not implemented");
   }
 

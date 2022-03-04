@@ -54,7 +54,8 @@ public class SqsUnboundedReaderTest {
     source =
         new SqsUnboundedSource(
             SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
-            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)),
+            SqsMessageCoder.of());
   }
 
   private void setupMessages(List<String> messages) {
@@ -66,7 +67,8 @@ public class SqsUnboundedReaderTest {
     source =
         new SqsUnboundedSource(
             SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
-            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)),
+            SqsMessageCoder.of());
   }
 
   @Test

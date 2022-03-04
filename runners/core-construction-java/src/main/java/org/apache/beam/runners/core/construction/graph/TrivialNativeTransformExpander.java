@@ -55,7 +55,7 @@ public class TrivialNativeTransformExpander {
           trimmedPipeline.getComponents().getTransformsOrDefault(ptransformId, null);
       if (currentTransform != null && knownUrns.contains(currentTransform.getSpec().getUrn())) {
         LOG.debug(
-            "Removing descendants and environment of known native PTransform {}" + ptransformId);
+            "Removing descendants and environment of known native PTransform {}", ptransformId);
         removeDescendants(trimmedPipeline, ptransformId);
         trimmedPipeline
             .getComponentsBuilder()

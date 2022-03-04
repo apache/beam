@@ -17,14 +17,22 @@ package main
 import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"net/http"
 )
 
 // listenHttp binds the http.Handler on the TCP network address
-func listenHttp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, handler http.Handler) {
-	logger.Infof("listening HTTP at %s\n", envs.Address())
-	if err := http.ListenAndServe(envs.Address(), handler); err != nil {
+func listenHttp(ctx context.Context, errChan chan error, envs *environment.Environment, handler http.Handler) {
+	address := envs.NetworkEnvs.Address()
+	logger.Infof("listening HTTP at %s\n", address)
+
+	mux := http.NewServeMux()
+	mux.Handle("/", handler)
+	mux.HandleFunc("/liveness", utils.GetLivenessFunction())
+	mux.HandleFunc("/readiness", utils.GetReadinessFunction(envs))
+
+	if err := http.ListenAndServe(address, mux); err != nil {
 		errChan <- err
 		return
 	}

@@ -50,6 +50,7 @@ public class IOUtils {
     }
   }
 
+  @SuppressWarnings("StreamToIterable") // forEach only iterates once
   public static <T> void forEach(Stream<T> stream, IOConsumer<T> consumer) throws IOException {
     forEach(stream::iterator, consumer);
   }

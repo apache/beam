@@ -16,20 +16,21 @@
 package fs_tool
 
 import (
-	"fmt"
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
 
 func Test_newPythonLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
+	workingDir, _ := filepath.Abs("workingDir")
+	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
 
 	type args struct {
-		pipelineId uuid.UUID
-		workingDir string
+		pipelineId      uuid.UUID
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name string
@@ -39,40 +40,35 @@ func Test_newPythonLifeCycle(t *testing.T) {
 		{
 			// Test case with calling newPythonLifeCycle method with correct pipelineId and workingDir.
 			// As a result, want to receive an expected python life cycle.
-			name: "newPythonLifeCycle",
+			name: "NewPythonLifeCycle",
 			args: args{
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				pipelineId:      pipelineId,
+				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     baseFileFolder,
-					ExecutableFileFolder: baseFileFolder,
+				Paths: LifeCyclePaths{
+					SourceFileName:                   pipelineId.String() + pythonExecutableFileExtension,
+					AbsoluteSourceFileFolderPath:     baseFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(baseFileFolder, pipelineId.String()+pythonExecutableFileExtension),
+					ExecutableFileName:               pipelineId.String() + pythonExecutableFileExtension,
+					AbsoluteExecutableFileFolderPath: baseFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(baseFileFolder, pipelineId.String()+pythonExecutableFileExtension),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 				},
-				Extension: Extension{
-					SourceFileExtension:     pythonExecutableFileExtension,
-					ExecutableFileExtension: pythonExecutableFileExtension,
-				},
-				pipelineId: pipelineId,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := newPythonLifeCycle(tt.args.pipelineId, tt.args.workingDir)
+			got := newPythonLifeCycle(tt.args.pipelineId, tt.args.pipelinesFolder)
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newPythonLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newPythonLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
-			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newPythonLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
-			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newPythonLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !checkPathsEqual(got.Paths, tt.want.Paths) {
+				t.Errorf("newPythonLifeCycle() Paths = %v, want %v", got.Paths, tt.want.Paths)
 			}
 		})
 	}

@@ -100,8 +100,13 @@ public class JdbcIOIT {
 
   @BeforeClass
   public static void setup() throws Exception {
-    PostgresIOTestPipelineOptions options =
-        readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
+    PostgresIOTestPipelineOptions options;
+    try {
+      options = readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
+    } catch (IllegalArgumentException e) {
+      options = null;
+    }
+    org.junit.Assume.assumeNotNull(options);
 
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);

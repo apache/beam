@@ -28,6 +28,7 @@ import logging
 import numbers
 from abc import ABCMeta
 from abc import abstractmethod
+from collections import abc as collections_abc  # ambiguty with direct abc
 from enum import Flag
 from enum import auto
 from itertools import zip_longest
@@ -1258,7 +1259,7 @@ class _UnwindowedValues(observable.ObservableMixin):
     return list, (list(self), )
 
   def __eq__(self, other):
-    if isinstance(other, collections.Iterable):
+    if isinstance(other, collections_abc.Iterable):
       return all(
           a == b for a, b in zip_longest(self, other, fillvalue=object()))
     else:

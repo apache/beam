@@ -163,9 +163,11 @@ class GcsIO(object):
   def get_project_number(self, bucket):
     if bucket not in self.bucket_to_project_number:
       bucket_metadata = self.get_bucket(bucket_name=bucket)
-      self.bucket_to_project_number[bucket] = bucket_metadata.projectNumber
+      if bucket_metadata:
+        self.bucket_to_project_number[bucket] = bucket_metadata.projectNumber
+      #  else failed to load the bucket metadata due to HttpError
 
-    return self.bucket_to_project_number[bucket]
+    return self.bucket_to_project_number.get(bucket, None)
 
   def _set_rewrite_response_callback(self, callback):
     """For testing purposes only. No backward compatibility guarantees.
@@ -582,17 +584,25 @@ class GcsDownloader(Downloader):
     self._buffer_size = buffer_size
     self._get_project_number = get_project_number
 
-    project_number = self._get_project_number(self._bucket)
-
     # Create a request count metric
     resource = resource_identifiers.GoogleCloudStorageBucket(self._bucket)
     labels = {
         monitoring_infos.SERVICE_LABEL: 'Storage',
         monitoring_infos.METHOD_LABEL: 'Objects.get',
         monitoring_infos.RESOURCE_LABEL: resource,
-        monitoring_infos.GCS_BUCKET_LABEL: self._bucket,
-        monitoring_infos.GCS_PROJECT_ID_LABEL: str(project_number)
+        monitoring_infos.GCS_BUCKET_LABEL: self._bucket
     }
+    project_number = self._get_project_number(self._bucket)
+    if project_number:
+      labels[monitoring_infos.GCS_PROJECT_ID_LABEL] = str(project_number)
+    else:
+      _LOGGER.debug(
+          'Possibly missing storage.buckets.get permission to '
+          'bucket %s. Label %s is not added to the counter because it '
+          'cannot be identified.',
+          self._bucket,
+          monitoring_infos.GCS_PROJECT_ID_LABEL)
+
     service_call_metric = ServiceCallMetric(
         request_count_urn=monitoring_infos.API_REQUEST_COUNT_URN,
         base_labels=labels)
@@ -603,7 +613,6 @@ class GcsDownloader(Downloader):
             bucket=self._bucket, object=self._name))
     try:
       metadata = self._get_object_metadata(self._get_request)
-      service_call_metric.call('ok')
     except HttpError as http_error:
       service_call_metric.call(http_error)
       if http_error.status_code == 404:
@@ -612,6 +621,9 @@ class GcsDownloader(Downloader):
         _LOGGER.error(
             'HTTP error while requesting file %s: %s', self._path, http_error)
         raise
+    else:
+      service_call_metric.call('ok')
+
     self._size = metadata.size
 
     # Ensure read is from file of the correct generation.

@@ -54,7 +54,7 @@ func TestRedisCache_GetValue(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "error during HGet operation",
+			name: "Error during HGet operation",
 			mocks: func() {
 				mock.ExpectHGet(pipelineId.String(), string(marshSubKey)).SetErr(fmt.Errorf("MOCK_ERROR"))
 			},
@@ -68,7 +68,7 @@ func TestRedisCache_GetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "all success",
+			name: "Get existing value",
 			mocks: func() {
 				mock.ExpectHGet(pipelineId.String(), string(marshSubKey)).SetVal(string(marshValue))
 			},
@@ -122,7 +122,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "error during Exists operation",
+			name: "Error during Exists operation",
 			mocks: func() {
 				mock.ExpectExists(pipelineId.String()).SetErr(fmt.Errorf("MOCK_ERROR"))
 			},
@@ -148,7 +148,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error during Expire operation",
+			name: "Set expiration time with error during Expire operation",
 			mocks: func() {
 				mock.ExpectExists(pipelineId.String()).SetVal(1)
 				mock.ExpectExpire(pipelineId.String(), expTime).SetErr(fmt.Errorf("MOCK_ERROR"))
@@ -162,7 +162,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "all success",
+			name: "Set expiration time",
 			mocks: func() {
 				mock.ExpectExists(pipelineId.String()).SetVal(1)
 				mock.ExpectExpire(pipelineId.String(), expTime).SetVal(true)
@@ -215,7 +215,7 @@ func TestRedisCache_SetValue(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "error during HSet operation",
+			name: "Error during HSet operation",
 			mocks: func() {
 				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetErr(fmt.Errorf("MOCK_ERROR"))
 			},
@@ -229,7 +229,7 @@ func TestRedisCache_SetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "all success",
+			name: "Set correct value",
 			mocks: func() {
 				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
 				mock.ExpectExpire(pipelineId.String(), time.Minute*15).SetVal(true)
@@ -242,6 +242,21 @@ func TestRedisCache_SetValue(t *testing.T) {
 				value:      value,
 			},
 			wantErr: false,
+		},
+		{
+			name: "Set incorrect value",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
+				mock.ExpectExpire(pipelineId.String(), time.Minute*15).SetVal(true)
+			},
+			fields: fields{client},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: pipelineId,
+				subKey:     subKey,
+				value:      make(chan int),
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -258,6 +273,201 @@ func TestRedisCache_SetValue(t *testing.T) {
 	}
 }
 
+func TestCache_GetCatalog(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	catalog := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+				{
+					CategoryName: "AnotherTestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/AnotherTestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	catalogMarsh, _ := json.Marshal(catalog)
+	type fields struct {
+		Client *redis.Client
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		mocks   func()
+		fields  fields
+		args    args
+		want    []*pb.Categories
+		wantErr bool
+	}{
+		{
+			name: "Get existing catalog",
+			mocks: func() {
+				mock.ExpectGet(cache.ExamplesCatalog).SetVal(string(catalogMarsh))
+			},
+			fields:  fields{client},
+			args:    args{context.Background()},
+			want:    catalog,
+			wantErr: false,
+		},
+		{
+			name: "Error during Get operation",
+			mocks: func() {
+				mock.ExpectGet(cache.ExamplesCatalog).SetErr(fmt.Errorf("MOCK_ERROR"))
+			},
+			fields:  fields{client},
+			args:    args{context.Background()},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
+			rc := &Cache{
+				Client: tt.fields.Client,
+			}
+			got, err := rc.GetCatalog(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCatalog() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetCatalog() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCache_SetCatalog(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	catalog := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+				{
+					CategoryName: "AnotherTestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/AnotherTestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	catalogMarsh, _ := json.Marshal(catalog)
+	type fields struct {
+		Client *redis.Client
+	}
+	type args struct {
+		ctx     context.Context
+		catalog []*pb.Categories
+	}
+	tests := []struct {
+		name    string
+		mocks   func()
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Set catalog",
+			mocks: func() {
+				mock.ExpectSet(cache.ExamplesCatalog, catalogMarsh, 0).SetVal("")
+			},
+			fields: fields{client},
+			args: args{
+				ctx:     context.Background(),
+				catalog: catalog,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error during Set operation",
+			mocks: func() {
+				mock.ExpectSet(cache.ExamplesCatalog, catalogMarsh, 0).SetErr(fmt.Errorf("MOCK_ERROR"))
+			},
+			fields: fields{client},
+			args: args{
+				ctx:     context.Background(),
+				catalog: catalog,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mocks()
+			rc := &Cache{
+				Client: tt.fields.Client,
+			}
+			if err := rc.SetCatalog(tt.args.ctx, tt.args.catalog); (err != nil) != tt.wantErr {
+				t.Errorf("SetCatalog() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func Test_newRedisCache(t *testing.T) {
 	address := "host:port"
 	type args struct {
@@ -270,7 +480,7 @@ func Test_newRedisCache(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "error during Ping operation",
+			name: "Error during Ping operation",
 			args: args{
 				ctx:  context.Background(),
 				addr: address,
@@ -292,6 +502,9 @@ func Test_unmarshalBySubKey(t *testing.T) {
 	statusValue, _ := json.Marshal(status)
 	output := "MOCK_OUTPUT"
 	outputValue, _ := json.Marshal(output)
+	canceledValue, _ := json.Marshal(false)
+	runOutputIndex := 0
+	runOutputIndexValue, _ := json.Marshal(runOutputIndex)
 	type args struct {
 		ctx    context.Context
 		subKey cache.SubKey
@@ -304,7 +517,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "status subKey",
+			name: "Status subKey",
 			args: args{
 				ctx:    context.Background(),
 				subKey: cache.Status,
@@ -314,7 +527,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "runOutput subKey",
+			name: "RunOutput subKey",
 			args: args{
 				subKey: cache.RunOutput,
 				value:  string(outputValue),
@@ -323,12 +536,43 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "compileOutput subKey",
+			name: "CompileOutput subKey",
 			args: args{
 				subKey: cache.CompileOutput,
 				value:  string(outputValue),
 			},
 			want:    output,
+			wantErr: false,
+		},
+		{
+			name: "Graph subKey",
+			args: args{
+				subKey: cache.Graph,
+				value:  string(outputValue),
+			},
+			want:    output,
+			wantErr: false,
+		},
+		{
+			// Test case with calling unmarshalBySubKey method with Canceled subKey.
+			// As a result, want to receive false.
+			name: "Canceled subKey",
+			args: args{
+				subKey: cache.Canceled,
+				value:  string(canceledValue),
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			// Test case with calling unmarshalBySubKey method with RunOutputIndex subKey.
+			// As a result, want to receive expected runOutputIndex.
+			name: "RunOutputIndex subKey",
+			args: args{
+				subKey: cache.RunOutputIndex,
+				value:  string(runOutputIndexValue),
+			},
+			want:    float64(runOutputIndex),
 			wantErr: false,
 		},
 	}

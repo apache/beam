@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
@@ -172,6 +172,9 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                 // TODO: Storage API should provide a more-specific way of identifying this failure.
                 return RetryType.DONT_RETRY;
               }
+              if (statusCode.equals(Code.NOT_FOUND)) {
+                return RetryType.DONT_RETRY;
+              }
             }
             return RetryType.RETRY_ALL_OPERATIONS;
           },
@@ -207,6 +210,13 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                     + " failed with "
                     + Iterables.getFirst(contexts, null).getError());
             finalizeOperationsFailed.inc();
+            Throwable error = Iterables.getFirst(contexts, null).getError();
+            if (error instanceof ApiException) {
+              Code statusCode = ((ApiException) error).getStatusCode().getCode();
+              if (statusCode.equals(Code.NOT_FOUND)) {
+                return RetryType.DONT_RETRY;
+              }
+            }
             return RetryType.RETRY_ALL_OPERATIONS;
           },
           r -> {

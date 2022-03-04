@@ -48,7 +48,11 @@ dependencies {
   implementation library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
   permitUnusedDeclared library.java.flogger_system_backend // BEAM-11010
   implementation library.java.gax
-  implementation library.java.gax_grpc
+  implementation(library.java.gax_grpc) {
+    // BEAM-13781: gax-grpc's gRPC version was older than Beam declared
+    exclude group: 'io.grpc', module: 'grpc-netty-shaded'
+  }
+  implementation library.java.gax_grpc_test
   implementation library.java.gax_httpjson
   permitUnusedDeclared library.java.gax_httpjson // BEAM-8755
   implementation library.java.google_api_client
@@ -111,7 +115,6 @@ dependencies {
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   implementation library.java.proto_google_cloud_bigquery_storage_v1
-  implementation library.java.proto_google_cloud_bigquery_storage_v1beta2
   implementation library.java.proto_google_cloud_bigtable_admin_v2
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.proto_google_cloud_datastore_v1
@@ -125,12 +128,13 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
 
   implementation "org.threeten:threetenbp:1.4.4"
+  implementation "io.opencensus:opencensus-api:0.30.0"
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -143,6 +147,7 @@ dependencies {
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
   testImplementation library.java.joda_time
+  testImplementation library.java.google_cloud_spanner_test
   testRuntimeOnly library.java.slf4j_jdk14
 }
 

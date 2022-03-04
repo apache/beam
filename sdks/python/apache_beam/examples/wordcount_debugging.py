@@ -42,6 +42,21 @@ and an output prefix on GCS::
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: WordCountDebugging
+#   description: An example that counts words in Shakespeare's works.
+#     includes regex filter("Flourish|stomach").
+#   multifile: false
+#   pipeline_options: --output output.txt
+#   context_line: 74
+#   categories:
+#     - Flatten
+#     - Debugging
+#     - Options
+#     - Combiners
+#     - Filtering
+#     - Quickstart
+
 import argparse
 import logging
 import re

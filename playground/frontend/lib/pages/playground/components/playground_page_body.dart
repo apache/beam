@@ -22,8 +22,9 @@ import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/output/components/output.dart';
 import 'package:playground/modules/output/models/output_placement.dart';
-import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
+import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
 class PlaygroundPageBody extends StatelessWidget {
@@ -31,8 +32,10 @@ class PlaygroundPageBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<OutputPlacementState>(builder: (context, state, child) {
-      switch (state.placement) {
+    return Consumer2<OutputPlacementState, PlaygroundState>(
+        builder: (context, outputState, playgroundState, child) {
+      final output = createOutput(playgroundState);
+      switch (outputState.placement) {
         case OutputPlacement.bottom:
           return SplitView(
             direction: SplitViewDirection.vertical,
@@ -60,7 +63,11 @@ class PlaygroundPageBody extends StatelessWidget {
 
   Widget get codeTextArea => const CodeTextAreaWrapper();
 
-  Widget get output => const Output();
+  Widget createOutput(PlaygroundState state) => Output(
+        isEmbedded: false,
+        showGraph: state.graphAvailable,
+        key: ValueKey(state.selectedExample?.path ?? state.sdk.toString()),
+      );
 
   Widget getVerticalSeparator(BuildContext context) => Container(
         width: kMdSpacing,

@@ -23,12 +23,13 @@ import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstan
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.examples.complete.kafkatopubsub.options.KafkaToPubsubOptions;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.gson.JsonObject;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.gson.JsonParser;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.gson.JsonObject;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.gson.JsonParser;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -165,9 +166,13 @@ public class Utils {
         || options.getKeyPassword() != null;
   }
 
-  public static Map<String, Object> parseKafkaConsumerConfig(String kafkaConsumerConfig) {
-    return Arrays.stream(kafkaConsumerConfig.split(";"))
-        .map(s -> s.split("="))
-        .collect(Collectors.toMap(kv -> kv[0], kv -> kv[1]));
+  public static Map<String, Object> parseKafkaConsumerConfig(@Nullable String kafkaConsumerConfig) {
+    if (kafkaConsumerConfig == null) {
+      return Collections.emptyMap();
+    } else {
+      return Arrays.stream(kafkaConsumerConfig.split(";"))
+          .map(s -> s.split("="))
+          .collect(Collectors.toMap(kv -> kv[0], kv -> kv[1]));
+    }
   }
 }

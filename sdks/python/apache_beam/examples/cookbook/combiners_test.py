@@ -25,10 +25,16 @@ checked directly on the last PCollection produced.
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: CombinersTest
+#   description: Unit-test to showcase combiners.
+#   multifile: false
+#   context_line: 47
+#   categories:
+#     - Combiners
+
 import logging
 import unittest
-
-import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -36,7 +42,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-@pytest.mark.examples_postcommit
 class CombinersTest(unittest.TestCase):
   """Tests showcasing Dataflow combiners."""
 
