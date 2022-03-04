@@ -1065,7 +1065,7 @@ required arguments described in the examples.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1074,7 +1074,7 @@ $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -1096,7 +1096,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 # -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
 $ ./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
 # In a separate terminal, run:
-$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; \
 --output counts \
 --runner spark \
@@ -1106,7 +1106,7 @@ $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; \
 &lt;h2 id="next-steps">Next Steps&lt;/h2>
 &lt;ul>
 &lt;li>Learn more about the &lt;a href="/documentation/sdks/go/">Beam SDK for Go&lt;/a>
-and look through the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam">godoc&lt;/a>.&lt;/li>
+and look through the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">godoc&lt;/a>.&lt;/li>
 &lt;li>Walk through these WordCount examples in the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
 &lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
@@ -2419,7 +2419,7 @@ show other best practices.&lt;/p>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="err">$&lt;/span> &lt;span class="k">go&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">sdks&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="k">go&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">examples&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">minimal_wordcount&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="err">$&lt;/span> &lt;span class="k">go&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">github&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">com&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apache&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">sdks&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">v2&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="k">go&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">examples&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">minimal_wordcount&lt;/span>
 &lt;span class="err">$&lt;/span> &lt;span class="nx">minimal_wordcount&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
@@ -2910,7 +2910,7 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -2943,7 +2943,7 @@ $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -3341,7 +3341,7 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount
 $ debugging_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -3374,7 +3374,7 @@ $ debugging_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -3771,7 +3771,7 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+&lt;pre>&lt;code class="language-direct" data-lang="direct">$ go install github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount
 $ windowed_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -3804,7 +3804,7 @@ $ windowed_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ go install github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
 $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -4803,11 +4803,11 @@ View on GitHub
 &lt;span class="s">&amp;#34;flag&amp;#34;&lt;/span>
 &lt;span class="s">&amp;#34;fmt&amp;#34;&lt;/span>
 &lt;span class="s">&amp;#34;regexp&amp;#34;&lt;/span>
-&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/go/pkg/beam&amp;#34;&lt;/span>
-&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/go/pkg/beam/io/textio&amp;#34;&lt;/span>
-&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/go/pkg/beam/runners/direct&amp;#34;&lt;/span>
-&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/go/pkg/beam/transforms/stats&amp;#34;&lt;/span>
-&lt;span class="nx">_&lt;/span> &lt;span class="s">&amp;#34;github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local&amp;#34;&lt;/span>
+&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam&amp;#34;&lt;/span>
+&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio&amp;#34;&lt;/span>
+&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct&amp;#34;&lt;/span>
+&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats&amp;#34;&lt;/span>
+&lt;span class="nx">_&lt;/span> &lt;span class="s">&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local&amp;#34;&lt;/span>
 &lt;span class="p">)&lt;/span>
 &lt;span class="kd">var&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="nx">input&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">flag&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">String&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;input&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;data/*&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;File(s) to read.&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
