@@ -485,10 +485,9 @@ class WriteTables<DestinationT>
     }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
-      // only set clustering if timePartitioning is set
-      if (clustering != null) {
-        loadConfig.setClustering(clustering);
-      }
+    }
+    if (clustering != null) {
+      loadConfig.setClustering(clustering);
     }
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(

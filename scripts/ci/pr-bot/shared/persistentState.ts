@@ -32,7 +32,13 @@ function getReviewersForLabelFileName(label) {
 }
 
 async function commitStateToRepo() {
-  await exec.exec("git pull origin pr-bot-state");
+  try {
+    await exec.exec("git pull origin pr-bot-state");
+  } catch (err) {
+    console.log(
+      `Unable to get most recent repo contents, commit may fail: ${err}`
+    );
+  }
   await exec.exec("git add state/*");
   await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
   await exec.exec("git push origin pr-bot-state");

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -32,16 +33,17 @@ import (
 )
 
 const (
-	OutputExtension  = "output"
-	LogsExtension    = "log"
-	GraphExtension   = "graph"
-	MetaInfoName     = "meta.info"
-	Timeout          = time.Minute
-	javaExtension    = "java"
-	goExtension      = "go"
-	pyExtension      = "py"
-	scioExtension    = "scala"
-	separatorsNumber = 3
+	OutputExtension              = "output"
+	LogsExtension                = "log"
+	GraphExtension               = "graph"
+	defaultPrecompiledObjectInfo = "defaultPrecompiledObject.info"
+	MetaInfoName                 = "meta.info"
+	Timeout                      = time.Minute
+	javaExtension                = "java"
+	goExtension                  = "go"
+	pyExtension                  = "py"
+	scioExtension                = "scala"
+	separatorsNumber             = 3
 )
 
 type ObjectInfo struct {
@@ -54,6 +56,7 @@ type ObjectInfo struct {
 	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
 	Multifile       bool                     `protobuf:"varint,7,opt,name=multifile,proto3" json:"multifile,omitempty"`
 	ContextLine     int32                    `protobuf:"varint,7,opt,name=context_line,proto3" json:"context_line,omitempty"`
+	DefaultExample  bool                     `protobuf:"varint,7,opt,name=default_example,json=defaultExample,proto3" json:"default_example,omitempty"`
 }
 
 type PrecompiledObjects []ObjectInfo
@@ -65,6 +68,7 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // the bucket where examples are stored would be public,
 // and it has a specific structure of files, namely:
 // SDK_JAVA/
+// ----defaultPrecompiledObject.info
 // ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.java
@@ -82,6 +86,7 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // --------...
 // ----...
 // SDK_GO/
+// ----defaultPrecompiledObject.info
 // ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.go
@@ -93,6 +98,12 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // ----PRECOMPILED_OBJECT_TYPE_KATA/
 // --------...
 // ----...
+//
+// defaultPrecompiledObject.info is a file that contains path to the default example:
+// {
+//   "SDK_JAVA": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount"
+// }
+//
 // meta.info is a json file that has the following fields:
 // {
 //  "name": "name of the example",
@@ -225,6 +236,77 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 		}
 	}
 	return &precompiledObjects, nil
+}
+
+// GetDefaultPrecompiledObjects returns the default precompiled objects
+func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context, bucketName string) (map[pb.Sdk]*pb.PrecompiledObject, error) {
+	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		return nil, fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+	bucket := client.Bucket(bucketName)
+
+	paths := make(map[pb.Sdk]string, 0)
+	for _, sdkName := range pb.Sdk_name {
+		sdk := pb.Sdk(pb.Sdk_value[sdkName])
+		if sdk == pb.Sdk_SDK_UNSPECIFIED {
+			continue
+		}
+		path, err := cd.getDefaultPrecompiledObjectsPath(ctx, bucket, sdk)
+		if err != nil {
+			return nil, err
+		}
+		paths[sdk] = path
+	}
+
+	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject, 0)
+	for sdk, path := range paths {
+		infoPath := filepath.Join(path, MetaInfoName)
+		rc, err := bucket.Object(infoPath).NewReader(ctx)
+		if err != nil {
+			logger.Errorf("Object(%q).NewReader: %v", infoPath, err.Error())
+			continue
+		}
+		metaFile, err := ioutil.ReadAll(rc)
+		if err != nil {
+			logger.Errorf("ioutil.ReadAll: %v", err.Error())
+			continue
+		}
+		rc.Close()
+
+		precompiledObject := &pb.PrecompiledObject{}
+		err = json.Unmarshal(metaFile, &precompiledObject)
+		if err != nil {
+			logger.Errorf("json.Unmarshal: %v", err.Error())
+			return nil, err
+		}
+		precompiledObject.CloudPath = path
+		defaultPrecompiledObjects[sdk] = precompiledObject
+	}
+	return defaultPrecompiledObjects, nil
+}
+
+// getDefaultPrecompiledObjectsPath returns path for SDK to the default precompiled object
+func (cd *CloudStorage) getDefaultPrecompiledObjectsPath(ctx context.Context, bucket *storage.BucketHandle, sdk pb.Sdk) (string, error) {
+	pathToFile := fmt.Sprintf("%s/%s", sdk.String(), defaultPrecompiledObjectInfo)
+	rc, err := bucket.Object(pathToFile).NewReader(ctx)
+	if err != nil {
+		logger.Errorf("Object(%q).NewReader: %v", pathToFile, err.Error())
+		return "", err
+	}
+
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		logger.Errorf("ioutil.ReadAll: %v", err.Error())
+		return "", err
+	}
+
+	path := make(map[string]string, 0)
+	if err := json.Unmarshal(data, &path); err != nil {
+		return "", err
+	}
+	return path[sdk.String()], nil
 }
 
 // getPrecompiledObjectsDirs finds directories with precompiled objects

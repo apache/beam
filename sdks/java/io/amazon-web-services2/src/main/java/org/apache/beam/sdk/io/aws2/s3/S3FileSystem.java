@@ -98,7 +98,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   // Amazon S3 API: You can create a copy of your object up to 5 GB in a single atomic operation
   // Ref. https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectsExamples.html
-  private static final long MAX_COPY_OBJECT_SIZE_BYTES = 5_368_709_120L;
+  @VisibleForTesting static final long MAX_COPY_OBJECT_SIZE_BYTES = 5_368_709_120L;
 
   // S3 API, delete-objects: "You may specify up to 1000 keys."
   private static final int MAX_DELETE_OBJECTS_PER_REQUEST = 1000;
@@ -468,7 +468,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       throws SdkServiceException {
     CopyObjectRequest copyObjectRequest =
         CopyObjectRequest.builder()
-            .copySource(sourcePath.getBucket() + "/" + sourcePath.getKey())
+            .sourceBucket(sourcePath.getBucket())
+            .sourceKey(sourcePath.getKey())
             .destinationBucket(destinationPath.getBucket())
             .destinationKey(destinationPath.getKey())
             .metadata(objectHead.metadata())
@@ -499,6 +500,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             .ssekmsKeyId(config.getSSEKMSKeyId())
             .sseCustomerKey(config.getSSECustomerKey().getKey())
             .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+            .sseCustomerKeyMD5(config.getSSECustomerKey().getMD5())
             .build();
 
     CreateMultipartUploadResponse createMultipartUploadResponse =
@@ -515,15 +517,18 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     if (objectSize == 0) {
       final UploadPartCopyRequest uploadPartCopyRequest =
           UploadPartCopyRequest.builder()
-              .bucket(sourcePath.getBucket())
-              .key(sourcePath.getKey())
-              .copySource(sourcePath.getBucket() + "/" + sourcePath.getKey())
+              .destinationBucket(destinationPath.getBucket())
+              .destinationKey(destinationPath.getKey())
+              .sourceBucket(sourcePath.getBucket())
+              .sourceKey(sourcePath.getKey())
               .uploadId(uploadId)
               .partNumber(1)
               .sseCustomerKey(config.getSSECustomerKey().getKey())
               .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+              .sseCustomerKeyMD5(config.getSSECustomerKey().getMD5())
               .copySourceSSECustomerKey(config.getSSECustomerKey().getKey())
               .copySourceSSECustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+              .copySourceSSECustomerKeyMD5(config.getSSECustomerKey().getMD5())
               .build();
 
       copyPartResult = s3Client.get().uploadPartCopy(uploadPartCopyRequest).copyPartResult();
@@ -531,32 +536,35 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       completedParts.add(completedPart);
     } else {
       long bytePosition = 0;
-      Integer uploadBufferSizeBytes = config.getS3UploadBufferSizeBytes();
       // Amazon parts are 1-indexed, not zero-indexed.
       for (int partNumber = 1; bytePosition < objectSize; partNumber++) {
         final UploadPartCopyRequest uploadPartCopyRequest =
             UploadPartCopyRequest.builder()
-                .bucket(sourcePath.getBucket())
-                .key(sourcePath.getKey())
-                .copySource(destinationPath.getBucket() + "/" + sourcePath.getKey())
+                .destinationBucket(destinationPath.getBucket())
+                .destinationKey(destinationPath.getKey())
+                .sourceBucket(sourcePath.getBucket())
+                .sourceKey(sourcePath.getKey())
                 .uploadId(uploadId)
                 .partNumber(partNumber)
                 .copySourceRange(
                     String.format(
                         "bytes=%s-%s",
                         bytePosition,
-                        Math.min(objectSize - 1, bytePosition + uploadBufferSizeBytes - 1)))
+                        Math.min(objectSize - 1, bytePosition + MAX_COPY_OBJECT_SIZE_BYTES - 1)))
                 .sseCustomerKey(config.getSSECustomerKey().getKey())
                 .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+                .sseCustomerKeyMD5(config.getSSECustomerKey().getMD5())
                 .copySourceSSECustomerKey(config.getSSECustomerKey().getKey())
                 .copySourceSSECustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+                .copySourceSSECustomerKeyMD5(config.getSSECustomerKey().getMD5())
                 .build();
 
         copyPartResult = s3Client.get().uploadPartCopy(uploadPartCopyRequest).copyPartResult();
-        completedPart = CompletedPart.builder().partNumber(1).eTag(copyPartResult.eTag()).build();
+        completedPart =
+            CompletedPart.builder().partNumber(partNumber).eTag(copyPartResult.eTag()).build();
         completedParts.add(completedPart);
 
-        bytePosition += uploadBufferSizeBytes;
+        bytePosition += MAX_COPY_OBJECT_SIZE_BYTES;
       }
     }
     CompletedMultipartUpload completedMultipartUpload =
