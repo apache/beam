@@ -46,8 +46,12 @@ function needsProcessed(pull: any, prState: typeof Pr): boolean {
     );
     return false;
   }
-  let firstPrToProcess = new Date(2022, 3, 2, 20);
-  if (new Date(pull.created_at) < firstPrToProcess) {
+  const firstPrToProcess = new Date(2022, 2, 2, 20);
+  const createdAt = new Date(pull.created_at);
+  if (createdAt < firstPrToProcess) {
+    console.log(
+      `Skipping PR ${pull.number} because it was created at ${createdAt}, before the first pr to process date of ${firstPrToProcess}`
+    );
     return false;
   }
   if (prState.remindAfterTestsPass && prState.remindAfterTestsPass.length > 0) {
@@ -156,6 +160,8 @@ async function processPull(
   if (!needsProcessed(pull, prState)) {
     return;
   }
+
+  console.log(`Processing PR ${pull.number}`);
 
   let checkState = await getChecksStatus(REPO_OWNER, REPO, pull.head.sha);
 
