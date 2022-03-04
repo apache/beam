@@ -605,6 +605,7 @@ class DoctestTest(unittest.TestCase):
             # For split and rsplit, if expand=True, then the series
             # must be of CategoricalDtype, which pandas doesn't convert to
             f'{module_name}.StringMethods.rsplit': [
+                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
                 's.str.split(expand=True)',
                 's.str.rsplit("/", n=1, expand=True)',
                 's.str.split(r"and|plus", expand=True)',
@@ -615,6 +616,7 @@ class DoctestTest(unittest.TestCase):
                 's.str.split(r"\\.jpg", regex=False, expand=True)'
             ],
             f'{module_name}.StringMethods.split': [
+                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
                 's.str.split(expand=True)',
                 's.str.rsplit("/", n=1, expand=True)',
                 's.str.split(r"and|plus", expand=True)',
