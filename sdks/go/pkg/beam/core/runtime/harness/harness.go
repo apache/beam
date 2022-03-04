@@ -119,7 +119,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		go statusHandler.handleRequest(ctx, &wg)
+		statusHandler.handleRequest(ctx, &wg)
 		defer statusHandler.close(ctx, &wg)
 	}
 

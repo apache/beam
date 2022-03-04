@@ -31,11 +31,7 @@ type BeamFnWorkerStatusServicer struct {
 	response chan string
 }
 
-func (w BeamFnWorkerStatusServicer) mustEmbedUnimplementedBeamFnWorkerStatusServer() {
-
-}
-
-func (w BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_WorkerStatusServer) error {
+func (w *BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_WorkerStatusServer) error {
 	b.Send(&fnpb.WorkerStatusRequest{Id: "1"})
 	resp, err := b.Recv()
 	if err != nil {
@@ -45,27 +41,23 @@ func (w BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_Worke
 	return nil
 }
 
-type serverData struct {
-	server *grpc.Server
-}
-
-func (s *serverData) setUp(port string, srv *BeamFnWorkerStatusServicer) {
+func setUp(port string, srv *BeamFnWorkerStatusServicer) {
 	l, err := net.Listen("tcp", ":9000")
 	if err != nil {
 		log.Fatalf("failed to listen on port 9000 %v", err)
 	}
-
-	fnpb.RegisterBeamFnWorkerStatusServer(s.server, srv)
-	if err := s.server.Serve(l); err != nil {
+	server := grpc.NewServer()
+	defer server.Stop()
+	fnpb.RegisterBeamFnWorkerStatusServer(server, srv)
+	if err := server.Serve(l); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
 
 func TestSendStatusResponse(t *testing.T) {
-	server := &serverData{server: grpc.NewServer()}
-	srv := BeamFnWorkerStatusServicer{response: make(chan string)}
-	go server.setUp("9000", &srv)
-	defer server.server.Stop()
+	srv := &BeamFnWorkerStatusServicer{response: make(chan string)}
+	go setUp("9000", srv)
+
 	ctx := context.Background()
 	statusHandler, err := newWorkerStatusHandler(ctx, "localhost:9000")
 	if err != nil {
@@ -73,8 +65,10 @@ func TestSendStatusResponse(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go statusHandler.handleRequest(ctx, &wg)
-	defer statusHandler.close(ctx, &wg)
+	statusHandler.handleRequest(ctx, &wg)
+	t.Cleanup(func() {
+		statusHandler.close(ctx, &wg)
+	})
 	response := []string{}
 	response = append(response, <-srv.response)
 	if len(response) == 0 {
