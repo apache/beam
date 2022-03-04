@@ -16,11 +16,13 @@
 #
 
 import unittest
+
+import pytest  # pylint: disable=unused-import
+
 from apache_beam.ml.inference.api import PyTorchDevice
 from apache_beam.ml.inference.api import PyTorchModelSpec
-from apache_beam.ml.inference.api import SklearnSerializationType
 from apache_beam.ml.inference.api import SklearnModelSpec
-import pytest  # pylint: disable=unused-import
+from apache_beam.ml.inference.api import SklearnSerializationType
 
 
 class RunInferenceTest(unittest.TestCase):

@@ -17,7 +17,9 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, TypeVar, Union
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 import apache_beam as beam
 
