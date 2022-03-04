@@ -17,9 +17,11 @@ package provision
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"reflect"
+	"sync"
 	"testing"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -67,23 +69,37 @@ func (p ProvisionServiceServicer) GetProvisionInfo(ctx context.Context, req *fnp
 	return &fnpb.GetProvisionInfoResponse{Info: &fnpb.ProvisionInfo{RetrievalToken: "token"}}, nil
 }
 
-func setup(addr string, prs *ProvisionServiceServicer) {
-	l, err := net.Listen("tcp", addr)
+func setup(addr *string, wg *sync.WaitGroup) {
+	l, err := net.Listen("tcp", ":0")
+	defer l.Close()
 	if err != nil {
-		log.Fatalf("failed to listen on addr: %v", err)
+		log.Fatalf("failed to find an open port: %v", err)
 	}
+	port := l.Addr().(*net.TCPAddr).Port
+	*addr = fmt.Sprintf(":%d", port)
+
 	server := grpc.NewServer()
 	defer server.Stop()
+
+	prs := &ProvisionServiceServicer{}
 	fnpb.RegisterProvisionServiceServer(server, prs)
+
+	wg.Done()
+
 	if err := server.Serve(l); err != nil {
 		log.Fatalf("cannot serve the server: %v", err)
 	}
 }
 
 func TestProvisionInfo(t *testing.T) {
-	prs := &ProvisionServiceServicer{}
-	go setup(":9000", prs)
-	got, err := Info(context.Background(), ":9000")
+
+	endpoint := ""
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go setup(&endpoint, &wg)
+	wg.Wait()
+
+	got, err := Info(context.Background(), endpoint)
 	if err != nil {
 		t.Errorf("error in response: %v", err)
 	}
