@@ -130,6 +130,13 @@ public class HourlyTeamScore extends UserScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline pipeline = Pipeline.create(options);
 
+    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
+    // command line.
+    runHourlyTeamScore(options, pipeline);
+    pipeline.run().waitUntilFinish();
+  }
+
+  static void runHourlyTeamScore(Options options, Pipeline pipeline) {
     final Instant stopMinTimestamp = new Instant(minFmt.parseMillis(options.getStopMin()));
     final Instant startMinTimestamp = new Instant(minFmt.parseMillis(options.getStartMin()));
 
@@ -172,7 +179,8 @@ public class HourlyTeamScore extends UserScore {
         .apply(
             "WriteTeamScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), true));
 
-    pipeline.run().waitUntilFinish();
+    // pipeline.run().waitUntilFinish();
+    // return pipeline.run(options);
   }
   // [END DocInclude_HTSMain]
 

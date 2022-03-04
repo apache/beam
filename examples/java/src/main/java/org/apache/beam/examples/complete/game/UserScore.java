@@ -17,7 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.avro.reflect.Nullable;
@@ -28,16 +30,8 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.options.*;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -74,6 +68,9 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class UserScore {
+
+  // TODO: remove
+  static List<String> GAME_EVENTS = new ArrayList<>();
 
   /** Class to hold info about a game event. */
   @DefaultCoder(AvroCoder.class)
@@ -244,17 +241,22 @@ public class UserScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline pipeline = Pipeline.create(options);
 
+    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
+    // command line.
+    runUserScore(options, pipeline);
+    pipeline.run().waitUntilFinish();
+  }
+
+  static void runUserScore(Options options, Pipeline pipeline) {
+
     // Read events from a text file and parse them.
+
     pipeline
         .apply(TextIO.read().from(options.getInput()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
-        // Extract and sum username/score pairs from the event data.
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         .apply(
             "WriteUserScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), false));
-
-    // Run the batch pipeline.
-    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_USMain]
 }

@@ -44,7 +44,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link LeaderBoard}. */
 @RunWith(JUnit4.class)
 public class LeaderBoardIT {
-  public static final String LEADERBOARD_TEAM = "leaderboard_team";
+  public static final String LEADERBOARD_TEAM_TABLE = "leaderboard_team";
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
       "SELECT count(*) as total FROM `%s.%s.%s`";
   private LeaderBoardOptions options =
@@ -84,7 +84,7 @@ public class LeaderBoardIT {
 
     QueryResponse response =
         bqClient.queryWithRetries(
-            String.format(SELECT_COUNT_AS_TOTAL_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM),
+            String.format(SELECT_COUNT_AS_TOTAL_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM_TABLE),
             projectId,
             backoffFactory);
 
@@ -118,7 +118,6 @@ public class LeaderBoardIT {
   }
 
   private void setupPipelineOptions() {
-    options = TestPipeline.testingPipelineOptions().as(LeaderBoardOptions.class);
     options.as(GcpOptions.class).setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
     options.setTopic(TOPIC);
