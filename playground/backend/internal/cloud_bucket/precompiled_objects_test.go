@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	precompiledObjectPath = "SDK_JAVA/MinimalWordCount"
+	precompiledObjectPath = "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount"
 	targetSdk             = pb.Sdk_SDK_UNSPECIFIED
 	defaultBucketName     = "playground-precompiled-objects"
 )
@@ -248,6 +248,12 @@ func Benchmark_GetPrecompiledObjects(b *testing.B) {
 func Benchmark_GetPrecompiledObjectOutput(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = bucket.GetPrecompiledObjectOutput(ctx, precompiledObjectPath, defaultBucketName)
+	}
+}
+
+func Benchmark_GetPrecompiledObjectCode(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = bucket.GetPrecompiledObjectCode(ctx, precompiledObjectPath, defaultBucketName)
 	}
 }
 
