@@ -47,6 +47,7 @@ def debezium_read_test = [
     '"value_size": 1024}\'',
     num_workers          : 5, // How many workers will need
     autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
+  ]
 ]
 
 def debezium_write_test = [
