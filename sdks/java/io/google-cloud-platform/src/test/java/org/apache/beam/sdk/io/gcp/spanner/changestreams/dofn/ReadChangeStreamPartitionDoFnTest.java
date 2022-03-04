@@ -125,7 +125,8 @@ public class ReadChangeStreamPartitionDoFnTest {
             partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
-            childPartitionsRecordAction))
+            childPartitionsRecordAction,
+            metrics))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup();
