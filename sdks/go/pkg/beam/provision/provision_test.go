@@ -16,8 +16,14 @@
 package provision
 
 import (
+	"context"
+	"log"
+	"net"
 	"reflect"
 	"testing"
+
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"google.golang.org/grpc"
 )
 
 type s struct {
@@ -50,5 +56,39 @@ func TestConversions(t *testing.T) {
 		if !reflect.DeepEqual(test, ret) {
 			t.Errorf("Unmarshal(Marshal(%v)) = %v, want %v", test, ret, test)
 		}
+	}
+}
+
+type ProvisionServiceServicer struct {
+	fnpb.UnimplementedProvisionServiceServer
+}
+
+func (p ProvisionServiceServicer) GetProvisionInfo(ctx context.Context, req *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
+	return &fnpb.GetProvisionInfoResponse{Info: &fnpb.ProvisionInfo{RetrievalToken: "token"}}, nil
+}
+
+func setup(addr string, prs *ProvisionServiceServicer) {
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("failed to listen on addr: %v", err)
+	}
+	server := grpc.NewServer()
+	defer server.Stop()
+	fnpb.RegisterProvisionServiceServer(server, prs)
+	if err := server.Serve(l); err != nil {
+		log.Fatalf("cannot serve the server: %v", err)
+	}
+}
+
+func TestProvisionInfo(t *testing.T) {
+	prs := &ProvisionServiceServicer{}
+	go setup(":9000", prs)
+	got, err := Info(context.Background(), ":9000")
+	if err != nil {
+		t.Errorf("error in response: %v", err)
+	}
+	want := &fnpb.ProvisionInfo{RetrievalToken: "token"}
+	if got.GetRetrievalToken() != want.GetRetrievalToken() {
+		t.Errorf("provision.Info() = %v, want %v", got, want)
 	}
 }
