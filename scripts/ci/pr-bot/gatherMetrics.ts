@@ -121,7 +121,7 @@ function getTimeToFirstReview(
   let timeToFirstReview = mergedDate.getTime() - creationDate.getTime();
 
   const firstReviewed = reviews.find(
-    (review) => review.user.login == pull.user.login
+    (review) => review.user.login != pull.user.login
   );
   if (firstReviewed) {
     const firstReviewDate = new Date(firstReviewed.submitted_at);
