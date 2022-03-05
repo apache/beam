@@ -1717,11 +1717,8 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   type_hints = get_type_hints(fn).with_defaults(
       typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    # FIXME(feyu): ignore input hints, as we do not have enough
+    # TODO(BEAM-14052): ignore input hints, as we do not have enough
     # information to infer the input type hint of the wrapper function.
-    # for example if we need to distinguish between
-    #  - MapTuple(fn(a: int, b: int, *args))
-    #  - MapTuple(fn(a: int, b: int, c: Tuple[Any, ...]))
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
@@ -1798,11 +1795,8 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   type_hints = get_type_hints(fn).with_defaults(
       typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    # FIXME(feyu): ignore input hints, as we do not have enough
+    # FIXME(BEAM-14052): ignore input hints, as we do not have enough
     # information to infer the input type hint of the wrapper function.
-    # for example if we need to distinguish between
-    #  - FlatMapTuple(fn(a: int, b: int, *args))
-    #  - FlatMapTuple(fn(a: int, b: int, c: Tuple[Any, ...]))
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
