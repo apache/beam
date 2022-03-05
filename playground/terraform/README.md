@@ -35,24 +35,57 @@ $ gsutil mb -p ${PROJECT_ID} gs://state-bucket-name
 $ gsutil versioning set on gs://state-bucket-name
 ```
 
-## 1. Provision infrastructure
+## 1. Create new environment
 
-To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module.
+To provide informantion about terraform backend, please create:
+
+* New environment folder
 
 ```bash
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name"
+mkdir environment/env-name
+```
+
+* Backend config
+
+```bash
+echo 'bucket = "put your state bucket name here"' > environment/env-name/state.tfbackend
+```
+
+* Terraform variables config and provide necessary variables
+
+```bash
+touch environment/env-name/terraform.tfvars
+```
+
+Then provide necesarry variables.
+
+## 1. Provision infrastructure
+
+To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module or run
+gradle task:
+
+```bash
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name" -Pdocker-tag="tag"
 ```
 
 ## 2. Deploy application
 
+To deploy application run following steps:
+
+* Authinticate in Artifact registry
+
 ```bash
 gcloud auth configure-docker us-central1-docker.pkg.dev
-  ```
-
-```bash
-./gradlew playground:terraform:deployBackend  -Pproject_environment="env-name"
 ```
 
+* Вeploy backend services
+
 ```bash
-./gradlew playground:terraform:deployFrontend  -Pproject_environment="env-name"
+./gradlew playground:terraform:deployBackend -Pproject_environment="env-name" -Pdocker-tag="tag"
+```
+
+* Deploy frontend service
+
+```bash
+./gradlew playground:terraform:deployFrontend -Pproject_environment="env-name" -Pdocker-tag="tag"
 ```
