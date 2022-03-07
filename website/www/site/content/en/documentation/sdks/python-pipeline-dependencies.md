@@ -45,19 +45,16 @@ If your pipeline uses public packages from the [Python Package Index](https://py
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
 **Important:** Remote workers will install all packages listed in the `requirements.txt` file. Because of this, it's very important that you delete non-PyPI packages from the `requirements.txt` file, as stated in step 2. If you don't remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.
-> **NOTE**: An alternative to `pip check` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile the `requirements.txt` with all the dependencies required for the pipeline.
+> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile the all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
 ## Custom Containers {#custom-containers}
 
 You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](https://beam.apache.org/documentation/runtime/environments/#running-pipelines).
 
-1. If you are passing a custom container image, `--sdk_container_image` at runtime and specify `--requirements_file` option, we recommend you to install the dependencies from the `--requirements_file` when building your container image. In this case, you would reduce the pipeline startup time and do not need to pass `--requirements_file` option at runtime.
+1. If you are using a custom container image, we recommend that you install the dependencies from the `--requirements_file` directly into your image at build time. In this case, you do not need to pass `--requirements_file` option at runtime, which will reduce the pipeline startup time.
 
        # Add these lines with the path to the requirements.txt to the Dockerfile
-
        COPY <path to requirements.txt> /tmp/requirements.txt
-       RUN python -m pip download -r /tmp/requirements.txt
-
-**Note:** [Different approaches](https://beam.apache.org/documentation/runtime/environments/#writing-new-dockerfiles) to build the container images that would be compatible with Apache Beam Runners.
+       RUN python -m pip install -r /tmp/requirements.txt
 
 
 ## Local or non-PyPI Dependencies {#local-or-nonpypi}
