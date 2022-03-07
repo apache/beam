@@ -120,6 +120,14 @@ public class StatefulTeamScore extends LeaderBoard {
     ExampleUtils exampleUtils = new ExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 
+    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
+    // command line.
+    PipelineResult result = runStatefulTeamScore(options, pipeline);
+    exampleUtils.waitToFinish(result);
+  }
+
+  static PipelineResult runStatefulTeamScore(Options options, Pipeline pipeline) {
+
     pipeline
         // Read game events from Pub/Sub using custom timestamps, which are extracted from the
         // pubsub data elements, and parse the data.
@@ -146,10 +154,7 @@ public class StatefulTeamScore extends LeaderBoard {
                 options.getLeaderBoardTableName() + "_team_leader",
                 configureCompleteWindowedTableWrite()));
 
-    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
-    // command line.
-    PipelineResult result = pipeline.run();
-    exampleUtils.waitToFinish(result);
+    return pipeline.run(options);
   }
 
   /**

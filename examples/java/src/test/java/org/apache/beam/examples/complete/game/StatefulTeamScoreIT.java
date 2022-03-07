@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.game;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.api.services.bigquery.model.*;
+import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.pubsub.Pubsub;
 import java.io.IOException;
 import org.apache.beam.examples.complete.game.injector.InjectorUtils;
@@ -41,26 +41,26 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link LeaderBoard}. */
+/** Tests for {@link StatefulTeamScore}. */
 @RunWith(JUnit4.class)
-public class LeaderBoardIT {
-  public static final String LEADERBOARD_TEAM_TABLE = "leaderboard_team";
+public class StatefulTeamScoreIT {
+  public static final String LEADERBOARD_TEAM_LEADER_TABLE = "leaderboard_team_leader";
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
-      "SELECT count(*) as total FROM `%s.%s.%s`";
-  private LeaderBoardOptions options =
-      TestPipeline.testingPipelineOptions().as(LeaderBoardOptions.class);
-  private static Pubsub pubsub;
-  private static String projectId;
-  private static final String TOPIC = "projects/apache-beam-testing/topics/leaderboardscores";
-  private static BigqueryClient bqClient;
-  private static final String OUTPUT_DATASET = "leader_board_e2e_events";
+      "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
+  private StatefulTeamScoreOptions options =
+      TestPipeline.testingPipelineOptions().as(StatefulTeamScoreIT.StatefulTeamScoreOptions.class);
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
+  private static Pubsub pubsub;
+  private String projectId;
+  private static final String TOPIC = "projects/apache-beam-testing/topics/statefulteamscores";
+  private BigqueryClient bqClient;
+  private final String OUTPUT_DATASET = "stateful_team_score_e2e";
 
-  public interface LeaderBoardOptions extends TestPipelineOptions, LeaderBoard.Options {}
+  public interface StatefulTeamScoreOptions
+      extends TestPipelineOptions, StatefulTeamScore.Options {};
 
   @Before
   public void setupTestEnvironment() throws Exception {
-
     PipelineOptionsFactory.register(TestPipelineOptions.class);
     projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
 
@@ -72,37 +72,38 @@ public class LeaderBoardIT {
   }
 
   @Test
-  public void testE2ELeaderBoard() throws Exception {
-
-    LeaderBoard.runLeaderBoard(options, testPipeline);
+  public void testE2EStatefulTeamScoreOptions() throws Exception {
+    StatefulTeamScore.runStatefulTeamScore(options, testPipeline);
 
     FluentBackoff backoffFactory =
         FluentBackoff.DEFAULT
             .withMaxRetries(5)
-            .withInitialBackoff(Duration.standardMinutes(5))
-            .withMaxBackoff(Duration.standardMinutes(5));
+            .withInitialBackoff(Duration.standardMinutes(10))
+            .withMaxBackoff(Duration.standardMinutes(10));
 
     QueryResponse response =
         bqClient.queryWithRetries(
             String.format(
-                SELECT_COUNT_AS_TOTAL_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM_TABLE),
+                SELECT_COUNT_AS_TOTAL_QUERY,
+                projectId,
+                OUTPUT_DATASET,
+                LEADERBOARD_TEAM_LEADER_TABLE),
             projectId,
             backoffFactory);
 
-    String res = response.getRows().get(0).getF().get(0).getV().toString();
+    int res = response.getRows().size();
 
-    assertEquals("14", res);
+    assertEquals("25", Integer.toString(res));
   }
 
-  @After
-  public void cleanupTestEnvironment() throws Exception {
-    bqClient.deleteDataset(projectId, OUTPUT_DATASET);
-    pubsub.projects().topics().delete(TOPIC);
-  }
-
-  private void setupBigQuery() throws IOException, InterruptedException {
-    bqClient = new BigqueryClient("LeaderBoardIT");
-    bqClient.createNewDataset(projectId, OUTPUT_DATASET);
+  private void setupPipelineOptions() {
+    options.as(GcpOptions.class).setProject(projectId);
+    options.setDataset(OUTPUT_DATASET);
+    options.setTopic(TOPIC);
+    options.setStreaming(true);
+    options.as(DirectOptions.class).setBlockOnRun(false);
+    options.setTeamWindowDuration(1);
+    options.setAllowedLateness(1);
   }
 
   private void setupPubSub() throws IOException {
@@ -118,13 +119,14 @@ public class LeaderBoardIT {
     testPipeline.apply(TextIO.read().from(options.getInput())).apply(write);
   }
 
-  private void setupPipelineOptions() {
-    options.as(GcpOptions.class).setProject(projectId);
-    options.setDataset(OUTPUT_DATASET);
-    options.setTopic(TOPIC);
-    options.setStreaming(true);
-    options.as(DirectOptions.class).setBlockOnRun(false);
-    options.setTeamWindowDuration(1);
-    options.setAllowedLateness(1);
+  private void setupBigQuery() throws IOException, InterruptedException {
+    bqClient = new BigqueryClient("StatefulTeamScoreIT");
+    bqClient.createNewDataset(projectId, OUTPUT_DATASET);
+  }
+
+  @After
+  public void cleanupTestEnvironment() throws Exception {
+    bqClient.deleteDataset(projectId, OUTPUT_DATASET);
+    pubsub.projects().topics().delete(TOPIC);
   }
 }
