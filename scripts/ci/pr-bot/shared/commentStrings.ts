@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+const { NO_MATCHING_LABEL } = require("./shared/constants");
+
 export function allChecksPassed(reviewersToNotify: string[]): string {
   return `All checks have passed: @${reviewersToNotify.join(" ")}`;
 }
@@ -30,7 +32,7 @@ export function assignReviewer(labelToReviewerMapping: any): string {
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
-    if (label === "no-matching-label") {
+    if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
@@ -71,13 +73,15 @@ export function noLegalReviewers(): string {
   return "No reviewers could be found from any of the labels on the PR or in the fallback reviewers list. Check the config file to make sure reviewers are configured";
 }
 
-export function assignNewReviewer(labelToReviewerMapping: any): string {
+export function assignNewReviewer(labelToReviewerMapping: {
+  [label: string]: string;
+}): string {
   let commentString =
     "Assigning new set of reviewers because Pr has gone too long without review. If you would like to opt out of this review, comment `assign to next reviewer`:\n\n";
 
-  for (let label in labelToReviewerMapping) {
-    let reviewer = labelToReviewerMapping[label];
-    if (label == "no-matching-label") {
+  for (const label in labelToReviewerMapping) {
+    const reviewer = labelToReviewerMapping[label];
+    if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
@@ -94,9 +98,9 @@ Available commands:
 
 export function slowReview(reviewers: string[]): string {
   let commentString = `Reminder, please take a look at this pr: `;
-  reviewers.forEach((reviewer) => {
+  for (const reviewer of reviewers) {
     commentString += `@${reviewer} `;
-  });
+  }
 
   return commentString;
 }

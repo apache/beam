@@ -27,25 +27,21 @@ const {
   PATH_TO_CONFIG_FILE,
   SLOW_REVIEW_LABEL,
 } = require("./shared/constants");
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function hasLabel(pull: any, labelName: string): boolean {
-  const labels = pull.labels;
-  for (const label of labels) {
-    if (label.name.toLowerCase() === labelName.toLowerCase()) {
-      return true;
-    }
-  }
-  return false;
+  return pull.labels.some(
+    (label) => label.name.toLowerCase() === labelName.toLowerCase()
+  );
 }
 
 function getTwoWeekdaysAgo(): Date {
-  let twoWeekDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+  const twoWeekDaysAgo = new Date(Date.now() - 2 * ONE_DAY_MS);
   const currentDay = new Date(Date.now()).getDay();
   // If Saturday, sunday, monday, or tuesday, add extra time to account for weekend.
   if (currentDay === 6) {
     twoWeekDaysAgo.setDate(twoWeekDaysAgo.getDate() - 1);
-  }
-  if (currentDay <= 2) {
+  } else if (currentDay <= 2) {
     twoWeekDaysAgo.setDate(twoWeekDaysAgo.getDate() - 2);
   }
 
@@ -57,54 +53,53 @@ async function isSlowReview(pull: any): Promise<boolean> {
     return false;
   }
   const lastModified = new Date(pull.updated_at);
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(Date.now() - 7 * ONE_DAY_MS);
   if (lastModified.getTime() < sevenDaysAgo.getTime()) {
     return true;
   }
 
   // If it has no comments from a non-bot/author in the last 2 weekdays, return true
   const twoWeekDaysAgo = getTwoWeekdaysAgo();
-  if (lastModified.getTime() < twoWeekDaysAgo.getTime()) {
-    const pullAuthor = pull.user.login;
-    const githubClient = github.getGitHubClient();
-    const comments = (
-      await githubClient.rest.issues.listComments({
-        owner: REPO_OWNER,
-        repo: REPO,
-        issue_number: pull.number,
-      })
-    ).data;
-    for (let i = 0; i < comments.length; i++) {
-      const comment = comments[i];
-      if (
-        comment.user.login !== pullAuthor &&
-        comment.user.login !== BOT_NAME
-      ) {
-        return false;
-      }
+  if (lastModified.getTime() >= twoWeekDaysAgo.getTime()) {
+    return false;
+  }
+  const pullAuthor = pull.user.login;
+  const githubClient = github.getGitHubClient();
+  const comments = (
+    await githubClient.rest.issues.listComments({
+      owner: REPO_OWNER,
+      repo: REPO,
+      issue_number: pull.number,
+    })
+  ).data;
+  for (const comment of comments) {
+    if (
+      comments.some(
+        ({ user: login }) => login !== pullAuthor && login !== BOT_NAME
+      )
+    ) {
+      return false;
     }
-
-    const reviewComments = (
-      await githubClient.rest.pulls.listReviewComments({
-        owner: REPO_OWNER,
-        repo: REPO,
-        pull_number: pull.number,
-      })
-    ).data;
-    for (let i = 0; i < reviewComments.length; i++) {
-      const comment = reviewComments[i];
-      if (
-        comment.user.login !== pullAuthor &&
-        comment.user.login !== BOT_NAME
-      ) {
-        return false;
-      }
-    }
-
-    return true;
   }
 
-  return false;
+  const reviewComments = (
+    await githubClient.rest.pulls.listReviewComments({
+      owner: REPO_OWNER,
+      repo: REPO,
+      pull_number: pull.number,
+    })
+  ).data;
+  for (const comment of reviewComments) {
+    if (
+      comments.some(
+        ({ user: login }) => login !== pullAuthor && login !== BOT_NAME
+      )
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 async function assignToNewReviewers(
@@ -217,8 +212,7 @@ async function processOldPrs() {
     }
   );
 
-  for (let i = 0; i < openPulls.length; i++) {
-    let pull = openPulls[i];
+  for (const pull of openPulls) {
     await processPull(pull, reviewerConfig, stateClient);
   }
 }
