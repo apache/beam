@@ -1149,14 +1149,11 @@ class SetupOptions(PipelineOptions):
             'can also subclass SdkContainerImageBuilder and use that to build '
             'in other environments.'))
     parser.add_argument(
-        '--prebuild_sdk_container_base_image',
+        '--cloud_build_machine_type',
         default=None,
         help=(
-            'The base image to use when pre-building the sdk container image '
-            'with dependencies, if not specified, by default the released '
-            'public apache beam python sdk container image corresponding to '
-            'the sdk version will be used, if a dev sdk is used the base '
-            'image will default to the latest released sdk image.'))
+            'If specified, use the machine type explicitly when prebuilding'
+            'SDK container image on Google Cloud Build.'))
     parser.add_argument(
         '--docker_registry_push_url',
         default=None,
