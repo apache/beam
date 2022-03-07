@@ -93,6 +93,12 @@ ls src/main/java/org/apache/beam/examples/
    {{< shell powerShell >}}
 dir .\src\main\java\org\apache\beam\examples
    {{< /shell >}}
+   You should see the following examples:
+   * **DebuggingWordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java))
+   * **MinimalWordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java))
+   * **WindowedWordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java))
+   * **WordCount.java** ([GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java))
+
    The example used in this tutorial, **WordCount.java**, defines a
    Beam pipeline that counts words from an input file (by default, a **.txt**
    file containing Shakespeare's "King Lear"). To learn more about the examples,
