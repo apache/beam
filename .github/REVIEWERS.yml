@@ -20,10 +20,10 @@
 labels:
   - name: Go
     reviewers:
+      - damccorm
       - lostluck
       - jrmccluskey
       - youngoli
       - riteshghorse
-    exclusionList:
-      - damccorm
+    exclusionList: []
 fallbackReviewers: []
