@@ -46,6 +46,10 @@ class ModelLoader:
     """Loads an initializes a model for processing."""
     raise NotImplementedError(type(self))
 
+  def get_metrics_namespace(self) -> str:
+    """Returns a namespace for metrics collected by the RunInference transform."""
+    return 'RunInference'
+
 
 class InferenceRunner:
   """Implements running inferences for a framework."""
@@ -104,8 +108,8 @@ class RunInferenceDoFn(beam.DoFn):
     self._model_loader = model_loader
     self._inference_runner = inference_runner
     self._shared_model_handle = shared.Shared()
-    # TODO: Compute a good metrics namespace
-    self._metrics_collector = MetricsCollector('default_namespace')
+    self._metrics_collector = MetricsCollector(
+        model_loader.get_metrics_namespace())
     self._clock = clock
     if not clock:
       self._clock = _ClockFactory.make_clock()
@@ -132,25 +136,31 @@ class RunInferenceDoFn(beam.DoFn):
     self._model = self._load_model()
 
   def process(self, batch):
+    # Process supports both keyed data, and example only data.
+    # First keys and samples are separated (if there are keys)
     has_keys = isinstance(batch[0], tuple)
-    start_time = self._clock.get_current_time_in_microseconds()
     if has_keys:
       examples = [example for _, example in batch]
       keys = [key for key, _ in batch]
     else:
       examples = batch
       keys = None
+
+    start_time = self._clock.get_current_time_in_microseconds()
     inference_generator = self._inference_runner.run_inference(
         examples, self._model)
     predictions = [
         PredictionResult(e, r) for e, r in zip(examples, inference_generator)
     ]
+
     inference_latency = self._clock.get_current_time_in_microseconds(
     ) - start_time
     num_bytes = sys.getsizeof(batch)
     num_elements = len(batch)
     self._metrics_collector.update(
         num_elements, sys.getsizeof(batch), inference_latency)
+
+    # keys will be recombined with their predictions in the RunInferenceImpl PTransform.
     yield keys, predictions
 
   def finish_bundle(self):
