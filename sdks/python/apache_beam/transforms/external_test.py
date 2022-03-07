@@ -327,8 +327,7 @@ class ExternalTransformTest(unittest.TestCase):
 class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
   def get_payload_from_typing_hints(self, values):
     class AnnotatedTransform(beam.ExternalTransform):
-      #URN = 'beam:external:fakeurn:v1'
-      URN = 'beam:transform:org.apache.beam:fakeurn:v1'
+      URN = 'beam:external:fakeurn:v1'
 
       def __init__(
           self,
@@ -356,8 +355,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
 
   def get_payload_from_beam_typehints(self, values):
     class AnnotatedTransform(beam.ExternalTransform):
-      #URN = 'beam:external:fakeurn:v1'
-      URN = 'beam:transform:org.apache.beam:fakeurn:v1'
+      URN = 'beam:external:fakeurn:v1'
 
       def __init__(
           self,
@@ -388,8 +386,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
   def get_payload_from_typing_hints(self, values):
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
-      #URN = 'beam:external:fakeurn:v1'
-      URN = 'beam:transform:org.apache.beam:fakeurn:v1'
+      URN = 'beam:external:fakeurn:v1'
 
       integer_example: int
       boolean: bool
@@ -404,8 +401,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
   def get_payload_from_beam_typehints(self, values):
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
-      #URN = 'beam:external:fakeurn:v1'
-      URN = 'beam:transform:org.apache.beam:fakeurn:v1'
+      URN = 'beam:external:fakeurn:v1'
 
       integer_example: int
       boolean: bool

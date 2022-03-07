@@ -34,8 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoService(ExternalTransformRegistrar.class)
 public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar {
-  //private static final String URN = "beam:external:java:sql:v1";
-  private static final String URN = "beam:transform:org.apache.beam:sql:v1"
+  private static final String URN = "beam:external:java:sql:v1";
   private static final ImmutableMap<String, Class<? extends QueryPlanner>> DIALECTS =
       ImmutableMap.<String, Class<? extends QueryPlanner>>builder()
           .put("zetasql", ZetaSQLQueryPlanner.class)

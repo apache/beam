@@ -73,8 +73,7 @@ class SqlTransform(ExternalTransform):
   and the `documentation
   <https://beam.apache.org/documentation/dsls/sql/overview/>`_.
   """
-  #URN = 'beam:external:java:sql:v1'
-  URN = "beam:transform:org.apache.beam:sql:v1"
+  URN = 'beam:external:java:sql:v1'
 
   def __init__(self, query, dialect=None, expansion_service=None):
     """
