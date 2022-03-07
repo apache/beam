@@ -13,17 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# If you would like to be excluded from consideration for reviewing a certain label,
-# add yourself to that label's exclusionList
-# FallbackReviewers is for reviewers who can review any area of the code base that might
-# not receive a label. These should generally be more experienced committers.
-labels:
-  - name: Go
-    reviewers:
-      - lostluck
-      - jrmccluskey
-      - youngoli
-      - riteshghorse
-    exclusionList:
-      - damccorm
-fallbackReviewers: []
+name: pr-bot-update-reviewers
+
+# Run every week on Sunday at 16:05 UTC
+on:
+  schedule:
+  - cron: '5 16 * * 0'
+  workflow_dispatch:
+
+jobs:
+  update-reviewers:
+    # Don't run on forks
+    if: github.repository == 'apache/beam'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: npm install
+        working-directory: 'scripts/ci/pr-bot'
+
+      # Runs a set of commands using the runners shell
+      - run: npm run updateReviewers
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: 'scripts/ci/pr-bot'

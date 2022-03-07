@@ -70,3 +70,39 @@ export function reviewersAlreadyAssigned(reviewers: string[]): string {
 export function noLegalReviewers(): string {
   return "No reviewers could be found from any of the labels on the PR or in the fallback reviewers list. Check the config file to make sure reviewers are configured";
 }
+
+export function updateReviewerConfig(
+  reviewersAddedForLabels: { [reviewer: string]: string[] },
+  reviewersRemovedForLabels: { [reviewer: string]: string[] }
+) {
+  let commentString = `Adds and/or removes reviewers based on activity in the repo.
+If you have been added and would prefer not to be, you can avoid getting repeatedly suggested by adding yourself to that label's exclusionList.
+`;
+
+  if (Object.keys(reviewersAddedForLabels).length > 0) {
+    commentString += `
+The following users have been added as reviewers to the configuration.
+If you choose to accept being added, you will be added to the rotation of users who are automatically added to pull requests for an initial review.
+A committer will still have to approve after your review (if you are not a committer), but you will be the initial touchpoint for PRs to which you are assigned.
+`;
+    for (const reviewer of Object.keys(reviewersAddedForLabels)) {
+      commentString += `${reviewer} added for label(s): ${reviewersAddedForLabels[
+        reviewer
+      ].join(",")}\n`;
+    }
+  }
+
+  if (Object.keys(reviewersRemovedForLabels).length > 0) {
+    commentString += `
+The following users have been removed as reviewers from the configuration.
+Users are removed if they haven't reviewed or completed a PR in the last 3 months.
+`;
+    for (const reviewer of Object.keys(reviewersRemovedForLabels)) {
+      commentString += `@${reviewer} added for label(s): ${reviewersRemovedForLabels[
+        reviewer
+      ].join(",")}\n`;
+    }
+  }
+
+  return commentString;
+}
