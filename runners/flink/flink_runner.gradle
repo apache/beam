@@ -285,6 +285,8 @@ createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLoca
 
 task examplesIntegrationTest(type: Test) {
   group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
   def pipelineOptionsArray = ["--runner=TestFlinkRunner",
                               "--parallelism=2",
                               "--tempLocation=${tempLocation}",
