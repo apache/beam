@@ -1488,7 +1488,7 @@ public class SpannerIO {
       // Inclusive end at is defaulted to ChangeStreamsContants.MAX_INCLUSIVE_END_AT
       checkArgument(
           getInclusiveEndAt() != null,
-          "SpannerIO.readChangeStream() requires the end time to be set.");
+          "SpannerIO.readChangeStream() requires the end time to be set. If you'd like to process the stream without an end time, you can omit this parameter.");
       checkArgument(
           getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) <= 0,
           "SpannerIO.readChangeStream() max end timestamp is " + MAX_INCLUSIVE_END_AT + ".");
