@@ -98,7 +98,7 @@ The following users have been removed as reviewers from the configuration.
 Users are removed if they haven't reviewed or completed a PR in the last 3 months.
 `;
     for (const reviewer of Object.keys(reviewersRemovedForLabels)) {
-      commentString += `@${reviewer} added for label(s): ${reviewersRemovedForLabels[
+      commentString += `@${reviewer} removed for label(s): ${reviewersRemovedForLabels[
         reviewer
       ].join(",")}\n`;
     }
