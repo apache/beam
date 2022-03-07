@@ -154,7 +154,7 @@ public class QueryChangeStreamAction {
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp endTimestamp = tracker.currentRestriction().getTo();
+    final Timestamp endTimestamp = partition.getEndTimestamp();
 
     try (Scope scope =
         TRACER.spanBuilder("QueryChangeStreamAction").setRecordEvents(true).startScopedSpan()) {
