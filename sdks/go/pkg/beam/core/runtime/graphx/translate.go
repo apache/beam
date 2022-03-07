@@ -65,7 +65,7 @@ const (
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 
-	URNRequiresSplittableDoFn = "beam:requirement:org.apache.beam:pardo:splittable_dofn:v1"
+	URNRequiresSplittableDoFn = "beam:requirement:pardo:splittable_dofn:v1"
 
 	URNArtifactGoWorker  = "beam:artifact:type:go_worker_binary:v1"
 	URNArtifactStagingTo = "beam:artifact:role:staging_to:v1"
