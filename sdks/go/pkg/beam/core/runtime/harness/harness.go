@@ -356,7 +356,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		} else {
 			// Non failure plans should either be moved to the finalized state
 			// or to plans so they can be re-used.
-			expiration := plan.GetExpirationTime(ctx, string(instID))
+			expiration := plan.GetExpirationTime()
 			if time.Now().Before(expiration) {
 				// TODO(BEAM-10976) - we can be a little smarter about data structures here by
 				// by storing plans awaiting finalization in a heap. That way when we expire plans
@@ -411,7 +411,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		if time.Now().Before(af.expiration) {
-			if err := af.plan.Finalize(ctx, string(instID)); err != nil {
+			if err := af.plan.Finalize(); err != nil {
 				return fail(ctx, instID, "finalize bundle failed for instruction %v using plan %v : %v", ref, af.bdID, err)
 			}
 		}
@@ -564,9 +564,10 @@ func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, re
 	c.mu.Lock()
 	plan, ok := c.active[ref]
 	if !ok {
-		awaitingFinalization, ok := c.awaitingFinalization[ref]
+		var af awaitingFinalization
+		af, ok = c.awaitingFinalization[ref]
 		if ok {
-			plan = awaitingFinalization.plan
+			plan = af.plan
 		}
 	}
 	err := c.failed[ref]

@@ -220,23 +220,26 @@ func TestRegisterCallback(t *testing.T) {
 		t.Errorf("RegisterCallback() lastValidCallback set to %v, want about 500 minutes", bf.lastValidCallback)
 	}
 	if got, want := len(bf.callbacks), 3; got != want {
-		t.Fatalf("RegisterCallback() called twice, got %v callbacks, want %v", got, want)
+		t.Fatalf("Callbacks in bundleFinalizer does not match number of calls to RegisterCallback(), got %v callbacks, want %v", got, want)
 	}
 
-	if err := bf.callbacks[0].callback(); err != nil {
-		t.Errorf("RegisterCallback() first callback returned error %v, want nil", err)
+	callbackIdx := 0
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned unexpected error: %v", callbackIdx, err)
 	}
 	if got, want := testVar, 5; got != want {
-		t.Errorf("RegisterCallback() first callback set testvar to %v, want %v", got, want)
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
 	}
-	if err := bf.callbacks[1].callback(); err != nil {
-		t.Errorf("RegisterCallback() second callback returned error %v, want nil", err)
+	callbackIdx = 1
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want nil", callbackIdx, err)
 	}
 	if got, want := testVar, 25; got != want {
-		t.Errorf("RegisterCallback() second callback set testvar to %v, want %v", got, want)
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
 	}
+	callbackIdx = 2
 	if err := bf.callbacks[2].callback(); err != callbackErr {
-		t.Errorf("RegisterCallback() second callback returned error %v, want %v", err, callbackErr)
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want %v", callbackIdx, err, callbackErr)
 	}
 }
 

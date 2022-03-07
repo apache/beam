@@ -141,7 +141,8 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 	return nil
 }
 
-func (p *Plan) Finalize(ctx context.Context, id string) error {
+// Runs any callbacks registered by the bundleFinalizer. Should be run on bundle finalization.
+func (p *Plan) Finalize() error {
 	if p.status != Up {
 		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
 	}
@@ -166,13 +167,15 @@ func (p *Plan) Finalize(ctx context.Context, id string) error {
 		}
 	}
 
+	p.bf = &newFinalizer
+
 	if len(failedIndices) > 0 {
 		return errors.Errorf("Plan %v failed %v callbacks", p.ID(), len(failedIndices))
 	}
 	return nil
 }
 
-func (p *Plan) GetExpirationTime(ctx context.Context, id string) time.Time {
+func (p *Plan) GetExpirationTime() time.Time {
 	return p.bf.lastValidCallback
 }
 
