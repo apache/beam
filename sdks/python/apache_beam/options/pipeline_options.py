@@ -55,15 +55,10 @@ PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 _LOGGER = logging.getLogger(__name__)
 
-# These options have no dest and action is store_false in the
-# argparse and default is None. When parsing these options in a dict using
-# PipelineOptions,We either ignore/discard if these options are specified.
-# Defining a map with their dest would maintain consistency
-# across PipelineOptions(**dict), PipelineOptions.from_dictionary(dict),
-# and argparse.
-_STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST = {
-    'use_public_ips': 'no_use_public_ips'
-}
+# Map the boolean option with the flag_name for the flags that have a
+# destination(dest) different from the flag name and the
+# default value is None in parser.add_argument().
+_FLAGS_WITH_DIFFERENT_DEST = {'use_public_ips': 'no_use_public_ips'}
 
 
 def _static_value_provider_of(value_type):
@@ -190,14 +185,15 @@ class PipelineOptions(HasDisplayData):
       flags: An iterable of command line arguments to be used. If not specified
         then sys.argv will be used as input for parsing arguments.
 
-      **kwargs: Add overrides for arguments passed in flags. For kwargs,
-                please pass the option names instead of flag names.
+      **kwargs: Add overrides for arguments passed in flags. For overrides
+                of arguments, please pass the `option names` instead of
+                flag names.
                 Option names: These are defined as dest in the
-                parser.add_argument(). Passing flag names like
-                {no_use_public_ips: True}, which is not defined to any
-                destination(dest) in parser, would be discarded/ignored.
-                Instead, pass the dest of the flag
-                (dest of no_use_public_ips is use_public_ips),
+                parser.add_argument() for each flag. Passing flags
+                like {no_use_public_ips: True}, for which the flag name
+                defined to a different destination(dest) in parser,
+                would be discarded. Instead, pass the dest of
+                the flag(dest of no_use_public_ips is use_public_ips),
                 Eg: {use_public_ips: False} to get the desired behavior.
 
     """
@@ -231,15 +227,6 @@ class PipelineOptions(HasDisplayData):
     # Users access this dictionary store via __getattr__ / __setattr__ methods.
     self._all_options = kwargs
 
-    if self.__class__ != PipelineOptions:
-      _invalid_options = {}
-      for option_name, option_value in self._all_options.items():
-        if option_name not in self._visible_option_list():
-          _invalid_options[option_name] = option_value
-
-      if _invalid_options:
-        _LOGGER.warning("Discarding invalid overrides: %s", _invalid_options)
-
     # Initialize values of keys defined by this class.
     for option_name in self._visible_option_list():
       # Note that options specified in kwargs will not be overwritten.
@@ -262,27 +249,25 @@ class PipelineOptions(HasDisplayData):
 
     Returns:
       A PipelineOptions object representing the given arguments.
-
-    Note: If a boolean flag is True in the dictionary,
-          implicitly the method assumes the boolean flag is
-          specified as a command line argument. If the
-          boolean flag is False, this method simply discards
-          them.
-    Eg: {no_auth: True} is similar to python your_file.py --no_auth
-        {no_auth: False} is similar to python your_file.py.
     """
     flags = []
     for k, v in options.items():
+      # Note: If a boolean flag is True in the dictionary,
+      # implicitly the method assumes the boolean flag is
+      # specified as a command line argument. If the
+      # boolean flag is False, this method simply discards them.
+      # Eg: {no_auth: True} is similar to python your_file.py --no_auth
+      # {no_auth: False} is similar to python your_file.py.
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
-        # capture boolean flags with 3 values
-        # {default=None, True, False}
-        elif k in _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST:
-          _LOGGER.warning(
-              "Instead of %s=%s, please provide %s=%s" %
-              (k, v, _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST[k], True))
-          flags.append('--%s' % _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST[k])
+        elif k in _FLAGS_WITH_DIFFERENT_DEST:
+          # Capture overriding flags, which have a different dest
+          # from the flag name defined in the parser.add_argument
+          # Eg: no_use_public_ips, which has the dest=use_public_ips
+          # different from flag name
+          flag_that_disables_the_option = (_FLAGS_WITH_DIFFERENT_DEST[k])
+          flags.append('--%s' % flag_that_disables_the_option)
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
@@ -396,14 +381,6 @@ class PipelineOptions(HasDisplayData):
 
     """
     view = cls(self._flags)
-
-    _invalid_options = {}
-    for option_name, option_value in self._all_options.items():
-      if option_name not in self._visible_option_list():
-        _invalid_options[option_name] = option_value
-
-    if _invalid_options:
-      _LOGGER.warning("Discarding invalid overrides: %s", _invalid_options)
 
     for option_name in view._visible_option_list():
       # Initialize values of keys defined by a cls.

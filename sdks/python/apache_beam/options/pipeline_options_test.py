@@ -656,53 +656,46 @@ class PipelineOptionsTest(unittest.TestCase):
       cls._add_argparse_args(parser)
 
     actions = parser._actions.copy()
-    dest_to_options = {}
+    options_to_flags = {}
     options_diff_dest_store_true = {}
 
     for i in range(len(actions)):
-      options_name = actions[i].option_strings
-      dest = actions[i].dest
+      flag_names = actions[i].option_strings
+      option_name = actions[i].dest
 
       if isinstance(actions[i].const, bool):
-        for option_name in options_name:
-          option_name = option_name.strip(
-              '--') if '--' in option_name else option_name
-          if option_name != dest:
+        for flag_name in flag_names:
+          flag_name = flag_name.strip('-')
+          if flag_name != option_name:
             # Capture flags which has store_action=True and has a
             # different dest. This behavior would be confusing.
             if actions[i].const:
-              options_diff_dest_store_true[option_name] = dest
+              options_diff_dest_store_true[flag_name] = option_name
               continue
             # check the flags like no_use_public_ips
             # default is None, action is {True, False}
             if actions[i].default is None:
-              dest_to_options[dest] = option_name
+              options_to_flags[option_name] = flag_name
 
-    assert len(options_diff_dest_store_true) == 0, (
-      _LOGGER.error("There should be no flags that have a dest "
-                    "different from flag name and action as "
-                    "store_true. It would be confusing "
-                    "to the user. Please specify the dest as the "
-                    "flag_name instead.")
-    )
+    self.assertEqual(
+        len(options_diff_dest_store_true),
+        0,
+        _LOGGER.error(
+            "There should be no flags that have a dest "
+            "different from flag name and action as "
+            "store_true. It would be confusing "
+            "to the user. Please specify the dest as the "
+            "flag_name instead."))
     from apache_beam.options.pipeline_options import (
-        _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST)
+        _FLAGS_WITH_DIFFERENT_DEST)
 
-    def get_options_not_present_in_map(d1, d2):
-      d = {}
-      for k in d1:
-        if k not in d2:
-          d[k] = d1[k]
-      return d
-
-    assert _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST == dest_to_options, (
-      "If you are adding a new boolean flag with default=None,"
-      " with dest different from flag name, please add the flag and "
-      "dest of the flag: %s to variable "
-      " _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST in PipelineOptions.py" % (
-      get_options_not_present_in_map(dest_to_options,
-                                     _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST))
-    )
+    self.assertDictEqual(
+        _FLAGS_WITH_DIFFERENT_DEST,
+        options_to_flags,
+        "If you are adding a new boolean flag with default=None,"
+        " with different dest/option_name from the flag name, please add "
+        "the dest and the flag name to the map "
+        "_FLAGS_WITH_DIFFERENT_DEST in PipelineOptions.py")
 
 
 if __name__ == '__main__':
