@@ -4,6 +4,6 @@
     "go": "lostluck"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": []
 }
