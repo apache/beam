@@ -84,7 +84,6 @@ interface reviewerActivity {
 }
 
 async function getReviewersForPull(pull: any): Promise<string[]> {
-  // TODO - get comments and review comments. Put the authors into a set, then convert it to a list at the end.
   let reviewers = new Set<string>();
   const githubClient = github.getGitHubClient();
   let comments = (
@@ -126,15 +125,15 @@ function addReviewerActivity(
       reviewers: {},
     };
   }
-  let authorActivity = {
-    reviews: 0,
-    pullsAuthored: 1,
-  };
+
   if (author in reviewerActivity.reviewers) {
-    authorActivity = reviewerActivity.reviewers[author];
-    authorActivity.pullsAuthored++;
+    reviewerActivity.reviewers[author].pullsAuthored++;
+  } else {
+    reviewerActivity.reviewers[author] = {
+      reviews: 0,
+      pullsAuthored: 1,
+    };
   }
-  reviewerActivity.reviewers[author] = authorActivity;
 
   for (const reviewer of reviewers) {
     if (reviewer !== author) {
@@ -143,10 +142,13 @@ function addReviewerActivity(
         pullsAuthored: 0,
       };
       if (reviewer in reviewerActivity.reviewers) {
-        curReviewerActivity = reviewerActivity.reviewers[reviewer];
-        curReviewerActivity.reviews++;
+        reviewerActivity.reviewers[reviewer].reviews++;
+      } else {
+        reviewerActivity.reviewers[author] = {
+          reviews: 1,
+          pullsAuthored: 0,
+        };
       }
-      reviewerActivity.reviewers[author] = authorActivity;
     }
   }
 
@@ -214,7 +216,11 @@ function updateReviewerConfig(
       const reviewerContributions =
         reviewerActivityByLabel[label].reviewers[reviewer].reviews +
         reviewerActivityByLabel[label].reviewers[reviewer].pullsAuthored;
-      if (reviewerContributions >= 5 && reviewers.indexOf(reviewer) < 0 && exclusionList.indexOf(reviewer) < 0) {
+      if (
+        reviewerContributions >= 5 &&
+        reviewers.indexOf(reviewer) < 0 &&
+        exclusionList.indexOf(reviewer) < 0
+      ) {
         reviewers.push(reviewer);
         if (reviewer in updates.reviewersAddedForLabels) {
           updates.reviewersAddedForLabels[reviewer].push(label);
