@@ -112,7 +112,8 @@ public class QueryChangeStreamActionTest {
     bundleFinalizer = new BundleFinalizerStub();
 
     when(restrictionTracker.currentRestriction()).thenReturn(restriction);
-    when(restriction.getFrom()).thenReturn(Timestamp.ofTimeMicroseconds(10L));
+    when(restriction.getFrom()).thenReturn(PARTITION_START_TIMESTAMP);
+    when(restriction.getTo()).thenReturn(PARTITION_END_TIMESTAMP);
     when(partitionMetadataDao.getPartition(PARTITION_TOKEN)).thenReturn(row);
     when(partitionMetadataMapper.from(row)).thenReturn(partition);
   }
@@ -249,7 +250,8 @@ public class QueryChangeStreamActionTest {
   }
 
   @Test
-  public void testQueryChangeStreamWithRestrictionStartAfterPartitionStart() {
+  public void
+      testQueryChangeStreamWithRestrictionFromAfterPartitionStartAndRestrictionToBeforePartitionEnd() {
     final Struct rowAsStruct = mock(Struct.class);
     final ChangeStreamResultSetMetadata resultSetMetadata =
         mock(ChangeStreamResultSetMetadata.class);
@@ -257,17 +259,17 @@ public class QueryChangeStreamActionTest {
     final ChildPartitionsRecord record1 = mock(ChildPartitionsRecord.class);
     final ChildPartitionsRecord record2 = mock(ChildPartitionsRecord.class);
 
-    // One microsecond after partition start timestamp
-    when(restriction.getFrom()).thenReturn(Timestamp.ofTimeSecondsAndNanos(0L, 11000));
-    // This record should be ignored because it is before restriction.getFrom
-    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeSecondsAndNanos(0L, 10999));
-    // This record should be included because it is at the restriction.getFrom
-    when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeSecondsAndNanos(0L, 11000));
-    // We should start the query 1 microsecond before the restriction.getFrom
+    // From is after Partition start at
+    when(restriction.getFrom()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
+    // To is before Partition end at
+    when(restriction.getTo()).thenReturn(Timestamp.ofTimeMicroseconds(25L));
+    // Both records should be included
+    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
+    when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(25L));
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
-            Timestamp.ofTimeSecondsAndNanos(0L, 10999),
-            PARTITION_END_TIMESTAMP,
+            Timestamp.ofTimeMicroseconds(15L),
+            Timestamp.ofTimeMicroseconds(25L),
             PARTITION_HEARTBEAT_MILLIS))
         .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
@@ -286,11 +288,11 @@ public class QueryChangeStreamActionTest {
 
     assertEquals(ProcessContinuation.stop(), result);
     verify(childPartitionsRecordAction)
+        .run(partition, record1, restrictionTracker, watermarkEstimator);
+    verify(childPartitionsRecordAction)
         .run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(childPartitionsRecordAction, never())
-        .run(partition, record1, restrictionTracker, watermarkEstimator);
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
