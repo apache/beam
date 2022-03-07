@@ -2507,6 +2507,8 @@ class BeamSpecificTest(unittest.TestCase):
     result = self._evaluate(lambda s: s.unstack(level=0), s)
     self.assert_frame_data_equivalent(result, s.unstack(level=0))
 
+  @unittest.skipIf(
+      PD_VERSION < (1, 2), "pandas==1.1.5 has an indexing error bug")
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)
