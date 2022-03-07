@@ -258,11 +258,11 @@ def convert_to_beam_type(typ):
     elif _match_is_union(typ):
       raise ValueError('Unsupported Union with no arguments.')
     elif _match_issubclass(typing.Generator)(typ):
-      raise ValueError('Unsupported Generator with no arguments.')
+      # Assume a simple generator.
+      args = (typehints.TypeVariable('T_co'), type(None), type(None))
     elif _match_issubclass(typing.Dict)(typ):
       args = (typehints.TypeVariable('KT'), typehints.TypeVariable('VT'))
     elif (_match_issubclass(typing.Iterator)(typ) or
-          _match_issubclass(typing.Generator)(typ) or
           _match_is_exactly_iterable(typ)):
       args = (typehints.TypeVariable('T_co'), )
     else:

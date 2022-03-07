@@ -32,9 +32,13 @@
 // released to the Maven repository as modules. For development versions of
 // Beam, it is recommended to build and run it from source using Gradle.
 //
-// Run expansion service: ./gradlew :sdks:java:extensions:schemaio-expansion-service:build
-// java -jar <location_of_jar_file_generated_from_above> port
-
+// Current supported SDKs, including expansion service modules and reference
+// documentation:
+// * Java
+//    - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
+//    - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:build
+// 						java -jar <location_of_jar_file_generated_from_above> <port>
+//    - Reference Class: org.apache.beam.sdk.io.jdbc.JdbcIO
 package jdbcio
 
 import (
@@ -44,18 +48,23 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*jdbcConfigSchema)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*config)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*jdbcConfig)(nil)).Elem())
 }
 
 const (
-	readURN  = "beam:transform:org.apache.beam:schemaio_jdbc_read:v1"
-	writeURN = "beam:transform:org.apache.beam:schemaio_jdbc_write:v1"
+	readURN             = "beam:transform:org.apache.beam:schemaio_jdbc_read:v1"
+	writeURN            = "beam:transform:org.apache.beam:schemaio_jdbc_write:v1"
+	serviceGradleTarget = ":sdks:java:extensions:schemaio-expansion-service:runExpansionService"
 )
+
+var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 // jdbcConfigSchema is the config schema as per the expected corss language payload
 // for JDBC IO read and write transform.
@@ -80,6 +89,13 @@ type config struct {
 	OutputParallelization *bool     `beam:"outputParallelization"`
 }
 
+// jdbcConfig stores the expansion service and configuration for JDBC IO.
+type jdbcConfig struct {
+	expansionAddr string
+	config        *config
+}
+
+// TODO(riteshghorse): update the IO to use wrapper created in BigQueryIO.
 func toRow(pl interface{}) []byte {
 	rt := reflect.TypeOf(pl)
 
@@ -97,19 +113,19 @@ func toRow(pl interface{}) []byte {
 // Write is a cross-language PTransform which writes Rows to the specified database via JDBC.
 // Write requires the address for an expansion service. tableName is a required paramater,
 // and by default, the writeStatement is generated from it. The generated write_statement
-// can be overridden by passing in a write_statment.
+// can be overridden by passing in a write_statment. If an expansion service address is not
+// provided, an appropriate expansion service will be automatically started; however
+// this is slower than having a persistent expansion service running.
 //
 // The default write statement is: "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)"
 // Example:
-
-// expansionAddr := "localhost:9000"
-// tableName := "roles"
-// driverClassName := "org.postgresql.Driver"
-// username := "root"
-// password := "root123"
-// jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-// jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcurl, username, password)
-func Write(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
+//   tableName := "roles"
+//	 driverClassName := "org.postgresql.Driver"
+// 	 username := "root"
+// 	 password := "root123"
+// 	 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+//	 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"))
+func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("jdbcio.Write")
 
 	wpl := config{
@@ -118,46 +134,62 @@ func Write(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pa
 		Username:        username,
 		Password:        password,
 	}
+	cfg := jdbcConfig{config: &wpl}
 	for _, opt := range opts {
-		opt(&wpl)
+		opt(&cfg)
 	}
+
+	expansionAddr := cfg.expansionAddr
+	if expansionAddr == "" {
+		expansionAddr = autoStartupAddress
+	}
+
 	jcs := jdbcConfigSchema{
 		Location: tableName,
-		Config:   toRow(wpl),
+		Config:   toRow(cfg.config),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguage(s, writeURN, pl, addr, beam.UnnamedInput(col), nil)
+	beam.CrossLanguage(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil)
 }
 
-type writeOption func(*config)
+type writeOption func(*jdbcConfig)
 
 // WriteStatement option overrides the default write statement of
 // "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)".
 func WriteStatement(statement string) writeOption {
-	return func(pl *config) {
-		pl.WriteStatement = &statement
+	return func(jc *jdbcConfig) {
+		jc.config.WriteStatement = &statement
 	}
 }
 
 // WriteConnectionProperties properties of the jdbc connection passed as string
 // with format [propertyName=property;].
 func WriteConnectionProperties(properties string) writeOption {
-	return func(pl *config) {
-		pl.ConnectionProperties = &properties
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionProperties = &properties
 	}
 }
 
 // ConnectionInitSQLs required only for MySql and MariaDB. passed as list of strings.
 func ConnectionInitSQLs(initStatements []string) writeOption {
-	return func(pl *config) {
-		pl.ConnectionInitSQLs = &initStatements
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionInitSQLs = &initStatements
+	}
+}
+
+// ExpansionAddrWrite sets the expansion service for JDBC IO.
+func ExpansionAddrWrite(expansionAddr string) writeOption {
+	return func(jc *jdbcConfig) {
+		jc.expansionAddr = expansionAddr
 	}
 }
 
 // Read is a cross-language PTransform which read Rows from the specified database via JDBC.
 // Read requires the address for an expansion service for JDBC Read transforms,
 // tableName is a required paramater, and by default, the readQuery is generated from it.
-// The generated readQuery can be overridden by passing in a readQuery.
+// The generated readQuery can be overridden by passing in a readQuery.If an expansion service
+// address is not provided, an appropriate expansion service will be automatically started;
+// however this is slower than having a persistent expansion service running.
 //
 // The default read query is "SELECT * FROM tableName;"
 //
@@ -166,14 +198,14 @@ func ConnectionInitSQLs(initStatements []string) writeOption {
 // an optional parameter, call the function within Read's function signature.
 //
 // Example:
-// expansionAddr := "localhost:9000"
-// tableName := "roles"
-// driverClassName := "org.postgresql.Driver"
-// username := "root"
-// password := "root123"
-// jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-// jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcurl, username, password)
-func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, j interface{}, opts ...readOption) beam.PCollection {
+//   tableName := "roles"
+//   driverClassName := "org.postgresql.Driver"
+//   username := "root"
+//   password := "root123"
+//   jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+//   outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
+//   jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"))
+func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, outT reflect.Type, opts ...readOption) beam.PCollection {
 	s = s.Scope("jdbcio.Read")
 
 	rpl := config{
@@ -182,54 +214,68 @@ func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pas
 		Username:        username,
 		Password:        password,
 	}
+	cfg := jdbcConfig{config: &rpl}
 	for _, opt := range opts {
-		opt(&rpl)
+		opt(&cfg)
 	}
+
+	expansionAddr := cfg.expansionAddr
+	if expansionAddr == "" {
+		expansionAddr = autoStartupAddress
+	}
+
 	jcs := jdbcConfigSchema{
 		Location: tableName,
-		Config:   toRow(rpl),
+		Config:   toRow(cfg.config),
 	}
 
 	pl := beam.CrossLanguagePayload(jcs)
-	result := beam.CrossLanguage(s, readURN, pl, addr, nil, beam.UnnamedOutput(typex.New(reflect.TypeOf(j))))
+	result := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)))
 	return result[beam.UnnamedOutputTag()]
 }
 
-type readOption func(*config)
+type readOption func(*jdbcConfig)
 
 // ReadQuery overrides the default read query "SELECT * FROM tableName;"
 func ReadQuery(query string) readOption {
-	return func(pl *config) {
-		pl.ReadQuery = &query
+	return func(jc *jdbcConfig) {
+		jc.config.ReadQuery = &query
 	}
 }
 
 // OutputParallelization specifies if output parallelization is on.
 func OutputParallelization(status bool) readOption {
-	return func(pl *config) {
-		pl.OutputParallelization = &status
+	return func(jc *jdbcConfig) {
+		jc.config.OutputParallelization = &status
 	}
 }
 
 // FetchSize specifies how many rows to fetch.
 func FetchSize(size int16) readOption {
-	return func(pl *config) {
-		pl.FetchSize = &size
+	return func(jc *jdbcConfig) {
+		jc.config.FetchSize = &size
 	}
 }
 
 // ReadConnectionProperties specifies properties of the jdbc connection passed
 // as string with format [propertyName=property;]*
 func ReadConnectionProperties(properties string) readOption {
-	return func(pl *config) {
-		pl.ConnectionProperties = &properties
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionProperties = &properties
 	}
 }
 
 // ReadConnectionInitSQLs required only for MySql and MariaDB.
 // passed as list of strings.
 func ReadConnectionInitSQLs(initStatements []string) readOption {
-	return func(pl *config) {
-		pl.ConnectionInitSQLs = &initStatements
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionInitSQLs = &initStatements
+	}
+}
+
+// ExpansionAddrRead sets the expansion service for JDBC IO.
+func ExpansionAddrRead(expansionAddr string) readOption {
+	return func(jc *jdbcConfig) {
+		jc.expansionAddr = expansionAddr
 	}
 }

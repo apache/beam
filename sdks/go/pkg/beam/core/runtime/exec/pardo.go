@@ -115,7 +115,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 
 	// TODO(BEAM-3303): what to set for StartBundle/FinishBundle window and emitter timestamp?
 
-	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.StartBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(n.ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.StartBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	return nil
@@ -147,7 +147,7 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 	} else {
 		for _, w := range elm.Windows {
 			elm := &mainIn.Key
-			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}}
+			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}, Pane: elm.Pane}
 			err := n.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: mainIn.RTracker})
 			if err != nil {
 				return n.fail(err)
@@ -163,7 +163,7 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 // each individual window by exploding the windows first.
 func (n *ParDo) processSingleWindow(mainIn *MainInput) error {
 	elm := &mainIn.Key
-	val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, mainIn)
+	val, err := n.invokeProcessFn(n.ctx, elm.Pane, elm.Windows, elm.Timestamp, mainIn)
 	if err != nil {
 		return n.fail(err)
 	}
@@ -208,7 +208,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 
 	n.states.Set(n.ctx, metrics.FinishBundle)
 
-	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(n.ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	n.reader = nil
@@ -282,7 +282,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 }
 
 // invokeDataFn handle non-per element invocations.
-func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (val *FullValue, err error) {
+func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (val *FullValue, err error) {
 	if fn == nil {
 		return nil, nil
 	}
@@ -295,7 +295,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.Ev
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = Invoke(ctx, ws, ts, fn, opt, n.cache.extra...)
+	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.Ev
 }
 
 // invokeProcessFn handles the per element invocations
-func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput) (val *FullValue, err error) {
+func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput) (val *FullValue, err error) {
 	// Defer side input clean-up in case of panic
 	defer func() {
 		if postErr := n.postInvoke(); postErr != nil {
@@ -313,7 +313,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, ws, ts, opt, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}

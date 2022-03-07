@@ -165,12 +165,12 @@ dependencies {
   implementation library.java.vendored_grpc_1_43_2
   implementation library.java.vendored_guava_26_0_jre
   implementation "com.codahale.metrics:metrics-core:3.0.1"
-  implementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
-  implementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  implementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  implementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
-  implementation "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
   if(project.property("spark_scala_version").equals("2.11")){
     compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
@@ -187,6 +187,10 @@ dependencies {
   provided library.java.commons_io
   provided library.java.hamcrest
   provided "com.esotericsoftware:kryo-shaded:4.0.2"
+  testImplementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
@@ -233,7 +237,7 @@ hadoopVersions.each {kv ->
   }
 }
 
-task validatesRunnerBatch(type: Test) {
+def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
@@ -264,6 +268,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     // Unbounded
@@ -285,7 +290,7 @@ task validatesRunnerBatch(type: Test) {
   jvmArgs '-Xmx3g'
 }
 
-task validatesRunnerStreaming(type: Test) {
+def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
@@ -311,7 +316,7 @@ task validatesRunnerStreaming(type: Test) {
   }
 }
 
-task validatesStructuredStreamingRunnerBatch(type: Test) {
+tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
@@ -380,7 +385,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   }
 }
 
-task validatesRunner {
+tasks.register("validatesRunner") {
   group = "Verification"
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
@@ -393,14 +398,15 @@ task validatesRunner {
 // Generates :runners:spark:*:runQuickstartJavaSpark task
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
-task hadoopVersionsTest(group: "Verification") {
+tasks.register("hadoopVersionsTest") {
+  group = "Verification"
   def taskNames = hadoopVersions.keySet().stream()
       .map{num -> "hadoopVersion${num}Test"}
       .collect(Collectors.toList())
   dependsOn taskNames
 }
 
-task examplesIntegrationTest(type: Test) {
+tasks.register("examplesIntegrationTest", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
@@ -429,7 +435,8 @@ task examplesIntegrationTest(type: Test) {
 }
 
 hadoopVersions.each {kv ->
-  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+  tasks.register("hadoopVersion${kv.key}Test", Test) {
+    group = "Verification"
     description = "Runs Spark tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     systemProperty "beam.spark.test.reuseSparkContext", "true"

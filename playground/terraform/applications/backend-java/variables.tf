@@ -27,24 +27,24 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend"
+  default = "beam_playground-backend-java"
 }
 
 variable "docker_image_tag" {
   description = "Docker Image Tag To Be Deployed"
-  default = "latest"
+  default     = "latest"
 }
 
 variable "memory_size" {
   description = "RAM in GB. The requested memory for the application"
-  type = number
-  default = 2
+  type        = number
+  default     = 2
 }
 
 variable "volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"
-  type = number
-  default = 1
+  type        = number
+  default     = 1
 }
 
 variable "service_name" {

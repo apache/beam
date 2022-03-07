@@ -367,7 +367,7 @@ class UtilTest(unittest.TestCase):
 
   def test_default_job_name(self):
     job_name = apiclient.Job.default_job_name(None)
-    regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}'
+    regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}-[a-z0-9]{8}$'
     self.assertRegex(job_name, regexp)
 
   def test_split_int(self):
@@ -973,7 +973,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 9, 0))
+      (3, 10, 0))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',

@@ -58,7 +58,30 @@ func TestGetProject_FlagSet(t *testing.T) {
 	setupFakeCredentialFile(t, "")
 	*Project = "test"
 	if got, want := GetProject(nil), "test"; got != want {
-		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
+		t.Fatalf("GetProject() = %q, want %q", got, want)
+	}
+}
+
+func TestGetRegion_FlagSet(t *testing.T) {
+	*Region = "test"
+	if got, want := GetRegion(nil), "test"; got != want {
+		t.Fatalf("GetRegion() = %q, want %q", got, want)
+	}
+}
+
+func TestGetRegion_EnvSet(t *testing.T) {
+	*Region = ""
+	os.Setenv("CLOUDSDK_COMPUTE_REGION", "envRegion")
+	if got, want := GetRegion(nil), "envRegion"; got != want {
+		t.Fatalf("GetRegion() = %q, want %q", got, want)
+	}
+}
+
+func TestGetRegion_BothSet(t *testing.T) {
+	*Region = "test"
+	os.Setenv("CLOUDSDK_COMPUTE_REGION", "envRegion")
+	if got, want := GetRegion(nil), "test"; got != want {
+		t.Fatalf("GetRegion() = %q, want %q", got, want)
 	}
 }
 

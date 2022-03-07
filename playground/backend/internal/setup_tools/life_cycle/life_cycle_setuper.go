@@ -19,11 +19,13 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"bufio"
 	"errors"
 	"github.com/google/uuid"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -34,6 +36,15 @@ const (
 	javaLogFilePlaceholder = "{logFilePath}"
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
+	scioProjectName        = "y"
+	scioProjectPath        = scioProjectName + "/src/main/scala/" + scioProjectName
+	logFileName            = "logs.log"
+	defaultExampleInSbt    = "WordCount.scala"
+	shCmd                  = "sh"
+	rmCmd                  = "rm"
+	cpCmd                  = "cp"
+	scioProject            = "new_scio_project.sh"
+	scioCommonConstants    = "ExampleData.scala"
 )
 
 // Setup returns fs_tool.LifeCycle.
@@ -64,6 +75,11 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir, pipelinesF
 		if err = prepareJavaFiles(lc, workingDir, pipelineId); err != nil {
 			lc.DeleteFolders()
 			return nil, errors.New("error during create necessary files for the Java sdk")
+		}
+	case pb.Sdk_SDK_SCIO:
+		if lc, err = prepareSbtFiles(lc, lc.Paths.AbsoluteBaseFolderPath, workingDir); err != nil {
+			lc.DeleteFolders()
+			return nil, errors.New("error during create necessary files for the SCIO sdk")
 		}
 	}
 
@@ -142,4 +158,49 @@ func updateJavaLogConfigFile(paths fs_tool.LifeCyclePaths) error {
 		return err
 	}
 	return nil
+}
+
+func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir string) (*fs_tool.LifeCycle, error) {
+	cmd := exec.Command(shCmd, filepath.Join(workingDir, scioProject))
+	cmd.Dir = pipelineFolder
+	_, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	sourceFileFolder := filepath.Join(pipelineFolder, scioProjectPath)
+	fileName := lc.Paths.SourceFileName
+	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)
+	absFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, fileName))
+	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, utils.GraphFileName))
+	projectFolder, _ := filepath.Abs(filepath.Join(pipelineFolder, scioProjectName))
+	executableName := lc.Paths.ExecutableName
+
+	_, err = exec.Command(rmCmd, filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = exec.Command(cpCmd, filepath.Join(workingDir, scioCommonConstants), absFileFolderPath).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	lc = &fs_tool.LifeCycle{
+		Paths: fs_tool.LifeCyclePaths{
+			SourceFileName:                   fileName,
+			AbsoluteSourceFileFolderPath:     absFileFolderPath,
+			AbsoluteSourceFilePath:           absFilePath,
+			ExecutableFileName:               fileName,
+			AbsoluteExecutableFileFolderPath: absFileFolderPath,
+			AbsoluteExecutableFilePath:       absFilePath,
+			AbsoluteBaseFolderPath:           absFileFolderPath,
+			AbsoluteLogFilePath:              absLogFilePath,
+			AbsoluteGraphFilePath:            absGraphFilePath,
+			ProjectDir:                       projectFolder,
+		},
+	}
+	lc.Paths.ExecutableName = executableName
+	return lc, nil
 }

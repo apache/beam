@@ -60,6 +60,8 @@ const (
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
 	defaultNumOfParallelJobs      = 20
+	bucketNameKey                 = "BUCKET_NAME"
+	defaultBucketName             = "playground-precompiled-objects"
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -101,6 +103,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
 	projectId := os.Getenv(projectIdKey)
 	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
+	bucketName := getEnv(bucketNameKey, defaultBucketName)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -118,7 +121,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout, bucketName), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
@@ -212,7 +215,7 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	case pb.Sdk_SDK_PYTHON:
 		// Python sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_SCIO:
-		return nil, errors.New("not yet supported")
+		// Scala sdk doesn't need any additional arguments from the config file
 	}
 	return executorConfig, nil
 }

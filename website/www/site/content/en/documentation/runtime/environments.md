@@ -112,10 +112,12 @@ This method requires building image artifacts from Beam source. For additional i
   # The default repository of each SDK
   ./gradlew :sdks:java:container:java8:docker
   ./gradlew :sdks:java:container:java11:docker
+  ./gradlew :sdks:java:container:java17:docker
   ./gradlew :sdks:go:container:docker
   ./gradlew :sdks:python:container:py36:docker
   ./gradlew :sdks:python:container:py37:docker
   ./gradlew :sdks:python:container:py38:docker
+  ./gradlew :sdks:python:container:py39:docker
 
   # Shortcut for building all Python SDKs
   ./gradlew :sdks:python:container buildAll
@@ -131,6 +133,7 @@ This method requires building image artifacts from Beam source. For additional i
   apache/beam_python3.6_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.7_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.8_sdk          latest               sha256:...               ...              1 min ago         ...
+  apache/beam_python3.9_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_go_sdk                 latest               sha256:...               ...              1 min ago         ...
   ```
 

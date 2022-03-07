@@ -16,6 +16,7 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
 	"path/filepath"
 	"reflect"
@@ -39,7 +40,7 @@ func Test_newPythonLifeCycle(t *testing.T) {
 		{
 			// Test case with calling newPythonLifeCycle method with correct pipelineId and workingDir.
 			// As a result, want to receive an expected python life cycle.
-			name: "newPythonLifeCycle",
+			name: "NewPythonLifeCycle",
 			args: args{
 				pipelineId:      pipelineId,
 				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
@@ -55,6 +56,7 @@ func Test_newPythonLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(baseFileFolder, pipelineId.String()+pythonExecutableFileExtension),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 				},
 			},
 		},

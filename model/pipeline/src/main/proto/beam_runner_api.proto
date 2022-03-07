@@ -457,6 +457,24 @@ message StandardSideInputTypes {
   }
 }
 
+message StandardUserStateTypes {
+  enum Enum {
+    // Represents a user state specification that supports a bag.
+    //
+    // StateRequests performed on this user state must use
+    // StateKey.BagUserState.
+    BAG = 0 [(beam_urn) = "beam:user_state:bag:v1"];
+
+    // Represents a user state specification that supports a multimap.
+    //
+    // StateRequests performed on this user state must use
+    // StateKey.MultimapKeysUserState or StateKey.MultimapUserState.
+    MULTIMAP = 1 [(beam_urn) = "beam:user_state:multimap:v1"];
+
+    // TODO(BEAM-10650): Add protocol to support OrderedListState
+  }
+}
+
 // A PCollection!
 message PCollection {
 
@@ -534,6 +552,7 @@ message ParDoPayload {
 }
 
 message StateSpec {
+  // TODO(BEAM-13930): Deprecate and remove these state specs
   oneof spec {
     ReadModifyWriteStateSpec read_modify_write_spec = 1;
     BagStateSpec bag_spec = 2;
@@ -542,6 +561,16 @@ message StateSpec {
     SetStateSpec set_spec = 5;
     OrderedListStateSpec ordered_list_spec = 6;
   }
+
+  // (Required) URN of the protocol required by this state specification to present
+  // the desired SDK-specific interface to a UDF.
+  //
+  // This protocol defines the SDK harness <-> Runner Harness RPC
+  // interface for accessing and mutating user state.
+  //
+  // See StandardUserStateTypes for an enumeration of all user state types
+  // defined.
+  FunctionSpec protocol = 7;
 }
 
 message ReadModifyWriteStateSpec {
@@ -1414,6 +1443,12 @@ message StandardArtifacts {
     // A URN for pip-requirements-file role.
     // payload: None
     PIP_REQUIREMENTS_FILE  = 1 [(beam_urn) = "beam:artifact:role:pip_requirements_file:v1"];
+
+    // A URN for the Go worker binary role.
+    // This represents the executable for a Go SDK environment.
+    // A Go environment may have one such artifact with this role.
+    // payload: None
+    GO_WORKER_BINARY  = 2 [(beam_urn) = "beam:artifact:role:go_worker_binary:v1"];
   }
 }
 
