@@ -30,15 +30,18 @@ import com.google.bigtable.v2.RowSet;
 import com.google.bigtable.v2.SampleRowKeysRequest;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.internal.ByteStringComparator;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.common.collect.ComparisonChain;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -57,6 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,8 +141,6 @@ class BigtableServiceImpl implements BigtableService {
                     .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
                     .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
       }
-      rowSet = rowSetBuilder.build();
-      buffer = new ConcurrentLinkedQueue<Row>();
 
       HashMap<String, String> baseLabels = new HashMap<>();
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
@@ -162,6 +164,8 @@ class BigtableServiceImpl implements BigtableService {
               source.getTableId().get()));
       serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+      rowSet = rowSetBuilder.build();
+      buffer = new ConcurrentLinkedQueue<Row>();
 
       buildReadRequest();
       return advance();
@@ -177,18 +181,38 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     public boolean refillReadRowsBuffer() throws IOException {
-      if (rowSet.getRowKeysCount() == 0) { // Are there any other edge cases?
+      if (rowSet.getRowRangesCount() == 0 && rowSet.getRowKeysCount() == 0) { //Is latter cond useless?
         return false;
       }
-      RowSet.Builder truncatedRowSet = RowSet.newBuilder();
-      if (rowSet.getRowKeysCount() <= MINI_BATCH_ROW_LIMIT) {
-        truncatedRowSet.addAllRowKeys(rowSet.getRowKeysList());
-      } else {
-        for (long i = MINI_BATCH_ROW_LIMIT; i < rowSet.getRowKeysCount(); i++) {
-          truncatedRowSet.addRowKeys(rowSet.getRowKeys((int)i)); // Leave as long?
+      RowSet.Builder segment = RowSet.newBuilder();
+
+      RowRange[] rowRanges =
+          rowSet.getRowRangesList().toArray(new RowRange[rowSet.getRowRangesCount()]);
+
+
+      Arrays.sort(rowRanges, RANGE_START_COMPARATOR);
+
+      for (int i = 0; i < rowSet.getRowRangesCount(); i++) {
+        RowRange rowRange = rowSet.getRowRanges(i);
+        ByteString splitPoint = currentRow.getKey();
+
+        int startCmp = StartPoint.extract(rowRange).compareTo(new StartPoint(splitPoint, true));
+        int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(splitPoint, true));
+
+        if (startCmp > 0) {
+          // If the startKey is great than split than add the remaining Range
+          segment.addRowRanges(rowRange);
+        } else if (endCmp > 0) {
+          // Row is split, remove all read rowKeys and split RowSet at last Read Row
+          RowRange subRange = rowRange.toBuilder().setStartKeyOpen(splitPoint).build();
+          segment.addRowRanges(subRange);
         }
       }
-      rowSet = truncatedRowSet.build();
+
+      if (segment.getRowRangesCount() == 0) {
+        return false;
+      }
+      rowSet = segment.build();
       buildReadRequest();
       currentRow = buffer.remove();
       return currentRow != null;
@@ -206,6 +230,7 @@ class BigtableServiceImpl implements BigtableService {
       }
       try {
         results = session.getDataClient().readRows(request.build());
+        // results = session.getDataClient(). Add Callable here (Async?)
         if (results.available() != 0) { // Edge Cases?
           buffer.addAll(Arrays.asList(
               results.next(MINI_BATCH_ROW_LIMIT)));
@@ -373,6 +398,96 @@ class BigtableServiceImpl implements BigtableService {
               .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()))
               .build();
       return session.getDataClient().sampleRowKeys(request);
+    }
+  }
+
+  private static final Comparator<RowRange> RANGE_START_COMPARATOR =
+      new Comparator<RowRange>() {
+        @Override
+        public int compare(@Nonnull RowRange o1, @Nonnull RowRange o2) {
+          return StartPoint.extract(o1).compareTo(StartPoint.extract(o2));
+        }
+      };
+
+  /** Helper class to ease comparison of RowRange start points. */
+  private static final class StartPoint implements Comparable<StartPoint> {
+    private final ByteString value;
+    private final boolean isClosed;
+
+    @Nonnull
+    static StartPoint extract(@Nonnull RowRange rowRange) {
+      switch (rowRange.getStartKeyCase()) {
+        case STARTKEY_NOT_SET:
+          return new StartPoint(ByteString.EMPTY, true);
+        case START_KEY_CLOSED:
+          return new StartPoint(rowRange.getStartKeyClosed(), true);
+        case START_KEY_OPEN:
+          if (rowRange.getStartKeyOpen().isEmpty()) {
+            // Take care to normalize an open empty start key to be closed.
+            return new StartPoint(ByteString.EMPTY, true);
+          } else {
+            return new StartPoint(rowRange.getStartKeyOpen(), false);
+          }
+        default:
+          throw new IllegalArgumentException("Unknown startKeyCase: " + rowRange.getStartKeyCase());
+      }
+    }
+
+    StartPoint(@Nonnull ByteString value, boolean isClosed) {
+      this.value = value;
+      this.isClosed = isClosed;
+    }
+
+    @Override
+    public int compareTo(@Nonnull StartPoint o) {
+      return ComparisonChain.start()
+          // Empty string comes first
+          .compareTrueFirst(value.isEmpty(), o.value.isEmpty())
+          .compare(value, o.value, ByteStringComparator.INSTANCE)
+          // Closed start point comes before an open start point: [x,y] starts before (x,y].
+          .compareTrueFirst(isClosed, o.isClosed)
+          .result();
+    }
+  }
+
+  /** Helper class to ease comparison of RowRange endpoints. */
+  private static final class EndPoint implements Comparable<EndPoint> {
+    private final ByteString value;
+    private final boolean isClosed;
+
+    @Nonnull
+    static EndPoint extract(@Nonnull RowRange rowRange) {
+      switch (rowRange.getEndKeyCase()) {
+        case ENDKEY_NOT_SET:
+          return new EndPoint(ByteString.EMPTY, true);
+        case END_KEY_CLOSED:
+          return new EndPoint(rowRange.getEndKeyClosed(), true);
+        case END_KEY_OPEN:
+          if (rowRange.getEndKeyOpen().isEmpty()) {
+            // Take care to normalize an open empty end key to be closed.
+            return new EndPoint(ByteString.EMPTY, true);
+          } else {
+            return new EndPoint(rowRange.getEndKeyOpen(), false);
+          }
+        default:
+          throw new IllegalArgumentException("Unknown endKeyCase: " + rowRange.getEndKeyCase());
+      }
+    }
+
+    EndPoint(@Nonnull ByteString value, boolean isClosed) {
+      this.value = value;
+      this.isClosed = isClosed;
+    }
+
+    @Override
+    public int compareTo(@Nonnull EndPoint o) {
+      return ComparisonChain.start()
+          // Empty string comes last
+          .compareFalseFirst(value.isEmpty(), o.value.isEmpty())
+          .compare(value, o.value, ByteStringComparator.INSTANCE)
+          // Open end point comes before a closed end point: [x,y) ends before [x,y].
+          .compareFalseFirst(isClosed, o.isClosed)
+          .result();
     }
   }
 }
