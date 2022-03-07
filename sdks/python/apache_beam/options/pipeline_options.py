@@ -190,12 +190,10 @@ class PipelineOptions(HasDisplayData):
                 flag names.
                 Option names: These are defined as dest in the
                 parser.add_argument() for each flag. Passing flags
-                like {no_use_public_ips: True}, for which the flag name
-                defined to a different destination(dest) in parser,
+                like {no_use_public_ips: True}, for which the dest is
+                defined to a different flag name in the parser,
                 would be discarded. Instead, pass the dest of
-                the flag(dest of no_use_public_ips is use_public_ips),
-                Eg: {use_public_ips: False} to get the desired behavior.
-
+                the flag (dest of no_use_public_ips is use_public_ips).
     """
     # Initializing logging configuration in case the user did not set it up.
     logging.basicConfig()
