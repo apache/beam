@@ -172,8 +172,7 @@ creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_
 By default, no licenses/notices are added to the docker images.
 
 #### Modifying an existing container image to make it compatible with Apache Beam Runners {#modify-existing-base-image}
-Beam offers a way to take a Beam container image and customize it. But if you have an existing base image that you need to make compatible with Apache Beam Runners, use a [multi-stage build](https://docs.docker.com/develop/develop-images/multistage-build/) process to copy over the necessary artifacts from a default Apache Beam base image.
-
+Beam offers a way to provide your own custom container image. The easiest way to build a new custom image that is compatible with Apache Beam Runners is to use a [multi-stage build](https://docs.docker.com/develop/develop-images/multistage-build/) process. This copies over the necessary artifacts from a default Apache Beam base image to build your custom container image.
 
 1. Copy necessary artifacts from Apache Beam base image to your image.
   ```
@@ -186,7 +185,7 @@ Beam offers a way to take a Beam container image and customize it. But if you ha
  # Copy files from official SDK image, including script/dependencies.
  COPY --from=apache/beam_python3.7_sdk:2.35.0 /opt/apache/beam /opt/apache/beam
 
- # Perform any addtional customizations if desired
+ # Perform any additional customizations if desired
 
  # Set the entrypoint to Apache Beam SDK launcher.
  ENTRYPOINT ["/opt/apache/beam/boot"]

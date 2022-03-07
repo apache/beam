@@ -138,13 +138,13 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
 
 In the pre-building step, we install pipeline dependencies on the container image prior to the job submission. This would speed up the pipeline execution.\
 To use pre-building the dependencies from `requirements.txt` on the container image. Follow the steps below.
-1. Provide the container engine. We support `docker` and `cloud_build`(requires a GCP project with Cloud Build API enabled).
+1. Provide the container engine. We support `local_docker` and `cloud_build`(requires a GCP project with Cloud Build API enabled).
 
-       --prebuild_sdk_container_enginer <execution_environment>
+       --prebuild_sdk_container_engine <execution_environment>
 2. To pass a base image for pre-building dependencies, enable this flag. If not, apache beam's base image would be used.
 
        --prebuild_sdk_container_base_image <location_to_base_image>
-3. To push the container image, pre-built locally with `Docker` , to a remote repository(eg: docker registry), provide URL to the docker registry by passing
+3. To push the container image, pre-built locally with `local_docker` , to a remote repository(eg: docker registry), provide URL to the docker registry by passing
 
        --docker_registry_push_url <IMAGE_URL>
 > To use Docker, the `--prebuild_sdk_container_base_image` should be compatible with Apache Beam Runner. Please follow the [instructions](https://beam.apache.org/documentation/runtime/environments/#building-and-pushing-custom-containers) on how to build a base container image compatible with Apache Beam.
