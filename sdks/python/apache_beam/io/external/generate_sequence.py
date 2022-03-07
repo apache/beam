@@ -45,8 +45,8 @@ class GenerateSequence(ExternalTransform):
 
     Experimental; no backwards compatibility guarantees.
   """
-  URN = 'beam:external:java:generate_sequence:v1'
-
+  #URN = 'beam:external:java:generate_sequence:v1'
+  URN = 'beam:transform:org.apache.beam:generate_sequence:v1'
   def __init__(
       self,
       start,

@@ -134,7 +134,8 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
   @AutoService(ExternalTransformRegistrar.class)
   public static class External implements ExternalTransformRegistrar {
 
-    public static final String URN = "beam:external:java:generate_sequence:v1";
+    // public static final String URN = "beam:external:java:generate_sequence:v1";
+    public static final String URN = "beam:transform:org.apache.beam:generate_sequence:v1";
 
     @Override
     public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
