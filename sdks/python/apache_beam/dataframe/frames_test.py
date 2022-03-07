@@ -2472,8 +2472,7 @@ class BeamSpecificTest(unittest.TestCase):
     # Pandas should throw a ValueError if performing unstack
     # on a Series without MultiIndex
     s = pd.Series([1, 2, 3, 4], index=['one', 'two', 'three', 'four'])
-    with self.assertRaisesRegex(ValueError,
-                                r"index must be a MultiIndex to unstack"):
+    with self.assertRaises((AttributeError, ValueError)):
       self._evaluate(lambda s: s.unstack(), s)
 
   def test_unstack_non_categorical_index(self):
