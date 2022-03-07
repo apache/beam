@@ -26,7 +26,6 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
@@ -207,7 +206,7 @@ public class ChildPartitionsRecordAction {
 
   private PartitionMetadata toPartitionMetadata(
       Timestamp startTimestamp,
-      @Nullable Timestamp endTimestamp,
+      Timestamp endTimestamp,
       long heartbeatMillis,
       ChildPartition childPartition) {
     return PartitionMetadata.newBuilder()
