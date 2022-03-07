@@ -961,9 +961,6 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def unstack(self, **kwargs):
-    return self._unstack_helper(**kwargs)
-
-  def _unstack_helper(self, **kwargs):
     level = kwargs.get('level', -1)
 
     if self._expr.proxy().index.nlevels == 1:
