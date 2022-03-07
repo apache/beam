@@ -55,9 +55,6 @@ else:
 
 
 class MockBuckets():
-  def __init__(self):
-    pass
-
   def Get(self, path):
     if path == 'test-bucket-not-found':
       raise HttpNotFoundError({'status': 404}, {}, '')

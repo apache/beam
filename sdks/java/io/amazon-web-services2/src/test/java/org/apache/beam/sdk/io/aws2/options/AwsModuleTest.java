@@ -33,8 +33,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
-import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
-import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.MatcherAssert;
@@ -149,33 +147,6 @@ public class AwsModuleTest {
     assertEquals(8080, deserializedProxyConfiguration.port());
     assertEquals("username", deserializedProxyConfiguration.username());
     assertEquals("password", deserializedProxyConfiguration.password());
-  }
-
-  @Test
-  public void testHttpClientConfigurationSerializationDeserialization() throws Exception {
-    HttpClientConfiguration expected =
-        HttpClientConfiguration.builder()
-            .connectionAcquisitionTimeout(100)
-            .connectionMaxIdleTime(200)
-            .connectionTimeout(300)
-            .connectionTimeToLive(400)
-            .socketTimeout(500)
-            .readTimeout(600)
-            .writeTimeout(700)
-            .maxConnections(10)
-            .build();
-
-    assertThat(serializeAndDeserialize(expected)).isEqualTo(expected);
-  }
-
-  @Test
-  public void testSSECustomerKeySerializationDeserialization() throws Exception {
-    // default key created by S3Options.SSECustomerKeyFactory
-    SSECustomerKey emptyKey = SSECustomerKey.builder().build();
-    assertThat(serializeAndDeserialize(emptyKey)).isEqualToComparingFieldByField(emptyKey);
-
-    SSECustomerKey key = SSECustomerKey.builder().key("key").algorithm("algo").md5("md5").build();
-    assertThat(serializeAndDeserialize(key)).isEqualToComparingFieldByField(key);
   }
 
   private <T> T withSystemPropertyOverrides(Properties overrides, ThrowingSupplier<T> fun)
