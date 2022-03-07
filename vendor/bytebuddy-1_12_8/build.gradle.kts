@@ -28,12 +28,12 @@ vendorJava(
   mapOf(
     "dependencies" to listOf("net.bytebuddy:byte-buddy:1.11.0"),
     "relocations" to mapOf(
-            "net.bytebuddy" to "org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy"),
+            "net.bytebuddy" to "org.apache.beam.vendor.bytebuddy.v1_12_8.net.bytebuddy"),
     "exclusions" to listOf(
             "**/module-info.class"
     ),
     "groupId" to group,
-    "artifactId" to "beam-vendor-bytebuddy-1_11_0",
+    "artifactId" to "beam-vendor-bytebuddy-1_12_8",
     "version" to version
   )
 )
