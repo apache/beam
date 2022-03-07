@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static com.google.cloud.pubsublite.internal.testing.UnitTestExamples.example;
-import static org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions.DEFAULT_FLOW_CONTROL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -68,6 +67,9 @@ import org.mockito.stubbing.Answer;
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class SubscriptionPartitionProcessorImplTest {
+  private static final long MAX_BYTES = 10000;
+  private static final long MAX_SINGLE_MESSAGE_BYTES = 4 * 1024 * 1024;
+
   @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
   @Mock Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory;
@@ -103,8 +105,7 @@ public class SubscriptionPartitionProcessorImplTest {
               return subscriber;
             });
     processor =
-        new SubscriptionPartitionProcessorImpl(
-            tracker, receiver, subscriberFactory, DEFAULT_FLOW_CONTROL);
+        new SubscriptionPartitionProcessorImpl(tracker, receiver, subscriberFactory, MAX_BYTES);
     assertNotNull(leakedConsumer);
   }
 
@@ -119,8 +120,8 @@ public class SubscriptionPartitionProcessorImplTest {
         .verify(subscriber)
         .allowFlow(
             FlowControlRequest.newBuilder()
-                .setAllowedBytes(DEFAULT_FLOW_CONTROL.bytesOutstanding())
-                .setAllowedMessages(DEFAULT_FLOW_CONTROL.messagesOutstanding())
+                .setAllowedBytes(MAX_BYTES + MAX_SINGLE_MESSAGE_BYTES)
+                .setAllowedMessages(Long.MAX_VALUE)
                 .build());
     order.verify(subscriber).stopAsync();
     order.verify(subscriber).awaitTerminated();
@@ -148,18 +149,6 @@ public class SubscriptionPartitionProcessorImplTest {
         assertThrows(
             // Longer wait is needed due to listener asynchrony, but should never wait this long.
             ApiException.class, () -> processor.runFor(Duration.standardMinutes(2)));
-    assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
-  }
-
-  @Test
-  public void allowFlowFailureFails() throws Exception {
-    when(tracker.currentRestriction()).thenReturn(initialRange());
-    when(tracker.tryClaim(any())).thenReturn(true);
-    doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
-    SystemExecutors.getFuturesExecutor()
-        .execute(() -> leakedConsumer.accept(ImmutableList.of(messageWithOffset(1))));
-    ApiException e =
-        assertThrows(ApiException.class, () -> processor.runFor(Duration.standardHours(10)));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
@@ -206,7 +195,7 @@ public class SubscriptionPartitionProcessorImplTest {
     SequencedMessage message3 = messageWithOffset(3);
     leakedConsumer.accept(ImmutableList.of(message1, message3));
     runDone.get();
-    InOrder order = inOrder(tracker, receiver, subscriber);
+    InOrder order = inOrder(tracker, receiver);
     order
         .verify(tracker)
         .tryClaim(
@@ -217,13 +206,36 @@ public class SubscriptionPartitionProcessorImplTest {
     order
         .verify(receiver)
         .outputWithTimestamp(message3, new Instant(Timestamps.toMillis(message3.getPublishTime())));
+    assertEquals(processor.lastClaimed().get(), Offset.of(3));
+  }
+
+  @Test
+  public void successfulClaimReceivedMaxBytes() throws Exception {
+    when(tracker.tryClaim(any())).thenReturn(true);
+    SettableApiFuture<Void> runDone = SettableApiFuture.create();
+    SystemExecutors.getFuturesExecutor()
+        .execute(
+            () -> {
+              assertEquals(
+                  ProcessContinuation.resume(), processor.runFor(Duration.millis(Long.MAX_VALUE)));
+              runDone.set(null);
+            });
+
+    SequencedMessage message1 = messageWithOffset(1);
+    SequencedMessage message3 = messageWithOffset(3).toBuilder().setSizeBytes(MAX_BYTES - 1).build();
+    leakedConsumer.accept(ImmutableList.of(message1, message3));
+    runDone.get();
+    InOrder order = inOrder(tracker, receiver);
     order
-        .verify(subscriber)
-        .allowFlow(
-            FlowControlRequest.newBuilder()
-                .setAllowedMessages(2)
-                .setAllowedBytes(message1.getSizeBytes() + message3.getSizeBytes())
-                .build());
+        .verify(tracker)
+        .tryClaim(
+            OffsetByteProgress.of(Offset.of(3), message1.getSizeBytes() + message3.getSizeBytes()));
+    order
+        .verify(receiver)
+        .outputWithTimestamp(message1, new Instant(Timestamps.toMillis(message1.getPublishTime())));
+    order
+        .verify(receiver)
+        .outputWithTimestamp(message3, new Instant(Timestamps.toMillis(message3.getPublishTime())));
     assertEquals(processor.lastClaimed().get(), Offset.of(3));
   }
 }

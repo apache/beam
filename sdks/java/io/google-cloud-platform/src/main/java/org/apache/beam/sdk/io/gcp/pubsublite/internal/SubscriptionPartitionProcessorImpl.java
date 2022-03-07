@@ -22,8 +22,6 @@ import static com.google.cloud.pubsublite.internal.wire.ApiServiceUtils.blocking
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
-import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
@@ -51,13 +49,17 @@ class SubscriptionPartitionProcessorImpl extends Listener
     implements SubscriptionPartitionProcessor, AutoCloseable {
   private static final Logger LOG =
       LoggerFactory.getLogger(SubscriptionPartitionProcessorImpl.class);
+  // Extra flow control bytes to ensure large messages don't lead to waiting the full timeout.
+  private static final long MAX_SINGLE_MESSAGE_BYTES = 4 * 1024 * 1024;
+
   private final RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   private final OutputReceiver<SequencedMessage> receiver;
   private final Subscriber subscriber;
   private final SettableFuture<Void> completionFuture = SettableFuture.create();
   // Queue to transfer messages from subscriber callback to runFor downcall.
   private final SynchronousQueue<List<SequencedMessage>> transfer = new SynchronousQueue<>();
-  private final FlowControlSettings flowControlSettings;
+  private final long maxBytesToRead;
+  private long bytesRead = 0;
   private Optional<Offset> lastClaimedOffset = Optional.empty();
 
   @SuppressWarnings("methodref.receiver.bound.invalid")
@@ -65,11 +67,11 @@ class SubscriptionPartitionProcessorImpl extends Listener
       RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver,
       Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory,
-      FlowControlSettings flowControlSettings) {
+      long maxBytesToRead) {
     this.tracker = tracker;
     this.receiver = receiver;
     this.subscriber = subscriberFactory.apply(this::onSubscriberMessages);
-    this.flowControlSettings = flowControlSettings;
+    this.maxBytesToRead = maxBytesToRead;
   }
 
   @Override
@@ -97,8 +99,8 @@ class SubscriptionPartitionProcessorImpl extends Listener
     try {
       this.subscriber.allowFlow(
           FlowControlRequest.newBuilder()
-              .setAllowedBytes(flowControlSettings.bytesOutstanding())
-              .setAllowedMessages(flowControlSettings.messagesOutstanding())
+              .setAllowedBytes(maxBytesToRead + MAX_SINGLE_MESSAGE_BYTES)
+              .setAllowedMessages(Long.MAX_VALUE)
               .build());
     } catch (Throwable t) {
       throw ExtractStatus.toCanonical(t).underlying;
@@ -117,15 +119,7 @@ class SubscriptionPartitionProcessorImpl extends Listener
           message ->
               receiver.outputWithTimestamp(
                   message, new Instant(Timestamps.toMillis(message.getPublishTime()))));
-      try {
-        subscriber.allowFlow(
-            FlowControlRequest.newBuilder()
-                .setAllowedBytes(byteSize)
-                .setAllowedMessages(messages.size())
-                .build());
-      } catch (CheckedApiException e) {
-        completionFuture.setException(e);
-      }
+      bytesRead += byteSize;
     } else {
       completionFuture.set(null);
     }
@@ -137,7 +131,7 @@ class SubscriptionPartitionProcessorImpl extends Listener
     Instant deadline = Instant.now().plus(duration);
     start();
     try (SubscriptionPartitionProcessorImpl closeThis = this) {
-      while (!completionFuture.isDone() && deadline.isAfterNow()) {
+      while (!completionFuture.isDone() && deadline.isAfterNow() && bytesRead < maxBytesToRead) {
         @Nullable List<SequencedMessage> messages = transfer.poll(10, TimeUnit.MILLISECONDS);
         if (messages != null) {
           handleMessages(messages);

@@ -39,11 +39,12 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Duration;
 
 public class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage>> {
   private static final long MEBIBYTE = 1L << 20;
+  // TODO(dpcollins-google): Implement proper memory pushback
+  private static final long BUNDLE_BYTES_TARGET = 100 * MEBIBYTE;
 
   private final SubscriberOptions options;
 
@@ -85,19 +86,12 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
                 subscriptionPartition.partition(),
                 Offset.of(tracker.currentRestriction().getRange().getFrom()),
                 consumer),
-        options.flowControlSettings());
+        BUNDLE_BYTES_TARGET);
   }
 
   private TopicBacklogReader newBacklogReader(SubscriptionPartition subscriptionPartition) {
     checkSubscription(subscriptionPartition);
     return new SubscriberAssembler(options, subscriptionPartition.partition()).getBacklogReader();
-  }
-
-  private long calculateMinWindowBytes() {
-    long minFromFlowControl =
-        LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10);
-    // Dataflow will not accept outputs larger than 1 GiB. Cap the maximum at 750 MiB to avoid this.
-    return Math.min(minFromFlowControl, 750 * MEBIBYTE);
   }
 
   private TrackerWithProgress newRestrictionTracker(
@@ -107,7 +101,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
         backlogReader,
         Stopwatch.createUnstarted(),
         options.minBundleTimeout(),
-        calculateMinWindowBytes());
+        BUNDLE_BYTES_TARGET);
   }
 
   private InitialOffsetReader newInitialOffsetReader(SubscriptionPartition subscriptionPartition) {
