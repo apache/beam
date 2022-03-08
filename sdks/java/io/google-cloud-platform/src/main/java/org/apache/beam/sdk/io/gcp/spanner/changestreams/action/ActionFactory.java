@@ -30,15 +30,16 @@ import org.joda.time.Duration;
  * query. The instances created are all singletons.
  */
 // transient fields are un-initialized, because we start them during the first fetch call (with the
-// singleton pattern)
+// singleton pattern).
+@SuppressWarnings("uninitialized")
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;
-  private transient DataChangeRecordAction dataChangeRecordActionInstance = null;
-  private transient HeartbeatRecordAction heartbeatRecordActionInstance = null;
-  private transient ChildPartitionsRecordAction childPartitionsRecordActionInstance = null;
-  private transient QueryChangeStreamAction queryChangeStreamActionInstance = null;
-  private transient DetectNewPartitionsAction detectNewPartitionsActionInstance = null;
+  private transient DataChangeRecordAction dataChangeRecordActionInstance;
+  private transient HeartbeatRecordAction heartbeatRecordActionInstance;
+  private transient ChildPartitionsRecordAction childPartitionsRecordActionInstance;
+  private transient QueryChangeStreamAction queryChangeStreamActionInstance;
+  private transient DetectNewPartitionsAction detectNewPartitionsActionInstance;
 
   /**
    * Creates and returns a singleton instance of an action class capable of processing {@link

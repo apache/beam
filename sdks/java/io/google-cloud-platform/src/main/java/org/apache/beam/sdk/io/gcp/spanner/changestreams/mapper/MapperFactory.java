@@ -25,12 +25,13 @@ import java.io.Serializable;
  */
 // transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern)
+@SuppressWarnings("nullness")
 public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;
 
-  private transient ChangeStreamRecordMapper changeStreamRecordMapperInstance = null;
-  private transient PartitionMetadataMapper partitionMetadataMapperInstance = null;
+  private transient ChangeStreamRecordMapper changeStreamRecordMapperInstance;
+  private transient PartitionMetadataMapper partitionMetadataMapperInstance;
 
   /**
    * Creates and returns a singleton instance of a mapper class capable of transforming a {@link
