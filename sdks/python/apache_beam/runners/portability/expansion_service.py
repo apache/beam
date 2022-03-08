@@ -27,8 +27,8 @@ from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import portable_runner
+from apache_beam.runners.portability.external_transform_registry import ExternalTransformRegistry
 from apache_beam.transforms import external
-from apache_beam.transforms import ptransform
 
 
 class ExpansionServiceServicer(
@@ -62,7 +62,8 @@ class ExpansionServiceServicer(
           pcoll_id in t_proto.outputs.items()
       }
       transform = with_pipeline(
-          ptransform.PTransform.from_runner_api(request.transform, context))
+          ExternalTransformRegistry.get_registered_transforms(
+              request.transform))
       inputs = transform._pvaluish_from_dict({
           tag:
           with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)

@@ -249,8 +249,21 @@ class ExternalTransformTest(unittest.TestCase):
           p
           | beam.Create(['a', 'bb'], reshuffle=False)
           | beam.ExternalTransform(
-              'payload', b's', expansion_service.ExpansionServiceServicer()))
+              'payload',
+              ImplicitSchemaPayloadBuilder({'payload': 's'}),
+              expansion_service.ExpansionServiceServicer()))
       assert_that(res, equal_to(['as', 'bbs']))
+
+  def test_registered_builder(self):
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | beam.Create(['a', 'bb'], reshuffle=False)
+          | beam.ExternalTransform(
+              'beam:transforms:xlang:test:builder',
+              ImplicitSchemaPayloadBuilder({'data': 's'}),
+              expansion_service.ExpansionServiceServicer()))
+      assert_that(res, equal_to(['sa', 'sbb']))
 
   def test_nested(self):
     with beam.Pipeline() as p:
@@ -317,7 +330,7 @@ class ExternalTransformTest(unittest.TestCase):
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
             'beam:transforms:xlang:test:nooutput',
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            None,
             expansion_service.ExpansionServiceServicer()))
     pipeline.run().wait_until_finish()
 

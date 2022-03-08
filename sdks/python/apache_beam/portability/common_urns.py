@@ -71,3 +71,4 @@ requirements = StandardRequirements.Enum
 displayData = StandardDisplayData.DisplayData
 
 java_class_lookup = ExpansionMethods.Enum.JAVA_CLASS_LOOKUP
+python_class_lookup = ExpansionMethods.Enum.PYTHON_CLASS_LOOKUP

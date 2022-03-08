@@ -51,6 +51,12 @@ message ExpansionMethods {
     // Transform payload will be of type JavaClassLookupPayload.
     JAVA_CLASS_LOOKUP = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:expansion:payload:java_class_lookup:v1"];
+
+    // Expand a Python transform using specified constructor and builder methods.
+    // Transform payload will be of type ExternalConfigurationPayload and the
+    // row is supposed to have 'constructor', 'args', 'kwargs' columns.
+    PYTHON_CLASS_LOOKUP = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:expansion:payload:python_class_lookup:v1"];
   }
 }
 

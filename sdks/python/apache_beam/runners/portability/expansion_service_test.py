@@ -33,6 +33,7 @@ from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import expansion_service
+from apache_beam.runners.portability.external_transform_registry import ExternalTransformRegistry
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.environments import PyPIArtifactRegistry
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
@@ -52,27 +53,20 @@ TEST_COMPK_URN = "beam:transforms:xlang:test:compk"
 TEST_FLATTEN_URN = "beam:transforms:xlang:test:flatten"
 TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
 TEST_PYTHON_BS4_URN = "beam:transforms:xlang:test:python_bs4"
+TEST_BUILDER_URN = "beam:transforms:xlang:test:builder"
 
 # A transform that does not produce an output.
 TEST_NO_OUTPUT_URN = "beam:transforms:xlang:test:nooutput"
 
 
-@ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
+@ExternalTransformRegistry.register_urn('beam:transforms:xlang:count')
 class CountPerElementTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll | combine.Count.PerElement()
 
-  def to_runner_api_parameter(self, unused_context):
-    return 'beam:transforms:xlang:count', None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return CountPerElementTransform()
-
-
-@ptransform.PTransform.register_urn(
-    'beam:transforms:xlang:filter_less_than_eq', bytes)
+@ExternalTransformRegistry.register_urn(
+    'beam:transforms:xlang:filter_less_than_eq')
 class FilterLessThanTransform(ptransform.PTransform):
   def __init__(self, payload):
     self._payload = payload
@@ -82,35 +76,19 @@ class FilterLessThanTransform(ptransform.PTransform):
         pcoll | beam.Filter(
             lambda elem, target: elem <= target, int(ord(self._payload[0]))))
 
-  def to_runner_api_parameter(self, unused_context):
-    return (
-        'beam:transforms:xlang:filter_less_than', self._payload.encode('utf8'))
 
-  @staticmethod
-  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
-    return FilterLessThanTransform(payload.decode('utf8'))
-
-
-@ptransform.PTransform.register_urn(TEST_PREFIX_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_PREFIX_URN)
 @beam.typehints.with_output_types(str)
 class PrefixTransform(ptransform.PTransform):
-  def __init__(self, payload):
-    self._payload = payload
+  def __init__(self, data):
+    self._data = data
 
   def expand(self, pcoll):
     return pcoll | 'TestLabel' >> beam.Map(
-        lambda x: '{}{}'.format(self._payload, x))
-
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_PREFIX_URN, ImplicitSchemaPayloadBuilder(
-        {'data': self._payload}).payload()
-
-  @staticmethod
-  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
-    return PrefixTransform(parse_string_payload(payload)['data'])
+        lambda x: '{}{}'.format(self._data, x))
 
 
-@ptransform.PTransform.register_urn(TEST_MULTI_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_MULTI_URN)
 class MutltiTransform(ptransform.PTransform):
   def expand(self, pcolls):
     return {
@@ -122,30 +100,14 @@ class MutltiTransform(ptransform.PTransform):
         | beam.Map(lambda x: x + x).with_output_types(str),
     }
 
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_MULTI_URN, None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return MutltiTransform()
-
-
-@ptransform.PTransform.register_urn(TEST_GBK_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_GBK_URN)
 class GBKTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll | 'TestLabel' >> beam.GroupByKey()
 
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_GBK_URN, None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return GBKTransform()
-
-
-@ptransform.PTransform.register_urn(TEST_CGBK_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_CGBK_URN)
 class CoGBKTransform(ptransform.PTransform):
   class ConcatFn(beam.DoFn):
     def process(self, element):
@@ -158,31 +120,15 @@ class CoGBKTransform(ptransform.PTransform):
            | beam.ParDo(self.ConcatFn()).with_output_types(
                typing.Tuple[int, typing.Iterable[str]])
 
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_CGBK_URN, None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return CoGBKTransform()
-
-
-@ptransform.PTransform.register_urn(TEST_COMGL_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_COMGL_URN)
 class CombineGloballyTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll \
            | beam.CombineGlobally(sum).with_output_types(int)
 
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_COMGL_URN, None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return CombineGloballyTransform()
-
-
-@ptransform.PTransform.register_urn(TEST_COMPK_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_COMPK_URN)
 class CombinePerKeyTransform(ptransform.PTransform):
   def expand(self, pcoll):
     output = pcoll \
@@ -192,30 +138,14 @@ class CombinePerKeyTransform(ptransform.PTransform):
     output.element_type = beam.typehints.Tuple[str, int]
     return output
 
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_COMPK_URN, None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return CombinePerKeyTransform()
-
-
-@ptransform.PTransform.register_urn(TEST_FLATTEN_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_FLATTEN_URN)
 class FlattenTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll.values() | beam.Flatten().with_output_types(int)
 
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_FLATTEN_URN, None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return FlattenTransform()
-
-
-@ptransform.PTransform.register_urn(TEST_PARTITION_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_PARTITION_URN)
 class PartitionTransform(ptransform.PTransform):
   def expand(self, pcoll):
     col1, col2 = pcoll | beam.Partition(
@@ -223,14 +153,6 @@ class PartitionTransform(ptransform.PTransform):
     typed_col1 = col1 | beam.Map(lambda x: x).with_output_types(int)
     typed_col2 = col2 | beam.Map(lambda x: x).with_output_types(int)
     return {'0': typed_col1, '1': typed_col2}
-
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_PARTITION_URN, None
-
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return PartitionTransform()
 
 
 class ExtractHtmlTitleDoFn(beam.DoFn):
@@ -240,21 +162,23 @@ class ExtractHtmlTitleDoFn(beam.DoFn):
     return [soup.title.string]
 
 
-@ptransform.PTransform.register_urn(TEST_PYTHON_BS4_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_PYTHON_BS4_URN)
 class ExtractHtmlTitleTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll | beam.ParDo(ExtractHtmlTitleDoFn()).with_output_types(str)
 
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_PYTHON_BS4_URN, None
 
-  @staticmethod
-  def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
-    return ExtractHtmlTitleTransform()
+class PrefixTransformBuilder(object):
+  @classmethod
+  def build(cls, data):
+    return PrefixTransform(data)
 
 
-@ptransform.PTransform.register_urn('payload', bytes)
+ExternalTransformRegistry.register_urn(
+    TEST_BUILDER_URN, PrefixTransformBuilder.build)
+
+
+@ExternalTransformRegistry.register_urn('payload')
 class PayloadTransform(ptransform.PTransform):
   def __init__(self, payload):
     self._payload = payload
@@ -262,15 +186,8 @@ class PayloadTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return pcoll | beam.Map(lambda x, s: x + s, self._payload)
 
-  def to_runner_api_parameter(self, unused_context):
-    return b'payload', self._payload.encode('ascii')
 
-  @staticmethod
-  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
-    return PayloadTransform(payload.decode('ascii'))
-
-
-@ptransform.PTransform.register_urn('fib', bytes)
+@ExternalTransformRegistry.register_urn('fib')
 class FibTransform(ptransform.PTransform):
   def __init__(self, level):
     self._level = level
@@ -281,25 +198,18 @@ class FibTransform(ptransform.PTransform):
     else:
       a = p | 'A' >> beam.ExternalTransform(
           'fib',
-          str(self._level - 1).encode('ascii'),
+          ImplicitSchemaPayloadBuilder({'level': self._level - 1}),
           expansion_service.ExpansionServiceServicer())
       b = p | 'B' >> beam.ExternalTransform(
           'fib',
-          str(self._level - 2).encode('ascii'),
+          ImplicitSchemaPayloadBuilder({'level': self._level - 2}),
           expansion_service.ExpansionServiceServicer())
       return ((a, b)
               | beam.Flatten()
               | beam.CombineGlobally(sum).without_defaults())
 
-  def to_runner_api_parameter(self, unused_context):
-    return 'fib', str(self._level).encode('ascii')
 
-  @staticmethod
-  def from_runner_api_parameter(unused_ptransform, level, unused_context):
-    return FibTransform(int(level.decode('ascii')))
-
-
-@ptransform.PTransform.register_urn(TEST_NO_OUTPUT_URN, None)
+@ExternalTransformRegistry.register_urn(TEST_NO_OUTPUT_URN)
 class NoOutputTransform(ptransform.PTransform):
   def expand(self, pcoll):
     def log_val(val):
@@ -307,13 +217,6 @@ class NoOutputTransform(ptransform.PTransform):
 
     # Logging without returning anything
     _ = (pcoll | 'TestLabel' >> beam.ParDo(log_val))
-
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_NO_OUTPUT_URN, None
-
-  @staticmethod
-  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
-    return NoOutputTransform(parse_string_payload(payload)['data'])
 
 
 def parse_string_payload(input_byte):

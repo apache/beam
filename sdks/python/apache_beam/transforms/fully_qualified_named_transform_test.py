@@ -19,11 +19,11 @@
 import unittest
 
 import apache_beam as beam
+from apache_beam.portability.common_urns import python_class_lookup
 from apache_beam.runners.portability import expansion_service
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
-from apache_beam.transforms.fully_qualified_named_transform import PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 
 
@@ -61,7 +61,7 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
             p
             | beam.Create(['a', 'b', 'c'])
             | beam.ExternalTransform(
-                PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN,
+                python_class_lookup.urn,
                 ImplicitSchemaPayloadBuilder({
                     'constructor': 'apache_beam.transforms'
                     '.fully_qualified_named_transform_test._TestTransform',
@@ -78,7 +78,7 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
             p
             | beam.Create(['a', 'b', 'c'])
             | beam.ExternalTransform(
-                PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN,
+                python_class_lookup.urn,
                 ImplicitSchemaPayloadBuilder({
                     'constructor': 'apache_beam.transforms'
                     '.fully_qualified_named_transform_test._TestTransform',
@@ -94,7 +94,7 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
             p
             | beam.Create(['a', 'b', 'c'])
             | beam.ExternalTransform(
-                PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN,
+                python_class_lookup.urn,
                 ImplicitSchemaPayloadBuilder({
                     'constructor': 'apache_beam.transforms'
                     '.fully_qualified_named_transform_test._TestTransform',
