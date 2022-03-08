@@ -283,8 +283,6 @@ class Environment(object):
     # Dataflow workers.
     environments_to_use = self._get_environments_from_tranforms()
     if _use_unified_worker(options):
-      python_sdk_container_image = get_container_image_from_options(options)
-
       # Adding container images for other SDKs that may be needed for
       # cross-language pipelines.
       for id, environment in environments_to_use:
