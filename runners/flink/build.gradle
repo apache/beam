@@ -27,6 +27,7 @@ spotless {
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
     googleJavaFormat('1.7')
-    target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
+    target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' 
+    org.apache.beam.runners.core.construction.SerializablePipelineOptions}
   }
 }
