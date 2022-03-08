@@ -24,7 +24,6 @@ package sqlx
 const (
 	// Urn is the URN for SQL transforms.
 	Urn = "beam:external:java:sql:v1"
-	
 
 	// DefaultExpansionAddr is the default expansion service address for SQL.
 	// TODO: Change this to the Beam Java expansion address once Beam SQL
