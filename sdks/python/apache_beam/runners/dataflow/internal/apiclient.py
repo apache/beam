@@ -298,11 +298,11 @@ class Environment(object):
 
         container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
-        # Currently we only set following to True for Python SDK.
-        # TODO: set this correctly for remote environments that might be Python.
         container_image.useSingleCorePerContainer = (
-            container_image_url == python_sdk_container_image)
+            common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING in
+            environment.capabilities)
         container_image.environmentId = id
+        container_image.capabilities = environment.capabilities
         pool.sdkHarnessContainerImages.append(container_image)
 
     if self.debug_options.number_of_worker_harness_threads:
