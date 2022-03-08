@@ -73,6 +73,13 @@ public class BigQueryIOStorageWriteIT {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   }
 
+  static class FillRowFn extends DoFn<Long, TableRow> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(new TableRow().set("number", c.element()).set("str", "aaaaaaaaaa"));
+    }
+  }
+
   private void runBigQueryIOStorageWritePipeline(int rowCount, WriteMode writeMode) {
     String tableName = TABLE_PREFIX + System.currentTimeMillis();
     TableSchema schema =
@@ -84,15 +91,7 @@ public class BigQueryIOStorageWriteIT {
 
     Pipeline p = Pipeline.create(bqOptions);
     p.apply("Input", GenerateSequence.from(0).to(rowCount))
-        .apply(
-            "GenerateMessage",
-            ParDo.of(
-                new DoFn<Long, TableRow>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(new TableRow().set("number", c.element()).set("str", "aaaaaaaaaa"));
-                  }
-                }))
+        .apply("GenerateMessage", ParDo.of(new FillRowFn()))
         .apply(
             "WriteToBQ",
             BigQueryIO.writeTableRows()
