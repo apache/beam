@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
+import abc
 from dataclasses import dataclass
-from enum import Enum
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -24,29 +24,20 @@ from typing import Union
 import apache_beam as beam
 
 
-class PyTorchDevice(Enum):
-  CPU = 1
-  GPU = 2
-
-
-class SklearnSerializationType(Enum):
-  PICKLE = 1
-  JOBLIB = 2
-
-
-@dataclass
 class BaseModelSpec:
-  model_uri: str
+  """
+  Model factory that returns ModelLoader and
+  InferenceRunner objects to be used
+  """
+  @abc.abstractmethod
+  def get_model_loader(self):
+    "Returns ModelLoader object"
+    raise NotImplementedError
 
-
-@dataclass
-class PyTorchModelSpec(BaseModelSpec):
-  device: PyTorchDevice
-
-
-@dataclass
-class SklearnModelSpec(BaseModelSpec):
-  serialization_type: SklearnSerializationType
+  @abc.abstractmethod
+  def get_inference_runner(self):
+    "Returns InferenceRunner object"
+    raise NotImplementedError
 
 
 _K = TypeVar('_K')
@@ -65,7 +56,7 @@ class PredictionResult:
 @beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
 def RunInference(
     examples: beam.pvalue.PCollection,
-    model: BaseModelSpec) -> beam.pvalue.PCollection:
+    model_spec: BaseModelSpec) -> beam.pvalue.PCollection:
   """
   A transform that takes a PCollection of examples (or features) to be used on
   an ML model. It will then output inferences (or predictions) for those
