@@ -74,14 +74,12 @@ mvn archetype:generate `
 
    Maven creates a new project in the **word-count-beam** directory.
 
-2. Change into **word-count-beam** and list the contents:
+2. Change into **word-count-beam**:
    {{< shell unix >}}
 cd word-count-beam/
-ls
    {{< /shell >}}
    {{< shell powerShell >}}
 cd .\word-count-beam
-dir
    {{< /shell >}}
    The directory contains a **pom.xml** and a **src** directory with example
    pipelines.
