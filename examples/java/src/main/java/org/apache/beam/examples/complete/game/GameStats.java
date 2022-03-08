@@ -242,13 +242,20 @@ public class GameStats extends LeaderBoard {
     ExampleUtils exampleUtils = new ExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 
+    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
+    // command line.
+    PipelineResult result = runGameStats(options, pipeline);
+    exampleUtils.waitToFinish(result);
+  }
+
+  static PipelineResult runGameStats(Options options, Pipeline pipeline) {
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents =
         pipeline
             .apply(
                 PubsubIO.readStrings()
-                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-                    .fromTopic(options.getTopic()))
+                    .fromSubscription(options.getSubscription())
+                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE))
             .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // Extract username/score pairs from the event stream
@@ -346,9 +353,6 @@ public class GameStats extends LeaderBoard {
                 configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
 
-    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
-    // command line.
-    PipelineResult result = pipeline.run();
-    exampleUtils.waitToFinish(result);
+    return pipeline.run(options);
   }
 }
