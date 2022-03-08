@@ -92,6 +92,13 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
 
 cdef dict _unpickled_types
 
+
+cdef class MapCoderImpl(StreamCoderImpl):
+  cdef CoderImpl _key_coder_impl
+  cdef CoderImpl _value_coder_impl
+  cdef bint _is_deterministic
+
+
 cdef class BytesCoderImpl(CoderImpl):
   pass
 
