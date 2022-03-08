@@ -43,7 +43,7 @@ def _unbatch(maybe_keyed_batches: Any):
 class ModelLoader:
   """Has the ability to load an ML model."""
   def load_model(self):
-    """Loads an initializes a model for processing."""
+    """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
 
   def get_metrics_namespace(self) -> str:
