@@ -66,6 +66,7 @@ const (
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 
 	URNRequiresSplittableDoFn = "beam:requirement:pardo:splittable_dofn:v1"
+	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
 
 	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
 	URNArtifactGoWorker = "beam:artifact:type:go_worker_binary:v1"
@@ -444,6 +445,9 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			}
 			payload.RestrictionCoderId = coderId
 			m.requirements[URNRequiresSplittableDoFn] = true
+		}
+		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
+			m.requirements[URNRequiresBundleFinalization] = true
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
