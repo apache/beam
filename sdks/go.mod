@@ -35,6 +35,7 @@ require (
 	github.com/google/go-cmp v0.5.6
 	github.com/google/martian/v3 v3.2.1 // indirect
 	github.com/google/uuid v1.3.0
+	github.com/jmoiron/sqlx v1.3.4
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.4
 	github.com/linkedin/goavro v2.1.0+incompatible

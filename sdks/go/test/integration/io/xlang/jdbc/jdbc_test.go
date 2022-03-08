@@ -88,23 +88,97 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 	return mappedPort.Int()
 }
 
+func setupMySqlContainer(t *testing.T, dbname, username, password string) int {
+	t.Helper()
+
+	var env = map[string]string{
+		"MYSQL_USER":     username,
+		"MYSQL_PASSWORD": password,
+		"MYSQL_DATABASE": dbname,
+	}
+
+	// var port = "3306/tcp"
+	// dbURL := func(port nat.Port) string {
+	// 	return fmt.Sprintf("mysql://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
+	// }
+
+	req := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "mysql:latest",
+			ExposedPorts: []string{"3306/tcp", "33060/tcp"},
+			Env:          env,
+			// WaitingFor:   wait.ForSQL(nat.Port(port), "mysql", dbURL).Timeout(time.Second * 5),
+		},
+		Started: true,
+	}
+	ctx := context.Background()
+	container, err := testcontainers.GenericContainer(ctx, req)
+	if err != nil {
+		t.Fatalf("failed to start container: %s", err)
+	}
+
+	mappedPort, err := container.MappedPort(ctx, "3306/tcp")
+	if err != nil {
+		t.Fatalf("failed to get container external port: %s", err)
+	}
+
+	// url := fmt.Sprintf("%s:%s@tcp(localhost:%d)/%s?tls=skip-verify&amp;parseTime=true&amp;multiStatements=true", username, password, mappedPort.Int(), dbname)
+	// db, err := sqlx.Connect("mysql", url)
+	// if err != nil {
+	// 	t.Fatalf("failed to establish database connection: %s", err)
+	// }
+	// defer db.Close()
+
+	// _, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id bigint PRIMARY KEY);")
+	// if err != nil {
+	// 	t.Fatalf("can't create table, check command and access level")
+	// }
+	return mappedPort.Int()
+}
+
+type setupContainerFn func(*testing.T, string, string, string) int
+
+type DB struct {
+	name   string
+	setup  func(*testing.T, string, string, string) int
+	driver string
+}
+
 // TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
 func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 
 	dbname := "postjdbc"
-	username := "newuser"
+	username := "root"
 	password := "password"
-	port := setupTestContainer(t, dbname, username, password)
+	db := map[string]DB{
+		"postgres": {
+			name: "postgresql",
+			setup: func(t *testing.T, dbname, username, password string) int {
+				return setupTestContainer(t, dbname, username, password)
+			},
+			driver: "org.postgresql.Driver",
+		},
+		"mysql": {
+			name: "mysql",
+			setup: func(t *testing.T, dbname, username, password string) int {
+				return setupMySqlContainer(t, dbname, username, password)
+			},
+			driver: "com.mysql.cj.jdbc.Driver",
+		},
+	}
+
+	name := "postgres"
+	port := db[name].setup(t, dbname, username, password)
 	tableName := "roles"
 	host := "localhost"
-	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
+	jdbcUrl := fmt.Sprintf("jdbc:%s://%s:%d/%s", db[name].name, host, port, dbname)
 
-	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 
