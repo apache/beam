@@ -87,6 +87,18 @@ func CreateAndSplit(s beam.Scope, input []stringPair) beam.PCollection {
 
 // [END cogroupbykey_input_helpers]
 
+// [START bundlefinalization_simplecallback]
+
+func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalization) {
+	// ... produce output ...
+
+	bf.RegisterCallback(5 * time.Minute, func() error {
+		// ... perform a side effect ...
+	})
+} 
+
+// [END bundlefinalization_simplecallback]
+
 // [START cogroupbykey_output_helpers]
 
 func formatCoGBKResults(key string, emailIter, phoneIter func(*string) bool) string {

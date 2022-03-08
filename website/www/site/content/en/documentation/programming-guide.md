@@ -6538,7 +6538,7 @@ use case.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10976.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" bundlefinalization_simplecallback >}}
 {{< /highlight >}}
 
 ## 13. Multi-language pipelines {#multi-language-pipelines}
