@@ -271,7 +271,8 @@ func (u *Fn) RTracker() (pos int, exists bool) {
 	return -1, false
 }
 
-// RTracker returns (index, true) iff the function expects an sdf.RTracker.
+// BundleFinalization returns (index, true) iff the function expects a
+// parameter that implements typex.BundleFinalization.
 func (u *Fn) BundleFinalization() (pos int, exists bool) {
 	for i, p := range u.Param {
 		if p.Kind == FnBundleFinalization {
