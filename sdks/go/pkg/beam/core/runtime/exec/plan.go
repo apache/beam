@@ -52,7 +52,6 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		}
 		if r, ok := u.(Root); ok {
 			roots = append(roots, r)
-			fmt.Println("Roots: ", roots)
 		}
 		if s, ok := u.(*DataSource); ok {
 			source = s
