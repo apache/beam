@@ -175,6 +175,8 @@ func (p *Plan) Finalize() error {
 	return nil
 }
 
+// GetExpirationTime returns the last expiration time of any of the callbacks registered by the bundleFinalizer.
+// Once we have passed this time, it is safe to move this plan to inactive without missing any valid callbacks.
 func (p *Plan) GetExpirationTime() time.Time {
 	return p.bf.lastValidCallback
 }
