@@ -427,10 +427,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       if self.requires_deterministic_step_label is not None:
         try:
           ordered_kvs = sorted(dict_value.items())
-        except Exception as e:
+        except Exception as exn:
           raise TypeError(
               "Unable to deterministically order keys of dict for '%s'" %
-              self.requires_deterministic_step_label) from e
+              self.requires_deterministic_step_label) from exn
         for k, v in ordered_kvs:
           self.encode_to_stream(k, stream, True)
           self.encode_to_stream(v, stream, True)
@@ -445,10 +445,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       if self.requires_deterministic_step_label is not None:
         try:
           value = sorted(value)
-        except Exception as e:
+        except Exception as exn:
           raise TypeError(
               "Unable to deterministically order element of set for '%s'" %
-              self.requires_deterministic_step_label) from e
+              self.requires_deterministic_step_label) from exn
       for e in value:
         self.encode_to_stream(e, stream, True)
     # All deterministic encodings should be above this clause,
