@@ -35,11 +35,11 @@ import org.joda.time.Duration;
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;
-  private static DataChangeRecordAction dataChangeRecordActionInstance;
-  private static HeartbeatRecordAction heartbeatRecordActionInstance;
-  private static ChildPartitionsRecordAction childPartitionsRecordActionInstance;
-  private static QueryChangeStreamAction queryChangeStreamActionInstance;
-  private static DetectNewPartitionsAction detectNewPartitionsActionInstance;
+  private transient DataChangeRecordAction dataChangeRecordActionInstance;
+  private transient HeartbeatRecordAction heartbeatRecordActionInstance;
+  private transient ChildPartitionsRecordAction childPartitionsRecordActionInstance;
+  private transient QueryChangeStreamAction queryChangeStreamActionInstance;
+  private transient DetectNewPartitionsAction detectNewPartitionsActionInstance;
 
   /**
    * Creates and returns a singleton instance of an action class capable of processing {@link

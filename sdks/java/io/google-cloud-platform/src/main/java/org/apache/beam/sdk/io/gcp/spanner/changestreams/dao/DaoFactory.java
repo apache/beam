@@ -35,9 +35,9 @@ public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
 
-  private static PartitionMetadataAdminDao partitionMetadataAdminDao;
-  private static PartitionMetadataDao partitionMetadataDaoInstance;
-  private static ChangeStreamDao changeStreamDaoInstance;
+  private transient PartitionMetadataAdminDao partitionMetadataAdminDao;
+  private transient PartitionMetadataDao partitionMetadataDaoInstance;
+  private transient ChangeStreamDao changeStreamDaoInstance;
 
   private final SpannerConfig changeStreamSpannerConfig;
   private final SpannerConfig metadataSpannerConfig;

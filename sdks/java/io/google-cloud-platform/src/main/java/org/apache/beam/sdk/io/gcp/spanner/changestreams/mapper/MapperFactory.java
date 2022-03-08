@@ -30,8 +30,8 @@ public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;
 
-  private static ChangeStreamRecordMapper changeStreamRecordMapperInstance;
-  private static PartitionMetadataMapper partitionMetadataMapperInstance;
+  private transient ChangeStreamRecordMapper changeStreamRecordMapperInstance;
+  private transient PartitionMetadataMapper partitionMetadataMapperInstance;
 
   /**
    * Creates and returns a singleton instance of a mapper class capable of transforming a {@link
