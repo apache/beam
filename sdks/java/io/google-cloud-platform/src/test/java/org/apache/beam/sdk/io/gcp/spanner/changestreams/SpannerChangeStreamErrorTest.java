@@ -101,7 +101,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     serviceHelper.reset();
     serviceHelper.stop();
     mockSpannerService.reset();
-    resetDaoFactoryFields();
   }
 
   @Test
@@ -422,21 +421,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         .withProjectId(TEST_PROJECT)
         .withInstanceId(TEST_INSTANCE)
         .withDatabaseId(TEST_DATABASE);
-  }
-
-  private static void resetDaoFactoryFields() throws NoSuchFieldException, IllegalAccessException {
-    java.lang.reflect.Field partitionMetadataAdminDaoField =
-        DaoFactory.class.getDeclaredField("partitionMetadataAdminDao");
-    partitionMetadataAdminDaoField.setAccessible(true);
-    partitionMetadataAdminDaoField.set(null, null);
-    java.lang.reflect.Field partitionMetadataDaoInstanceField =
-        DaoFactory.class.getDeclaredField("partitionMetadataDaoInstance");
-    partitionMetadataDaoInstanceField.setAccessible(true);
-    partitionMetadataDaoInstanceField.set(null, null);
-    java.lang.reflect.Field changeStreamDaoInstanceField =
-        DaoFactory.class.getDeclaredField("changeStreamDaoInstance");
-    changeStreamDaoInstanceField.setAccessible(true);
-    changeStreamDaoInstanceField.set(null, null);
   }
 
   private static final ResultSetMetadata PARTITION_METADATA_RESULT_SET_METADATA =
