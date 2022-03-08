@@ -2345,6 +2345,112 @@ class BeamSpecificTest(unittest.TestCase):
     # but not necessarily with the same index
     self.assert_frame_data_equivalent(result, df.population.nlargest(3))
 
+  def test_pivot_non_categorical(self):
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"pivot\(\) of non-categorical type is not supported"):
+      self._evaluate(
+          lambda df: df.pivot(index='foo', columns='bar', values='baz'), df)
+
+  def test_pivot_pandas_example1(self):
+    # Simple test 1
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    result = self._evaluate(
+        lambda df: df.pivot(index='foo', columns='bar', values='baz'), df)
+    self.assert_frame_data_equivalent(
+        result, df.pivot(index='foo', columns='bar', values='baz'))
+
+  def test_pivot_pandas_example2(self):
+    # Simple test 2
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    result = self._evaluate(lambda df: df.pivot(index='foo', columns='bar'), df)
+    self.assert_frame_data_equivalent(
+        result['baz'], df.pivot(index='foo', columns='bar')['baz'])
+
+  def test_pivot_pandas_example3(self):
+    # Multiple values
+    df = pd.DataFrame({
+        'foo': ['one', 'one', 'one', 'two', 'two', 'two'],
+        'bar': ['A', 'B', 'C', 'A', 'B', 'C'],
+        'baz': [1, 2, 3, 4, 5, 6],
+        'zoo': ['x', 'y', 'z', 'q', 'w', 't']
+    })
+    df['bar'] = df['bar'].astype(
+        pd.CategoricalDtype(categories=['A', 'B', 'C']))
+    result = self._evaluate(
+        lambda df: df.pivot(index='foo', columns='bar', values=['baz', 'zoo']),
+        df)
+    self.assert_frame_data_equivalent(
+        result, df.pivot(index='foo', columns='bar', values=['baz', 'zoo']))
+
+  def test_pivot_pandas_example4(self):
+    # Multiple columns
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    result = self._evaluate(
+        lambda df: df.pivot(
+            index="lev1", columns=["lev2", "lev3"], values="values"),
+        df)
+    self.assert_frame_data_equivalent(
+        result,
+        df.pivot(index="lev1", columns=["lev2", "lev3"], values="values"))
+
+  def test_pivot_pandas_example5(self):
+    # Multiple index
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    })
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    result = self._evaluate(
+        lambda df: df.pivot(
+            index=["lev1", "lev2"], columns=["lev3"], values="values"),
+        df)
+    self.assert_frame_data_equivalent(
+        result,
+        df.pivot(index=["lev1", "lev2"], columns=["lev3"], values="values"))
+
+  def test_pivot_pandas_example6(self):
+    # Value error when there are duplicates
+    df = pd.DataFrame({
+        "foo": ['one', 'one', 'two', 'two'],
+        "bar": ['A', 'A', 'B', 'C'],
+        "baz": [1, 2, 3, 4]
+    })
+    with self.assertRaisesRegex(ValueError,
+                                r"Index contains duplicate entries"):
+      df.pivot(index='foo', columns='bar', values='baz')
+
   def test_sample(self):
     df = pd.DataFrame({
         'population': [

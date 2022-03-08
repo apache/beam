@@ -275,10 +275,6 @@ class DoctestTest(unittest.TestCase):
                 'df.round(decimals)',
             ],
 
-            # We should be able to support pivot and pivot_table for categorical
-            # columns
-            'pandas.core.frame.DataFrame.pivot': ['*'],
-
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
             # Difficult to determine proxy, need to inspect function
@@ -366,9 +362,7 @@ class DoctestTest(unittest.TestCase):
             # actually raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
             # Expected to raise a ValueError, but we raise NotImplementedError
-            'pandas.core.frame.DataFrame.pivot': [
-                "df.pivot(index='foo', columns='bar', values='baz')"
-            ],
+            'pandas.core.frame.DataFrame.pivot': ["*"],
             'pandas.core.frame.DataFrame.append': [
                 'df',
                 # pylint: disable=line-too-long
@@ -832,7 +826,6 @@ class DoctestTest(unittest.TestCase):
             'melt': ['*'],
             'merge': ["df1.merge(df2, how='cross')"],
             'merge_asof': ['*'],
-            'pivot': ['*'],
             'pivot_table': ['*'],
             'qcut': ['*'],
             'reset_option': ['*'],
@@ -876,7 +869,7 @@ class DoctestTest(unittest.TestCase):
                 'merge_ordered(df1, df2, fill_method="ffill", left_by="group")'
             ],
             # Expected error.
-            'pivot': ["df.pivot(index='foo', columns='bar', values='baz')"],
+            'pivot': ["*"],
             # Never written.
             'to_pickle': ['os.remove("./dummy.pkl")'],
             **skip_reads
