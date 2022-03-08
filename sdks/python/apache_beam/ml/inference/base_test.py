@@ -28,12 +28,12 @@ from apache_beam.testing.util import equal_to
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-class MockModel:
+class FakeModel:
   def predict(self, example: int):
     return example + 1
 
 
-class MockInferenceRunner(base.InferenceRunner):
+class FakeInferenceRunner(base.InferenceRunner):
   def __init__(self, clock=None):
     self._mock_clock = clock
 
@@ -51,7 +51,7 @@ class MockModelLoader(base.ModelLoader):
   def load_model(self):
     if self._mock_clock:
       self._mock_clock.current_time += 50000
-    return MockModel()
+    return FakeModel()
 
 
 class MockClock(base.Clock):
@@ -79,7 +79,7 @@ class BaseTest(unittest.TestCase):
       ]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInferenceImpl(
-          MockModelLoader(), MockInferenceRunner())
+          MockModelLoader(), FakeInferenceRunner())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_with_keyed_examples(self):
@@ -90,7 +90,7 @@ class BaseTest(unittest.TestCase):
                   example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInferenceImpl(
-          MockModelLoader(), MockInferenceRunner())
+          MockModelLoader(), FakeInferenceRunner())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_num_inferences_metrics_counted(self):
@@ -98,7 +98,7 @@ class BaseTest(unittest.TestCase):
     examples = [1, 5, 3, 10]
     pcoll = pipeline | 'start' >> beam.Create(examples)
     actual = pcoll | base.RunInferenceImpl(
-        MockModelLoader(), MockInferenceRunner())
+        MockModelLoader(), FakeInferenceRunner())
     res = pipeline.run()
     res.wait_until_finish()
 
@@ -114,7 +114,7 @@ class BaseTest(unittest.TestCase):
     mock_clock = MockClock()
     actual = pcoll | base.RunInferenceImpl(
         MockModelLoader(clock=mock_clock),
-        MockInferenceRunner(clock=mock_clock),
+        FakeInferenceRunner(clock=mock_clock),
         clock=mock_clock)
     res = pipeline.run()
     res.wait_until_finish()

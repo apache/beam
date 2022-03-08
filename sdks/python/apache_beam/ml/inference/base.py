@@ -17,11 +17,15 @@
 
 import logging
 import platform
-import resource
+try:
+  import resource
+except ImportError:
+  resource = None
 import sys
 import time
 from typing import Any
 from typing import Iterable
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.utils import shared
@@ -32,7 +36,7 @@ _MICROSECOND_TO_NANOSECOND = 1000
 _SECOND_TO_MICROSECOND = 1000000
 
 
-def _unbatch(maybe_keyed_batches: Any):
+def _unbatch(maybe_keyed_batches: Tuple[Any, Any]):
   keys, results = maybe_keyed_batches
   if keys:
     return zip(keys, results)
@@ -132,7 +136,6 @@ class RunInferenceDoFn(beam.DoFn):
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
-    super().setup()
     self._model = self._load_model()
 
   def process(self, batch):
