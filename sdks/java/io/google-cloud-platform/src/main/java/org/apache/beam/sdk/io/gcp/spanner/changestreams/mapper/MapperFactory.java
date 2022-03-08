@@ -25,7 +25,7 @@ import java.io.Serializable;
  */
 // transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern)
-@SuppressWarnings("nullness")
+@SuppressWarnings("initialization.fields.uninitialized")
 public class MapperFactory implements Serializable {
 
   private static final long serialVersionUID = -813434573067800902L;

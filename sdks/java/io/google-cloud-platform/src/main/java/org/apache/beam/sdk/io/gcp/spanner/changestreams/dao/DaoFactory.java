@@ -30,7 +30,7 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 // transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern)
 // nullness checks for metadata instance and database are handled in the constructor
-@SuppressWarnings({"uninitialized", "nullness"})
+@SuppressWarnings({"initialization.fields.uninitialized", "nullness"})
 public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
