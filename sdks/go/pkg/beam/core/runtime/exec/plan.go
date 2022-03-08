@@ -141,7 +141,7 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 	return nil
 }
 
-// Runs any callbacks registered by the bundleFinalizer. Should be run on bundle finalization.
+// Finalize runs any callbacks registered by the bundleFinalizer. Should be run on bundle finalization.
 func (p *Plan) Finalize() error {
 	if p.status != Up {
 		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
