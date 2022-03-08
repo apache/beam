@@ -55,10 +55,10 @@ PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 _LOGGER = logging.getLogger(__name__)
 
-# Map the boolean option with the flag_name for the flags that have a
-# destination(dest) different from the flag name and the
-# default value is None in parser.add_argument().
-_FLAGS_WITH_DIFFERENT_DEST = {'use_public_ips': 'no_use_public_ips'}
+# Map defined with option names to flag names for boolean options
+# that have a destination(dest) in parser.add_argument() different
+# from the flag name and whose default value is `None`.
+_FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
 
 
 def _static_value_provider_of(value_type):
@@ -259,12 +259,12 @@ class PipelineOptions(HasDisplayData):
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
-        elif k in _FLAGS_WITH_DIFFERENT_DEST:
+        elif k in _FLAG_THAT_SETS_FALSE_VALUE:
           # Capture overriding flags, which have a different dest
           # from the flag name defined in the parser.add_argument
           # Eg: no_use_public_ips, which has the dest=use_public_ips
           # different from flag name
-          flag_that_disables_the_option = (_FLAGS_WITH_DIFFERENT_DEST[k])
+          flag_that_disables_the_option = (_FLAG_THAT_SETS_FALSE_VALUE[k])
           flags.append('--%s' % flag_that_disables_the_option)
       elif isinstance(v, list):
         for i in v:

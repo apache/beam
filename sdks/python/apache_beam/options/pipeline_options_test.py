@@ -687,15 +687,15 @@ class PipelineOptionsTest(unittest.TestCase):
             "to the user. Please specify the dest as the "
             "flag_name instead."))
     from apache_beam.options.pipeline_options import (
-        _FLAGS_WITH_DIFFERENT_DEST)
+        _FLAG_THAT_SETS_FALSE_VALUE)
 
     self.assertDictEqual(
-        _FLAGS_WITH_DIFFERENT_DEST,
+        _FLAG_THAT_SETS_FALSE_VALUE,
         options_to_flags,
         "If you are adding a new boolean flag with default=None,"
         " with different dest/option_name from the flag name, please add "
         "the dest and the flag name to the map "
-        "_FLAGS_WITH_DIFFERENT_DEST in PipelineOptions.py")
+        "_FLAG_THAT_SETS_FALSE_VALUE in PipelineOptions.py")
 
 
 if __name__ == '__main__':
