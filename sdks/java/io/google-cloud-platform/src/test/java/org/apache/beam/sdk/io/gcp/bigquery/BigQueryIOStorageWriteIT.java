@@ -19,17 +19,24 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Integration tests for {@link
@@ -65,7 +72,7 @@ public class BigQueryIOStorageWriteIT {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   }
 
-  private void runBigQueryIOStorageWritePipeline(int rowCount) {
+  private void runBigQueryIOStorageWritePipeline(int rowCount, WriteMode writeMode) {
     String tableName = TABLE_PREFIX + System.currentTimeMillis();
     TableSchema schema =
         new TableSchema()
@@ -75,22 +82,14 @@ public class BigQueryIOStorageWriteIT {
                     new TableFieldSchema().setName("str").setType("STRING")));
 
     Pipeline p = Pipeline.create(bqOptions);
-    // Assumes has size 10 bytes of data.
-    TableRow rowToInsert = new TableRow().set("number", 0).set("str", "aaaaaaaaaa");
-    Create.Values<TableRow> input = Create.<TableRow>of(rowToInsert);
-
-    p.apply("Input", input)
+    p.apply("Input", GenerateSequence.from(0).to(rowCount))
         .apply(
-            "Generate30M",
+            "GenerateMessage",
             ParDo.of(
-                new DoFn<TableRow, ArrayList<TableRow>>() {
+                new DoFn<Long, TableRow>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
-                    TableRow row = c.element();
-                    ArrayList<TableRow> rows = new ArrayList<TableRow>(300000);
-                    for (int i = 0; i < rowCount; i++) {
-                      rows.add(row);
-                    }
-                    c.ouput(rows);
+                    c.output(new TableRow().set("number", c.element()).set("str", "aaaaaaaaaa"));
                   }
                 }))
         .apply(
@@ -102,19 +101,29 @@ public class BigQueryIOStorageWriteIT {
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
     p.run().waitUntilFinish();
     String testQuery = String.format("SELECT count(*) FROM [%s.%s];", DATASET_ID, tableName);
-    QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
-    assertEquals(rowCount, response.getRows().at(0).getF().at(0).getV());
+    try {
+      QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
+      if (writeMode == WriteMode.EXACT_ONCE) {
+        assertEquals((int) response.getRows().get(0).getF().get(0).getV(), rowCount);
+      } else {
+        assertTrue((int) response.getRows().get(0).getF().get(0).getV() >= rowCount);
+      }
+    } catch (IOException e) {
+      assertTrue("Unexpected exception: " + e.toString(), false);
+    } catch (InterruptedException e) {
+      assertTrue("Unexpected exception: " + e.toString(), false);
+    }
   }
 
   @Test
   public void testBigQueryStorageWrite30MProto() throws Exception {
     setUpTestEnvironment(WriteMode.EXACT_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000);
+    runBigQueryIOStorageWritePipeline(3000000, WriteMode.EXACT_ONCE);
   }
 
   @Test
   public void testBigQueryStorageWrite30MProtoALO() throws Exception {
     setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000);
+    runBigQueryIOStorageWritePipeline(3000000, WriteMode.EXACT_ONCE);
   }
 }
