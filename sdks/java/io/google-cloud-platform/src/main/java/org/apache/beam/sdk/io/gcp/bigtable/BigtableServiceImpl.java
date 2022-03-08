@@ -49,6 +49,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -133,14 +134,20 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean start() throws IOException {
-      RowSet.Builder rowSetBuilder = RowSet.newBuilder();
-      for (ByteKeyRange sourceRange : source.getRanges()) {
-        rowSetBuilder =
-            rowSetBuilder.addRowRanges(
-                RowRange.newBuilder()
-                    .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
-                    .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
+      buffer = new ConcurrentLinkedQueue<Row>();
+      RowRange[] rowRanges = new RowRange[source.getRanges().size()];
+      for (int i = 0; i < source.getRanges().size(); i++) {
+        rowRanges[i] = RowRange.newBuilder()
+            .setStartKeyClosed(
+                ByteString.copyFrom(source.getRanges().get(i).getStartKey().getValue()))
+            .setEndKeyOpen(
+                ByteString.copyFrom(source.getRanges().get(i).getEndKey().getValue()))
+            .build();
       }
+      // Sort the rowRanges by startKey
+      Arrays.sort(rowRanges, RANGE_START_COMPARATOR);
+      rowSet = RowSet.newBuilder().
+          addAllRowRanges(Arrays.stream(rowRanges).collect(Collectors.toList())).build();
 
       HashMap<String, String> baseLabels = new HashMap<>();
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
@@ -164,43 +171,36 @@ class BigtableServiceImpl implements BigtableService {
               source.getTableId().get()));
       serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-      rowSet = rowSetBuilder.build();
-      buffer = new ConcurrentLinkedQueue<Row>();
 
-      buildReadRequest();
+      fillReadRowsBuffer();
       return advance();
     }
 
     @Override
     public boolean advance() throws IOException {
       if (buffer.isEmpty()) {
-        return refillReadRowsBuffer();
+        return buildReadRowsRequest();
       }
       currentRow = buffer.remove();
       return currentRow != null;
     }
 
-    public boolean refillReadRowsBuffer() throws IOException {
-      if (rowSet.getRowRangesCount() == 0 && rowSet.getRowKeysCount() == 0) { //Is latter cond useless?
+    public boolean buildReadRowsRequest() throws IOException {
+      if (rowSet.getRowRangesCount() == 0) {
         return false;
       }
       RowSet.Builder segment = RowSet.newBuilder();
 
-      RowRange[] rowRanges =
-          rowSet.getRowRangesList().toArray(new RowRange[rowSet.getRowRangesCount()]);
-
-
-      Arrays.sort(rowRanges, RANGE_START_COMPARATOR);
+      ByteString splitPoint = currentRow.getKey();
 
       for (int i = 0; i < rowSet.getRowRangesCount(); i++) {
         RowRange rowRange = rowSet.getRowRanges(i);
-        ByteString splitPoint = currentRow.getKey();
 
         int startCmp = StartPoint.extract(rowRange).compareTo(new StartPoint(splitPoint, true));
         int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(splitPoint, true));
 
         if (startCmp > 0) {
-          // If the startKey is great than split than add the remaining Range
+          // If the startKey is great than split than add the remaining Ranges
           segment.addRowRanges(rowRange);
         } else if (endCmp > 0) {
           // Row is split, remove all read rowKeys and split RowSet at last Read Row
@@ -213,12 +213,18 @@ class BigtableServiceImpl implements BigtableService {
         return false;
       }
       rowSet = segment.build();
-      buildReadRequest();
-      currentRow = buffer.remove();
-      return currentRow != null;
+      if(fillReadRowsBuffer()) {
+        currentRow = buffer.remove();
+        return currentRow != null;
+      } else {
+        return false;
+      }
     }
 
-    public void buildReadRequest() throws IOException {
+    // Make this return boolean to see if it is getting returned an empty row?
+
+
+    public boolean fillReadRowsBuffer() throws IOException {
       String tableNameStr =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
 
@@ -230,12 +236,15 @@ class BigtableServiceImpl implements BigtableService {
       }
       try {
         results = session.getDataClient().readRows(request.build());
+
         // results = session.getDataClient(). Add Callable here (Async?)
-        if (results.available() != 0) { // Edge Cases?
-          buffer.addAll(Arrays.asList(
-              results.next(MINI_BATCH_ROW_LIMIT)));
+        if (results.available() == 0) { // Edge Cases?
+          return false;
         }
+        buffer.addAll(Arrays.asList(
+            results.next(MINI_BATCH_ROW_LIMIT)));
         serviceCallMetric.call("ok");
+        return true;
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().value());
         throw e;
