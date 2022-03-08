@@ -2127,9 +2127,8 @@ This feature implementation in Python SDK is not fully completed; see more at [B
 
 {{< paragraph class="language-go" >}}
 **PaneInfo:**
-This feature isn't implemented in the Go SDK; see more at [BEAM-3304](https://issues.apache.org/jira/browse/BEAM-3304). However, once implemented, when triggers are used, Beam provides
-information about the current firing. The pane lets you determine whether this
-is an early or a late firing, and how many times this window has already fired for this key.
+When triggers are used, Beam provides `beam.PaneInfo` object that contains information about the current firing. Using `beam.PaneInfo`
+you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -2150,9 +2149,11 @@ class ProcessRecord(beam.DoFn):
 {{< /highlight >}}
 
 {{< highlight go >}}
-// PaneInfo and triggers are not yet implemented in the Go SDK.
-// See https://issues.apache.org/jira/browse/BEAM-3304 for info
-// on contributing triggers and panes.
+func MyDoFn(pn beam.PaneInfo, word string) string {
+  t := int(pn.timing)
+  isFirstPane, isLastPane := pn.IsFirst, pn.IsLast
+  ...
+}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
