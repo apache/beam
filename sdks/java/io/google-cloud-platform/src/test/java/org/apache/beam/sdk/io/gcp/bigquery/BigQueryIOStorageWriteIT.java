@@ -125,6 +125,6 @@ public class BigQueryIOStorageWriteIT {
   @Test
   public void testBigQueryStorageWrite30MProtoALO() throws Exception {
     setUpTestEnvironment(WriteMode.AT_LEAST_ONCE);
-    runBigQueryIOStorageWritePipeline(3000000, WriteMode.EXACT_ONCE);
+    runBigQueryIOStorageWritePipeline(3000000, WriteMode.AT_LEAST_ONCE);
   }
 }
