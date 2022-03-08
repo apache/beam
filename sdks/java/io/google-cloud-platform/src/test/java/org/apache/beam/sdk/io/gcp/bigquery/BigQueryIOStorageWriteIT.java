@@ -60,7 +60,7 @@ public class BigQueryIOStorageWriteIT {
 
   private void setUpTestEnvironment(WriteMode writeMode) {
     PipelineOptionsFactory.register(BigQueryOptions.class);
-    bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject(TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject());
     if (writeMode == WriteMode.EXACT_ONCE) {
       bqOptions.setUseStorageWriteApi(true);
