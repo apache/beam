@@ -65,6 +65,13 @@ dependencies {
   implementation library.java.google_api_client
   implementation library.java.google_api_services_bigquery
   implementation library.java.google_api_services_pubsub
+  // GCP PubSub client is used in LeaderBoardIT and StatefulTeamScoreIT
+  implementation library.java.google_cloud_pubsub
+  implementation library.java.gax
+  implementation(library.java.gax_grpc) {
+    // BEAM-13781: gax-grpc's gRPC version was older than Beam declared
+    exclude group: 'io.grpc', module: 'grpc-netty-shaded'
+  }
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_cloud_datastore_v1_proto_client

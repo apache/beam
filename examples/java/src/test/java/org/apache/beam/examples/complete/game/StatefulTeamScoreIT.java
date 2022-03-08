@@ -19,21 +19,38 @@ package org.apache.beam.examples.complete.game;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.rpc.FixedTransportChannelProvider;
+import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.api.services.bigquery.model.QueryResponse;
-import com.google.api.services.pubsub.Pubsub;
+import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
+import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
+import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
+import com.google.pubsub.v1.PushConfig;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
-import org.apache.beam.examples.complete.game.injector.InjectorUtils;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -44,15 +61,25 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link StatefulTeamScore}. */
 @RunWith(JUnit4.class)
 public class StatefulTeamScoreIT {
+  private static final DateTimeFormatter DATETIME_FORMAT =
+      DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
+  private static final String EVENTS_TOPIC_NAME = "events";
   public static final String LEADERBOARD_TEAM_LEADER_TABLE = "leaderboard_team_leader";
-  public static final String SELECT_COUNT_AS_TOTAL_QUERY =
+  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
+  public static final String SELECT_TOTAL_SCORE_QUERY =
       "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
+  private static final String TOPIC_PREFIX = "statefulteamscores-";
   private StatefulTeamScoreOptions options =
       TestPipeline.testingPipelineOptions().as(StatefulTeamScoreIT.StatefulTeamScoreOptions.class);
+  private static String pubsubEndpoint;
+  private @Nullable ManagedChannel channel = null;
+  private @Nullable TransportChannelProvider channelProvider = null;
+  private @Nullable TopicAdminClient topicAdmin = null;
+  private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
+  private @Nullable TopicPath eventsTopicPath = null;
+  private @Nullable SubscriptionPath subscriptionPath = null;
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
-  private static Pubsub pubsub;
   private String projectId;
-  private static final String TOPIC = "projects/apache-beam-testing/topics/statefulteamscores";
   private BigqueryClient bqClient;
   private final String OUTPUT_DATASET = "stateful_team_score_e2e";
 
@@ -72,7 +99,7 @@ public class StatefulTeamScoreIT {
   }
 
   @Test
-  public void testE2EStatefulTeamScoreOptions() throws Exception {
+  public void testE2EStatefulTeamScore() throws Exception {
     StatefulTeamScore.runStatefulTeamScore(options, testPipeline);
 
     FluentBackoff backoffFactory =
@@ -84,10 +111,7 @@ public class StatefulTeamScoreIT {
     QueryResponse response =
         bqClient.queryWithRetries(
             String.format(
-                SELECT_COUNT_AS_TOTAL_QUERY,
-                projectId,
-                OUTPUT_DATASET,
-                LEADERBOARD_TEAM_LEADER_TABLE),
+                SELECT_TOTAL_SCORE_QUERY, projectId, OUTPUT_DATASET, LEADERBOARD_TEAM_LEADER_TABLE),
             projectId,
             backoffFactory);
 
@@ -99,7 +123,7 @@ public class StatefulTeamScoreIT {
   private void setupPipelineOptions() {
     options.as(GcpOptions.class).setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
-    options.setTopic(TOPIC);
+    options.setSubscription(subscriptionPath.getPath());
     options.setStreaming(true);
     options.as(DirectOptions.class).setBlockOnRun(false);
     options.setTeamWindowDuration(1);
@@ -107,12 +131,55 @@ public class StatefulTeamScoreIT {
   }
 
   private void setupPubSub() throws IOException {
-    pubsub = InjectorUtils.getClient();
-    InjectorUtils.createTopic(pubsub, TOPIC);
+    pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
+    channel = ManagedChannelBuilder.forTarget(pubsubEndpoint).useTransportSecurity().build();
+    channelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
+
+    topicAdmin =
+        TopicAdminClient.create(
+            TopicAdminSettings.newBuilder()
+                .setCredentialsProvider(options::getGcpCredential)
+                .setTransportChannelProvider(channelProvider)
+                .setEndpoint(pubsubEndpoint)
+                .build());
+
+    subscriptionAdmin =
+        SubscriptionAdminClient.create(
+            SubscriptionAdminSettings.newBuilder()
+                .setCredentialsProvider(options::getGcpCredential)
+                .setTransportChannelProvider(channelProvider)
+                .setEndpoint(pubsubEndpoint)
+                .build());
+
+    PubsubClient.TopicPath eventsTopicPathTmp =
+        PubsubClient.topicPathFromName(options.getProject(), createTopicName(EVENTS_TOPIC_NAME));
+
+    topicAdmin.createTopic(eventsTopicPathTmp.getPath());
+
+    // Set this after successful creation; it signals that the topic needs teardown
+    eventsTopicPath = eventsTopicPathTmp;
+
+    String subscriptionName =
+        eventsTopicPath.getName() + "_beam_" + ThreadLocalRandom.current().nextLong();
+
+    // Generates randomized subscription name.
+    // Example:
+    // 'statefulteamscores-2018-12-11-23-32-333-events-6185541326079233738_beam_3331121845501767394'
+    PubsubClient.SubscriptionPath subscriptionPathTmp =
+        new PubsubClient.SubscriptionPath(
+            String.format("projects/%s/subscriptions/%s", options.getProject(), subscriptionName));
+
+    subscriptionAdmin.createSubscription(
+        subscriptionPathTmp.getPath(),
+        eventsTopicPath.getPath(),
+        PushConfig.getDefaultInstance(),
+        DEFAULT_ACK_DEADLINE_SECONDS);
+
+    subscriptionPath = subscriptionPathTmp;
 
     PubsubIO.Write<String> write =
         PubsubIO.writeStrings()
-            .to(TOPIC)
+            .to(eventsTopicPath.getPath())
             .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
             .withIdAttribute(projectId);
 
@@ -127,6 +194,51 @@ public class StatefulTeamScoreIT {
   @After
   public void cleanupTestEnvironment() throws Exception {
     bqClient.deleteDataset(projectId, OUTPUT_DATASET);
-    pubsub.projects().topics().delete(TOPIC);
+
+    if (subscriptionAdmin == null || topicAdmin == null || channel == null) {
+      return;
+    }
+
+    try {
+      if (subscriptionPath != null) {
+        subscriptionAdmin.deleteSubscription(subscriptionPath.getPath());
+      }
+      if (eventsTopicPath != null) {
+        for (String subscriptionPath :
+            topicAdmin.listTopicSubscriptions(eventsTopicPath.getPath()).iterateAll()) {
+          subscriptionAdmin.deleteSubscription(subscriptionPath);
+        }
+        topicAdmin.deleteTopic(eventsTopicPath.getPath());
+      }
+    } finally {
+      subscriptionAdmin.close();
+      topicAdmin.close();
+      channel.shutdown();
+
+      subscriptionAdmin = null;
+      topicAdmin = null;
+      channelProvider = null;
+      channel = null;
+
+      eventsTopicPath = null;
+      subscriptionPath = null;
+    }
+  }
+
+  /**
+   * Generates randomized topic name.
+   *
+   * <p>Example: 'statefulteamscores-2018-12-11-23-32-333-events-6185541326079233738'
+   */
+  private static String createTopicName(String name) throws IOException {
+    StringBuilder topicName = new StringBuilder(TOPIC_PREFIX);
+
+    DATETIME_FORMAT.printTo(topicName, Instant.now());
+
+    return topicName.toString()
+        + "-"
+        + name
+        + "-"
+        + String.valueOf(ThreadLocalRandom.current().nextLong());
   }
 }

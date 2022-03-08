@@ -134,7 +134,7 @@ public class StatefulTeamScore extends LeaderBoard {
         .apply(
             PubsubIO.readStrings()
                 .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-                .fromTopic(options.getTopic()))
+                .fromSubscription(options.getSubscription()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
         // Create <team, GameActionInfo> mapping. UpdateTeamScore uses team name as key.
         .apply(

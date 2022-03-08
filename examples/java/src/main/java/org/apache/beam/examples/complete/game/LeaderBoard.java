@@ -93,7 +93,7 @@ public class LeaderBoard extends HourlyTeamScore {
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
   /** Options supported by {@link LeaderBoard}. */
-  public interface Options extends ExampleOptions, StreamingOptions {
+  public interface Options extends ExampleOptions, StreamingOptions, GcpOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
@@ -106,6 +106,12 @@ public class LeaderBoard extends HourlyTeamScore {
     String getTopic();
 
     void setTopic(String value);
+
+    @Description("Pub/Sub subscription to read from")
+    @Validation.Required
+    String getSubscription();
+
+    void setSubscription(String value);
 
     @Description("Numeric value of fixed window duration for team analysis, in minutes")
     @Default.Integer(60)
@@ -222,8 +228,8 @@ public class LeaderBoard extends HourlyTeamScore {
         pipeline
             .apply(
                 PubsubIO.readStrings()
-                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
-                    .fromTopic(options.getTopic()))
+                    .fromSubscription(options.getSubscription())
+                    .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE))
             .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     gameEvents
