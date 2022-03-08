@@ -179,8 +179,8 @@ func TestNew(t *testing.T) {
 		},
 		{
 			Name: "errReflectTypePrecedence: after bundle finalizer",
-			Fn: func(typex.PaneInfo, typex.Window, typex.EventTime, typex.BundleFinalization, reflect.Type, []byte) {},
-			Err: errReflectTypePrecedence,
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, typex.BundleFinalization, reflect.Type, []byte) {},
+			Err:  errReflectTypePrecedence,
 		},
 		{
 			Name: "errInputPrecedence- Iter before after output",
@@ -213,8 +213,8 @@ func TestNew(t *testing.T) {
 		},
 		{
 			Name: "errBundleFinalizationPrecedence",
-			Fn: func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte, typex.BundleFinalization) {},
-			Err: errBundleFinalizationPrecedence,
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte, typex.BundleFinalization) {},
+			Err:  errBundleFinalizationPrecedence,
 		},
 		{
 			Name: "errEventTimeRetPrecedence",

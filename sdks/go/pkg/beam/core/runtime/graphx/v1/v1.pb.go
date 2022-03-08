@@ -212,19 +212,19 @@ const (
 	Type_CONTEXT Type_Special = 2
 	Type_TYPE    Type_Special = 3
 	// Beam
-	Type_EVENTTIME     		Type_Special = 10
-	Type_WINDOW        		Type_Special = 22
-	Type_KV            		Type_Special = 11
-	Type_COGBK         		Type_Special = 13
-	Type_WINDOWEDVALUE 		Type_Special = 14
+	Type_EVENTTIME          Type_Special = 10
+	Type_WINDOW             Type_Special = 22
+	Type_KV                 Type_Special = 11
+	Type_COGBK              Type_Special = 13
+	Type_WINDOWEDVALUE      Type_Special = 14
 	Type_BUNDLEFINALIZATION Type_Special = 23
-	Type_T             		Type_Special = 15
-	Type_U             		Type_Special = 16
-	Type_V             		Type_Special = 17
-	Type_W             		Type_Special = 18
-	Type_X             		Type_Special = 19
-	Type_Y             		Type_Special = 20
-	Type_Z             		Type_Special = 21
+	Type_T                  Type_Special = 15
+	Type_U                  Type_Special = 16
+	Type_V                  Type_Special = 17
+	Type_W                  Type_Special = 18
+	Type_X                  Type_Special = 19
+	Type_Y                  Type_Special = 20
+	Type_Z                  Type_Special = 21
 )
 
 // Enum value maps for Type_Special.

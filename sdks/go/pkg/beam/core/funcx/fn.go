@@ -456,14 +456,14 @@ func validateOrder(u *Fn) error {
 }
 
 var (
-	errContextParam             	= errors.New("may only have a single context.Context parameter and it must be the first parameter")
-	errPaneParamPrecedence      	= errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
-	errWindowParamPrecedence    	= errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
-	errEventTimeParamPrecedence 	= errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
-	errReflectTypePrecedence    	= errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errRTrackerPrecedence       	= errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
+	errContextParam                 = errors.New("may only have a single context.Context parameter and it must be the first parameter")
+	errPaneParamPrecedence          = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
+	errWindowParamPrecedence        = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
+	errEventTimeParamPrecedence     = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
+	errReflectTypePrecedence        = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
+	errRTrackerPrecedence           = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
 	errBundleFinalizationPrecedence = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
-	errInputPrecedence          	= errors.New("inputs parameters must precede emit function parameters")
+	errInputPrecedence              = errors.New("inputs parameters must precede emit function parameters")
 )
 
 type paramState int
