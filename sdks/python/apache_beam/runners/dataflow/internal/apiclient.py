@@ -300,7 +300,8 @@ class Environment(object):
             common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING in
             environment.capabilities)
         container_image.environmentId = id
-        container_image.capabilities = environment.capabilities
+        for capability in environment.capabilities:
+          container_image.capabilities.append(capability)
         pool.sdkHarnessContainerImages.append(container_image)
 
     if self.debug_options.number_of_worker_harness_threads:
