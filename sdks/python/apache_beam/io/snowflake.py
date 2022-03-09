@@ -393,7 +393,7 @@ class WriteToSnowflake(beam.PTransform):
             {"dataType":{"type":"text","length":null},"name":"","nullable":false},
             {"dataType":{"type":"varbinary","size":null},"name":"","nullable":false},
             {"dataType":{"type":"varchar","length":100},"name":"","nullable":false},
-            {"dataType":{"type":"variant"},"name":"","nullable":true}]
+            {"dataType":{"type":"geography"},"name":"","nullable":true}]
             }
     """
     verify_credentials(
