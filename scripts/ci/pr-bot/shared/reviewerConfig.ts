@@ -32,7 +32,7 @@ export class ReviewerConfig {
 
   // Returns all possible reviewers for each label configured.
   getReviewersForAllLabels(): { [key: string]: string[] } {
-    var labelObjects = this.config.labels;
+    const labelObjects = this.config.labels;
     let reviewersForLabels = {};
     for (const labelObject of labelObjects) {
       reviewersForLabels[labelObject.name.toLowerCase()] =
@@ -69,7 +69,7 @@ export class ReviewerConfig {
 
   // Get possible reviewers excluding the author.
   getReviewersForLabel(label: string, exclusionList: string[]): string[] {
-    var labelObjects = this.config.labels;
+    const labelObjects = this.config.labels;
     const labelObject = labelObjects.find(
       (labelObject) => labelObject.name.toLowerCase() === label.toLowerCase()
     );
@@ -111,7 +111,7 @@ ${yaml.dump(this.config)}`;
   }
 
   getExclusionListForLabel(label: string): string[] {
-    var labelObjects = this.config.labels;
+    const labelObjects = this.config.labels;
     const labelObject = labelObjects.find(
       (labelObject) => labelObject.name.toLowerCase() === label.toLowerCase()
     );

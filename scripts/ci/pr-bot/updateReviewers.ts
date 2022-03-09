@@ -137,14 +137,10 @@ function addReviewerActivity(
 
   for (const reviewer of reviewers) {
     if (reviewer !== author) {
-      let curReviewerActivity = {
-        reviews: 1,
-        pullsAuthored: 0,
-      };
       if (reviewer in reviewerActivity.reviewers) {
         reviewerActivity.reviewers[reviewer].reviews++;
       } else {
-        reviewerActivity.reviewers[author] = {
+        reviewerActivity.reviewers[reviewer] = {
           reviews: 1,
           pullsAuthored: 0,
         };
@@ -184,6 +180,17 @@ interface configUpdates {
   reviewersRemovedForLabels: { [reviewer: string]: string[] };
 }
 
+function reviewerIsBot(reviewer: string): boolean {
+  if (
+    ["codecov", "github-actions"].find(
+      (bot) => reviewer.toLowerCase().indexOf(bot) != -1
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function updateReviewerConfig(
   reviewerActivityByLabel: { [label: string]: reviewerActivity },
   reviewerConfig: typeof ReviewerConfig
@@ -196,16 +203,17 @@ function updateReviewerConfig(
   for (const label of Object.keys(currentReviewersForLabels)) {
     // Remove any reviewers with no reviews or pulls created
     let reviewers = currentReviewersForLabels[label];
+    let updatedReviewers: string[] = [];
     const exclusionList = reviewerConfig.getExclusionListForLabel(label);
-    for (let i = 0; i < reviewers.length; i++) {
-      if (!reviewerActivityByLabel[label].reviewers[reviewers[i]]) {
-        if (reviewers[i] in updates.reviewersRemovedForLabels) {
-          updates.reviewersRemovedForLabels[reviewers[i]].push(label);
+    for (const reviewer of reviewers) {
+      if (reviewerActivityByLabel[label].reviewers[reviewer]) {
+        updatedReviewers.push(reviewer);
+      } else {
+        if (reviewer in updates.reviewersRemovedForLabels) {
+          updates.reviewersRemovedForLabels[reviewer].push(label);
         } else {
-          updates.reviewersRemovedForLabels[reviewers[i]] = [label];
+          updates.reviewersRemovedForLabels[reviewer] = [label];
         }
-        reviewers.splice(i, 1);
-        i--;
       }
     }
 
@@ -216,12 +224,14 @@ function updateReviewerConfig(
       const reviewerContributions =
         reviewerActivityByLabel[label].reviewers[reviewer].reviews +
         reviewerActivityByLabel[label].reviewers[reviewer].pullsAuthored;
+
       if (
         reviewerContributions >= 5 &&
-        reviewers.indexOf(reviewer) < 0 &&
-        exclusionList.indexOf(reviewer) < 0
+        updatedReviewers.indexOf(reviewer) < 0 &&
+        exclusionList.indexOf(reviewer) < 0 &&
+        !reviewerIsBot(reviewer)
       ) {
-        reviewers.push(reviewer);
+        updatedReviewers.push(reviewer);
         if (reviewer in updates.reviewersAddedForLabels) {
           updates.reviewersAddedForLabels[reviewer].push(label);
         } else {
@@ -230,7 +240,11 @@ function updateReviewerConfig(
       }
     }
 
-    reviewerConfig.updateReviewerForLabel(label, reviewers);
+    console.log(
+      `Updated reviewers for label ${label}: ${updatedReviewers.join(",")}`
+    );
+
+    reviewerConfig.updateReviewerForLabel(label, updatedReviewers);
   }
 
   return updates;
@@ -241,6 +255,8 @@ async function openPull(updates: configUpdates) {
   const branch = `pr-bot-${
     curDate.getMonth() + 1
   }-${curDate.getDay()}-${curDate.getFullYear()}-${curDate.getHours()}-${curDate.getMinutes()}-${curDate.getSeconds()}`;
+  await exec.exec(`git config user.email ${BOT_NAME}@github.com`);
+  await exec.exec("git config pull.rebase false");
   await exec.exec(`git checkout -b ${branch}`);
   await exec.exec(`git add ${PATH_TO_CONFIG_FILE}`);
   await exec.exec(
