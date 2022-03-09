@@ -14,7 +14,7 @@
   body: Beam reads your data from a diverse set of supported sources, no matter if it’s on-prem or in the cloud.
   icon: /images/model-sources-icon.svg
 - title: Data Processing
-  body: Beam executes your business logic for both Batch and Streaming use cases.
+  body: Beam executes your business logic for both batch and streaming use cases.
   icon: /images/model-processing-icon.svg
 - title: Data Writing
   body: Beam writes the results of your data processing logic to the most popular data sinks in the industry.
