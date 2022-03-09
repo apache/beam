@@ -63,39 +63,20 @@ func TestSpacesToEqualsOption(t *testing.T) {
 
 func TestInitVars(t *testing.T) {
 	tests := []struct {
-		name  string
-		want  string
-		want1 string
-		want2 error
-		want3 bool
-		want4 PipelineDefinitionType
+		name string
+		want []interface{}
 	}{
 		{
-			name:  "Create empty variables",
-			want:  EmptyLine,
-			want1: EmptyLine,
-			want2: errors.New(EmptyLine),
-			want3: false,
-			want4: RegularDefinition,
+			name: "Create empty variables",
+			want: []interface{}{EmptyLine, EmptyLine, errors.New(EmptyLine), false, RegularDefinition},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1, got2, got3, got4 := InitVars()
-			if got != tt.want {
-				t.Errorf("InitVars() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("InitVars() got1 = %v, want %v", got1, tt.want1)
-			}
-			if !reflect.DeepEqual(got2, tt.want2) {
-				t.Errorf("InitVars() got2 = %v, want %v", got2, tt.want2)
-			}
-			if got3 != tt.want3 {
-				t.Errorf("InitVars() got3 = %v, want %v", got3, tt.want3)
-			}
-			if got4 != tt.want4 {
-				t.Errorf("InitVars() got4 = %v, want %v", got4, tt.want4)
+			variables := append([]interface{}{}, got, got1, got2, got3, got4)
+			if !reflect.DeepEqual(variables, tt.want) {
+				t.Errorf("InitVars() variables = %v, want %v", variables, tt.want)
 			}
 		})
 	}
@@ -276,7 +257,7 @@ func TestAddNewLine(t *testing.T) {
 
 func TestProcessLine(t *testing.T) {
 	pipelineName := uuid.New().String()
-	pythonExample, err := os.OpenFile(filepath.Join(sourceDir, pythonExampleName), os.O_RDWR, 0755)
+	pythonExample, err := os.OpenFile(filepath.Join(sourceDir, pythonExampleName), os.O_RDWR, fullPermission)
 	if err != nil {
 		panic(err)
 	}
@@ -294,11 +275,11 @@ func TestProcessLine(t *testing.T) {
 		err          error
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		want1   PipelineDefinitionType
-		wantErr bool
+		name        string
+		args        args
+		want        bool
+		wantDefType PipelineDefinitionType
+		wantErr     bool
 	}{
 		{
 			name: "Empty curLine",
@@ -313,9 +294,9 @@ func TestProcessLine(t *testing.T) {
 				tempFile: pythonExample,
 				err:      errors.New(EmptyLine),
 			},
-			want:    false,
-			want1:   RegularDefinition,
-			wantErr: false,
+			want:        false,
+			wantDefType: RegularDefinition,
+			wantErr:     false,
 		},
 		{
 			name: "With correct line",
@@ -330,9 +311,9 @@ func TestProcessLine(t *testing.T) {
 				tempFile: pythonExample,
 				err:      errors.New(EmptyLine),
 			},
-			want:    true,
-			want1:   RegularDefinition,
-			wantErr: false,
+			want:        true,
+			wantDefType: RegularDefinition,
+			wantErr:     false,
 		},
 		{
 			name: "With empty pipelineId",
@@ -347,14 +328,14 @@ func TestProcessLine(t *testing.T) {
 				tempFile: pythonExample,
 				err:      errors.New(EmptyLine),
 			},
-			want:    false,
-			want1:   WithDefinition,
-			wantErr: false,
+			want:        false,
+			wantDefType: WithDefinition,
+			wantErr:     false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := ProcessLine(tt.args.curLine, tt.args.pipelineName, tt.args.spaces, tt.args.regs, tt.args.tempFile, tt.args.err)
+			got, gotDefType, err := ProcessLine(tt.args.curLine, tt.args.pipelineName, tt.args.spaces, tt.args.regs, tt.args.tempFile, tt.args.err)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ProcessLine() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -362,8 +343,8 @@ func TestProcessLine(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("ProcessLine() got = %v, want %v", got, tt.want)
 			}
-			if got1 != tt.want1 {
-				t.Errorf("ProcessLine() got1 = %v, want %v", got1, tt.want1)
+			if gotDefType != tt.wantDefType {
+				t.Errorf("ProcessLine() gotDefType = %v, want %v", gotDefType, tt.wantDefType)
 			}
 		})
 	}
