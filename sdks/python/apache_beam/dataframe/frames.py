@@ -231,6 +231,16 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
+  def swaplevel(self, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'swaplevel',
+            lambda df: df.swaplevel(**kwargs), [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def fillna(self, value, method, axis, limit, **kwargs):
@@ -4717,17 +4727,110 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise TypeError("str.repeat(repeats=) value must be an int or a "
                       f"DeferredSeries (encountered {type(repeats)}).")
 
-  get_dummies = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'get_dummies',
-      reason='non-deferred-columns')
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  def get_dummies(self, **kwargs):
+    """
+    Series must be categorical dtype. Please cast to ``CategoricalDtype``
+    to ensure correct categories.
+    """
+    dtype = self._expr.proxy().dtype
+    if not isinstance(dtype, pd.CategoricalDtype):
+      raise frame_base.WontImplementError(
+          "get_dummies() of non-categorical type is not supported because "
+          "the type of the output column depends on the data. Please use "
+          "pd.CategoricalDtype with explicit categories.",
+          reason="non-deferred-columns")
 
-  split = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'split',
-      reason='non-deferred-columns')
+    split_cats = [
+      cat.split(sep=kwargs.get('sep', '|')) for cat in dtype.categories
+    ]
 
-  rsplit = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'rsplit',
-      reason='non-deferred-columns')
+    # Adding the nan category because the there could be the case that
+    # the data includes NaNs, which is not valid to be casted as a Category,
+    # but nevertheless would be broadcasted as a column in get_dummies()
+    columns = sorted(set().union(*split_cats))
+    columns = columns + ['nan'] if 'nan' not in columns else columns
+
+    proxy = pd.DataFrame(columns=columns).astype(int)
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'get_dummies',
+            lambda series: pd.concat(
+              [proxy, series.str.get_dummies(**kwargs)]
+              ).fillna(value=0, method=None).astype('int64'),
+            [self._expr],
+            proxy=proxy,
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  def _split_helper(self, rsplit=False, **kwargs):
+    expand = kwargs.get('expand', False)
+
+    if not expand:
+      # Not creating separate columns
+      proxy = self._expr.proxy()
+      if not rsplit:
+        func = lambda s: pd.concat([proxy, s.str.split(**kwargs)])
+      else:
+        func = lambda s: pd.concat([proxy, s.str.rsplit(**kwargs)])
+    else:
+      # Creating separate columns, so must be more strict on dtype
+      dtype = self._expr.proxy().dtype
+      if not isinstance(dtype, pd.CategoricalDtype):
+        method_name = 'rsplit' if rsplit else 'split'
+        raise frame_base.WontImplementError(
+            f"{method_name}() of non-categorical type is not supported because "
+            "the type of the output column depends on the data. Please use "
+            "pd.CategoricalDtype with explicit categories.",
+            reason="non-deferred-columns")
+
+      # Split the categories
+      split_cats = dtype.categories.str.split(**kwargs)
+
+      # Count the number of new columns to create for proxy
+      max_splits = len(max(split_cats, key=len))
+      proxy = pd.DataFrame(columns=range(max_splits))
+
+      def func(s):
+        if not rsplit:
+          result = s.str.split(**kwargs)
+        else:
+          result = s.str.rsplit(**kwargs)
+        result[~result.isna()].replace(np.nan, value=None)
+        return result
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'split',
+            func,
+            [self._expr],
+            proxy=proxy,
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def split(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=False, **kwargs)
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def rsplit(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=True, **kwargs)
 
 
 ELEMENTWISE_STRING_METHODS = [

@@ -30,8 +30,10 @@ ext.summary = "IO library to read and write Amazon Web Services services from Be
 
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.error_prone_annotations
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.aws_java_sdk2_apache_client
+  implementation library.java.aws_java_sdk2_netty_client
   implementation library.java.aws_java_sdk2_auth
   implementation library.java.aws_java_sdk2_cloudwatch
   implementation library.java.aws_java_sdk2_dynamodb
@@ -53,19 +55,16 @@ dependencies {
   implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4"
   implementation "commons-lang:commons-lang:2.6"
   implementation library.java.commons_lang3
-  implementation library.java.http_core
   implementation library.java.commons_codec
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:kinesis", configuration: "testRuntimeMigration")
   testImplementation "io.findify:s3mock_2.12:0.2.6"
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:1.3.5'
   testImplementation library.java.mockito_core
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
-  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6' // later versions conflict with s3mock
   testImplementation library.java.hamcrest
-  testImplementation library.java.powermock
-  testImplementation library.java.powermock_mockito
   testImplementation "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

@@ -20,7 +20,7 @@
 #   multifile: false
 #   context_line: 29
 #   categories:
-#     - Combiners
+#     - Core Transforms
 
 import apache_beam as beam
 

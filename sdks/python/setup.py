@@ -142,7 +142,7 @@ REQUIRED_PACKAGES = [
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
-    'numpy>=1.14.3,<1.22.0',
+    'numpy>=1.14.3,<1.23.0',
     'pymongo>=3.8.0,<4.0.0',
     'protobuf>=3.12.2,<4',
     'proto-plus>=1.7.1,<2',
@@ -174,7 +174,8 @@ REQUIRED_TEST_PACKAGES = [
     'pytest-timeout>=1.3.3,<2',
     'sqlalchemy>=1.3,<2.0',
     'psycopg2-binary>=2.8.5,<3.0.0',
-    'testcontainers>=3.0.3,<4.0.0',
+    'testcontainers[mysql]>=3.0.3,<4.0.0',
+    'cryptography>=36.0.0',
 ]
 
 GCP_REQUIREMENTS = [
@@ -205,6 +206,7 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
+    'google-cloud-dataproc>=3.0.0,<3.2.0',
     'ipython>=7,<8',
     'ipykernel>=5.2.0,<6',
     'ipywidgets>=7.6.5,<8',
@@ -253,7 +255,7 @@ def generate_protos_first(original_cmd):
 
 python_requires = '>=3.6'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 9:
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -325,6 +327,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
+          'Programming Language :: Python :: 3.9',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

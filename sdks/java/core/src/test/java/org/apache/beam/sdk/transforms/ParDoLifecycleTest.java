@@ -386,10 +386,7 @@ public class ParDoLifecycleTest implements Serializable {
 
       List<CallState> states = Arrays.stream(requiredCallStates).collect(Collectors.toList());
       assertThat(
-          "At least one bundle should contain "
-              + states
-              + ", got "
-              + ExceptionThrowingFn.callStateMap.values(),
+          "At least one bundle should contain " + states + ", got " + callStates.values(),
           callStates.values().stream()
               .anyMatch(tracker -> tracker.callStateVisited.equals(states)));
     }

@@ -14,11 +14,12 @@
 # limitations under the License.
 
 import os
+import pathlib
 import shutil
 
 import pytest
 
-from api.v1.api_pb2 import SDK_JAVA, STATUS_UNSPECIFIED, \
+from api.v1.api_pb2 import Sdk, SDK_JAVA, SDK_GO, STATUS_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from cd_helper import CDHelper
 from config import Config
@@ -127,3 +128,20 @@ def test__save_to_cloud_storage(mocker):
   CDHelper()._save_to_cloud_storage([example])
   write_to_os_mock.assert_called_with(example)
   upload_blob_mock.assert_called_with(source_file="", destination_blob_name="")
+
+
+def test__write_default_example_path_to_local_fs(delete_temp_folder):
+  """
+    Test writing default example link of sdk to
+    the filesystem (in temp folder)
+    Args:
+        delete_temp_folder: python fixture to clean up temp folder
+        after method execution
+  """
+  sdk = Sdk.Name(SDK_GO)
+  default_example_path = "SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount"
+  expected_result = str(pathlib.Path(sdk, Config.DEFAULT_PRECOMPILED_OBJECT))
+  cloud_path = CDHelper()._write_default_example_path_to_local_fs(
+      default_example_path)
+  assert cloud_path == expected_result
+  assert os.path.exists(os.path.join("temp", cloud_path))
