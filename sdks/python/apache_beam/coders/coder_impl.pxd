@@ -94,8 +94,8 @@ cdef dict _unpickled_types
 
 
 cdef class MapCoderImpl(StreamCoderImpl):
-  cdef CoderImpl _key_coder_impl
-  cdef CoderImpl _value_coder_impl
+  cdef CoderImpl _key_coder
+  cdef CoderImpl _value_coder
   cdef bint _is_deterministic
 
 
