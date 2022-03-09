@@ -34,6 +34,7 @@ import com.google.cloud.bigtable.data.v2.internal.ByteStringComparator;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.collect.ComparisonChain;
 import com.google.protobuf.ByteString;
@@ -123,12 +124,17 @@ class BigtableServiceImpl implements BigtableService {
     private Queue<Row> buffer;
     private RowSet rowSet;
     private ServiceCallMetric serviceCallMetric;
+    //private BulkRead bulkRead;
+    private String tableNameStr;
+
 
     private final int MINI_BATCH_ROW_LIMIT = 100;
 
     @VisibleForTesting
     BigtableReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
+      tableNameStr = session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
+      //bulkRead = session.createBulkRead(new BigtableTableName(tableNameStr));
       this.source = source;
     }
 
@@ -190,7 +196,6 @@ class BigtableServiceImpl implements BigtableService {
         return false;
       }
       RowSet.Builder segment = RowSet.newBuilder();
-
       ByteString splitPoint = currentRow.getKey();
 
       for (int i = 0; i < rowSet.getRowRangesCount(); i++) {
@@ -200,7 +205,7 @@ class BigtableServiceImpl implements BigtableService {
         int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(splitPoint, true));
 
         if (startCmp > 0) {
-          // If the startKey is great than split than add the remaining Ranges
+          // If the startKey is passed the split point than add the whole range
           segment.addRowRanges(rowRange);
         } else if (endCmp > 0) {
           // Row is split, remove all read rowKeys and split RowSet at last Read Row
@@ -221,13 +226,7 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
-    // Make this return boolean to see if it is getting returned an empty row?
-
-
     public boolean fillReadRowsBuffer() throws IOException {
-      String tableNameStr =
-          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
-
       ReadRowsRequest.Builder request =
           ReadRowsRequest.newBuilder().setRows(rowSet)
               .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(tableNameStr);
@@ -236,7 +235,6 @@ class BigtableServiceImpl implements BigtableService {
       }
       try {
         results = session.getDataClient().readRows(request.build());
-
         // results = session.getDataClient(). Add Callable here (Async?)
         if (results.available() == 0) { // Edge Cases?
           return false;
