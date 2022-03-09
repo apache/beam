@@ -74,6 +74,7 @@
 
 # pytype: skip-file
 
+from typing import Iterable
 from typing import NamedTuple
 from typing import Optional
 
@@ -426,7 +427,7 @@ class WriteToSnowflake(beam.PTransform):
     return (
         pbegin
         | 'User data mapper' >> beam.Map(
-            self.user_data_mapper).with_output_types(typing.Iterable[bytes])
+            self.user_data_mapper).with_output_types(Iterable[bytes])
         | ExternalTransform(
             self.URN,
             NamedTupleBasedPayloadBuilder(self.params),
