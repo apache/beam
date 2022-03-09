@@ -39,7 +39,7 @@ func (g *GuardedError) TrySetError(err error) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	upd := g.err == nil
+	upd := (g.err == nil)
 	if upd {
 		g.err = err
 	}

@@ -22,6 +22,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThrows;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,12 +38,15 @@ import org.apache.beam.model.pipeline.v1.SchemaApi.FieldValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -173,6 +178,10 @@ public class SchemaTranslationTest {
           .add(
               Schema.of(
                   Field.of("null_argument", FieldType.logicalType(new NullArgumentLogicalType()))))
+          .add(Schema.of(Field.of("logical_argument", FieldType.logicalType(new DateTime()))))
+          .add(
+              Schema.of(Field.of("single_arg_argument", FieldType.logicalType(FixedBytes.of(100)))))
+          .add(Schema.of(Field.of("schema", FieldType.logicalType(new SchemaLogicalType()))))
           .build();
     }
 
@@ -287,6 +296,72 @@ public class SchemaTranslationTest {
       SchemaApi.Schema reencodedSchemaProto = SchemaTranslation.schemaToProto(decodedSchema, true);
 
       assertThat(reencodedSchemaProto, equalTo(schemaProto));
+    }
+  }
+
+  /** Tests round-trip proto encodings for {@link Row}. */
+  @RunWith(Parameterized.class)
+  public static class RowToFromProtoTest {
+
+    public static Row simpleRow(FieldType type, Object value) {
+      return Row.withSchema(Schema.of(Field.of("s", type))).addValue(value).build();
+    }
+
+    public static Row simpleNullRow(FieldType type) {
+      return Row.withSchema(Schema.of(Field.nullable("s", type))).addValue(null).build();
+    }
+
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<Row> data() {
+      Map<String, Integer> map = new HashMap<>();
+      map.put("string", 42);
+      List<String> list = new ArrayList<>();
+      list.add("string");
+      Schema schema =
+          Schema.builder()
+              .addField("field_one", FieldType.STRING)
+              .addField("field_two", FieldType.INT32)
+              .build();
+      Row row = Row.withSchema(schema).addValue("value").addValue(42).build();
+
+      return ImmutableList.<Row>builder()
+          .add(simpleRow(FieldType.STRING, "string"))
+          .add(simpleRow(FieldType.BOOLEAN, true))
+          .add(simpleRow(FieldType.BYTE, (byte) 12))
+          .add(simpleRow(FieldType.INT16, (short) 12))
+          .add(simpleRow(FieldType.INT32, 12))
+          .add(simpleRow(FieldType.INT64, 12L))
+          .add(simpleRow(FieldType.BYTES, new byte[] {0x42, 0x69, 0x00}))
+          .add(simpleRow(FieldType.FLOAT, (float) 12))
+          .add(simpleRow(FieldType.DOUBLE, 12.0))
+          .add(simpleRow(FieldType.map(FieldType.STRING, FieldType.INT32), map))
+          .add(simpleRow(FieldType.array(FieldType.STRING), list))
+          .add(simpleRow(FieldType.row(row.getSchema()), row))
+          .add(simpleRow(FieldType.DATETIME, new Instant(23L)))
+          .add(simpleRow(FieldType.DECIMAL, BigDecimal.valueOf(100000)))
+          .add(simpleRow(FieldType.logicalType(new NullArgumentLogicalType()), "str"))
+          .add(simpleRow(FieldType.logicalType(new DateTime()), LocalDateTime.of(2000, 1, 3, 3, 1)))
+          .add(simpleNullRow(FieldType.STRING))
+          .add(simpleNullRow(FieldType.INT32))
+          .add(simpleNullRow(FieldType.map(FieldType.STRING, FieldType.INT32)))
+          .add(simpleNullRow(FieldType.array(FieldType.STRING)))
+          .add(simpleNullRow(FieldType.row(row.getSchema())))
+          .add(simpleNullRow(FieldType.logicalType(new NullArgumentLogicalType())))
+          .add(simpleNullRow(FieldType.logicalType(new DateTime())))
+          .add(simpleNullRow(FieldType.DECIMAL))
+          .add(simpleNullRow(FieldType.DATETIME))
+          .build();
+    }
+
+    @Parameter(0)
+    public Row row;
+
+    @Test
+    public void toAndFromProto() throws Exception {
+      SchemaApi.Row rowProto = SchemaTranslation.rowToProto(row);
+      Row decodedRow =
+          (Row) SchemaTranslation.rowFromProto(rowProto, FieldType.row(row.getSchema()));
+      assertThat(decodedRow, equalTo(row));
     }
   }
 
