@@ -49,7 +49,7 @@ dependencies {
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.5.2"
   testImplementation "org.elasticsearch:elasticsearch:$elastic_search_version"
-  testImplementation "org.testcontainers:elasticsearch:1.15.3"
+  testImplementation library.java.testcontainers_elasticsearch
 
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")

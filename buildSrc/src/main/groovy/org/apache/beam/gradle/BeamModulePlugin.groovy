@@ -381,7 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.37.0'
+    project.version = '2.38.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -446,7 +446,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
-    def autovalue_version = "1.8.2"
+    def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
     def aws_java_sdk2_version = "2.17.106"
@@ -454,12 +454,16 @@ class BeamModulePlugin implements Plugin<Project> {
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
     def errorprone_version = "2.10.0"
+    // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
+    def gax_version = "2.8.1"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
+    // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
+    def google_cloud_spanner_version = "6.17.4"
     def google_code_gson_version = "2.8.9"
     def google_oauth_clients_version = "1.32.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.43.2"
+    def grpc_version = "1.44.0"
     def guava_version = "31.0.1-jre"
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
@@ -475,13 +479,13 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.19.2"
+    def protobuf_version = "3.19.3"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.1"
+    def testcontainers_version = "1.16.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
@@ -513,6 +517,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk_sqs                            : "com.amazonaws:aws-java-sdk-sqs:$aws_java_sdk_version",
         aws_java_sdk_sts                            : "com.amazonaws:aws-java-sdk-sts:$aws_java_sdk_version",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
+        aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
         aws_java_sdk2_cloudwatch                    : "software.amazon.awssdk:cloudwatch:$aws_java_sdk2_version",
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
@@ -542,6 +547,7 @@ class BeamModulePlugin implements Plugin<Project> {
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
+        gax_grpc_test                               : "com.google.api:gax-grpc:$gax_version:testlib", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
@@ -569,10 +575,11 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite", // google_cloud_platform_libraries_bom sets version
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.2.0/artifact_details.html
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.3.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:24.2.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:24.3.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
+        google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
@@ -641,7 +648,7 @@ class BeamModulePlugin implements Plugin<Project> {
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
-        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
+        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.46.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
@@ -673,11 +680,13 @@ class BeamModulePlugin implements Plugin<Project> {
         spark3_sql                                  : "org.apache.spark:spark-sql_2.12:$spark3_version",
         spark3_streaming                            : "org.apache.spark:spark-streaming_2.12:$spark3_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
+        testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
+        testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
         vendored_bytebuddy_1_11_0                   : "org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1",
         vendored_grpc_1_43_2                        : "org.apache.beam:beam-vendor-grpc-1_43_2:0.1",
@@ -1313,7 +1322,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (configuration.validateShadowJar) {
-          project.task('validateShadedJarDoesntLeakNonProjectClasses', dependsOn: 'shadowJar') {
+          def validateShadedJarDoesntLeakNonProjectClasses = project.tasks.register('validateShadedJarDoesntLeakNonProjectClasses') {
+            dependsOn 'shadowJar'
             ext.outFile = project.file("${project.reportsDir}/${name}.out")
             inputs.files(project.configurations.shadow.artifacts.files)
                 .withPropertyName("shadowArtifactsFiles")
@@ -1337,10 +1347,10 @@ class BeamModulePlugin implements Plugin<Project> {
               }
             }
           }
-          project.tasks.check.dependsOn project.tasks.validateShadedJarDoesntLeakNonProjectClasses
+          project.tasks.check.dependsOn validateShadedJarDoesntLeakNonProjectClasses
         }
       } else {
-        project.task("testJar", type: Jar, {
+        project.tasks.register("testJar", Jar) {
           group = "Jar"
           description = "Create a JAR of test classes"
           classifier = "tests"
@@ -1350,7 +1360,7 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.SF"
           exclude "META-INF/*.DSA"
           exclude "META-INF/*.RSA"
-        })
+        }
         project.artifacts.testRuntimeMigration project.testJar
       }
 
@@ -1372,7 +1382,8 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
 
-        project.task("jmh", type: JavaExec, dependsOn: project.classes, {
+        project.tasks.register("jmh", JavaExec)  {
+          dependsOn project.classes
           mainClass = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
           // For a list of arguments, see
@@ -1404,12 +1415,13 @@ class BeamModulePlugin implements Plugin<Project> {
             args 'org.apache.beam'
           }
           args '-foe=true'
-        })
+        }
 
         // Single shot of JMH benchmarks ensures that they can execute.
         //
         // Note that these tests will fail on JVMs that JMH doesn't support.
-        project.task("jmhTest", type: JavaExec, dependsOn: project.classes, {
+        def jmhTest = project.tasks.register("jmhTest", JavaExec) {
+          dependsOn project.classes
           mainClass = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.main.runtimeClasspath
 
@@ -1422,8 +1434,8 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-f=0'
           args '-wf=0'
           args '-foe=true'
-        })
-        project.check.dependsOn("jmhTest")
+        }
+        project.check.dependsOn jmhTest
       }
 
       project.ext.includeInJavaBom = configuration.publish
@@ -2443,6 +2455,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
+      // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
           project.pythonVersion : '3.8'
 
@@ -2455,7 +2468,10 @@ class BeamModulePlugin implements Plugin<Project> {
             "--clear",
             "${project.ext.envdir}",
           ]
-          project.exec { commandLine virtualenvCmd }
+          project.exec {
+            executable 'sh'
+            args '-c', virtualenvCmd.join(' ')
+          }
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
@@ -2616,6 +2632,7 @@ class BeamModulePlugin implements Plugin<Project> {
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
+            ':sdks:python:container:py39:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

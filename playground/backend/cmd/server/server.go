@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
 	"beam.apache.org/playground/backend/internal/cache/redis"
+	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
@@ -53,7 +54,7 @@ func runServer() error {
 
 	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
 	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
-		err = setupExamplesCatalog(ctx, cacheService)
+		err = setupExamplesCatalog(ctx, cacheService, envService.ApplicationEnvs.BucketName())
 		if err != nil {
 			return err
 		}
@@ -119,13 +120,25 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 }
 
 // setupExamplesCatalog saves precompiled objects catalog from storage to cache
-func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
-	catalog, err := utils.GetCatalogFromStorage(ctx)
+func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache, bucketName string) error {
+	catalog, err := utils.GetCatalogFromStorage(ctx, bucketName)
 	if err != nil {
 		return err
 	}
 	if err = cacheService.SetCatalog(ctx, catalog); err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+	}
+
+	bucket := cloud_bucket.New()
+	defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx, bucketName)
+	if err != nil {
+		return err
+	}
+	for sdk, precompiledObject := range defaultPrecompiledObjects {
+		if err := cacheService.SetDefaultPrecompiledObject(ctx, sdk, precompiledObject); err != nil {
+			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+			return err
+		}
 	}
 	return nil
 }

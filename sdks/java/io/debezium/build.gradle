@@ -46,9 +46,9 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(":runners:google-cloud-dataflow-java")
-    testImplementation "org.testcontainers:testcontainers:1.15.1"
-    testImplementation "org.testcontainers:mysql:1.15.1"
-    testImplementation "org.testcontainers:postgresql:1.15.1"
+    testImplementation library.java.testcontainers_base
+    testImplementation library.java.testcontainers_mysql
+    testImplementation library.java.testcontainers_postgresql
 
     // Kafka connect dependencies
     implementation "org.apache.kafka:connect-api:2.5.0"

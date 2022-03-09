@@ -18,16 +18,16 @@
 #
 
 resource "google_app_engine_flexible_app_version" "backend_app" {
-  version_id     = "v1"
-  project        = "${var.project_id}"
-  service        = "${var.service_name}"
-  runtime        = "custom"
+  version_id                = "v1"
+  project                   = var.project_id
+  service                   = var.service_name
+  runtime                   = "custom"
   delete_service_on_destroy = true
- 
- 
+
+
   liveness_check {
-    path              = "/liveness"
-    initial_delay     = "40s" 
+    path          = "/liveness"
+    initial_delay = "40s"
   }
 
   readiness_check {
@@ -44,15 +44,15 @@ resource "google_app_engine_flexible_app_version" "backend_app" {
   }
 
   env_variables = {
-     CACHE_TYPE="${var.cache_type}"
-     CACHE_ADDRESS="${var.cache_address}:6379"
-     NUM_PARALLEL_JOBS=10
-     LAUNCH_SITE = "app_engine"
+    CACHE_TYPE        = var.cache_type
+    CACHE_ADDRESS     = "${var.cache_address}:6379"
+    NUM_PARALLEL_JOBS = 10
+    LAUNCH_SITE       = "app_engine"
   }
 
   resources {
     memory_gb = 16
-    cpu = 8
+    cpu       = 8
     volumes {
       name        = "inmemory"
       size_gb     = var.volume_size

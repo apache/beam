@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- id: case-studies-read
-  translation: "READ MORE"
+- id: case-studies-learn-more
+  translation: "Learn more"
 - id: case-studies-check
   translation: "CHECK OUT"

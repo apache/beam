@@ -450,7 +450,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                     + "on changing the allowed skew.",
                 timestamp,
                 elem.getTimestamp(),
-                PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
+                fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                    ? fn.getAllowedTimestampSkew()
+                    : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
                 BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
     }
@@ -887,7 +889,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                     + "on changing the allowed skew.",
                 timestamp,
                 timestamp(),
-                PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
+                fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                    ? fn.getAllowedTimestampSkew()
+                    : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
                 BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
     }
@@ -1114,7 +1118,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                     + "on changing the allowed skew.",
                 timestamp,
                 this.timestamp,
-                PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
+                fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                    ? fn.getAllowedTimestampSkew()
+                    : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
                 BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
     }
@@ -1240,7 +1246,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      * </ul>
      */
     private void setAndVerifyOutputTimestamp() {
-
       if (outputTimestamp != null) {
         Instant lowerBound;
         try {
@@ -1259,7 +1264,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                       + "allowed skew.details on changing the allowed skew.",
                   outputTimestamp,
                   elementInputTimestamp,
-                  PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
+                  fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                      ? fn.getAllowedTimestampSkew()
+                      : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
                   BoundedWindow.TIMESTAMP_MAX_VALUE));
         }
       }
