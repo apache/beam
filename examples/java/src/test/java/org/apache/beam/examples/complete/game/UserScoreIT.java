@@ -35,11 +35,12 @@ public class UserScoreIT {
   public static final String GAMING_DATA_CSV =
       "gs://apache-beam-samples/game/small/gaming_data.csv";
   public static final String TEMP_STORAGE_FOR_UPLOAD_TESTS =
-      "gs://apache-beam-samples/game/tmp/" + UserScoreIT.class.getSimpleName();
+      "gs://temp-storage-for-end-to-end-tests/UserScoreIT/game/"
+          + UserScoreIT.class.getSimpleName();
   private UserScoreOptions options =
       TestPipeline.testingPipelineOptions().as(UserScoreOptions.class);
   private static String projectId;
-
+  // temp-storage-for-end-to-end-tests
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
 
   public interface UserScoreOptions extends TestPipelineOptions, UserScore.Options {}
@@ -61,13 +62,7 @@ public class UserScoreIT {
   }
 
   @After
-  public void cleanupTestEnvironment() throws Exception {
-    /*ResourceId resourceId = FileSystems.matchNewResource(TEMP_STORAGE_FOR_UPLOAD_TESTS, false);
-
-    FileSystems.delete(resourceId);
-
-     */
-  }
+  public void cleanupTestEnvironment() throws Exception {}
 
   private void setupPipelineOptions() {
     options.as(GcpOptions.class).setProject(projectId);

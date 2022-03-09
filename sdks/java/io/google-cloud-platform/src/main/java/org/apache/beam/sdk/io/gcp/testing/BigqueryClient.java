@@ -173,14 +173,15 @@ public class BigqueryClient {
   }
 
   @Nonnull
-  public QueryResponse queryWithRetries(String query, String projectId, FluentBackoff backoffFactory)
+  public QueryResponse queryWithRetries(
+      String query, String projectId, FluentBackoff backoffFactory)
       throws IOException, InterruptedException {
     return queryWithRetries(query, projectId, false, true, backoffFactory);
   }
 
   @Nonnull
   public QueryResponse queryWithRetriesUsingStandardSql(String query, String projectId)
-          throws IOException, InterruptedException {
+      throws IOException, InterruptedException {
     return queryWithRetries(query, projectId, false, true, BACKOFF_FACTORY);
   }
 
@@ -349,7 +350,11 @@ public class BigqueryClient {
 
   @Nonnull
   private QueryResponse queryWithRetries(
-      String query, String projectId, boolean typed, boolean useStandardSql, FluentBackoff backoffFactory)
+      String query,
+      String projectId,
+      boolean typed,
+      boolean useStandardSql,
+      FluentBackoff backoffFactory)
       throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
