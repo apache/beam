@@ -1,0 +1,39 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.neo4j')
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Neo4j"
+ext.summary = "IO to read from and write to Neo4j graphs"
+
+dependencies {
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation "org.neo4j.driver:neo4j-java-driver:4.4.3"
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_26_0_jre
+    testImplementation library.java.junit
+    testImplementation library.java.hamcrest
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation "org.testcontainers:neo4j:1.16.2"
+    testRuntimeOnly library.java.slf4j_jdk14
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}

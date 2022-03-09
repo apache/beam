@@ -306,28 +306,16 @@ class InteractiveBeamClustersTest(unittest.TestCase):
             region=region,
         ))
     cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
-    clusters.dataproc_cluster_managers[p] = DataprocClusterManager(
-        cluster_metadata)
-    self.assertEqual('test-project', clusters.describe()[None] \
-    ['cluster_metadata'].project_id)
-
-  def test_clusters_cleanup_cluster_manager_not_found(self):
-    clusters = ib.Clusters()
-    p = beam.Pipeline(
-        options=PipelineOptions(
-            project='test-project',
-            region='test-region',
-        ))
-    from apache_beam.runners.interactive.interactive_beam import _LOGGER
-    with self.assertLogs(_LOGGER, level='ERROR') as context_manager:
-      clusters.cleanup(p)
-      self.assertTrue(
-          'No cluster_manager is associated' in context_manager.output[0])
+    clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    self.assertEqual(
+        'test-project',
+        clusters.describe()[str(id(p))]['cluster_metadata'].project_id)
 
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
-      'DataprocClusterManager.get_master_url',
-      return_value='test-master-url')
+      'DataprocClusterManager.get_master_url_and_dashboard',
+      return_value=('test-master-url', None))
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
       'DataprocClusterManager.cleanup',
@@ -363,8 +351,8 @@ class InteractiveBeamClustersTest(unittest.TestCase):
 
   @patch(
       'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
-      'DataprocClusterManager.get_master_url',
-      return_value='test-master-url')
+      'DataprocClusterManager.get_master_url_and_dashboard',
+      return_value=('test-master-url', None))
   def test_clusters_cleanup_skip_on_duplicate(self, mock_master_url):
     clusters = ib.Clusters()
     project = 'test-project'

@@ -23,6 +23,8 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.NameGenerator.gen
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
@@ -79,6 +81,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -115,6 +118,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -1349,6 +1353,8 @@ public class SpannerIO {
 
     abstract @Nullable String getMetadataDatabase();
 
+    abstract @Nullable String getMetadataTable();
+
     abstract Timestamp getInclusiveStartAt();
 
     abstract @Nullable Timestamp getInclusiveEndAt();
@@ -1369,6 +1375,8 @@ public class SpannerIO {
       abstract Builder setMetadataInstance(String metadataInstance);
 
       abstract Builder setMetadataDatabase(String metadataDatabase);
+
+      abstract Builder setMetadataTable(String metadataTable);
 
       abstract Builder setInclusiveStartAt(Timestamp inclusiveStartAt);
 
@@ -1434,6 +1442,10 @@ public class SpannerIO {
       return toBuilder().setMetadataDatabase(metadataDatabase).build();
     }
 
+    public ReadChangeStream withMetadataTable(String metadataTable) {
+      return toBuilder().setMetadataTable(metadataTable).build();
+    }
+
     /** Specifies the time that the change stream should be read from. */
     public ReadChangeStream withInclusiveStartAt(Timestamp timestamp) {
       return toBuilder().setInclusiveStartAt(timestamp).build();
@@ -1497,7 +1509,8 @@ public class SpannerIO {
       final String partitionMetadataDatabaseId =
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
       final String partitionMetadataTableName =
-          generatePartitionMetadataTableName(partitionMetadataDatabaseId);
+          MoreObjects.firstNonNull(
+              getMetadataTable(), generatePartitionMetadataTableName(partitionMetadataDatabaseId));
 
       if (getTraceSampleProbability() != null) {
         TraceConfig globalTraceConfig = Tracing.getTraceConfig();
@@ -1511,16 +1524,36 @@ public class SpannerIO {
               .spanBuilder("SpannerIO.ReadChangeStream.expand")
               .setRecordEvents(true)
               .startScopedSpan()) {
-        final SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
+        SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
+        // Set default retryable errors for ReadChangeStream
+        if (changeStreamSpannerConfig.getRetryableCodes() == null) {
+          ImmutableSet<Code> defaultRetryableCodes =
+              ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
+          changeStreamSpannerConfig =
+              changeStreamSpannerConfig
+                  .toBuilder()
+                  .setRetryableCodes(defaultRetryableCodes)
+                  .build();
+        }
+        // Set default retry timeouts for ReadChangeStream
+        if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
+          changeStreamSpannerConfig =
+              changeStreamSpannerConfig
+                  .toBuilder()
+                  .setExecuteStreamingSqlRetrySettings(
+                      RetrySettings.newBuilder()
+                          .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
+                          .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                          .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                          .build())
+                  .build();
+        }
         final SpannerConfig partitionMetadataSpannerConfig =
-            SpannerConfig.create()
-                .withProjectId(changeStreamSpannerConfig.getProjectId())
-                .withHost(changeStreamSpannerConfig.getHost())
-                .withInstanceId(partitionMetadataInstanceId)
-                .withDatabaseId(partitionMetadataDatabaseId)
-                .withCommitDeadline(changeStreamSpannerConfig.getCommitDeadline())
-                .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
-                .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
+            changeStreamSpannerConfig
+                .toBuilder()
+                .setInstanceId(StaticValueProvider.of(partitionMetadataInstanceId))
+                .setDatabaseId(StaticValueProvider.of(partitionMetadataDatabaseId))
+                .build();
         final String changeStreamName = getChangeStreamName();
         // FIXME: The backend only supports microsecond granularity. Remove when fixed.
         final Timestamp startTimestamp = TimestampConverter.truncateNanos(getInclusiveStartAt());
