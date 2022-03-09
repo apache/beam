@@ -23,7 +23,6 @@ import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 
 /**
@@ -72,8 +71,7 @@ public class ChangeStreamDao {
    *     InitialPartition#PARTITION_TOKEN} is given, null will be used in the change stream query
    *     instead.
    * @param startTimestamp the inclusive start time for the change stream query
-   * @param endTimestamp the inclusive end time for the change stream query. Null can be provided to
-   *     indicate no end time is available
+   * @param endTimestamp the inclusive end time for the change stream query
    * @param heartbeatMillis the number of milliseconds after the stream is idle, which a heartbeat
    *     record will be emitted in the change stream query
    * @return a {@link ChangeStreamResultSet} that will produce a stream of records for the change
@@ -82,7 +80,7 @@ public class ChangeStreamDao {
   public ChangeStreamResultSet changeStreamQuery(
       String partitionToken,
       Timestamp startTimestamp,
-      @Nullable Timestamp endTimestamp,
+      Timestamp endTimestamp,
       long heartbeatMillis) {
     // For the initial partition we query with a null partition token
     final String partitionTokenOrNull =
