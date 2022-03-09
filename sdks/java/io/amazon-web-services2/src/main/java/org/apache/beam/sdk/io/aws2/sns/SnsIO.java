@@ -19,47 +19,46 @@ package org.apache.beam.sdk.io.aws2.sns;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.function.BiConsumer;
-import java.util.function.Predicate;
+import java.util.function.Consumer;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.sdk.util.BackOffUtils;
-import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.http.HttpStatus;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsResponseMetadata;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.InternalErrorException;
 import software.amazon.awssdk.services.sns.model.InvalidParameterException;
 import software.amazon.awssdk.services.sns.model.NotFoundException;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 /**
- * {@link PTransform}s for writing to <a href="https://aws.amazon.com/sns/">SNS</a>.
+ * IO to send notifications via <a href="https://aws.amazon.com/sns/">SNS</a>.
  *
  * <h3>Writing to SNS</h3>
  *
@@ -67,19 +66,16 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  *
  * <pre>{@code
  * PCollection<String> data = ...;
- *
  * data.apply(SnsIO.<String>write()
  *     .withTopicArn("topicArn")
- *     .withPublishRequestBuilder(m -> PublishRequest.builder().message(m))
- *     .withSnsClientProvider(awsCredentialsProvider, region));
+ *     .withPublishRequestBuilder(msg -> PublishRequest.builder().message(msg)));
  * }</pre>
  *
- * <p>As a client, you need to provide at least the following things:
+ * <p>At a minimum you have to provide:
  *
  * <ul>
  *   <li>SNS topic ARN you're going to publish to (optional, but required for most use cases)
- *   <li>Builder function to create SNS publish requests from your input
- *   <li>AWS credentials provider and region for the SNS client provider
+ *   <li>Request builder function to create SNS publish requests from your input
  * </ul>
  *
  * <p>By default, the output {@link PublishResponse} contains only the SNS messageId, all other
@@ -87,6 +83,29 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  * AwsResponseMetadata}, you can call {@link Write#withFullPublishResponse()}. If you need the HTTP
  * status code only but no headers, you can use {@link
  * Write#withFullPublishResponseWithoutHeaders()}.
+ *
+ * <h3>Configuration of AWS clients</h3>
+ *
+ * <p>AWS clients for all AWS IOs can be configured using {@link AwsOptions}, e.g. {@code
+ * --awsRegion=us-west-1}. {@link AwsOptions} contain reasonable defaults based on default providers
+ * for {@link Region} and {@link AwsCredentialsProvider}.
+ *
+ * <p>If you require more advanced configuration, you may change the {@link ClientBuilderFactory}
+ * using {@link AwsOptions#setClientBuilderFactory(Class)}.
+ *
+ * <p>Configuration for a specific IO can be overwritten using {@code withClientConfiguration()},
+ * which also allows to configure the retry behavior for the respective IO.
+ *
+ * <h4>Retries</h4>
+ *
+ * <p>Retries for failed requests can be configured using {@link
+ * ClientConfiguration.Builder#retry(Consumer)} and are handled by the AWS SDK unless there's a
+ * partial success (batch requests). The SDK uses a backoff strategy with equal jitter for computing
+ * the delay before the next retry.
+ *
+ * <p><b>Note:</b> Once retries are exhausted the error is surfaced to the runner which <em>may</em>
+ * then opt to retry the current partition in entirety or abort if the max number of retries of the
+ * runner is reached.
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -96,7 +115,9 @@ public final class SnsIO {
 
   // Write data to SNS
   public static <T> Write<T> write() {
-    return new AutoValue_SnsIO_Write.Builder<T>().build();
+    return new AutoValue_SnsIO_Write.Builder<T>()
+        .setClientConfiguration(ClientConfiguration.builder().build())
+        .build();
   }
 
   /**
@@ -110,86 +131,31 @@ public final class SnsIO {
   }
 
   /**
-   * A POJO encapsulating a configuration for retry behavior when issuing requests to SNS. A retry
-   * will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes first, for
-   * any of the following exceptions:
+   * Legacy retry configuration.
    *
-   * <ul>
-   *   <li>{@link IOException}
-   * </ul>
+   * <p><b>Warning</b>: Max accumulative retry latency is silently ignored as it is not supported by
+   * the AWS SDK.
+   *
+   * @deprecated Use {@link org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to
+   *     delegate retries to the AWS SDK.
    */
   @AutoValue
+  @Deprecated
   public abstract static class RetryConfiguration implements Serializable {
-    private static final Duration DEFAULT_INITIAL_DURATION = Duration.standardSeconds(5);
-
-    @VisibleForTesting
-    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
-
     abstract int getMaxAttempts();
 
-    abstract Duration getMaxDuration();
-
-    abstract Duration getInitialDuration();
-
-    abstract RetryPredicate getRetryPredicate();
-
-    abstract Builder builder();
-
-    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
-      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
-    }
-
-    @VisibleForTesting
-    static RetryConfiguration create(
-        int maxAttempts, Duration maxDuration, Duration initialDuration) {
+    /** @deprecated Use {@link org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead. */
+    @Deprecated
+    public static RetryConfiguration create(int maxAttempts, Duration ignored) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
-      checkArgument(
-          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
-          "maxDuration should be greater than 0");
-      checkArgument(
-          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
-          "initialDuration should be greater than 0");
+      return new AutoValue_SnsIO_RetryConfiguration(maxAttempts);
+    }
 
-      return new AutoValue_SnsIO_RetryConfiguration.Builder()
-          .setMaxAttempts(maxAttempts)
-          .setMaxDuration(maxDuration)
-          .setInitialDuration(initialDuration)
-          .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
+    org.apache.beam.sdk.io.aws2.common.RetryConfiguration convertLegacyConfig() {
+      int totalAttempts = getMaxAttempts() * 3; // 3 SDK attempts per user attempt
+      return org.apache.beam.sdk.io.aws2.common.RetryConfiguration.builder()
+          .numRetries(totalAttempts - 1)
           .build();
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setMaxAttempts(int maxAttempts);
-
-      abstract Builder setMaxDuration(Duration maxDuration);
-
-      abstract Builder setInitialDuration(Duration initialDuration);
-
-      abstract Builder setRetryPredicate(RetryPredicate retryPredicate);
-
-      abstract RetryConfiguration build();
-    }
-
-    /**
-     * An interface used to control if we retry the SNS Publish call when a {@link Throwable}
-     * occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend
-     * the requests to SNS if the {@link RetryConfiguration} permits it.
-     */
-    @FunctionalInterface
-    interface RetryPredicate extends Predicate<Throwable>, Serializable {}
-
-    private static class DefaultRetryPredicate implements RetryPredicate {
-      private static final ImmutableSet<Integer> ELIGIBLE_CODES =
-          ImmutableSet.of(HttpStatus.SC_SERVICE_UNAVAILABLE);
-
-      @Override
-      public boolean test(Throwable throwable) {
-        return (throwable instanceof IOException
-            || (throwable instanceof InternalErrorException)
-            || (throwable instanceof InternalErrorException
-                && ELIGIBLE_CODES.contains(((InternalErrorException) throwable).statusCode())));
-      }
     }
   }
 
@@ -198,13 +164,13 @@ public final class SnsIO {
   public abstract static class Write<T>
       extends PTransform<PCollection<T>, PCollection<PublishResponse>> {
 
+    abstract @Nullable ClientConfiguration getClientConfiguration();
+
     abstract @Nullable String getTopicArn();
 
     abstract @Nullable SerializableFunction<T, PublishRequest.Builder> getPublishRequestBuilder();
 
     abstract @Nullable SnsClientProvider getSnsClientProvider();
-
-    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     abstract @Nullable Coder<PublishResponse> getCoder();
 
@@ -213,14 +179,14 @@ public final class SnsIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
 
+      abstract Builder<T> setClientConfiguration(ClientConfiguration config);
+
       abstract Builder<T> setTopicArn(String topicArn);
 
       abstract Builder<T> setPublishRequestBuilder(
           SerializableFunction<T, PublishRequest.Builder> requestBuilder);
 
       abstract Builder<T> setSnsClientProvider(SnsClientProvider snsClientProvider);
-
-      abstract Builder<T> setRetryConfiguration(RetryConfiguration retryConfiguration);
 
       abstract Builder<T> setCoder(Coder<PublishResponse> coder);
 
@@ -259,60 +225,59 @@ public final class SnsIO {
     }
 
     /**
-     * Allows to specify custom {@link SnsClientProvider}. {@link SnsClientProvider} creates new
-     * {@link SnsClient} which is later used for writing to a SNS topic.
+     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
+     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
      */
-    public Write<T> withSnsClientProvider(SnsClientProvider awsClientsProvider) {
-      return builder().setSnsClientProvider(awsClientsProvider).build();
+    @Deprecated
+    public Write<T> withSnsClientProvider(SnsClientProvider clientProvider) {
+      checkArgument(clientProvider != null, "SnsClientProvider cannot be null");
+      return builder().setClientConfiguration(null).setSnsClientProvider(clientProvider).build();
     }
 
-    /**
-     * Specify {@link AwsCredentialsProvider} and region to be used to write to SNS. If you need
-     * more sophisticated credential protocol, then you should look at {@link
-     * Write#withSnsClientProvider(SnsClientProvider)}.
-     */
+    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
+    @Deprecated
+    public Write<T> withSnsClientProvider(AwsCredentialsProvider credentials, String region) {
+      return updateClientConfig(
+          b -> b.credentialsProvider(credentials).region(Region.of(region)).build());
+    }
+
+    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
+    @Deprecated
     public Write<T> withSnsClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region) {
-      return withSnsClientProvider(credentialsProvider, region, null);
+        AwsCredentialsProvider credentials, String region, URI endpoint) {
+      return updateClientConfig(
+          b ->
+              b.credentialsProvider(credentials)
+                  .region(Region.of(region))
+                  .endpoint(endpoint)
+                  .build());
+    }
+
+    /** Configuration of SNS client. */
+    public Write<T> withClientConfiguration(ClientConfiguration config) {
+      return updateClientConfig(ignore -> config);
+    }
+
+    private Write<T> updateClientConfig(
+        Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
+      checkState(
+          getSnsClientProvider() == null,
+          "Legacy SnsClientProvider is set, but incompatible with ClientConfiguration.");
+      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
+      checkArgument(config != null, "ClientConfiguration cannot be null");
+      return builder().setClientConfiguration(config).build();
     }
 
     /**
-     * Specify {@link AwsCredentialsProvider} and region to be used to write to SNS. If you need
-     * more sophisticated credential protocol, then you should look at {@link
-     * Write#withSnsClientProvider(SnsClientProvider)}.
+     * Retry configuration of SNS client.
      *
-     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
-     * the tests with Kinesis service emulator.
+     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} with {@link
+     *     org.apache.beam.sdk.io.aws2.common.RetryConfiguration} instead to delegate retries to the
+     *     AWS SDK.
      */
-    public Write<T> withSnsClientProvider(
-        AwsCredentialsProvider credentialsProvider, String region, URI serviceEndpoint) {
-      return withSnsClientProvider(
-          new BasicSnsClientProvider(credentialsProvider, region, serviceEndpoint));
-    }
-
-    /**
-     * Provides configuration to retry a failed request to publish a message to SNS. Users should
-     * consider that retrying might compound the underlying problem which caused the initial
-     * failure. Users should also be aware that once retrying is exhausted the error is surfaced to
-     * the runner which <em>may</em> then opt to retry the current partition in entirety or abort if
-     * the max number of retries of the runner is completed. Retrying uses an exponential backoff
-     * algorithm, with minimum backoff of 5 seconds and then surfacing the error once the maximum
-     * number of retries or maximum configuration duration is exceeded.
-     *
-     * <p>Example use:
-     *
-     * <pre>{@code
-     * SnsIO.write()
-     *   .withRetryConfiguration(SnsIO.RetryConfiguration.create(5, Duration.standardMinutes(1))
-     *   ...
-     * }</pre>
-     *
-     * @param retryConfiguration the rules which govern the retry behavior
-     * @return the {@link Write} with retrying configured
-     */
-    public Write<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
-      checkArgument(retryConfiguration != null, "retryConfiguration is required");
-      return builder().setRetryConfiguration(retryConfiguration).build();
+    @Deprecated
+    public Write<T> withRetryConfiguration(RetryConfiguration retry) {
+      return updateClientConfig(b -> b.retry(retry.convertLegacyConfig()).build());
     }
 
     /**
@@ -339,9 +304,14 @@ public final class SnsIO {
     @Override
     public PCollection<PublishResponse> expand(PCollection<T> input) {
       checkArgument(getPublishRequestBuilder() != null, "withPublishRequestBuilder() is required");
-      checkArgument(getSnsClientProvider() != null, "withSnsClientProvider() is required");
+
+      AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+      if (getSnsClientProvider() == null) {
+        checkArgument(getClientConfiguration() != null, "withClientConfiguration() is required");
+        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
+      }
       if (getTopicArn() != null) {
-        checkArgument(checkTopicExists(), "Topic arn %s does not exist", getTopicArn());
+        checkArgument(checkTopicExists(awsOptions), "Topic arn %s does not exist", getTopicArn());
       }
 
       PCollection<PublishResponse> result = input.apply(ParDo.of(new SnsWriterFn<>(this)));
@@ -351,8 +321,8 @@ public final class SnsIO {
       return result;
     }
 
-    private boolean checkTopicExists() {
-      try (SnsClient client = getSnsClientProvider().getSnsClient()) {
+    private boolean checkTopicExists(AwsOptions options) {
+      try (SnsClient client = buildClient(options)) {
         client.getTopicAttributes(b -> b.topicArn(getTopicArn()));
         return true;
       } catch (NotFoundException | InvalidParameterException e) {
@@ -362,11 +332,17 @@ public final class SnsIO {
       }
     }
 
-    static class SnsWriterFn<T> extends DoFn<T, PublishResponse> {
-      @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[{}]";
+    private SnsClient buildClient(AwsOptions options) {
+      if (getSnsClientProvider() != null) {
+        // build client using legacy SnsClientProvider
+        return getSnsClientProvider().getSnsClient();
+      } else {
+        return ClientBuilderFactory.buildClient(
+            options.as(AwsOptions.class), SnsClient.builder(), getClientConfiguration());
+      }
+    }
 
-      private transient FluentBackoff retryBackoff; // defaults to no retries
+    static class SnsWriterFn<T> extends DoFn<T, PublishResponse> {
       private static final Logger LOG = LoggerFactory.getLogger(SnsWriterFn.class);
       private static final Counter SNS_WRITE_FAILURES =
           Metrics.counter(SnsWriterFn.class, "SNS_Write_Failures");
@@ -379,18 +355,8 @@ public final class SnsIO {
       }
 
       @Setup
-      public void setup() throws Exception {
-        // Initialize SnsPublisher
-        producer = spec.getSnsClientProvider().getSnsClient();
-
-        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // default to no retrying
-        if (spec.getRetryConfiguration() != null) {
-          retryBackoff =
-              retryBackoff
-                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
-                  .withInitialBackoff(spec.getRetryConfiguration().getInitialDuration())
-                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
-        }
+      public void setup(PipelineOptions options) throws Exception {
+        producer = spec.buildClient(options.as(AwsOptions.class));
       }
 
       @ProcessElement
@@ -404,35 +370,13 @@ public final class SnsIO {
 
         PublishRequest request = reqBuilder.build();
 
-        Sleeper sleeper = Sleeper.DEFAULT;
-        BackOff backoff = retryBackoff.backoff();
-        int attempt = 0;
-        while (true) {
-          attempt++;
-          try {
-            PublishResponse pr = producer.publish(request);
-            context.output(pr);
-            break;
-          } catch (Exception ex) {
-            // Fail right away if there is no retry configuration
-            if (spec.getRetryConfiguration() == null
-                || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
-              SNS_WRITE_FAILURES.inc();
-              LOG.info("Unable to publish message {}.", request.message(), ex);
-              throw new IOException("Error writing to SNS (no attempt made to retry)", ex);
-            }
-
-            if (!BackOffUtils.next(sleeper, backoff)) {
-              throw new IOException(
-                  String.format(
-                      "Error writing to SNS after %d attempt(s). No more attempts allowed",
-                      attempt),
-                  ex);
-            } else {
-              // Note: this used in test cases to verify behavior
-              LOG.warn(RETRY_ATTEMPT_LOG, attempt, ex);
-            }
-          }
+        try {
+          PublishResponse pr = producer.publish(request);
+          context.output(pr);
+        } catch (SdkException e) {
+          SNS_WRITE_FAILURES.inc();
+          LOG.error("Unable to publish message {}.", request.message());
+          throw e;
         }
       }
 

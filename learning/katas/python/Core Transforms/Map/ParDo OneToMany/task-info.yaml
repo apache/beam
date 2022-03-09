@@ -22,10 +22,10 @@ files:
 - name: task.py
   visible: true
   placeholders:
-  - offset: 920
-    length: 58
+  - offset: 1166
+    length: 63
     placeholder_text: TODO()
-  - offset: 1068
+  - offset: 1319
     length: 32
     placeholder_text: TODO()
 - name: tests.py

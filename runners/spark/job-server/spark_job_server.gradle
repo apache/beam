@@ -153,6 +153,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
       }
     }
     else {
+      // Batch
       testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         // Should be run only in a properly configured SDK harness environment
@@ -170,6 +171,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
@@ -211,7 +213,7 @@ project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker",
 project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false)
 project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false)
 
-task validatesPortableRunner() {
+tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
