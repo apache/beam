@@ -142,8 +142,7 @@ class TypeCodersTest(unittest.TestCase):
 
   def test_nullable_coder(self):
     expected_coder = coders.NullableCoder(coders.BytesCoder())
-    real_coder = typecoders.registry.get_coder(
-        typehints.UnionConstraint([type(None), type(bytes)]))
+    real_coder = typecoders.registry.get_coder(typehints.Optional(bytes))
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(expected_coder.encode(None), real_coder.encode(None))
     self.assertEqual(expected_coder.encode(b'abc'), real_coder.encode(b'abc'))

@@ -604,6 +604,13 @@ class OptionalHint(UnionHint):
     return Union[py_type, type(None)]
 
 
+def is_optional(typehint):
+  return (
+      isinstance(typehint, UnionConstraint) and
+      typehint.contains_type(type(None)) and
+      len(list(typehint._inner_types())) == 2)
+
+
 class TupleHint(CompositeTypeHint):
   """A Tuple type-hint.
 

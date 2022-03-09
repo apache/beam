@@ -320,6 +320,14 @@ class OptionalHintTestCase(TypeHintTestCase):
     hint = typehints.Optional[int]
     self.assertTrue(isinstance(hint, typehints.UnionHint.UnionConstraint))
 
+  def test_is_optional(self):
+    hint1 = typehints.Optional[int]
+    self.assertTrue(typehints.is_optional(hint1))
+    hint2 = typehints.UnionConstraint({int, bytes})
+    self.assertFalse(typehints.is_optional(hint2))
+    hint3 = typehints.UnionConstraint({int, bytes, type(None)})
+    self.assertFalse(typehints.is_optional(hint3))
+
 
 class TupleHintTestCase(TypeHintTestCase):
   def test_getitem_invalid_ellipsis_type_param(self):
