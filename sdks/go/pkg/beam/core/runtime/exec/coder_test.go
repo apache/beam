@@ -64,6 +64,12 @@ func TestCoders(t *testing.T) {
 					coder.NewDouble(),
 					coder.NewBool()})}),
 			val: &FullValue{Elm: int64(42), Elm2: &FullValue{Elm: float64(3.14), Elm2: true}},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{Elm: []byte("myBytes")},
 		},
 	} {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {
