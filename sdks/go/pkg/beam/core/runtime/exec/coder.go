@@ -628,18 +628,15 @@ type nullableEncoder struct {
 
 func (n nullableEncoder) Encode(value *FullValue, writer io.Writer) error {
 	if value.Elm == nil {
-		err := n.be.Encode(&FullValue{Elm: false}, writer)
-		if err != nil {
+		if err := n.be.Encode(&FullValue{Elm: false}, writer); err != nil {
 			return err
 		}
 		return nil
 	}
-	err := n.be.Encode(&FullValue{Elm: true}, writer)
-	if err != nil {
+	if err := n.be.Encode(&FullValue{Elm: true}, writer); err != nil {
 		return err
 	}
-	err = n.inner.Encode(value, writer)
-	if err != nil {
+	if err := n.inner.Encode(value, writer); err != nil {
 		return err
 	}
 	return nil
