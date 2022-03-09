@@ -197,7 +197,6 @@ class ReadFromSnowflake(beam.PTransform):
         password=password,
         private_key_path=private_key_path,
         raw_private_key=raw_private_key,
-        private_key_passphrase=private_key_passphrase,
         o_auth_token=o_auth_token,
     )
 
@@ -401,7 +400,6 @@ class WriteToSnowflake(beam.PTransform):
         password=password,
         private_key_path=private_key_path,
         raw_private_key=raw_private_key,
-        private_key_passphrase=private_key_passphrase,
         o_auth_token=o_auth_token,
     )
     WriteDisposition.VerifyParam(write_disposition)
@@ -483,13 +481,7 @@ class WriteDisposition:
 
 
 def verify_credentials(
-    username,
-    password,
-    private_key_path,
-    raw_private_key,
-    private_key_passphrase,
-    o_auth_token):
+    username, password, private_key_path, raw_private_key, o_auth_token):
   if not (o_auth_token or (username and password) or
-          (username and
-           (private_key_path or raw_private_key) and private_key_passphrase)):
+          (username and (private_key_path or raw_private_key))):
     raise RuntimeError('Snowflake credentials are not set correctly.')
