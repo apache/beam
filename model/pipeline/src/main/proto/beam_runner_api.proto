@@ -1055,6 +1055,10 @@ message StandardCoders {
     //   - A timestamp without a timezone where seconds + micros represents the
     //     amount of time since the epoch.
     //
+    //   beam:logical_type:schema:v1
+    //   - Representation type: BYTES
+    //   - A Beam Schema stored as a serialized proto.
+    //
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.

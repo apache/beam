@@ -991,6 +991,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
     ..aOB(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'multifile')
     ..a<$core.int>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
+    ..aOB(9, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'defaultExample')
     ..hasRequiredFields = false
   ;
 
@@ -1004,6 +1005,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.String? link,
     $core.bool? multifile,
     $core.int? contextLine,
+    $core.bool? defaultExample,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1029,6 +1031,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (contextLine != null) {
       _result.contextLine = contextLine;
+    }
+    if (defaultExample != null) {
+      _result.defaultExample = defaultExample;
     }
     return _result;
   }
@@ -1124,6 +1129,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasContextLine() => $_has(7);
   @$pb.TagNumber(8)
   void clearContextLine() => clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.bool get defaultExample => $_getBF(8);
+  @$pb.TagNumber(9)
+  set defaultExample($core.bool v) { $_setBool(8, v); }
+  @$pb.TagNumber(9)
+  $core.bool hasDefaultExample() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearDefaultExample() => clearField(9);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

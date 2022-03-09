@@ -17,7 +17,7 @@
 # beam-playground:
 #   name: ReadFromText
 #   description: Task from katas to read from text files.
-#   multifile: false
+#   multifile: true
 #   context_line: 29
 #   categories:
 #     - IO
