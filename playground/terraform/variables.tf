@@ -325,5 +325,5 @@ variable "state_bucket" {
 
 variable "state_prefix" {
   description = "terraform state prefix on GCP"
-  default     = ""
+  default     = "memorystore"
 }
