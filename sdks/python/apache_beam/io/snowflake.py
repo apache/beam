@@ -354,12 +354,12 @@ class WriteToSnowflake(beam.PTransform):
         schema for the created target table. A table schema is as JSON with the
         following structure:
 
-        .. code-block:: json
+        .. code-block:: none
 
             {"schema":[
             {
             "dataType":{"type":"<COLUMN DATA TYPE>"},
-            "name":"<COLUMN  NAME> ",
+            "name":"<COLUMN  NAME>",
             "nullable": <NULLABLE>
             },
             ]}
