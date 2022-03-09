@@ -68,7 +68,7 @@ func TestCallNoPanic(t *testing.T) {
 
 	ret, err := CallNoPanic(madeFn, []interface{}{"tester"})
 	if err != nil {
-		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) errored %v, want nil", err)
+		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) - unexpected error %v", err)
 	}
 	if got, want := ret[0].(string), string("tester"); got != want {
 		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) got %v, want %v", got, want)
@@ -90,7 +90,7 @@ func TestCallNoPanic_Panic(t *testing.T) {
 		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) didn't error when it should have")
 	}
 	if !strings.Contains(err.Error(), "OH NO!") {
-		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) errored %v, should have contained OH NO!", err)
+		t.Fatalf("CallNoPanic(madeFn, [\"tester\"]) error should have contained OH NO! instead returned error %v", err)
 	}
 }
 
