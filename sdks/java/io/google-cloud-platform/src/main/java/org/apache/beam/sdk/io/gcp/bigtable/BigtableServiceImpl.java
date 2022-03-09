@@ -127,7 +127,6 @@ class BigtableServiceImpl implements BigtableService {
     //private BulkRead bulkRead;
     private String tableNameStr;
 
-
     private final int MINI_BATCH_ROW_LIMIT = 100;
 
     @VisibleForTesting
@@ -221,9 +220,8 @@ class BigtableServiceImpl implements BigtableService {
       if(fillReadRowsBuffer()) {
         currentRow = buffer.remove();
         return currentRow != null;
-      } else {
-        return false;
       }
+      return false;
     }
 
     public boolean fillReadRowsBuffer() throws IOException {
@@ -236,7 +234,7 @@ class BigtableServiceImpl implements BigtableService {
       try {
         results = session.getDataClient().readRows(request.build());
         // results = session.getDataClient(). Add Callable here (Async?)
-        if (results.available() == 0) { // Edge Cases?
+        if (results.available() == 0) {
           return false;
         }
         buffer.addAll(Arrays.asList(
