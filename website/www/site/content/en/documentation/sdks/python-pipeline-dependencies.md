@@ -143,9 +143,10 @@ To use pre-building the dependencies from `requirements.txt` on the container im
        --prebuild_sdk_container_engine <execution_environment>
 2. To pass a base image for pre-building dependencies, enable this flag. If not, apache beam's base image would be used.
 
-       --prebuild_sdk_container_base_image <location_to_base_image>
-3. To push the container image, pre-built locally with `local_docker` , to a remote repository(eg: docker registry), provide URL to the docker registry by passing
+       --sdk_container_image <location_to_base_image>
+3. To push the container image, pre-built locally with `local_docker` , to a remote repository(eg: docker registry), provide URL to the remote registry by passing
 
        --docker_registry_push_url <IMAGE_URL>
-> To use Docker, the `--prebuild_sdk_container_base_image` should be compatible with Apache Beam Runner. Please follow the [instructions](https://beam.apache.org/documentation/runtime/environments/#building-and-pushing-custom-containers) on how to build a base container image compatible with Apache Beam.
-**NOTE**: For now, this feature is available only for the `Dataflow`.
+> To use Docker, the `--sdk_container_image` should be compatible with Apache Beam Runner. Please follow the [instructions](https://beam.apache.org/documentation/runtime/environments/#building-and-pushing-custom-containers) on how to build a base container image compatible with Apache Beam.
+
+**NOTE**: This feature is available only for the `DataflowRunner`.
