@@ -284,7 +284,7 @@ service PlaygroundService {
   // Get all precompiled objects from the cloud storage.
   rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
 
-  // Get precompiled objects from the cloud storage.
+  // Get precompiled object from the cloud storage.
   rpc GetPrecompiledObject(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectResponse);
 
   // Get the code of an PrecompiledObject.

@@ -197,7 +197,7 @@ class PlaygroundServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetPrecompiledObject(self, request, context):
-        """Get precompiled objects from the cloud storage.
+        """Get precompiled object from the cloud storage.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')

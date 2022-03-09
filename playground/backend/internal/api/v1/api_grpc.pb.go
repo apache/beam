@@ -57,7 +57,7 @@ type PlaygroundServiceClient interface {
 	Cancel(ctx context.Context, in *CancelRequest, opts ...grpc.CallOption) (*CancelResponse, error)
 	// Get all precompiled objects from the cloud storage.
 	GetPrecompiledObjects(ctx context.Context, in *GetPrecompiledObjectsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectsResponse, error)
-	// Get precompiled objects from the cloud storage.
+	// Get precompiled object from the cloud storage.
 	GetPrecompiledObject(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error)
 	// Get the code of an PrecompiledObject.
 	GetPrecompiledObjectCode(ctx context.Context, in *GetPrecompiledObjectCodeRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectCodeResponse, error)
@@ -258,7 +258,7 @@ type PlaygroundServiceServer interface {
 	Cancel(context.Context, *CancelRequest) (*CancelResponse, error)
 	// Get all precompiled objects from the cloud storage.
 	GetPrecompiledObjects(context.Context, *GetPrecompiledObjectsRequest) (*GetPrecompiledObjectsResponse, error)
-	// Get precompiled objects from the cloud storage.
+	// Get precompiled object from the cloud storage.
 	GetPrecompiledObject(context.Context, *GetPrecompiledObjectRequest) (*GetPrecompiledObjectResponse, error)
 	// Get the code of an PrecompiledObject.
 	GetPrecompiledObjectCode(context.Context, *GetPrecompiledObjectCodeRequest) (*GetPrecompiledObjectCodeResponse, error)
