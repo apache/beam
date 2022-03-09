@@ -353,41 +353,48 @@ class WriteToSnowflake(beam.PTransform):
         CREATE_IF_NEEDED, the table_schema  parameter  enables specifying the
         schema for the created target table. A table schema is as JSON with the
         following structure:
-        {"schema":[
-        {
-        "dataType":{"type":"<COLUMN DATA TYPE>"},
-        "name":"<COLUMN  NAME> ",
-        "nullable": <NULLABLE>
-        },
-        ]}
+
+        .. code-block:: json
+
+            {"schema":[
+            {
+            "dataType":{"type":"<COLUMN DATA TYPE>"},
+            "name":"<COLUMN  NAME> ",
+            "nullable": <NULLABLE>
+            },
+            ]}
 
         All supported data types:
-        {"schema":[
-        {"dataType":{"type":"date"},"name":"","nullable":false},
-        {"dataType":{"type":"datetime"},"name":"","nullable":false},
-        {"dataType":{"type":"time"},"name":"","nullable":false},
-        {"dataType":{"type":"timestamp"},"name":"","nullable":false},
-        {"dataType":{"type":"timestamp_ltz"},"name":"","nullable":false},
-        {"dataType":{"type":"timestamp_ntz"},"name":"","nullable":false},
-        {"dataType":{"type":"timestamp_tz"},"name":"","nullable":false},
-        {"dataType":{"type":"boolean"},"name":"","nullable":false},
-        {"dataType":{"type":"decimal","precision":38,"scale":1},"name":"","nullable":true},
-        {"dataType":{"type":"double"},"name":"","nullable":false},
-        {"dataType":{"type":"float"},"name":"","nullable":false},
-        {"dataType":{"type":"integer","precision":38,"scale":0},"name":"","nullable":false},
-        {"dataType":{"type":"number","precision":38,"scale":1},"name":"","nullable":false},
-        {"dataType":{"type":"numeric","precision":38,"scale":2},"name":"","nullable":false},
-        {"dataType":{"type":"real"},"name":"","nullable":false},
-        {"dataType":{"type":"array"},"name":"","nullable":false},
-        {"dataType":{"type":"object"},"name":"","nullable":false},
-        {"dataType":{"type":"variant"},"name":"","nullable":true},
-        {"dataType":{"type":"binary","size":null},"name":"","nullable":false},
-        {"dataType":{"type":"char","length":1},"name":"","nullable":false},
-        {"dataType":{"type":"string","length":null},"name":"","nullable":false},
-        {"dataType":{"type":"text","length":null},"name":"","nullable":false},
-        {"dataType":{"type":"varbinary","size":null},"name":"","nullable":false},
-        {"dataType":{"type":"varchar","length":100},"name":"","nullable":false}]
-        }
+
+        .. code-block:: json
+
+            {"schema":[
+            {"dataType":{"type":"date"},"name":"","nullable":false},
+            {"dataType":{"type":"datetime"},"name":"","nullable":false},
+            {"dataType":{"type":"time"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp_ltz"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp_ntz"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp_tz"},"name":"","nullable":false},
+            {"dataType":{"type":"boolean"},"name":"","nullable":false},
+            {"dataType":{"type":"decimal","precision":38,"scale":1},"name":"","nullable":true},
+            {"dataType":{"type":"double"},"name":"","nullable":false},
+            {"dataType":{"type":"float"},"name":"","nullable":false},
+            {"dataType":{"type":"integer","precision":38,"scale":0},"name":"","nullable":false},
+            {"dataType":{"type":"number","precision":38,"scale":1},"name":"","nullable":false},
+            {"dataType":{"type":"numeric","precision":38,"scale":2},"name":"","nullable":false},
+            {"dataType":{"type":"real"},"name":"","nullable":false},
+            {"dataType":{"type":"array"},"name":"","nullable":false},
+            {"dataType":{"type":"object"},"name":"","nullable":false},
+            {"dataType":{"type":"variant"},"name":"","nullable":true},
+            {"dataType":{"type":"binary","size":null},"name":"","nullable":false},
+            {"dataType":{"type":"char","length":1},"name":"","nullable":false},
+            {"dataType":{"type":"string","length":null},"name":"","nullable":false},
+            {"dataType":{"type":"text","length":null},"name":"","nullable":false},
+            {"dataType":{"type":"varbinary","size":null},"name":"","nullable":false},
+            {"dataType":{"type":"varchar","length":100},"name":"","nullable":false},
+            {"dataType":{"type":"variant"},"name":"","nullable":true}]
+            }
     """
     verify_credentials(
         username=username,
