@@ -18,7 +18,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: github-actions-runners-deployment
+  name: ubuntu-runners
   labels:
     name: github-actions
 spec:
@@ -32,7 +32,7 @@ spec:
         name: github-actions
     spec:
       containers:
-        - name: github-actions-runner
+        - name: github-actions-ubuntu-runner
           image: $IMAGE_URL:latest # replace variable manually
           securityContext:
             privileged: true
