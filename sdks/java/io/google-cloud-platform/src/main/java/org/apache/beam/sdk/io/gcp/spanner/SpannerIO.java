@@ -1489,9 +1489,6 @@ public class SpannerIO {
       checkArgument(
           getInclusiveEndAt() != null,
           "SpannerIO.readChangeStream() requires the end time to be set. If you'd like to process the stream without an end time, you can omit this parameter.");
-      checkArgument(
-          getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) <= 0,
-          "SpannerIO.readChangeStream() max end timestamp is " + MAX_INCLUSIVE_END_AT + ".");
       if (getMetadataInstance() != null) {
         checkArgument(
             getMetadataDatabase() != null,
@@ -1562,7 +1559,12 @@ public class SpannerIO {
                 .build();
         final String changeStreamName = getChangeStreamName();
         final Timestamp startTimestamp = getInclusiveStartAt();
-        final Timestamp endTimestamp = getInclusiveEndAt();
+        // Uses (Timestamp.MAX - 1ns) at max for end timestamp, because we add 1ns to transform the
+        // interval into a closed-open in the read change stream restriction (prevents overflow)
+        final Timestamp endTimestamp =
+            getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) > 0
+                ? MAX_INCLUSIVE_END_AT
+                : getInclusiveEndAt();
         final MapperFactory mapperFactory = new MapperFactory();
         final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
         final RpcPriority rpcPriority =
