@@ -85,11 +85,13 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
   @Test
   public void testTransactionBoundaries() {
+    LOG.info("Test pipeline: " + pipeline.toString());
     final SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withProjectId(projectId)
             .withInstanceId(instanceId)
             .withDatabaseId(databaseId);
+
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
     mutations.add(insertRecordMutation(0, "FirstName0", "LastName0"));
