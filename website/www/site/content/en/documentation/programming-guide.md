@@ -2149,11 +2149,7 @@ class ProcessRecord(beam.DoFn):
 {{< /highlight >}}
 
 {{< highlight go >}}
-func MyDoFn(pn beam.PaneInfo, word string) string {
-  t := int(pn.timing)
-  isFirstPane, isLastPane := pn.IsFirst, pn.IsLast
-  ...
-}
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" model_paneinfo >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
