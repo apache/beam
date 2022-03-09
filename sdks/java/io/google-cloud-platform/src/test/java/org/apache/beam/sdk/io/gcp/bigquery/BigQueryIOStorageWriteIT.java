@@ -104,9 +104,11 @@ public class BigQueryIOStorageWriteIT {
     try {
       QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
       if (writeMode == WriteMode.EXACT_ONCE) {
-        assertEquals((int) response.getRows().get(0).getF().get(0).getV(), rowCount);
+        assertEquals(
+            Integer.parseInt((String) response.getRows().get(0).getF().get(0).getV()), rowCount);
       } else {
-        assertTrue((int) response.getRows().get(0).getF().get(0).getV() >= rowCount);
+        assertTrue(
+            Integer.parseInt((String) response.getRows().get(0).getF().get(0).getV()) >= rowCount);
       }
     } catch (IOException e) {
       assertTrue("Unexpected exception: " + e.toString(), false);
