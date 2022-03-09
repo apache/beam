@@ -169,6 +169,7 @@ const (
 	VarInt             Kind = "varint"
 	Double             Kind = "double"
 	Row                Kind = "R"
+	Nullable           Kind = "N"
 	Timer              Kind = "T"
 	PaneInfo           Kind = "PI"
 	WindowedValue      Kind = "W"
@@ -198,7 +199,7 @@ type Coder struct {
 	Kind Kind
 	T    typex.FullType
 
-	Components []*Coder     // WindowedValue, KV, CoGBK
+	Components []*Coder     // WindowedValue, KV, CoGBK, Nullable
 	Custom     *CustomCoder // Custom
 	Window     *WindowCoder // WindowedValue
 
@@ -260,7 +261,7 @@ func (c *Coder) String() string {
 	switch c.Kind {
 	case WindowedValue, ParamWindowedValue, Window, Timer:
 		ret += fmt.Sprintf("!%v", c.Window)
-	case KV, CoGBK, Bytes, Bool, VarInt, Double, String, LP: // No additional info.
+	case KV, CoGBK, Bytes, Bool, VarInt, Double, String, LP, Nullable: // No additional info.
 	default:
 		ret += fmt.Sprintf("[%v]", c.T)
 	}
@@ -394,6 +395,19 @@ func NewKV(components []*Coder) *Coder {
 	}
 }
 
+func NewN(component *Coder) *Coder {
+	checkCoderNotNil(component, "Nullable")
+	return &Coder{
+		Kind:       Nullable,
+		T:          typex.New(typex.NullableType, component.T),
+		Components: []*Coder{component},
+	}
+}
+
+func IsNullable(c *Coder) bool {
+	return c.Kind == Nullable
+}
+
 // IsCoGBK returns true iff the coder is for a CoGBK type.
 func IsCoGBK(c *Coder) bool {
 	return c.Kind == CoGBK
@@ -438,5 +452,11 @@ func checkCodersNotNil(list []*Coder) {
 		if c == nil {
 			panic(fmt.Sprintf("nil coder at index: %v", i))
 		}
+	}
+}
+
+func checkCoderNotNil(c *Coder, outercoder string) {
+	if c == nil {
+		panic(fmt.Sprintf("nil inner coder for %v coder", outercoder))
 	}
 }

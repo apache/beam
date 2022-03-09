@@ -1715,13 +1715,15 @@ public class KafkaIO {
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         Coder keyCoder = Read.Builder.resolveCoder(keyDeserializer);
-        if (!(keyCoder instanceof NullableCoder && keyCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
+        if (!(keyCoder instanceof NullableCoder
+            && keyCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
               "ExternalWithMetadata transform only supports keys of type nullable(byte[])");
         }
         Class valueDeserializer = resolveClass(config.valueDeserializer);
         Coder valueCoder = Read.Builder.resolveCoder(valueDeserializer);
-        if (!(valueCoder instanceof NullableCoder && valueCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
+        if (!(valueCoder instanceof NullableCoder
+            && valueCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
               "ExternalWithMetadata transform only supports values of type nullable(byte[])");
         }

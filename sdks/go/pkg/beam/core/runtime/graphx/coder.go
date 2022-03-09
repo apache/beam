@@ -46,6 +46,7 @@ const (
 	urnParamWindowedValueCoder  = "beam:coder:param_windowed_value:v1"
 	urnTimerCoder               = "beam:coder:timer:v1"
 	urnRowCoder                 = "beam:coder:row:v1"
+	urnNullableCoder            = "beam:coder:nullable:v1"
 
 	urnGlobalWindow   = "beam:coder:global_window:v1"
 	urnIntervalWindow = "beam:coder:interval_window:v1"
@@ -71,6 +72,7 @@ func knownStandardCoders() []string {
 		urnGlobalWindow,
 		urnIntervalWindow,
 		urnRowCoder,
+		urnNullableCoder,
 		// TODO(BEAM-10660): Add urnTimerCoder once finalized.
 	}
 }
@@ -368,6 +370,15 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 		return coder.NewR(typex.New(t)), nil
+	case urnNullableCoder:
+		if len(components) != 1 {
+			return nil, errors.Errorf("could not unmarshal nullable coder from %v, expected one component but got %d", c, len(components))
+		}
+		elm, err := b.Coder(components[0])
+		if err != nil {
+			return nil, err
+		}
+		return coder.NewN(elm), nil
 
 		// Special handling for window coders so they can be treated as
 		// a general coder. Generally window coders are not used outside of
@@ -386,7 +397,6 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 		return &coder.Coder{Kind: coder.Window, T: typex.New(reflect.TypeOf((*struct{})(nil)).Elem()), Window: w}, nil
-
 	default:
 		return nil, errors.Errorf("could not unmarshal coder from %v, unknown URN %v", c, urn)
 	}
@@ -464,6 +474,13 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 			return "", errors.Wrapf(err, "failed to marshal KV coder %v", c)
 		}
 		return b.internBuiltInCoder(urnKVCoder, comp...), nil
+
+	case coder.Nullable:
+		comp, err := b.AddMulti(c.Components)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to marshal Nullable coder %v", c)
+		}
+		return b.internBuiltInCoder(urnNullableCoder, comp...), nil
 
 	case coder.CoGBK:
 		comp, err := b.AddMulti(c.Components)

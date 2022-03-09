@@ -205,7 +205,7 @@ class CoderTranslators {
     };
   }
 
-  static CoderTranslator<NullableCoder<?>> nullable(){
+  static CoderTranslator<NullableCoder<?>> nullable() {
     return new SimpleStructuredCoderTranslator<NullableCoder<?>>() {
       @Override
       protected NullableCoder<?> fromComponents(List<Coder<?>> components) {
