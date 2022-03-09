@@ -19,6 +19,11 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_CHANGE_STREAM_NAME;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_END_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_START_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_RPC_PRIORITY;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.NameGenerator.generatePartitionMetadataTableName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -58,7 +63,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -68,7 +72,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
@@ -434,14 +437,10 @@ public class SpannerIO {
   public static ReadChangeStream readChangeStream() {
     return new AutoValue_SpannerIO_ReadChangeStream.Builder()
         .setSpannerConfig(SpannerConfig.create())
-        .setChangeStreamName("")
-        .setInclusiveStartAt(Timestamp.MIN_VALUE)
-        // Sets the default change stream request priority as high
-        .setRpcPriority(RpcPriority.HIGH)
-        // Set a default value to the end timestamp. Do not delete this.
-        // Otherwise, we will get a null pointer exception when we try to access
-        // it later.
-        .setInclusiveEndAt(Timestamp.MAX_VALUE)
+        .setChangeStreamName(DEFAULT_CHANGE_STREAM_NAME)
+        .setRpcPriority(DEFAULT_RPC_PRIORITY)
+        .setInclusiveStartAt(DEFAULT_INCLUSIVE_START_AT)
+        .setInclusiveEndAt(DEFAULT_INCLUSIVE_END_AT)
         .build();
   }
 
@@ -1486,6 +1485,10 @@ public class SpannerIO {
       checkArgument(
           getInclusiveStartAt() != null,
           "SpannerIO.readChangeStream() requires the start time to be set.");
+      // Inclusive end at is defaulted to ChangeStreamsContants.MAX_INCLUSIVE_END_AT
+      checkArgument(
+          getInclusiveEndAt() != null,
+          "SpannerIO.readChangeStream() requires the end time to be set. If you'd like to process the stream without an end time, you can omit this parameter.");
       if (getMetadataInstance() != null) {
         checkArgument(
             getMetadataDatabase() != null,
@@ -1555,12 +1558,13 @@ public class SpannerIO {
                 .setDatabaseId(StaticValueProvider.of(partitionMetadataDatabaseId))
                 .build();
         final String changeStreamName = getChangeStreamName();
-        // FIXME: The backend only supports microsecond granularity. Remove when fixed.
-        final Timestamp startTimestamp = TimestampConverter.truncateNanos(getInclusiveStartAt());
+        final Timestamp startTimestamp = getInclusiveStartAt();
+        // Uses (Timestamp.MAX - 1ns) at max for end timestamp, because we add 1ns to transform the
+        // interval into a closed-open in the read change stream restriction (prevents overflow)
         final Timestamp endTimestamp =
-            Optional.ofNullable(getInclusiveEndAt())
-                .map(TimestampConverter::truncateNanos)
-                .orElse(null);
+            getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) > 0
+                ? MAX_INCLUSIVE_END_AT
+                : getInclusiveEndAt();
         final MapperFactory mapperFactory = new MapperFactory();
         final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
         final RpcPriority rpcPriority =

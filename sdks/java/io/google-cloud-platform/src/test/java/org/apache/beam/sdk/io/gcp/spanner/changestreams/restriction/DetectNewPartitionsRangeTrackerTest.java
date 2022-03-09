@@ -19,28 +19,21 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ReadChangeStreamPartitionRangeTrackerTest {
+public class DetectNewPartitionsRangeTrackerTest {
 
-  private PartitionMetadata partition;
   private TimestampRange range;
-  private ReadChangeStreamPartitionRangeTracker tracker;
+  private DetectNewPartitionsRangeTracker tracker;
 
   @Before
   public void setUp() throws Exception {
-    partition = mock(PartitionMetadata.class);
     range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(20L));
-    tracker = new ReadChangeStreamPartitionRangeTracker(partition, range);
+    tracker = new DetectNewPartitionsRangeTracker(range);
   }
 
   @Test
@@ -52,12 +45,5 @@ public class ReadChangeStreamPartitionRangeTrackerTest {
     assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
     assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(19L)));
     assertFalse(tracker.tryClaim(Timestamp.ofTimeMicroseconds(20L)));
-  }
-
-  @Test
-  public void testTrySplitReturnsNullForInitialPartition() {
-    when(partition.getPartitionToken()).thenReturn(InitialPartition.PARTITION_TOKEN);
-
-    assertNull(tracker.trySplit(0.0D));
   }
 }
