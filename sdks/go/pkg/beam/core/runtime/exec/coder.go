@@ -667,7 +667,7 @@ func (n nullableDecoder) DecodeTo(reader io.Reader, value *FullValue) error {
 	if err != nil {
 		return err
 	}
-	value = val
+	value.Elm = val.Elm
 	return nil
 }
 
