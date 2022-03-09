@@ -1,0 +1,79 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'java'
+    id 'org.apache.beam.module'
+}
+
+applyJavaNature(
+        exportJavadoc: false,
+        automaticModuleName: 'org.apache.beam.sdk.io.cdap',
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: CDAP :: Java"
+ext.summary = """Apache Beam SDK provides a simple, Java-based
+interface for integration with CDAP plugins."""
+
+/** Define the list of runners which execute a precommit test.
+ * Some runners are run from separate projects, see the preCommit task below
+ * for details.
+ */
+
+allprojects {
+    repositories {
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+dependencies {
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:io:hadoop-common")
+    implementation project(":sdks:java:io:hadoop-format")
+    implementation "org.apache.hadoop:hadoop-mapred:0.22.0"
+    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.slf4j_api
+    implementation "org.apache.commons:commons-lang3:3.9"
+    implementation "org.apache.httpcomponents:httpclient:4.5.13"
+    implementation "org.apache.httpcomponents:httpcore:4.4.13"
+    implementation "io.cdap.cdap:cdap-api:6.5.1"
+    implementation "io.cdap.cdap:cdap-formats:6.5.1"
+    implementation "io.cdap.cdap:cdap-etl-api:6.5.1"
+    implementation "com.github.data-integrations:salesforce:v1.3.9"
+    implementation 'com.google.http-client:google-http-client-gson:1.32.1'
+    implementation 'com.github.rholder:guava-retrying:2.0.0'
+    implementation 'commons-validator:commons-validator:1.7'
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(":sdks:java:io:jdbc")
+    testImplementation project(":sdks:java:io:hadoop-common")
+    testImplementation project(":sdks:java:io:hadoop-format")
+    testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(":sdks:java:io:google-cloud-platform")
+    testImplementation project(":sdks:java:extensions:ml")
+    testImplementation library.java.google_cloud_bigquery
+    testImplementation library.java.hamcrest
+    testImplementation library.java.junit
+    testImplementation library.java.mockito_core
+    testImplementation library.java.testcontainers_kafka
+    testImplementation library.java.testcontainers_gcloud
+}

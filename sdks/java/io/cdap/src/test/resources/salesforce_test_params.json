@@ -1,0 +1,10 @@
+{
+  "sObjectName": "sObject",
+  "datetimeAfter": "datetime",
+  "consumerKey": "key",
+  "consumerSecret": "secret",
+  "username": "user",
+  "password": "password",
+  "loginUrl": "https://www.google.com",
+  "referenceName": "reference"
+}
