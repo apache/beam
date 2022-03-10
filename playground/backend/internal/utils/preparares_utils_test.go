@@ -222,7 +222,7 @@ func TestAddNewLine(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "With newLine = false",
+			name: "No line added to file",
 			args: args{
 				newLine: false,
 				file:    nil,
@@ -282,7 +282,7 @@ func TestProcessLine(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name: "Empty curLine",
+			name: "Empty current line",
 			args: args{
 				curLine:      "",
 				pipelineName: &pipelineName,
