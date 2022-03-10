@@ -1108,7 +1108,7 @@ class SetupOptions(PipelineOptions):
             'custom code.'))
     parser.add_argument(
         '--beam_plugin',
-        '--beam_plugins',
+        '--beam_plugin',
         dest='beam_plugins',
         action='append',
         default=None,
