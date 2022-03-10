@@ -32,6 +32,11 @@ applyJavaNature(
     archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
 )
 
+dependencies {
+  implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-jaxb-annotations', version: '2.12.3'
+  implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.12.3'
+}
+
 description = "Apache Beam :: Runners :: Flink $flink_version"
 
 /*
