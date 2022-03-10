@@ -19,7 +19,7 @@
 const yaml = require("js-yaml");
 const fs = require("fs");
 import { Label } from "./githubUtils";
-const { NO_MATCHING_LABEL } = require("./shared/constants");
+const { NO_MATCHING_LABEL } = require("./constants");
 
 export class ReviewerConfig {
   private config: any;
