@@ -19,8 +19,4 @@
 plugins { id 'org.apache.beam.module' }
 applyGoNature()
 
-dependencies {
-  implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-jaxb-annotations', version: '2.12.3'
-  implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.12.3'
-}
 description = "Apache Beam :: SDKs :: Go"
