@@ -41,7 +41,9 @@ export function assignReviewer(labelToReviewerMapping: any): string {
 Available commands:
 - \`stop reviewer notifications\` - opt out of the automated review tooling
 - \`remind me after tests pass\` - tag the comment author after tests pass
-- \`waiting on author\` - shift the attention set back to the author (any comment or push by the author will return the attention set to the reviewers)`;
+- \`waiting on author\` - shift the attention set back to the author (any comment or push by the author will return the attention set to the reviewers)
+
+The PR bot will only process comments in the main thread (not review comments).`;
   return commentString;
 }
 
