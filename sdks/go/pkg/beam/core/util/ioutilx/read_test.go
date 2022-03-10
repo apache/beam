@@ -22,67 +22,73 @@ import (
 )
 
 func TestReadN(t *testing.T) {
-	const testString = "hello world!"
-	const testLength = len(testString)
+	testString := "hello world!"
+	testLength := len(testString)
 	r := strings.NewReader(testString)
 
 	// test good read
 	data, err := ReadN(r, testLength)
 	// err is expected to be nil
 	if err != nil {
-		t.Errorf("Failed to read data: %v", err)
+		t.Errorf("failed to read data: got %v", err)
 	}
 	// length of data is expected to match testLength
-	if (len(data) != testLength) {
-		t.Errorf("Got %v, wanted %v", len(data), testLength)
+	if got, want := len(data), testLength; got != want {
+		t.Errorf("got length %v, wanted %v", got, want)
 	}
 	// content of data is expected to match testString
-	if (string(data) != testString) {
-		t.Errorf("Got %q, wanted %q", string(data), testString)
+	if got, want := string(data), testString; got != want {
+		t.Errorf("got string %q, wanted %q", got, want)
 	}
+}
+
+func TestReadN_Bad(t *testing.T) {
+	testString := "hello world!"
+	testLength := len(testString)
+	r := strings.NewReader(testString)
 
 	// test bad read
-	data, err = ReadN(r, testLength+1)
+	_, err := ReadN(r, testLength+1)
 	// err is expected to be io.EOF
 	if err != io.EOF {
-		t.Errorf("Got %v, wanted %v", err, io.EOF)
+		t.Errorf("got error %v, wanted %v", err, io.EOF)
 	}
 }
 
 func TestReadNBufUnsafe(t *testing.T) {
-	const testString = "hello world!"
-	const testLength = len(testString)
+	testString := "hello world!"
+	testLength := len(testString)
 	r := strings.NewReader(testString)
-	var data [testLength]byte
+	data := make([]byte, testLength)
 
-	err := ReadNBufUnsafe(r, data[:])
+	err := ReadNBufUnsafe(r, data)
 	// err is expected to be nil
 	if err != nil {
-		t.Errorf("Failed to read data: %v", err)
+		t.Errorf("failed to read data: got %v", err)
 	}
 	// content of data is expected to match testString
-	if (string(data[:]) != testString) {
-		t.Errorf("Got %q, wanted %q", string(data[:]), testString)
+	if got, want := string(data[:]), testString; got != want {
+		t.Errorf("got string %q, wanted %q", string(data[:]), testString)
 	}
 }
 
 func TestReadUnsafe(t *testing.T) {
-	const testString = "hello world!"
-	const testLength = len(testString)
+	testString := "hello world!"
+	testLength := len(testString)
 	r := strings.NewReader(testString)
-	var data [testLength]byte
+	data := make([]byte, testLength)
 
-	length, err := ReadUnsafe(r, data[:])
+	length, err := ReadUnsafe(r, data)
 	// err is expected to be nil
 	if err != nil {
-		t.Errorf("Failed to read data: %v", err)
+		t.Errorf("failed to read data: got %v", err)
 	}
 	// length of data is expected to match testLength
-	if (length != testLength) {
-		t.Errorf("Got %v, wanted %v", length, testLength)
+	if length != testLength {
+		t.Errorf("got length %v, wanted %v", length, testLength)
 	}
 	// content of data is expected to match testString
-	if (string(data[:]) != testString) {
-		t.Errorf("Got %q, wanted %q", string(data[:]), testString)
+	if got, want := string(data[:]), testString; got != want {
+		t.Errorf("got string %q, wanted %q", got, want)
 	}
 }
