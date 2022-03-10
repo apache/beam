@@ -40,8 +40,9 @@ func TestGetEndpoint_Bad(t *testing.T) {
 	address := ""
 	Endpoint = &address
 	expectedErr := "no job service endpoint specified. Use --endpoint=<endpoint>"
-	if _, err := GetEndpoint(); err == nil {
-		t.Errorf("GetEndpoint() executed incorrectly, expected error: %v", expectedErr)
+	_, err := GetEndpoint()
+	if v, ok := err.(missingFlagError); !ok {
+		t.Errorf("GetEndpoint() executed incorrectly, got: %v, expected error: %s", v, expectedErr)
 	}
 }
 
@@ -72,6 +73,14 @@ func TestGetEnvironamentUrn(t *testing.T) {
 		env string
 		urn string
 	}{
+		{
+			"PROCESS",
+			"beam:env:process:v1",
+		},
+		{
+			"DOCKER",
+			"beam:env:docker:v1",
+		},
 		{
 			"LOOPBACK",
 			"beam:env:external:v1",
