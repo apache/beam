@@ -85,7 +85,7 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.37.0] - Unreleased, Branch Cut
+# [2.37.0] - 2022-03-04
 
 ## Highlights
 * Java 17 support for Dataflow ([BEAM-12240](https://issues.apache.org/jira/browse/BEAM-12240)).
