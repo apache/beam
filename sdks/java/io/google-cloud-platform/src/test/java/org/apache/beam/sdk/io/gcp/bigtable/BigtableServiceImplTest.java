@@ -173,8 +173,7 @@ public class BigtableServiceImplTest {
   }
 
   /**
-   * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
-   * as expected. This test checks that the proper Rows are returned when the buffer is filled.
+   * TODO(diegomez17): Update description to explain test
    *
    * @throws IOException
    * @throws InterruptedException
@@ -195,10 +194,10 @@ public class BigtableServiceImplTest {
     }
 
     ByteKey firstStart = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
-    ByteKey sharedKey = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
+    ByteKey sharedKeyEnd = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
     ByteKey secondEnd = ByteKey.copyFrom("e".getBytes(StandardCharsets.UTF_8));
 
-    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(firstStart, sharedKey),ByteKeyRange.of(sharedKey, secondEnd)));
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(firstStart, sharedKeyEnd),ByteKeyRange.of(sharedKeyEnd, secondEnd)));
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     @SuppressWarnings("unchecked")
     ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
@@ -234,7 +233,58 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testReadMultipleRangesOverlappingKeys() throws IOException {
-    // TODO (diegomez17): Write test
+    Row[] expectedFirstRangeRows = new Row[MINI_BATCH_ROW_LIMIT];
+    expectedFirstRangeRows[0] = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
+    Row endOfFirstRangeRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("b100")).build();
+
+    Row[] expectedSecondRangeRows = new Row[MINI_BATCH_ROW_LIMIT + MINI_BATCH_ROW_LIMIT / 2];
+    expectedSecondRangeRows[0] = Row.newBuilder().setKey(ByteString.copyFromUtf8("b49")).build();
+    Row endOfSecondRangeRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("c")).build();
+
+    for (int i = 1; i < 2 * MINI_BATCH_ROW_LIMIT; i++) {
+      if (i < MINI_BATCH_ROW_LIMIT) {
+        expectedFirstRangeRows[i] = Row.newBuilder().setKey(ByteString.copyFromUtf8("b" + i))
+            .build();
+      } if (i > MINI_BATCH_ROW_LIMIT / 2) {
+        expectedSecondRangeRows[i - (MINI_BATCH_ROW_LIMIT / 2)] = Row.newBuilder().setKey(ByteString.copyFromUtf8("b"+i)).build();
+      }
+    }
+
+    Row[] expectedSecondReturnRows = new Row[MINI_BATCH_ROW_LIMIT];
+    System.arraycopy(expectedSecondRangeRows,MINI_BATCH_ROW_LIMIT/2,expectedSecondReturnRows,0,MINI_BATCH_ROW_LIMIT);
+
+    ByteKey firstStart = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    ByteKey firstEnd  = ByteKey.copyFrom(("b"+ (MINI_BATCH_ROW_LIMIT - 1)).getBytes(StandardCharsets.UTF_8));
+
+    ByteKey secondStart = ByteKey.copyFrom(("b"+ (MINI_BATCH_ROW_LIMIT / 2 - 1)).getBytes(StandardCharsets.UTF_8));
+    ByteKey secondEnd = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
+
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(firstStart, firstEnd),ByteKeyRange.of(secondStart, secondEnd)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+
+    @SuppressWarnings("unchecked")
+    ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
+    when(mockResultScanner.next(MINI_BATCH_ROW_LIMIT))
+        .thenReturn(expectedFirstRangeRows).thenReturn(expectedSecondReturnRows).thenReturn(new Row[]{endOfSecondRangeRow}).thenReturn(null);
+
+    when(mockResultScanner.available()).thenReturn(MINI_BATCH_ROW_LIMIT).thenReturn(MINI_BATCH_ROW_LIMIT).thenReturn(1).thenReturn(0);
+    when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+
+    underTest.start();
+    Assert.assertEquals(expectedFirstRangeRows[0], underTest.getCurrentRow());
+    for(int i = 0; i < MINI_BATCH_ROW_LIMIT; i++)
+      underTest.advance();
+    Assert.assertEquals(endOfFirstRangeRow, underTest.getCurrentRow());
+    for(int i = 0; i < MINI_BATCH_ROW_LIMIT; i++)
+      underTest.advance();
+    Assert.assertEquals(endOfSecondRangeRow, underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
+    underTest.close();
+
+    verify(mockResultScanner, times(1)).close();
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
   }
 
 
