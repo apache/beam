@@ -32,7 +32,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.BooleanCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
@@ -130,7 +130,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     // per key.
     com.google.cloud.Timestamp endTimestamp = writeTransactionsToDatabase();
 
-    LOG.debug(
+    LOG.info(
         "Reading change streams from {} to {}", startTimestamp.toString(), endTimestamp.toString());
 
     final PCollection<String> tokens =
@@ -146,7 +146,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             .apply(ParDo.of(new KeyByIdFn()))
             .apply(ParDo.of(new KeyValueByCommitTimestampAndTransactionIdFn<>()))
             .apply(
-                ParDo.of(new BufferKeyUntilOutputTimestamp(endTimestamp, timeIncrementInSeconds)))
+                ParDo.of(new BufferKeyUntilOutputTimestamp(timeIncrementInSeconds)))
             .apply(ParDo.of(new ToStringFn()));
 
     // Assert that the returned PCollection contains one entry per key for the committed
@@ -279,16 +279,9 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     private static final long serialVersionUID = 5050535558953049259L;
 
     private final long incrementIntervalInSeconds;
-    private final @Nullable Instant pipelineEndTime;
 
-    private BufferKeyUntilOutputTimestamp(
-        @Nullable com.google.cloud.Timestamp endTimestamp, long incrementIntervalInSeconds) {
+    private BufferKeyUntilOutputTimestamp(long incrementIntervalInSeconds) {
       this.incrementIntervalInSeconds = incrementIntervalInSeconds;
-      if (endTimestamp != null) {
-        this.pipelineEndTime = new Instant(endTimestamp.toSqlTimestamp());
-      } else {
-        pipelineEndTime = null;
-      }
     }
 
     @SuppressWarnings("unused")
@@ -302,8 +295,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
         buffer = StateSpecs.bag();
 
     @SuppressWarnings("unused")
-    @StateId("keySeen")
-    private final StateSpec<ValueState<Boolean>> keySeen = StateSpecs.value(BooleanCoder.of());
+    @StateId("seenKey")
+    private final StateSpec<ValueState<String>> seenKey = StateSpecs.value(StringUtf8Coder.of());
 
     @ProcessElement
     public void process(
@@ -314,20 +307,20 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             BagState<KV<SpannerChangeStreamOrderedWithinKeyGloballyIT.SortKey, DataChangeRecord>>
                 buffer,
         @TimerId("timer") Timer timer,
-        @StateId("keySeen") ValueState<Boolean> keySeen) {
+        @StateId("seenKey") ValueState<String> seenKey) {
       buffer.add(element.getValue());
 
       // Only set the timer if this is the first time we are receiving a data change record
       // with this key.
-      Boolean hasKeyBeenSeen = keySeen.read();
+      String hasKeyBeenSeen = seenKey.read();
       if (hasKeyBeenSeen == null) {
         Instant commitTimestamp =
             new Instant(element.getValue().getValue().getCommitTimestamp().toSqlTimestamp());
         Instant outputTimestamp =
             commitTimestamp.plus(Duration.standardSeconds(incrementIntervalInSeconds));
-        LOG.debug("Setting timer at {} for key {}", outputTimestamp.toString(), element.getKey());
+        LOG.info("Setting timer at {} for key {}", outputTimestamp.toString(), element.getKey());
         timer.set(outputTimestamp);
-        keySeen.write(true);
+        seenKey.write(element.getKey());
       }
     }
 
@@ -337,7 +330,9 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
         @StateId("buffer")
             BagState<KV<SpannerChangeStreamOrderedWithinKeyGloballyIT.SortKey, DataChangeRecord>>
                 buffer,
-        @TimerId("timer") Timer timer) {
+        @TimerId("timer") Timer timer,
+        @StateId("seenKey") ValueState<String> seenKey) {
+      Instant timerContextTimestamp = context.timestamp();
       if (!buffer.isEmpty().read()) {
         final List<KV<SpannerChangeStreamOrderedWithinKeyGloballyIT.SortKey, DataChangeRecord>>
             records =
@@ -359,18 +354,18 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
           // have been processed and successfully committed. Since the timer fires when the
           // watermark passes the expiration time, we should only output records with event time
           // < expiration time.
-          if (recordCommitTimestamp.isBefore(context.timestamp())) {
-            LOG.debug(
+          if (recordCommitTimestamp.isBefore(timerContextTimestamp)) {
+            LOG.info(
                 "Outputting record with key {} and value \"{}\" at expiration timestamp {}",
                 record.getValue().getMods().get(0).getKeysJson(),
                 recordString,
-                context.timestamp().toString());
+                timerContextTimestamp.toString());
             recordsToOutput.add(record);
           } else {
-            LOG.debug(
+            LOG.info(
                 "Expired at {} but adding record with key {} and value {} back to buffer "
                     + "due to commit timestamp {}",
-                context.timestamp().toString(),
+                timerContextTimestamp.toString(),
                 record.getValue().getMods().get(0).getKeysJson(),
                 recordString,
                 recordCommitTimestamp.toString());
@@ -384,26 +379,26 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
               KV.of(
                   recordsToOutput.get(0).getValue().getMods().get(0).getKeysJson(),
                   recordsToOutput),
-              context.timestamp());
-          LOG.debug(
-              "Expired at {}, outputting records for key {}",
-              context.timestamp().toString(),
+              timerContextTimestamp);
+          LOG.info(
+              "Expired at {}, outputting records for key and context timestamp {}",
+              timerContextTimestamp.toString(),
               recordsToOutput.get(0).getValue().getMods().get(0).getKeysJson());
         } else {
-          LOG.debug("Expired at {} with no records", context.timestamp().toString());
+          LOG.info("Expired at {} with no records", timerContextTimestamp.toString());
         }
       }
 
       Instant nextTimer =
-          context.timestamp().plus(Duration.standardSeconds(incrementIntervalInSeconds));
-      if (pipelineEndTime == null || context.timestamp().isBefore(pipelineEndTime)) {
-        // If the current timer's timestamp is before the pipeline end time, or there is no
-        // pipeline end time, we still have data left to process.
-        LOG.debug("Setting next timer to {}", nextTimer.toString());
+          timerContextTimestamp.plus(Duration.standardSeconds(incrementIntervalInSeconds));
+      String keyString = seenKey.read();
+      if (buffer.isEmpty() != null && !buffer.isEmpty().read()) {
+        LOG.info("Setting next timer to {} for key ", nextTimer.toString(), keyString);
         timer.set(nextTimer);
       } else {
-        LOG.debug(
-            "Timer not being set as exceeded pipeline end time: " + pipelineEndTime.toString());
+        LOG.info(
+            "Timer not being set since the buffer is empty for key {} ", keyString);
+        seenKey.clear();
       }
     }
   }
@@ -500,27 +495,27 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     mutations.add(insertRecordMutation(1));
     mutations.add(insertRecordMutation(2));
     com.google.cloud.Timestamp t1 = databaseClient.write(mutations);
-    LOG.debug("The first transaction committed with timestamp: " + t1.toString());
+    LOG.info("The first transaction committed with timestamp: " + t1.toString());
     mutations.clear();
 
     // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
     mutations.add(insertRecordMutation(3));
     mutations.add(deleteRecordMutation(1));
     com.google.cloud.Timestamp t2 = databaseClient.write(mutations);
-    LOG.debug("The second transaction committed with timestamp: " + t2.toString());
+    LOG.info("The second transaction committed with timestamp: " + t2.toString());
     mutations.clear();
 
     // 3. Commit a transaction to delete Singer 2 and Singer 3 from the table.
     mutations.add(deleteRecordMutation(2));
     mutations.add(deleteRecordMutation(3));
     com.google.cloud.Timestamp t3 = databaseClient.write(mutations);
-    LOG.debug("The third transaction committed with timestamp: " + t3.toString());
+    LOG.info("The third transaction committed with timestamp: " + t3.toString());
     mutations.clear();
 
     // 4. Commit a transaction to delete Singer 0.
     mutations.add(deleteRecordMutation(0));
     com.google.cloud.Timestamp t4 = databaseClient.write(mutations);
-    LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
+    LOG.info("The fourth transaction committed with timestamp: " + t4.toString());
     return t4;
   }
 
