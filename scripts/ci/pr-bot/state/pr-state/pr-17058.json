@@ -4,6 +4,6 @@
     "go": "jrmccluskey"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": []
 }
