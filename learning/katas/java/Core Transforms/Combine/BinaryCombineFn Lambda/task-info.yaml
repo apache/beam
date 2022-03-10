@@ -22,8 +22,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/Task.java
   visible: true
   placeholders:
-  - offset: 1922
-    length: 46
+  - offset: 2164
+    length: 53
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/combine/binarycombinefnlambda/TaskTest.java
   visible: false
