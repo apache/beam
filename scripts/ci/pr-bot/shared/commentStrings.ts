@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-const { NO_MATCHING_LABEL } = require("./shared/constants");
+const { NO_MATCHING_LABEL } = require("./constants");
 
 export function allChecksPassed(reviewersToNotify: string[]): string {
   return `All checks have passed: @${reviewersToNotify.join(" ")}`;
