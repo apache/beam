@@ -2,12 +2,11 @@
 
 Apache Beam I/O connectors provide read and write transforms for the most popular data storage systems so that Beam users can benefit from native optimised connectivity.  With the available I/Os, Apache Beam pipelines can read and write data from and to an external storage type in a unified and distributed way.
 
-### Built-in I/O Connectors
+## Built-in I/O Connectors
 
 This table provides a consolidated, at-a-glance overview of the available built-in I/O connectors.
-
-
-<table class="table table-bordered">
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
   <tr>
     <th>Connector Name</th>
     <th>Source Supported</th>
@@ -57,7 +56,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>TextIO</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td class="active">
+    <td class="present">
       ✔
       <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/TextIO.html">native</a>
     </td>
@@ -76,7 +75,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>TFRecordIO</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td class="active">
+    <td class="present">
       ✔
       <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/TFRecordIO.html">native</a>
     </td>
@@ -88,5 +87,835 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
+  <tr>
+    <td>XmlIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/xml/XmlIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>TikaIO</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/tika/TikaIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>ParquetIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>ThriftIO</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/thrift/ThriftIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>S3IO</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td>via X-language</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.aws.s3io.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>S3IO</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td>via X-language</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.gcsio.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>HadoopFileSystem</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemRegistrar.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.hadoopfilesystem.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>GcsFileSystem</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/extensions/gcp/storage/GcsFileSystemRegistrar.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.gcsfilesystem.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs">native</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>LocalFileSystem</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/LocalFileSystemRegistrar.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/LocalFileSystemRegistrar.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local">native</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>S3FileSystem</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>In-memory</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/memfs">native</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>KinesisIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>AmqpIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/amqp/AmqpIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>KafkaIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>PubSubIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.pubsub.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio">native</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>JmsIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/jms/JmsIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>MqttIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/mqtt/MqttIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>RabbitMqIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>SqsIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>SnsIO</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws2/sns/SnsIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>CassandraIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/cassandra/CassandraIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>HadoopFormatIO</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hadoop/format/HadoopFormatIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>HBaseIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hbase/HBaseIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>HCatalogIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hcatalog/HCatalogIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>KuduIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href=https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/kudu/KuduIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>SolrIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/solr/SolrIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>ElasticsearchIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/elasticsearch/ElasticsearchIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>BigQueryIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.bigquery.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio">native</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>BigTableIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.bigtableio.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>DatastoreIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>SnowflakeIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>SpannerIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>JdbcIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/jdbc/JdbcIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>MongoDbIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/mongodb/MongoDbIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.mongodbio.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>MongoDbGridFSIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/mongodb/MongoDbGridFSIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>RedisIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/redis/RedisIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>DynamoDBIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>ClickHouseIO</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>DatabaseIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/databaseio">native</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>GenerateSequence</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/GenerateSequence.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>SplunkIO</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/splunk/SplunkIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>FhirIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>HL7v2IO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>FlinkStreamingImpulseSource</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td>via X-language</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.flink.flink_streaming_impulse_source.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>Firestore IO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>Neo4j</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>Pub/Sub Lite</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>InfluxDB</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html">native</a>
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
 </table>
+</div>
 
+## Other I/O Connectors for Apache Beam
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+  <tr>
+    <th>Connector Name</th>
+    <th>Source Supported</th>
+    <th>Sink Supported</th>
+    <th>Java</th>
+    <th>Python</th>
+    <th>Go</th>
+    <th>Batch Supported</th>
+    <th>Streaming Supported</th>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/SolaceProducts/solace-apache-beam">Solace</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/google/hana-bq-beam-connector">SAP Hana to Google BigQuery</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/esakik/beam-mysql-connector">MySQL</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td>via X-language</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/Refinitiv/trep-websockets-beam-io">TrepWsIO</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/kineticadb/kinetica-connector-beam">KineticaDB</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/cognitedata/cdf-beam-connector-java">Cognite Data Fusion</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/314e/beam-pyodbc-connector">Pyodbc</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td>via X-language</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/amient/goconnect">Go Connect</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/tinybirdco/tinybird-beam">Tinybird</a>
+    </td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td>via X-language</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/jccatrinck/dataflow-cloud-sql-python">Cloud SQL</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td>via X-language</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>via X-language</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+</table>
+</div>
