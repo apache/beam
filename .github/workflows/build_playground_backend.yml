@@ -18,8 +18,10 @@ name: Build And Deploy Playground Backend Application
 on:
   push:
     tags: 'v*'
+    branches: ['master', 'release-*']
   pull_request:
     paths: ['playground/backend/**']
+    branches: ['playground-staging']
   workflow_dispatch:
 jobs:
   build_playground_backend_docker_image:
