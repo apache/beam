@@ -34,10 +34,6 @@ applyJavaNature(
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
 
-dependencies {
-  implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-jaxb-annotations', version: '2.12.3'
-  implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.12.3'
-}
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
@@ -187,6 +183,8 @@ dependencies {
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
+  implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-jaxb-annotations', version: '2.12.3'
+  implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.12.3'
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
