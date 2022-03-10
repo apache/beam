@@ -67,7 +67,7 @@ func TestReadNBufUnsafe(t *testing.T) {
 		t.Errorf("failed to read data: got %v", err)
 	}
 	// content of data is expected to match testString
-	if got, want := string(data[:]), testString; got != want {
+	if got, want := string(data), testString; got != want {
 		t.Errorf("got string %q, wanted %q", got, want)
 	}
 }
@@ -88,7 +88,7 @@ func TestReadUnsafe(t *testing.T) {
 		t.Errorf("got length %v, wanted %v", length, testLength)
 	}
 	// content of data is expected to match testString
-	if got, want := string(data[:]), testString; got != want {
+	if got, want := string(data), testString; got != want {
 		t.Errorf("got string %q, wanted %q", got, want)
 	}
 }
