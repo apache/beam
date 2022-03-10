@@ -61,7 +61,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -127,7 +126,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore
   public void testUnavailableExceptionRetries() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofExceptions(
@@ -206,7 +204,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore
   public void testInvalidRecordReceived() {
     final Timestamp now = Timestamp.now();
     final Timestamp after3Seconds =
@@ -216,10 +213,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     ResultSet getPartitionResultSet = mockGetParentPartition(now, after3Seconds);
     mockGetWatermark(now);
     mockGetPartitionsAfter(
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() + 1000),
-        getPartitionResultSet);
-    mockGetPartitionsAfter(
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() - 1000),
+        Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() - 1),
         getPartitionResultSet);
     mockInvalidChangeStreamRecordReceived(now, after3Seconds);
 
