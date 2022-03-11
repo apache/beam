@@ -219,6 +219,12 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.aws2.sns.SnsIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html
+      - transform: Pub/Sub Lite
+        description: I/O transforms for reading from Google Pub/Sub Lite.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.pubsublite.PubSubLiteIO
+            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html
   - name: Database
     description: These I/O connectors are used to connect to database systems.
     rows:
@@ -361,6 +367,12 @@ categories:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
             url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/databaseio
+      - transform: InfluxDB
+        description: IO to read and write from InfluxDB.
+        implementations:
+          - language: go
+            name: github.com/apache/beam/sdks/go/pkg/beam/io/InfluxDB
+            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html
   - name: Miscellaneous
     description: Miscellaneous I/O sources.
     rows:
@@ -397,3 +409,12 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html
+      - transform: Firestore IO
+        description: FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.FirestoreIO
+            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html
+      - transform: Neo4j
+        implementations:
+          - language: java
