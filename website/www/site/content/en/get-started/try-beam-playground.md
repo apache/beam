@@ -21,7 +21,7 @@ Beam Playground is an interactive environment to try out Beam transforms and exa
 without having to install Apache Beam in your environment.
 
 You can try an Apache Beam examples at
-[Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
+[Beam Playground](https://play.beam.apache.org/).
 
 ## Beam Playground WordCount Example
 
