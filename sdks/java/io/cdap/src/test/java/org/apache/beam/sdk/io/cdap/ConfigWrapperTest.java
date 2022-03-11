@@ -25,12 +25,12 @@ import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
 import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConstants;
 import java.io.File;
 import java.util.Map;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /** Test class for {@link ConfigWrapper}. */
 @RunWith(JUnit4.class)
