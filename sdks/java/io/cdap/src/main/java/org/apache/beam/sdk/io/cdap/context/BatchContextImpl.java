@@ -28,7 +28,10 @@ import io.cdap.cdap.api.metadata.MetadataEntity;
 import io.cdap.cdap.api.metadata.MetadataException;
 import io.cdap.cdap.api.metadata.MetadataScope;
 import io.cdap.cdap.api.plugin.PluginProperties;
-import io.cdap.cdap.etl.api.*;
+import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.Lookup;
+import io.cdap.cdap.etl.api.StageMetrics;
+import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.batch.BatchContext;
 import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
@@ -49,7 +52,7 @@ public class BatchContextImpl implements BatchContext {
 
   /**
    * This should be set after {@link SubmitterLifecycle#prepareRun(Object)} call with passing this
-   * context object as a param
+   * context object as a param.
    */
   protected InputFormatProvider inputFormatProvider;
 

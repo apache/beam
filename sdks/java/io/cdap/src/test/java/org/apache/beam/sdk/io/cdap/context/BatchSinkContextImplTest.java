@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.cdap.context;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.sforce.ws.ConnectionException;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -28,8 +30,8 @@ import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceSinkConfig;
 import java.sql.Timestamp;
 import java.util.List;
 import org.apache.beam.sdk.io.cdap.ConfigWrapper;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /** Test class for {@link BatchSinkContextImpl}. */
 public class BatchSinkContextImplTest {

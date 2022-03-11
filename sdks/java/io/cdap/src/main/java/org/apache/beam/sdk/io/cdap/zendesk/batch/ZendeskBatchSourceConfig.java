@@ -38,6 +38,7 @@ import org.apache.beam.sdk.io.cdap.zendesk.common.config.BaseZendeskSourceConfig
  * This class {@link ZendeskBatchSourceConfig} provides all the configuration required for
  * configuring the {@link ZendeskBatchSource} plugin.
  */
+@SuppressWarnings("ReturnValueIgnored")
 public class ZendeskBatchSourceConfig extends BaseZendeskSourceConfig {
 
   public static final String PROPERTY_START_DATE = "startDate";

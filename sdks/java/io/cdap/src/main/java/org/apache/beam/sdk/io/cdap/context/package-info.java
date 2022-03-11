@@ -15,28 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/** CDAP contexts. */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.cdap.context;
 
-import static org.junit.Assert.assertTrue;
-
-import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
-import java.sql.Timestamp;
-import org.junit.Test;
-
-/** Test class for {@link StreamingSourceContextImpl}. */
-public class StreamingSourceContextImplTest {
-
-  /**
-   * TODO: Remove tests(getFailureCollector, getLogicalStartTime) if these methods weren't override
-   * and were implemented own methods of StreamingSourceContextImplTest class.
-   */
-  @Test
-  public void getLogicalStartTime() {
-    /** arrange */
-    StreamingSourceContext context = new StreamingSourceContextImpl();
-    Timestamp startTime = new Timestamp(System.currentTimeMillis());
-
-    /** assert */
-    assertTrue(startTime.getTime() - context.getLogicalStartTime() <= 100);
-  }
-}
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

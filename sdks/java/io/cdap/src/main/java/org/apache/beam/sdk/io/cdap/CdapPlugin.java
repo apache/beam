@@ -37,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Class for working with any CDAP plugin class that marked with {@link Plugin}
+ * Class for working with any CDAP plugin class that marked with {@link Plugin}.
  *
  * @param <T> CDAP plugin class
  */

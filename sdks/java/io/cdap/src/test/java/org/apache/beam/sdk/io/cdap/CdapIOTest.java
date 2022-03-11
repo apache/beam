@@ -47,7 +47,7 @@ import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSource;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSourceConfig;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubFormatProvider;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubInputFormat;
-import org.apache.beam.sdk.io.cdap.github.common.model.impl.*;
+import org.apache.beam.sdk.io.cdap.github.common.model.impl.Branch;
 import org.apache.beam.sdk.io.cdap.hubspot.common.BaseHubspotConfig;
 import org.apache.beam.sdk.io.cdap.hubspot.common.SourceHubspotConfig;
 import org.apache.beam.sdk.io.cdap.hubspot.source.batch.HubspotBatchSource;
@@ -62,6 +62,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -72,7 +73,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /** Test class for {@link CdapIO}. */
 @SuppressWarnings("ModifiedButNotUsed")
