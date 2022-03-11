@@ -33,8 +33,8 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Wrapper for invoking external Python transforms. */
 public class ExternalPythonTransform<InputT extends PInput, OutputT extends POutput>
@@ -86,7 +86,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
                 .withMultiOutputs();
         PCollectionTuple outputs;
         if (input instanceof PCollection) {
-          outputs = (PCollectionTuple) ((PCollection) input).apply(transform);
+          outputs = ((PCollection<?>) input).apply(transform);
         } else if (input instanceof PCollectionTuple) {
           outputs = ((PCollectionTuple) input).apply(transform);
         } else if (input instanceof PBegin) {

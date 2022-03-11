@@ -28,9 +28,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.base.Charsets;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +50,7 @@ public class PythonService {
     this(module, Arrays.asList(args));
   }
 
+  @SuppressWarnings("argument.type.incompatible")
   public AutoCloseable start() throws IOException, InterruptedException {
     File bootstrapScript = File.createTempFile("bootstrap_beam_venv", ".py");
     bootstrapScript.deleteOnExit();
