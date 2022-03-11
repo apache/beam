@@ -53,6 +53,10 @@ class TwoLevelMessageConverterCache<DestinationT, ElementT> implements Serializa
   private final Cache<DestinationT, MessageConverter<ElementT>> localMessageConverters =
       CacheBuilder.newBuilder().expireAfterAccess(java.time.Duration.ofMinutes(15)).build();
 
+  static void clear() {
+    CACHED_MESSAGE_CONVERTERS.invalidateAll();
+  }
+
   public MessageConverter<ElementT> get(
       DestinationT destination,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
