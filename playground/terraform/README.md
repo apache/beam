@@ -37,29 +37,29 @@ $ gsutil versioning set on gs://state-bucket-name
 
 ## 1. Create new environment
 
-To provide informantion about terraform backend, please create:
+To provide information about the terraform backend, run the following commands
 
 * New environment folder
 
 ```bash
-mkdir environment/env-name
+mkdir /path/to/beam/playground/environment/{env-name}
 ```
 
 * Backend config
 
 ```bash
-echo 'bucket = "put your state bucket name here"' > environment/env-name/state.tfbackend
+echo 'bucket = "put your state bucket name here"' > /path/to/beam/playground/terraform/environment/{env-name}/state.tfbackend
 ```
 
 * Terraform variables config and provide necessary variables
 
 ```bash
-touch environment/env-name/terraform.tfvars
+touch /path/to/beam/playground/terraform/environment/{env-name}/terraform.tfvars
 ```
 
-Then provide necesarry variables.
+Then provide necessary variables.
 
-## 1. Provision infrastructure
+## 2. Provision infrastructure
 
 To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module or run
 gradle task:
@@ -68,7 +68,7 @@ gradle task:
 ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name" -Pdocker-tag="tag"
 ```
 
-## 2. Deploy application
+## 3. Deploy application
 
 To deploy application run following steps:
 

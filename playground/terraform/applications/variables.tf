@@ -239,4 +239,6 @@ variable "create_default_service" {
 }
 
 variable "state_bucket" {}
-variable "state_prefix" {}
+variable "state_prefix" {
+  default = ""
+}
