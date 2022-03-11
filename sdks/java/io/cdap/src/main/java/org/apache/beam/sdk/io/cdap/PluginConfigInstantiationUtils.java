@@ -28,12 +28,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Class for getting any filled {@link io.cdap.cdap.api.plugin.PluginConfig} configuration object.
  */
+@SuppressWarnings("unchecked")
 public class PluginConfigInstantiationUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginConfigInstantiationUtils.class);
@@ -51,7 +53,7 @@ public class PluginConfigInstantiationUtils {
     }
     List<Field> allFields = new ArrayList<>();
     Class<?> currClass = configClass;
-    while (!currClass.equals(Object.class)) {
+    while (!Object.class.equals(currClass)) {
       allFields.addAll(
           Arrays.stream(currClass.getDeclaredFields())
               .filter(
@@ -66,8 +68,9 @@ public class PluginConfigInstantiationUtils {
 
       Class<?> fieldType = field.getType();
 
-      String fieldName = field.getDeclaredAnnotation(Name.class).value();
-      Object fieldValue = params.get(fieldName);
+      Name declaredAnnotation = field.getDeclaredAnnotation(Name.class);
+      Object fieldValue =
+          declaredAnnotation != null ? params.get(declaredAnnotation.value()) : null;
 
       if (fieldValue != null && fieldType.equals(fieldValue.getClass())) {
         try {
@@ -81,7 +84,7 @@ public class PluginConfigInstantiationUtils {
   }
 
   /** @return empty {@link Object} of {@param tClass} */
-  private static <T> T getEmptyObjectOf(Class<T> tClass) {
+  private static @Nullable <T> T getEmptyObjectOf(Class<T> tClass) {
     for (Constructor<?> constructor : tClass.getDeclaredConstructors()) {
       constructor.setAccessible(true);
       Class<?>[] parameterTypes = constructor.getParameterTypes();
@@ -99,7 +102,7 @@ public class PluginConfigInstantiationUtils {
   }
 
   /** @return default value for given {@param tClass} */
-  private static Object getDefaultValue(Class<?> tClass) {
+  private static @Nullable Object getDefaultValue(Class<?> tClass) {
     if (Boolean.TYPE.equals(tClass)) {
       return false;
     }

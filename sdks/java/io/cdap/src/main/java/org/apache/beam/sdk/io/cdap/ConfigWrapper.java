@@ -32,7 +32,7 @@ public class ConfigWrapper<T extends PluginConfig> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapper.class);
 
-  private Map<String, Object> paramsMap;
+  private Map<String, Object> paramsMap = null;
   private final Class<T> configClass;
 
   public ConfigWrapper(Class<T> configClass) {
