@@ -10,7 +10,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """A utility for bootstrapping a BeamPython install.
 
 This utility can be called with any version of Python, and attempts to create
@@ -25,7 +24,9 @@ suitable python executable.
 """
 
 import argparse
+import distutils.version
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -37,12 +38,14 @@ def main():
         # Run this script with Python 3.
         os.execlp('python3', 'python3', *sys.argv)
         return  # In case windows returns...
+    else:
+        import urllib.request
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--python_version', help="Python major version.")
     parser.add_argument('--beam_version',
                         help="Beam version.",
-                        default="2.36.0")
+                        default="latest")
     parser.add_argument(
         '--extra_packages',
         help="Semi-colon delimited set of python dependencies.")
@@ -57,15 +60,27 @@ def main():
         py_version = '%s.%s' % sys.version_info[:2]
         executable = sys.executable
 
-    if (os.path.exists(options.beam_version)
-            or options.beam_version.startswith('http://')
-            or options.beam_version.startswith('https://')):
+    if options.beam_version == 'latest':
+        info = json.load(
+            urllib.request.urlopen("https://pypi.org/pypi/apache_beam/json"))
+
+        def maybe_strict_version(s):
+            try:
+                return distutils.version.StrictVersion(s)
+            except:
+                return distutils.version.StrictVersion('0.0')
+
+        beam_version = max(info['releases'], key=maybe_strict_version)
+        beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
+    elif (os.path.exists(options.beam_version)
+          or options.beam_version.startswith('http://')
+          or options.beam_version.startswith('https://')):
         # It's a path to a tarball.
         beam_version = os.path.basename(options.beam_version)
         beam_package = options.beam_version
     else:
         beam_version = options.beam_version
-        beam_package = 'apache_beam==' + options.beam_version
+        beam_package = 'apache_beam[gcp,aws,asure,dataframe]==' + beam_version
 
     deps = options.extra_packages.split(';') if options.extra_packages else []
     venv_dir = os.path.join(
@@ -77,7 +92,11 @@ def main():
     if not os.path.exists(venv_python):
         try:
             subprocess.run([executable, '-m', 'venv', venv_dir], check=True)
-            subprocess.run([venv_python, '-m', 'pip', 'install', beam_package],
+            # See https://issues.apache.org/jira/browse/BEAM-14092
+            subprocess.run([
+                venv_python, '-m', 'pip', 'install', beam_package,
+                'pyparsing==2.4.2'
+            ],
                            check=True)
             if deps:
                 subprocess.run([venv_python, '-m', 'pip', 'install'] + deps,
