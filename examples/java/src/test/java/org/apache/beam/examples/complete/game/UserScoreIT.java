@@ -17,14 +17,18 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import org.apache.beam.runners.direct.DirectOptions;
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
+import static org.hamcrest.MatcherAssert.assertThat;
+
+import java.util.Date;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.junit.After;
+import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,14 +38,11 @@ import org.junit.runners.JUnit4;
 public class UserScoreIT {
   public static final String GAMING_DATA_CSV =
       "gs://apache-beam-samples/game/small/gaming_data.csv";
-  public static final String TEMP_STORAGE_FOR_UPLOAD_TESTS =
-      "gs://temp-storage-for-end-to-end-tests/UserScoreIT/game/"
-          + UserScoreIT.class.getSimpleName();
+  public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "1b22379fc106a1f745b8e15a6c283dfb22a2a340";
   private UserScoreOptions options =
       TestPipeline.testingPipelineOptions().as(UserScoreOptions.class);
   private static String projectId;
-  // temp-storage-for-end-to-end-tests
-  @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
 
   public interface UserScoreOptions extends TestPipelineOptions, UserScore.Options {}
 
@@ -56,18 +57,24 @@ public class UserScoreIT {
 
   @Test
   public void testE2EUserScore() throws Exception {
-    UserScore.runUserScore(options, testPipeline);
+    UserScore.runUserScore(options);
 
-    testPipeline.run().waitUntilFinish();
+    assertThat(
+        new NumberedShardedFile(options.getOutput() + "*-of-*"),
+        fileContentsHaveChecksum(DEFAULT_OUTPUT_CHECKSUM));
   }
-
-  @After
-  public void cleanupTestEnvironment() throws Exception {}
 
   private void setupPipelineOptions() {
     options.as(GcpOptions.class).setProject(projectId);
-    options.as(DirectOptions.class).setBlockOnRun(false);
+    options.setBlockOnRun(false);
     options.setInput(GAMING_DATA_CSV);
-    options.setOutput(TEMP_STORAGE_FOR_UPLOAD_TESTS);
+    options.setOutput(
+        FileSystems.matchNewResource(TEMP_STORAGE_DIR, true)
+            .resolve(
+                String.format("userscore-it-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("output", ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("results", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)
+            .toString());
   }
 }

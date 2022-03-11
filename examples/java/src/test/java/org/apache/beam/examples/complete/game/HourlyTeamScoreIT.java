@@ -17,30 +17,32 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import org.apache.beam.runners.direct.DirectOptions;
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
+import static org.hamcrest.MatcherAssert.assertThat;
+
+import java.util.Date;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.junit.After;
+import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link HourlyTeamScore}. */
+/** Integration Tests for {@link HourlyTeamScore}. */
 @RunWith(JUnit4.class)
 public class HourlyTeamScoreIT {
   public static final String GAMING_DATA_CSV =
       "gs://apache-beam-samples/game/small/gaming_data.csv";
-  public static final String TEMP_STORAGE_FOR_UPLOAD_TESTS =
-      "gs://temp-storage-for-end-to-end-tests/HourlyTeamScoreIT/game/"
-          + HourlyTeamScoreIT.class.getSimpleName();
+  public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "f920742fd1b363d01b0a5a44c951c683ea348a47";
   private HourlyTeamScoreOptions options =
       TestPipeline.testingPipelineOptions().as(HourlyTeamScoreOptions.class);
   private static String projectId;
-  @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
 
   public interface HourlyTeamScoreOptions extends TestPipelineOptions, HourlyTeamScore.Options {}
 
@@ -56,18 +58,25 @@ public class HourlyTeamScoreIT {
   @Test
   public void testE2EHourlyTeamScore() throws Exception {
 
-    HourlyTeamScore.runHourlyTeamScore(options, testPipeline);
-    testPipeline.run().waitUntilFinish();
-  }
+    HourlyTeamScore.runHourlyTeamScore(options);
 
-  @After
-  public void cleanupTestEnvironment() throws Exception {}
+    assertThat(
+        new NumberedShardedFile(options.getOutput() + "*-of-*"),
+        fileContentsHaveChecksum(DEFAULT_OUTPUT_CHECKSUM));
+  }
 
   private void setupPipelineOptions() {
     options.as(GcpOptions.class).setProject(projectId);
-    options.as(DirectOptions.class).setBlockOnRun(false);
+    options.setBlockOnRun(false);
     options.setInput(GAMING_DATA_CSV);
-    options.setOutput(TEMP_STORAGE_FOR_UPLOAD_TESTS);
+    options.setOutput(
+        FileSystems.matchNewResource(TEMP_STORAGE_DIR, true)
+            .resolve(
+                String.format("hourlyteamscore-it-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("output", ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("results", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)
+            .toString());
     options.setWindowDuration(10);
   }
 }

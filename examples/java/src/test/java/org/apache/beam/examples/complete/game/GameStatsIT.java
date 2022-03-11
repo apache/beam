@@ -32,8 +32,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
@@ -58,14 +58,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link GameStats}. */
+/** Integration Tests for {@link GameStats}. */
 @RunWith(JUnit4.class)
 public class GameStatsIT {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String GAME_STATS_TEAM_TABLE = "game_stats_team";
-  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
+  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
       "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
   private GameStatsOptions options =
@@ -83,7 +83,8 @@ public class GameStatsIT {
   private BigqueryClient bqClient;
   private final String OUTPUT_DATASET = "game_stats_e2e";
 
-  public interface GameStatsOptions extends TestPipelineOptions, GameStats.Options {};
+  public interface GameStatsOptions
+      extends TestPipelineOptions, ExampleBigQueryTableOptions, GameStats.Options {};
 
   @Before
   public void setupTestEnvironment() throws Exception {
@@ -125,7 +126,7 @@ public class GameStatsIT {
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
     options.setStreaming(true);
-    options.as(DirectOptions.class).setBlockOnRun(false);
+    options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
     options.setFixedWindowDuration(5);
@@ -234,15 +235,11 @@ public class GameStatsIT {
    *
    * <p>Example: 'gamestats-2018-12-11-23-32-333-events-6185541326079233738'
    */
-  private static String createTopicName(String name) throws IOException {
+  private static String createTopicName(String name) {
     StringBuilder topicName = new StringBuilder(TOPIC_PREFIX);
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString()
-        + "-"
-        + name
-        + "-"
-        + String.valueOf(ThreadLocalRandom.current().nextLong());
+    return topicName + "-" + name + "-" + ThreadLocalRandom.current().nextLong();
   }
 }

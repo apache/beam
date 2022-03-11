@@ -33,7 +33,6 @@ import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
@@ -58,16 +57,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link LeaderBoard}. */
+/** Integration Tests for {@link LeaderBoard}. */
 @RunWith(JUnit4.class)
 public class LeaderBoardIT {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String LEADERBOARD_TEAM_TABLE = "leaderboard_team";
-  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
+  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
-      "SELECT count(*) as total FROM `%s.%s.%s`";
+      "SELECT total_score FROM `%s.%s.%s` WHERE team LIKE (\"AzureCassowary\")";
   private LeaderBoardOptions options =
       TestPipeline.testingPipelineOptions().as(LeaderBoardOptions.class);
   private static String pubsubEndpoint;
@@ -116,9 +115,9 @@ public class LeaderBoardIT {
             projectId,
             backoffFactory);
 
-    String res = response.getRows().get(0).getF().get(0).getV().toString();
+    int res = response.getRows().size();
 
-    assertEquals("14", res);
+    assertEquals("1", Integer.toString(res));
   }
 
   @After
@@ -221,7 +220,7 @@ public class LeaderBoardIT {
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
     options.setStreaming(true);
-    options.as(DirectOptions.class).setBlockOnRun(false);
+    options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
   }
@@ -231,15 +230,11 @@ public class LeaderBoardIT {
    *
    * <p>Example: 'leaderboardscores-2018-12-11-23-32-333-events-6185541326079233738'
    */
-  private static String createTopicName(String name) throws IOException {
+  private static String createTopicName(String name) {
     StringBuilder topicName = new StringBuilder(TOPIC_PREFIX);
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString()
-        + "-"
-        + name
-        + "-"
-        + String.valueOf(ThreadLocalRandom.current().nextLong());
+    return topicName + "-" + name + "-" + ThreadLocalRandom.current().nextLong();
   }
 }
