@@ -455,7 +455,7 @@ class RecordingManager:
           '<pipeline>.options will not be supported',
           category=DeprecationWarning)
       pf.PipelineFragment(list(uncomputed_pcolls),
-                          self.user_pipeline.options).run()
+                          self.user_pipeline.options).run(blocking=True)
       result = ie.current_env().pipeline_result(self.user_pipeline)
     else:
       result = None
