@@ -175,7 +175,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
   <tr>
     <td>GcsIO</td>
     <td class="present">✔</td>
-    <td class="present">✘</td>
+    <td class="present">✔</td>
     <td>via X-language</td>
     <td class="present">
       ✔
@@ -188,7 +188,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
   <tr>
     <td>HadoopFileSystem</td>
     <td class="present">✔</td>
-    <td class="present">✘</td>
+    <td class="present">✔</td>
     <td class="present">
       ✔
       <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemRegistrar.html">native</a>
