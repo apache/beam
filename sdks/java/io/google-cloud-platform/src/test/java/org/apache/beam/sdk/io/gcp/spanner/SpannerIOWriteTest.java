@@ -110,18 +110,12 @@ public class SpannerIOWriteTest implements Serializable {
 
   private static final long CELLS_PER_KEY = 7;
 
-  @Rule
-  public transient TestPipeline pipeline = TestPipeline.create();
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
-  @Captor
-  public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
-  @Captor
-  public transient ArgumentCaptor<ReadQueryUpdateTransactionOption> optionsCaptor;
-  @Captor
-  public transient ArgumentCaptor<Iterable<MutationGroup>> mutationGroupListCaptor;
-  @Captor
-  public transient ArgumentCaptor<MutationGroup> mutationGroupCaptor;
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Captor public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
+  @Captor public transient ArgumentCaptor<ReadQueryUpdateTransactionOption> optionsCaptor;
+  @Captor public transient ArgumentCaptor<Iterable<MutationGroup>> mutationGroupListCaptor;
+  @Captor public transient ArgumentCaptor<MutationGroup> mutationGroupCaptor;
 
   private FakeServiceFactory serviceFactory;
 
@@ -136,15 +130,15 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Capture batches sent to writeAtLeastOnceWithOptions.
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
 
     // Simplest schema: a table with int64 key
     preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
     prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64", CELLS_PER_KEY)));
-    preparePgColumnMetadata(tx,
-        Arrays.asList(columnMetadata("tEsT", "key", "bigint", CELLS_PER_KEY)));
+    preparePgColumnMetadata(
+        tx, Arrays.asList(columnMetadata("tEsT", "key", "bigint", CELLS_PER_KEY)));
 
     // Setup the ProcessWideContainer for testing metrics are set.
     MetricsContainerImpl container = new MetricsContainerImpl(null);
@@ -191,18 +185,18 @@ public class SpannerIOWriteTest implements Serializable {
             Type.StructField.of("spanner_type", Type.string()),
             Type.StructField.of("cells_mutated", Type.int64()));
     when(tx.executeQuery(
-        argThat(
-            new ArgumentMatcher<Statement>() {
+            argThat(
+                new ArgumentMatcher<Statement>() {
 
-              @Override
-              public boolean matches(Statement argument) {
-                if (!(argument instanceof Statement)) {
-                  return false;
-                }
-                Statement st = (Statement) argument;
-                return st.getSql().contains("information_schema.columns");
-              }
-            })))
+                  @Override
+                  public boolean matches(Statement argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.columns");
+                  }
+                })))
         .thenReturn(ResultSets.forRows(type, rows));
   }
 
@@ -214,19 +208,20 @@ public class SpannerIOWriteTest implements Serializable {
             Type.StructField.of("spanner_type", Type.string()),
             Type.StructField.of("cells_mutated", Type.int64()));
     when(tx.executeQuery(
-        argThat(
-            new ArgumentMatcher<Statement>() {
+            argThat(
+                new ArgumentMatcher<Statement>() {
 
-              @Override
-              public boolean matches(Statement argument) {
-                if (!(argument instanceof Statement)) {
-                  return false;
-                }
-                Statement st = (Statement) argument;
-                return st.getSql().contains("information_schema.columns") && st.getSql()
-                    .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
-              }
-            })))
+                  @Override
+                  public boolean matches(Statement argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.columns")
+                        && st.getSql()
+                            .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
+                  }
+                })))
         .thenReturn(ResultSets.forRows(type, rows));
   }
 
@@ -237,18 +232,18 @@ public class SpannerIOWriteTest implements Serializable {
             Type.StructField.of("column_name", Type.string()),
             Type.StructField.of("column_ordering", Type.string()));
     when(tx.executeQuery(
-        argThat(
-            new ArgumentMatcher<Statement>() {
+            argThat(
+                new ArgumentMatcher<Statement>() {
 
-              @Override
-              public boolean matches(Statement argument) {
-                if (!(argument instanceof Statement)) {
-                  return false;
-                }
-                Statement st = (Statement) argument;
-                return st.getSql().contains("information_schema.index_columns");
-              }
-            })))
+                  @Override
+                  public boolean matches(Statement argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.index_columns");
+                  }
+                })))
         .thenReturn(ResultSets.forRows(type, rows));
   }
 
@@ -296,8 +291,10 @@ public class SpannerIOWriteTest implements Serializable {
   public void singlePgMutationPipeline() throws Exception {
     Mutation mutation = m(2L);
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
-    PCollectionView<Dialect> pgDialectView = pipeline.apply("Create PG dialect",
-        Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
 
     mutations.apply(
         SpannerIO.write()
@@ -346,8 +343,10 @@ public class SpannerIOWriteTest implements Serializable {
   public void singlePgMutationGroupPipeline() throws Exception {
     PCollection<MutationGroup> mutations =
         pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
-    PCollectionView<Dialect> pgDialectView = pipeline.apply("Create PG dialect",
-        Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
 
     mutations.apply(
         SpannerIO.write()
@@ -381,8 +380,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Capture batches sent to writeAtLeastOnceWithOptions.
     when(fakeServiceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
 
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
@@ -537,8 +536,8 @@ public class SpannerIOWriteTest implements Serializable {
     List<MutationGroup> mutationGroupList = Arrays.asList(mutationGroups);
 
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenAnswer(
             invocationOnMock -> {
               Preconditions.checkNotNull(invocationOnMock.getArguments()[0]);
@@ -579,8 +578,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     // respond with 2 error codes and a success.
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
@@ -639,8 +638,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     // respond with 2 timeouts and a success.
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
@@ -686,8 +685,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     // respond with all timeouts.
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout"));
@@ -746,8 +745,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     // respond with 2 timeouts and a success.
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenReturn(new CommitResponse(Timestamp.now()));
@@ -793,8 +792,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Respond with Aborted transaction
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString));
 
     // When spanner aborts transaction for more than 5 time, pipeline execution stops with
@@ -844,8 +843,8 @@ public class SpannerIOWriteTest implements Serializable {
     // Respond with (1) Aborted transaction a couple of times (2) deadline exceeded
     // (3) Aborted transaction 3 times (4)  deadline exceeded and finally return success.
     when(serviceFactory
-        .mockDatabaseClient()
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(
@@ -965,15 +964,15 @@ public class SpannerIOWriteTest implements Serializable {
         Mutation.delete(
             "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
     MutationGroup[] mutationGroups =
-        new MutationGroup[]{
-            g(m(1L)),
-            g(m(2L), m(3L)),
-            g(m(2L), m(3L), m(4L), m(5L)), // not batchable - too big.
-            g(del(1L)),
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)
+        new MutationGroup[] {
+          g(m(1L)),
+          g(m(2L), m(3L)),
+          g(m(2L), m(3L), m(4L), m(5L)), // not batchable - too big.
+          g(del(1L)),
+          g(del(5L, 6L)), // not point delete.
+          g(all),
+          g(prefix),
+          g(range)
         };
 
     BatchableMutationFilterFn testFn =
@@ -1019,15 +1018,15 @@ public class SpannerIOWriteTest implements Serializable {
         Mutation.delete(
             "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
     MutationGroup[] mutationGroups =
-        new MutationGroup[]{
-            g(m(1L)),
-            g(m(2L), m(3L)),
-            g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too big.
-            g(del(1L)),
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)
+        new MutationGroup[] {
+          g(m(1L)),
+          g(m(2L), m(3L)),
+          g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too big.
+          g(del(1L)),
+          g(del(5L, 6L)), // not point delete.
+          g(all),
+          g(prefix),
+          g(range)
         };
 
     long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
@@ -1074,15 +1073,15 @@ public class SpannerIOWriteTest implements Serializable {
         Mutation.delete(
             "test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key.newBuilder().build())));
     MutationGroup[] mutationGroups =
-        new MutationGroup[]{
-            g(m(1L)),
-            g(m(2L), m(3L)),
-            g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
-            g(del(1L)),
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)
+        new MutationGroup[] {
+          g(m(1L)),
+          g(m(2L), m(3L)),
+          g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
+          g(del(1L)),
+          g(del(5L, 6L)), // not point delete.
+          g(all),
+          g(prefix),
+          g(range)
         };
 
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
@@ -1122,7 +1121,7 @@ public class SpannerIOWriteTest implements Serializable {
   @Test
   public void testBatchableMutationFilterFn_batchingDisabled() {
     MutationGroup[] mutationGroups =
-        new MutationGroup[]{g(m(1L)), g(m(2L)), g(del(1L)), g(del(5L, 6L))};
+        new MutationGroup[] {g(m(1L)), g(m(2L)), g(del(1L)), g(del(5L, 6L))};
 
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 0, 0, 0);
 
@@ -1172,23 +1171,23 @@ public class SpannerIOWriteTest implements Serializable {
         .output(mutationGroupListCaptor.capture(), any(), any());
 
     MutationGroup[] mutationGroups =
-        new MutationGroup[]{
-            // Unsorted group of 12 mutations.
-            // each mutation is considered 7 cells,
-            // should be sorted and output as 2 lists of 5, then 1 list of 2
-            // with mutations sorted in order.
-            g(m(4L)),
-            g(m(1L)),
-            g(m(7L)),
-            g(m(12L)),
-            g(m(10L)),
-            g(m(11L)),
-            g(m(2L)),
-            g(del(8L)),
-            g(m(3L)),
-            g(m(6L)),
-            g(m(9L)),
-            g(m(5L))
+        new MutationGroup[] {
+          // Unsorted group of 12 mutations.
+          // each mutation is considered 7 cells,
+          // should be sorted and output as 2 lists of 5, then 1 list of 2
+          // with mutations sorted in order.
+          g(m(4L)),
+          g(m(1L)),
+          g(m(7L)),
+          g(m(12L)),
+          g(m(10L)),
+          g(m(11L)),
+          g(m(2L)),
+          g(del(8L)),
+          g(m(3L)),
+          g(m(6L)),
+          g(m(9L)),
+          g(m(5L))
         };
 
     // Process all elements as one bundle.
@@ -1238,24 +1237,24 @@ public class SpannerIOWriteTest implements Serializable {
         .output(mutationGroupListCaptor.capture(), any(), any());
 
     MutationGroup[] mutationGroups =
-        new MutationGroup[]{
-            // Unsorted group of 12 mutations.
-            // each mutation is considered 7 cells,
-            // should be sorted and output as 2 lists of 5, then 1 list of 2
-            // with mutations sorted in order.
-            g(m(4L)),
-            g(m(1L)),
-            g(m(7L)),
-            g(m(9L)),
-            g(m(10L)),
-            g(m(11L)),
-            // end group
-            g(m(2L)),
-            g(del(8L)), // end batch
-            g(m(3L)),
-            g(m(6L)), // end batch
-            g(m(5L))
-            // end bundle, so end group and end batch.
+        new MutationGroup[] {
+          // Unsorted group of 12 mutations.
+          // each mutation is considered 7 cells,
+          // should be sorted and output as 2 lists of 5, then 1 list of 2
+          // with mutations sorted in order.
+          g(m(4L)),
+          g(m(1L)),
+          g(m(7L)),
+          g(m(9L)),
+          g(m(10L)),
+          g(m(11L)),
+          // end group
+          g(m(2L)),
+          g(del(8L)), // end batch
+          g(m(3L)),
+          g(m(6L)), // end batch
+          g(m(5L))
+          // end bundle, so end group and end batch.
         };
 
     // Process all elements as one bundle.

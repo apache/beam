@@ -46,14 +46,13 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .to(new BigDecimal("12345678901234567890.123456789"))
             .build();
-    Mutation pgNumeric = Mutation.newInsertOrUpdateBuilder("test")
-        .set("one")
-        .to(Value.pgNumeric("12345678901234567890.123456789"))
-        .build();
-    Mutation pgNumericNaN = Mutation.newInsertOrUpdateBuilder("test")
-        .set("one")
-        .to(Value.pgNumeric("NaN"))
-        .build();
+    Mutation pgNumeric =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.pgNumeric("12345678901234567890.123456789"))
+            .build();
+    Mutation pgNumericNaN =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.pgNumeric("NaN")).build();
     Mutation json =
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")

@@ -53,20 +53,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end test of Cloud Spanner Source.
- */
+/** End-to-end test of Cloud Spanner Source. */
 @RunWith(JUnit4.class)
 public class SpannerReadIT {
 
   private static final int MAX_DB_NAME_LENGTH = 30;
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
-  /**
-   * Pipeline options for this test.
-   */
+  /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
 
     @Description("Project that hosts Spanner instance")
@@ -137,21 +132,24 @@ public class SpannerReadIT {
     databaseAdminClient
         .createDatabase(
             databaseAdminClient
-                .newDatabaseBuilder(
-                    DatabaseId.of(project, options.getInstanceId(),
-                        pgDatabaseName))
+                .newDatabaseBuilder(DatabaseId.of(project, options.getInstanceId(), pgDatabaseName))
                 .setDialect(Dialect.POSTGRESQL)
                 .build(),
             Collections.emptyList())
         .get();
-    databaseAdminClient.updateDatabaseDdl(options.getInstanceId(), pgDatabaseName,
-        Collections.singleton(
-            "CREATE TABLE "
-                + options.getTable()
-                + " ("
-                + "  Key           bigint,"
-                + "  Value         character varying,"
-                + "  PRIMARY KEY (Key))"), null).get();
+    databaseAdminClient
+        .updateDatabaseDdl(
+            options.getInstanceId(),
+            pgDatabaseName,
+            Collections.singleton(
+                "CREATE TABLE "
+                    + options.getTable()
+                    + " ("
+                    + "  Key           bigint,"
+                    + "  Value         character varying,"
+                    + "  PRIMARY KEY (Key))"),
+            null)
+        .get();
     makeTestData();
   }
 
@@ -163,13 +161,15 @@ public class SpannerReadIT {
 
     PCollectionView<Transaction> tx =
         p.apply(
-            "Create tx", SpannerIO.createTransaction()
+            "Create tx",
+            SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> output =
         p.apply(
-            "read db", SpannerIO.read()
+            "read db",
+            SpannerIO.read()
                 .withSpannerConfig(spannerConfig)
                 .withTable(options.getTable())
                 .withColumns("Key", "Value")
@@ -178,13 +178,15 @@ public class SpannerReadIT {
 
     PCollectionView<Transaction> pgTx =
         p.apply(
-            "Create PG tx", SpannerIO.createTransaction()
+            "Create PG tx",
+            SpannerIO.createTransaction()
                 .withSpannerConfig(pgSpannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> pgOutput =
         p.apply(
-            "Read PG db", SpannerIO.read()
+            "Read PG db",
+            SpannerIO.read()
                 .withSpannerConfig(pgSpannerConfig)
                 .withTable(options.getTable())
                 .withColumns("Key", "Value")
@@ -201,13 +203,15 @@ public class SpannerReadIT {
 
     PCollectionView<Transaction> tx =
         p.apply(
-            "Create tx", SpannerIO.createTransaction()
+            "Create tx",
+            SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> output =
         p.apply(
-            "Read db", SpannerIO.read()
+            "Read db",
+            SpannerIO.read()
                 .withSpannerConfig(spannerConfig)
                 .withQuery("SELECT * FROM " + options.getTable())
                 .withTransaction(tx));
@@ -215,13 +219,15 @@ public class SpannerReadIT {
 
     PCollectionView<Transaction> pgTx =
         p.apply(
-            "Create PG tx", SpannerIO.createTransaction()
+            "Create PG tx",
+            SpannerIO.createTransaction()
                 .withSpannerConfig(pgSpannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> pgOutput =
         p.apply(
-            "Read PG db", SpannerIO.read()
+            "Read PG db",
+            SpannerIO.read()
                 .withSpannerConfig(pgSpannerConfig)
                 .withQuery("SELECT * FROM " + options.getTable())
                 .withTransaction(pgTx));
@@ -236,55 +242,64 @@ public class SpannerReadIT {
 
     PCollectionView<Transaction> tx =
         p.apply(
-            "Create tx", SpannerIO.createTransaction()
+            "Create tx",
+            SpannerIO.createTransaction()
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> allRecords =
         p.apply(
-                "Scan schema", SpannerIO.read()
+                "Scan schema",
+                SpannerIO.read()
                     .withSpannerConfig(spannerConfig)
                     .withBatching(false)
                     .withQuery(
                         "SELECT t.table_name FROM information_schema.tables AS t WHERE t"
                             + ".table_catalog = '' AND t.table_schema = ''"))
             .apply(
-                "Build query", MapElements.into(TypeDescriptor.of(ReadOperation.class))
+                "Build query",
+                MapElements.into(TypeDescriptor.of(ReadOperation.class))
                     .via(
                         (SerializableFunction<Struct, ReadOperation>)
                             input -> {
                               String tableName = input.getString(0);
                               return ReadOperation.create().withQuery("SELECT * FROM " + tableName);
                             }))
-            .apply("Read db",
+            .apply(
+                "Read db",
                 SpannerIO.readAll().withTransaction(tx).withSpannerConfig(spannerConfig));
 
     PAssert.thatSingleton(allRecords.apply("Count rows", Count.globally())).isEqualTo(5L);
 
     PCollectionView<Transaction> pgTx =
         p.apply(
-            "Create PG tx", SpannerIO.createTransaction()
+            "Create PG tx",
+            SpannerIO.createTransaction()
                 .withSpannerConfig(pgSpannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
     PCollection<Struct> allPgRecords =
         p.apply(
-                "Scan PG schema", SpannerIO.read()
+                "Scan PG schema",
+                SpannerIO.read()
                     .withSpannerConfig(pgSpannerConfig)
                     .withBatching(false)
                     .withQuery(
-                        String.format("SELECT t.table_name FROM information_schema.tables AS t WHERE t"
+                        String.format(
+                            "SELECT t.table_name FROM information_schema.tables AS t WHERE t"
                                 + ".table_catalog = '%s' AND t.table_schema = 'public'",
                             pgSpannerConfig.getDatabaseId())))
             .apply(
-                "Build PG query", MapElements.into(TypeDescriptor.of(ReadOperation.class))
+                "Build PG query",
+                MapElements.into(TypeDescriptor.of(ReadOperation.class))
                     .via(
                         (SerializableFunction<Struct, ReadOperation>)
                             input -> {
                               String tableName = input.getString(0);
                               return ReadOperation.create().withQuery("SELECT * FROM " + tableName);
                             }))
-            .apply("Read PG db",
+            .apply(
+                "Read PG db",
                 SpannerIO.readAll().withTransaction(pgTx).withSpannerConfig(pgSpannerConfig));
 
     PAssert.thatSingleton(allPgRecords.apply("Count PG rows", Count.globally())).isEqualTo(5L);

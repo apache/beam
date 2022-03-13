@@ -61,22 +61,16 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * End-to-end test of Cloud Spanner Sink.
- */
+/** End-to-end test of Cloud Spanner Sink. */
 @RunWith(JUnit4.class)
 public class SpannerWriteIT {
 
   private static final int MAX_DB_NAME_LENGTH = 30;
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  /**
-   * Pipeline options for this test.
-   */
+  /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
 
     @Description("Project that hosts Spanner instance")
@@ -147,21 +141,24 @@ public class SpannerWriteIT {
     databaseAdminClient
         .createDatabase(
             databaseAdminClient
-                .newDatabaseBuilder(
-                    DatabaseId.of(project, options.getInstanceId(),
-                        pgDatabaseName))
+                .newDatabaseBuilder(DatabaseId.of(project, options.getInstanceId(), pgDatabaseName))
                 .setDialect(Dialect.POSTGRESQL)
                 .build(),
             Collections.emptyList())
         .get();
-    databaseAdminClient.updateDatabaseDdl(options.getInstanceId(), pgDatabaseName,
-        Collections.singleton(
-            "CREATE TABLE "
-                + options.getTable()
-                + " ("
-                + "  Key           bigint,"
-                + "  Value         character varying NOT NULL,"
-                + "  PRIMARY KEY (Key))"), null).get();
+    databaseAdminClient
+        .updateDatabaseDdl(
+            options.getInstanceId(),
+            pgDatabaseName,
+            Collections.singleton(
+                "CREATE TABLE "
+                    + options.getTable()
+                    + " ("
+                    + "  Key           bigint,"
+                    + "  Value         character varying NOT NULL,"
+                    + "  PRIMARY KEY (Key))"),
+            null)
+        .get();
   }
 
   private String generateDatabaseName() {
@@ -177,7 +174,8 @@ public class SpannerWriteIT {
     p.apply("Init", GenerateSequence.from(0).to(numRecords))
         .apply("Generate mu", ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
-            "Write db", SpannerIO.write()
+            "Write db",
+            SpannerIO.write()
                 .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName));
@@ -187,7 +185,8 @@ public class SpannerWriteIT {
     p.apply("PG init", GenerateSequence.from(0).to(numRecords))
         .apply("Generate PG mu", ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
-            "Write PG db", SpannerIO.write()
+            "Write PG db",
+            SpannerIO.write()
                 .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(pgDatabaseName)
@@ -208,7 +207,8 @@ public class SpannerWriteIT {
         p.apply("first step", GenerateSequence.from(0).to(numRecords))
             .apply("Gen mutations1", ParDo.of(new GenerateMutations(options.getTable())))
             .apply(
-                "write to table1", SpannerIO.write()
+                "write to table1",
+                SpannerIO.write()
                     .withProjectId(project)
                     .withInstanceId(options.getInstanceId())
                     .withDatabaseId(databaseName));
@@ -230,7 +230,8 @@ public class SpannerWriteIT {
         p.apply("pg first step", GenerateSequence.from(0).to(numRecords))
             .apply("Gen pg mutations1", ParDo.of(new GenerateMutations(options.getTable())))
             .apply(
-                "write to pg table1", SpannerIO.write()
+                "write to pg table1",
+                SpannerIO.write()
                     .withProjectId(project)
                     .withInstanceId(options.getInstanceId())
                     .withDatabaseId(pgDatabaseName)
@@ -260,7 +261,8 @@ public class SpannerWriteIT {
     p.apply("init", GenerateSequence.from(0).to(2 * numRecords))
         .apply("Generate mu", ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
-            "Write db", SpannerIO.write()
+            "Write db",
+            SpannerIO.write()
                 .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName)
@@ -271,7 +273,8 @@ public class SpannerWriteIT {
     p.apply("pg init", GenerateSequence.from(0).to(2 * numRecords))
         .apply("Generate pg mu", ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
-            "Write pg db", SpannerIO.write()
+            "Write pg db",
+            SpannerIO.write()
                 .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(pgDatabaseName)
