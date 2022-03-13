@@ -72,7 +72,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         builder.addColumn(tableName, columnName, type, cellsMutated);
       }
 
-      resultSet = readPrimaryKeyInfo(tx, dialect, config.getDatabaseId().get());
+      resultSet = readPrimaryKeyInfo(tx, dialect);
       while (resultSet.next()) {
         String tableName = resultSet.getString(0);
         String columnName = resultSet.getString(1);
@@ -139,7 +139,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     return tx.executeQuery(Statement.of(statement));
   }
 
-  private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx, Dialect dialect, String databaseId) {
+  private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx, Dialect dialect) {
     String statement = "";
     switch (dialect) {
       case GOOGLE_STANDARD_SQL:
