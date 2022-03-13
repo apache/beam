@@ -61,7 +61,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     SpannerSchema.Builder builder = SpannerSchema.builder(dialect);
     DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
     try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
-      ResultSet resultSet = readTableInfo(tx, dialect, config.getDatabaseId().get());
+      ResultSet resultSet = readTableInfo(tx, dialect);
 
       while (resultSet.next()) {
         String tableName = resultSet.getString(0);
@@ -84,7 +84,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     c.output(builder.build());
   }
 
-  private ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect, String databaseId) {
+  private ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect) {
     // retrieve schema information for all tables, as well as aggregating the
     // number of indexes that cover each column. this will be used to estimate
     // the number of cells (table column plus indexes) mutated in an upsert operation
