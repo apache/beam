@@ -44,5 +44,12 @@ jobs:
         run: "cd sdks/go/pkg && rm -rf .coverage || :"
       - name: Run coverage
         run: cd sdks/go/pkg && go test -coverprofile=coverage.txt -covermode=atomic ./...
-      - name: Upload to codecov
-        run: bash <(curl -s https://codecov.io/bash)
+      - uses: codecov/codecov-action@v2
+        with:
+          flags: go 
+          files: ./sdks/go/pkg/coverage.txt
+          name: go-unittests
+      - name: Run fmt
+        run: cd sdks/go/pkg/beam && go fmt ./...; git diff-index --quiet HEAD || (echo "Run go fmt before checking in changes" && exit 1)
+      - name: Run vet
+        run: cd sdks/go/pkg/beam && go vet --copylocks=false --unsafeptr=false ./... || (echo "Run go vet and fix warnings before checking in changes" && exit 1)

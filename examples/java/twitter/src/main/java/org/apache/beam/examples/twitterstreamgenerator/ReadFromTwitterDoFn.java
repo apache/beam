@@ -91,10 +91,9 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
     @Override
     public boolean tryClaim(TwitterConfig twitterConfig) {
       LOG.debug(
-          "-------------- Claiming "
-              + twitterConfig.hashCode()
-              + " used to have: "
-              + restriction.fetchedRecords);
+          "-------------- Claiming {} used to have: {}",
+          twitterConfig.hashCode(),
+          restriction.fetchedRecords);
       long fetchedRecords =
           this.restriction == null || this.restriction.fetchedRecords == null
               ? 0
@@ -120,7 +119,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
 
     @Override
     public SplitResult<OffsetHolder> trySplit(double fractionOfRemainder) {
-      LOG.debug("-------------- Trying to split: fractionOfRemainder=" + fractionOfRemainder);
+      LOG.debug("-------------- Trying to split: fractionOfRemainder={}", fractionOfRemainder);
       return SplitResult.of(new OffsetHolder(null, 0L), restriction);
     }
 

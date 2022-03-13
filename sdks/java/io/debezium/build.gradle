@@ -32,11 +32,11 @@ ext.summary = "Library to work with Debezium data."
 
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
-    implementation library.java.vendored_grpc_1_36_0
+    implementation library.java.vendored_grpc_1_43_2
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
-    compileOnly library.java.jackson_dataformat_csv
+    provided library.java.jackson_dataformat_csv
     permitUnusedDeclared library.java.jackson_dataformat_csv
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
@@ -46,9 +46,9 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(":runners:google-cloud-dataflow-java")
-    testImplementation "org.testcontainers:testcontainers:1.15.1"
-    testImplementation "org.testcontainers:mysql:1.15.1"
-    testImplementation "org.testcontainers:postgresql:1.15.1"
+    testImplementation library.java.testcontainers_base
+    testImplementation library.java.testcontainers_mysql
+    testImplementation library.java.testcontainers_postgresql
 
     // Kafka connect dependencies
     implementation "org.apache.kafka:connect-api:2.5.0"

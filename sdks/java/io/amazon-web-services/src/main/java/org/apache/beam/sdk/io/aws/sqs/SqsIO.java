@@ -26,6 +26,7 @@ import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -84,7 +85,10 @@ import org.joda.time.Duration;
 public class SqsIO {
 
   public static Read read() {
-    return new AutoValue_SqsIO_Read.Builder().setMaxNumRecords(Long.MAX_VALUE).build();
+    return new AutoValue_SqsIO_Read.Builder()
+        .setCoder(SqsMessageCoder.of())
+        .setMaxNumRecords(Long.MAX_VALUE)
+        .build();
   }
 
   public static Write write() {
@@ -100,6 +104,8 @@ public class SqsIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
 
+    abstract Coder<Message> coder();
+
     abstract @Nullable String queueUrl();
 
     abstract long maxNumRecords();
@@ -110,6 +116,8 @@ public class SqsIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+      abstract Builder setCoder(Coder<Message> coder);
+
       abstract Builder setQueueUrl(String queueUrl);
 
       abstract Builder setMaxNumRecords(long maxNumRecords);
@@ -117,6 +125,17 @@ public class SqsIO {
       abstract Builder setMaxReadTime(Duration maxReadTime);
 
       abstract Read build();
+    }
+
+    /**
+     * Optionally set a custom {@link Message} output coder if you need to access further (message)
+     * attributes.
+     *
+     * <p>The default {@link SqsMessageCoder} only supports `SentTimestamp` and
+     * `requestTimeMsSinceEpoch`.
+     */
+    public Read withCoder(Coder<Message> coder) {
+      return toBuilder().setCoder(coder).build();
     }
 
     /**
@@ -150,7 +169,8 @@ public class SqsIO {
           org.apache.beam.sdk.io.Read.from(
               new SqsUnboundedSource(
                   this,
-                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class))));
+                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class)),
+                  coder()));
 
       PTransform<PBegin, PCollection<Message>> transform = unbounded;
 

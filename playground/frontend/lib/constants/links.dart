@@ -17,10 +17,11 @@
  */
 
 const kReportIssueLink = 'https://issues.apache.org/jira/projects/BEAM/issues/';
-const kGooglePrivacyPolicyLink = 'https://policies.google.com/privacy';
+const kBeamPrivacyPolicyLink = 'https://beam.apache.org/privacy_policy/';
 const kBeamPlaygroundGithubLink =
     'https://github.com/apache/beam/tree/master/playground';
 const kApacheBeamGithubLink = 'https://github.com/apache/beam';
 const kBeamWebsiteLink = 'https://beam.apache.org/';
 const kScioGithubLink = 'https://github.com/spotify/scio';
 const kAboutBeamLink = 'https://beam.apache.org/get-started/beam-overview';
+const kAddExampleLink = 'https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples';

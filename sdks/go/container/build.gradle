@@ -39,7 +39,7 @@ docker {
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
 }
-dockerPrepare.dependsOn goBuild
+dockerPrepare.dependsOn tasks.named("goBuild")
 
 // Ensure that making the docker image builds any required artifacts
 if (project.rootProject.hasProperty(["docker-pull-licenses"])) {

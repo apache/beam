@@ -24,7 +24,7 @@
 #   name: WordCountTest
 #   description: Unit-test for the WordCount example.
 #   multifile: false
-#   pipeline_options:
+#   context_line: 44
 #   categories:
 #     - IO
 #     - Combiners

@@ -54,6 +54,11 @@ public class MutationSizeEstimatorTest {
         .set("one")
         .to(Value.pgNumeric("NaN"))
         .build();
+    Mutation json =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.json("{\"key1\":\"value1\", \"key2\":\"value2\"}"))
+            .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(8L));
@@ -61,6 +66,7 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(30L));
     assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(30L));
     assertThat(MutationSizeEstimator.sizeOf(pgNumericNaN), is(3L));
+    assertThat(MutationSizeEstimator.sizeOf(json), is(34L));
   }
 
   @Test
@@ -102,11 +108,20 @@ public class MutationSizeEstimatorTest {
                     "NaN"))
             .build();
 
+    Mutation json =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toJsonArray(
+                ImmutableList.of(
+                    "{\"key1\":\"value1\", \"key2\":\"value2\"}",
+                    "{\"key1\":\"value1\", \"key2\":20}"))
+            .build();
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(16L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(4L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(153L));
     assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(156L));
+    assertThat(MutationSizeEstimator.sizeOf(json), is(62L));
   }
 
   @Test
@@ -130,12 +145,14 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .toPgNumericArray((Iterable<String>) null)
             .build();
+    Mutation json = Mutation.newInsertOrUpdateBuilder("test").set("one").toJsonArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(json), is(0L));
   }
 
   @Test

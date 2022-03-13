@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 import unittest
 
 import numpy as np
@@ -623,6 +624,16 @@ class DeferredFrameTest(_AbstractFrameTest):
         df2,
         nonparallel=True,
         check_proxy=False)
+
+  def test_swaplevel(self):
+    df = pd.DataFrame(
+        {"Grade": ["A", "B", "A", "C"]},
+        index=[
+            ["Final exam", "Final exam", "Coursework", "Coursework"],
+            ["History", "Geography", "History", "Geography"],
+            ["January", "February", "March", "April"],
+        ])
+    self._run_test(lambda df: df.swaplevel(), df)
 
   def test_value_counts_with_nans(self):
     # similar to doctests that verify value_counts, but include nan values to
@@ -1950,9 +1961,55 @@ class BeamSpecificTest(unittest.TestCase):
   """Tests for functionality that's specific to the Beam DataFrame API.
 
   These features don't exist in pandas so we must verify them independently."""
-  def assert_frame_data_equivalent(self, actual, expected):
+  def assert_frame_data_equivalent(
+      self, actual, expected, check_column_subset=False, extra_col_value=0):
     """Verify that actual is the same as expected, ignoring the index and order
-    of the data."""
+    of the data.
+
+    Note: In order to perform non-deferred column operations in Beam, we have
+    to enumerate all possible categories of data, even if they are ultimately
+    unobserved. The default Pandas implementation on the other hand does not
+    produce unobserved columns. This means when conducting tests, we need to
+    account for the fact that the Beam result may be a superset of that of the
+    Pandas result.
+
+    If ``check_column_subset`` is `True`, we verify that all of the columns in
+    the Dataframe returned from the Pandas implementation is contained in the
+    Dataframe created from the Beam implementation.
+
+    We also check if all columns that exist in the Beam implementation but
+    not in the Pandas implementation are all equal to the ``extra_col_value``
+    to ensure that they were not erroneously populated.
+    """
+    if check_column_subset:
+      if isinstance(expected, pd.DataFrame):
+        expected_cols = set(expected.columns)
+        actual_cols = set(actual.columns)
+        # Verifying that expected columns is a subset of the actual columns
+        if not set(expected_cols).issubset(set(actual_cols)):
+          raise AssertionError(
+              f"Expected columns:\n{expected.columns}\n is not a"
+              f"subset of {actual.columns}.")
+
+        # Verifying that columns that don't exist in expected
+        # but do in actual, are all equal to `extra_col_value` (default of 0)
+        extra_columns = actual_cols - expected_cols
+        if extra_columns:
+          actual_extra_only = actual[list(extra_columns)]
+
+          if np.isnan(extra_col_value):
+            extra_cols_all_match = actual_extra_only.isna().all().all()
+          else:
+            extra_cols_all_match = actual_extra_only.eq(
+                extra_col_value).all().all()
+          if not extra_cols_all_match:
+            raise AssertionError(
+                f"Extra columns:{extra_columns}\n should all "
+                f"be {extra_col_value}, but got \n{actual_extra_only}.")
+
+        # Filtering actual to contain only columns in expected
+        actual = actual[expected.columns]
+
     def sort_and_drop_index(df):
       if isinstance(df, pd.Series):
         df = df.sort_values()
@@ -2028,6 +2085,59 @@ class BeamSpecificTest(unittest.TestCase):
 
     # Verify that the result is the same as conventional duplicated
     self.assert_frame_data_equivalent(result, df.duplicated())
+
+  def test_get_dummies_not_categoricaldtype(self):
+    # Should not work because series is not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series(['a ,b', 'a', 'a, d'])
+      self._evaluate(lambda s: s.str.get_dummies(','), s)
+
+    # bool series do not work because they are not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series([True, False, False, True])
+      self._evaluate(lambda s: s.str.get_dummies(), s)
+
+  def test_get_dummies_comma_separator(self):
+    s = pd.Series(['a ,b', 'a', 'a, d', 'c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a ,b', 'c', 'b', 'a,d']))
+    result = self._evaluate(lambda s: s.str.get_dummies(','), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(','), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example1(self):
+    s = pd.Series(['a|b', 'a', 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example2(self):
+    # Shouldn't still work even though np.nan is not considered a category
+    # because we automatically create a nan column
+    s = pd.Series(['a|b', np.nan, 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pass_nan_as_category(self):
+    # Explicitly pass 'nan' as a category
+    s = pd.Series(['a|b', 'b|c', 'a|c', 'c', 'd'])
+    s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c', 'nan']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_bools_casted_to_string(self):
+    s = pd.Series([True, False, False, True]).astype('str')
+    s = s.astype(pd.CategoricalDtype(categories=['True', 'False']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
 
   def test_nsmallest_any(self):
     df = pd.DataFrame({
@@ -2246,6 +2356,117 @@ class BeamSpecificTest(unittest.TestCase):
     # (as computed using the Bernoulli distribution) is about 0.0012%.
     expected = num_samples * target_prob
     self.assertTrue(expected / 3 < result < expected * 2, (expected, result))
+
+  def test_split_pandas_examples_no_expand(self):
+    # if expand=False (default), then no need to cast dtype to be
+    # CategoricalDtype.
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    result = self._evaluate(lambda s: s.str.split(), s)
+    self.assert_frame_data_equivalent(result, s.str.split())
+
+    result = self._evaluate(lambda s: s.str.rsplit(), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit())
+
+    result = self._evaluate(lambda s: s.str.split(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.split(n=2))
+
+    result = self._evaluate(lambda s: s.str.rsplit(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit(n=2))
+
+    result = self._evaluate(lambda s: s.str.split(pat="/"), s)
+    self.assert_frame_data_equivalent(result, s.str.split(pat="/"))
+
+  def test_split_pandas_examples_expand_not_categorical(self):
+    # When expand=True, there is exception because series is not categorical
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"split\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.split(expand=True), s)
+
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"rsplit\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.rsplit(expand=True), s)
+
+  def test_split_pandas_examples_expand_pat_is_string_literal1(self):
+    # When expand=True and pattern is treated as a string literal
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    s = s.astype(
+        pd.CategoricalDtype(
+            categories=[
+                'this is a regular sentence',
+                'https://docs.python.org/3/tutorial/index.html'
+            ]))
+    result = self._evaluate(lambda s: s.str.split(expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(expand=True))
+
+    result = self._evaluate(lambda s: s.str.rsplit("/", n=1, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.rsplit("/", n=1, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_string_literal2(self):
+    # when regex is None (default) regex pat is string literal if len(pat) == 1
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r".", expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(r".", expand=True))
+
+    # When regex=False, pat is interpreted as the string itself
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=False, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=False, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_regex(self):
+    # when regex is None (default) regex pat is compiled if len(pat) != 1
+    s = pd.Series(["foo and bar plus baz"])
+    s = s.astype(pd.CategoricalDtype(categories=["foo and bar plus baz"]))
+    result = self._evaluate(lambda s: s.str.split(r"and|plus", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"and|plus", expand=True))
+
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r"\.jpg", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", expand=True))
+
+    # When regex=True, pat is interpreted as a regex
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=True))
+
+    # A compiled regex can be passed as pat
+    result = self._evaluate(
+        lambda s: s.str.split(re.compile(r"\.jpg"), expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(re.compile(r"\.jpg"), expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pat_is_regex(self):
+    # regex=True, but expand=False
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=False), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=False))
 
 
 class AllowNonParallelTest(unittest.TestCase):

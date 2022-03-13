@@ -31,6 +31,7 @@ from typing import List
 import mock
 import pytest
 
+from apache_beam.internal import pickler
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
@@ -86,7 +87,8 @@ class StagerTest(unittest.TestCase):
     else:
       shutil.copyfile(from_path, to_path)
 
-  def populate_requirements_cache(self, requirements_file, cache_dir):
+  def populate_requirements_cache(
+      self, requirements_file, cache_dir, populate_cache_with_sdists=False):
     _ = requirements_file
     self.create_temp_file(os.path.join(cache_dir, 'abc.txt'), 'nothing')
     self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
@@ -228,6 +230,7 @@ class StagerTest(unittest.TestCase):
     options = PipelineOptions()
 
     options.view_as(SetupOptions).save_main_session = True
+    options.view_as(SetupOptions).pickle_library = pickler.USE_DILL
     self.update_options(options)
 
     self.assertEqual([names.PICKLED_MAIN_SESSION_FILE],
@@ -236,6 +239,22 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
+
+  # (BEAM-13769): Remove the decorator once cloudpickle is default pickle
+  # library
+  @pytest.mark.skip
+  def test_main_session_not_staged_when_using_cloudpickle(self):
+    staging_dir = self.make_temp_dir()
+    options = PipelineOptions()
+
+    options.view_as(SetupOptions).save_main_session = True
+    # even if the save main session is on, no pickle file for main
+    # session is saved when pickle_library==cloudpickle.
+    options.view_as(SetupOptions).pickle_library = pickler.USE_CLOUDPICKLE
+    self.update_options(options)
+    self.assertEqual([],
+                     self.stager.create_and_stage_job_resources(
+                         options, staging_location=staging_dir)[1])
 
   def test_default_resources(self):
     staging_dir = self.make_temp_dir()
@@ -326,6 +345,49 @@ class StagerTest(unittest.TestCase):
         os.path.isfile(os.path.join(staging_dir, stager.REQUIREMENTS_FILE)))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
+
+  def test_requirements_cache_not_populated_when_cache_disabled(self):
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, stager.REQUIREMENTS_FILE)
+    options.view_as(
+        SetupOptions).requirements_cache = stager.SKIP_REQUIREMENTS_CACHE
+    self.create_temp_file(
+        os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'nothing')
+    with mock.patch(
+        'apache_beam.runners.portability.stager_test.StagerTest.'
+        'populate_requirements_cache') as (populate_requirements_cache):
+      resources = self.stager.create_and_stage_job_resources(
+          options,
+          populate_requirements_cache=self.populate_requirements_cache,
+          staging_location=staging_dir)[1]
+      assert not populate_requirements_cache.called
+      self.assertEqual([stager.REQUIREMENTS_FILE], resources)
+      self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
+      self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'def.txt')))
+
+  def test_with_pypi_requirements_skipping_cache(self):
+    staging_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(
+        SetupOptions).requirements_cache = stager.SKIP_REQUIREMENTS_CACHE
+
+    resources = self.stager.create_and_stage_job_resources(
+        options,
+        pypi_requirements=['nothing>=1.0,<2.0'],
+        populate_requirements_cache=self.populate_requirements_cache,
+        staging_location=staging_dir)[1]
+    with open(os.path.join(staging_dir, resources[0])) as f:
+      data = f.read()
+    self.assertEqual('nothing>=1.0,<2.0', data)
+    self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
+    self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
   def test_setup_file_not_present(self):
     staging_dir = self.make_temp_dir()
@@ -690,7 +752,7 @@ class StagerTest(unittest.TestCase):
       for i in range(len(requirements)):
         f.write(requirements[i])
 
-    tmp_req_filename = self.stager.remove_dependency_from_requirements(
+    tmp_req_filename = self.stager._remove_dependency_from_requirements(
         requirements_file=os.path.join(requirements_cache_dir, 'abc.txt'),
         dependency_to_remove='apache_beam',
         temp_directory_path=requirements_cache_dir)
@@ -698,7 +760,7 @@ class StagerTest(unittest.TestCase):
       lines = tf.readlines()
     self.assertEqual(['avro-python3\n', 'fastavro\n', 'numpy\n'], sorted(lines))
 
-    tmp_req_filename = self.stager.remove_dependency_from_requirements(
+    tmp_req_filename = self.stager._remove_dependency_from_requirements(
         requirements_file=os.path.join(requirements_cache_dir, 'abc.txt'),
         dependency_to_remove='fastavro',
         temp_directory_path=requirements_cache_dir)
@@ -707,6 +769,65 @@ class StagerTest(unittest.TestCase):
       lines = tf.readlines()
     self.assertEqual(['apache_beam\n', 'avro-python3\n', 'numpy\n'],
                      sorted(lines))
+
+  def _populate_requitements_cache_fake(
+      self, requirements_file, temp_dir, populate_cache_with_sdists):
+    if not populate_cache_with_sdists:
+      self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
+    self.create_temp_file(
+        os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
+
+  # requirements cache will popultated with bdist/whl if present
+  # else source would be downloaded.
+  def test_populate_requirements_cache_with_bdist(self):
+    staging_dir = self.make_temp_dir()
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+
+    options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, stager.REQUIREMENTS_FILE)
+    self.create_temp_file(
+        os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'nothing')
+    # for default container image, the sdk_container_image option would be none
+    with mock.patch('apache_beam.runners.portability.stager_test'
+                    '.stager.Stager._populate_requirements_cache',
+                    staticmethod(self._populate_requitements_cache_fake)):
+      options.view_as(SetupOptions).requirements_cache_only_sources = False
+      resources = self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)[1]
+      for f in resources:
+        if f != stager.REQUIREMENTS_FILE:
+          self.assertTrue(('.tar.gz' in f) or ('.whl' in f))
+
+  # requirements cache will populated only with sdists/sources
+  def test_populate_requirements_cache_with_sdist(self):
+    staging_dir = self.make_temp_dir()
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+
+    options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, stager.REQUIREMENTS_FILE)
+    self.create_temp_file(
+        os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'nothing')
+    with mock.patch('apache_beam.runners.portability.stager_test'
+                    '.stager.Stager._populate_requirements_cache',
+                    staticmethod(self._populate_requitements_cache_fake)):
+      options.view_as(SetupOptions).requirements_cache_only_sources = True
+      resources = self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)[1]
+
+      for f in resources:
+        if f != stager.REQUIREMENTS_FILE:
+          self.assertTrue('.tar.gz' in f)
+          self.assertTrue('.whl' not in f)
 
 
 class TestStager(stager.Stager):

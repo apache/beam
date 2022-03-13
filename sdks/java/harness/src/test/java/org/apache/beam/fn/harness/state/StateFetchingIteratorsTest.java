@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -47,7 +48,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.junit.Test;
@@ -143,7 +144,7 @@ public class StateFetchingIteratorsTest {
       // Test on a partially accessed iterable
       iterable = create(5, expected);
       iterable.append(Ints.asList(42, 43));
-      iterable.iterator().hasNext();
+      Boolean ignored = iterable.iterator().hasNext();
       // The append is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
@@ -174,7 +175,7 @@ public class StateFetchingIteratorsTest {
       // Test on a partially accessed iterable
       iterable = create(5, expected);
       iterable.remove(toRemove);
-      iterable.iterator().hasNext();
+      Boolean ignored = iterable.iterator().hasNext();
       // The remove is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
@@ -314,7 +315,7 @@ public class StateFetchingIteratorsTest {
           new CachingStateIterable<>(
               Caches.eternal(), fakeStateClient, requestForFirstChunk, BigEndianIntegerCoder.of());
 
-      iterable.iterator();
+      Iterator<?> ignored = iterable.iterator();
       assertEquals(0, fakeStateClient.getCallCount()); // Ensure it's fully lazy.
       return iterable;
     }
@@ -350,7 +351,7 @@ public class StateFetchingIteratorsTest {
 
       // Verify an iterable that was partially accessed
       iterable = create(chunkSize, expected);
-      iterable.iterator().hasNext();
+      Boolean ignored = iterable.iterator().hasNext();
       iterable.clearAndAppend(Ints.asList(42, 43));
       assertTrue(iterable.iterator().isReady());
       verifyFetch(iterable.iterator(), 42, 43);

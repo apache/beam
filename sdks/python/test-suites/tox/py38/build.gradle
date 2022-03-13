@@ -35,6 +35,7 @@ apply from: "../common.gradle"
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
 // Create a test task for each major version of pyarrow
+// TODO(BEAM-12000): Move these to Py 3.9.
 toxTask "testPy38pyarrow-0", "py38-pyarrow-0"
 test.dependsOn "testPy38pyarrow-0"
 preCommitPy38.dependsOn "testPy38pyarrow-0"
@@ -75,6 +76,10 @@ preCommitPy38.dependsOn "testPy38pandas-12"
 toxTask "testPy38pandas-13", "py38-pandas-13"
 test.dependsOn "testPy38pandas-13"
 preCommitPy38.dependsOn "testPy38pandas-13"
+
+toxTask "testPy38pandas-14", "py38-pandas-14"
+test.dependsOn "testPy38pandas-14"
+preCommitPy38.dependsOn "testPy38pandas-14"
 
 toxTask "whitespacelint", "whitespacelint"
 

@@ -36,3 +36,5 @@ process method by adding it as a parameter.
 Refer to the Beam Programming Guide
 ["Accessing additional parameters in your DoFn"](https://beam.apache.org/documentation/programming-guide/#other-dofn-parameters)
 section for more information.
+
+This is a theory-only kata, please proceed to the next kata.

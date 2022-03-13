@@ -56,6 +56,19 @@ python user_score.py \
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: UserScore
+#   description: batch processing; reading input from Google Cloud Storage or a
+#     from a local text file, and writing output to a text file; using
+#     standalone DoFns; use of the CombinePerKey transform.
+#   multifile: true
+#   pipeline_options: --output output.txt
+#   context_line: 81
+#   categories:
+#     - Batch
+#     - Combiners
+#     - Options
+
 import argparse
 import csv
 import logging

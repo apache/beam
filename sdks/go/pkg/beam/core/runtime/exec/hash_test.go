@@ -18,7 +18,7 @@ package exec
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
+	"hash/maphash"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,7 +32,7 @@ import (
 
 func BenchmarkPrimitives(b *testing.B) {
 	var value FullValue
-	myHash := fnv.New64a()
+	myHash := &maphash.Hash{}
 	wfn := window.NewGlobalWindows()
 	we := MakeWindowEncoder(wfn.Coder())
 	b.Run("int", func(b *testing.B) {

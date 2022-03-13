@@ -24,10 +24,16 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /** Represents source for single stream in Kinesis. */
 @SuppressWarnings({
@@ -37,53 +43,32 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisSource.class);
 
-  private final AWSClientsProvider awsClientsProvider;
-  private final String streamName;
-  private final Duration upToDateThreshold;
-  private final WatermarkPolicyFactory watermarkPolicyFactory;
-  private final RateLimitPolicyFactory rateLimitPolicyFactory;
-  private CheckpointGenerator initialCheckpointGenerator;
-  private final Integer limit;
-  private final Integer maxCapacityPerShard;
+  private final Read spec;
+  private final CheckpointGenerator checkpointGenerator;
 
-  KinesisSource(
-      AWSClientsProvider awsClientsProvider,
-      String streamName,
-      StartingPoint startingPoint,
-      Duration upToDateThreshold,
-      WatermarkPolicyFactory watermarkPolicyFactory,
-      RateLimitPolicyFactory rateLimitPolicyFactory,
-      Integer limit,
-      Integer maxCapacityPerShard) {
-    this(
-        awsClientsProvider,
-        new DynamicCheckpointGenerator(streamName, startingPoint),
-        streamName,
-        upToDateThreshold,
-        watermarkPolicyFactory,
-        rateLimitPolicyFactory,
-        limit,
-        maxCapacityPerShard);
+  KinesisSource(Read read) {
+    this(read, new DynamicCheckpointGenerator(read.getStreamName(), read.getInitialPosition()));
   }
 
-  private KinesisSource(
-      AWSClientsProvider awsClientsProvider,
-      CheckpointGenerator initialCheckpoint,
-      String streamName,
-      Duration upToDateThreshold,
-      WatermarkPolicyFactory watermarkPolicyFactory,
-      RateLimitPolicyFactory rateLimitPolicyFactory,
-      Integer limit,
-      Integer maxCapacityPerShard) {
-    this.awsClientsProvider = awsClientsProvider;
-    this.initialCheckpointGenerator = initialCheckpoint;
-    this.streamName = streamName;
-    this.upToDateThreshold = upToDateThreshold;
-    this.watermarkPolicyFactory = watermarkPolicyFactory;
-    this.rateLimitPolicyFactory = rateLimitPolicyFactory;
-    this.limit = limit;
-    this.maxCapacityPerShard = maxCapacityPerShard;
-    validate();
+  private KinesisSource(Read spec, CheckpointGenerator initialCheckpoint) {
+    this.spec = checkNotNull(spec);
+    this.checkpointGenerator = checkNotNull(initialCheckpoint);
+  }
+
+  private SimplifiedKinesisClient createClient(PipelineOptions options) {
+    AwsOptions awsOptions = options.as(AwsOptions.class);
+    KinesisClient kinesis;
+    CloudWatchClient cloudWatch;
+    if (spec.getAWSClientsProvider() != null) {
+      kinesis = spec.getAWSClientsProvider().getKinesisClient();
+      cloudWatch = spec.getAWSClientsProvider().getCloudWatchClient();
+    } else {
+      ClientConfiguration config = spec.getClientConfiguration();
+      kinesis = ClientBuilderFactory.buildClient(awsOptions, KinesisClient.builder(), config);
+      cloudWatch = ClientBuilderFactory.buildClient(awsOptions, CloudWatchClient.builder(), config);
+    }
+    return new SimplifiedKinesisClient(
+        kinesis, cloudWatch, spec.getRequestRecordsLimit(), Instant::now);
   }
 
   /**
@@ -92,23 +77,10 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
    */
   @Override
   public List<KinesisSource> split(int desiredNumSplits, PipelineOptions options) throws Exception {
-    KinesisReaderCheckpoint checkpoint =
-        initialCheckpointGenerator.generate(
-            SimplifiedKinesisClient.from(awsClientsProvider, limit));
-
+    KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(createClient(options));
     List<KinesisSource> sources = newArrayList();
-
     for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
-      sources.add(
-          new KinesisSource(
-              awsClientsProvider,
-              new StaticCheckpointGenerator(partition),
-              streamName,
-              upToDateThreshold,
-              watermarkPolicyFactory,
-              rateLimitPolicyFactory,
-              limit,
-              maxCapacityPerShard));
+      sources.add(new KinesisSource(spec, new StaticCheckpointGenerator(partition)));
     }
     return sources;
   }
@@ -122,22 +94,13 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   public UnboundedReader<KinesisRecord> createReader(
       PipelineOptions options, KinesisReaderCheckpoint checkpointMark) {
 
-    CheckpointGenerator checkpointGenerator = initialCheckpointGenerator;
-
+    CheckpointGenerator checkpointGenerator = this.checkpointGenerator;
     if (checkpointMark != null) {
       checkpointGenerator = new StaticCheckpointGenerator(checkpointMark);
     }
 
     LOG.info("Creating new reader using {}", checkpointGenerator);
-
-    return new KinesisReader(
-        SimplifiedKinesisClient.from(awsClientsProvider, limit),
-        checkpointGenerator,
-        this,
-        watermarkPolicyFactory,
-        rateLimitPolicyFactory,
-        upToDateThreshold,
-        maxCapacityPerShard);
+    return new KinesisReader(spec, createClient(options), checkpointGenerator, this);
   }
 
   @Override
@@ -146,19 +109,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   }
 
   @Override
-  public void validate() {
-    checkNotNull(awsClientsProvider);
-    checkNotNull(initialCheckpointGenerator);
-    checkNotNull(watermarkPolicyFactory);
-    checkNotNull(rateLimitPolicyFactory);
-  }
-
-  @Override
   public Coder<KinesisRecord> getOutputCoder() {
     return KinesisRecordCoder.of();
-  }
-
-  String getStreamName() {
-    return streamName;
   }
 }

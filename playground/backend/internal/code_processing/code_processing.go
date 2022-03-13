@@ -94,7 +94,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
 
-	executorBuilder := executors.NewExecutorBuilder()
+	var executorBuilder *executors.ExecutorBuilder
 	err := error(nil)
 	if isUnitTest {
 		executorBuilder, err = builder.TestRunner(paths, sdkEnv)
@@ -112,6 +112,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: pipelineLifeCycleCtx, CacheService: cacheService, PipelineId: pipelineId}
 	go readLogFile(pipelineLifeCycleCtx, ctx, cacheService, paths.AbsoluteLogFilePath, pipelineId, stopReadLogsChannel, finishReadLogsChannel)
+	go readGraphFile(pipelineLifeCycleCtx, ctx, cacheService, paths.AbsoluteGraphFilePath, pipelineId)
 
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 		// For go SDK all logs are placed to stdErr.
@@ -163,7 +164,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	errorChannel, successChannel := createStatusChannels()
 	var executor = executors.Executor{}
 	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
-	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
+	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_SCIO || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess(pipelineLifeCycleCtx, []byte(""), pipelineId, cacheService); err != nil {
 			return nil
 		}
@@ -331,6 +332,23 @@ func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, 
 	return int(convertedValue), nil
 }
 
+// GetGraph gets graph from cache by key.
+// In case key doesn't exist in cache - returns an errors.NotFoundError.
+// In case value from cache by key couldn't be converted to []byte - returns an errors.InternalError.
+func GetGraph(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) (string, error) {
+	value, err := cacheService.GetValue(ctx, key, cache.Graph)
+	if err != nil {
+		logger.Errorf("%s: GetGraph(): cache.GetValue: error: %s", key, err.Error())
+		return "", errors.NotFoundError(errorTitle, "Error during getting graph")
+	}
+	stringValue, converted := value.(string)
+	if !converted {
+		logger.Errorf("%s: couldn't convert value to string. value: %s type %s", key, value, reflect.TypeOf(value))
+		return "", errors.InternalError(errorTitle, "Error during getting graph")
+	}
+	return stringValue, nil
+}
+
 // runCmdWithOutput runs command with keeping stdOut and stdErr
 func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError io.Writer, successChannel chan bool, errorChannel chan error) {
 	cmd.Stdout = stdOutput
@@ -385,6 +403,39 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 				cancelChannel <- true
 				return
 			}
+		}
+	}
+}
+
+// readGraphFile reads graph from the file and keeps it to the cache.
+// If context is done it means that the code processing was finished (successfully/with error/timeout).
+// Write graph to the cache if this in the file.
+// In other case each pauseDuration checks that graph file exists or not and try to save it to the cache.
+func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheService cache.Cache, graphFilePath string, pipelineId uuid.UUID) {
+	ticker := time.NewTicker(pauseDuration)
+	for {
+		select {
+		// waiting when graph file appears
+		case <-ticker.C:
+			if _, err := os.Stat(graphFilePath); err == nil {
+				ticker.Stop()
+				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				if err != nil {
+					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
+				}
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+			}
+		// in case of timeout or cancel
+		case <-pipelineLifeCycleCtx.Done():
+			ticker.Stop()
+			if _, err := os.Stat(graphFilePath); err == nil {
+				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				if err != nil {
+					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
+				}
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+			}
+			return
 		}
 	}
 }
@@ -505,7 +556,13 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunOutput, ""); err != nil {
 		return err
 	}
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, ""); err != nil {
+		return err
+	}
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.Logs, ""); err != nil {
+		return err
+	}
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.Graph, ""); err != nil {
 		return err
 	}
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)

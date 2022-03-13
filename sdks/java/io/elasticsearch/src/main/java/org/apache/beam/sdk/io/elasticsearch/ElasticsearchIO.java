@@ -234,6 +234,7 @@ public class ElasticsearchIO {
         .setMaxBatchSizeBytes(5L * 1024L * 1024L)
         .setUseStatefulBatches(false)
         .setMaxParallelRequestsPerWindow(1)
+        .setThrowWriteErrors(true)
         .build();
   }
 
@@ -264,7 +265,7 @@ public class ElasticsearchIO {
     if (items.isMissingNode() || items.size() == 0) {
       // This would only be expected in cases like connectivity issues or similar
       errorMessages.append(searchResult);
-      LOG.warn(String.format("'items' missing from Elasticsearch response: %s", errorMessages));
+      LOG.warn("'items' missing from Elasticsearch response: {}", errorMessages);
     }
 
     // some items present in bulk might have errors, concatenate error messages and record
@@ -880,7 +881,7 @@ public class ElasticsearchIO {
       JsonNode indexStats =
           statsJson.path("indices").path(connectionConfiguration.getIndex()).path("primaries");
       long indexSize = indexStats.path("store").path("size_in_bytes").asLong();
-      LOG.debug("estimate source byte size: total index size " + indexSize);
+      LOG.debug("estimate source byte size: total index size {}", indexSize);
 
       String query = spec.getQuery() != null ? spec.getQuery().get() : null;
       if (query == null || query.isEmpty()) { // return index size if no query
@@ -889,7 +890,7 @@ public class ElasticsearchIO {
       }
 
       long totalCount = indexStats.path("docs").path("count").asLong();
-      LOG.debug("estimate source byte size: total document count " + totalCount);
+      LOG.debug("estimate source byte size: total document count {}", totalCount);
       if (totalCount == 0) { // The min size is 1, because DirectRunner does not like 0
         estimatedByteSize = 1L;
         return estimatedByteSize;
@@ -901,7 +902,7 @@ public class ElasticsearchIO {
               connectionConfiguration.getIndex(), connectionConfiguration.getType());
       try (RestClient restClient = connectionConfiguration.createClient()) {
         long count = queryCount(restClient, endPoint, query);
-        LOG.debug("estimate source byte size: query document count " + count);
+        LOG.debug("estimate source byte size: query document count {}", count);
         if (count == 0) {
           estimatedByteSize = 1L;
         } else {
@@ -1983,7 +1984,7 @@ public class ElasticsearchIO {
   @AutoValue
   public abstract static class BulkIO extends PTransform<PCollection<Document>, PCollectionTuple> {
     @VisibleForTesting
-    static final String RETRY_ATTEMPT_LOG = "Error writing to Elasticsearch. Retry attempt[%d]";
+    static final String RETRY_ATTEMPT_LOG = "Error writing to Elasticsearch. Retry attempt[{}]";
 
     @VisibleForTesting
     static final String RETRY_FAILED_LOG =
@@ -2358,9 +2359,10 @@ public class ElasticsearchIO {
 
         @Override
         public void output(
-            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow ignored) {
-          // Note: window is intentionally unused, but required as a param to fit the interface
-          context.outputWithTimestamp(tag, document, timestamp);
+            TupleTag<Document> tag, Document document, Instant ignored1, BoundedWindow ignored2) {
+          // Note: window and timestamp are intentionally unused, but required as params to fit the
+          // interface
+          context.output(tag, document);
         }
       }
 
@@ -2538,7 +2540,7 @@ public class ElasticsearchIO {
         int attempt = 0;
         // while retry policy exists
         while (BackOffUtils.next(sleeper, backoff)) {
-          LOG.warn(String.format(RETRY_ATTEMPT_LOG, ++attempt));
+          LOG.warn(RETRY_ATTEMPT_LOG, ++attempt);
           try {
             Request request = new Request(method, endpoint);
             request.addParameters(params);

@@ -54,6 +54,7 @@ ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_GO"
+ENV BUCKET_NAME="playground-precompiled-objects"
 ## Copy build result
 COPY src/configs /opt/playground/backend/configs/
 
@@ -63,10 +64,24 @@ RUN mkdir /opt/mitmproxy &&\
     wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
     tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
     mkdir /usr/local/share/ca-certificates/extra
-COPY entrypoint.sh /
 COPY allow_list_proxy.py /opt/mitmproxy/
 COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
+
+COPY entrypoint.sh /
+
+# Create a user group `appgroup` and a user `appuser`
+RUN groupadd --gid 20000 appgroup \
+  && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
+
+RUN mkdir -p /opt/playground/backend/executable_files/
+
+# Chown all required files to the `appuser`.
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
+  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
+
+# Switch to appuser
+USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]

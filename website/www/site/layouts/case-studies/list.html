@@ -1,112 +1,74 @@
 {{/*
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
 */}}
 
 {{ define "main" }}
 <div class="blog-content">
     <h1>Case Studies</h1>
-    <p>Check out how the projects are using Apache Beam.</p>
-    {{ $pages := .Pages }}
-    {{ $.Scratch.Set "categories" (slice ) }}
-    {{ $.Scratch.Set "noCategories" 0 }}
-
-    {{ range .Pages}}
-        {{ with .Params.categories }}
-            {{ if eq ( printf "%T" . ) "string"  }}
-            {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
-                {{ $.Scratch.Add "categories" . }}
-            {{ end }}
-            {{ else if eq ( printf "%T" . ) "[]string" }}
-            {{ range . }}
-                {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
-                {{ $.Scratch.Add "categories" . }}
-                {{ end }}
-            {{ end }}
-            {{ end }}
-        {{ else }}
-            {{ $.Scratch.Add "noCategories" 1 }}
-        {{ end }}
-    {{ end }}
-
-    <div class="category-buttons category-buttons_poweredBy">
-      {{ range $.Scratch.Get "categories" }}
-        <button xx class="category-button" id='category-{{ . | replaceRE "[.]" "_" | urlize }}' onclick="applyFilter(this)">
-          {{ . }}
-        </button>
-      {{ end }}
-      {{ if gt ( $.Scratch.Get "noCategories") 0 }}
-      <button xx class="category-button" id="category-no-author" onclick='ptf.checkFilter("no-author", "category-")'>
-        without category
-      </button>
-      {{ end }}
-    </div>
-
-    <div class="use_cases">
-        {{ range $pages.ByPublishDate.Reverse }}
-          <a href="{{ .RelPermalink }}">
-            <div class="use-card remove" data-categories='{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}'
-            >
-              <div class="use-icon">
+    <p class="case-study-about">Apache Beam powers many of today’s leading projects, industry-specific use cases, and
+        startups.</p>
+    {{ $pages := .Pages.ByPublishDate.Reverse }}
+    <div class="case-study-list">
+        {{ range where $pages "Params.category" "study" }}
+        <div class="case-study-card">
+            <div class="case-study-card-img">
                 <img src="{{.Params.icon}}"></i>
-              </div>
-              <div class="use-body">
-                <div>
-                  <p class="use-category">
-                    {{ delimit .Params.categories ", " " & " }}
-                  </p>
-                  <h5 class="use-title">{{ .Title }}</h5>
-                  <p class="use-summary">{{ .Summary | plainify | chomp }}</p>
-                </div>
-                <a class="read-link" href="{{ .RelPermalink }}">{{ T "case-studies-read" }}</a>
-              </div>
             </div>
-          </a>
+            <h3 class="case-study-card-title">{{ .Params.cardTitle }}</h3>
+            <p class="case-study-card-description">{{ .Params.cardDescription }}</p>
+            <div class="case-study-quote-block">
+                <div class="case-study-quote-author">
+                    <div class="case-study-quote-author-img">
+                        <img src="{{ .Params.authorImg }}">
+                    </div>
+                    <div class="case-study-quote-author-info">
+                        <div class="case-study-quote-author-name">
+                            {{ .Params.authorName }}
+                        </div>
+                        <div class="case-study-quote-author-position">
+                            {{ .Params.authorPosition }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <a class="case-study-card-learn-more" href="{{ .RelPermalink }}">
+                <span>{{ T "case-studies-learn-more" }}</span>
+                <img src="/images/arrow-right.svg" alt="Go to the case study">
+            </a>
+        </div>
         {{ end }}
     </div>
-    <div class="category-buttons category-buttons_center">
-        <button id="load-button" class="load-button">{{ T "blog-loadmore" }}</button>
+    <div class="case-study-row-button-container">
+        <a href="mailto:dev@beam.apache.org?subject=Beam Website Add New Case Study" class="case-study-primary-button">
+            Share your story
+        </a>
     </div>
-
+    <h2 class="case-study-h2">Also used by</h2>
+    <div class="case-study-list">
+        {{ range where $pages "Params.category" "ne" "study" }}
+        <div class="case-study-used-by-card">
+            <div class="case-study-used-by-card-img">
+                <img src="{{.Params.icon}}"></i>
+            </div>
+            <div class="case-study-used-by-card-description">
+                {{ .Params.cardDescription | safeHTML }}
+            </div>
+        </div>
+        {{ end }}
+    </div>
+    <div class="case-study-row-button-container">
+        <a href="https://github.com/apache/beam/tree/master/website/ADD_LOGO.md" class="case-study-primary-button">
+            <img src="/images/add.svg"/>
+            <span>Add your logo</span>
+        </a>
+    </div>
 </div>
-{{ $categoriesFilter := resources.Get "js/categories-filter.js" | minify| fingerprint }}
-<script src="{{ $categoriesFilter.RelPermalink }}"></script>
-<script>
-var ptfConfig={
-  filters:[
-  {
-    name:'categories',
-    prefix:'category-',
-    buttonClass:'category-button',
-    allSelector:'#selectAllAuthors',
-    attrName:'data-categories',
-  }
-  ],
-    showItemClass:"show-item",
-    filterItemClass:"remove",
-    activeButtonClass:"active",
-    numberToView:3,
-    populateCount:true,
-    setDisabledButtonClass:"disable-button"
-}
-var ptf=new CategoriesFilter(ptfConfig);
-$("#load-button").click(function(){
-  $(this).toggleClass('remove');
-  ptf.showMore();
-  ptf.showCheck(ptfConfig.filters[0].name,false);
-});
-function applyFilter(element){
-  var category=element.id.split('category-');
-  ptf.resetCount();
-  ptf.checkFilter(category[1],'category-');
-}
-</script>
-
 {{ end }}
