@@ -250,8 +250,7 @@ public class QueryChangeStreamActionTest {
   }
 
   @Test
-  public void
-      testQueryChangeStreamWithRestrictionFromAfterPartitionStartAndRestrictionToBeforePartitionEnd() {
+  public void testQueryChangeStreamWithRestrictionFromAfterPartitionStart() {
     final Struct rowAsStruct = mock(Struct.class);
     final ChangeStreamResultSetMetadata resultSetMetadata =
         mock(ChangeStreamResultSetMetadata.class);
@@ -261,15 +260,13 @@ public class QueryChangeStreamActionTest {
 
     // From is after Partition start at
     when(restriction.getFrom()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
-    // To is before Partition end at
-    when(restriction.getTo()).thenReturn(Timestamp.ofTimeMicroseconds(25L));
     // Both records should be included
     when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
     when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(25L));
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
             Timestamp.ofTimeMicroseconds(15L),
-            Timestamp.ofTimeMicroseconds(25L),
+            PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
         .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
