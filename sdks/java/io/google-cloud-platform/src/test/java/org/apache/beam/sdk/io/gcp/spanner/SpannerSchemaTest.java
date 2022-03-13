@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Type;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,11 +37,13 @@ public class SpannerSchemaTest {
             .addKeyPart("test", "pk", false)
             .addColumn("test", "maxKey", "STRING(MAX)")
             .addColumn("test", "numericVal", "NUMERIC")
+            .addColumn("test", "jsonVal", "JSON")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(3, schema.getColumns("test").size());
+    assertEquals(4, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
+    assertEquals(Type.json(), schema.getColumns("test").get(3).getType());
   }
 
   @Test

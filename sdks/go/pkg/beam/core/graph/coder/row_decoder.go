@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-// RowDecoderBuilder allows one to build Beam Schema row encoders for provided types.
+// RowDecoderBuilder allows one to build Beam Schema row decoder for provided types.
 type RowDecoderBuilder struct {
 	allFuncs   map[reflect.Type]decoderProvider
 	ifaceFuncs []reflect.Type

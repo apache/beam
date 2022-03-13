@@ -40,10 +40,6 @@ task copyDockerfileDependencies(type: Copy) {
       exclude 'containers'
    }
    copy {
-      from 'Dockerfile'
-      into 'build/'
-   }
-   copy {
       from 'entrypoint.sh'
       into 'build/'
    }

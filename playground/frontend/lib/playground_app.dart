@@ -33,7 +33,7 @@ class PlaygroundApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
+      create: (context) => ThemeProvider()..init(),
       builder: (context, _) {
         final themeProvider = Provider.of<ThemeProvider>(context);
         return ChangeNotifierProvider<LocaleProvider>(

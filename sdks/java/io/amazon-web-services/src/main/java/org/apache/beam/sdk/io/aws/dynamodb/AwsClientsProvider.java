@@ -28,7 +28,13 @@ import java.io.Serializable;
  * ensure it can be sent to worker machines.
  */
 public interface AwsClientsProvider extends Serializable {
-  AmazonCloudWatch getCloudWatchClient();
+
+  /** @deprecated DynamoDBIO doesn't require a CloudWatch client */
+  @Deprecated
+  @SuppressWarnings("return.type.incompatible")
+  default AmazonCloudWatch getCloudWatchClient() {
+    return null;
+  }
 
   AmazonDynamoDB createDynamoDB();
 }

@@ -20,6 +20,11 @@
 Dataflow client utility functions."""
 
 # pytype: skip-file
+# To regenerate the client:
+# pip install google-apitools[cli]
+# gen_client --discovery_url=cloudbuild.v1 --overwrite \
+#  --outdir=apache_beam/runners/dataflow/internal/clients/cloudbuild \
+#  --root_package=. client
 
 import codecs
 from functools import partial
@@ -30,6 +35,7 @@ import json
 import logging
 import os
 import random
+import string
 
 import pkg_resources
 import re
@@ -75,7 +81,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9']
 
 
 class Step(object):
@@ -421,10 +427,16 @@ class Job(object):
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
     date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
     app_user_name = 'beamapp-{}'.format(user_name)
-    job_name = '{}-{}'.format(app_user_name, date_component)
+    # append 8 random alphanumeric characters to avoid collisions.
+    random_component = ''.join(
+        random.choices(string.ascii_lowercase + string.digits, k=8))
+    job_name = '{}-{}-{}'.format(
+        app_user_name, date_component, random_component)
     if len(job_name) > 63:
-      job_name = '{}-{}'.format(
-          app_user_name[:-(len(job_name) - 63)], date_component)
+      job_name = '{}-{}-{}'.format(
+          app_user_name[:-(len(job_name) - 63)],
+          date_component,
+          random_component)
     return job_name
 
   @staticmethod

@@ -22,7 +22,7 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.mean;
 //   name: AggregationMean
 //   description: Task from katas to count mean value of the given pipeline with numbers.
 //   multifile: false
-//   pipeline_options:
+//   context_line: 37
 //   categories:
 //     - Combiners
 

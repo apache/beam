@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -97,6 +98,75 @@ func TestParDo(t *testing.T) {
 	}
 }
 
+func windowObserverFn(w typex.Window, word string) string {
+	if _, ok := w.(window.GlobalWindow); ok {
+		return fmt.Sprintf("%v-%v", word, "global")
+	}
+	if iw, ok := w.(window.IntervalWindow); ok {
+		return fmt.Sprintf("%v-%v-%v", word, iw.Start, iw.End)
+	}
+	return fmt.Sprintf("Couldnt cast %v to a window type", w)
+}
+
+// TestParDo verifies that the ParDo node works correctly for side inputs and emitters. It uses a special
+// dofn that uses all forms of sideinput.
+func TestParDo_WindowObservation(t *testing.T) {
+	tests := []struct {
+		ws   []typex.Window
+		out1 string
+		out2 string
+	}{
+		{
+			ws:   []typex.Window{window.GlobalWindow{}},
+			out1: "testInput1-global",
+			out2: "testInput2-global",
+		},
+		{
+			ws: []typex.Window{window.IntervalWindow{
+				Start: 100,
+				End:   200,
+			}},
+			out1: "testInput1-100-200",
+			out2: "testInput2-100-200",
+		},
+	}
+	for _, test := range tests {
+		fn, err := graph.NewDoFn(windowObserverFn)
+		if err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+
+		g := graph.New()
+		nN := g.NewNode(typex.New(reflectx.String), window.DefaultWindowingStrategy(), true)
+
+		edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+		if err != nil {
+			t.Fatalf("invalid pardo: %v", err)
+		}
+
+		out := &CaptureNode{UID: 1}
+		pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
+		n := &FixedRoot{UID: 4, Elements: makeWindowedInput(test.ws, "testInput1", "testInput2"), Out: pardo}
+
+		p, err := NewPlan("a", []Unit{n, pardo, out})
+		if err != nil {
+			t.Fatalf("failed to construct plan: %v", err)
+		}
+
+		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
+			t.Fatalf("execute failed: %v", err)
+		}
+		if err := p.Down(context.Background()); err != nil {
+			t.Fatalf("down failed: %v", err)
+		}
+
+		expected := makeWindowedValues(test.ws, test.out1, test.out2)
+		if !equalList(out.Elements, expected) {
+			t.Errorf("pardo(windowObserverFn) = %v, want %v", extractValues(out.Elements...), extractValues(expected...))
+		}
+	}
+}
+
 func emitSumFn(n int, emit func(int)) {
 	emit(n + 1)
 }
@@ -123,6 +193,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 	}
 
 	process := make(chan MainInput, 1)
+	errchan := make(chan string, 1)
 	out := &CaptureNode{UID: 1}
 	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
 	n := &BenchRoot{UID: 4, Elements: process, Out: pardo}
@@ -131,11 +202,14 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 		b.Fatalf("failed to construct plan: %v", err)
 	}
 	go func() {
+		defer close(errchan)
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
-			b.Fatalf("execute failed: %v", err)
+			errchan <- fmt.Sprintf("execute failed: %v", err)
+			return
 		}
 		if err := p.Down(context.Background()); err != nil {
-			b.Fatalf("down failed: %v", err)
+			errchan <- fmt.Sprintf("down failed: %v", err)
+			return
 		}
 	}()
 	b.ResetTimer()
@@ -147,4 +221,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 		}}
 	}
 	close(process)
+	for msg := range errchan {
+		b.Fatal(msg)
+	}
 }

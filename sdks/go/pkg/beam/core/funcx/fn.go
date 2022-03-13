@@ -17,9 +17,9 @@ package funcx
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"reflect"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -76,6 +76,8 @@ const (
 	// Example:
 	//				"func(string) func (*int) bool"
 	FnMultiMap FnParamKind = 0x200
+	// FnPane indicates a function input parameter that is a PaneInfo
+	FnPane FnParamKind = 0x400
 )
 
 func (k FnParamKind) String() string {
@@ -100,6 +102,8 @@ func (k FnParamKind) String() string {
 		return "RTracker"
 	case FnMultiMap:
 		return "MultiMap"
+	case FnPane:
+		return "Pane"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -243,6 +247,16 @@ func (u *Fn) Window() (pos int, exists bool) {
 	return -1, false
 }
 
+// Pane returns (index, true) iff the function expects a PaneInfo.
+func (u *Fn) Pane() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnPane {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // RTracker returns (index, true) iff the function expects an sdf.RTracker.
 func (u *Fn) RTracker() (pos int, exists bool) {
 	for i, p := range u.Param {
@@ -329,7 +343,22 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnReIter
 		case IsMultiMap(t):
 			kind = FnMultiMap
+		case t == typex.PaneInfoType:
+			kind = FnPane
 		default:
+			// Error cases
+			if ok, err := IsMalformedEmit(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedIter(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedReIter(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedMultiMap(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
 			return nil, errors.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
 
@@ -386,7 +415,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnWindow?, FnEventTime?, FnType?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
+// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnType?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -411,6 +440,7 @@ func validateOrder(u *Fn) error {
 
 var (
 	errContextParam             = errors.New("may only have a single context.Context parameter and it must be the first parameter")
+	errPaneParamPrecedence      = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
 	errWindowParamPrecedence    = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
 	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
 	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
@@ -423,6 +453,7 @@ type paramState int
 const (
 	psStart paramState = iota
 	psContext
+	psPane
 	psWindow
 	psEventTime
 	psType
@@ -437,6 +468,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		switch transition {
 		case FnContext:
 			return psContext, nil
+		case FnPane:
+			return psPane, nil
 		case FnWindow:
 			return psWindow, nil
 		case FnEventTime:
@@ -447,6 +480,19 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psRTracker, nil
 		}
 	case psContext:
+		switch transition {
+		case FnPane:
+			return psPane, nil
+		case FnWindow:
+			return psWindow, nil
+		case FnEventTime:
+			return psEventTime, nil
+		case FnType:
+			return psType, nil
+		case FnRTracker:
+			return psRTracker, nil
+		}
+	case psPane:
 		switch transition {
 		case FnWindow:
 			return psWindow, nil
@@ -495,6 +541,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 	switch transition {
 	case FnContext:
 		return -1, errContextParam
+	case FnPane:
+		return -1, errPaneParamPrecedence
 	case FnWindow:
 		return -1, errWindowParamPrecedence
 	case FnEventTime:

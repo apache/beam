@@ -969,7 +969,7 @@ public class HadoopFormatIO {
         } else {
           output = (T3) input;
         }
-        return skipClone ? output : cloneIfPossiblyMutable(output, coder);
+        return skipClone || output == null ? output : cloneIfPossiblyMutable(output, coder);
       }
 
       /**

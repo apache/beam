@@ -210,4 +210,13 @@ public class CancellableQueueTest {
     queue.reset();
     runTestForMultipleConsumersAndProducers(queue);
   }
+
+  @Test(timeout = 10_000)
+  public void testFirstCancellationError() throws Exception {
+    CancellableQueue<String> queue = new CancellableQueue<>(100);
+    queue.cancel(new RuntimeException("First cancel exception"));
+    assertThrows("First cancel exception", RuntimeException.class, () -> queue.take());
+    queue.cancel(new RuntimeException("Second cancel exception"));
+    assertThrows("First cancel exception", RuntimeException.class, () -> queue.take());
+  }
 }

@@ -23,11 +23,16 @@ import unittest
 from unittest.mock import patch
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlNode
+from apache_beam.runners.portability.flink_runner import FlinkRunner
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
@@ -205,7 +210,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
 
   def test_get_cache_manager_creates_cache_manager_if_absent(self):
     env = ie.InteractiveEnvironment()
-    dummy_pipeline = 'dummy'
+    dummy_pipeline = beam.Pipeline()
     self.assertIsNone(env.get_cache_manager(dummy_pipeline))
     self.assertIsNotNone(
         env.get_cache_manager(dummy_pipeline, create_if_absent=True))
@@ -334,6 +339,89 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     env.sql_chain[p2] = chain
     with self.assertRaises(ValueError):
       env.get_sql_chain(p2, set_user_pipeline=True)
+
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment.'
+      'assert_bucket_exists',
+      return_value=None)
+  def test_get_gcs_cache_dir_valid_path(self, mock_assert_bucket_exists):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    cache_root = 'gs://test-cache-dir/'
+    actual_cache_dir = env._get_gcs_cache_dir(p, cache_root)
+    expected_cache_dir = 'gs://test-cache-dir/{}'.format(id(p))
+    self.assertEqual(actual_cache_dir, expected_cache_dir)
+
+  def test_get_gcs_cache_dir_invalid_path(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    cache_root = 'gs://'
+    with self.assertRaises(ValueError):
+      env._get_gcs_cache_dir(p, cache_root)
+
+  def test_detect_pipeline_underlying_runner(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline(InteractiveRunner(underlying_runner=FlinkRunner()))
+    pipeline_runner = env._detect_pipeline_runner(p)
+    self.assertTrue(isinstance(pipeline_runner, FlinkRunner))
+
+  def test_detect_pipeline_no_underlying_runner(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline(InteractiveRunner())
+    pipeline_runner = env._detect_pipeline_runner(p)
+    from apache_beam.runners.direct.direct_runner import DirectRunner
+    self.assertTrue(isinstance(pipeline_runner, DirectRunner))
+
+  def test_detect_pipeline_no_runner(self):
+    env = ie.InteractiveEnvironment()
+    pipeline_runner = env._detect_pipeline_runner(None)
+    self.assertEqual(pipeline_runner, None)
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.cleanup',
+      return_value=None)
+  def test_cleanup_specific_dataproc_cluster(self, mock_cleanup):
+    env = ie.InteractiveEnvironment()
+    project = 'test-project'
+    region = 'test-region'
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
+    env.clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    env._tracked_user_pipelines.add_user_pipeline(p)
+    env.cleanup(p)
+    self.assertEqual(env.clusters.dataproc_cluster_managers, {})
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.cleanup',
+      return_value=None)
+  def test_cleanup_all_dataproc_clusters(self, mock_cleanup):
+    env = ie.InteractiveEnvironment()
+    project = 'test-project'
+    region = 'test-region'
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
+    env.clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    env._tracked_user_pipelines.add_user_pipeline(p)
+    env.cleanup()
+    self.assertEqual(env.clusters.dataproc_cluster_managers, {})
 
 
 if __name__ == '__main__':
