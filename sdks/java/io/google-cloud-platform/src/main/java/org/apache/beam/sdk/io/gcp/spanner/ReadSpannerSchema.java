@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * SpannerSchema}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
@@ -113,25 +113,25 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         break;
       case POSTGRESQL:
         statement =
-            String.format(
-                "SELECT"
-                    + "    c.table_name"
-                    + "  , c.column_name"
-                    + "  , c.spanner_type"
-                    + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
-                    + "  FROM ("
-                    + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
-                    + "     FROM information_schema.columns as c"
-                    + "     WHERE c.table_catalog = '%1$s' AND c.table_schema = 'public') AS c"
-                    + "  LEFT OUTER JOIN ("
-                    + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
-                    + "      FROM information_schema.index_columns AS t "
-                    + "      WHERE t.index_name != 'PRIMARY_KEY' AND t.table_catalog = '%1$s'"
-                    + "      AND t.table_schema = 'public'"
-                    + "      GROUP BY t.table_name, t.column_name) AS t"
-                    + "  USING (table_name, column_name)"
-                    + "  ORDER BY c.table_name, c.ordinal_position",
-                databaseId);
+            "SELECT"
+                + "    c.table_name"
+                + "  , c.column_name"
+                + "  , c.spanner_type"
+                + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
+                + "  FROM ("
+                + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
+                + "      FROM information_schema.columns as c"
+                + "      WHERE c.table_schema NOT IN"
+                + "      ('information_schema', 'spanner_sys', 'pg_catalog')) AS c"
+                + "  LEFT OUTER JOIN ("
+                + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
+                + "      FROM information_schema.index_columns AS t "
+                + "      WHERE t.index_name != 'PRIMARY_KEY'"
+                + "      AND t.table_schema NOT IN"
+                + "      ('information_schema', 'spanner_sys', 'pg_catalog')"
+                + "      GROUP BY t.table_name, t.column_name) AS t"
+                + "  USING (table_name, column_name)"
+                + "  ORDER BY c.table_name, c.ordinal_position";
         break;
       default:
         throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());
@@ -152,13 +152,11 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         break;
       case POSTGRESQL:
         statement =
-            String.format(
-                "SELECT t.table_name, t.column_name, t.column_ordering"
-                    + " FROM information_schema.index_columns AS t "
-                    + " WHERE t.index_name = 'PRIMARY_KEY' AND t.table_catalog = '%s'"
-                    + " AND t.table_schema = 'public'"
-                    + " ORDER BY t.table_name, t.ordinal_position",
-                databaseId);
+            "SELECT t.table_name, t.column_name, t.column_ordering"
+                + " FROM information_schema.index_columns AS t "
+                + " WHERE t.index_name = 'PRIMARY_KEY'"
+                + " AND t.table_schema NOT IN ('information_schema', 'spanner_sys', 'pg_catalog')"
+                + " ORDER BY t.table_name, t.ordinal_position";
         break;
       default:
         throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());
