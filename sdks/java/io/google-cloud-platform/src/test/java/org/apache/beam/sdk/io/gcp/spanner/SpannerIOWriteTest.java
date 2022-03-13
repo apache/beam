@@ -144,7 +144,7 @@ public class SpannerIOWriteTest implements Serializable {
     preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
     prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64", CELLS_PER_KEY)));
     preparePgColumnMetadata(tx,
-        Arrays.asList(pgColumnMetadata("tEsT", "key", "bigint", CELLS_PER_KEY)));
+        Arrays.asList(columnMetadata("tEsT", "key", "bigint", CELLS_PER_KEY)));
 
     // Setup the ProcessWideContainer for testing metrics are set.
     MetricsContainerImpl container = new MetricsContainerImpl(null);
@@ -166,20 +166,6 @@ public class SpannerIOWriteTest implements Serializable {
         .set("column_name")
         .to(columnName)
         .set("spanner_type")
-        .to(type)
-        .set("cells_mutated")
-        .to(cellsMutated)
-        .build();
-  }
-
-  private static Struct pgColumnMetadata(
-      String tableName, String columnName, String type, long cellsMutated) {
-    return Struct.newBuilder()
-        .set("table_name")
-        .to(tableName)
-        .set("column_name")
-        .to(columnName)
-        .set("data_type")
         .to(type)
         .set("cells_mutated")
         .to(cellsMutated)
@@ -225,7 +211,7 @@ public class SpannerIOWriteTest implements Serializable {
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
             Type.StructField.of("column_name", Type.string()),
-            Type.StructField.of("data_type", Type.string()),
+            Type.StructField.of("spanner_type", Type.string()),
             Type.StructField.of("cells_mutated", Type.int64()));
     when(tx.executeQuery(
         argThat(
@@ -238,7 +224,7 @@ public class SpannerIOWriteTest implements Serializable {
                 }
                 Statement st = (Statement) argument;
                 return st.getSql().contains("information_schema.columns") && st.getSql()
-                    .contains("data_type");
+                    .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
               }
             })))
         .thenReturn(ResultSets.forRows(type, rows));
@@ -311,7 +297,7 @@ public class SpannerIOWriteTest implements Serializable {
     Mutation mutation = m(2L);
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
     PCollectionView<Dialect> pgDialectView = pipeline.apply("Create PG dialect",
-            Create.of(Dialect.GOOGLE_STANDARD_SQL)).apply(View.asSingleton());
+        Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
 
     mutations.apply(
         SpannerIO.write()
@@ -346,7 +332,7 @@ public class SpannerIOWriteTest implements Serializable {
     PCollection<MutationGroup> mutations =
         pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
     PCollectionView<Dialect> pgDialectView = pipeline.apply("Create PG dialect",
-            Create.of(Dialect.GOOGLE_STANDARD_SQL)).apply(View.asSingleton());
+        Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
 
     mutations.apply(
         SpannerIO.write()

@@ -86,7 +86,7 @@ public class SpannerWriteIT {
     void setInstanceProjectId(String value);
 
     @Description("Instance ID to write to in Spanner")
-    @Default.String("fangluliu-test1")
+    @Default.String("beam-test")
     String getInstanceId();
 
     void setInstanceId(String value);
