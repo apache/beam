@@ -221,6 +221,31 @@ public class GroupIntoBatches<K, InputT>
             duration));
   }
 
+  public GroupIntoBatches<K, InputT> withByteSize(Long batchSizeBytes) {
+    checkArgument(
+        batchSizeBytes != null && batchSizeBytes < Long.MAX_VALUE && batchSizeBytes > 0,
+        "batchSizeBytes should be a non-negative value less than " + Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            params.getBatchSize(),
+            batchSizeBytes,
+            params.getElementByteSize(),
+            params.getMaxBufferingDuration()));
+  }
+
+  public GroupIntoBatches<K, InputT> withByteSize(
+      Long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
+    checkArgument(
+        batchSizeBytes != null && batchSizeBytes < Long.MAX_VALUE && batchSizeBytes > 0,
+        "batchSizeBytes should be a non-negative value less than " + Long.MAX_VALUE);
+    return new GroupIntoBatches<>(
+        BatchingParams.create(
+            params.getBatchSize(),
+            batchSizeBytes,
+            getElementByteSize,
+            params.getMaxBufferingDuration()));
+  }
+
   /**
    * Outputs batched elements associated with sharded input keys. By default, keys are sharded to
    * such that the input elements with the same key are spread to all available threads executing

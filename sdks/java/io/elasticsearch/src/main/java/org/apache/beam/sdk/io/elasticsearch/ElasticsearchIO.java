@@ -47,11 +47,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -73,7 +73,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -84,10 +83,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -2235,10 +2234,23 @@ public class ElasticsearchIO {
         return new StatefulBatching(spec);
       }
 
+      private static class DocBytesEstimator implements SerializableFunction<Document, Long> {
+        @Override
+        public Long apply(Document input) {
+          if (input.getBulkDirective() == null) {
+            return 0L;
+          }
+          return (long) input.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
+        }
+      }
+
       @Override
       public PCollection<KV<Integer, Iterable<Document>>> expand(PCollection<Document> input) {
         GroupIntoBatches<Integer, Document> groupIntoBatches =
             GroupIntoBatches.ofSize(spec.getMaxBatchSize());
+
+        groupIntoBatches =
+            groupIntoBatches.withByteSize(spec.getMaxBatchSizeBytes(), new DocBytesEstimator());
 
         if (spec.getMaxBufferingDuration() != null) {
           groupIntoBatches =
@@ -2257,63 +2269,23 @@ public class ElasticsearchIO {
 
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
-      if (getUseStatefulBatches()) {
-        return input
-            .apply(StatefulBatching.fromSpec(this))
-            .apply(
-                ParDo.of(new BulkIOStatefulFn(this))
-                    .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
-      } else {
-        return input.apply(
-            ParDo.of(new BulkIOBundleFn(this))
-                .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
-      }
-    }
-
-    static class BulkIOBundleFn extends BulkIOBaseFn<Document> {
-      @VisibleForTesting
-      BulkIOBundleFn(BulkIO bulkSpec) {
-        super(bulkSpec);
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext context, BoundedWindow w) throws Exception {
-        // the element KV pair is a pair of raw_doc + resulting Bulk API formatted newline-json
-        // based on DocToBulk settings
-        Document summary = context.element();
-        addAndMaybeFlush(summary, context, w);
-      }
-    }
-
-    /*
-    Intended for use in conjunction with {@link GroupIntoBatches}
-     */
-    static class BulkIOStatefulFn extends BulkIOBaseFn<KV<Integer, Iterable<Document>>> {
-      @VisibleForTesting
-      BulkIOStatefulFn(BulkIO bulkSpec) {
-        super(bulkSpec);
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext c, BoundedWindow w) throws Exception {
-        for (Document result : c.element().getValue()) {
-          addAndMaybeFlush(result, c, w);
-        }
-      }
+      return input
+          .apply(StatefulBatching.fromSpec(this))
+          .apply(
+              ParDo.of(new BulkIOFn(this))
+                  .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
     }
 
     /** {@link DoFn} to for the {@link BulkIO} transform. */
     @VisibleForTesting
-    private abstract static class BulkIOBaseFn<T> extends DoFn<T, Document> {
+    static class BulkIOFn extends DoFn<KV<Integer, Iterable<Document>>, Document> {
       private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff;
 
-      private BulkIO spec;
+      private final BulkIO spec;
       private transient RestClient restClient;
-      private Multimap<BoundedWindow, Document> batch;
-      long currentBatchSizeBytes;
 
-      protected BulkIOBaseFn(BulkIO bulkSpec) {
+      protected BulkIOFn(BulkIO bulkSpec) {
         this.spec = bulkSpec;
       }
 
@@ -2335,126 +2307,37 @@ public class ElasticsearchIO {
         }
       }
 
-      @StartBundle
-      public void startBundle(StartBundleContext context) {
-        batch = ArrayListMultimap.create();
-        currentBatchSizeBytes = 0;
-      }
-
-      /**
-       * Adapter interface which provides a common parent for {@link ProcessContext} and {@link
-       * FinishBundleContext} so that we are able to use a single common invocation to output from.
-       */
-      interface ContextAdapter {
-        void output(
-            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow window);
-      }
-
-      private static final class ProcessContextAdapter<T> implements ContextAdapter {
-        private final DoFn<T, Document>.ProcessContext context;
-
-        private ProcessContextAdapter(DoFn<T, Document>.ProcessContext context) {
-          this.context = context;
-        }
-
-        @Override
-        public void output(
-            TupleTag<Document> tag, Document document, Instant ignored1, BoundedWindow ignored2) {
-          // Note: window and timestamp are intentionally unused, but required as params to fit the
-          // interface
-          context.output(tag, document);
-        }
-      }
-
-      private static final class FinishBundleContextAdapter<T> implements ContextAdapter {
-        private final DoFn<T, Document>.FinishBundleContext context;
-
-        private FinishBundleContextAdapter(DoFn<T, Document>.FinishBundleContext context) {
-          this.context = context;
-        }
-
-        @Override
-        public void output(
-            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow window) {
-          context.output(tag, document, timestamp, window);
-        }
-      }
-
-      @FinishBundle
-      public void finishBundle(FinishBundleContext context)
+      @ProcessElement
+      public void processElement(@Element Iterable<Document> docs, MultiOutputReceiver out)
           throws IOException, InterruptedException {
-        flushAndOutputResults(new FinishBundleContextAdapter<>(context));
-      }
-
-      private void flushAndOutputResults(ContextAdapter context)
-          throws IOException, InterruptedException {
-        // TODO: remove ContextAdapter and Multimap in favour of MultiOutputReceiver when
-        //  https://issues.apache.org/jira/browse/BEAM-1287 is completed
-        Multimap<BoundedWindow, Document> results = flushBatch();
-        for (Entry<BoundedWindow, Document> result : results.entries()) {
-          BoundedWindow outputWindow = result.getKey();
-          Document outputResult = result.getValue();
-          Instant timestamp = outputResult.getTimestamp();
-          if (timestamp == null) {
-            timestamp = outputWindow.maxTimestamp();
-          }
-
-          if (outputResult.getHasError()) {
-            context.output(Write.FAILED_WRITES, outputResult, timestamp, outputWindow);
+        for (Document doc : flushBatch(Lists.newArrayList(docs))) {
+          if (doc.getHasError()) {
+            out.get(Write.FAILED_WRITES).output(doc);
           } else {
-            context.output(Write.SUCCESSFUL_WRITES, outputResult, timestamp, outputWindow);
+            out.get(Write.SUCCESSFUL_WRITES).output(doc);
           }
         }
       }
 
-      protected void addAndMaybeFlush(
-          Document bulkApiEntity, ProcessContext context, BoundedWindow outputWindow)
+      private Iterable<Document> flushBatch(List<Document> docs)
           throws IOException, InterruptedException {
 
-        batch.put(outputWindow, bulkApiEntity);
-        currentBatchSizeBytes +=
-            bulkApiEntity.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
-
-        if (batch.size() >= spec.getMaxBatchSize()
-            || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
-          flushAndOutputResults(new ProcessContextAdapter<>(context));
-        }
-      }
-
-      private boolean isRetryableClientException(Throwable t) {
-        // RestClient#performRequest only throws wrapped IOException so we must inspect the
-        // exception cause to determine if the exception is likely transient i.e. retryable or
-        // not.
-        return t.getCause() instanceof ConnectTimeoutException
-            || t.getCause() instanceof SocketTimeoutException
-            || t.getCause() instanceof ConnectionClosedException
-            || t.getCause() instanceof ConnectException;
-      }
-
-      private Multimap<BoundedWindow, Document> flushBatch()
-          throws IOException, InterruptedException {
-
-        if (batch.isEmpty()) {
-          return ArrayListMultimap.create();
+        if (docs.isEmpty()) {
+          return Collections.emptyList();
         }
 
-        LOG.info(
-            "ElasticsearchIO batch size: {}, batch size bytes: {}",
-            batch.size(),
-            currentBatchSizeBytes);
+        //        LOG.info(
+        //            "ElasticsearchIO batch size: {}, batch size bytes: {}",
+        //            batch.size(),
+        //            currentBatchSizeBytes);
 
         StringBuilder bulkRequest = new StringBuilder();
-        // Create a stable list of input entries, because order is important to keep constant
-        List<Entry<BoundedWindow, Document>> inputEntries = new ArrayList<>(batch.entries());
 
-        batch.clear();
-        currentBatchSizeBytes = 0L;
-
-        for (Entry<BoundedWindow, Document> entry : inputEntries) {
+        for (Document doc : docs) {
           // N.B. we need to ensure that we can iterate in the same order later to match up
           // responses to these bulk directives. ES Bulk response `items` is in the same order
           // as the bulk directives in the request, so order is imperative.
-          bulkRequest.append(entry.getValue().getBulkDirective());
+          bulkRequest.append(doc.getBulkDirective());
         }
 
         Response response = null;
@@ -2474,7 +2357,7 @@ public class ElasticsearchIO {
           request.setEntity(requestBody);
           response = restClient.performRequest(request);
           responseEntity = new BufferedHttpEntity(response.getEntity());
-        } catch (java.io.IOException ex) {
+        } catch (IOException ex) {
           if (spec.getRetryConfiguration() == null || !isRetryableClientException(ex)) {
             throw ex;
           }
@@ -2496,37 +2379,24 @@ public class ElasticsearchIO {
             createWriteReport(
                 responseEntity, spec.getAllowedResponseErrors(), spec.getThrowWriteErrors());
 
-        return mergeInputsAndResponses(inputEntries, responses);
+        return Streams.zip(
+                docs.stream(),
+                responses.stream(),
+                (inputDoc, responseDoc) ->
+                    inputDoc
+                        .withHasError(responseDoc.getHasError())
+                        .withResponseItemJson(responseDoc.getResponseItemJson()))
+            .collect(Collectors.toList());
       }
 
-      private static Multimap<BoundedWindow, Document> mergeInputsAndResponses(
-          List<Entry<BoundedWindow, Document>> inputs, List<Document> responses) {
-
-        checkArgument(
-            inputs.size() == responses.size(), "inputs and responses must be of same size");
-
-        Multimap<BoundedWindow, Document> results = ArrayListMultimap.create();
-
-        // N.B. the order of responses must always match the order of inputs
-        for (int i = 0; i < inputs.size(); i++) {
-          BoundedWindow outputWindow = inputs.get(i).getKey();
-
-          // Contains raw input document and Bulk directive counterpart only
-          Document inputDoc = inputs.get(i).getValue();
-
-          // Contains stringified JSON response from Elasticsearch and error status only
-          Document outputDoc = responses.get(i);
-
-          // Create a new Document object with all the input fields from inputDoc (i.e. the raw
-          // input JSON string) and all the response fields from ES bulk API for that input document
-          Document merged =
-              inputDoc
-                  .withHasError(outputDoc.getHasError())
-                  .withResponseItemJson(outputDoc.getResponseItemJson());
-          results.put(outputWindow, merged);
-        }
-
-        return results;
+      private boolean isRetryableClientException(Throwable t) {
+        // RestClient#performRequest only throws wrapped IOException so we must inspect the
+        // exception cause to determine if the exception is likely transient i.e. retryable or
+        // not.
+        return t.getCause() instanceof ConnectTimeoutException
+            || t.getCause() instanceof SocketTimeoutException
+            || t.getCause() instanceof ConnectionClosedException
+            || t.getCause() instanceof ConnectException;
       }
 
       /** retry request based on retry configuration policy. */
