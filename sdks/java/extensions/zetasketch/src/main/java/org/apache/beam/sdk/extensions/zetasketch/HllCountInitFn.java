@@ -144,7 +144,9 @@ abstract class HllCountInitFn<InputT, HllT>
     @Override
     public HyperLogLogPlusPlus<String> addInput(
         HyperLogLogPlusPlus<String> accumulator, String input) {
-      accumulator.add(input);
+      if (input != null) {
+        accumulator.add(input);
+      }
       return accumulator;
     }
   }
