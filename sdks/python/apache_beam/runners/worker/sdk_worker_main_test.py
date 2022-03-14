@@ -103,10 +103,6 @@ class SdkWorkerMainTest(unittest.TestCase):
   def test_import_beam_plugins(self):
     sdk_worker_main._import_beam_plugins(BeamPlugin.get_all_plugin_paths())
 
-  def test_import_beam_plugins_failure(self):
-    with self.assertRaises(RuntimeError):
-      sdk_worker_main._import_beam_plugins(['this.plugin.does.not.exist'])
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
