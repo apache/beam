@@ -97,15 +97,15 @@ func setupMySqlContainer(t *testing.T, dbname, username, password string) int {
 		"MYSQL_DATABASE": dbname,
 	}
 
-	// var port = "3306/tcp"
+	var port = "3306/tcp"
 	// dbURL := func(port nat.Port) string {
-	// 	return fmt.Sprintf("mysql://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
+	// 	return fmt.Sprintf("%s:%s@tcp(localhost:%s)/%s?sslmode=disable", username, password, port.Port(), dbname)
 	// }
 
 	req := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "mysql:latest",
-			ExposedPorts: []string{"3306/tcp", "33060/tcp"},
+			Image:        "mysql:8.0",
+			ExposedPorts: []string{port},
 			Env:          env,
 			// WaitingFor:   wait.ForSQL(nat.Port(port), "mysql", dbURL).Timeout(time.Second * 5),
 		},
@@ -116,23 +116,29 @@ func setupMySqlContainer(t *testing.T, dbname, username, password string) int {
 	if err != nil {
 		t.Fatalf("failed to start container: %s", err)
 	}
-
-	mappedPort, err := container.MappedPort(ctx, "3306/tcp")
+	// host, err := container.Host(ctx)
+	// if err != nil {
+	// 	t.Fatalf("can't get host: %v", err)
+	// }
+	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
 	if err != nil {
 		t.Fatalf("failed to get container external port: %s", err)
 	}
 
-	// url := fmt.Sprintf("%s:%s@tcp(localhost:%d)/%s?tls=skip-verify&amp;parseTime=true&amp;multiStatements=true", username, password, mappedPort.Int(), dbname)
-	// db, err := sqlx.Connect("mysql", url)
-	// if err != nil {
-	// 	t.Fatalf("failed to establish database connection: %s", err)
-	// }
-	// defer db.Close()
+	url := fmt.Sprintf("%s:%s@tcp(localhost:%d)/%s", username, password, mappedPort.Int(), dbname)
+	db, err := sql.Open("mysql", url)
+	if err != nil {
+		t.Fatalf("failed to establish database connection: %s", err)
+	}
+	db.SetConnMaxLifetime(time.Minute * 10)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+	defer db.Close()
 
-	// _, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id bigint PRIMARY KEY);")
-	// if err != nil {
-	// 	t.Fatalf("can't create table, check command and access level")
-	// }
+	_, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id INT);")
+	if err != nil {
+		t.Fatalf("can't create table, %v", err)
+	}
 	return mappedPort.Int()
 }
 
@@ -150,7 +156,7 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	checkFlags(t)
 
 	dbname := "postjdbc"
-	username := "root"
+	username := "user"
 	password := "password"
 	db := map[string]DB{
 		"postgres": {
@@ -165,11 +171,11 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 			setup: func(t *testing.T, dbname, username, password string) int {
 				return setupMySqlContainer(t, dbname, username, password)
 			},
-			driver: "com.mysql.cj.jdbc.Driver",
+			driver: "com.mysql.jdbc.Driver",
 		},
 	}
 
-	name := "postgres"
+	name := "mysql"
 	port := db[name].setup(t, dbname, username, password)
 	tableName := "roles"
 	host := "localhost"
