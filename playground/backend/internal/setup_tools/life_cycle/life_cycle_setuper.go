@@ -165,7 +165,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 	cmd.Dir = pipelineFolder
 	_, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return lc, err
 	}
 
 	sourceFileFolder := filepath.Join(pipelineFolder, scioProjectPath)
@@ -179,12 +179,12 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 
 	_, err = exec.Command(rmCmd, filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
 	if err != nil {
-		return nil, err
+		return lc, err
 	}
 
 	_, err = exec.Command(cpCmd, filepath.Join(workingDir, scioCommonConstants), absFileFolderPath).Output()
 	if err != nil {
-		return nil, err
+		return lc, err
 	}
 
 	lc = &fs_tool.LifeCycle{
