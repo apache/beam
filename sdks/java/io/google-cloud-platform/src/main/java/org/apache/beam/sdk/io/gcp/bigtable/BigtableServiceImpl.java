@@ -191,8 +191,8 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     public boolean buildReadRowsRequest() throws IOException {
-      if (rowSet.getRowRangesCount() == 0) {
-        return false;
+      if (RowSet.getDefaultInstance().equals(rowSet)) { // Does this ever get reached?
+        rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
       }
       RowSet.Builder segment = RowSet.newBuilder();
       ByteString splitPoint = currentRow.getKey();
