@@ -20,6 +20,20 @@ import (
 	"testing"
 )
 
+var handlers []handler
+
+func TestMain(m *testing.M) {
+	handlers = []handler{
+		func(e *Executor) {
+			e.testArgs.fileName = "file name"
+		},
+		func(e *Executor) {
+			e.runArgs.pipelineOptions = []string{"--opt val"}
+		},
+	}
+	m.Run()
+}
+
 func TestNewExecutorBuilder(t *testing.T) {
 	tests := []struct {
 		name string
@@ -49,6 +63,11 @@ func TestExecutorBuilder_WithCompiler(t *testing.T) {
 		want   *CompileBuilder
 	}{
 		{
+			name:   "Get CompileBuilder with prepared actions",
+			fields: fields{actions: handlers},
+			want:   &CompileBuilder{ExecutorBuilder{actions: handlers}},
+		},
+		{
 			name:   "Get CompileBuilder with empty actions",
 			fields: fields{actions: []handler{}},
 			want:   &CompileBuilder{ExecutorBuilder{actions: []handler{}}},
@@ -75,6 +94,11 @@ func TestExecutorBuilder_WithRunner(t *testing.T) {
 		fields fields
 		want   *RunBuilder
 	}{
+		{
+			name:   "Get RunBuilder with prepared actions",
+			fields: fields{actions: handlers},
+			want:   &RunBuilder{ExecutorBuilder{actions: handlers}},
+		},
 		{
 			name:   "Get RunBuilder with empty actions",
 			fields: fields{actions: []handler{}},
@@ -103,7 +127,12 @@ func TestExecutorBuilder_WithValidator(t *testing.T) {
 		want   *ValidatorBuilder
 	}{
 		{
-			name:   "Get RunBuilder with empty actions",
+			name:   "Get ValidatorBuilder with prepared actions",
+			fields: fields{actions: handlers},
+			want:   &ValidatorBuilder{ExecutorBuilder{actions: handlers}},
+		},
+		{
+			name:   "Get ValidatorBuilder with empty actions",
 			fields: fields{actions: []handler{}},
 			want:   &ValidatorBuilder{ExecutorBuilder{actions: []handler{}}},
 		},
@@ -129,6 +158,11 @@ func TestExecutorBuilder_WithPreparer(t *testing.T) {
 		fields fields
 		want   *PreparerBuilder
 	}{
+		{
+			name:   "Get PreparerBuilder with prepared actions",
+			fields: fields{actions: handlers},
+			want:   &PreparerBuilder{ExecutorBuilder{actions: handlers}},
+		},
 		{
 			name:   "Get PreparerBuilder with empty actions",
 			fields: fields{actions: []handler{}},
@@ -156,6 +190,11 @@ func TestExecutorBuilder_WithTestRunner(t *testing.T) {
 		fields fields
 		want   *UnitTestExecutorBuilder
 	}{
+		{
+			name:   "Get UnitTestExecutorBuilder with prepared actions",
+			fields: fields{actions: handlers},
+			want:   &UnitTestExecutorBuilder{ExecutorBuilder{actions: handlers}},
+		},
 		{
 			name:   "Get UnitTestExecutorBuilder with empty actions",
 			fields: fields{actions: []handler{}},
