@@ -19,17 +19,12 @@ package org.apache.beam.examples.complete.game;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.api.gax.grpc.GrpcTransportChannel;
-import com.google.api.gax.rpc.FixedTransportChannelProvider;
-import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.pubsub.v1.PushConfig;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
@@ -71,8 +66,6 @@ public class StatefulTeamScoreIT {
   private StatefulTeamScoreOptions options =
       TestPipeline.testingPipelineOptions().as(StatefulTeamScoreIT.StatefulTeamScoreOptions.class);
   private static String pubsubEndpoint;
-  private @Nullable ManagedChannel channel = null;
-  private @Nullable TransportChannelProvider channelProvider = null;
   private @Nullable TopicAdminClient topicAdmin = null;
   private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath eventsTopicPath = null;
@@ -131,14 +124,11 @@ public class StatefulTeamScoreIT {
 
   private void setupPubSub() throws IOException {
     pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
-    channel = ManagedChannelBuilder.forTarget(pubsubEndpoint).useTransportSecurity().build();
-    channelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
 
     topicAdmin =
         TopicAdminClient.create(
             TopicAdminSettings.newBuilder()
                 .setCredentialsProvider(options::getGcpCredential)
-                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
 
@@ -146,7 +136,6 @@ public class StatefulTeamScoreIT {
         SubscriptionAdminClient.create(
             SubscriptionAdminSettings.newBuilder()
                 .setCredentialsProvider(options::getGcpCredential)
-                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
 
@@ -194,7 +183,7 @@ public class StatefulTeamScoreIT {
   public void cleanupTestEnvironment() throws Exception {
     bqClient.deleteDataset(projectId, OUTPUT_DATASET);
 
-    if (subscriptionAdmin == null || topicAdmin == null || channel == null) {
+    if (subscriptionAdmin == null || topicAdmin == null) {
       return;
     }
 
@@ -212,12 +201,9 @@ public class StatefulTeamScoreIT {
     } finally {
       subscriptionAdmin.close();
       topicAdmin.close();
-      channel.shutdown();
 
       subscriptionAdmin = null;
       topicAdmin = null;
-      channelProvider = null;
-      channel = null;
 
       eventsTopicPath = null;
       subscriptionPath = null;

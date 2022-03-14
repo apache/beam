@@ -19,17 +19,12 @@ package org.apache.beam.examples.complete.game;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.api.gax.grpc.GrpcTransportChannel;
-import com.google.api.gax.rpc.FixedTransportChannelProvider;
-import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.pubsub.v1.PushConfig;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
@@ -72,8 +67,6 @@ public class GameStatsIT {
       TestPipeline.testingPipelineOptions().as(GameStatsIT.GameStatsOptions.class);
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
   private static String pubsubEndpoint;
-  private @Nullable ManagedChannel channel = null;
-  private @Nullable TransportChannelProvider channelProvider = null;
   private @Nullable TopicAdminClient topicAdmin = null;
   private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath eventsTopicPath = null;
@@ -135,16 +128,12 @@ public class GameStatsIT {
   }
 
   private void setupPubSub() throws IOException {
-    options.setInput("gs://apache-beam-samples/game/small/small_sample_game_stats.csv");
     pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
-    channel = ManagedChannelBuilder.forTarget(pubsubEndpoint).useTransportSecurity().build();
-    channelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
 
     topicAdmin =
         TopicAdminClient.create(
             TopicAdminSettings.newBuilder()
                 .setCredentialsProvider(options::getGcpCredential)
-                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
 
@@ -152,7 +141,6 @@ public class GameStatsIT {
         SubscriptionAdminClient.create(
             SubscriptionAdminSettings.newBuilder()
                 .setCredentialsProvider(options::getGcpCredential)
-                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
 
@@ -200,7 +188,7 @@ public class GameStatsIT {
   public void cleanupTestEnvironment() throws Exception {
     bqClient.deleteDataset(projectId, OUTPUT_DATASET);
 
-    if (subscriptionAdmin == null || topicAdmin == null || channel == null) {
+    if (subscriptionAdmin == null || topicAdmin == null) {
       return;
     }
 
@@ -218,12 +206,9 @@ public class GameStatsIT {
     } finally {
       subscriptionAdmin.close();
       topicAdmin.close();
-      channel.shutdown();
 
       subscriptionAdmin = null;
       topicAdmin = null;
-      channelProvider = null;
-      channel = null;
 
       eventsTopicPath = null;
       subscriptionPath = null;
