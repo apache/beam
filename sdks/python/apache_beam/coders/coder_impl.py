@@ -435,7 +435,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
           self.encode_to_stream(k, stream, True)
           self.encode_to_stream(v, stream, True)
       else:
-        # dict.items() is optimized by Cython.
+        # Loop over dict.items() is optimized by Cython.
         for k, v in dict_value.items():
           self.encode_to_stream(k, stream, True)
           self.encode_to_stream(v, stream, True)
@@ -451,7 +451,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
               self.requires_deterministic_step_label) from exn
       for e in value:
         self.encode_to_stream(e, stream, True)
-    # All deterministic encodings should be above this clause,
+    # All possibly deterministic encodings should be above this clause,
     # all non-deterministic ones below.
     elif self.requires_deterministic_step_label is not None:
       self.encode_special_deterministic(value, stream)
@@ -686,8 +686,8 @@ class MapCoderImpl(StreamCoderImpl):
         self._key_coder.encode_to_stream(key, out, True)
         self._value_coder.encode_to_stream(value, out, True)
     else:
-      # This loop is separate form the above so the dict.items() call will be
-      # optimized by Cython.
+      # This loop is separate from the above so the loop over dict.items()
+      # will be optimized by Cython.
       for key, value in dict_value.items():
         self._key_coder.encode_to_stream(key, out, True)
         self._value_coder.encode_to_stream(value, out, True)
