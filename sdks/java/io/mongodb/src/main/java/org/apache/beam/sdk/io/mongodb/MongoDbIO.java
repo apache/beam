@@ -445,6 +445,12 @@ public class MongoDbIO {
     @Override
     public List<BoundedSource<Document>> split(
         long desiredBundleSizeBytes, PipelineOptions options) {
+
+      if (spec.numSplits() <= 0) {
+          LOG.debug("Split keys disabled, using a unique source");
+          return Collections.singletonList(this);
+      }
+
       try (MongoClient mongoClient =
           new MongoClient(
               new MongoClientURI(
