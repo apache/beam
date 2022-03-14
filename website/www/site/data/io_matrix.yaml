@@ -373,6 +373,15 @@ categories:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/InfluxDB
             url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html
+      - transform: Firestore IO
+        description: FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.FirestoreIO
+            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html
+      - transform: Neo4j
+        implementations:
+          - language: java
   - name: Miscellaneous
     description: Miscellaneous I/O sources.
     rows:
@@ -409,12 +418,3 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html
-      - transform: Firestore IO
-        description: FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.
-        implementations:
-          - language: java
-            name: org.apache.beam.sdk.io.gcp.healthcare.FirestoreIO
-            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html
-      - transform: Neo4j
-        implementations:
-          - language: java
