@@ -3862,6 +3862,43 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Index()))
 
   prod = product = _agg_method(pd.DataFrame, 'prod')
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def pivot_table(self, **kwargs):
+
+    columns = kwargs.get('columns', None)
+    selected_cols = self._expr.proxy()[columns]
+
+    if isinstance(selected_cols, pd.Series):
+      all_cols_are_categorical = isinstance(
+        selected_cols.dtype, pd.CategoricalDtype
+      )
+    else:
+      all_cols_are_categorical = all(
+        isinstance(c, pd.CategoricalDtype) for c in selected_cols.dtypes
+      )
+    if not all_cols_are_categorical:
+      raise frame_base.WontImplementError(
+          "pivot_table() of non-categorical type is not supported because "
+          "the type of the output column depends on the data. Please use "
+          "pd.CategoricalDtype with explicit categories.",
+          reason="non-deferred-columns")
+
+    proxy = pd.DataFrame(
+      columns=self._expr.proxy().pivot_table(**kwargs).columns
+    )
+
+    with expressions.allow_non_parallel_operations():
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'pivot_table',
+              lambda df: pd.concat([proxy, df.pivot_table(**kwargs)]),
+              [self._expr],
+              proxy=proxy,
+              requires_partition_by=partitionings.Singleton()))
+
   sum = _agg_method(pd.DataFrame, 'sum')
   mean = _agg_method(pd.DataFrame, 'mean')
   median = _agg_method(pd.DataFrame, 'median')
