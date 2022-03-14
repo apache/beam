@@ -25,7 +25,7 @@ Add mapping to external domain:
 
 ```bash
 $ gcloud app deploy dispatch.yaml --project <project id>
-# 
+#
 ```
 
 ## Config frontend application

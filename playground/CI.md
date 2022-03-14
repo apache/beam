@@ -57,7 +57,7 @@ after merge even if they do not fail in isolation.
 | npm install                             | Install nmp package.                                                | Yes              | Yes                   | No                       |
 | lint dockerfile                         | Install and  lint docker file.                                      | Yes              | Yes                   | No                       |
 | setup-terraform                         | Install terraform.                                                  | Yes              | Yes                   | No                       |
-| Docker Tag                              | Add tag , if it not set.                                            | Yes              | Yes                   | No                       |                                    
+| Docker Tag                              | Add tag , if it not set.                                            | Yes              | Yes                   | No                       |
 | GCP account                             | Connect to Gcp.                                                     | Yes              | Yes                   | Yes                      |
 | Login to Docker                         | Login to docker repository.                                         | Yes              | Yes                   | Yes                      |
 | Deploy Backend                          | Build docker container,  push it  to repository,  deploy it to Gcp. | Yes              | Yes                   | Yes                      |
@@ -67,17 +67,17 @@ after merge even if they do not fail in isolation.
 | Job                                    | Description                                                          | Pull Request Run | Direct Push/Merge Run | Requires GCP Credentials |
 |----------------------------------------|----------------------------------------------------------------------|------------------|-----------------------|--------------------------|
 | Check out the repo                     | GitHub Action used to check-out a repository.                        | Yes              | Yes                   | No                       |
-| setup-java                             | Install Java.                                                        | Yes              | Yes                   | No                       |       
+| setup-java                             | Install Java.                                                        | Yes              | Yes                   | No                       |
 | install flutter                        | Install flutter package.                                             | Yes              | Yes                   | No                       |
 | maven config clean                     | Clean maven settings                                                 | Yes              | Yes                   | No                       |
 | install npm                            | Install nmp package.                                                 | Yes              | Yes                   | No                       |
-| lint dockerfile                        | Install and  lint docker file.                                       | Yes              | Yes                   | No                       | 
+| lint dockerfile                        | Install and  lint docker file.                                       | Yes              | Yes                   | No                       |
 | setup-terraform                        | Install terraform.                                                   | Yes              | Yes                   | No                       |
-| Docker Tag                             | Add tag , if it not set.                                             | Yes              | Yes                   | No                       | 
+| Docker Tag                             | Add tag , if it not set.                                             | Yes              | Yes                   | No                       |
 | GCP account                            | Connect to Gcp.                                                      | Yes              | Yes                   | Yes                      |
 | Login to Docker                        | Login to docker repository.                                          | Yes              | Yes                   | Yes                      |
 | Deploy Frontend                        | Config and build, push docker container to repository, deploy to Gcp.| Yes              | Yes                   | Yes                      |
-   
+
 #### Collect And Deploy Playground Examples - [playground_deploy_examples.yml](.github/workflows/playground_deploy_examples.yml)
 
 | Job                                    | Description                                                          | Pull Request Run | Direct Push/Merge Run | Requires GCP Credentials |

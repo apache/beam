@@ -42,7 +42,7 @@ To provide information about the terraform backend, run the following commands
 * New environment folder
 
 ```bash
-mkdir /path/to/beam/playground/environment/{env-name}
+mkdir /path/to/beam/playground/terraform/environment/{env-name}
 ```
 
 * Backend config
@@ -61,11 +61,10 @@ Then provide necessary variables.
 
 ## 2. Provision infrastructure
 
-To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module or run
-gradle task:
+To deploy Playground infrastructure run gradle task:
 
 ```bash
-./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name" -Pdocker-tag="tag"
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name"
 ```
 
 ## 3. Deploy application
@@ -87,5 +86,4 @@ gcloud auth configure-docker us-central1-docker.pkg.dev
 * Deploy frontend service
 
 ```bash
-./gradlew playground:terraform:deployFrontend -Pproject_environment="env-name" -Pdocker-tag="tag"
-```
+./gradlew playground:terraform:deployFrontend -Pproject_environment="env-name" -Pdocker-tag="tag" ```
