@@ -69,8 +69,7 @@ public class StructUtilsTest {
     Struct struct = Struct.newBuilder().set("f_int64").to("string_value").build();
     Exception exception =
         assertThrows(ClassCastException.class, () -> StructUtils.structToBeamRow(struct, schema));
-    checkMessage(
-        "java.lang.String cannot be cast to java.lang.Long", exception.getMessage());
+    checkMessage("java.lang.String cannot be cast to java.lang.Long", exception.getMessage());
   }
 
   @Test
