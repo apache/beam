@@ -66,6 +66,7 @@ var directFilters = []string{
 	"TestKafkaIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
 	"TestPanes",
@@ -130,6 +131,7 @@ var sparkFilters = []string{
 var dataflowFilters = []string{
 	// The Dataflow runner doesn't work with tests using testcontainers locally.
 	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
