@@ -16,26 +16,5 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/shortcuts/models/shortcut.dart';
-import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
-
-class ShortcutTooltip extends StatelessWidget {
-  final Shortcut shortcut;
-  final Widget child;
-
-  const ShortcutTooltip({
-    Key? key,
-    required this.shortcut,
-    required this.child,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      excludeFromSemantics: true,
-      message: getShortcutDisplayName(shortcut),
-      child: child,
-    );
-  }
-}
+/** Snowflake IO geospatial types. */
+package org.apache.beam.sdk.io.snowflake.data.geospatial;
