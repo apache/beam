@@ -136,6 +136,9 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     final Timestamp now = Timestamp.now();
     final Timestamp after3Seconds =
         Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
+    System.out.println("now:" + now);
+    System.out.println("after3Seconds:" + after3Seconds);
+
     try {
       pipeline.apply(
           SpannerIO.readChangeStream()
@@ -208,6 +211,9 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     final Timestamp now = Timestamp.now();
     final Timestamp after3Seconds =
         Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
+
+    System.out.println("now:" + now);
+    System.out.println("after3Seconds:" + after3Seconds);
 
     mockTableExists();
     ResultSet getPartitionResultSet = mockGetParentPartition(now, after3Seconds);
