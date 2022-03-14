@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: pr-bot-new-prs
+name: pr-bot-prs-needing-attention
 
-# Run every 30 minutes
+# Run every day at 12:07 UTC
 on:
   schedule:
-  - cron: '0,30 * * * *'
+  - cron: '7 12 * * *'
   workflow_dispatch:
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
         working-directory: 'scripts/ci/pr-bot'
 
       # Runs a set of commands using the runners shell
-      - run: npm run processNewPrs
+      - run: npm run findPrsNeedingAttention
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: 'scripts/ci/pr-bot'

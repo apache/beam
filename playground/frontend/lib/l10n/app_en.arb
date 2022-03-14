@@ -63,6 +63,14 @@
   "@aboutApacheBeam": {
     "description": "Title for the About Apache Beam menu item"
   },
+  "enjoying": "Good Experience",
+  "@enjoying": {
+    "description": "Thumb up enjoying playground label"
+  },
+  "notEnjoying": "Bad Experience",
+  "@enjoying": {
+    "description": "Thumb down enjoying playground label"
+  },
   "sendFeedback": "Send feedback",
   "@sendFeedback": {
     "description": "Title of the send feedback button"
@@ -194,6 +202,14 @@
   "addExample": "Add your own example",
   "@addExample": {
     "description": "Add example link text"
+  },
+  "exampleDescription": "Example Description",
+  "@exampleDescription": {
+    "description": "Description icon label"
+  },
+  "exampleMultifile": "Multifile example info",
+  "@exampleDescription": {
+    "exampleMultifile": "Multifile icon label"
   },
   "multifile": "Multifile",
   "@multifile": {
