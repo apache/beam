@@ -1446,6 +1446,10 @@ class BeamModulePlugin implements Plugin<Project> {
       configuration.publish) {
         project.apply plugin: "maven-publish"
 
+        // plugin to support repository authentication via ~/.m2/settings.xml
+        // https://github.com/mark-vieira/gradle-maven-settings-plugin/
+        project.apply plugin: 'net.linguica.maven-settings'
+
         // Create a task which emulates the maven-archiver plugin in generating a
         // pom.properties file.
         def pomPropertiesFile = "${project.buildDir}/publications/mavenJava/pom.properties"
