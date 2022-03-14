@@ -59,7 +59,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   }
 
   @Override
-  public Schema configurationSchema() {
+  public final Schema configurationSchema() {
     try {
       return SchemaRegistry.createDefault().getSchema(configurationClass());
     } catch (NoSuchSchemaException e) {
@@ -71,12 +71,12 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   }
 
   @Override
-  public SchemaTransform from(Row configuration) {
+  public final SchemaTransform from(Row configuration) {
     return from(configFromRow(configuration));
   }
 
   @Override
-  public Optional<List<String>> dependencies(Row configuration, PipelineOptions options) {
+  public final Optional<List<String>> dependencies(Row configuration, PipelineOptions options) {
     return dependencies(configFromRow(configuration), options);
   }
 
