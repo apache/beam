@@ -70,7 +70,7 @@ public class StructUtilsTest {
     Exception exception =
         assertThrows(ClassCastException.class, () -> StructUtils.structToBeamRow(struct, schema));
     checkMessage(
-        "class java.lang.String cannot be cast to class java.lang.Long", exception.getMessage());
+        "java.lang.String cannot be cast to java.lang.Long", exception.getMessage());
   }
 
   @Test
