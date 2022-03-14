@@ -15,27 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.snowflake.data.geospatial;
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/shortcuts/models/shortcut.dart';
-import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 
-class ShortcutTooltip extends StatelessWidget {
-  final Shortcut shortcut;
-  final Widget child;
+public class SnowflakeGeography implements SnowflakeDataType {
+  public SnowflakeGeography() {}
 
-  const ShortcutTooltip({
-    Key? key,
-    required this.shortcut,
-    required this.child,
-  }) : super(key: key);
+  public static SnowflakeGeography of() {
+    return new SnowflakeGeography();
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      excludeFromSemantics: true,
-      message: getShortcutDisplayName(shortcut),
-      child: child,
-    );
+  @Override
+  public String sql() {
+    return "GEOGRAPHY";
   }
 }
