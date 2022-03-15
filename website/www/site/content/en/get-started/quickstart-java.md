@@ -161,12 +161,7 @@ gradle build
 ## Run a pipeline
 
 A single Beam pipeline can run on multiple Beam
-[runners](/documentation#runners), including the
-[FlinkRunner](/documentation/runners/flink),
-[SparkRunner](/documentation/runners/spark),
-[NemoRunner](/documentation/runners/nemo),
-[JetRunner](/documentation/runners/jet), and
-[DataflowRunner](/documentation/runners/dataflow). The
+[runners](/documentation#runners). The
 [DirectRunner](/documentation/runners/direct) is useful for getting started,
 because it runs on your machine and requires no specific setup. If you're just
 trying out Beam and you're not sure what to use, use the
@@ -184,9 +179,18 @@ The general process for running a pipeline goes like this:
        the pipeline on an external cluster.)
 3.  Run the command.
 
-To run the WordCount pipeline, *first follow the setup steps for your runner*,
-and then run the corresponding Maven or Gradle command below. The direct runner
-will work without additional setup.
+To run the WordCount pipeline:
+
+1. Follow the setup steps for your runner:
+   * [FlinkRunner](/documentation/runners/flink)
+   * [SparkRunner](/documentation/runners/spark)
+   * [DataflowRunner](/documentation/runners/dataflow)
+   * [SamzaRunner](/documentation/runners/samza)
+   * [NemoRunner](/documentation/runners/nemo)
+   * [JetRunner](/documentation/runners/jet)
+
+   The DirectRunner will work without additional setup.
+2. Run the corresponding Maven or Gradle command below.
 
 ### Run WordCount using Maven
 
