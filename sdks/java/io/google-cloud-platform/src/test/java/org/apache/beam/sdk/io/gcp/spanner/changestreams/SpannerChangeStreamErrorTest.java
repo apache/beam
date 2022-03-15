@@ -81,7 +81,8 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   public final transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  @Rule public final transient ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public final transient ExpectedException thrown = ExpectedException.none();
 
   private MockSpannerServiceImpl mockSpannerService;
   private MockServiceHelper serviceHelper;
@@ -107,16 +108,16 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofStickyException(Status.RESOURCE_EXHAUSTED.asRuntimeException()));
 
-    final Timestamp now = Timestamp.now();
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
     try {
       pipeline.apply(
           SpannerIO.readChangeStream()
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
-              .withInclusiveStartAt(now)
+              .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
     } finally {
@@ -133,16 +134,16 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                 Status.UNAVAILABLE.asRuntimeException(),
                 Status.RESOURCE_EXHAUSTED.asRuntimeException())));
 
-    final Timestamp now = Timestamp.now();
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
     try {
       pipeline.apply(
           SpannerIO.readChangeStream()
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
-              .withInclusiveStartAt(now)
+              .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
     } finally {
@@ -158,16 +159,16 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofStickyException(Status.ABORTED.asRuntimeException()));
 
-    final Timestamp now = Timestamp.now();
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
     try {
       pipeline.apply(
           SpannerIO.readChangeStream()
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
-              .withInclusiveStartAt(now)
+              .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
     } finally {
@@ -183,16 +184,16 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofStickyException(Status.UNKNOWN.asRuntimeException()));
 
-    final Timestamp now = Timestamp.now();
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
     try {
       pipeline.apply(
           SpannerIO.readChangeStream()
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
-              .withInclusiveStartAt(now)
+              .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
     } finally {
@@ -205,17 +206,23 @@ public class SpannerChangeStreamErrorTest implements Serializable {
 
   @Test
   public void testInvalidRecordReceived() {
-    final Timestamp now = Timestamp.now();
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
 
     mockTableExists();
-    ResultSet getPartitionResultSet = mockGetParentPartition(now, after3Seconds);
-    mockGetWatermark(now);
+    ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, after3Seconds);
+    mockGetWatermark(startTimestamp);
     mockGetPartitionsAfter(
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() - 1),
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
         getPartitionResultSet);
-    mockInvalidChangeStreamRecordReceived(now, after3Seconds);
+    mockGetPartitionsAfter(
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos()),
+        getPartitionResultSet);
+    mockGetPartitionsAfter(
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1),
+        getPartitionResultSet);
+    mockInvalidChangeStreamRecordReceived(startTimestamp, after3Seconds);
 
     try {
       pipeline.apply(
@@ -224,7 +231,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
               .withMetadataTable(TEST_TABLE)
-              .withInclusiveStartAt(now)
+              .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
     } finally {
@@ -236,7 +243,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockInvalidChangeStreamRecordReceived(Timestamp now, Timestamp after3Seconds) {
     Statement changeStreamQueryStatement =
         Statement.newBuilder(
-                "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
+            "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
             .bind("startTimestamp")
             .to(now)
             .bind("endTimestamp")
@@ -307,7 +314,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockGetPartitionsAfter(Timestamp timestamp, ResultSet getPartitionResultSet) {
     Statement getPartitionsAfterStatement =
         Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
+            "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
             .bind("timestamp")
             .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
             .build();
@@ -315,10 +322,10 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
   }
 
-  private void mockGetWatermark(Timestamp now) {
+  private void mockGetWatermark(Timestamp watermark) {
     Statement watermarkStatement =
         Statement.newBuilder(
-                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
+            "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
             .bind("state")
             .to(State.FINISHED.name())
             .build();
@@ -337,7 +344,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         ResultSet.newBuilder()
             .addRows(
                 ListValue.newBuilder()
-                    .addValues(Value.newBuilder().setStringValue(now.toString()).build())
+                    .addValues(Value.newBuilder().setStringValue(watermark.toString()).build())
                     .build())
             .setMetadata(watermarkResultSetMetadata)
             .build();
@@ -345,7 +352,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         StatementResult.query(watermarkStatement, watermarkResultSet));
   }
 
-  private ResultSet mockGetParentPartition(Timestamp now, Timestamp after3Seconds) {
+  private ResultSet mockGetParentPartition(Timestamp startTimestamp, Timestamp after3Seconds) {
     Statement getPartitionStatement =
         Statement.newBuilder("SELECT * FROM my-metadata-table WHERE PartitionToken = @partition")
             .bind("partition")
@@ -357,12 +364,12 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                 ListValue.newBuilder()
                     .addValues(Value.newBuilder().setStringValue("Parent0"))
                     .addValues(Value.newBuilder().setListValue(ListValue.newBuilder().build()))
-                    .addValues(Value.newBuilder().setStringValue(now.toString()))
+                    .addValues(Value.newBuilder().setStringValue(startTimestamp.toString()))
                     .addValues(Value.newBuilder().setStringValue(after3Seconds.toString()))
                     .addValues(Value.newBuilder().setStringValue("500"))
                     .addValues(Value.newBuilder().setStringValue(State.CREATED.name()))
-                    .addValues(Value.newBuilder().setStringValue(now.toString()))
-                    .addValues(Value.newBuilder().setStringValue(now.toString()))
+                    .addValues(Value.newBuilder().setStringValue(startTimestamp.toString()))
+                    .addValues(Value.newBuilder().setStringValue(startTimestamp.toString()))
                     .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
                     .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
                     .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
