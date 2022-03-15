@@ -184,7 +184,9 @@ The general process for running a pipeline goes like this:
        the pipeline on an external cluster.)
 3.  Run the command.
 
-To run the WordCount pipeline, see the Maven and Gradle examples below.
+To run the WordCount pipeline, *first follow the setup steps for your runner*,
+and then run the corresponding Maven or Gradle command below. The direct runner
+will work without additional setup.
 
 ### Run WordCount using Maven
 
