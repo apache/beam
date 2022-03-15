@@ -45,7 +45,7 @@ public class PluginConfigInstantiationUtils {
    *     boxed primitive
    * @return Config object for given map of arguments and configuration class
    */
-  public static <T extends PluginConfig> T getPluginConfig(
+  public static @Nullable <T extends PluginConfig> T getPluginConfig(
       Map<String, Object> params, Class<T> configClass) {
     // Validate configClass
     if (configClass == null || configClass.isPrimitive() || configClass.isArray()) {
@@ -53,7 +53,7 @@ public class PluginConfigInstantiationUtils {
     }
     List<Field> allFields = new ArrayList<>();
     Class<?> currClass = configClass;
-    while (!Object.class.equals(currClass)) {
+    while (currClass != null && !currClass.equals(Object.class)) {
       allFields.addAll(
           Arrays.stream(currClass.getDeclaredFields())
               .filter(
@@ -63,20 +63,22 @@ public class PluginConfigInstantiationUtils {
     }
     T config = getEmptyObjectOf(configClass);
 
-    for (Field field : allFields) {
-      field.setAccessible(true);
+    if (config != null) {
+      for (Field field : allFields) {
+        field.setAccessible(true);
 
-      Class<?> fieldType = field.getType();
+        Class<?> fieldType = field.getType();
 
-      Name declaredAnnotation = field.getDeclaredAnnotation(Name.class);
-      Object fieldValue =
-          declaredAnnotation != null ? params.get(declaredAnnotation.value()) : null;
+        Name declaredAnnotation = field.getDeclaredAnnotation(Name.class);
+        Object fieldValue =
+            declaredAnnotation != null ? params.get(declaredAnnotation.value()) : null;
 
-      if (fieldValue != null && fieldType.equals(fieldValue.getClass())) {
-        try {
-          field.set(config, fieldValue);
-        } catch (IllegalAccessException e) {
-          LOG.error("Can not set a field", e);
+        if (fieldValue != null && fieldType.equals(fieldValue.getClass())) {
+          try {
+            field.set(config, fieldValue);
+          } catch (IllegalAccessException e) {
+            LOG.error("Can not set a field", e);
+          }
         }
       }
     }
@@ -102,7 +104,7 @@ public class PluginConfigInstantiationUtils {
   }
 
   /** @return default value for given {@param tClass} */
-  private static @Nullable Object getDefaultValue(Class<?> tClass) {
+  private static Object getDefaultValue(Class<?> tClass) {
     if (Boolean.TYPE.equals(tClass)) {
       return false;
     }
@@ -127,6 +129,6 @@ public class PluginConfigInstantiationUtils {
     if (Long.TYPE.equals(tClass)) {
       return Long.MIN_VALUE;
     }
-    return null;
+    return new Object();
   }
 }
