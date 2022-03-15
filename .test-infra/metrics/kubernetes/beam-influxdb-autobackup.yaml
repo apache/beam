@@ -18,14 +18,15 @@
 
 # A Cron Job that makes a full InfluxDB backup every day and sends it to
 # GCS bucket.
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   labels:
     app: beammetrics
-  name: influxdb-autobackup
+  name: influxdb-autobackup-test
 spec:
   schedule: "@daily"
+  #schedule: "*/5 * * * *"
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
@@ -41,7 +42,7 @@ spec:
                 - backup
                 - -portable
                 - -host
-                - influxdb-rpc:8088
+                - influxdb-rpc-test:8088
                 - /backup
               volumeMounts:
                 - mountPath: /backup
@@ -50,7 +51,7 @@ spec:
               image: gcr.io/apache-beam-testing/gsutil
               command: ['sh', '-c', 'tar czf influxdb-backup.tar.gz /backup
                         && gsutil cp influxdb-backup.tar.gz
-                        gs://apache-beam-testing-metrics/']
+                        gs://apache-beam-testing-metrics-test-dani/'] #apache-beam-testing-metrics
               volumeMounts:
                 - mountPath: /backup
                   name: shared-data
