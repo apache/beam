@@ -73,7 +73,7 @@ public class ConfigWrapper<T extends PluginConfig> {
     return this;
   }
 
-  public T build() {
+  public @Nullable T build() {
     return PluginConfigInstantiationUtils.getPluginConfig(getParamsMap(), configClass);
   }
 

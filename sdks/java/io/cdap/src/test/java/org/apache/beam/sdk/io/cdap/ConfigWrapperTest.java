@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.cdap;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 import io.cdap.plugin.salesforce.SalesforceConstants;
@@ -73,6 +74,7 @@ public class ConfigWrapperTest {
               .withParams(TEST_SALESFORCE_PARAMS_MAP)
               .setParam("referenceName", newReferenceName)
               .build();
+      assertNotNull(firstConfig);
       validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, firstConfig);
       assertEquals(newReferenceName, firstConfig.referenceName);
     } catch (Exception e) {
@@ -90,6 +92,7 @@ public class ConfigWrapperTest {
               .fromJsonFile(new File(SALESFORCE_TEST_PARAMS_JSON))
               .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
               .build();
+      assertNotNull(secondConfig);
       validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, secondConfig);
       assertEquals(newReferenceName, secondConfig.referenceName);
     } catch (Exception e) {
@@ -107,6 +110,7 @@ public class ConfigWrapperTest {
               .fromJsonString(TEST_SALESFORCE_PARAMS_JSON_STRING)
               .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
               .build();
+      assertNotNull(secondConfig);
       validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, secondConfig);
       assertEquals(newReferenceName, secondConfig.referenceName);
     } catch (Exception e) {
