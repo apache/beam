@@ -16,95 +16,97 @@
  * limitations under the License.
  */
 
+import Kubernetes
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import CronJobBuilder
 import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
+String namespace = common.getKubernetesNamespace("load-tests-python-dataflow-debezium-IO")
+String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
+Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
 
-def debezium_read_test = [
-  title          : 'DebeziumIO Read Performance Test',
-  test           : 'apache_beam.io.gcp.experimental.debezium_read_perf_test',
-  runner         : CommonTestProperties.Runner.DATAFLOW, // Ask for runner
-  pipelineOptions: [
-    job_name             : 'performance-tests-debezium-read' + now,
-    project              : 'apache-beam-testing',
-    // Run in us-west1 to colocate with beam-test spanner instance (BEAM-13222)
-    region               : 'us-west1',
-    temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-    spanner_instance     : 'beam-test', // Ask what instance for debezium
-    spanner_database     : 'pyspanner_read_2gb', // Ask in which database debezium will read
-    publish_to_big_query : true, // Ask this too
-    metrics_dataset      : 'beam_performance',
-    metrics_table        : 'debezium_read_results',
-    influx_measurement   : 'debezium_read_results', // Ask what is influx  
-    influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName, 
-    influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    input_options        : '\'{' + // Ask what input options 
-    '"num_records": 2097152,' +
-    '"key_size": 1,' +
-    '"value_size": 1024}\'',
-    num_workers          : 5, // How many workers will need
-    autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
+k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml"))
+String postgresHostName = "LOAD_BALANCER_IP"
+k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
+
+def loadTestConfigurations = { mode, datasetName ->
+  [
+    [
+      title          : 'Debezium  Python Load test: write and read data for 20 minutes',
+      test           : 'apache_beam.testing.load_tests.debeziumIO_test',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project              : 'apache-beam-testing',
+        region               : 'us-central1',
+        job_name             : "load-tests-python-dataflow-${mode}-debezium-IO-${now}",
+        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
+        publish_to_big_query : true,
+        metrics_dataset      : datasetName,
+        metrics_table        : "python_dataflow_${mode}_debezium_IO",
+        influx_measurement   : "python_${mode}_debezium_IO",
+        iterations           : 1,
+        postgresUsername     : 'postgres',
+        postgresPassword     : 'uuinkks',
+        postgresDatabaseName : 'postgres',
+        postgresServerName   : "\$${postgresHostName}",
+        postgresSsl          : false,
+        postgresPort         : '5432',
+        num_workers          : 5,
+        autoscaling_algorithm: 'NONE'
+      ]
+    ],    
   ]
-]
+  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  .each { test -> (mode != 'streaming') ?: addStreamingOptions(test) }
+}
 
-def debezium_write_test = [
-  title          : 'Debezium Write Performance Test',
-  test           : 'apache_beam.io.gcp.experimental.debezium_write_perf_test',
-  runner         : CommonTestProperties.Runner.DATAFLOW, // Ask for runner
-  pipelineOptions: [
-    job_name             : 'performance-tests-debezium-write' + now,
-    project              : 'apache-beam-testing',
-    // Run in us-west1 to colocate with beam-test spanner instance (BEAM-13222)
-    region               : 'us-west1',
-    temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-    spanner_instance     : 'beam-test', // Ask what instance for debezium 
-    spanner_database     : 'debezium_write', // Ask in which database debezium
-    publish_to_big_query : true, // Ask this too
-    metrics_dataset      : 'beam_performance', 
-    metrics_table        : 'debezium_write_results',
-    influx_measurement   : 'debezium_write_results', // Ask what is influx
-    influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    input_options        : '\'{' + // Ask what input options 
-    '"num_records": 2097152,' +
-    '"key_size": 1,' +
-    '"value_size": 1024}\'',
-    num_workers          : 5, // Ask many workers will need 
-    autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
+def addStreamingOptions(test) {
+  // Use highmem workers to prevent out of memory issues.
+  test.pipelineOptions << [streaming: null,
+    worker_machine_type: 'n1-highmem-4'
   ]
-]
+}
 
-def executeJob = { scope, testConfig ->
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 480)
+def loadTestJob = { scope, triggeringContext, mode ->
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON,
+      loadTestConfigurations(mode, datasetName), 'Debezium', mode)
+}
 
-  loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
+CronJobBuilder.cronJob('beam_LoadTests_Python_Debezium_IO_batch', 'H 16 * * *', this) {
+  additionalPipelineArgs = [
+    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+  ]
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-    'beam_performanceTests_Debezium_read',
-    'Run DebeziumIO Read Performance Test',
-    'DebeziumIO Read Performance Test',
+    'beam_LoadTests_Python_Debezium_IO_batch',
+    'Run Load Tests Python Debezium IO Batch',
     this
     ) {
-      executeJob(delegate, debezium_read_test)
+      additionalPipelineArgs = [:]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
-CronJobBuilder.cronJob('beam_performance_tests_debezium_read', 'H 15 * * *', this) {
-  executeJob(delegate, debezium_read_test)
+CronJobBuilder.cronJob('beam_LoadTests_Python_Debezium_IO_streaming', 'H 16 * * *', this) {
+  additionalPipelineArgs = [
+    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+  ]
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-    'beam_PerformanceTests_Debezium_Write',
-    'Run DebeziumIO Write Performance Test',
-    'DebeziumIO Write Performance Test',
+    'beam_LoadTests_Python_Debezium_IO_streaming',
+    'Run Load Tests Python Debezium IO Streaming',
     this
     ) {
-      executeJob(delegate, debezium_write_test)
+      additionalPipelineArgs = [:]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
-
-CronJobBuilder.cronJob('beam_PerformanceTests_Debezium_Write', 'H 15 * * *', this) {
-  executeJob(delegate, debezium_write_test)
-}
