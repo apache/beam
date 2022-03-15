@@ -423,14 +423,16 @@ tasks.register("examplesIntegrationTest", Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   include '**/*IT.class'
-  exclude '**/WindowedWordCountIT.class' // Failed to read from sharded output
-  exclude '**/AutoCompleteIT.class' // Failed to serialize and deserialize property 'bigQuerySchema'
-  exclude '**/TrafficMaxLaneFlowIT.class' // Failed to serialize and deserialize property 'bigQuerySchema'
-  exclude '**/TrafficRoutesIT.class' // Property [windowDuration] is marked with contradictory annotations.
   maxParallelForks 4
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    filter {
+      // TODO (BEAM-14019) Fix integration Tests to run with SparkRunner: Failed to read from sharded output
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInStreamingStaticSharding'
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
+    }
+  }
   jvmArgs '-Xmx3g'
 }
 

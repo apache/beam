@@ -23,7 +23,6 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.QueryResponse;
-import org.apache.beam.examples.complete.TrafficRoutes.FormatStatsFn;
 import org.apache.beam.examples.complete.TrafficRoutes.TrafficRoutesOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -64,7 +63,6 @@ public class TrafficRoutesIT {
 
   @Test
   public void testE2ETrafficRoutes() throws Exception {
-    this.options.setBigQuerySchema(FormatStatsFn.getSchema());
     this.options.setProject(this.projectId);
     this.options.setBigQueryDataset(this.outputDatasetId);
     this.options.setBigQueryTable(this.outputTable);
