@@ -816,6 +816,9 @@ class _CustomBigQuerySource(BoundedSource):
       schema, metadata_list = self._export_files(bq)
       from apache_beam.utils.interactive_utils import is_in_ipython
       if is_in_ipython():
+        # Interactive Beam records sources by running a background job built
+        # from the pipeline through runner api round trip. Using a list instead
+        # of a generator makes the source pickle-able in the interactive case.
         self.split_result = [
             self._create_source(metadata.path, schema)
             for metadata in metadata_list
