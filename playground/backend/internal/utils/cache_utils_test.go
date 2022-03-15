@@ -19,7 +19,9 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/cache/redis"
 	"context"
+	"github.com/go-redis/redismock/v8"
 	"github.com/google/uuid"
 	"testing"
 )
@@ -29,6 +31,8 @@ func TestSetToCache(t *testing.T) {
 	key := uuid.New()
 	subKey := cache.Status
 	value := pb.Status_STATUS_FINISHED
+	client, _ := redismock.NewClientMock()
+	redisCache := &redis.Cache{Client: client}
 
 	type args struct {
 		ctx          context.Context
@@ -46,7 +50,7 @@ func TestSetToCache(t *testing.T) {
 		{
 			// Test case with calling SetToCache method with correct cacheService.
 			// As a result, want to expected value from cache.
-			name: "set value without error",
+			name: "Set value without error",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: localCache,
@@ -65,6 +69,20 @@ func TestSetToCache(t *testing.T) {
 				return true
 			},
 			wantErr: false,
+		},
+		{
+			name: "Error during HSet operation",
+			args: args{
+				ctx:          context.Background(),
+				cacheService: redisCache,
+				key:          key,
+				subKey:       subKey,
+				value:        value,
+			},
+			checkFunc: func() bool {
+				return true
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

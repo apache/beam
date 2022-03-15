@@ -50,6 +50,7 @@ class SDKSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
+      button: true,
       label: AppLocalizations.of(context)!.selectSdkDropdown,
       child: AppDropdownButton(
         buttonText: Text(

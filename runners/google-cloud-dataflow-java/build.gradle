@@ -536,6 +536,9 @@ task validatesRunnerV2Streaming {
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
 
+      // TODO: remove once dataflow runner v2 fixed fake windowing strategy.
+      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
+
       'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
 
       'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSameFixedWindows',
@@ -568,7 +571,6 @@ task validatesRunnerV2Streaming {
       // TODO(BEAM-13525)
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
-
       // TODO(BEAM-13952)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
     ]

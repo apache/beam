@@ -449,7 +449,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
-    def aws_java_sdk2_version = "2.17.106"
+    def aws_java_sdk2_version = "2.17.127"
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
@@ -577,7 +577,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
         // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.3.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:24.3.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:24.4.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -695,6 +695,7 @@ class BeamModulePlugin implements Plugin<Project> {
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
+        quickcheck_generators                       : "com.pholser:junit-quickcheck-generators:$quickcheck_version",
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
         arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
         arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",

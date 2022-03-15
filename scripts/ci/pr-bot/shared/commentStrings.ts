@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+const { NO_MATCHING_LABEL } = require("./constants");
+
 export function allChecksPassed(reviewersToNotify: string[]): string {
   return `All checks have passed: @${reviewersToNotify.join(" ")}`;
 }
@@ -30,7 +32,7 @@ export function assignReviewer(labelToReviewerMapping: any): string {
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
-    if (label === "no-matching-label") {
+    if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
@@ -102,6 +104,38 @@ Users are removed if they haven't reviewed or completed a PR in the last 3 month
         reviewer
       ].join(",")}\n`;
     }
+  }
+
+  return commentString;
+}
+
+export function assignNewReviewer(labelToReviewerMapping: {
+  [label: string]: string;
+}): string {
+  let commentString =
+    "Assigning new set of reviewers because Pr has gone too long without review. If you would like to opt out of this review, comment `assign to next reviewer`:\n\n";
+
+  for (const label in labelToReviewerMapping) {
+    const reviewer = labelToReviewerMapping[label];
+    if (label === NO_MATCHING_LABEL) {
+      commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
+    } else {
+      commentString += `R: @${reviewer} for label ${label}.\n`;
+    }
+  }
+
+  commentString += `
+Available commands:
+- \`stop reviewer notifications\` - opt out of the automated review tooling
+- \`remind me after tests pass\` - tag the comment author after tests pass
+- \`waiting on author\` - shift the attention set back to the author (any comment or push by the author will return the attention set to the reviewers)`;
+  return commentString;
+}
+
+export function slowReview(reviewers: string[]): string {
+  let commentString = `Reminder, please take a look at this pr: `;
+  for (const reviewer of reviewers) {
+    commentString += `@${reviewer} `;
   }
 
   return commentString;

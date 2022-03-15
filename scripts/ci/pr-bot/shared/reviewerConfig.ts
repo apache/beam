@@ -19,6 +19,7 @@
 const yaml = require("js-yaml");
 const fs = require("fs");
 import { Label } from "./githubUtils";
+const { NO_MATCHING_LABEL } = require("./constants");
 
 export class ReviewerConfig {
   private config: any;
@@ -60,7 +61,7 @@ export class ReviewerConfig {
     if (!reviewersFound) {
       const fallbackReviewers = this.getFallbackReviewers(exclusionList);
       if (fallbackReviewers.length > 0) {
-        labelToReviewerMapping["no-matching-label"] =
+        labelToReviewerMapping[NO_MATCHING_LABEL] =
           this.getFallbackReviewers(exclusionList);
       }
     }
