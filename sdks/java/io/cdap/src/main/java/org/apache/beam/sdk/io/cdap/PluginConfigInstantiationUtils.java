@@ -90,8 +90,10 @@ public class PluginConfigInstantiationUtils {
     for (Constructor<?> constructor : tClass.getDeclaredConstructors()) {
       constructor.setAccessible(true);
       Class<?>[] parameterTypes = constructor.getParameterTypes();
-      Object[] parameters = new Object[parameterTypes.length];
-      Arrays.stream(parameterTypes).map(PluginConfigInstantiationUtils::getDefaultValue).toArray();
+      Object[] parameters =
+          Arrays.stream(parameterTypes)
+              .map(PluginConfigInstantiationUtils::getDefaultValue)
+              .toArray();
       try {
         return (T) constructor.newInstance(parameters);
       } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
