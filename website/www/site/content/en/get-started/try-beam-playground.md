@@ -20,7 +20,7 @@ limitations under the License.
 Beam Playground is an interactive environment to try out Beam transforms and examples
 without having to install Apache Beam in your environment.
 
-You can try an Apache Beam examples at
+You can try the available Apache Beam examples a
 [Beam Playground](https://play.beam.apache.org/).
 
 ## Beam Playground WordCount Example
