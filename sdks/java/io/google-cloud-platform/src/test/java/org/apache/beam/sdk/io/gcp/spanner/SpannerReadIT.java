@@ -157,7 +157,6 @@ public class SpannerReadIT {
   public void testRead() throws Exception {
 
     SpannerConfig spannerConfig = createSpannerConfig();
-    SpannerConfig pgSpannerConfig = createPgSpannerConfig();
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -175,23 +174,6 @@ public class SpannerReadIT {
                 .withColumns("Key", "Value")
                 .withTransaction(tx));
     PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
-
-    PCollectionView<Transaction> pgTx =
-        p.apply(
-            "Create PG tx",
-            SpannerIO.createTransaction()
-                .withSpannerConfig(pgSpannerConfig)
-                .withTimestampBound(TimestampBound.strong()));
-
-    PCollection<Struct> pgOutput =
-        p.apply(
-            "Read PG db",
-            SpannerIO.read()
-                .withSpannerConfig(pgSpannerConfig)
-                .withTable(options.getTable())
-                .withColumns("Key", "Value")
-                .withTransaction(pgTx));
-    PAssert.thatSingleton(pgOutput.apply("Count PG rows", Count.<Struct>globally())).isEqualTo(5L);
 
     p.run();
   }
