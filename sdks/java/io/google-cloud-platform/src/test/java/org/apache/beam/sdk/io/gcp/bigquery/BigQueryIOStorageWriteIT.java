@@ -63,9 +63,8 @@ public class BigQueryIOStorageWriteIT {
     PipelineOptionsFactory.register(BigQueryOptions.class);
     bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject(TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject());
-    if (writeMode == WriteMode.EXACT_ONCE) {
-      bqOptions.setUseStorageWriteApi(true);
-    } else {
+    bqOptions.setUseStorageWriteApi(true);
+    if (writeMode == WriteMode.AT_LEAST_ONCE) {
       bqOptions.setUseStorageWriteApiAtLeastOnce(true);
     }
     bqOptions.setNumStorageWriteApiStreams(2);
