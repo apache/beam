@@ -331,7 +331,12 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
    */
   private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
 
-  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
+  // This timeout should be longer than any reasonable expected Kafka poll latency, see BEAM-14111.
+  // The reason to not set it too high is that it defines how long the message processing thread
+  // remains blocked after we polled all available data from Kafka.
+  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.standardSeconds(1);
+  // This timeout is the lower bound of the offset checkpointing interval, other than that the
+  // reader performance shouldn't be sensitive to it.
   private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
 
   // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
