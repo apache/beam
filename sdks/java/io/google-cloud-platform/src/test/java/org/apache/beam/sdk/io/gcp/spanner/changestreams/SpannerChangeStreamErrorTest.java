@@ -136,8 +136,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp after3Seconds =
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
-    System.out.println("now:" + startTimestamp);
-    System.out.println("after3Seconds:" + after3Seconds);
     try {
       pipeline.apply(
           SpannerIO.readChangeStream()
@@ -210,9 +208,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp after3Seconds =
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
-
-    System.out.println("now:" + startTimestamp);
-    System.out.println("after3Seconds:" + after3Seconds);
 
     mockTableExists();
     mockGetWatermark(startTimestamp);
