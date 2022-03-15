@@ -215,17 +215,14 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     System.out.println("after3Seconds:" + after3Seconds);
 
     mockTableExists();
-    ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, after3Seconds);
     mockGetWatermark(startTimestamp);
+    ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, after3Seconds);
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
         getPartitionResultSet);
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos()),
-        getPartitionResultSet);
-    mockGetPartitionsAfter(
-        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1),
-        getPartitionResultSet);
+        ResultSet.newBuilder().setMetadata(PARTITION_METADATA_RESULT_SET_METADATA).build());
     mockInvalidChangeStreamRecordReceived(startTimestamp, after3Seconds);
 
     try {
