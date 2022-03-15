@@ -45,10 +45,14 @@ allprojects {
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.vendored_guava_26_0_jre
     implementation library.java.slf4j_api
+    implementation "org.apache.commons:commons-lang3:3.9"
     implementation "io.cdap.cdap:cdap-api:6.5.1"
-    implementation "com.fasterxml.jackson.core:jackson-core:2.13.0"
-    implementation "com.fasterxml.jackson.core:jackson-databind:2.13.0"
+    implementation "io.cdap.cdap:cdap-formats:6.5.1"
+    implementation "io.cdap.cdap:cdap-etl-api:6.5.1"
+    implementation "com.github.data-integrations:salesforce:v1.3.9"
+    implementation 'com.google.http-client:google-http-client-gson:1.32.1'
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
