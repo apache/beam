@@ -173,6 +173,51 @@ public class GroupIntoBatchesTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  public void testInGlobalWindowBatchSizeWithByteSize() {
+    GroupIntoBatches<String, String> gib = GroupIntoBatches.ofSize(BATCH_SIZE);
+    gib = gib.withByteSize(BATCH_SIZE_BYTES);
+
+    PCollection<KV<String, Iterable<String>>> collection =
+        pipeline
+            .apply("Input data", Create.of(data))
+            .apply(gib)
+            // set output coder
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+    PAssert.that("Incorrect batch size in one or more elements", collection)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+
+              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
+                for (KV<String, Iterable<String>> element : listToCheck) {
+                  long byteSize = 0;
+                  for (String str : element.getValue()) {
+                    if (byteSize >= BATCH_SIZE_BYTES) {
+                      // We already reached the batch size, so extra elements are not expected.
+                      return false;
+                    }
+                    try {
+                      byteSize += StringUtf8Coder.of().getEncodedElementByteSize(str);
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                  }
+                }
+                return true;
+              }
+
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
+                assertTrue(checkBatchSizes(input));
+                return null;
+              }
+            });
+    PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
+        .isEqualTo(3L);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
   public void testInGlobalWindowBatchSizeByteSizeFn() {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline

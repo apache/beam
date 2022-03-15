@@ -481,7 +481,8 @@ class ElasticsearchIOTestCommon implements Serializable {
             .apply(Create.of(serializedInput))
             .apply(StatefulBatching.fromSpec(write.getBulkIO()));
 
-    PAssert.that(output).satisfies(batchSizeChecker(numBatches, numDocs / numBatches));
+    PAssert.that("Incorrect batch size for one or more batches", output)
+        .satisfies(batchSizeChecker(numBatches, +numDocs / numBatches));
 
     pipeline.run();
   }
@@ -529,7 +530,8 @@ class ElasticsearchIOTestCommon implements Serializable {
             .apply(Create.of(serializedInput))
             .apply(StatefulBatching.fromSpec(write.getBulkIO()));
 
-    PAssert.that(output).satisfies(batchSizeBytesChecker(batchSizeBytes));
+    PAssert.that("Incorrect batch size for one or more batches", output)
+        .satisfies(batchSizeBytesChecker(batchSizeBytes));
 
     pipeline.run();
   }
