@@ -90,10 +90,10 @@ public class PluginConfigInstantiationUtils {
     for (Constructor<?> constructor : tClass.getDeclaredConstructors()) {
       constructor.setAccessible(true);
       Class<?>[] parameterTypes = constructor.getParameterTypes();
-      Object[] parameters =
-          Arrays.stream(parameterTypes)
-              .map(PluginConfigInstantiationUtils::getDefaultValue)
-              .toArray();
+      Object[] parameters = new Object[parameterTypes.length];
+      for (int i = 0; i < parameterTypes.length; i++) {
+        parameters[i] = getDefaultValue(parameterTypes[i]);
+      }
       try {
         return (T) constructor.newInstance(parameters);
       } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
@@ -104,7 +104,7 @@ public class PluginConfigInstantiationUtils {
   }
 
   /** @return default value for given {@param tClass} */
-  private static Object getDefaultValue(Class<?> tClass) {
+  private static @Nullable Object getDefaultValue(Class<?> tClass) {
     if (Boolean.TYPE.equals(tClass)) {
       return false;
     }
@@ -129,6 +129,6 @@ public class PluginConfigInstantiationUtils {
     if (Long.TYPE.equals(tClass)) {
       return Long.MIN_VALUE;
     }
-    return new Object();
+    return null;
   }
 }
