@@ -48,6 +48,8 @@ public class MonitoringInfoMetricName extends MetricName {
     // and ensure all necessary labels are set for the specific URN.
     this.urn = urn;
     for (Entry<String, String> entry : labels.entrySet()) {
+      checkArgument(entry.getKey() != null, "MonitoringInfoMetricName keys must be non-null");
+      checkArgument(entry.getValue() != null, "MonitoringInfoMetricName values must be non-null");
       this.labels.put(entry.getKey(), entry.getValue());
     }
   }
