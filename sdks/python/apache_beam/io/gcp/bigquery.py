@@ -814,10 +814,17 @@ class _CustomBigQuerySource(BoundedSource):
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
-      # Sources to be created lazily within a generator as they're output.
-      self.split_result = (
-          self._create_source(metadata.path, schema)
-          for metadata in metadata_list)
+      from apache_beam.utils.interactive_utils import is_in_ipython
+      if is_in_ipython():
+        self.split_result = [
+            self._create_source(metadata.path, schema)
+            for metadata in metadata_list
+        ]
+      else:
+        # Sources to be created lazily within a generator as they're output.
+        self.split_result = (
+            self._create_source(metadata.path, schema)
+            for metadata in metadata_list)
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
