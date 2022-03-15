@@ -40,11 +40,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/FileIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.fileio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -56,11 +56,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/AvroIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/AvroIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.avroio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -75,11 +75,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/TextIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.textio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -94,11 +94,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/TFRecordIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TFRecordIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.tfrecordio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -110,7 +110,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/xml/XmlIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/xml/XmlIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -123,7 +123,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/tika/TikaIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/tika/TikaIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -136,11 +136,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/parquet/ParquetIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -152,7 +152,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/thrift/ThriftIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/thrift/ThriftIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -166,7 +166,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>via X-language</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.aws.s3io.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.aws.s3io.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -179,7 +179,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>via X-language</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.gcsio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsio.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -191,11 +191,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemRegistrar.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hdfs/HadoopFileSystemRegistrar.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.hadoopfilesystem.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.hadoopfilesystem.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -207,11 +207,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/extensions/gcp/storage/GcsFileSystemRegistrar.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/gcp/storage/GcsFileSystemRegistrar.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.gcsfilesystem.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsfilesystem.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -226,11 +226,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/LocalFileSystemRegistrar.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/LocalFileSystemRegistrar.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/LocalFileSystemRegistrar.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.localfilesystem.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -245,7 +245,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -271,7 +271,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -284,7 +284,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/amqp/AmqpIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/amqp/AmqpIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -297,7 +297,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -310,11 +310,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.pubsub.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -329,7 +329,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/jms/JmsIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jms/JmsIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -342,7 +342,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/mqtt/MqttIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mqtt/MqttIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -355,7 +355,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -368,7 +368,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -381,7 +381,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws2/sns/SnsIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -394,7 +394,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/cassandra/CassandraIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/cassandra/CassandraIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -407,7 +407,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hadoop/format/HadoopFormatIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hadoop/format/HadoopFormatIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -420,7 +420,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hbase/HBaseIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hbase/HBaseIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -433,7 +433,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/hcatalog/HCatalogIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hcatalog/HCatalogIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -446,7 +446,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href=https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/kudu/KuduIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kudu/KuduIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -459,7 +459,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/solr/SolrIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/solr/SolrIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -472,7 +472,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/elasticsearch/ElasticsearchIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/elasticsearch/ElasticsearchIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -485,11 +485,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.bigquery.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -504,11 +504,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.gcp.bigtableio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -520,11 +520,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -536,7 +536,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -549,7 +549,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -562,7 +562,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/jdbc/JdbcIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -575,11 +575,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/mongodb/MongoDbIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mongodb/MongoDbIO.html">native</a>
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.mongodbio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.mongodbio.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -591,7 +591,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/mongodb/MongoDbGridFSIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mongodb/MongoDbGridFSIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -604,7 +604,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/redis/RedisIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/redis/RedisIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -617,7 +617,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -630,7 +630,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -656,7 +656,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/GenerateSequence.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -669,7 +669,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/splunk/SplunkIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -682,7 +682,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -695,7 +695,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -711,7 +711,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>via X-language</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/2.36.0/apache_beam.io.flink.flink_streaming_impulse_source.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.flink.flink_streaming_impulse_source.html">native</a>
     </td>
     <td>via X-language</td>
     <td class="present">✔</td>
@@ -723,7 +723,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -749,7 +749,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
@@ -762,7 +762,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html">native</a>
     </td>
     <td>via X-language</td>
     <td>via X-language</td>
