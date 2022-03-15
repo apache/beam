@@ -113,7 +113,7 @@ The conversion process for other runners is similar. For additional guidance,
 see
 [Migrating Builds From Apache Maven](https://docs.gradle.org/current/userguide/migrating_from_maven.html).
 
-1. In the directory with the `pom.xml` file, run the automated Maven-to-Gradle
+1. In the directory with the **pom.xml** file, run the automated Maven-to-Gradle
    conversion:
    {{< highlight >}}
 gradle init
