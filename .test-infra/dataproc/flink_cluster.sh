@@ -156,7 +156,7 @@ function restart() {
 
 # Deletes a Flink cluster.
 function delete() {
-  gcloud dataproc clusters delete $CLUSTER_NAME --region=global --quiet
+  gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
 }
 
 "$@"
