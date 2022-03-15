@@ -35,7 +35,7 @@ limitations under the License.
 
 <div class="collapse dont-collapse-sm" id="collapseOverview">
 
-There are lots of opportunities to contribute. You can for example:
+Apache Beam is a very welcoming and collaborative community, and there are lots of opportunities to contribute, [both code and non-code](https://beam.apache.org/contribute/). You can, for example:
 
 - ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
 [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
@@ -100,7 +100,13 @@ Discussion about contributing code to Beam happens on the [dev@ mailing list](/c
 
 Questions can be asked on the [#beam channel of the ASF slack](/community/contact-us/). Introduce yourself!
 
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
+
+{{< figure src="/images/arrow-icon_list.svg">}}
+
 ## Before you begin
+
+</a>
 
 ### Prerequisites
 
@@ -117,14 +123,6 @@ Questions can be asked on the [#beam channel of the ASF slack](/community/contac
 - For large contributions, a signed [Individual Contributor License
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).
-
-
-
-
-
-
-<a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
-   {{< figure src="/images/arrow-icon_list.svg">}}
 
 ### Share your intent
 1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
@@ -150,8 +148,11 @@ You have two options for configuring your development environment:
    - Manually installing the [prerequisites](https://beam.apache.org/contribute/#prerequisites).
    - Using the automated script for Linux and macOS.
 - Container: using a [Docker](https://www.docker.com/) image.
+
 ##### Local: Debian-based Distribution
+
 ###### Manual steps
+
 To install these in a Debian-based distribution:
 1. Execute:
 
@@ -295,9 +296,10 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
    - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
    - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
 
+
 ## Contribute Code
 
-  </a>
+ 
 
 <div class="collapse dont-collapse-sm" id="collapseContributing">
 
