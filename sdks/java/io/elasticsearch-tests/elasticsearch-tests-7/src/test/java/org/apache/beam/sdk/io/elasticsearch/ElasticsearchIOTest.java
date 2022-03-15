@@ -128,6 +128,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testWriteWithErrors() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.setExpectedException(expectedException);
     elasticsearchIOTestCommon.testWriteWithErrors();
   }
@@ -146,11 +147,13 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testWriteWithMaxBatchSize() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWithMaxBatchSize();
   }
 
   @Test
   public void testWriteWithMaxBatchSizeBytes() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWithMaxBatchSizeBytes();
   }
 
@@ -200,6 +203,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testWriteWithAllowableErrors() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWithAllowedErrors();
   }
 

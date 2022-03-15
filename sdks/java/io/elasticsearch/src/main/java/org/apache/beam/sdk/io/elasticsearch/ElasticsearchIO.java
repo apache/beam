@@ -231,7 +231,6 @@ public class ElasticsearchIO {
         .setMaxBatchSize(1000L)
         // advised default starting batch size in ES docs
         .setMaxBatchSizeBytes(5L * 1024L * 1024L)
-        .setUseStatefulBatches(false)
         .setMaxParallelRequestsPerWindow(1)
         .setThrowWriteErrors(true)
         .build();
@@ -1651,14 +1650,7 @@ public class ElasticsearchIO {
       public void processElement(ProcessContext c) throws IOException {
         String inputDoc = c.element();
         String bulkDirective = createBulkApiEntity(spec, inputDoc, backendVersion);
-        c.output(
-            Document.create()
-                .withInputDoc(inputDoc)
-                .withBulkDirective(bulkDirective)
-                // N.B. Saving the element timestamp for later use allows for exactly emulating
-                // c.output(...) because c.output is equivalent to
-                // c.outputWithTimestamp(..., c.timestamp())
-                .withTimestamp(c.timestamp()));
+        c.output(Document.create().withInputDoc(inputDoc).withBulkDirective(bulkDirective));
       }
     }
   }
@@ -1711,6 +1703,8 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getResponseItemJson();
 
+    // N.B. timestamp field is unused, but it remains so as to avoid DocumentCoder issues when
+    // updating running pipelines to a new SDK version.
     public abstract @Nullable Instant getTimestamp();
 
     abstract Builder toBuilder();
@@ -1821,7 +1815,6 @@ public class ElasticsearchIO {
             .setMaxBatchSize(1000L)
             // advised default starting batch size in ES docs
             .setMaxBatchSizeBytes(5L * 1024L * 1024L)
-            .setUseStatefulBatches(false)
             .setMaxParallelRequestsPerWindow(1)
             .setThrowWriteErrors(true)
             .build();
@@ -1934,12 +1927,6 @@ public class ElasticsearchIO {
       return this;
     }
 
-    /** Refer to {@link BulkIO#withUseStatefulBatches}. */
-    public Write withUseStatefulBatches(boolean useStatefulBatches) {
-      bulkIO = bulkIO.withUseStatefulBatches(useStatefulBatches);
-      return this;
-    }
-
     /** Refer to {@link BulkIO#withMaxBufferingDuration}. */
     public Write withMaxBufferingDuration(Duration maxBufferingDuration) {
       bulkIO = bulkIO.withMaxBufferingDuration(maxBufferingDuration);
@@ -1997,8 +1984,6 @@ public class ElasticsearchIO {
 
     abstract @Nullable Duration getMaxBufferingDuration();
 
-    abstract boolean getUseStatefulBatches();
-
     abstract int getMaxParallelRequestsPerWindow();
 
     abstract @Nullable RetryConfiguration getRetryConfiguration();
@@ -2022,8 +2007,6 @@ public class ElasticsearchIO {
       abstract Builder setAllowedResponseErrors(Set<String> allowedResponseErrors);
 
       abstract Builder setMaxBufferingDuration(Duration maxBufferingDuration);
-
-      abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
 
@@ -2143,43 +2126,23 @@ public class ElasticsearchIO {
     }
 
     /**
-     * If using {@link BulkIO#withUseStatefulBatches}, this can be used to set a maximum elapsed
-     * time before buffered elements are emitted to Elasticsearch as a Bulk API request. If this
-     * config is not set, Bulk requests will not be issued until {@link BulkIO#getMaxBatchSize}
-     * number of documents have been buffered. This may result in higher latency in particular if
-     * your max batch size is set to a large value and your pipeline input is low volume.
+     * This can be used to set a maximum elapsed time before buffered elements are emitted to
+     * Elasticsearch as a Bulk API request. If this config is not set, Bulk requests will not be
+     * issued until {@link BulkIO#getMaxBatchSize} number of documents have been buffered. This may
+     * result in higher latency in particular if your max batch size is set to a large value and
+     * your pipeline input is low volume.
      *
      * @param maxBufferingDuration the maximum duration to wait before sending any buffered
      *     documents to Elasticsearch, regardless of maxBatchSize.
      * @return the {@link BulkIO} with maximum buffering duration set
      */
     public BulkIO withMaxBufferingDuration(Duration maxBufferingDuration) {
-      LOG.warn(
-          "Use of withMaxBufferingDuration requires withUseStatefulBatches(true). "
-              + "Setting that automatically.");
-      return builder()
-          .setUseStatefulBatches(true)
-          .setMaxBufferingDuration(maxBufferingDuration)
-          .build();
+      return builder().setMaxBufferingDuration(maxBufferingDuration).build();
     }
 
     /**
-     * Whether or not to use Stateful Processing to ensure bulk requests have the desired number of
-     * entities i.e. as close to the maxBatchSize as possible. By default without this feature
-     * enabled, Bulk requests will not contain more than maxBatchSize entities, but the lower bound
-     * of batch size is determined by Beam Runner bundle sizes, which may be as few as 1.
-     *
-     * @param useStatefulBatches true enables the use of Stateful Processing to ensure that batches
-     *     are as close to the maxBatchSize as possible.
-     * @return the {@link BulkIO} with Stateful Processing enabled or disabled
-     */
-    public BulkIO withUseStatefulBatches(boolean useStatefulBatches) {
-      return builder().setUseStatefulBatches(useStatefulBatches).build();
-    }
-
-    /**
-     * When using {@link BulkIO#withUseStatefulBatches} Stateful Processing, states and therefore
-     * batches are maintained per-key-per-window. BE AWARE that low values for @param
+     * Due to the use of {@link GroupIntoBatches} which employs Stateful Processing, states and
+     * therefore batches are maintained per-key-per-window. BE AWARE that low values for @param
      * maxParallelRequestsPerWindow, in particular if the input data has a finite number of windows,
      * can reduce parallelism greatly. If data is globally windowed and @param
      * maxParallelRequestsPerWindow is set to 1,there will only ever be 1 request in flight. Having
@@ -2215,9 +2178,19 @@ public class ElasticsearchIO {
       return builder().setThrowWriteErrors(throwWriteErrors).build();
     }
 
+    static class DocBytesEstimator implements SerializableFunction<Document, Long> {
+      @Override
+      public Long apply(Document input) {
+        if (input.getBulkDirective() == null) {
+          return 0L;
+        }
+        return (long) input.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
+      }
+    }
+
     /**
-     * Creates batches of documents using Stateful Processing based on user configurable settings of
-     * withMaxBufferingDuration and withMaxParallelRequestsPerWindow.
+     * Creates batches of documents using {@link GroupIntoBatches} based on user configurable
+     * settings of withMaxBufferingDuration and withMaxParallelRequestsPerWindow.
      *
      * <p>Mostly exists for testability of withMaxParallelRequestsPerWindow.
      */
@@ -2232,16 +2205,6 @@ public class ElasticsearchIO {
 
       public static StatefulBatching fromSpec(BulkIO spec) {
         return new StatefulBatching(spec);
-      }
-
-      private static class DocBytesEstimator implements SerializableFunction<Document, Long> {
-        @Override
-        public Long apply(Document input) {
-          if (input.getBulkDirective() == null) {
-            return 0L;
-          }
-          return (long) input.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
-        }
       }
 
       @Override
@@ -2308,13 +2271,16 @@ public class ElasticsearchIO {
       }
 
       @ProcessElement
-      public void processElement(@Element Iterable<Document> docs, MultiOutputReceiver out)
-          throws IOException, InterruptedException {
-        for (Document doc : flushBatch(Lists.newArrayList(docs))) {
+      public void processElement(ProcessContext c) throws IOException, InterruptedException {
+        if (c.element() == null || c.element().getValue() == null) {
+          return;
+        }
+
+        for (Document doc : flushBatch(Lists.newArrayList(c.element().getValue()))) {
           if (doc.getHasError()) {
-            out.get(Write.FAILED_WRITES).output(doc);
+            c.output(Write.FAILED_WRITES, doc);
           } else {
-            out.get(Write.SUCCESSFUL_WRITES).output(doc);
+            c.output(Write.SUCCESSFUL_WRITES, doc);
           }
         }
       }
