@@ -21,13 +21,43 @@ const commentStrings = require("./shared/commentStrings");
 const { processCommand } = require("./shared/userCommand");
 const {
   addPrComment,
+  getGitHubClient,
   nextActionReviewers,
   getPullAuthorFromPayload,
   getPullNumberFromPayload,
 } = require("./shared/githubUtils");
 const { PersistentState } = require("./shared/persistentState");
 const { ReviewerConfig } = require("./shared/reviewerConfig");
-const { PATH_TO_CONFIG_FILE, REVIEWERS_ACTION } = require("./shared/constants");
+const {
+  BOT_NAME,
+  PATH_TO_CONFIG_FILE,
+  REPO_OWNER,
+  REPO,
+  SLOW_REVIEW_LABEL,
+  REVIEWERS_ACTION,
+} = require("./shared/constants");
+
+// Removes the slow label if the pr has been reviewed and returns an updated payload.
+async function removeSlowReviewLabel(payload: any) {
+  let labels = payload.issue?.labels || payload.pull_request?.labels;
+  if (labels.some((label) => label.name.toLowerCase() == SLOW_REVIEW_LABEL)) {
+    const pullNumber = payload.issue?.number || payload.pull_request?.number;
+    labels = (
+      await getGitHubClient().rest.issues.removeLabel({
+        owner: REPO_OWNER,
+        repo: REPO,
+        issue_number: pullNumber,
+        name: "slow-review",
+      })
+    ).data;
+    if (payload.issues) {
+      payload.issues.labels = labels;
+    }
+    if (payload.pull_request) {
+      payload.pull_request.labels = labels;
+    }
+  }
+}
 
 async function areReviewersAssigned(
   pullNumber: number,
@@ -44,6 +74,11 @@ async function processPrComment(
 ) {
   const commentContents = payload.comment.body;
   const commentAuthor = payload.sender.login;
+  const pullAuthor = getPullAuthorFromPayload(payload);
+  // If there's been a comment by a non-author, we can remove the slow review label
+  if (commentAuthor !== pullAuthor && commentAuthor !== BOT_NAME) {
+    await removeSlowReviewLabel(payload);
+  }
   console.log(commentContents);
   if (
     await processCommand(
@@ -64,7 +99,6 @@ async function processPrComment(
   console.log(
     "No command to be processed, checking if we should shift attention to reviewers"
   );
-  const pullAuthor = getPullAuthorFromPayload(payload);
   if (pullAuthor === commentAuthor) {
     await setNextActionReviewers(payload, stateClient);
   } else {

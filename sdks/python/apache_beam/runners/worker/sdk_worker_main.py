@@ -64,8 +64,7 @@ def _import_beam_plugins(plugins):
         importlib.import_module(module)
         _LOGGER.info('Imported %s for beam-plugin %s', module, plugin)
       except ImportError as exc:
-        raise RuntimeError(
-            'Failed to import beam-plugin: {}'.format(plugin)) from exc
+        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
 
 
 def create_harness(environment, dry_run=False):
