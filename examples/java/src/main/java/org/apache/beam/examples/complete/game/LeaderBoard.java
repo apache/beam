@@ -17,8 +17,10 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
@@ -93,7 +95,8 @@ public class LeaderBoard extends HourlyTeamScore {
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
   /** Options supported by {@link LeaderBoard}. */
-  public interface Options extends ExampleOptions, StreamingOptions, GcpOptions {
+  public interface Options
+      extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions, GcpOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
@@ -220,7 +223,11 @@ public class LeaderBoard extends HourlyTeamScore {
     exampleUtils.waitToFinish(result);
   }
 
-  static PipelineResult runLeaderBoard(Options options, Pipeline pipeline) {
+  static PipelineResult runLeaderBoard(Options options, Pipeline pipeline) throws IOException {
+
+    // Using ExampleUtils to set up BigQuery resource.
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setupBigQueryTable();
 
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
     // data elements, and parse the data.

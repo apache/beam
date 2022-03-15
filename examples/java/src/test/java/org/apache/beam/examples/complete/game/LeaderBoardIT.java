@@ -57,6 +57,7 @@ import org.junit.runners.JUnit4;
 public class LeaderBoardIT {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
+  private static final String timestamp = Long.toString(System.currentTimeMillis());
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String LEADERBOARD_TEAM_TABLE = "leaderboard_team";
   private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
@@ -72,7 +73,7 @@ public class LeaderBoardIT {
   private static String projectId;
   private static final String TOPIC_PREFIX = "leaderboardscores-";
   private static BigqueryClient bqClient;
-  private static final String OUTPUT_DATASET = "leader_board_e2e_events";
+  private static final String OUTPUT_DATASET = "leader_board_e2e_events_" + timestamp;
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
 
   public interface LeaderBoardOptions extends TestPipelineOptions, LeaderBoard.Options {}
@@ -209,6 +210,8 @@ public class LeaderBoardIT {
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
+    options.setBigQueryDataset(OUTPUT_DATASET);
+    options.setBigQueryTable(LEADERBOARD_TEAM_TABLE);
   }
 
   /**

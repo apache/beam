@@ -58,6 +58,7 @@ import org.junit.runners.JUnit4;
 public class GameStatsIT {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
+  private static final String timestamp = Long.toString(System.currentTimeMillis());
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String GAME_STATS_TEAM_TABLE = "game_stats_team";
   private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
@@ -74,7 +75,7 @@ public class GameStatsIT {
   private String projectId;
   private static final String TOPIC_PREFIX = "gamestats-";
   private BigqueryClient bqClient;
-  private final String OUTPUT_DATASET = "game_stats_e2e";
+  private final String OUTPUT_DATASET = "game_stats_e2e_" + timestamp;
 
   public interface GameStatsOptions
       extends TestPipelineOptions, ExampleBigQueryTableOptions, GameStats.Options {};
@@ -125,6 +126,8 @@ public class GameStatsIT {
     options.setFixedWindowDuration(5);
     options.setUserActivityWindowDuration(5);
     options.setSessionGap(1);
+    options.setBigQueryDataset(OUTPUT_DATASET);
+    options.setBigQueryTable(GAME_STATS_TEAM_TABLE);
   }
 
   private void setupPubSub() throws IOException {

@@ -57,6 +57,7 @@ import org.junit.runners.JUnit4;
 public class StatefulTeamScoreIT {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
+  private static final String timestamp = Long.toString(System.currentTimeMillis());
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String LEADERBOARD_TEAM_LEADER_TABLE = "leaderboard_team_leader";
   private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
@@ -73,7 +74,7 @@ public class StatefulTeamScoreIT {
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
   private String projectId;
   private BigqueryClient bqClient;
-  private final String OUTPUT_DATASET = "stateful_team_score_e2e";
+  private final String OUTPUT_DATASET = "stateful_team_score_e2e_" + timestamp;
 
   public interface StatefulTeamScoreOptions
       extends TestPipelineOptions, StatefulTeamScore.Options {};
@@ -120,6 +121,8 @@ public class StatefulTeamScoreIT {
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
+    options.setBigQueryDataset(OUTPUT_DATASET);
+    options.setBigQueryTable(LEADERBOARD_TEAM_LEADER_TABLE);
   }
 
   private void setupPubSub() throws IOException {

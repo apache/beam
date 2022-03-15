@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -248,7 +249,12 @@ public class GameStats extends LeaderBoard {
     exampleUtils.waitToFinish(result);
   }
 
-  static PipelineResult runGameStats(Options options, Pipeline pipeline) {
+  static PipelineResult runGameStats(Options options, Pipeline pipeline) throws IOException {
+
+    // Using ExampleUtils to set up BigQuery resource.
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setupBigQueryTable();
+
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents =
         pipeline

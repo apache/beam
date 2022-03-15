@@ -19,6 +19,7 @@ package org.apache.beam.examples.complete.game;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -126,7 +127,12 @@ public class StatefulTeamScore extends LeaderBoard {
     exampleUtils.waitToFinish(result);
   }
 
-  static PipelineResult runStatefulTeamScore(Options options, Pipeline pipeline) {
+  static PipelineResult runStatefulTeamScore(Options options, Pipeline pipeline)
+      throws IOException {
+
+    // Using ExampleUtils to set up BigQuery resource.
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setupBigQueryTable();
 
     pipeline
         // Read game events from Pub/Sub using custom timestamps, which are extracted from the
