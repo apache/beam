@@ -370,8 +370,8 @@ categories:
       - transform: InfluxDB
         description: IO to read and write from InfluxDB.
         implementations:
-          - language: go
-            name: github.com/apache/beam/sdks/go/pkg/beam/io/InfluxDB
+          - language: java
+            name: org.apache.beam.sdk.io.influxdb.InfluxDbIO
             url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html
       - transform: Firestore IO
         description: FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.
