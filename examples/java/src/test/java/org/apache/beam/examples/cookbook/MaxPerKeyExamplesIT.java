@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete;
+package org.apache.beam.examples.cookbook;
 
 import static org.junit.Assert.assertEquals;
 
@@ -23,7 +23,6 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.QueryResponse;
-import org.apache.beam.examples.complete.TrafficMaxLaneFlow.TrafficMaxLaneFlowOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
@@ -38,24 +37,30 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** End-to-end tests of TrafficMaxLaneFlowIT. */
+/** An end-to-end test for {@link org.apache.beam.examples.cookbook.MaxPerKeyExamples}. */
 @RunWith(JUnit4.class)
-public class TrafficMaxLaneFlowIT {
-
-  private TrafficMaxLaneFlowOptions options;
+public class MaxPerKeyExamplesIT {
+  private MaxPerKeyExamplesIT.MaxPerKeyExamplesOptions options;
   private final String timestamp = Long.toString(System.currentTimeMillis());
-  private final String outputDatasetId = "traffic_max_lane_flow_" + timestamp;
-  private final String outputTable = "traffic_max_lane_flow_table";
+  private final String outputDatasetId = "max_per_key_examples" + timestamp;
+  private final String outputTable = "max_per_key_examples_table";
+  private final Long defaultExpiration = 1000L * 60 * 60;
   private String projectId;
   private BigqueryClient bqClient;
+
+  /** Options for the MaxPerKeyExamples Integration Test. */
+  public interface MaxPerKeyExamplesOptions
+      extends TestPipelineOptions, MaxPerKeyExamples.Options {}
 
   @Before
   public void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(TestPipelineOptions.class);
-    this.options = TestPipeline.testingPipelineOptions().as(TrafficMaxLaneFlowOptions.class);
+    this.options =
+        TestPipeline.testingPipelineOptions()
+            .as(MaxPerKeyExamplesIT.MaxPerKeyExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    this.bqClient = new BigqueryClient("TrafficMaxLaneFlowIT");
-    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId);
+    this.bqClient = new BigqueryClient("MaxPerKeyExamplesIT");
+    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, defaultExpiration);
   }
 
   @After
@@ -64,19 +69,15 @@ public class TrafficMaxLaneFlowIT {
   }
 
   @Test
-  public void testE2ETrafficMaxLaneFlow() throws Exception {
-    this.options.setProject(this.projectId);
-    this.options.setBigQueryDataset(this.outputDatasetId);
-    this.options.setBigQueryTable(this.outputTable);
-    TrafficMaxLaneFlow.runTrafficMaxLaneFlow(this.options);
+  public void testE2EMaxPerKeyExamples() throws Exception {
+    this.options.setOutput(
+        String.format("%s:%s.%s", this.projectId, this.outputDatasetId, this.outputTable));
+    MaxPerKeyExamples.runMaxPerKeyExamples(options);
     FluentBackoff backoffFactory =
         FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.standardSeconds(1L));
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(backoffFactory.backoff());
     String res = "empty_result";
-    // Having 4 retries to get ride of the failure caused by the latency that between data wrote
-    // to BigQuery and be able to query from BigQuery.
-    // Partial results are still returned making traversal of nested result object NPE prone.
     do {
       QueryResponse response =
           this.bqClient.queryWithRetries(
@@ -94,6 +95,7 @@ public class TrafficMaxLaneFlowIT {
         // Ignore NullPointerException during retry.
       }
     } while (BackOffUtils.next(sleeper, backoff));
-    assertEquals("9763", res);
+
+    assertEquals("12", res);
   }
 }
