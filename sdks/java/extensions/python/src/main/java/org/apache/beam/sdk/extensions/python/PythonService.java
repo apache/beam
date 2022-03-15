@@ -117,6 +117,9 @@ public class PythonService {
         duration = (long) (duration * 1.2);
       }
     }
-    throw new TimeoutException();
+    throw new TimeoutException(
+        "Timeout waiting for Python service startup after "
+            + (System.currentTimeMillis() - start)
+            + " seconds.");
   }
 }
