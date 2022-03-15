@@ -750,6 +750,7 @@ class StateHandler(metaclass=abc.ABCMeta):
       data  # type: bytes
   ):
     # type: (...) -> _Future
+
     """Append the input data into the state key.
 
     Returns a future that allows one to wait for the completion of the call.
@@ -762,6 +763,7 @@ class StateHandler(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def clear(self, state_key):
     # type: (beam_fn_api_pb2.StateKey) -> _Future
+
     """Clears the contents of a cell for the input state key.
 
     Returns a future that allows one to wait for the completion of the call.
@@ -775,6 +777,7 @@ class StateHandler(metaclass=abc.ABCMeta):
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id):
     # type: (str) -> Iterator[None]
+
     """Switch the context of the state handler to a specific instruction.
 
     This must be called before performing any write or read operations on the
@@ -785,6 +788,7 @@ class StateHandler(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def done(self):
     # type: () -> None
+
     """Mark the state handler as done, and potentially delete all context."""
     raise NotImplementedError(type(self))
 
