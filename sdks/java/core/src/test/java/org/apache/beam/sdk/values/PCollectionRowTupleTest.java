@@ -52,9 +52,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class PCollectionRowTupleTest implements Serializable {
 
-  public static final Schema intSchema = Schema.of(Field.of("int", FieldType.INT32));
-  public static final Schema stringSchema = Schema.of(Field.of("str", FieldType.STRING));
-  public static final Schema boolSchema = Schema.of(Field.of("str", FieldType.BOOLEAN));
+  public static final Schema INT_SCHEMA = Schema.of(Field.of("int", FieldType.INT32));
+  public static final Schema STRING_SCHEMA = Schema.of(Field.of("str", FieldType.STRING));
+  public static final Schema BOOL_SCHEMA = Schema.of(Field.of("str", FieldType.BOOLEAN));
 
   @Rule
   public final transient TestPipeline pipeline =
@@ -70,7 +70,10 @@ public final class PCollectionRowTupleTest implements Serializable {
   public void testOfThenHas() {
     PCollection<Row> pCollection =
         PCollection.createPrimitiveOutputInternal(
-            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, RowCoder.of(intSchema));
+            pipeline,
+            WindowingStrategy.globalDefault(),
+            IsBounded.BOUNDED,
+            RowCoder.of(INT_SCHEMA));
     String tag = "collection1";
     assertTrue(PCollectionRowTuple.of(tag, pCollection).has(tag));
   }
@@ -86,10 +89,10 @@ public final class PCollectionRowTupleTest implements Serializable {
   public void testComposePCollectionRowTuple() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
-    List<Row> inputs = toRows(Arrays.asList(3, -42, 77), intSchema);
+    List<Row> inputs = toRows(Arrays.asList(3, -42, 77), INT_SCHEMA);
 
-    PCollection<Row> mainInput = pipeline.apply(Create.of(inputs));
-    PCollection<Row> secondInput = pipeline.apply(Create.of(inputs));
+    PCollection<Row> mainInput = pipeline.apply("main", Create.of(inputs));
+    PCollection<Row> secondInput = pipeline.apply("second", Create.of(inputs));
 
     PCollectionRowTuple tuple = PCollectionRowTuple.empty(pipeline);
     tuple = tuple.and("main", mainInput);
@@ -107,9 +110,10 @@ public final class PCollectionRowTupleTest implements Serializable {
     String intTag = "int";
     String strTag = "strs";
 
-    PCollection<Row> ints = p.apply(Create.of(toRows(Arrays.asList(3, -42, 77), intSchema)));
+    PCollection<Row> ints =
+        p.apply("ints", Create.of(toRows(Arrays.asList(3, -42, 77), INT_SCHEMA)));
     PCollection<Row> strs =
-        p.apply(Create.of(toRows(Arrays.asList("ab", "cd", "ef"), stringSchema)));
+        p.apply("strs", Create.of(toRows(Arrays.asList("ab", "cd", "ef"), STRING_SCHEMA)));
 
     EqualsTester tester = new EqualsTester();
     // Empty tuples in the same pipeline are equal
@@ -135,9 +139,10 @@ public final class PCollectionRowTupleTest implements Serializable {
     String boolTag = "bools";
 
     Pipeline p = TestPipeline.create();
-    PCollection<Row> ints = p.apply(Create.of(toRows(Arrays.asList(3, -42, 77), intSchema)));
+    PCollection<Row> ints =
+        p.apply("ints", Create.of(toRows(Arrays.asList(3, -42, 77), INT_SCHEMA)));
     PCollection<Row> strs =
-        p.apply(Create.of(toRows(Arrays.asList("ab", "cd", "ef"), stringSchema)));
+        p.apply("strs", Create.of(toRows(Arrays.asList("ab", "cd", "ef"), STRING_SCHEMA)));
     PCollection<Row> bools =
         ints.apply(
             MapElements.via(
@@ -145,7 +150,7 @@ public final class PCollectionRowTupleTest implements Serializable {
                   @Override
                   public Row apply(Row input) {
                     Boolean result = input.getInt32(0) % 2 == 0;
-                    return Row.withSchema(boolSchema).addValue(result).build();
+                    return Row.withSchema(BOOL_SCHEMA).addValue(result).build();
                   }
                 }));
 
