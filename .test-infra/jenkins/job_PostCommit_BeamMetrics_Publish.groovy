@@ -29,7 +29,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_BeamMetrics_Publish', 'Run B
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
       String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace('default')
-      Kubernetes.create(delegate, kubeconfig, '', 'metrics')
+      Kubernetes.create(delegate, kubeconfig, '', 'metrics-upgrade-clone')
 
       steps {
         gradle {
