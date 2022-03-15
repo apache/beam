@@ -143,8 +143,8 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 ### Beam Playground
 
-* Beam Playground is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
-    You can try the available Apache Beam examples at [Beam Playground](http://play.beam.apache.org).
+* [Beam Playground](https://play.beam.apache.org) is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
+    You can try the available Apache Beam examples at [Beam Playground](https://play.beam.apache.org).
 * Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog [here](https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples).
 
 ## API Reference {#api-reference}
