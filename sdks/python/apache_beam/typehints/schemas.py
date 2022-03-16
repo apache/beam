@@ -65,7 +65,6 @@ from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
-from uuid import uuid4
 
 import numpy as np
 from google.protobuf import text_format
@@ -89,6 +88,19 @@ class SchemaTypeRegistry(object):
   def __init__(self):
     self.by_id = {}
     self.by_typing = {}
+
+  def generate_new_id(self):
+    # Import uuid locally to guarantee we don't actually generate a uuid
+    # elsewhere in this file.
+    from uuid import uuid4
+    for _ in range(100):
+      schema_id = str(uuid4())
+      if schema_id not in self.by_id:
+        return schema_id
+
+    raise AssertionError("Failed to generate a unique UUID for schema after "
+                         f"100 tries! Registry contains {len(self.by_id)} "
+                         "schemas.")
 
   def add(self, typing, schema):
     self.by_id[schema.id] = (typing, schema)
@@ -144,7 +156,7 @@ def named_fields_to_schema(names_and_types):
           schema_pb2.Field(name=name, type=typing_to_runner_api(type))
           for (name, type) in names_and_types
       ],
-      id=str(uuid4()))
+      id=SCHEMA_REGISTRY.generate_new_id())
 
 
 def named_fields_from_schema(
@@ -175,18 +187,23 @@ class SchemaTranslation(object):
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=type_))
 
     elif match_is_named_tuple(type_):
-      schema = None
       if hasattr(type_, _BEAM_SCHEMA_ID):
-        schema = self.schema_registry.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
+        schema_id = getattr(type_, _BEAM_SCHEMA_ID)
+        schema = self.schema_registry.get_schema_by_id(
+            getattr(type_, _BEAM_SCHEMA_ID))
+      else:
+        schema_id = self.schema_registry.generate_new_id()
+        schema = None
+        setattr(type_, _BEAM_SCHEMA_ID, schema_id)
+
       if schema is None:
         fields = [
             schema_pb2.Field(
-                name=name, type=typing_to_runner_api(type_.__annotations__[name]))
+                name=name,
+                type=typing_to_runner_api(type_.__annotations__[name]))
             for name in type_._fields
         ]
-        type_id = str(uuid4())
-        schema = schema_pb2.Schema(fields=fields, id=type_id)
-        setattr(type_, _BEAM_SCHEMA_ID, type_id)
+        schema = schema_pb2.Schema(fields=fields, id=schema_id)
         self.schema_registry.add(type_, schema)
 
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
@@ -200,7 +217,7 @@ class SchemaTranslation(object):
                           name=name, type=typing_to_runner_api(field_type))
                       for (name, field_type) in type_._fields
                   ],
-                  id=str(uuid4()))))
+                  id=self.schema_registry.generate_new_id())))
 
     # All concrete types (other than NamedTuple sub-classes) should map to
     # a supported primitive type.
