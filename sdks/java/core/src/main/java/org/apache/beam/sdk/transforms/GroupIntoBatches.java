@@ -221,9 +221,9 @@ public class GroupIntoBatches<K, InputT>
             duration));
   }
 
-  public GroupIntoBatches<K, InputT> withByteSize(Long batchSizeBytes) {
+  public GroupIntoBatches<K, InputT> withByteSize(long batchSizeBytes) {
     checkArgument(
-        batchSizeBytes != null && batchSizeBytes < Long.MAX_VALUE && batchSizeBytes > 0,
+        batchSizeBytes < Long.MAX_VALUE && batchSizeBytes > 0,
         "batchSizeBytes should be a non-negative value less than " + Long.MAX_VALUE);
     return new GroupIntoBatches<>(
         BatchingParams.create(
@@ -234,9 +234,9 @@ public class GroupIntoBatches<K, InputT>
   }
 
   public GroupIntoBatches<K, InputT> withByteSize(
-      Long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
+      long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
     checkArgument(
-        batchSizeBytes != null && batchSizeBytes < Long.MAX_VALUE && batchSizeBytes > 0,
+        batchSizeBytes < Long.MAX_VALUE && batchSizeBytes > 0,
         "batchSizeBytes should be a non-negative value less than " + Long.MAX_VALUE);
     return new GroupIntoBatches<>(
         BatchingParams.create(
