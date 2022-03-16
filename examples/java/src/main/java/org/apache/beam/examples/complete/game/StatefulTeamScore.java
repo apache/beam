@@ -27,7 +27,6 @@ import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery.FieldInfo;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -116,19 +115,15 @@ public class StatefulTeamScore extends LeaderBoard {
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
-    ExampleUtils exampleUtils = new ExampleUtils(options);
-    Pipeline pipeline = Pipeline.create(options);
-
-    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
-    // command line.
-    PipelineResult result = runStatefulTeamScore(options, pipeline);
-    exampleUtils.waitToFinish(result);
+    runStatefulTeamScore(options);
   }
 
-  static PipelineResult runStatefulTeamScore(Options options, Pipeline pipeline)
-      throws IOException {
+  static void runStatefulTeamScore(Options options) throws IOException {
+
+    Pipeline pipeline = Pipeline.create(options);
 
     // Using ExampleUtils to set up BigQuery resource.
     ExampleUtils exampleUtils = new ExampleUtils(options);
@@ -160,7 +155,7 @@ public class StatefulTeamScore extends LeaderBoard {
                 options.getLeaderBoardTableName() + "_team_leader",
                 configureCompleteWindowedTableWrite()));
 
-    return pipeline.run(options);
+    pipeline.run(options);
   }
 
   /**

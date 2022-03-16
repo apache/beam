@@ -95,7 +95,7 @@ public class GameStatsIT {
   @Test
   public void testE2EGameStats() throws Exception {
 
-    GameStats.runGameStats(options, testPipeline);
+    GameStats.runGameStats(options);
 
     FluentBackoff backoffFactory =
         FluentBackoff.DEFAULT
@@ -112,19 +112,19 @@ public class GameStatsIT {
 
     int res = response.getRows().size();
 
-    assertEquals("25", Integer.toString(res));
+    assertEquals("1", Integer.toString(res));
   }
 
   private void setupPipelineOptions() {
     options.as(GcpOptions.class).setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
-    options.setStreaming(true);
+    options.setStreaming(false);
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
-    options.setFixedWindowDuration(5);
-    options.setUserActivityWindowDuration(5);
+    options.setFixedWindowDuration(1);
+    options.setUserActivityWindowDuration(1);
     options.setSessionGap(1);
     options.setBigQueryDataset(OUTPUT_DATASET);
     options.setBigQueryTable(GAME_STATS_TEAM_TABLE);
@@ -179,7 +179,10 @@ public class GameStatsIT {
             .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
             .withIdAttribute(projectId);
 
-    testPipeline.apply(TextIO.read().from(options.getInput())).apply(write);
+    testPipeline
+        .apply(TextIO.read().from("gs://apache-beam-samples/game/small/stats_gaming_data.csv"))
+        .apply(write);
+    testPipeline.run();
   }
 
   private void setupBigQuery() throws IOException, InterruptedException {

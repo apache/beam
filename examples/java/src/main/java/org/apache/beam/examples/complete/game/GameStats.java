@@ -24,7 +24,6 @@ import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -239,17 +238,14 @@ public class GameStats extends LeaderBoard {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
-    options.setStreaming(true);
-    ExampleUtils exampleUtils = new ExampleUtils(options);
-    Pipeline pipeline = Pipeline.create(options);
 
-    // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
-    // command line.
-    PipelineResult result = runGameStats(options, pipeline);
-    exampleUtils.waitToFinish(result);
+    options.setStreaming(true);
+    runGameStats(options);
   }
 
-  static PipelineResult runGameStats(Options options, Pipeline pipeline) throws IOException {
+  static void runGameStats(Options options) throws IOException {
+
+    Pipeline pipeline = Pipeline.create(options);
 
     // Using ExampleUtils to set up BigQuery resource.
     ExampleUtils exampleUtils = new ExampleUtils(options);
@@ -274,7 +270,7 @@ public class GameStats extends LeaderBoard {
 
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
-    final PCollectionView<Map<String, Integer>> spammersView =
+    PCollectionView<Map<String, Integer>> spammersView =
         userEvents
             .apply(
                 "FixedWindowsUser",
@@ -359,6 +355,6 @@ public class GameStats extends LeaderBoard {
                 configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
 
-    return pipeline.run(options);
+    pipeline.run(options);
   }
 }

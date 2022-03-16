@@ -94,7 +94,7 @@ public class LeaderBoardIT {
   @Test
   public void testE2ELeaderBoard() throws Exception {
 
-    LeaderBoard.runLeaderBoard(options, testPipeline);
+    LeaderBoard.runLeaderBoard(options);
 
     FluentBackoff backoffFactory =
         FluentBackoff.DEFAULT
@@ -200,13 +200,14 @@ public class LeaderBoardIT {
             .withIdAttribute(projectId);
 
     testPipeline.apply(TextIO.read().from(options.getInput())).apply(write);
+    testPipeline.run();
   }
 
   private void setupPipelineOptions() {
     options.setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
-    options.setStreaming(true);
+    options.setStreaming(false);
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);

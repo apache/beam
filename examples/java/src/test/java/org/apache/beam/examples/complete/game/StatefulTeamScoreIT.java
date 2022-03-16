@@ -93,7 +93,7 @@ public class StatefulTeamScoreIT {
 
   @Test
   public void testE2EStatefulTeamScore() throws Exception {
-    StatefulTeamScore.runStatefulTeamScore(options, testPipeline);
+    StatefulTeamScore.runStatefulTeamScore(options);
 
     FluentBackoff backoffFactory =
         FluentBackoff.DEFAULT
@@ -117,7 +117,7 @@ public class StatefulTeamScoreIT {
     options.as(GcpOptions.class).setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
-    options.setStreaming(true);
+    options.setStreaming(false);
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
@@ -175,6 +175,7 @@ public class StatefulTeamScoreIT {
             .withIdAttribute(projectId);
 
     testPipeline.apply(TextIO.read().from(options.getInput())).apply(write);
+    testPipeline.run();
   }
 
   private void setupBigQuery() throws IOException, InterruptedException {
