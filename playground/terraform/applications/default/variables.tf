@@ -18,38 +18,16 @@
 #
 
 variable "project_id" {
-  description = "Project ID"
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
+variable "location" {
+  description = "Location of App"
+  default     = "us-central"
 }
 
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-frontend"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "frontend"
-}
-
-variable "network_name" {
-  description = "VPC Name"
-  default     = "playground-vpc"
-}
-
-variable "subnetwork_name" {
-  description = "Vpc Name"
-  default     = "playground-vpc"
-}
-
-variable "environment" {
-  description = "prod,dev"
-  default     = "dev"
+variable "create_default_service" {
+  description = "Whether or not to create a default app engine service"
+  type        = bool
+  default     = true
 }

@@ -17,18 +17,39 @@
 # under the License.
 #
 
+output "playground_registry_id" {
+  value = module.artifact_registry.registry_id
+}
+
+output "playground_registry_name" {
+  value = module.artifact_registry.registry_name
+}
+
+output "playground_registry_location" {
+  value = module.artifact_registry.registry_location
+}
+
 output "playground_network_id" {
-  value = google_compute_network.playground.id
+  value = module.network.playground_network_id
 }
 
 output "playground_subnetwork_id" {
-  value = google_compute_subnetwork.playground.id
+  value = module.network.playground_subnetwork_id
 }
 
 output "playground_network_name" {
-  value = google_compute_network.playground.name
+  value = module.network.playground_network_name
 }
 
 output "playground_subnetwork_name" {
-  value = google_compute_subnetwork.playground.name
+  value = module.network.playground_subnetwork_name
 }
+
+output "playground_redis_ip" {
+  value = module.memorystore.redis_ip
+}
+
+output "docker-repository-root" {
+  value = "${module.artifact_registry.registry_location}${var.repository_domain}/${var.project_id}/${module.artifact_registry.registry_name}"
+}
+

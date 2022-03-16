@@ -17,53 +17,43 @@
 # under the License.
 #
 
-resource "google_app_engine_flexible_app_version" "backend_app" {
-  version_id                = "v1"
-  project                   = var.project_id
-  service                   = var.service_name
-  runtime                   = "custom"
-  delete_service_on_destroy = true
+resource "google_app_engine_application" "app_playground" {
+  project     = var.project_id
+  location_id = var.location
+}
 
-
-  liveness_check {
-    path          = "/liveness"
-    initial_delay = "40s"
-  }
-
-  readiness_check {
-    path = "/readiness"
-  }
-
-  automatic_scaling {
-    max_total_instances = 7
-    min_total_instances = 2
-    cool_down_period    = "120s"
-    cpu_utilization {
-      target_utilization = 0.7
-    }
-  }
-
-  env_variables = {
-    CACHE_TYPE        = var.cache_type
-    CACHE_ADDRESS     = "${var.cache_address}:6379"
-    NUM_PARALLEL_JOBS = 10
-    LAUNCH_SITE       = "app_engine"
-  }
-
-  resources {
-    memory_gb = 16
-    cpu       = 8
-    volumes {
-      name        = "inmemory"
-      size_gb     = var.volume_size
-      volume_type = "tmpfs"
-    }
-  }
+resource "google_app_engine_flexible_app_version" "default_app" {
+  count      = var.create_default_service ? 1 : 0
+  service    = "default"
+  version_id = "mlflow-default"
+  runtime    = "custom"
+  project    = var.project_id
 
   deployment {
     container {
-      image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"
+      image = "gcr.io/cloudrun/hello"
     }
   }
+
+  liveness_check {
+    path = "/"
+  }
+
+  readiness_check {
+    path = "/"
+  }
+
+  automatic_scaling {
+    cool_down_period    = "120s"
+    min_total_instances = 1
+    max_total_instances = 1
+    cpu_utilization {
+      target_utilization = 0.5
+    }
+  }
+
+  delete_service_on_destroy = false
+  noop_on_destroy           = true
+
 }
 
