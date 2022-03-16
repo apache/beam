@@ -82,6 +82,12 @@ public class PythonService {
           "Python boostrap failed with error " + result + ", " + lastNonEmptyLine);
     }
     String pythonExecutable = lastNonEmptyLine;
+    {
+      new ProcessBuilder(pythonExecutable, "-c", "print('yyyyy'); import apache_beam; print(apache_beam)")
+              .redirectError(ProcessBuilder.Redirect.INHERIT)
+              .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+              .start();
+    }
     List<String> command = new ArrayList<>();
     command.add(pythonExecutable);
     command.add("-m");
@@ -102,6 +108,11 @@ public class PythonService {
       return s.getLocalPort();
     } finally {
       s.close();
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException exn) {
+        // ignore
+      }
     }
   }
 
