@@ -40,7 +40,7 @@ def loadTestConfigurations = { datasetName ->
         input_options        : '\'{}\'',
         iterations           : 1,
         num_workers          : 5,
-        autoscaling_algorithm: 'NONE'
+        autoscaling_algorithm: 'NONE',
       ]
     ]
   ],    
