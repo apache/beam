@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import Kubernetes
-import CommonJobProperties as common
-import CommonTestProperties
+import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import InfluxDBCredentialsHelper
-
+import CommonTestProperties
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
