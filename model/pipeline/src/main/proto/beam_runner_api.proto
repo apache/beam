@@ -221,7 +221,7 @@ message StandardPTransforms {
     // for additional details.
     //
     // Payload: ParDoPayload
-    PAR_DO = 0 [(beam_urn) = "beam:transform:pardo:v1"];
+    PAR_DO = 0 [(beam_urn) = "beam:transform:org.apache.beam:pardo:v1"];
 
     // Flatten is a Beam transform for PCollection objects that store the same
     // data type. Flatten merges multiple PCollection objects into a single

@@ -69,7 +69,7 @@ public class PTransformTranslation {
   // and we validate that the value matches the actual URN in the static block below.
 
   // Primitives
-  public static final String PAR_DO_TRANSFORM_URN = "beam:transform:pardo:v1";
+  public static final String PAR_DO_TRANSFORM_URN = "beam:transform:org.apache.beam:pardo:v1";
   public static final String FLATTEN_TRANSFORM_URN = "beam:transform:flatten:v1";
   public static final String GROUP_BY_KEY_TRANSFORM_URN = "beam:transform:group_by_key:v1";
   public static final String IMPULSE_TRANSFORM_URN = "beam:transform:impulse:v1";
