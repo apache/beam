@@ -17,32 +17,7 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "Project ID"
+output "server-url" {
+  value = google_app_engine_flexible_app_version.backend_app_java.service
 }
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
-
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend-router"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "backend"
-}
-
-variable "cache_type" {
-  default = "remote"
-}
-
-variable "cache_address" {
-  default = ""
-}

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-provider "google" {
-  region  = var.region
-  project = var.project_id
+output "server-url" {
+  value = google_app_engine_flexible_app_version.backend_app_go.service
 }
+

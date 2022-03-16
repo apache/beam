@@ -22,7 +22,7 @@ variable "project_id" {
 }
 
 variable "machine_type" {
-  description = "Node pool machine types"
+  description = "Node pool machine types , for prod set  c2d-highcpu-16"
   default     = "e2-standard-4"
 }
 

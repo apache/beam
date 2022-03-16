@@ -17,26 +17,25 @@
 # under the License.
 #
 
-resource "google_app_engine_flexible_app_version" "backend_app_python" {
+
+resource "google_app_engine_flexible_app_version" "backend_app_go" {
   version_id                = "v1"
   project                   = var.project_id
-  service                   = var.service_name
+  service                   = "${var.service_name}-${var.environment}"
   runtime                   = "custom"
   delete_service_on_destroy = true
 
   liveness_check {
-    path          = "/liveness"
-    initial_delay = "40s"
+    path = ""
   }
 
   readiness_check {
     path = "/readiness"
   }
 
-
   automatic_scaling {
-    max_total_instances = 7
-    min_total_instances = 2
+    max_total_instances = var.max_instance
+    min_total_instances = var.min_instance
     cool_down_period    = "120s"
     cpu_utilization {
       target_utilization = 0.7
@@ -44,14 +43,24 @@ resource "google_app_engine_flexible_app_version" "backend_app_python" {
   }
 
   resources {
-    memory_gb = 16
-    cpu       = 8
+    memory_gb = var.memory
+    cpu       = var.cpu
+    volumes {
+      name        = "inmemory"
+      size_gb     = var.volume_size
+      volume_type = "tmpfs"
+    }
+  }
+
+  network {
+    name = var.network_name
+    subnetwork = var.subnetwork_name
   }
 
   env_variables = {
     CACHE_TYPE        = var.cache_type
     CACHE_ADDRESS     = "${var.cache_address}:6379"
-    NUM_PARALLEL_JOBS = 70
+    NUM_PARALLEL_JOBS = 30
     LAUNCH_SITE       = "app_engine"
   }
 

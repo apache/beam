@@ -27,7 +27,7 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-frontend"
+  default     = "beam_playground-backend-router"
 }
 
 variable "docker_image_tag" {
@@ -36,7 +36,15 @@ variable "docker_image_tag" {
 }
 
 variable "service_name" {
-  default = "frontend"
+  default = "backend-router"
+}
+
+variable "cache_type" {
+  default = "remote"
+}
+
+variable "cache_address" {
+  default = ""
 }
 
 variable "network_name" {
@@ -50,6 +58,36 @@ variable "subnetwork_name" {
 }
 
 variable "environment" {
-  description = "prod,dev"
+  description = "prod,dev,beta"
   default     = "dev"
+}
+
+variable "volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+variable "max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 3
+}
+
+variable "min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 1
+}
+
+variable "memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 4
+}
+
+variable "cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 2
 }
