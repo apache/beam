@@ -30,7 +30,7 @@ func TestReadN(t *testing.T) {
 	data, err := ReadN(r, testLength)
 	// err is expected to be nil
 	if err != nil {
-		t.Errorf("failed to read data: got %v", err)
+		t.Errorf("failed to read data, got error: %v", err)
 	}
 	// length of data is expected to match testLength
 	if got, want := len(data), testLength; got != want {
@@ -51,7 +51,7 @@ func TestReadN_Bad(t *testing.T) {
 	_, err := ReadN(r, testLength+1)
 	// err is expected to be io.EOF
 	if err != io.EOF {
-		t.Errorf("got error %v, wanted %v", err, io.EOF)
+		t.Errorf("got error: %v\nwanted error: %v", err, io.EOF)
 	}
 }
 
@@ -64,7 +64,7 @@ func TestReadNBufUnsafe(t *testing.T) {
 	err := ReadNBufUnsafe(r, data)
 	// err is expected to be nil
 	if err != nil {
-		t.Errorf("failed to read data: got %v", err)
+		t.Errorf("failed to read data, got error: %v", err)
 	}
 	// content of data is expected to match testString
 	if got, want := string(data), testString; got != want {
@@ -81,7 +81,7 @@ func TestReadUnsafe(t *testing.T) {
 	length, err := ReadUnsafe(r, data)
 	// err is expected to be nil
 	if err != nil {
-		t.Errorf("failed to read data: got %v", err)
+		t.Errorf("failed to read data, got error: %v", err)
 	}
 	// length of data is expected to match testLength
 	if length != testLength {

@@ -29,10 +29,15 @@ func TestWriteUnsafe(t *testing.T) {
 	length, err := WriteUnsafe(writer, data)
 	// err is expected to be nil
 	if err != nil {
-		t.Errorf("failed to write data: got %v", err)
+		t.Errorf("failed to write data, got error: %v", err)
 	}
 	// length of data is expected to match input
 	if got, want := length, len(data); got != want {
 		t.Errorf("got length %v, wanted %v", got, want)
+	}
+	writer.Flush()
+	// buf is expected to contain the input data
+	if got, want := buf.String(), string(data); got != want {
+		t.Errorf("got string %q, wanted %q", got, want)
 	}
 }
