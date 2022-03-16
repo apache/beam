@@ -224,7 +224,7 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.pubsublite.PubSubLiteIO
-            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html
   - name: Database
     description: These I/O connectors are used to connect to database systems.
     rows:
@@ -372,13 +372,13 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.influxdb.InfluxDbIO
-            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html
       - transform: Firestore IO
         description: FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.gcp.healthcare.FirestoreIO
-            url: https://beam.apache.org/releases/javadoc/2.36.0/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html
       - transform: Neo4j
         implementations:
           - language: java
