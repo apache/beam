@@ -35,6 +35,7 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
   private final String cursor;
   private final long dbSize;
   private final boolean isStart;
+  private static BigEndianLongCoder coder = BigEndianLongCoder.of();
 
   public static final ByteKey ZERO_KEY = ByteKey.of(0x00);
   // The zero cursor that represents the start position is represented as ByteKey.of(0x00)
@@ -118,7 +119,6 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
     int nBits = getTablePow(cursor.getDbSize());
     long cursorLong = Long.parseLong(cursor.getCursor());
     long reversed = shiftBits(cursorLong, nBits);
-    BigEndianLongCoder coder = BigEndianLongCoder.of();
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     try {
       coder.encode(reversed, os);
