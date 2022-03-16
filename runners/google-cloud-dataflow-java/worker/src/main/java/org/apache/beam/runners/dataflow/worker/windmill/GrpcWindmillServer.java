@@ -120,8 +120,8 @@ import org.slf4j.LoggerFactory;
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
 
-  // If a connection cannot be established, gRPC will fail fast so this deadline can be relatively
-  // high.
+  // If a connection cannot be established, gRPC will fail fast so this deadline can be
+  // relatively high.
   private static final long DEFAULT_UNARY_RPC_DEADLINE_SECONDS = 300;
   private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
 
