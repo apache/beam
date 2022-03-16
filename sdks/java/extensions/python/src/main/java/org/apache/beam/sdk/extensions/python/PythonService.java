@@ -86,7 +86,7 @@ public class PythonService {
       new ProcessBuilder(
               pythonExecutable,
               "-c",
-              "print('yyyyy'); import apache_beam; print(apache_beam); raise TypeError('zzzzz')")
+              "print('yyyyy'); import apache_beam; print(apache_beam); raise TypeError('Zzzzz')")
           .redirectError(ProcessBuilder.Redirect.INHERIT)
           .redirectOutput(ProcessBuilder.Redirect.INHERIT)
           .start();
