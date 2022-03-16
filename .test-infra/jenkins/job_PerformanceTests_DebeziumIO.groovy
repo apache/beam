@@ -42,8 +42,8 @@ def loadTestConfigurations = { datasetName ->
         num_workers          : 5,
         autoscaling_algorithm: 'NONE',
       ]
-    ]
-  ],    
+    ],
+  ]    
 }
 
 def loadTestJob = { scope, triggeringContext ->
