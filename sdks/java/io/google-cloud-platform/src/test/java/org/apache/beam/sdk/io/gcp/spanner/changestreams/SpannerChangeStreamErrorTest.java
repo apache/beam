@@ -116,6 +116,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
               .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
@@ -142,6 +143,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
               .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
@@ -167,6 +169,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
               .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
@@ -192,6 +195,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
               .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
               .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(after3Seconds));
       pipeline.run().waitUntilFinish();
