@@ -33,9 +33,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * key instead of only a name+namespace. This is useful when defining system defined metrics with a
  * specific urn via a {@code CounterContainer}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MonitoringInfoMetricName extends MetricName {
 
   private String urn;
@@ -49,7 +46,10 @@ public class MonitoringInfoMetricName extends MetricName {
     this.urn = urn;
     for (Entry<String, String> entry : labels.entrySet()) {
       checkArgument(entry.getKey() != null, "MonitoringInfoMetricName keys must be non-null");
-      checkArgument(entry.getValue() != null, "MonitoringInfoMetricName values must be non-null");
+      checkArgument(
+          entry.getValue() != null,
+          "MonitoringInfoMetricName values must be non-null, but was null for key `%s`",
+          entry.getKey());
       this.labels.put(entry.getKey(), entry.getValue());
     }
   }

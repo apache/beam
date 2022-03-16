@@ -85,6 +85,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -466,7 +467,8 @@ public class GcsUtil {
         MonitoringInfoConstants.Labels.RESOURCE,
         GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
     baseLabels.put(
-        MonitoringInfoConstants.Labels.GCS_PROJECT_ID, googleCloudStorageOptions.getProjectId());
+        MonitoringInfoConstants.Labels.GCS_PROJECT_ID,
+        MoreObjects.firstNonNull(googleCloudStorageOptions.getProjectId(), ""));
     baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
 
     ServiceCallMetric serviceCallMetric =
@@ -580,7 +582,8 @@ public class GcsUtil {
         MonitoringInfoConstants.Labels.RESOURCE,
         GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
     baseLabels.put(
-        MonitoringInfoConstants.Labels.GCS_PROJECT_ID, googleCloudStorageOptions.getProjectId());
+        MonitoringInfoConstants.Labels.GCS_PROJECT_ID,
+        MoreObjects.firstNonNull(googleCloudStorageOptions.getProjectId(), ""));
     baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
 
     ServiceCallMetric serviceCallMetric =
