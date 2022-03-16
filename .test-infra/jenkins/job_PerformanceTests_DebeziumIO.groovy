@@ -40,15 +40,9 @@ def loadTestConfigurations = { mode, datasetName ->
         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : "python_dataflow_${mode}_debezium_IO",
+        metrics_table        : "python_${mode}_debezium_IO",
         influx_measurement   : "python_${mode}_debezium_IO",
         iterations           : 1,
-        postgresUsername     : 'postgres',
-        postgresPassword     : 'uuinkks',
-        postgresDatabaseName : 'postgres',
-        postgresServerName   : "LOAD_BALANCER_IP",
-        postgresSsl          : false,
-        postgresPort         : '5432',
         num_workers          : 5,
         autoscaling_algorithm: 'NONE'
       ]
@@ -76,13 +70,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Debezium_IO_batch', 'H 16 * * *', 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  String namespace = common.getKubernetesNamespace("load-tests-python-dataflow-debezium-IO")
-  String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
-  Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
-
-  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml"))
-  String postgresHostName = "LOAD_BALANCER_IP"
-  k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
 
@@ -100,13 +87,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Debezium_IO_streaming', 'H 16 * * 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  String namespace = common.getKubernetesNamespace("load-tests-python-dataflow-debezium-IO")
-  String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
-  Kubernetes k8s = Kubernetes.create(delegate, kubeconfig, namespace)
-
-  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml"))
-  String postgresHostName = "LOAD_BALANCER_IP"
-  k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }
 
