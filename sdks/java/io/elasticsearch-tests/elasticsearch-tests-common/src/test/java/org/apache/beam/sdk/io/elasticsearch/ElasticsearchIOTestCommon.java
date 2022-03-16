@@ -333,9 +333,6 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
-    //    List<String> input =
-    //        ElasticsearchIOTestUtils.createDocuments(
-    //            numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
 
     expectedException.expect(isA(PipelineExecutionException.class));
     expectedException.expectMessage(
@@ -357,13 +354,6 @@ class ElasticsearchIOTestCommon implements Serializable {
           }
         });
 
-    // write bundles size is the runner decision, we cannot force a bundle size,
-    // so we test the Writer as a DoFn outside of a runner.
-    //    try (DoFnTester<KV<Integer, Iterable<Document>>, Document> fnTester =
-    //        DoFnTester.of(new BulkIOFn(write.getBulkIO()))) {
-    //      // inserts into Elasticsearch
-    //      fnTester.processBundle(serializeDocs(write, input));
-    //    }
     List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
             numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
