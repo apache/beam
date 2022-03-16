@@ -29,6 +29,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSetMetadata;
@@ -62,6 +63,7 @@ public class QueryChangeStreamActionTest {
   private ChangeStreamDao changeStreamDao;
   private PartitionMetadataDao partitionMetadataDao;
   private PartitionMetadata partition;
+  private ChangeStreamMetrics metrics;
   private TimestampRange restriction;
   private RestrictionTracker<TimestampRange, Timestamp> restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
@@ -83,6 +85,7 @@ public class QueryChangeStreamActionTest {
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
+    metrics = mock(ChangeStreamMetrics.class);
 
     action =
         new QueryChangeStreamAction(
@@ -92,7 +95,8 @@ public class QueryChangeStreamActionTest {
             partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
-            childPartitionsRecordAction);
+            childPartitionsRecordAction,
+            metrics);
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
