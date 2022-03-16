@@ -68,7 +68,8 @@
 //   export JOB_NAME="kafka-taxi-`date +%Y%m%d-%H%M%S`"
 //   export BOOTSTRAP_SERVERS="123.45.67.89:1234"
 //   export EXPANSION_ADDR="localhost:1234"
-//   go run ./sdks/go/examples/kafka/taxi.go \
+//   cd ./sdks/go
+//   go run ./examples/kafka/taxi.go \
 //     --runner=DataflowRunner \
 //     --temp_location=$TEMP_LOCATION \
 //     --staging_location=$STAGING_LOCATION \

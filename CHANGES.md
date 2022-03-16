@@ -59,6 +59,13 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* `amazon-web-services2` has reached feature parity and is finally recommended over the earlier `amazon-web-services` and `kinesis` modules (Java). These will be deprecated in one of the next releases ([BEAM-13174](https://issues.apache.org/jira/browse/BEAM-13174)).
+  * Long outstanding write support for `Kinesis` was added ([BEAM-13175](https://issues.apache.org/jira/browse/BEAM-13175)).
+  * Configuration was simplified and made consistent across all IOs, including the usage of `AwsOptions` ([BEAM-13563](https://issues.apache.org/jira/browse/BEAM-13563), [BEAM-13663](https://issues.apache.org/jira/browse/BEAM-13663), [BEAM-13587](https://issues.apache.org/jira/browse/BEAM-13587)).
+  * Additionally, there's a long list of recent improvements and fixes to
+    `S3` Filesystem ([BEAM-13245](https://issues.apache.org/jira/browse/BEAM-13245), [BEAM-13246](https://issues.apache.org/jira/browse/BEAM-13246), [BEAM-13441](https://issues.apache.org/jira/browse/BEAM-13441), [BEAM-13445](https://issues.apache.org/jira/browse/BEAM-13445), [BEAM-14011](https://issues.apache.org/jira/browse/BEAM-14011)),
+    `DynamoDB` IO ([BEAM-13209](https://issues.apache.org/jira/browse/BEAM-13009), [BEAM-13209](https://issues.apache.org/jira/browse/BEAM-13209)),
+    `SQS` IO ([BEAM-13631](https://issues.apache.org/jira/browse/BEAM-13631), [BEAM-13510](https://issues.apache.org/jira/browse/BEAM-13510)) and others.
 
 ## New Features / Improvements
 
@@ -79,13 +86,13 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fix S3 copy for large objects (Java) ([BEAM-14011](https://issues.apache.org/jira/browse/BEAM-14011))
 
 ## Known Issues
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.37.0] - Unreleased, Branch Cut
+# [2.37.0] - 2022-03-04
 
 ## Highlights
 * Java 17 support for Dataflow ([BEAM-12240](https://issues.apache.org/jira/browse/BEAM-12240)).

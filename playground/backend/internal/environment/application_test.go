@@ -33,7 +33,7 @@ func TestNetworkEnvs_Address(t *testing.T) {
 		want   string
 	}{
 		{
-			name:   "ip and port concatenated through ':'",
+			name:   "Ip and port concatenated through ':'",
 			fields: fields{ip: defaultIp, port: defaultPort},
 			want:   fmt.Sprintf("%s:%d", defaultIp, defaultPort),
 		},
@@ -63,7 +63,7 @@ func TestCacheEnvs_CacheType(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "all success",
+			name: "Get cache type",
 			fields: fields{
 				cacheType:         "MOCK_CACHE_TYPE",
 				address:           "MOCK_ADDRESS",
@@ -98,7 +98,7 @@ func TestCacheEnvs_Address(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "all success",
+			name: "Get cache address",
 			fields: fields{
 				cacheType:         "MOCK_CACHE_TYPE",
 				address:           "MOCK_ADDRESS",
@@ -133,7 +133,7 @@ func TestCacheEnvs_KeyExpirationTime(t *testing.T) {
 		want   time.Duration
 	}{
 		{
-			name: "all success",
+			name: "Get expiration time for cache keys",
 			fields: fields{
 				cacheType:         "MOCK_CACHE_TYPE",
 				address:           "MOCK_ADDRESS",
@@ -168,7 +168,7 @@ func TestApplicationEnvs_WorkingDir(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "all success",
+			name: "Get working directory",
 			fields: fields{
 				workingDir:             "MOCK_WORKING_DIR",
 				cacheEnvs:              &CacheEnvs{},
@@ -203,7 +203,7 @@ func TestApplicationEnvs_CacheEnvs(t *testing.T) {
 		want   *CacheEnvs
 	}{
 		{
-			name: "all success",
+			name: "Get cache environment variables",
 			fields: fields{
 				workingDir:             "MOCK_WORKING_DIR",
 				cacheEnvs:              &CacheEnvs{},
@@ -238,7 +238,7 @@ func TestApplicationEnvs_PipelineExecuteTimeout(t *testing.T) {
 		want   time.Duration
 	}{
 		{
-			name: "all success",
+			name: "Get pipeline execute timeout",
 			fields: fields{
 				workingDir:             "MOCK_WORKING_DIR",
 				cacheEnvs:              &CacheEnvs{},
@@ -277,7 +277,7 @@ func TestApplicationEnvs_LaunchSite(t *testing.T) {
 		{
 			// Test case with calling LaunchSite method.
 			// As a result, want to receive an expected launch site.
-			name: "get launch site",
+			name: "Get launch site",
 			fields: fields{
 				workingDir:             "",
 				cacheEnvs:              &CacheEnvs{},
@@ -318,7 +318,7 @@ func TestApplicationEnvs_GoogleProjectId(t *testing.T) {
 		{
 			// Test case with calling GoogleProjectId method.
 			// As a result, want to receive an expected project id.
-			name: "get google project id",
+			name: "Get google project id",
 			fields: fields{
 				workingDir:             "",
 				cacheEnvs:              &CacheEnvs{},
@@ -358,7 +358,7 @@ func TestApplicationEnvs_PipelinesFolder(t *testing.T) {
 		{
 			// Test case with calling PipelinesFolder method.
 			// As a result, want to receive an expected name of pipelines folder.
-			name: "get google project id",
+			name: "Get name of pipeline folder",
 			fields: fields{
 				workingDir:             "",
 				cacheEnvs:              &CacheEnvs{},
@@ -378,6 +378,42 @@ func TestApplicationEnvs_PipelinesFolder(t *testing.T) {
 			}
 			if got := ae.PipelinesFolder(); got != tt.want {
 				t.Errorf("PipelinesFolder() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNetworkEnvs_Protocol(t *testing.T) {
+	protocol := "HTTP"
+	type fields struct {
+		ip       string
+		port     int
+		protocol string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "Get server protocol",
+			fields: fields{
+				ip:       "",
+				port:     0,
+				protocol: protocol,
+			},
+			want: protocol,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serverEnvs := &NetworkEnvs{
+				ip:       tt.fields.ip,
+				port:     tt.fields.port,
+				protocol: tt.fields.protocol,
+			}
+			if got := serverEnvs.Protocol(); got != tt.want {
+				t.Errorf("Protocol() = %v, want %v", got, tt.want)
 			}
 		})
 	}

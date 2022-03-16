@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -178,7 +179,7 @@ func TestInvoke(t *testing.T) {
 				test.ExpectedTime = ts
 			}
 
-			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
 			if err != nil {
 				t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 			}
@@ -192,6 +193,53 @@ func TestInvoke(t *testing.T) {
 				t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
 			}
 		})
+	}
+}
+
+func TestRegisterCallback(t *testing.T) {
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+	testVar := 0
+	bf.RegisterCallback(500*time.Minute, func() error {
+		testVar += 5
+		return nil
+	})
+	bf.RegisterCallback(2*time.Minute, func() error {
+		testVar = 25
+		return nil
+	})
+	callbackErr := errors.New("Callback error")
+	bf.RegisterCallback(2*time.Minute, func() error {
+		return callbackErr
+	})
+
+	// We can't do exact equality since this relies on real time, we'll give it a broad range
+	if bf.lastValidCallback.Before(time.Now().Add(400*time.Minute)) || bf.lastValidCallback.After(time.Now().Add(600*time.Minute)) {
+		t.Errorf("RegisterCallback() lastValidCallback set to %v, want about 500 minutes", bf.lastValidCallback)
+	}
+	if got, want := len(bf.callbacks), 3; got != want {
+		t.Fatalf("Callbacks in bundleFinalizer does not match number of calls to RegisterCallback(), got %v callbacks, want %v", got, want)
+	}
+
+	callbackIdx := 0
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned unexpected error: %v", callbackIdx, err)
+	}
+	if got, want := testVar, 5; got != want {
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
+	}
+	callbackIdx = 1
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want nil", callbackIdx, err)
+	}
+	if got, want := testVar, 25; got != want {
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
+	}
+	callbackIdx = 2
+	if err := bf.callbacks[2].callback(); err != callbackErr {
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want %v", callbackIdx, err, callbackErr)
 	}
 }
 
@@ -314,7 +362,7 @@ func BenchmarkInvoke(b *testing.B) {
 		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
 		b.Run(fmt.Sprintf("SingleInvoker_%s", test.Name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -323,7 +371,7 @@ func BenchmarkInvoke(b *testing.B) {
 		b.Run(fmt.Sprintf("CachedInvoker_%s", test.Name), func(b *testing.B) {
 			inv := newInvoker(fn)
 			for i := 0; i < b.N; i++ {
-				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, test.Args...)
+				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -416,7 +464,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -427,7 +475,7 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -453,7 +501,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -464,7 +512,7 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
