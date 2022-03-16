@@ -83,10 +83,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -2271,16 +2271,18 @@ public class ElasticsearchIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws IOException, InterruptedException {
-        if (c.element() == null || c.element().getValue() == null) {
+      public void processElement(
+          @Element KV<Integer, Iterable<Document>> elem, MultiOutputReceiver multiOutputReceiver)
+          throws IOException, InterruptedException {
+        if (elem == null || elem.getValue() == null) {
           return;
         }
 
-        for (Document doc : flushBatch(Lists.newArrayList(c.element().getValue()))) {
+        for (Document doc : flushBatch(Lists.newArrayList(elem.getValue()))) {
           if (doc.getHasError()) {
-            c.output(Write.FAILED_WRITES, doc);
+            multiOutputReceiver.get(Write.FAILED_WRITES).output(doc);
           } else {
-            c.output(Write.SUCCESSFUL_WRITES, doc);
+            multiOutputReceiver.get(Write.SUCCESSFUL_WRITES).output(doc);
           }
         }
       }
@@ -2291,11 +2293,6 @@ public class ElasticsearchIO {
         if (docs.isEmpty()) {
           return Collections.emptyList();
         }
-
-        //        LOG.info(
-        //            "ElasticsearchIO batch size: {}, batch size bytes: {}",
-        //            batch.size(),
-        //            currentBatchSizeBytes);
 
         StringBuilder bulkRequest = new StringBuilder();
 
