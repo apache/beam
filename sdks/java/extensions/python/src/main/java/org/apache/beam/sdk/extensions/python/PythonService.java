@@ -83,10 +83,13 @@ public class PythonService {
     }
     String pythonExecutable = lastNonEmptyLine;
     {
-      new ProcessBuilder(pythonExecutable, "-c", "print('yyyyy'); import apache_beam; print(apache_beam)")
-              .redirectError(ProcessBuilder.Redirect.INHERIT)
-              .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-              .start();
+      new ProcessBuilder(
+              pythonExecutable,
+              "-c",
+              "print('yyyyy'); import apache_beam; print(apache_beam); raise TypeError('zzzzz')")
+          .redirectError(ProcessBuilder.Redirect.INHERIT)
+          .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+          .start();
     }
     List<String> command = new ArrayList<>();
     command.add(pythonExecutable);
