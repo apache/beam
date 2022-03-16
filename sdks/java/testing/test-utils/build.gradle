@@ -52,3 +52,14 @@ task verifyJavaVersion(type: Test) {
     println 'Java verified'
   }
 }
+
+task verifyJavaVersion17(type: Test) {
+  filter {
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8'
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava17'
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs17'
+  }
+  doLast {
+    println 'Java verified'
+  }
+}

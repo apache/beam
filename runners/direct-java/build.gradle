@@ -54,10 +54,12 @@ description = "Apache Beam :: Runners :: Direct Java"
 evaluationDependsOn(":runners:core-construction-java")
 evaluationDependsOn(":runners:core-java")
 evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":examples:java")
 
 configurations {
   needsRunner
   validatesRunner
+  examplesJavaIntegrationTest
 }
 
 dependencies {
@@ -67,13 +69,13 @@ dependencies {
     implementation project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_36_0
+  shadow library.java.vendored_grpc_1_43_2
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
-  compileOnly library.java.hamcrest
+  provided library.java.hamcrest
   permitUnusedDeclared library.java.hamcrest
-  compileOnly library.java.junit
+  provided library.java.junit
   permitUnusedDeclared library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":runners:core-java", configuration: "testRuntimeMigration")
@@ -88,9 +90,12 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_36_0
+  permitUnusedDeclared library.java.vendored_grpc_1_43_2
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
+  examplesJavaIntegrationTest project(project.path)
+  examplesJavaIntegrationTest project(":examples:java")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
 // windows handles quotes differently from linux,
@@ -174,6 +179,7 @@ def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 // Generates :runners:direct-java:runQuickstartJavaDirect
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
@@ -185,3 +191,30 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
+
+task examplesIntegrationTest(type: Test) {
+  description = "Runs examples tests on DirectRunner"
+
+  testLogging.showStandardStreams = true
+
+  String[] pipelineOptions = [
+          "--runner=DirectRunner",
+          "--runnerDeterminedSharding=false",
+          "--tempLocation=${tempLocation}",
+          "--tempRoot=${tempLocation}",
+          "--project=${gcpProject}",
+  ]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit {
+    filter{
+      // TODO (BEAM-14019) Fix integration Tests to run with DirectRunner: Timeout error
+      excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
+    }
+  }
+}

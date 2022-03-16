@@ -138,11 +138,11 @@ REQUIRED_PACKAGES = [
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'cloudpickle>=2.0.0,<3',
-    'fastavro>=0.21.4,<2',
+    'fastavro>=0.23.6,<2',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
-    'numpy>=1.14.3,<1.22.0',
+    'numpy>=1.14.3,<1.23.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
@@ -175,7 +175,8 @@ REQUIRED_TEST_PACKAGES = [
     'pytest-timeout>=1.3.3,<2',
     'sqlalchemy>=1.3,<2.0',
     'psycopg2-binary>=2.8.5,<3.0.0',
-    'testcontainers>=3.0.3,<4.0.0',
+    'testcontainers[mysql]>=3.0.3,<4.0.0',
+    'cryptography>=36.0.0',
 ]
 
 GCP_REQUIREMENTS = [
@@ -205,6 +206,7 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
+    'google-cloud-dataproc>=3.0.0,<3.2.0',
     'ipython>=7,<8',
     'ipykernel>=5.2.0,<6',
     'ipywidgets>=7.6.5,<8',
@@ -219,7 +221,6 @@ INTERACTIVE_BEAM_TEST = [
     'nbformat>=5.0.5,<6',
     'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
-    'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
     'chromedriver-binary>=96,<97',
     # use a fixed major version of PIL for different python versions
@@ -254,7 +255,7 @@ def generate_protos_first(original_cmd):
 
 python_requires = '>=3.6'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 9:
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -315,7 +316,7 @@ if __name__ == '__main__':
           'interactive_test': INTERACTIVE_BEAM_TEST,
           'aws': AWS_REQUIREMENTS,
           'azure': AZURE_REQUIREMENTS,
-          'dataframe': ['pandas>=1.0,<1.4']
+          'dataframe': ['pandas>=1.0,<1.5']
       },
       zip_safe=False,
       # PyPI package information.
@@ -326,6 +327,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
+          'Programming Language :: Python :: 3.9',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

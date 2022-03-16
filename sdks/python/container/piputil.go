@@ -51,7 +51,7 @@ func pipInstallRequirements(files []string, dir, name string) error {
 			// used without following their dependencies.
 			args := []string{"install", "-r", filepath.Join(dir, name), "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
 			if err := execx.Execute(pip, args...); err != nil {
-				return err
+		        fmt.Println("Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
 			}
 			// The second install round opens up the search for packages on PyPI and
 			// also installs dependencies. The key is that if all the packages have

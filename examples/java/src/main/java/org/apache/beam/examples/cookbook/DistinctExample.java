@@ -24,6 +24,7 @@ package org.apache.beam.examples.cookbook;
 //     duplicate lines across all the files.
 //   multifile: false
 //   pipeline_options: --output output.txt
+//   context_line: 65
 //   categories:
 //     - Filtering
 //     - Options
@@ -97,6 +98,10 @@ public class DistinctExample {
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    runDistinctExample(options);
+  }
+
+  static void runDistinctExample(Options options) {
     Pipeline p = Pipeline.create(options);
 
     p.apply("ReadLines", TextIO.read().from(options.getInput()))

@@ -22,9 +22,25 @@ import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const kThemeMode = 'theme_mode';
 
 class ThemeProvider extends ChangeNotifier {
+  late SharedPreferences _preferences;
   ThemeMode themeMode = ThemeMode.light;
+
+  init() {
+    _setPreferences();
+  }
+
+  _setPreferences() async {
+    _preferences = await SharedPreferences.getInstance();
+    themeMode = _preferences.getString(kThemeMode) == ThemeMode.dark.toString()
+        ? ThemeMode.dark
+        : ThemeMode.light;
+    notifyListeners();
+  }
 
   bool get isDarkMode {
     return themeMode == ThemeMode.dark;
@@ -32,6 +48,7 @@ class ThemeProvider extends ChangeNotifier {
 
   void toggleTheme() {
     themeMode = themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _preferences.setString(kThemeMode, themeMode.toString());
     notifyListeners();
   }
 }
@@ -70,6 +87,17 @@ TextButtonThemeData createTextButtonTheme(Color textColor) {
   );
 }
 
+OutlinedButtonThemeData createOutlineButtonTheme(Color textColor) {
+  return OutlinedButtonThemeData(
+    style: OutlinedButton.styleFrom(
+      primary: textColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(kSmBorderRadius)),
+      ),
+    ),
+  );
+}
+
 ElevatedButtonThemeData createElevatedButtonTheme(Color primaryColor) {
   return ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(primary: primaryColor),
@@ -95,9 +123,12 @@ AppBarTheme createAppBarTheme(Color backgroundColor) {
 }
 
 TabBarTheme createTabBarTheme(Color textColor, Color indicatorColor) {
+  const labelStyle = TextStyle(fontWeight: kMediumWeight);
   return TabBarTheme(
     unselectedLabelColor: textColor,
     labelColor: textColor,
+    labelStyle: labelStyle,
+    unselectedLabelStyle: labelStyle,
     indicator: UnderlineTabIndicator(
       borderSide: BorderSide(width: 2.0, color: indicatorColor),
     ),
@@ -122,6 +153,7 @@ final kLightTheme = ThemeData(
   textTheme: createTextTheme(kLightText),
   popupMenuTheme: createPopupMenuTheme(),
   textButtonTheme: createTextButtonTheme(kLightText),
+  outlinedButtonTheme: createOutlineButtonTheme(kLightText),
   elevatedButtonTheme: createElevatedButtonTheme(kLightPrimary),
   tabBarTheme: createTabBarTheme(kLightText, kLightPrimary),
   dialogTheme: createDialogTheme(kLightText),
@@ -135,6 +167,7 @@ final kDarkTheme = ThemeData(
   textTheme: createTextTheme(kDarkText),
   popupMenuTheme: createPopupMenuTheme(),
   textButtonTheme: createTextButtonTheme(kDarkText),
+  outlinedButtonTheme: createOutlineButtonTheme(kDarkText),
   elevatedButtonTheme: createElevatedButtonTheme(kDarkPrimary),
   tabBarTheme: createTabBarTheme(kDarkText, kDarkPrimary),
   dialogTheme: createDialogTheme(kDarkText),

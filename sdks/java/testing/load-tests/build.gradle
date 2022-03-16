@@ -110,7 +110,7 @@ def getLoadTestArgs = {
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
       loadTestArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
-      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerImageName
+      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
       loadTestArgsList.add("--sdkContainerImage=${sdkContainerImage}")
     } else {
       def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
@@ -128,8 +128,8 @@ task run(type: JavaExec) {
   def loadTestArgsList = getLoadTestArgs()
   if (isDataflowRunner) {
     if (isDataflowRunnerV2){
-      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
-      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
+      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     } else {
       dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }

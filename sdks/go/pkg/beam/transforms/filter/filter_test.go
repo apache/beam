@@ -19,7 +19,7 @@ package filter_test
 //   name: FilterTest
 //   description: Unit-test for the Filter example.
 //   multifile: false
-//   pipeline_options:
+//   context_line: 34
 //   categories:
 //     - Filtering
 

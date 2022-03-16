@@ -42,6 +42,30 @@ from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
+# Protect against environments where apitools library is not available.
+try:
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpNotFoundError
+except ImportError:
+  _http_error_imported = False
+  HttpError = ValueError
+  HttpNotFoundError = ValueError
+else:
+  _http_error_imported = True
+
+
+class MockBuckets():
+  def Get(self, path):
+    if path == 'test-bucket-not-found':
+      raise HttpNotFoundError({'status': 404}, {}, '')
+    elif path == 'test-bucket-not-verified':
+      raise HttpError({'status': 400}, {}, '')
+
+
+class MockStorageClient():
+  def __init__(self, buckets=MockBuckets()):
+    self.buckets = buckets
+
 
 class Record(NamedTuple):
   order_id: int
@@ -325,6 +349,63 @@ class GeneralUtilTest(unittest.TestCase):
     _ = utils.create_var_in_main(name, value)
     main_session = importlib.import_module('__main__')
     self.assertIs(getattr(main_session, name, None), value)
+
+
+@patch(
+    'apache_beam.io.gcp.internal.clients.storage.StorageV1',
+    return_value=MockStorageClient())
+@unittest.skipIf(not _http_error_imported, 'http errors are not imported.')
+class GCSUtilsTest(unittest.TestCase):
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-found')
+  def test_assert_bucket_exists_not_found(self, mock_response, mock_client):
+    with self.assertRaises(ValueError):
+      utils.assert_bucket_exists('')
+
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-verified')
+  def test_assert_bucket_exists_not_verified(self, mock_response, mock_client):
+    from apache_beam.runners.interactive.utils import _LOGGER
+    with self.assertLogs(_LOGGER, level='WARNING'):
+      utils.assert_bucket_exists('')
+
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-found')
+  def test_assert_bucket_exists_found(self, mock_response, mock_client):
+    utils.assert_bucket_exists('')
+
+
+class BidictTest(unittest.TestCase):
+  def test_inverse_set_correctly(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    self.assertEqual(bd.inverse['bar'], 'foo')
+    bd['foo'] = 'baz'
+    self.assertEqual(bd.inverse['baz'], 'foo')
+
+  def test_on_delete_remove_pair(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    del bd['foo']
+    self.assertEqual(bd, {})
+    self.assertEqual(bd.inverse, {})
+
+  def test_clear_bidirectionally(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    bd.clear()
+    self.assertEqual(bd, {})
+    self.assertEqual(bd.inverse, {})
+
+  def test_on_pop_pair(self):
+    bd = utils.bidict()
+    bd['foo'] = 'bar'
+    value, inverse_value = bd.pop('foo')
+    self.assertEqual(value, 'bar')
+    self.assertEqual(inverse_value, 'foo')
 
 
 if __name__ == '__main__':

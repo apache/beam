@@ -23,7 +23,16 @@ import 'package:playground/modules/output/components/output_header/output_placem
 import 'output_tabs.dart';
 
 class OutputHeader extends StatelessWidget {
-  const OutputHeader({Key? key}) : super(key: key);
+  final TabController tabController;
+  final bool showOutputPlacements;
+  final bool showGraph;
+
+  const OutputHeader({
+    Key? key,
+    required this.tabController,
+    this.showOutputPlacements = true,
+    this.showGraph = true,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +45,9 @@ class OutputHeader extends StatelessWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            OutputTabs(),
-            OutputPlacements(),
+          children: [
+            OutputTabs(tabController: tabController, showGraph: showGraph),
+            showOutputPlacements ? const OutputPlacements() : const SizedBox(),
           ],
         ),
       ),

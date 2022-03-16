@@ -16,6 +16,7 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
@@ -42,7 +43,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 		{
 			// Test case with calling newJavaLifeCycle method with correct pipelineId and workingDir.
 			// As a result, want to receive an expected java life cycle.
-			name: "newJavaLifeCycle",
+			name: "NewJavaLifeCycle",
 			args: args{
 				pipelineId:      pipelineId,
 				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
@@ -50,14 +51,15 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Paths: LifeCyclePaths{
-					SourceFileName:                   pipelineId.String() + javaSourceFileExtension,
+					SourceFileName:                   pipelineId.String() + JavaSourceFileExtension,
 					AbsoluteSourceFileFolderPath:     srcFileFolder,
-					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+javaSourceFileExtension),
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+JavaSourceFileExtension),
 					ExecutableFileName:               pipelineId.String() + javaCompiledFileExtension,
 					AbsoluteExecutableFileFolderPath: binFileFolder,
 					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+javaCompiledFileExtension),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 					ExecutableName:                   executableName,
 				},
 			},
@@ -85,8 +87,7 @@ func Test_executableName(t *testing.T) {
 	defer os.RemoveAll(workDir)
 
 	type args struct {
-		pipelineId      uuid.UUID
-		pipelinesFolder string
+		executableFolder string
 	}
 	tests := []struct {
 		name    string
@@ -96,9 +97,20 @@ func Test_executableName(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with calling sourceFileName method with empty directory.
+			// As a result, want to receive an error.
+			name:    "Directory is empty",
+			prepare: func() {},
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
 			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
 			// As a result, want to receive a name that should be executed
-			name: "get executable name",
+			name: "Get executable name",
 			prepare: func() {
 				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
 				filePath := filepath.Join(compiled, "temp.class")
@@ -108,19 +120,18 @@ func Test_executableName(t *testing.T) {
 				}
 			},
 			args: args{
-				pipelineId:      pipelineId,
-				pipelinesFolder: preparedPipelinesFolder,
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
 			want:    "temp",
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// Test case with calling sourceFileName method with wrong directory.
 			// As a result, want to receive an error.
-			name:    "directory doesn't exist",
+			name:    "Directory doesn't exist",
 			prepare: func() {},
 			args: args{
-				pipelineId: uuid.New(),
+				executableFolder: filepath.Join(workDir, pipelineId.String()),
 			},
 			want:    "",
 			wantErr: true,
@@ -129,7 +140,7 @@ func Test_executableName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := executableName(tt.args.pipelineId, tt.args.pipelinesFolder)
+			got, err := executableName(tt.args.executableFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return

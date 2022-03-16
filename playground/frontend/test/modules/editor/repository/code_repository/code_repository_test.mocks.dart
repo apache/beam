@@ -64,6 +64,11 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
                   Future<_i2.RunCodeResponse>.value(_FakeRunCodeResponse_0()))
           as _i6.Future<_i2.RunCodeResponse>);
   @override
+  _i6.Future<void> cancelExecution(String? pipelineUuid) =>
+      (super.noSuchMethod(Invocation.method(#cancelExecution, [pipelineUuid]),
+          returnValue: Future<void>.value(),
+          returnValueForMissingStub: Future<void>.value()) as _i6.Future<void>);
+  @override
   _i6.Future<_i3.CheckStatusResponse> checkStatus(
           String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
       (super.noSuchMethod(
@@ -100,6 +105,31 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
           String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
       (super.noSuchMethod(
               Invocation.method(#getRunErrorOutput, [pipelineUuid, request]),
+              returnValue:
+                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+          as _i6.Future<_i4.OutputResponse>);
+  @override
+  _i6.Future<_i4.OutputResponse> getValidationErrorOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+          Invocation.method(#getValidationErrorOutput, [pipelineUuid, request]),
+          returnValue:
+              Future<_i4.OutputResponse>.value(_FakeOutputResponse_2())) as _i6
+          .Future<_i4.OutputResponse>);
+  @override
+  _i6.Future<_i4.OutputResponse> getPreparationErrorOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(
+                  #getPreparationErrorOutput, [pipelineUuid, request]),
+              returnValue:
+                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+          as _i6.Future<_i4.OutputResponse>);
+  @override
+  _i6.Future<_i4.OutputResponse> getGraphOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(#getGraphOutput, [pipelineUuid, request]),
               returnValue:
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);

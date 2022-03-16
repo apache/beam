@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
@@ -534,6 +535,52 @@ public class AutoValueSchemaTest {
     SimpleAutoValueWithStaticFactory value =
         registry.getFromRowFunction(SimpleAutoValueWithStaticFactory.class).apply(row);
     verifyAutoValue(value);
+  }
+
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  abstract static class SchemaFieldNumberSimpleClass {
+    @SchemaFieldNumber("1")
+    abstract String getStr();
+
+    @SchemaFieldNumber("0")
+    abstract Long getLng();
+  }
+
+  private static final Schema FIELD_NUMBER_SCHEMA =
+      Schema.of(Field.of("lng", FieldType.INT64), Field.of("str", FieldType.STRING));
+
+  @Test
+  public void testSchema_SchemaFieldNumber() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(SchemaFieldNumberSimpleClass.class);
+    SchemaTestUtils.assertSchemaEquivalent(FIELD_NUMBER_SCHEMA, schema);
+  }
+
+  @Test
+  public void testFromRow_SchemaFieldNumber() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        Row.withSchema(FIELD_NUMBER_SCHEMA)
+            .withFieldValue("lng", 42L)
+            .withFieldValue("str", "value!")
+            .build();
+    SchemaFieldNumberSimpleClass value =
+        registry.getFromRowFunction(SchemaFieldNumberSimpleClass.class).apply(row);
+    assertEquals("value!", value.getStr());
+    assertEquals(42L, (long) value.getLng());
+  }
+
+  @Test
+  public void testToRow_SchemaFieldNumber() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    AutoValue_AutoValueSchemaTest_SchemaFieldNumberSimpleClass value =
+        new AutoValue_AutoValueSchemaTest_SchemaFieldNumberSimpleClass("another value!", 42L);
+    Row row = registry.getToRowFunction(SchemaFieldNumberSimpleClass.class).apply(value);
+    assertEquals("another value!", row.getValue("str"));
+    assertEquals((String) row.getValue(1), (String) row.getValue("str"));
+    assertEquals(42L, (long) row.getValue("lng"));
+    assertEquals((long) row.getValue(0), (long) row.getValue("lng"));
   }
 
   @AutoValue

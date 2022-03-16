@@ -32,21 +32,12 @@ The upgrading of the vendored dependencies should be performed in two steps:
 The [linkage tool](https://lists.apache.org/thread.html/eb5d95b9a33d7e32dc9bcd0f7d48ba8711d42bd7ed03b9cf0f1103f1%40%3Cdev.beam.apache.org%3E)
 is useful for the vendored dependency upgrades. It reports the linkage errors across multiple Apache Beam artifact ids.
 
-For example, when we upgrade the version of gRPC to 1.36.0 and the version of the vendored gRPC is 0.1-SNAPSHOT,
+For example, when we upgrade the version of gRPC to 1.43.2 and the version of the vendored gRPC is 0.1-SNAPSHOT,
 we could run the linkage tool as following:
 
 ```
-# The check task depends on shadowJar task
-$ ./gradlew :vendor:grpc-1_36_0:check
-$ find vendor/grpc-1_36_0/build -name '*.jar'
-vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar
-$ mvn install:install-file \
-      -Dpackaging=jar \
-      -DgroupId=org.apache.beam \
-      -DartifactId=beam-vendor-grpc-1_36_0 \
-      -Dversion=0.1 \
-      -Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar
-$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_36_0:0.1 :checkJavaLinkage
+$ ./gradlew -p vendor/grpc-1_43_2 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_43_2:0.1-SNAPSHOT :checkJavaLinkage
 ```
 
 ### Known Linkage Errors in the Vendored gRPC Dependencies
@@ -90,7 +81,8 @@ Example PRs:
 
 Steps:
 
-1. Generate new artifact files with `publishMavenJavaPublicationToMavenLocal`, e.g.
+1. Generate new artifact files with `publishMavenJavaPublicationToMavenLocal` and
+   copy to a folder in Beam (e.g. `tempLib`):
 
 ```
 ./gradlew -p vendor/grpc-1_43_2 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
@@ -100,7 +92,7 @@ cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_43_2/ \
       $BEAMDIR/tempLib/org/apache/beam/beam-vendor-grpc-1_43_2
 ```
 
-2. Add whatever folder (here I use `tempLib`) to the expected project repositories, e.g.
+2. Add the folder to the expected project repositories:
 
 ```
 repositories {
@@ -113,4 +105,4 @@ repositories {
 
 3. Migrate all references from the old dependency to the new dependency, including imports if needed.
 
-4. Commit any added or changed files and create a PR (can be a draft, as you will not merge this PR) to test on.
+4. Commit any added or changed files and create a PR to run unit and integration tests on. This can be a draft PR, as you will not merge this PR.

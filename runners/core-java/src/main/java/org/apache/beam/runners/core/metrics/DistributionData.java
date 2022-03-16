@@ -189,11 +189,11 @@ public class DistributionData implements Serializable {
   public boolean equals(Object object) {
     if (object instanceof DistributionData) {
       DistributionData other = (DistributionData) object;
-      return Objects.equals(max, other.max())
-          && Objects.equals(min, other.min())
-          && Objects.equals(count, other.count())
-          && Objects.equals(sum, other.sum())
-          && Objects.equals(percentiles(), other.percentiles());
+      return max == other.max()
+          && min == other.min()
+          && count == other.count()
+          && sum == other.sum()
+          && percentiles() == other.percentiles();
     }
     return false;
   }

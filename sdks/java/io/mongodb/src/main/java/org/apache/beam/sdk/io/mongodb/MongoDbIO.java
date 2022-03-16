@@ -463,7 +463,10 @@ public class MongoDbIO {
           if (spec.bucketAuto()) {
             splitKeys = buildAutoBuckets(mongoDatabase, spec);
           } else {
-            if (spec.numSplits() > 0) {
+            if (spec.numSplits() <= 0) {
+              LOG.debug("Split keys disabled, using a unique source");
+              return Collections.singletonList(this);
+            } else {
               // the user defines his desired number of splits
               // calculate the batch size
               long estimatedSizeBytes =

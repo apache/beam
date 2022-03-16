@@ -704,7 +704,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
     if isinstance(p.runner, fn_api_runner.FnApiRunner):
       res = p.runner._latest_run_result
-      counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+      counters = res.metrics().query(
+          beam.metrics.MetricsFilter().with_name('my_counter'))['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
@@ -1111,7 +1112,7 @@ class FnApiRunnerTest(unittest.TestCase):
         'Pack.*')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
-    step_names = set(m.key.step for m in counters)
+    step_names = set(m.key.step for m in counters if m.key.step)
     pipeline_options = p._options
     if assert_using_counter_names:
       if pipeline_options.view_as(StandardOptions).streaming:
@@ -1469,8 +1470,9 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
     try:
       # Test the new MonitoringInfo monitoring format.
-      self.assertEqual(2, len(res._monitoring_infos_by_stage))
-      pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+      self.assertEqual(3, len(res._monitoring_infos_by_stage))
+      pregbk_mis, postgbk_mis = [
+          mi for stage, mi in res._monitoring_infos_by_stage.items() if stage]
 
       if not has_mi_for_ptransform(pregbk_mis, 'Create/Map(decode)'):
         # The monitoring infos above are actually unordered. Swap.

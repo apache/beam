@@ -27,12 +27,12 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend"
+  default = "beam_playground-frontend"
 }
 
 variable "docker_image_tag" {
   description = "Docker Image Tag To Be Deployed"
-  default = "latest"
+  default     = "latest"
 }
 
 variable "service_name" {

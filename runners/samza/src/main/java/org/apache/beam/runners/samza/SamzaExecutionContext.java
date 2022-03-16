@@ -25,7 +25,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.UUID;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.grpc.v1p36p0.io.netty.util.internal.StringUtil;
+import org.apache.beam.vendor.grpc.v1p43p2.io.netty.util.internal.StringUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.samza.context.ApplicationContainerContext;
 import org.apache.samza.context.ApplicationContainerContextFactory;

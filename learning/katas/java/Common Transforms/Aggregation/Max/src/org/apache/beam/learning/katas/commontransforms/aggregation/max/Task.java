@@ -22,7 +22,7 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.max;
 //   name: AggregationMax
 //   description: Task from katas to compute the maximum of elements.
 //   multifile: false
-//   pipeline_options:
+//   context_line: 37
 //   categories:
 //     - Combiners
 

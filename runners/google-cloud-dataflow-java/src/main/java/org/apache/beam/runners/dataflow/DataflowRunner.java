@@ -158,8 +158,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -381,10 +381,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // Adding the Java version to the SDK name for user's and support convenience.
-    String agentJavaVer =
-        (Environments.getJavaVersion() == Environments.JavaVersion.java8)
-            ? "(JRE 8 environment)"
-            : "(JDK 11 environment)";
+    String agentJavaVer = "(JRE 8 environment)";
+    if (Environments.getJavaVersion() == Environments.JavaVersion.java17) {
+      agentJavaVer = "(JRE 17 environment)";
+    } else if (Environments.getJavaVersion() == Environments.JavaVersion.java11) {
+      agentJavaVer = "(JRE 11 environment)";
+    }
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgent =
@@ -957,6 +959,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   protected List<DataflowPackage> stageArtifacts(RunnerApi.Pipeline pipeline) {
     ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
+    Set<String> stagedNames = new HashSet<>();
     for (Map.Entry<String, RunnerApi.Environment> entry :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
       for (RunnerApi.ArtifactInformation info : entry.getValue().getDependenciesList()) {
@@ -990,6 +993,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 String.format("Error creating staged name for artifact %s", filePayload.getPath()),
                 e);
           }
+        }
+        if (stagedNames.contains(stagedName)) {
+          continue;
+        } else {
+          stagedNames.add(stagedName);
         }
         filesToStageBuilder.add(
             StagedFile.of(filePayload.getPath(), filePayload.getSha256(), stagedName));
@@ -1072,7 +1080,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
     portablePipelineProto = applySdkEnvironmentOverrides(portablePipelineProto, options);
-    LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          "Portable pipeline proto:\n{}",
+          TextFormat.printer().printToString(portablePipelineProto));
+    }
     // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
     // the options on the new job
     // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
@@ -1095,7 +1107,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .build());
     RunnerApi.Pipeline dataflowV1PipelineProto =
         PipelineTranslation.toProto(pipeline, dataflowV1Components, true);
-    LOG.debug("Dataflow v1 pipeline proto:\n{}", TextFormat.printToString(dataflowV1PipelineProto));
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          "Dataflow v1 pipeline proto:\n{}",
+          TextFormat.printer().printToString(dataflowV1PipelineProto));
+    }
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried

@@ -264,7 +264,12 @@ class FileBasedCacheManager(CacheManager):
         self._path(*labels), coder=self.load_pcoder(*labels))
 
   def cleanup(self):
-    if filesystems.FileSystems.exists(self._cache_dir):
+    if self._cache_dir.startswith('gs://'):
+      from apache_beam.io.gcp import gcsfilesystem
+      from apache_beam.options.pipeline_options import PipelineOptions
+      fs = gcsfilesystem.GCSFileSystem(PipelineOptions())
+      fs.delete([self._cache_dir + '/full/'])
+    elif filesystems.FileSystems.exists(self._cache_dir):
       filesystems.FileSystems.delete([self._cache_dir])
     self._saved_pcoders = {}
 

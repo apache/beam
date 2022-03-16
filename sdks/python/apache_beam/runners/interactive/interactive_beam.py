@@ -32,17 +32,26 @@ this module in your notebook or application code.
 # pytype: skip-file
 
 import logging
+from collections import defaultdict
 from datetime import timedelta
+from typing import DefaultDict
+from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import Optional
 
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
 from apache_beam.runners.interactive.options import interactive_options
+from apache_beam.runners.interactive.utils import bidict
 from apache_beam.runners.interactive.utils import deferred_df_to_pcollection
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import find_pcoll_name
@@ -220,6 +229,36 @@ class Options(interactive_options.InteractiveOptions):
     """
     self._display_timezone = value
 
+  @property
+  def cache_root(self):
+    """The cache directory specified by the user.
+
+    Defaults to None.
+    """
+    return self._cache_root
+
+  @cache_root.setter
+  def cache_root(self, value):
+    """Sets the cache directory.
+
+    Defaults to None.
+
+    Example of local directory usage::
+      interactive_beam.options.cache_root = '/Users/username/my/cache/dir'
+
+    Example of GCS directory usage::
+      interactive_beam.options.cache_root = 'gs://my-gcs-bucket/cache/dir'
+    """
+    _LOGGER.warning(
+        'Interactive Beam has detected a set value for the cache_root '
+        'option. Please note: existing cache managers will not have '
+        'their current cache directory changed. The option must be '
+        'set in Interactive Beam prior to the initialization of new '
+        'pipelines to take effect. To apply changes to new pipelines, '
+        'the kernel must be restarted or the pipeline creation codes '
+        'must be re-executed. ')
+    self._cache_root = value
+
 
 class Recordings():
   """An introspection interface for recordings for pipelines.
@@ -299,6 +338,104 @@ class Recordings():
     return recording_manager.record_pipeline()
 
 
+class Clusters:
+  """An interface for users to modify the pipelines that are being run by the
+  Interactive Environment.
+
+  Methods of the Interactive Beam Clusters class can be accessed via:
+    from apache_beam.runners.interactive import interactive_beam as ib
+    ib.clusters
+
+  Example of calling the Interactive Beam clusters describe method::
+    ib.clusters.describe()
+  """
+  def __init__(self) -> None:
+    """Instantiates default values for Dataproc cluster interactions.
+    """
+    self.default_cluster_name = 'interactive-beam-cluster'
+    # Bidirectional 1-1 mapping between master_urls (str) to cluster metadata
+    # (MasterURLIdentifier), where self.master_urls.inverse is a mapping from
+    # MasterURLIdentifier -> str.
+    self.master_urls: Mapping[str, MasterURLIdentifier] = bidict()
+    # self.dataproc_cluster_managers map string pipeline ids to instances of
+    # DataprocClusterManager.
+    self.dataproc_cluster_managers: Dict[str, DataprocClusterManager] = {}
+    # self.master_urls_to_pipelines map string master_urls to lists of
+    # pipelines that use the corresponding master_url.
+    self.master_urls_to_pipelines: DefaultDict[
+        str, List[beam.Pipeline]] = defaultdict(list)
+    # self.master_urls_to_dashboards map string master_urls to the
+    # corresponding Apache Flink dashboards.
+    self.master_urls_to_dashboards: Dict[str, str] = {}
+
+  def describe(self, pipeline: Optional[beam.Pipeline] = None) -> dict:
+    """Returns a description of the cluster associated to the given pipeline.
+
+    If no pipeline is given then this returns a dictionary of descriptions for
+    all pipelines, mapped to by id.
+    """
+    description = {
+        pid: dcm.describe()
+        for pid,
+        dcm in self.dataproc_cluster_managers.items()
+    }
+    if pipeline:
+      return description.get(str(id(pipeline)), None)
+    return description
+
+  def cleanup(
+      self, pipeline: Optional[beam.Pipeline] = None, force=False) -> None:
+    """Attempt to cleanup the Dataproc Cluster corresponding to the given
+    pipeline.
+
+    If the cluster is not managed by interactive_beam, a corresponding cluster
+    manager is not detected, and deletion is skipped.
+
+    For clusters managed by Interactive Beam, by default, deletion is skipped
+    if any other pipelines are using the cluster.
+
+    Optionally, the cleanup for a cluster managed by Interactive Beam can be
+    forced, by setting the 'force' parameter to True.
+
+    Example usage of default cleanup::
+      interactive_beam.clusters.cleanup(p)
+
+    Example usage of forceful cleanup::
+      interactive_beam.clusters.cleanup(p, force=True)
+    """
+    if pipeline:
+      cluster_manager = self.dataproc_cluster_managers.get(
+          str(id(pipeline)), None)
+      if cluster_manager:
+        master_url = cluster_manager.master_url
+        if len(self.master_urls_to_pipelines[master_url]) > 1:
+          if force:
+            _LOGGER.warning(
+                'Cluster is currently being used by another cluster, but '
+                'will be forcefully cleaned up.')
+            cluster_manager.cleanup()
+          else:
+            _LOGGER.warning(
+                'Cluster is currently being used, skipping deletion.')
+          self.master_urls_to_pipelines[master_url].remove(str(id(pipeline)))
+        else:
+          cluster_manager.cleanup()
+          self.master_urls.pop(master_url, None)
+          self.master_urls_to_pipelines.pop(master_url, None)
+          self.master_urls_to_dashboards.pop(master_url, None)
+          self.dataproc_cluster_managers.pop(str(id(pipeline)), None)
+    else:
+      cluster_manager_identifiers = set()
+      for cluster_manager in self.dataproc_cluster_managers.values():
+        if cluster_manager.cluster_metadata not in cluster_manager_identifiers:
+          cluster_manager_identifiers.add(cluster_manager.cluster_metadata)
+          cluster_manager.cleanup()
+      self.dataproc_cluster_managers.clear()
+      self.master_urls.clear()
+      self.master_urls_to_pipelines.clear()
+      self.master_urls_to_dashboards.clear()
+
+
 # Users can set options to guide how Interactive Beam works.
 # Examples:
 # from apache_beam.runners.interactive import interactive_beam as ib
@@ -315,6 +452,13 @@ options = Options()
 # ib.show(elems)
 # ib.recordings.describe(p)
 recordings = Recordings()
+
+# Users can interact with the clusters used by their environment.
+# Examples:
+# ib.clusters.describe(p)
+# Check the docstrings for detailed usages.
+# TODO(victorhc): Resolve connection issue and add a working example
+# clusters = Clusters()
 
 
 def watch(watchable):

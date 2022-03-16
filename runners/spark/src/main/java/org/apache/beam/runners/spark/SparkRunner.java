@@ -164,7 +164,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     prepareFilesToStage(pipelineOptions);
 
-    JavaSparkContext jsc = null;
     if (pipelineOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(pipelineOptions.getCheckpointDir());
       SparkRunnerStreamingContextFactory streamingContextFactory =
@@ -172,7 +171,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(
               checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory);
+
       // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
+      // jsc = jssc.sparkContext();
+      // eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
@@ -209,8 +211,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
-      jsc = SparkContextFactory.getSparkContext(pipelineOptions);
+
+      JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
       // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
+      // eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
+
       final EvaluationContext evaluationContext =
           new EvaluationContext(jsc, pipeline, pipelineOptions);
       translator = new TransformTranslator.Translator();
@@ -246,6 +251,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     metricsPusher.start();
 
     // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
+    // if (eventLoggingListener != null && jsc != null) {
+    //   eventLoggingListener.onApplicationStart(
+    //       SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
+    //   eventLoggingListener.onApplicationEnd(
+    //       new SparkListenerApplicationEnd(Instant.now().getMillis()));
+    //   eventLoggingListener.stop();
+    // }
 
     return result;
   }

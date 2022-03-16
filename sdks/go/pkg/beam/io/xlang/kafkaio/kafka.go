@@ -48,6 +48,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -82,7 +83,11 @@ const (
 
 	readURN  = "beam:transform:org.apache.beam:kafka_read_without_metadata:v1"
 	writeURN = "beam:transform:org.apache.beam:kafka_write:v1"
+
+	serviceGradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
 )
+
+var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 // Read is a cross-language PTransform which reads from Kafka and returns a
 // KV pair for each item in the specified Kafka topics. By default, this runs
@@ -92,6 +97,9 @@ const (
 // Read requires the address for an expansion service for Kafka Read transforms,
 // a comma-seperated list of bootstrap server addresses (see the Kafka property
 // "bootstrap.servers" for details), and at least one topic to read from.
+// If an expansion service address is provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Read also accepts optional parameters as readOptions. All optional parameters
 // are predefined in this package as functions that return readOption. To set
@@ -109,6 +117,10 @@ func Read(s beam.Scope, addr string, servers string, topics []string, opts ...re
 
 	if len(topics) == 0 {
 		panic("kafkaio.Read requires at least one topic to read from.")
+	}
+
+	if addr == "" {
+		addr = autoStartupAddress
 	}
 
 	rpl := readPayload{
@@ -229,6 +241,9 @@ type readPayload struct {
 // Write requires the address for an expansion service for Kafka Write
 // transforms, a comma-seperated list of bootstrap server addresses (see the
 // Kafka property "bootstrap.servers" for details), and a topic to write to.
+// If an expansion service address is provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Write also accepts optional parameters as writeOptions. All optional
 // parameters are predefined in this package as functions that return
@@ -244,6 +259,10 @@ type readPayload struct {
 //       kafkaio.ValueSerializer("foo.BarSerializer"))
 func Write(s beam.Scope, addr, servers, topic string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("kafkaio.Write")
+
+	if addr == "" {
+		addr = autoStartupAddress
+	}
 
 	wpl := writePayload{
 		ProducerConfig:  map[string]string{"bootstrap.servers": servers},

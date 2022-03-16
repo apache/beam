@@ -54,7 +54,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -115,6 +115,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
     // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
+    // final long startTime = Instant.now().getMillis();
+    // EventLoggingListener eventLoggingListener =
+    //     startEventLoggingListener(jsc, pipelineOptions, startTime);
 
     // Initialize accumulators.
     AggregatorsAccumulator.init(pipelineOptions, jsc);
@@ -201,6 +204,13 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     metricsPusher.start();
 
     // LI Specific: disable eventLoggingListener for SparkRunner since it causes troubles: see LISAMZA-22077
+    // if (eventLoggingListener != null) {
+    //   eventLoggingListener.onApplicationStart(
+    //       SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
+    //   eventLoggingListener.onApplicationEnd(
+    //       new SparkListenerApplicationEnd(Instant.now().getMillis()));
+    //   eventLoggingListener.stop();
+    // }
 
     return result;
   }

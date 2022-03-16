@@ -22,8 +22,6 @@
 import logging
 import unittest
 
-import pytest
-
 import apache_beam as beam
 from apache_beam.examples.complete.game import leader_board
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -32,7 +30,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-@pytest.mark.examples_postcommit
 class LeaderBoardTest(unittest.TestCase):
 
   SAMPLE_DATA = [

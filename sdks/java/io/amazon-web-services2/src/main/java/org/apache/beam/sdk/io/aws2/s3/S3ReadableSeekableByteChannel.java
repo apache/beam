@@ -29,7 +29,6 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
-import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -47,18 +46,18 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
 
   private final S3Client s3Client;
   private final S3ResourceId path;
-  private final S3Options options;
+  private final S3FileSystemConfiguration config;
   private final long contentLength;
   private long position = 0;
   private boolean open = true;
   private @Nullable ResponseInputStream<GetObjectResponse> s3ResponseInputStream;
   private @Nullable ReadableByteChannel s3ObjectContentChannel;
 
-  S3ReadableSeekableByteChannel(S3Client s3Client, S3ResourceId path, S3Options options)
-      throws IOException {
+  S3ReadableSeekableByteChannel(
+      S3Client s3Client, S3ResourceId path, S3FileSystemConfiguration config) throws IOException {
     this.s3Client = checkNotNull(s3Client, "s3Client");
     checkNotNull(path, "path");
-    this.options = checkNotNull(options, "options");
+    this.config = checkNotNull(config, "config");
 
     if (path.getSize().isPresent()) {
       contentLength = path.getSize().get();
@@ -94,8 +93,8 @@ class S3ReadableSeekableByteChannel implements SeekableByteChannel {
           GetObjectRequest.builder()
               .bucket(path.getBucket())
               .key(path.getKey())
-              .sseCustomerKey(options.getSSECustomerKey().getKey())
-              .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm());
+              .sseCustomerKey(config.getSSECustomerKey().getKey())
+              .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm());
       if (position > 0) {
         builder.range(String.format("bytes=%s-%s", position, contentLength));
       }

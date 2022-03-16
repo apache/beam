@@ -21,9 +21,9 @@
 #   name: MetricTest
 #   description: Unit-test for the Metric example.
 #   multifile: false
-#   pipeline_options:
+#   context_line: 52
 #   categories:
-#	  - Metrics
+#   - Metrics
 
 import unittest
 
