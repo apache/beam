@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Class for getting any filled {@link io.cdap.cdap.api.plugin.PluginConfig} configuration object.
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "assignment.type.incompatible"})
 public class PluginConfigInstantiationUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginConfigInstantiationUtils.class);
