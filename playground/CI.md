@@ -106,4 +106,12 @@ after merge even if they do not fail in isolation.
 | Run Java Examples CD                   | Execute examples for Java                                            | Yes              | Yes                   | Yes                      |
 | Delete Helm Chart                      | Drop kubernetes cloud                                                | Yes              | Yes                   | Yes                      |
 
+#### Secrets for action
+
+ - GCP_PLAYGROUND_REGION - gcp main region location cloud (default:us-central1)
+ - GCP_PLAYGROUND_SA_EMAIL - gcp service account id (default:playground-deploy@apache-beam-testing.iam.gserviceaccount.com)
+ - GCP_PLAYGROUND_PROJECT_ID - gcp project id (default:apache-beam-testing)
+ - PLAYGROUND_REGISTRY_NAME - gcp docker registry address (default:us-central1-docker.pkg.dev)
+ - GCP_PLAYGROUND_SA_KEY - gcp private key file, it export from service account and encode to Base64
+
 
