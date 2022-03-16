@@ -217,7 +217,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       additionalPipelineArgs = [:]
-      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
 CronJobBuilder.cronJob('beam_LoadTests_Go_GBK_Flink_Batch', 'H 10 * * *', this) {
@@ -226,5 +226,5 @@ CronJobBuilder.cronJob('beam_LoadTests_Go_GBK_Flink_Batch', 'H 10 * * *', this) 
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   // TODO(BEAM-12898): Re-enable this test once fixed.
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
