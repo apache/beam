@@ -112,7 +112,8 @@ public class PythonService {
     } finally {
       s.close();
       try {
-        Thread.sleep(1000);
+        // Some systems don't free the port for future use immediately.
+        Thread.sleep(100);
       } catch (InterruptedException exn) {
         // ignore
       }
