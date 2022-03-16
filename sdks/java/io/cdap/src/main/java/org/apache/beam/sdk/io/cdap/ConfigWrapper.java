@@ -24,6 +24,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +34,7 @@ public class ConfigWrapper<T extends PluginConfig> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapper.class);
 
-  private Map<String, Object> paramsMap = null;
+  @Nullable private Map<String, Object> paramsMap = null;
   private final Class<T> configClass;
 
   public ConfigWrapper(Class<T> configClass) {
@@ -71,11 +73,11 @@ public class ConfigWrapper<T extends PluginConfig> {
     return this;
   }
 
-  public T build() {
+  public @Nullable T build() {
     return PluginConfigInstantiationUtils.getPluginConfig(getParamsMap(), configClass);
   }
 
-  private Map<String, Object> getParamsMap() {
+  private @Nonnull Map<String, Object> getParamsMap() {
     if (paramsMap == null) {
       paramsMap = new HashMap<>();
     }
