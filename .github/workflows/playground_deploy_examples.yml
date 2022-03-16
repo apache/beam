@@ -62,7 +62,7 @@ jobs:
         run: rm ~/.m2/settings.xml
       - name: Setup GCP account
         run: |
-             echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
+             echo "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
              which gcloud
              gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
       - name: Set Docker Tag
