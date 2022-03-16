@@ -58,13 +58,13 @@ public class MonitoringInfoMetricName extends MetricName {
   public String getNamespace() {
     if (labels.containsKey(MonitoringInfoConstants.Labels.NAMESPACE)) {
       // User-generated metric
-      return labels.getOrDefault(MonitoringInfoConstants.Labels.NAMESPACE, null);
+      return labels.get(MonitoringInfoConstants.Labels.NAMESPACE);
     } else if (labels.containsKey(MonitoringInfoConstants.Labels.PCOLLECTION)) {
       // System-generated metric
-      return labels.getOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
+      return labels.get(MonitoringInfoConstants.Labels.PCOLLECTION);
     } else if (labels.containsKey(MonitoringInfoConstants.Labels.PTRANSFORM)) {
       // System-generated metric
-      return labels.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
+      return labels.get(MonitoringInfoConstants.Labels.PTRANSFORM);
     } else {
       return urn.split(":", 2)[0];
     }
@@ -73,7 +73,7 @@ public class MonitoringInfoMetricName extends MetricName {
   @Override
   public String getName() {
     if (labels.containsKey(MonitoringInfoConstants.Labels.NAME)) {
-      return labels.getOrDefault(MonitoringInfoConstants.Labels.NAME, null);
+      return labels.get(MonitoringInfoConstants.Labels.NAME);
     } else {
       return urn.split(":", 2)[1];
     }
