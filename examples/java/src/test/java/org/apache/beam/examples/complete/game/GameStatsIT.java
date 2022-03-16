@@ -180,7 +180,7 @@ public class GameStatsIT {
             .withIdAttribute(projectId);
 
     testPipeline
-        .apply(TextIO.read().from("gs://apache-beam-samples/game/small/stats_gaming_data.csv"))
+        .apply(TextIO.read().from(options.getInput()))
         .apply(write);
     testPipeline.run();
   }
