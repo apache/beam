@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import CronJobBuilder
 import InfluxDBCredentialsHelper
-import CommonTestProperties
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = { mode, datasetName ->
+def loadTestConfigurations = { datasetName ->
   [
     [
       title          : 'Debezium  Python Load test: write and read data for 20 minutes',
@@ -33,65 +32,36 @@ def loadTestConfigurations = { mode, datasetName ->
       pipelineOptions: [
         project              : 'apache-beam-testing',
         region               : 'us-central1',
-        job_name             : "load-tests-python-dataflow-${mode}-debezium-IO-${now}",
+        job_name             : "performance-tests-python-debezium-IO-${now}",
         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publish_to_big_query : true,
-        metrics_dataset      : datasetName,
-        metrics_table        : "python_${mode}_debezium_IO",
-        influx_measurement   : "python_${mode}_debezium_IO",
+        staging_location     : 'gs://temp-storage-for-perf-tests/loadtests',
+        metrics_dataset     : datasetName,
+        metrics_table       : 'python_direct_microbenchmarks',
+        input_options        : '\'{}\'',
         iterations           : 1,
         num_workers          : 5,
         autoscaling_algorithm: 'NONE'
       ]
-    ],    
-  ]
-  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
-  .each { test -> (mode != 'streaming') ?: addStreamingOptions(test) }
+    ]
+  ],    
 }
 
-def addStreamingOptions(test) {
-  // Use highmem workers to prevent out of memory issues.
-  test.pipelineOptions << [streaming: null,
-    worker_machine_type: 'n1-highmem-4'
-  ]
-}
+def loadTestJob = { scope, triggeringContext ->
+  scope.description("Performance test Debezium IO")
 
-def loadTestJob = { scope, triggeringContext, mode ->
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON,
-      loadTestConfigurations(mode, datasetName), 'Debezium', mode)
-}
-
-CronJobBuilder.cronJob('beam_LoadTests_Python_Debezium_IO_batch', 'H 16 * * *', this) {
-  additionalPipelineArgs = [
-    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
-  ]
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
+  for (testConfiguration in loadTestConfigurations(datasetName)) {
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
+  }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-    'beam_LoadTests_Python_Debezium_IO_batch',
-    'Run Load Tests Python Debezium IO Batch',
+    'beam_Python_Performance_Test_DebeziumIO',
+    'Run Python Performance Tests DebeziumIO',
+    'Python Performance Tests DebeziumIO',
     this
     ) {
       additionalPipelineArgs = [:]
-      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
     }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_Debezium_IO_streaming', 'H 16 * * *', this) {
-  additionalPipelineArgs = [
-    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
-  ]
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
-}
-
-PhraseTriggeringPostCommitBuilder.postCommitJob(
-    'beam_LoadTests_Python_Debezium_IO_streaming',
-    'Run Load Tests Python Debezium IO Streaming',
-    this
-    ) {
-      additionalPipelineArgs = [:]
-      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
-    }
