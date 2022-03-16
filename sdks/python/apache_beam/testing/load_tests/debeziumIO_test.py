@@ -138,3 +138,9 @@ class DebeziumIOLoadTest():
         connection.commit()
         cursor.close()  
 
+if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO)
+  print ("Hello world testing ")
+  logging.info("Hello world log testing")
+
+
