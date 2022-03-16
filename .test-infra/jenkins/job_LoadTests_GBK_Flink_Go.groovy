@@ -217,7 +217,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       additionalPipelineArgs = [:]
-      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
 
 CronJobBuilder.cronJob('beam_LoadTests_Go_GBK_Flink_Batch', 'H 10 * * *', this) {
