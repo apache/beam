@@ -46,7 +46,7 @@ def loadTestConfigurations = { mode, datasetName ->
         postgresUsername     : 'postgres',
         postgresPassword     : 'uuinkks',
         postgresDatabaseName : 'postgres',
-        postgresServerName   : "\$${postgresHostName}",
+        postgresServerName   : "LOAD_BALANCER_IP",
         postgresSsl          : false,
         postgresPort         : '5432',
         num_workers          : 5,
