@@ -1987,7 +1987,6 @@ options.getPrivateKeyPassphrase())
 &lt;/div>
 &lt;/li>
 &lt;/ul>
-&lt;p>&lt;strong>Important notice&lt;/strong>: Only encrypted private key are supported. Unencrypted (without pasphrase) private key are not supported. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13818">BEAM-13818&lt;/a>.&lt;/p>
 &lt;h3 id="oauth-token">OAuth token&lt;/h3>
 &lt;p>SnowflakeIO also supports OAuth token.&lt;/p>
 &lt;p>&lt;strong>IMPORTANT&lt;/strong>: SnowflakeIO requires a valid OAuth access token. It will neither be able to refresh the token nor obtain it using a web-based flow. For information on configuring an OAuth integration and obtaining the token, see the &lt;a href="https://docs.snowflake.com/en/user-guide/oauth-intro.html">Snowflake documentation&lt;/a>.&lt;/p>
@@ -3175,9 +3174,6 @@ You can read about Snowflake data types at &lt;a href="https://docs.snowflake.co
 &lt;ol>
 &lt;li>
 &lt;p>Streaming writing supports only pair key authentication. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13817">BEAM-13817&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Only encrypted private key are supported. Unencrypted private key are not supported. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13818">BEAM-13818&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>The role parameter configured in &lt;code>SnowflakeIO.DataSourceConfiguration&lt;/code> object is ignored for streaming writing. For details, see: &lt;a href="https://issues.apache.org/jira/browse/BEAM-13819">BEAM-13819&lt;/a>&lt;/p>

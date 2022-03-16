@@ -1124,45 +1124,53 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="apache-beam-java-sdk-quickstart">Apache Beam Java SDK Quickstart&lt;/h1>
-&lt;p>This quickstart shows you how to set up a Java development environment and run an &lt;a href="/get-started/wordcount-example">example pipeline&lt;/a> written with the &lt;a href="/documentation/sdks/java">Apache Beam Java SDK&lt;/a>, using a &lt;a href="/documentation#runners">runner&lt;/a> of your choice.&lt;/p>
-&lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Java codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
+&lt;h1 id="apache-beam-java-sdk-quickstart">Apache Beam Java SDK quickstart&lt;/h1>
+&lt;p>This quickstart shows you how to set up a Java development environment and run
+an &lt;a href="/get-started/wordcount-example">example pipeline&lt;/a> written with the
+&lt;a href="/documentation/sdks/java">Apache Beam Java SDK&lt;/a>, using a
+&lt;a href="/documentation#runners">runner&lt;/a> of your choice.&lt;/p>
+&lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Java codebase, see the
+&lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
+&lt;p>On this page:&lt;/p>
 &lt;nav id="TableOfContents">
 &lt;ul>
-&lt;li>&lt;a href="#set-up-your-development-environment">Set up your Development Environment&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#get-the-example-code">Get the Example Code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#optional-convert-from-maven-to-gradle-project">Optional: Convert from Maven to Gradle Project&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#set-up-your-development-environment">Set up your development environment&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#get-the-example-code">Get the example code&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#optional-convert-from-maven-to-gradle">Optional: Convert from Maven to Gradle&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#get-sample-text">Get sample text&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#run-a-pipeline">Run a pipeline&lt;/a>
 &lt;ul>
-&lt;li>&lt;a href="#run-wordcount-using-maven">Run WordCount Using Maven&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#run-wordcount-using-gradle">Run WordCount Using Gradle&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-wordcount-using-maven">Run WordCount using Maven&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-wordcount-using-gradle">Run WordCount using Gradle&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#inspect-the-results">Inspect the results&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/nav>
-&lt;h2 id="set-up-your-development-environment">Set up your Development Environment&lt;/h2>
+&lt;h2 id="set-up-your-development-environment">Set up your development environment&lt;/h2>
+&lt;ol>
+&lt;li>Download and install the
+&lt;a href="https://www.oracle.com/technetwork/java/javase/downloads/index.html">Java Development Kit (JDK)&lt;/a>
+version 8, 11, or 17. Verify that the
+&lt;a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars001.html">JAVA_HOME&lt;/a>
+environment variable is set and points to your JDK installation.&lt;/li>
+&lt;li>Download and install &lt;a href="https://maven.apache.org/download.cgi">Apache Maven&lt;/a> by
+following the &lt;a href="https://maven.apache.org/install.html">installation guide&lt;/a>
+for your operating system.&lt;/li>
+&lt;li>Optional: If you want to convert your Maven project to Gradle, install
+&lt;a href="https://gradle.org/install/">Gradle&lt;/a>.&lt;/li>
+&lt;/ol>
+&lt;h2 id="get-the-example-code">Get the example code&lt;/h2>
 &lt;ol>
 &lt;li>
-&lt;p>Download and install the &lt;a href="https://www.oracle.com/technetwork/java/javase/downloads/index.html">Java Development Kit (JDK)&lt;/a> version 8. Verify that the &lt;a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars001.html">JAVA_HOME&lt;/a> environment variable is set and points to your JDK installation.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Download and install &lt;a href="https://maven.apache.org/download.cgi">Apache Maven&lt;/a> by following Maven&amp;rsquo;s &lt;a href="https://maven.apache.org/install.html">installation guide&lt;/a> for your specific operating system.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Optional: Install &lt;a href="https://gradle.org/install/">Gradle&lt;/a> if you would like to convert your Maven project into Gradle.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;h2 id="get-the-example-code">Get the Example Code&lt;/h2>
-&lt;p>Use the following command to generate a Maven project that contains Beam&amp;rsquo;s WordCount examples and builds against the most recent Beam release:&lt;/p>
+&lt;p>Generate a Maven example project that builds against the latest Beam release:
 &lt;div class='shell-unix snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-unix" data-lang="unix">$ mvn archetype:generate \
+&lt;pre>&lt;code class="language-unix" data-lang="unix">mvn archetype:generate \
 -DarchetypeGroupId=org.apache.beam \
 -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
 -DarchetypeVersion=2.37.0 \
@@ -1170,7 +1178,8 @@ limitations under the License.
 -DartifactId=word-count-beam \
 -Dversion=&amp;#34;0.1&amp;#34; \
 -Dpackage=org.apache.beam.examples \
--DinteractiveMode=false&lt;/code>&lt;/pre>
+-DinteractiveMode=false
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='shell-powerShell snippet'>
@@ -1178,7 +1187,7 @@ limitations under the License.
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">mvn&lt;/span> &lt;span class="n">archetype&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">generate&lt;/span> &lt;span class="p">`&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">mvn&lt;/span> &lt;span class="n">archetype&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">generate&lt;/span> &lt;span class="p">`&lt;/span>
 &lt;span class="n">-D&lt;/span> &lt;span class="n">archetypeGroupId&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">beam&lt;/span> &lt;span class="p">`&lt;/span>
 &lt;span class="n">-D&lt;/span> &lt;span class="n">archetypeArtifactId&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">beam-sdks-java-maven-archetypes-examples&lt;/span> &lt;span class="p">`&lt;/span>
 &lt;span class="n">-D&lt;/span> &lt;span class="n">archetypeVersion&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">37&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">0&lt;/span> &lt;span class="p">`&lt;/span>
@@ -1186,21 +1195,22 @@ limitations under the License.
 &lt;span class="n">-D&lt;/span> &lt;span class="n">artifactId&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">word-count-beam&lt;/span> &lt;span class="p">`&lt;/span>
 &lt;span class="n">-D&lt;/span> &lt;span class="n">version&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="s2">&amp;#34;0.1&amp;#34;&lt;/span> &lt;span class="p">`&lt;/span>
 &lt;span class="n">-D&lt;/span> &lt;span class="n">package&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">examples&lt;/span> &lt;span class="p">`&lt;/span>
-&lt;span class="n">-D&lt;/span> &lt;span class="n">interactiveMode&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">false&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="n">-D&lt;/span> &lt;span class="n">interactiveMode&lt;/span>&lt;span class="p">=&lt;/span>&lt;span class="n">false&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>This will create a &lt;code>word-count-beam&lt;/code> directory that contains a &lt;code>pom.xml&lt;/code> and several example pipelines that count words in text files.&lt;/p>
+&lt;/p>
+&lt;p>Maven creates a new project in the &lt;strong>word-count-beam&lt;/strong> directory.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Change into &lt;strong>word-count-beam&lt;/strong>:
 &lt;div class='shell-unix snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-unix" data-lang="unix">$ cd word-count-beam/
-$ ls
-pom.xml src
-$ ls src/main/java/org/apache/beam/examples/
-DebuggingWordCount.java WindowedWordCount.java common
-MinimalWordCount.java WordCount.java&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">cd word-count-beam/
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='shell-powerShell snippet'>
@@ -1208,116 +1218,189 @@ MinimalWordCount.java WordCount.java&lt;/code>&lt;/pre>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nb">cd &lt;/span>&lt;span class="p">.\&lt;/span>&lt;span class="n">word-count-beam&lt;/span>
-&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nb">dir
-&lt;/span>&lt;span class="nb">&lt;/span>
-&lt;span class="p">...&lt;/span>
-&lt;span class="n">Mode&lt;/span> &lt;span class="n">LastWriteTime&lt;/span> &lt;span class="n">Length&lt;/span> &lt;span class="n">Name&lt;/span>
-&lt;span class="p">----&lt;/span> &lt;span class="p">-------------&lt;/span> &lt;span class="p">------&lt;/span> &lt;span class="p">----&lt;/span>
-&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">src&lt;/span>
-&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">16051&lt;/span> &lt;span class="n">pom&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">xml&lt;/span>
-&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nb">dir &lt;/span>&lt;span class="p">.\&lt;/span>&lt;span class="n">src&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">main&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">examples&lt;/span>
-&lt;span class="p">...&lt;/span>
-&lt;span class="n">Mode&lt;/span> &lt;span class="n">LastWriteTime&lt;/span> &lt;span class="n">Length&lt;/span> &lt;span class="n">Name&lt;/span>
-&lt;span class="p">----&lt;/span> &lt;span class="p">-------------&lt;/span> &lt;span class="p">------&lt;/span> &lt;span class="p">----&lt;/span>
-&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">common&lt;/span>
-&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">complete&lt;/span>
-&lt;span class="n">d&lt;/span>&lt;span class="p">-----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">subprocess&lt;/span>
-&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">7073&lt;/span> &lt;span class="n">DebuggingWordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>
-&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">5945&lt;/span> &lt;span class="n">MinimalWordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>
-&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">9490&lt;/span> &lt;span class="n">WindowedWordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>
-&lt;span class="n">-a&lt;/span>&lt;span class="p">----&lt;/span> &lt;span class="n">7&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">19&lt;/span>&lt;span class="p">/&lt;/span>&lt;span class="n">2018&lt;/span> &lt;span class="n">11&lt;/span>&lt;span class="err">:&lt;/span>&lt;span class="n">00&lt;/span> &lt;span class="n">PM&lt;/span> &lt;span class="n">7662&lt;/span> &lt;span class="n">WordCount&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">java&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="nb">cd &lt;/span>&lt;span class="p">.\&lt;/span>&lt;span class="n">word-count-beam&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>For a detailed introduction to the Beam concepts used in these examples, see the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>. Here, we&amp;rsquo;ll just focus on executing &lt;code>WordCount.java&lt;/code>.&lt;/p>
-&lt;h2 id="optional-convert-from-maven-to-gradle-project">Optional: Convert from Maven to Gradle Project&lt;/h2>
-&lt;p>The steps below explain how to convert the build for the Direct Runner from Maven to Gradle. Converting the builds for the other runners is a more involved process and is out of scope for this guide. For additional guidance, see &lt;a href="https://docs.gradle.org/current/userguide/migrating_from_maven.html">Migrating Builds From Apache Maven&lt;/a>.&lt;/p>
+The directory contains a &lt;strong>pom.xml&lt;/strong> and a &lt;strong>src&lt;/strong> directory with example
+pipelines.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>List the example pipelines:
+&lt;div class='shell-unix snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code class="language-unix" data-lang="unix">ls src/main/java/org/apache/beam/examples/
+&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='shell-powerShell snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="nb">dir &lt;/span>&lt;span class="p">.\&lt;/span>&lt;span class="n">src&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">main&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="p">\&lt;/span>&lt;span class="n">examples&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+You should see the following examples:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>DebuggingWordCount.java&lt;/strong> (&lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">GitHub&lt;/a>)&lt;/li>
+&lt;li>&lt;strong>MinimalWordCount.java&lt;/strong> (&lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java">GitHub&lt;/a>)&lt;/li>
+&lt;li>&lt;strong>WindowedWordCount.java&lt;/strong> (&lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java">GitHub&lt;/a>)&lt;/li>
+&lt;li>&lt;strong>WordCount.java&lt;/strong> (&lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">GitHub&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;p>The example used in this tutorial, &lt;strong>WordCount.java&lt;/strong>, defines a
+Beam pipeline that counts words from an input file (by default, a &lt;strong>.txt&lt;/strong>
+file containing Shakespeare&amp;rsquo;s &amp;ldquo;King Lear&amp;rdquo;). To learn more about the examples,
+see the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="optional-convert-from-maven-to-gradle">Optional: Convert from Maven to Gradle&lt;/h2>
+&lt;p>The steps below explain how to convert the build from Maven to Gradle for the
+following runners:&lt;/p>
+&lt;ul>
+&lt;li>Direct runner&lt;/li>
+&lt;li>Dataflow runner&lt;/li>
+&lt;/ul>
+&lt;p>The conversion process for other runners is similar. For additional guidance,
+see
+&lt;a href="https://docs.gradle.org/current/userguide/migrating_from_maven.html">Migrating Builds From Apache Maven&lt;/a>.&lt;/p>
 &lt;ol>
-&lt;li>Ensure you are in the same directory as the &lt;code>pom.xml&lt;/code> file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
+&lt;li>In the directory with the &lt;strong>pom.xml&lt;/strong> file, run the automated Maven-to-Gradle
+conversion:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ gradle init&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>gradle init
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-You&amp;rsquo;ll be asked if you want to generate a Gradle build. Enter &lt;strong>yes&lt;/strong>. You&amp;rsquo;ll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don&amp;rsquo;t have a preference.&lt;/li>
-&lt;li>After you&amp;rsquo;ve converted the project to Gradle, open the generated &lt;code>build.gradle&lt;/code> file, and, in the &lt;code>repositories&lt;/code> block, replace &lt;code>mavenLocal()&lt;/code> with &lt;code>mavenCentral()&lt;/code>:
+You&amp;rsquo;ll be asked if you want to generate a Gradle build. Enter &lt;strong>yes&lt;/strong>. You&amp;rsquo;ll
+also be prompted to choose a DSL (Groovy or Kotlin). For this tutorial, enter
+&lt;strong>2&lt;/strong> for Kotlin.&lt;/li>
+&lt;li>Open the generated &lt;strong>build.gradle.kts&lt;/strong> file and make the following changes:
+&lt;ol>
+&lt;li>In &lt;code>repositories&lt;/code>, replace &lt;code>mavenLocal()&lt;/code> with &lt;code>mavenCentral()&lt;/code>.&lt;/li>
+&lt;li>In &lt;code>repositories&lt;/code>, declare a repository for Confluent Kafka dependencies:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>repositories {
-mavenCentral()
-maven {
-url = uri(&amp;#39;https://repository.apache.org/content/repositories/snapshots/&amp;#39;)
+&lt;pre>&lt;code>maven {
+url = uri(&amp;#34;https://packages.confluent.io/maven/&amp;#34;)
 }
-maven {
-url = uri(&amp;#39;http://repo.maven.apache.org/maven2&amp;#39;)
-}
-}&lt;/code>&lt;/pre>
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;/li>
-&lt;li>Add the following task in &lt;code>build.gradle&lt;/code> to allow you to execute pipelines with Gradle:
+&lt;li>At the end of the build script, add the following conditional dependency:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>task execute (type:JavaExec) {
-mainClass = System.getProperty(&amp;#34;mainClass&amp;#34;)
-classpath = sourceSets.main.runtimeClasspath
-systemProperties System.getProperties()
-args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
-}&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>if (project.hasProperty(&amp;#34;dataflow-runner&amp;#34;)) {
+dependencies {
+runtimeOnly(&amp;#34;org.apache.beam:beam-runners-google-cloud-dataflow-java:2.37.0&amp;#34;)
+}
+}
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;/li>
-&lt;li>Rebuild your project by running:
+&lt;li>At the end of the build script, add the following task:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>$ gradle build&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>task(&amp;#34;execute&amp;#34;, JavaExec::class) {
+classpath = sourceSets[&amp;#34;main&amp;#34;].runtimeClasspath
+mainClass.set(System.getProperty(&amp;#34;mainClass&amp;#34;))
+}
+&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Build your project:
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>gradle build
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;/li>
 &lt;/ol>
 &lt;h2 id="get-sample-text">Get sample text&lt;/h2>
 &lt;blockquote>
-&lt;p>If you&amp;rsquo;re planning to use the DataflowRunner, you can skip this step. The runner will pull text directly from Google Cloud Storage.&lt;/p>
+&lt;p>If you&amp;rsquo;re planning to use the DataflowRunner, you can skip this step. The
+runner will pull text directly from Google Cloud Storage.&lt;/p>
 &lt;/blockquote>
 &lt;ol>
 &lt;li>In the &lt;strong>word-count-beam&lt;/strong> directory, create a file called &lt;strong>sample.txt&lt;/strong>.&lt;/li>
-&lt;li>Add some text to the file. For this example, you can use the text of Shakespeare&amp;rsquo;s &lt;a href="https://storage.cloud.google.com/apache-beam-samples/shakespeare/sonnets.txt">Sonnets&lt;/a>.&lt;/li>
+&lt;li>Add some text to the file. For this example, use the text of Shakespeare&amp;rsquo;s
+&lt;a href="https://storage.cloud.google.com/apache-beam-samples/shakespeare/kinglear.txt">King Lear&lt;/a>.&lt;/li>
 &lt;/ol>
 &lt;h2 id="run-a-pipeline">Run a pipeline&lt;/h2>
-&lt;p>A single Beam pipeline can run on multiple Beam &lt;a href="/documentation#runners">runners&lt;/a>, including the &lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>, &lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>, &lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>, &lt;a href="/documentation/runners/jet">JetRunner&lt;/a>, or &lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>. The &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup. If you&amp;rsquo;re just trying out Beam and you&amp;rsquo;re not sure what to use, use the &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>.&lt;/p>
+&lt;p>A single Beam pipeline can run on multiple Beam
+&lt;a href="/documentation#runners">runners&lt;/a>. The
+&lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is useful for getting started,
+because it runs on your machine and requires no specific setup. If you&amp;rsquo;re just
+trying out Beam and you&amp;rsquo;re not sure what to use, use the
+&lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>.&lt;/p>
 &lt;p>The general process for running a pipeline goes like this:&lt;/p>
 &lt;ol>
-&lt;li>Ensure you&amp;rsquo;ve done any runner-specific setup.&lt;/li>
+&lt;li>Complete any runner-specific setup.&lt;/li>
 &lt;li>Build your command line:
 &lt;ol>
-&lt;li>Specify a runner with &lt;code>--runner=&amp;lt;runner&amp;gt;&lt;/code> (defaults to the &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>).&lt;/li>
+&lt;li>Specify a runner with &lt;code>--runner=&amp;lt;runner&amp;gt;&lt;/code> (defaults to the
+&lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>).&lt;/li>
 &lt;li>Add any runner-specific required options.&lt;/li>
-&lt;li>Choose input files and an output location that are accessible to the runner. (For example, you can&amp;rsquo;t access a local file if you are running the pipeline on an external cluster.)&lt;/li>
+&lt;li>Choose input files and an output location that are accessible to the
+runner. (For example, you can&amp;rsquo;t access a local file if you are running
+the pipeline on an external cluster.)&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;li>Run the command.&lt;/li>
 &lt;/ol>
-&lt;p>To run the WordCount pipeline, see the Maven and Gradle examples below.&lt;/p>
-&lt;h3 id="run-wordcount-using-maven">Run WordCount Using Maven&lt;/h3>
+&lt;p>To run the WordCount pipeline:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Follow the setup steps for your runner:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/samza">SamzaRunner&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/jet">JetRunner&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>The DirectRunner will work without additional setup.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Run the corresponding Maven or Gradle command below.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h3 id="run-wordcount-using-maven">Run WordCount using Maven&lt;/h3>
 &lt;p>For Unix shells:&lt;/p>
+&lt;p>
 &lt;div class='runner-direct snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-direct" data-lang="direct">mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1326,7 +1409,7 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flink" data-lang="flink">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-flink" data-lang="flink">mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=sample.txt --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1335,10 +1418,9 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
---inputFile=sample.txt --output=/tmp/counts&amp;#34; -Pflink-runner
-You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
+--inputFile=sample.txt --output=/tmp/counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-spark snippet'>
@@ -1346,7 +1428,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-spark" data-lang="spark">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-spark" data-lang="spark">mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=SparkRunner --inputFile=sample.txt --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1355,8 +1437,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=DataflowRunner --project=&amp;lt;your-gcp-project&amp;gt; \
 --region=&amp;lt;your-gcp-region&amp;gt; \
 --gcpTempLocation=gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp \
@@ -1369,7 +1450,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-samza" data-lang="samza">$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-samza" data-lang="samza">mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -Psamza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1378,7 +1459,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">mvn package -Pnemo-runner &amp;amp;&amp;amp; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
 --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1387,18 +1468,20 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-jet" data-lang="jet">$ mvn package -Pjet-runner
-$ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
+&lt;pre>&lt;code class="language-jet" data-lang="jet">mvn package -Pjet-runner
+java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
 --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
+&lt;/p>
 &lt;p>For Windows PowerShell:&lt;/p>
+&lt;p>
 &lt;div class='runner-direct snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-direct" data-lang="direct">mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -P direct-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1407,7 +1490,7 @@ $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordC
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flink" data-lang="flink">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-flink" data-lang="flink">mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=FlinkRunner --inputFile=sample.txt --output=counts&amp;#34; -P flink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1416,10 +1499,9 @@ $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordC
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">PS&amp;gt; mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=FlinkRunner --flinkMaster=&amp;lt;flink master&amp;gt; --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
---inputFile=C:\path\to\quickstart\sample.txt --output=C:\tmp\counts&amp;#34; -P flink-runner
-You can monitor the running job by visiting the Flink dashboard at http://&amp;lt;flink master&amp;gt;:8081&lt;/code>&lt;/pre>
+--inputFile=C:\path\to\quickstart\sample.txt --output=C:\tmp\counts&amp;#34; -P flink-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-spark snippet'>
@@ -1427,7 +1509,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-spark" data-lang="spark">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-spark" data-lang="spark">mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=SparkRunner --inputFile=sample.txt --output=counts&amp;#34; -P spark-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1436,8 +1518,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
-PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--runner=DataflowRunner --project=&amp;lt;your-gcp-project&amp;gt; `
 --region=&amp;lt;your-gcp-region&amp;gt; \
 --gcpTempLocation=gs://&amp;lt;your-gcs-bucket&amp;gt;/tmp `
@@ -1450,7 +1531,7 @@ PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.Word
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-samza" data-lang="samza">PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-samza" data-lang="samza">mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner&amp;#34; -P samza-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1459,8 +1540,8 @@ PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.Word
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-nemo" data-lang="nemo">PS&amp;gt; mvn package -P nemo-runner -DskipTests
-PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">mvn package -P nemo-runner -DskipTests
+java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
 --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1469,20 +1550,22 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-jet" data-lang="jet">PS&amp;gt; mvn package -P jet-runner
-PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+&lt;pre>&lt;code class="language-jet" data-lang="jet">mvn package -P jet-runner
+java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
 --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/sample.txt --output=counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;h3 id="run-wordcount-using-gradle">Run WordCount Using Gradle&lt;/h3>
-&lt;p>For Unix shells (Instructions currently only available for Direct, Spark, and Dataflow):&lt;/p>
+&lt;/p>
+&lt;h3 id="run-wordcount-using-gradle">Run WordCount using Gradle&lt;/h3>
+&lt;p>For Unix shells:&lt;/p>
+&lt;p>
 &lt;div class='runner-direct snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+--args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-flink snippet'>
@@ -1490,7 +1573,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flink" data-lang="flink">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">TODO: document Flink on Gradle: https://issues.apache.org/jira/browse/BEAM-14057&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-flinkCluster snippet'>
@@ -1498,7 +1581,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">TODO: document FlinkCluster on Gradle: https://issues.apache.org/jira/browse/BEAM-14060&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-spark snippet'>
@@ -1506,8 +1589,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-spark" data-lang="spark">$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">TODO: document Spark on Gradle: https://issues.apache.org/jira/browse/BEAM-14063&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-dataflow snippet'>
@@ -1515,8 +1597,8 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--project=&amp;lt;your-gcp-project&amp;gt; --inputFile=gs://apache-beam-samples/shakespeare/* \
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+--args=&amp;#34;--project=&amp;lt;your-gcp-project&amp;gt; --inputFile=gs://apache-beam-samples/shakespeare/* \
 --output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -1525,7 +1607,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-samza" data-lang="samza">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">TODO: document Samza on Gradle: https://issues.apache.org/jira/browse/BEAM-14061&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -1533,7 +1615,7 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-nemo" data-lang="nemo">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">TODO: document Nemo on Gradle: https://issues.apache.org/jira/browse/BEAM-14058&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-jet snippet'>
@@ -1541,17 +1623,23 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-jet" data-lang="jet">We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">TODO: document Jet on Gradle: https://issues.apache.org/jira/browse/BEAM-14062&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
+&lt;/p>
 &lt;h2 id="inspect-the-results">Inspect the results&lt;/h2>
-&lt;p>Once the pipeline has completed, you can view the output. You&amp;rsquo;ll notice that there may be multiple output files prefixed by &lt;code>count&lt;/code>. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.&lt;/p>
+&lt;p>After the pipeline has completed, you can view the output. There might be
+multiple output files prefixed by &lt;code>count&lt;/code>. The number of output files is decided
+by the runner, giving it the flexibility to do efficient, distributed execution.&lt;/p>
+&lt;ol>
+&lt;li>View the output files in a Unix shell:
 &lt;div class='runner-direct snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">ls counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-flink snippet'>
@@ -1559,7 +1647,8 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flink" data-lang="flink">$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">ls counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-flinkCluster snippet'>
@@ -1567,7 +1656,8 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ ls /tmp/counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">ls /tmp/counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-spark snippet'>
@@ -1575,7 +1665,8 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-spark" data-lang="spark">$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">ls counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-dataflow snippet'>
@@ -1583,7 +1674,8 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ gsutil ls gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">gsutil ls gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-samza snippet'>
@@ -1591,7 +1683,8 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-samza" data-lang="samza">$ ls /tmp/counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">ls /tmp/counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -1599,7 +1692,8 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">ls counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-jet snippet'>
@@ -1607,27 +1701,20 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-jet" data-lang="jet">$ ls counts*&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">ls counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;p>When you look into the contents of the file, you&amp;rsquo;ll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.&lt;/p>
+The output files contain unique words and the number of occurrences of each
+word.&lt;/li>
+&lt;li>View the output content in a Unix shell:
 &lt;div class='runner-direct snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-direct" data-lang="direct">$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-direct" data-lang="direct">more counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-flink snippet'>
@@ -1635,18 +1722,8 @@ single: 4
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flink" data-lang="flink">$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flink" data-lang="flink">more counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-flinkCluster snippet'>
@@ -1654,18 +1731,8 @@ single: 4
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">$ more /tmp/counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster">more /tmp/counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-spark snippet'>
@@ -1673,18 +1740,8 @@ single: 4
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-spark" data-lang="spark">$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-spark" data-lang="spark">more counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-dataflow snippet'>
@@ -1692,18 +1749,8 @@ single: 4
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">$ gsutil cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-dataflow" data-lang="dataflow">gsutil cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-samza snippet'>
@@ -1711,18 +1758,8 @@ single: 4
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-samza" data-lang="samza">$ more /tmp/counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-samza" data-lang="samza">more /tmp/counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-nemo snippet'>
@@ -1730,18 +1767,8 @@ single: 4
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-nemo" data-lang="nemo">$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-nemo" data-lang="nemo">more counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-jet snippet'>
@@ -1749,30 +1776,40 @@ single: 4
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code class="language-jet" data-lang="jet">$ more counts*
-wrought: 2
-st: 32
-fresher: 1
-of: 351
-souls: 2
-CXVIII: 1
-reviewest: 1
-untold: 1
-th: 1
-single: 4
-...&lt;/code>&lt;/pre>
+&lt;pre>&lt;code class="language-jet" data-lang="jet">more counts*
+&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
+The order of elements is not guaranteed, to allow runners to optimize for
+efficiency. But the output should look something like this:
+&lt;pre>&lt;code>...
+Think: 3
+slower: 1
+Having: 1
+revives: 1
+these: 33
+wipe: 1
+arrives: 1
+concluded: 1
+begins: 3
+...
+&lt;/code>&lt;/pre>&lt;/li>
+&lt;/ol>
 &lt;h2 id="next-steps">Next Steps&lt;/h2>
 &lt;ul>
 &lt;li>Learn more about the &lt;a href="/documentation/sdks/java/">Beam SDK for Java&lt;/a>
-and look through the &lt;a href="https://beam.apache.org/releases/javadoc">Java SDK API reference&lt;/a>.&lt;/li>
-&lt;li>Walk through these WordCount examples in the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
-&lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
-&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+and look through the
+&lt;a href="https://beam.apache.org/releases/javadoc">Java SDK API reference&lt;/a>.&lt;/li>
+&lt;li>Walk through the WordCount examples in the
+&lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
+&lt;li>Take a self-paced tour through our
+&lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite
+&lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
-&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Python</title><link>/get-started/quickstart-py/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart-py/</guid><description>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any
+issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Python</title><link>/get-started/quickstart-py/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart-py/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
