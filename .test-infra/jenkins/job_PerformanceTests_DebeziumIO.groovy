@@ -17,7 +17,7 @@
  */
 
 import Kubernetes
-import CommonJobProperties as commonJobProperties
+import CommonJobProperties as common
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
