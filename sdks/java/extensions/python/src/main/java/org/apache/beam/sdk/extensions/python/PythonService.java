@@ -75,6 +75,7 @@ public class PythonService {
       }
       lastLine = reader.readLine();
     }
+    reader.close(); // Make SpotBugs happy.
     int result = bootstrap.waitFor();
     if (result != 0) {
       throw new RuntimeException(

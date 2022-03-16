@@ -23,8 +23,11 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Python"
 
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.vendored_grpc_1_43_2
+    implementation library.java.slf4j_api
+    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":runners:core-construction-java")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
     testRuntimeOnly library.java.slf4j_simple

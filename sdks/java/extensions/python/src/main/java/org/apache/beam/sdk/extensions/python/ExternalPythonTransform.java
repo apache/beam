@@ -101,6 +101,8 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
           return (OutputT) outputs;
         }
       }
+    } catch (RuntimeException exn) {
+      throw exn;
     } catch (Exception exn) {
       throw new RuntimeException(exn);
     }
