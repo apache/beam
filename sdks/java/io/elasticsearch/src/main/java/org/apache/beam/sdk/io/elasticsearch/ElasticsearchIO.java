@@ -69,7 +69,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -84,7 +83,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -2199,8 +2197,7 @@ public class ElasticsearchIO {
      */
     @VisibleForTesting
     static class StatefulBatching
-        extends PTransform<PCollection<TimestampedValue<Document>>, PCollection<KV<Integer,
-        Iterable<TimestampedValue<Document>>>>> {
+        extends PTransform<PCollection<Document>, PCollection<KV<Integer, Iterable<Document>>>> {
       final BulkIO spec;
 
       private StatefulBatching(BulkIO bulkSpec) {
@@ -2212,9 +2209,8 @@ public class ElasticsearchIO {
       }
 
       @Override
-      public PCollection<KV<Integer, Iterable<TimestampedValue<Document>>>> expand(
-          PCollection<TimestampedValue<Document>> input) {
-        GroupIntoBatches<Integer, TimestampedValue<Document>> groupIntoBatches =
+      public PCollection<KV<Integer, Iterable<Document>>> expand(PCollection<Document> input) {
+        GroupIntoBatches<Integer, Document> groupIntoBatches =
             GroupIntoBatches.ofSize(spec.getMaxBatchSize());
 
         if (spec.getMaxBufferingDuration() != null) {
@@ -2233,40 +2229,37 @@ public class ElasticsearchIO {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
-      PCollection<TimestampedValue<Document>> timedDocResults;
-      PCollection<TimestampedValue<Document>> timedDocs =
-          input.apply(Reify.timestamps()).apply(Window.into(new GlobalWindows()));
+      PCollection<Document> docResults;
+      PCollection<Document> globalDocs = input.apply(Window.into(new GlobalWindows()));
 
       if (getUseStatefulBatches()) {
-        timedDocResults = timedDocs
-            .apply(StatefulBatching.fromSpec(this))
-            .apply(
-                ParDo.of(new BulkIOStatefulFn(this)));
+        docResults =
+            globalDocs
+                .apply(StatefulBatching.fromSpec(this))
+                .apply(ParDo.of(new BulkIOStatefulFn(this)));
       } else {
-        timedDocResults = timedDocs
-            .apply(
-                ParDo.of(new BulkIOBundleFn(this)));
+        docResults = globalDocs.apply(ParDo.of(new BulkIOBundleFn(this)));
       }
 
-      return timedDocResults
+      return docResults
           .setWindowingStrategyInternal(input.getWindowingStrategy())
-          .apply(ParDo.of(new ResultFilteringFn()).withOutputTags(Write.SUCCESSFUL_WRITES,
-              TupleTagList.of(Write.FAILED_WRITES)));
+          .apply(
+              ParDo.of(new ResultFilteringFn())
+                  .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
     }
 
-    private static class ResultFilteringFn extends DoFn<TimestampedValue<Document>, Document> {
+    private static class ResultFilteringFn extends DoFn<Document, Document> {
       @ProcessElement
-      public void processElement(@Element TimestampedValue<Document> timedDoc,
-          MultiOutputReceiver out) {
-        if (timedDoc.getValue().getHasError()) {
-          out.get(Write.FAILED_WRITES).outputWithTimestamp(timedDoc.getValue(), timedDoc.getTimestamp());
+      public void processElement(@Element Document doc, MultiOutputReceiver out) {
+        if (doc.getHasError()) {
+          out.get(Write.FAILED_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
         } else {
-          out.get(Write.SUCCESSFUL_WRITES).outputWithTimestamp(timedDoc.getValue(), timedDoc.getTimestamp());
+          out.get(Write.SUCCESSFUL_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
         }
       }
     }
 
-    static class BulkIOBundleFn extends BulkIOBaseFn<TimestampedValue<Document>> {
+    static class BulkIOBundleFn extends BulkIOBaseFn<Document> {
       @VisibleForTesting
       BulkIOBundleFn(BulkIO bulkSpec) {
         super(bulkSpec);
@@ -2283,8 +2276,7 @@ public class ElasticsearchIO {
     /*
     Intended for use in conjunction with {@link GroupIntoBatches}
      */
-    static class BulkIOStatefulFn extends BulkIOBaseFn<KV<Integer,
-        Iterable<TimestampedValue<Document>>>> {
+    static class BulkIOStatefulFn extends BulkIOBaseFn<KV<Integer, Iterable<Document>>> {
       @VisibleForTesting
       BulkIOStatefulFn(BulkIO bulkSpec) {
         super(bulkSpec);
@@ -2292,7 +2284,7 @@ public class ElasticsearchIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        for (TimestampedValue<Document> timedDoc : context.element().getValue()) {
+        for (Document timedDoc : context.element().getValue()) {
           addAndMaybeFlush(timedDoc, context);
         }
       }
@@ -2300,13 +2292,13 @@ public class ElasticsearchIO {
 
     /** {@link DoFn} to for the {@link BulkIO} transform. */
     @VisibleForTesting
-    private abstract static class BulkIOBaseFn<T> extends DoFn<T, TimestampedValue<Document>> {
+    private abstract static class BulkIOBaseFn<T> extends DoFn<T, Document> {
       private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff;
 
       private BulkIO spec;
       private transient RestClient restClient;
-      private List<TimestampedValue<Document>> batch;
+      private List<Document> batch;
       long currentBatchSizeBytes;
 
       protected BulkIOBaseFn(BulkIO bulkSpec) {
@@ -2348,48 +2340,47 @@ public class ElasticsearchIO {
        * FinishBundleContext} so that we are able to use a single common invocation to output from.
        */
       interface ContextAdapter {
-        void output(TimestampedValue<Document> timedDoc);
+        void output(Document timedDoc);
       }
 
       private static final class ProcessContextAdapter<T> implements ContextAdapter {
-        private final DoFn<T, TimestampedValue<Document>>.ProcessContext context;
+        private final DoFn<T, Document>.ProcessContext context;
 
-        private ProcessContextAdapter(DoFn<T, TimestampedValue<Document>>.ProcessContext context) {
+        private ProcessContextAdapter(DoFn<T, Document>.ProcessContext context) {
           this.context = context;
         }
 
         @Override
-        public void output(TimestampedValue<Document> timedDoc) {
+        public void output(Document timedDoc) {
           context.outputWithTimestamp(timedDoc, timedDoc.getTimestamp());
         }
       }
 
       private static final class FinishBundleContextAdapter<T> implements ContextAdapter {
-        private final DoFn<T, TimestampedValue<Document>>.FinishBundleContext context;
+        private final DoFn<T, Document>.FinishBundleContext context;
 
-        private FinishBundleContextAdapter(DoFn<T, TimestampedValue<Document>>.FinishBundleContext context) {
+        private FinishBundleContextAdapter(DoFn<T, Document>.FinishBundleContext context) {
           this.context = context;
         }
 
         @Override
-        public void output(TimestampedValue<Document> timedDoc) {
+        public void output(Document timedDoc) {
           context.output(timedDoc, timedDoc.getTimestamp(), GlobalWindow.INSTANCE);
         }
       }
 
       private void flushAndOutputResults(ContextAdapter context)
           throws IOException, InterruptedException {
-        for (TimestampedValue<Document> timedDoc : flushBatch()) {
+        for (Document timedDoc : flushBatch()) {
           context.output(timedDoc);
         }
       }
 
-      protected void addAndMaybeFlush(TimestampedValue<Document> timedDoc, ProcessContext context)
+      protected void addAndMaybeFlush(Document doc, ProcessContext context)
           throws IOException, InterruptedException {
 
-        batch.add(timedDoc);
-        currentBatchSizeBytes +=
-            timedDoc.getValue().getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
+        batch.add(doc);
+        currentBatchSizeBytes += doc.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
 
         if (batch.size() >= spec.getMaxBatchSize()
             || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
@@ -2407,8 +2398,7 @@ public class ElasticsearchIO {
             || t.getCause() instanceof ConnectException;
       }
 
-      private List<TimestampedValue<Document>> flushBatch()
-          throws IOException, InterruptedException {
+      private List<Document> flushBatch() throws IOException, InterruptedException {
 
         if (batch.isEmpty()) {
           return Lists.newArrayList();
@@ -2421,16 +2411,16 @@ public class ElasticsearchIO {
 
         StringBuilder bulkRequest = new StringBuilder();
         // Create a stable list of input entries, because order is important to keep constant
-        List<TimestampedValue<Document>> inputEntries = Lists.newArrayList(batch.listIterator());
+        List<Document> inputEntries = Lists.newArrayList(batch.listIterator());
 
         batch.clear();
         currentBatchSizeBytes = 0L;
 
-        for (TimestampedValue<Document> entry : inputEntries) {
+        for (Document doc : inputEntries) {
           // N.B. we need to ensure that we can iterate in the same order later to match up
           // responses to these bulk directives. ES Bulk response `items` is in the same order
           // as the bulk directives in the request, so order is imperative.
-          bulkRequest.append(entry.getValue().getBulkDirective());
+          bulkRequest.append(doc.getBulkDirective());
         }
 
         Response response = null;
@@ -2473,15 +2463,12 @@ public class ElasticsearchIO {
                 responseEntity, spec.getAllowedResponseErrors(), spec.getThrowWriteErrors());
 
         return Streams.zip(
-            inputEntries.stream(),
-            responses.stream(),
-            (inputTimedDoc, responseDoc) ->
-                TimestampedValue.of(
+                inputEntries.stream(),
+                responses.stream(),
+                (inputTimedDoc, responseDoc) ->
                     inputTimedDoc
-                        .getValue()
                         .withHasError(responseDoc.getHasError())
-                        .withResponseItemJson(responseDoc.getResponseItemJson()),
-                    inputTimedDoc.getTimestamp()))
+                        .withResponseItemJson(responseDoc.getResponseItemJson()))
             .collect(Collectors.toList());
       }
 
