@@ -2169,13 +2169,14 @@ public class ElasticsearchIO {
     /**
      * When using {@link BulkIO#withUseStatefulBatches} Stateful Processing, states and therefore
      * batches are maintained per-key-per-window. BE AWARE that low values for @param
-     * maxParallelRequestsPerWindow, in particular if the input data has a finite number of windows,
-     * can reduce parallelism greatly. If data is globally windowed and @param
-     * maxParallelRequestsPerWindow is set to 1,there will only ever be 1 request in flight. Having
-     * only a single request in flight can be beneficial for ensuring an Elasticsearch cluster is
-     * not overwhelmed by parallel requests,but may not work for all use cases. If this number is
-     * less than the number of maximum workers in your pipeline, the IO work will result in a
-     * sub-distribution of the last write step with most of the runners.
+     * maxParallelRequests, in particular if the input data has a finite number of windows, can
+     * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
+     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * ever be 1 request in flight. Having only a single request in flight can be beneficial for
+     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests,but may not work
+     * for all use cases. If this number is less than the number of maximum workers in your
+     * pipeline, the IO work will result in a sub-optimal distribution of the write step with most
+     * of the runners.
      *
      * @param maxParallelRequests the maximum number of parallel bulk requests for a window of data
      * @return the {@link BulkIO} with maximum parallel bulk requests per window set
@@ -2191,13 +2192,14 @@ public class ElasticsearchIO {
     /**
      * When using {@link BulkIO#withUseStatefulBatches} Stateful Processing, states and therefore
      * batches are maintained per-key-per-window. BE AWARE that low values for @param
-     * maxParallelRequestsPerWindow, in particular if the input data has a finite number of windows,
-     * can reduce parallelism greatly. If data is globally windowed and @param
-     * maxParallelRequestsPerWindow is set to 1,there will only ever be 1 request in flight. Having
-     * only a single request in flight can be beneficial for ensuring an Elasticsearch cluster is
-     * not overwhelmed by parallel requests,but may not work for all use cases. If this number is
-     * less than the number of maximum workers in your pipeline, the IO work will result in a
-     * sub-distribution of the last write step with most of the runners.
+     * maxParallelRequests, in particular if the input data has a finite number of windows, can
+     * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
+     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * ever be 1 request in flight. Having only a single request in flight can be beneficial for
+     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests,but may not work
+     * for all use cases. If this number is less than the number of maximum workers in your
+     * pipeline, the IO work will result in a sub-optimal distribution of the write step with most
+     * of the runners.
      *
      * @param maxParallelRequests the maximum number of parallel bulk requests
      * @return the {@link BulkIO} with maximum parallel bulk requests per window set
