@@ -213,19 +213,19 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   @Test
   public void testInvalidRecordReceived() {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
-    final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds() + 3, startTimestamp.getNanos());
+    final Timestamp endTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
 
     mockTableExists();
     mockGetWatermark(startTimestamp);
-    ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, after3Seconds);
+    ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, endTimestamp);
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
         getPartitionResultSet);
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos()),
         ResultSet.newBuilder().setMetadata(PARTITION_METADATA_RESULT_SET_METADATA).build());
-    mockInvalidChangeStreamRecordReceived(startTimestamp, after3Seconds);
+    mockInvalidChangeStreamRecordReceived(startTimestamp, endTimestamp);
 
     try {
       pipeline.apply(
@@ -235,7 +235,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withMetadataDatabase(TEST_DATABASE)
               .withMetadataTable(TEST_TABLE)
               .withInclusiveStartAt(startTimestamp)
-              .withInclusiveEndAt(after3Seconds));
+              .withInclusiveEndAt(endTimestamp));
       pipeline.run().waitUntilFinish();
     } finally {
       thrown.expect(PipelineExecutionException.class);
