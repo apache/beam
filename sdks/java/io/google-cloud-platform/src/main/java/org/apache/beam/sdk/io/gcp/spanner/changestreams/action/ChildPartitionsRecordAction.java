@@ -26,14 +26,12 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -112,7 +110,7 @@ public class ChildPartitionsRecordAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       ChildPartitionsRecord record,
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
@@ -126,8 +124,7 @@ public class ChildPartitionsRecordAction {
 
       final Timestamp startTimestamp = record.getStartTimestamp();
       final Instant startInstant = new Instant(startTimestamp.toSqlTimestamp().getTime());
-      final long startMicros = TimestampConverter.timestampToMicros(startTimestamp);
-      if (!tracker.tryClaim(startMicros)) {
+      if (!tracker.tryClaim(startTimestamp)) {
         LOG.debug(
             "[" + token + "] Could not claim queryChangeStream(" + startTimestamp + "), stopping");
         return Optional.of(ProcessContinuation.stop());
@@ -209,21 +206,17 @@ public class ChildPartitionsRecordAction {
 
   private PartitionMetadata toPartitionMetadata(
       Timestamp startTimestamp,
-      @Nullable Timestamp endTimestamp,
+      Timestamp endTimestamp,
       long heartbeatMillis,
       ChildPartition childPartition) {
-    // FIXME: The backend only supports microsecond granularity. Remove when fixed.
-    final Timestamp truncatedStartTimestamp = TimestampConverter.truncateNanos(startTimestamp);
-    final Timestamp truncatedEndTimestamp =
-        Optional.ofNullable(endTimestamp).map(TimestampConverter::truncateNanos).orElse(null);
     return PartitionMetadata.newBuilder()
         .setPartitionToken(childPartition.getToken())
         .setParentTokens(childPartition.getParentTokens())
-        .setStartTimestamp(truncatedStartTimestamp)
-        .setEndTimestamp(truncatedEndTimestamp)
+        .setStartTimestamp(startTimestamp)
+        .setEndTimestamp(endTimestamp)
         .setHeartbeatMillis(heartbeatMillis)
         .setState(CREATED)
-        .setWatermark(truncatedStartTimestamp)
+        .setWatermark(startTimestamp)
         .build();
   }
 }

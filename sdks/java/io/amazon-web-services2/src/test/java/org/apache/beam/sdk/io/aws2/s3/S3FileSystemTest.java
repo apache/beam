@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3Options;
 import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3OptionsWithPathStyleAccessEnabled;
 import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
 import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.toMd5;
-import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -33,6 +32,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -68,6 +68,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.CopyPartResult;
@@ -272,7 +274,8 @@ public class S3FileSystemTest {
     CopyObjectResponse copyObjectResponse = builder.build();
     CopyObjectRequest copyObjectRequest =
         CopyObjectRequest.builder()
-            .copySource(sourcePath.getBucket() + "/" + sourcePath.getKey())
+            .sourceBucket(sourcePath.getBucket())
+            .sourceKey(sourcePath.getKey())
             .destinationBucket(destinationPath.getBucket())
             .destinationBucket(destinationPath.getKey())
             .sseCustomerKey(sseCustomerKey.getKey())
@@ -305,21 +308,14 @@ public class S3FileSystemTest {
   }
 
   private void testMultipartCopy(S3FileSystemConfiguration config) throws IOException {
-    testMultipartCopy(
-        buildMockedS3FileSystem(config),
-        config.getSSECustomerKey(),
-        config.getS3UploadBufferSizeBytes());
+    testMultipartCopy(buildMockedS3FileSystem(config), config.getSSECustomerKey());
   }
 
   private void testMultipartCopy(S3Options options) throws IOException {
-    testMultipartCopy(
-        buildMockedS3FileSystem(options),
-        options.getSSECustomerKey(),
-        options.getS3UploadBufferSizeBytes());
+    testMultipartCopy(buildMockedS3FileSystem(options), options.getSSECustomerKey());
   }
 
-  private void testMultipartCopy(
-      S3FileSystem s3FileSystem, SSECustomerKey sseCustomerKey, long s3UploadBufferSizeBytes)
+  private void testMultipartCopy(S3FileSystem s3FileSystem, SSECustomerKey sseCustomerKey)
       throws IOException {
     S3ResourceId sourcePath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/from");
     S3ResourceId destinationPath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/to");
@@ -346,7 +342,7 @@ public class S3FileSystemTest {
 
     HeadObjectResponse.Builder headObjectResponseBuilder =
         HeadObjectResponse.builder()
-            .contentLength((long) (s3UploadBufferSizeBytes * 1.5))
+            .contentLength((long) (S3FileSystem.MAX_COPY_OBJECT_SIZE_BYTES * 1.5))
             .contentEncoding("read-seek-efficient");
     if (sseCustomerKeyMd5 != null) {
       headObjectResponseBuilder.sseCustomerKeyMD5(sseCustomerKeyMd5);
@@ -357,6 +353,36 @@ public class S3FileSystemTest {
         createObjectHeadRequest(sourcePath, sseCustomerKey),
         sseCustomerKeyMd5,
         headObjectResponse);
+
+    UploadPartCopyRequest uploadPartCopyRequest1 =
+        UploadPartCopyRequest.builder()
+            .destinationBucket(destinationPath.getBucket())
+            .destinationKey(destinationPath.getKey())
+            .sourceBucket(sourcePath.getBucket())
+            .sourceKey(sourcePath.getKey())
+            .uploadId(createMultipartUploadResponse.uploadId())
+            .partNumber(1)
+            .copySourceRange(
+                String.format("bytes=0-%s", S3FileSystem.MAX_COPY_OBJECT_SIZE_BYTES - 1))
+            .sseCustomerKey(sseCustomerKey == null ? null : sseCustomerKey.getKey())
+            .sseCustomerAlgorithm(sseCustomerKey == null ? null : sseCustomerKey.getAlgorithm())
+            .sseCustomerKeyMD5(sseCustomerKeyMd5)
+            .copySourceSSECustomerKey(sseCustomerKey == null ? null : sseCustomerKey.getKey())
+            .copySourceSSECustomerAlgorithm(
+                sseCustomerKey == null ? null : sseCustomerKey.getAlgorithm())
+            .copySourceSSECustomerKeyMD5(sseCustomerKeyMd5)
+            .build();
+
+    UploadPartCopyRequest uploadPartCopyRequest2 =
+        uploadPartCopyRequest1
+            .toBuilder()
+            .partNumber(2)
+            .copySourceRange(
+                String.format(
+                    "bytes=%s-%s",
+                    S3FileSystem.MAX_COPY_OBJECT_SIZE_BYTES,
+                    headObjectResponse.contentLength() - 1))
+            .build();
 
     CopyPartResult copyPartResult1 = CopyPartResult.builder().eTag("etag-1").build();
     CopyPartResult copyPartResult2 = CopyPartResult.builder().eTag("etag-2").build();
@@ -370,19 +396,33 @@ public class S3FileSystemTest {
     }
     UploadPartCopyResponse uploadPartCopyResponse1 = uploadPartCopyResponseBuilder1.build();
     UploadPartCopyResponse uploadPartCopyResponse2 = uploadPartCopyResponseBuilder2.build();
-    UploadPartCopyRequest uploadPartCopyRequest =
-        UploadPartCopyRequest.builder().sseCustomerKey(sseCustomerKey.getKey()).build();
-    when(s3FileSystem.getS3Client().uploadPartCopy(any(UploadPartCopyRequest.class)))
-        .thenReturn(uploadPartCopyResponse1)
+    when(s3FileSystem.getS3Client().uploadPartCopy(eq(uploadPartCopyRequest1)))
+        .thenReturn(uploadPartCopyResponse1);
+    when(s3FileSystem.getS3Client().uploadPartCopy(eq(uploadPartCopyRequest2)))
         .thenReturn(uploadPartCopyResponse2);
-    assertEquals(
-        sseCustomerKeyMd5,
-        s3FileSystem.getS3Client().uploadPartCopy(uploadPartCopyRequest).sseCustomerKeyMD5());
 
     s3FileSystem.multipartCopy(sourcePath, destinationPath, headObjectResponse);
 
     verify(s3FileSystem.getS3Client(), times(1))
-        .completeMultipartUpload(any(CompleteMultipartUploadRequest.class));
+        .completeMultipartUpload(
+            eq(
+                CompleteMultipartUploadRequest.builder()
+                    .bucket(destinationPath.getBucket())
+                    .key(destinationPath.getKey())
+                    .uploadId(createMultipartUploadResponse.uploadId())
+                    .multipartUpload(
+                        CompletedMultipartUpload.builder()
+                            .parts(
+                                CompletedPart.builder()
+                                    .partNumber(1)
+                                    .eTag(copyPartResult1.eTag())
+                                    .build(),
+                                CompletedPart.builder()
+                                    .partNumber(2)
+                                    .eTag(copyPartResult2.eTag())
+                                    .build())
+                            .build())
+                    .build()));
   }
 
   @Test

@@ -42,7 +42,7 @@ func Test_newGoLifeCycle(t *testing.T) {
 		{
 			// Test case with calling newGoLifeCycle method with correct pipelineId and workingDir.
 			// As a result, want to receive an expected go life cycle.
-			name: "newGoLifeCycle",
+			name: "NewGoLifeCycle",
 			args: args{
 				pipelineId:      pipelineId,
 				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),

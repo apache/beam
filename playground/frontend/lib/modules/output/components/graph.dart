@@ -42,11 +42,13 @@ class GraphCustomPainter extends CustomPainter {
 class GraphTab extends StatefulWidget {
   final String graph;
   final SDK sdk;
+  final GraphDirection direction;
 
   const GraphTab({
     Key? key,
     required this.graph,
     required this.sdk,
+    required this.direction,
   }) : super(key: key);
 
   @override
@@ -59,17 +61,20 @@ class _GraphTabState extends State<GraphTab> {
   @override
   void initState() {
     if (widget.graph.isNotEmpty) {
-      graphPainter =
-          GraphBuilder.parseDot(widget.graph, widget.sdk)?.getPainter();
+      graphPainter = GraphBuilder.parseDot(widget.graph, widget.sdk)
+          ?.getPainter(widget.direction);
     }
     super.initState();
   }
 
   @override
   void didUpdateWidget(GraphTab oldWidget) {
-    if (widget.graph.isNotEmpty && oldWidget.graph != widget.graph) {
-      graphPainter =
-          GraphBuilder.parseDot(widget.graph, widget.sdk)?.getPainter();
+    final graphChanged =
+        widget.graph.isNotEmpty && oldWidget.graph != widget.graph;
+    final directionChanged = widget.direction != oldWidget.direction;
+    if (graphChanged || directionChanged) {
+      graphPainter = GraphBuilder.parseDot(widget.graph, widget.sdk)
+          ?.getPainter(widget.direction);
     }
     if (widget.graph.isEmpty) {
       graphPainter = null;

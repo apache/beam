@@ -29,7 +29,6 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSetMetadata;
@@ -40,7 +39,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -55,17 +54,16 @@ public class QueryChangeStreamActionTest {
   private static final String PARTITION_TOKEN = "partitionToken";
   private static final Timestamp PARTITION_START_TIMESTAMP = Timestamp.ofTimeMicroseconds(10L);
   private static final Timestamp PARTITION_END_TIMESTAMP = Timestamp.ofTimeMicroseconds(30L);
-  private static final long PARTITION_END_MICROS = 30L;
   private static final long PARTITION_HEARTBEAT_MILLIS = 30_000L;
   private static final Instant WATERMARK = Instant.now();
   private static final Timestamp WATERMARK_TIMESTAMP =
-      TimestampConverter.timestampFromMillis(WATERMARK.getMillis());
+      Timestamp.ofTimeMicroseconds(WATERMARK.getMillis() * 1_000L);
 
   private ChangeStreamDao changeStreamDao;
   private PartitionMetadataDao partitionMetadataDao;
   private PartitionMetadata partition;
-  private OffsetRange restriction;
-  private RestrictionTracker<OffsetRange, Long> restrictionTracker;
+  private TimestampRange restriction;
+  private RestrictionTracker<TimestampRange, Timestamp> restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ChangeStreamRecordMapper changeStreamRecordMapper;
   private PartitionMetadataMapper partitionMetadataMapper;
@@ -107,14 +105,14 @@ public class QueryChangeStreamActionTest {
             .setWatermark(WATERMARK_TIMESTAMP)
             .setScheduledAt(Timestamp.now())
             .build();
-    restriction = mock(OffsetRange.class);
+    restriction = mock(TimestampRange.class);
     restrictionTracker = mock(RestrictionTracker.class);
     outputReceiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
     bundleFinalizer = new BundleFinalizerStub();
 
     when(restrictionTracker.currentRestriction()).thenReturn(restriction);
-    when(restriction.getFrom()).thenReturn(10L);
+    when(restriction.getFrom()).thenReturn(Timestamp.ofTimeMicroseconds(10L));
     when(partitionMetadataDao.getPartition(PARTITION_TOKEN)).thenReturn(row);
     when(partitionMetadataMapper.from(row)).thenReturn(partition);
   }
@@ -260,15 +258,15 @@ public class QueryChangeStreamActionTest {
     final ChildPartitionsRecord record2 = mock(ChildPartitionsRecord.class);
 
     // One microsecond after partition start timestamp
-    when(restriction.getFrom()).thenReturn(11L);
+    when(restriction.getFrom()).thenReturn(Timestamp.ofTimeSecondsAndNanos(0L, 11000));
     // This record should be ignored because it is before restriction.getFrom
-    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(10L));
+    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeSecondsAndNanos(0L, 10999));
     // This record should be included because it is at the restriction.getFrom
-    when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(11L));
+    when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeSecondsAndNanos(0L, 11000));
     // We should start the query 1 microsecond before the restriction.getFrom
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
-            Timestamp.ofTimeMicroseconds(10L),
+            Timestamp.ofTimeSecondsAndNanos(0L, 10999),
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
         .thenReturn(resultSet);
@@ -309,7 +307,7 @@ public class QueryChangeStreamActionTest {
         .thenReturn(changeStreamResultSet);
     when(changeStreamResultSet.next()).thenReturn(false);
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
-    when(restrictionTracker.tryClaim(PARTITION_END_MICROS)).thenReturn(true);
+    when(restrictionTracker.tryClaim(PARTITION_END_TIMESTAMP)).thenReturn(true);
 
     final ProcessContinuation result =
         action.run(

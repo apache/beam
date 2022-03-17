@@ -54,7 +54,6 @@ import java.util.Collections;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -62,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -101,7 +101,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     serviceHelper.reset();
     serviceHelper.stop();
     mockSpannerService.reset();
-    resetDaoFactoryFields();
   }
 
   @Test
@@ -128,6 +127,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore
   public void testUnavailableExceptionRetries() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofExceptions(
@@ -206,6 +206,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore
   public void testInvalidRecordReceived() {
     final Timestamp now = Timestamp.now();
     final Timestamp after3Seconds =
@@ -422,21 +423,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         .withProjectId(TEST_PROJECT)
         .withInstanceId(TEST_INSTANCE)
         .withDatabaseId(TEST_DATABASE);
-  }
-
-  private static void resetDaoFactoryFields() throws NoSuchFieldException, IllegalAccessException {
-    java.lang.reflect.Field partitionMetadataAdminDaoField =
-        DaoFactory.class.getDeclaredField("partitionMetadataAdminDao");
-    partitionMetadataAdminDaoField.setAccessible(true);
-    partitionMetadataAdminDaoField.set(null, null);
-    java.lang.reflect.Field partitionMetadataDaoInstanceField =
-        DaoFactory.class.getDeclaredField("partitionMetadataDaoInstance");
-    partitionMetadataDaoInstanceField.setAccessible(true);
-    partitionMetadataDaoInstanceField.set(null, null);
-    java.lang.reflect.Field changeStreamDaoInstanceField =
-        DaoFactory.class.getDeclaredField("changeStreamDaoInstance");
-    changeStreamDaoInstanceField.setAccessible(true);
-    changeStreamDaoInstanceField.set(null, null);
   }
 
   private static final ResultSetMetadata PARTITION_METADATA_RESULT_SET_METADATA =

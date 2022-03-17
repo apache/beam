@@ -20,6 +20,11 @@
 Dataflow client utility functions."""
 
 # pytype: skip-file
+# To regenerate the client:
+# pip install google-apitools[cli]
+# gen_client --discovery_url=cloudbuild.v1 --overwrite \
+#  --outdir=apache_beam/runners/dataflow/internal/clients/cloudbuild \
+#  --root_package=. client
 
 import codecs
 from functools import partial
