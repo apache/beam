@@ -2297,7 +2297,7 @@ public class ElasticsearchIO {
 
       private BulkIO spec;
       private transient RestClient restClient;
-      private List<Document> batch;
+      private transient List<Document> batch;
       long currentBatchSizeBytes;
 
       protected BulkIOBaseFn(BulkIO bulkSpec) {
