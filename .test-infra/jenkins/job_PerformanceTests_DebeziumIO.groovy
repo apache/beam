@@ -36,7 +36,7 @@ def loadTestConfigurations = { datasetName ->
         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
         staging_location     : 'gs://temp-storage-for-perf-tests/loadtests',
         metrics_dataset     : datasetName,
-        metrics_table       : 'python_direct_microbenchmarks',
+        metrics_table       : 'python_debeziumIO',
         input_options        : '\'{}\'',
         iterations           : 1,
         num_workers          : 5,
