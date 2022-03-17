@@ -24,6 +24,7 @@ import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -194,7 +195,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                 + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n");
 
     pipeline.runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
-        .waitUntiFinish();
+        .waitUntilFinish();
   }
 
   // KeyByTransactionIdFn takes in a DataChangeRecord and outputs a key-value pair of

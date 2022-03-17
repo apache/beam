@@ -194,7 +194,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                 + "Deleted record;");
 
     pipeline.runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
-        .waitUntiFinish();
+        .waitUntilFinish();
   }
 
   // Data change records may contain multiple mods if there are multiple primary keys.
