@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-public class StringMapper implements SerializableMapper<String> {
-  @Override
-  public String apply(String s) {
-    return s;
+public class JmsIOException extends RuntimeException {
+  public JmsIOException(String message, Throwable cause) {
+    super(message, cause);
   }
 }

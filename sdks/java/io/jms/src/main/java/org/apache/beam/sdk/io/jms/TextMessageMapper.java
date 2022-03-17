@@ -17,9 +17,21 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Session;
-import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import javax.jms.TextMessage;
 
-public interface SerializableMapper<EventT>
-    extends SerializableBiFunction<EventT, Session, Message> {}
+public class TextMessageMapper implements SerializableMapper<String> {
+
+  @Override
+  public Message apply(String value, Session session) {
+    try {
+      TextMessage msg = session.createTextMessage();
+      msg.setText(value);
+      return msg;
+    } catch (JMSException e) {
+      throw new JmsIOException("Error creating TextMessage", e);
+    }
+  }
+}

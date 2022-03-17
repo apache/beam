@@ -17,31 +17,44 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-public class WriteJmsResult implements POutput {
+public class WriteJmsResult<EventT> implements POutput {
 
   private final Pipeline pipeline;
+  private final TupleTag<EventT> failedMessageTag;
+  private final PCollection<EventT> failedMessages;
 
-  public WriteJmsResult(Pipeline pipeline) {
+  public WriteJmsResult(
+      Pipeline pipeline, TupleTag<EventT> failedMessageTag, PCollection<EventT> failedMessages) {
     this.pipeline = pipeline;
+    this.failedMessageTag = failedMessageTag;
+    this.failedMessages = failedMessages;
+  }
+
+  static <FailevtT> WriteJmsResult<FailevtT> in(
+      Pipeline pipeline,
+      TupleTag<FailevtT> failedMessageTag,
+      PCollection<FailevtT> failedMessages) {
+    return new WriteJmsResult<FailevtT>(pipeline, failedMessageTag, failedMessages);
+  }
+
+  @Override
+  public Map<TupleTag<?>, PValue> expand() {
+    return ImmutableMap.of(failedMessageTag, failedMessages);
   }
 
   @Override
   public Pipeline getPipeline() {
     return pipeline;
-  }
-
-  @Override
-  public Map<TupleTag<?>, PValue> expand() {
-    return Collections.emptyMap();
   }
 
   @Override

@@ -48,10 +48,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -604,7 +607,8 @@ public class JmsIO {
    * and configuration.
    */
   @AutoValue
-  public abstract static class Write<EventT> extends PTransform<PCollection<EventT>, PDone> {
+  public abstract static class Write<EventT>
+      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>> {
 
     abstract @Nullable ConnectionFactory getConnectionFactory();
 
@@ -618,7 +622,9 @@ public class JmsIO {
 
     abstract @Nullable SerializableMapper<EventT> getValueMapper();
 
-    abstract @Nullable SerializableMapper<EventT> getTopicNameMapper();
+    abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
+
+    abstract @Nullable Coder<EventT> getCoder();
 
     abstract Builder<EventT> builder();
 
@@ -636,7 +642,10 @@ public class JmsIO {
 
       abstract Builder<EventT> setValueMapper(SerializableMapper<EventT> valueMapper);
 
-      abstract Builder<EventT> setTopicNameMapper(SerializableMapper<EventT> topicNameMapper);
+      abstract Builder<EventT> setTopicNameMapper(
+          SerializableFunction<EventT, String> topicNameMapper);
+
+      abstract Builder<EventT> setCoder(Coder<EventT> coder);
 
       abstract Write<EventT> build();
     }
@@ -715,7 +724,7 @@ public class JmsIO {
       return builder().setPassword(password).build();
     }
 
-    public Write<EventT> withTopicNameMapper(SerializableMapper<EventT> topicNameMapper) {
+    public Write<EventT> withTopicNameMapper(SerializableFunction<EventT, String> topicNameMapper) {
       checkArgument(topicNameMapper != null, "topicNameMapper can not be null");
       return builder().setTopicNameMapper(topicNameMapper).build();
     }
@@ -725,9 +734,15 @@ public class JmsIO {
       return builder().setValueMapper(valueMapper).build();
     }
 
+    public Write<EventT> withCoder(Coder<EventT> coder) {
+      checkArgument(coder != null, "coder can not be null");
+      return builder().setCoder(coder).build();
+    }
+
     @Override
-    public PDone expand(PCollection<EventT> input) {
+    public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
           "Either withTopicNameMapper(topicNameMapper) or withQueue(queue) or withTopic(topic) is required");
@@ -735,11 +750,18 @@ public class JmsIO {
           getQueue() == null || getTopic() == null,
           "withQueue(queue) and withTopic(topic) are exclusive");
 
-      input.apply(ParDo.of(new WriterFn<EventT>(this)));
-      return PDone.in(input.getPipeline());
+      final TupleTag<EventT> failedMessagesTag = new TupleTag<>();
+      final TupleTag<EventT> messagesTag = new TupleTag<>();
+      PCollectionTuple res =
+          input.apply(
+              ParDo.of(new WriterFn<EventT>(this, failedMessagesTag))
+                  .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
+      PCollection<EventT> failedMessages = res.get(failedMessagesTag).setCoder(getCoder());
+      res.get(messagesTag).setCoder(getCoder());
+      return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedMessages);
     }
 
-    private static class WriterFn<EventT> extends DoFn<EventT, Void> {
+    private static class WriterFn<EventT> extends DoFn<EventT, EventT> {
 
       private Write<EventT> spec;
 
@@ -747,9 +769,11 @@ public class JmsIO {
       private Session session;
       private MessageProducer producer;
       private Destination destination;
+      private final TupleTag<EventT> failedMessageTag;
 
-      public WriterFn(Write<EventT> spec) {
+      public WriterFn(Write<EventT> spec, TupleTag<EventT> failedMessageTag) {
         this.spec = spec;
+        this.failedMessageTag = failedMessageTag;
       }
 
       @Setup
@@ -777,16 +801,20 @@ public class JmsIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext ctx) throws Exception {
-        String value = spec.getValueMapper().apply(ctx.element());
-        TextMessage message = session.createTextMessage(value);
-        if (spec.getTopicNameMapper() != null) {
-          Destination dynamicDestination =
-              session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
-          producer.send(dynamicDestination, message);
+      public void processElement(ProcessContext ctx) {
+        try {
+          Message message = spec.getValueMapper().apply(ctx.element(), session);
+          if (spec.getTopicNameMapper() != null) {
+            Destination dynamicDestination =
+                session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
+            producer.send(dynamicDestination, message);
 
-        } else {
-          producer.send(destination, message);
+          } else {
+            producer.send(destination, message);
+          }
+
+        } catch (Exception ex) {
+          ctx.output(failedMessageTag, ctx.element());
         }
       }
 

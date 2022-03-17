@@ -40,6 +40,7 @@ import java.util.function.Function;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -239,8 +240,9 @@ public class JmsIOTest {
         .apply(
             JmsIO.<String>write()
                 .withConnectionFactory(connectionFactory)
-                .withValueMapper(new StringMapper())
+                .withValueMapper(new TextMessageMapper())
                 .withQueue(QUEUE)
+                .withCoder(SerializableCoder.of(String.class))
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD));
 
@@ -279,8 +281,18 @@ public class JmsIOTest {
                 .withConnectionFactory(connectionFactory)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
+                .withCoder(SerializableCoder.of(TestEvent.class))
                 .withTopicNameMapper(e -> e.getTopicName())
-                .withValueMapper(e -> e.getValue()));
+                .withValueMapper(
+                    (e, s) -> {
+                      try {
+                        TextMessage msg = s.createTextMessage();
+                        msg.setText(e.getValue());
+                        return msg;
+                      } catch (JMSException ex) {
+                        throw new JmsIOException("Error writing TextMessage", ex);
+                      }
+                    }));
 
     pipeline.run();
 
