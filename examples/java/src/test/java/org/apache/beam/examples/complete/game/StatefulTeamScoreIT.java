@@ -74,7 +74,7 @@ public class StatefulTeamScoreIT {
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
   private String projectId;
   private BigqueryClient bqClient;
-  private final String OUTPUT_DATASET = "stateful_team_score_e2e_" + timestamp;
+  private static final String OUTPUT_DATASET = "stateful_team_score_e2e_" + timestamp;
 
   public interface StatefulTeamScoreOptions
       extends TestPipelineOptions, StatefulTeamScore.Options {};

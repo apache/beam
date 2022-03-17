@@ -75,7 +75,7 @@ public class GameStatsIT {
   private String projectId;
   private static final String TOPIC_PREFIX = "gamestats-";
   private BigqueryClient bqClient;
-  private final String OUTPUT_DATASET = "game_stats_e2e_" + timestamp;
+  private static final String OUTPUT_DATASET = "game_stats_e2e_" + timestamp;
 
   public interface GameStatsOptions
       extends TestPipelineOptions, ExampleBigQueryTableOptions, GameStats.Options {};
@@ -179,9 +179,7 @@ public class GameStatsIT {
             .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
             .withIdAttribute(projectId);
 
-    testPipeline
-        .apply(TextIO.read().from(options.getInput()))
-        .apply(write);
+    testPipeline.apply(TextIO.read().from(options.getInput())).apply(write);
     testPipeline.run();
   }
 
