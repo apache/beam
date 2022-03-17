@@ -235,7 +235,7 @@ public class ElasticsearchIO {
         // advised default starting batch size in ES docs
         .setMaxBatchSizeBytes(5L * 1024L * 1024L)
         .setUseStatefulBatches(false)
-        .setMaxParallelRequestsPerWindow(1)
+        .setMaxParallelRequests(1)
         .setThrowWriteErrors(true)
         .build();
   }
@@ -1404,7 +1404,7 @@ public class ElasticsearchIO {
      * Provide a function to extract the doc version from the document. This version number will be
      * used as the document version in Elasticsearch. Should the function throw an Exception then
      * the batch will fail and the exception propagated. Incompatible with update operations and
-     * should only be used with withUsePartialUpdate(false)
+     * should only be used with withUsePartialUpdate(false) @Deprecated
      *
      * @param docVersionType the version type to use, one of {@value VERSION_TYPES}
      * @return the {@link DocToBulk} with the doc version type set
@@ -1795,7 +1795,7 @@ public class ElasticsearchIO {
             // advised default starting batch size in ES docs
             .setMaxBatchSizeBytes(5L * 1024L * 1024L)
             .setUseStatefulBatches(false)
-            .setMaxParallelRequestsPerWindow(1)
+            .setMaxParallelRequests(1)
             .setThrowWriteErrors(true)
             .build();
 
@@ -1920,8 +1920,15 @@ public class ElasticsearchIO {
     }
 
     /** Refer to {@link BulkIO#withMaxParallelRequestsPerWindow}. */
+    @Deprecated
     public Write withMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow) {
       bulkIO = bulkIO.withMaxParallelRequestsPerWindow(maxParallelRequestsPerWindow);
+      return this;
+    }
+
+    /** Refer to {@link BulkIO#withMaxParallelRequests}. */
+    public Write withMaxParallelRequests(int maxParallelRequests) {
+      bulkIO = bulkIO.withMaxParallelRequests(maxParallelRequests);
       return this;
     }
 
@@ -1972,7 +1979,9 @@ public class ElasticsearchIO {
 
     abstract boolean getUseStatefulBatches();
 
-    abstract int getMaxParallelRequestsPerWindow();
+    abstract @Nullable Integer getMaxParallelRequestsPerWindow();
+
+    abstract int getMaxParallelRequests();
 
     abstract @Nullable RetryConfiguration getRetryConfiguration();
 
@@ -1998,7 +2007,10 @@ public class ElasticsearchIO {
 
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
+      @Deprecated
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
+
+      abstract Builder setMaxParallelRequests(int maxParallelRequests);
 
       abstract Builder setThrowWriteErrors(boolean throwWriteErrors);
 
@@ -2161,14 +2173,35 @@ public class ElasticsearchIO {
      * less than the number of maximum workers in your pipeline, the IO work will result in a
      * sub-distribution of the last write step with most of the runners.
      *
-     * @param maxParallelRequestsPerWindow the maximum number of parallel bulk requests for a window
-     *     of data
+     * @param maxParallelRequests the maximum number of parallel bulk requests for a window of data
+     * @return the {@link BulkIO} with maximum parallel bulk requests per window set
+     * @deprecated use {@link BulkIO#withMaxParallelRequests} instead.
+     */
+    @Deprecated
+    public BulkIO withMaxParallelRequestsPerWindow(int maxParallelRequests) {
+      checkArgument(
+          maxParallelRequests > 0, "maxParallelRequestsPerWindow value must be a positive integer");
+      return builder().setMaxParallelRequests(maxParallelRequests).build();
+    }
+
+    /**
+     * When using {@link BulkIO#withUseStatefulBatches} Stateful Processing, states and therefore
+     * batches are maintained per-key-per-window. BE AWARE that low values for @param
+     * maxParallelRequestsPerWindow, in particular if the input data has a finite number of windows,
+     * can reduce parallelism greatly. If data is globally windowed and @param
+     * maxParallelRequestsPerWindow is set to 1,there will only ever be 1 request in flight. Having
+     * only a single request in flight can be beneficial for ensuring an Elasticsearch cluster is
+     * not overwhelmed by parallel requests,but may not work for all use cases. If this number is
+     * less than the number of maximum workers in your pipeline, the IO work will result in a
+     * sub-distribution of the last write step with most of the runners.
+     *
+     * @param maxParallelRequests the maximum number of parallel bulk requests
      * @return the {@link BulkIO} with maximum parallel bulk requests per window set
      */
-    public BulkIO withMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow) {
+    public BulkIO withMaxParallelRequests(int maxParallelRequests) {
       checkArgument(
-          maxParallelRequestsPerWindow > 0, "parameter value must be positive " + "a integer");
-      return builder().setMaxParallelRequestsPerWindow(maxParallelRequestsPerWindow).build();
+          maxParallelRequests > 0, "maxParallelRequests value must be a positive integer");
+      return builder().setMaxParallelRequests(maxParallelRequests).build();
     }
 
     /**
@@ -2218,7 +2251,7 @@ public class ElasticsearchIO {
         }
 
         return input
-            .apply(ParDo.of(new Reshuffle.AssignShardFn<>(spec.getMaxParallelRequestsPerWindow())))
+            .apply(ParDo.of(new Reshuffle.AssignShardFn<>(spec.getMaxParallelRequests())))
             .apply(groupIntoBatches);
       }
     }
