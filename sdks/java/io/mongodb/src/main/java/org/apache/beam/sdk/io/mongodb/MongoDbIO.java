@@ -1002,7 +1002,8 @@ public class MongoDbIO {
               }
               updateDocument.append(entry.getKey(), updateSubDocument);
             }
-            String findKey = Optional.ofNullable(spec.updateConfiguration().findKey()).orElse("_id");
+            String findKey =
+                Optional.ofNullable(spec.updateConfiguration().findKey()).orElse("_id");
             Document findCriteria =
                 new Document(findKey, doc.get(spec.updateConfiguration().updateKey()));
             UpdateOptions updateOptions =
