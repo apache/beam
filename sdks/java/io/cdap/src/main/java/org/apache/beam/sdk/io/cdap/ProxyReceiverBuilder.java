@@ -32,7 +32,13 @@ import org.slf4j.LoggerFactory;
  * Class for building proxy for {@link Receiver} that uses Apache Beam mechanisms instead of Spark
  * environment.
  */
-@SuppressWarnings({"unchecked", "UnusedVariable"})
+@SuppressWarnings({
+  "unchecked",
+  "UnusedVariable",
+  "argument.type.incompatible",
+  "return.type.incompatible",
+  "dereference.of.nullable"
+})
 public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
