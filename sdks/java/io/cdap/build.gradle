@@ -49,6 +49,11 @@ dependencies {
     implementation "io.cdap.cdap:cdap-api:6.5.1"
     implementation "com.fasterxml.jackson.core:jackson-core:2.13.0"
     implementation "com.fasterxml.jackson.core:jackson-databind:2.13.0"
+    implementation "org.apache.spark:spark-streaming_2.11:2.3.1"
+    implementation "commons-lang:commons-lang:2.6"
+    implementation "org.apache.spark:spark-core_2.11:2.4.8"
+    implementation "org.scala-lang:scala-library:2.11.12"
+    implementation "org.sonatype.sisu.inject:cglib:2.2.1-v20090111"
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation "io.cdap.cdap:cdap-etl-api:6.5.1"
