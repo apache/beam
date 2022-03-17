@@ -1404,7 +1404,7 @@ public class ElasticsearchIO {
      * Provide a function to extract the doc version from the document. This version number will be
      * used as the document version in Elasticsearch. Should the function throw an Exception then
      * the batch will fail and the exception propagated. Incompatible with update operations and
-     * should only be used with withUsePartialUpdate(false) @Deprecated
+     * should only be used with withUsePartialUpdate(false)
      *
      * @param docVersionType the version type to use, one of {@value VERSION_TYPES}
      * @return the {@link DocToBulk} with the doc version type set
@@ -1919,7 +1919,11 @@ public class ElasticsearchIO {
       return this;
     }
 
-    /** Refer to {@link BulkIO#withMaxParallelRequestsPerWindow}. */
+    /**
+     * Refer to {@link BulkIO#withMaxParallelRequestsPerWindow}.
+     *
+     * @deprecated use {@link Write#withMaxParallelRequests} instead
+     */
     @Deprecated
     public Write withMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow) {
       bulkIO = bulkIO.withMaxParallelRequestsPerWindow(maxParallelRequestsPerWindow);
