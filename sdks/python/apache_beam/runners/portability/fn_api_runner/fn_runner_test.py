@@ -170,8 +170,23 @@ class FnApiRunnerTest(unittest.TestCase):
           equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'), ('a', 'y'), ('b', 'y'),
                     ('c', 'y')]))
 
-  @retry(stop=stop_after_attempt(3))
   def test_pardo_side_input_dependencies(self):
+    ##
+    # The issue that this test surfaces is that whenever a PCollection is
+    # consumed as main input by several stages, we have a bug.
+    #
+    # The bug is: A stage assumes that it has run if its upstream PCollection
+    # has watermark=MAX. If multiple stages depend on a single PCollection, then
+    # the first stage that runs it will set its watermar to MAX, and other
+    # stages will think they've run.
+    #
+    # How to resolve?
+    # Option1: to make sure that a PCollection's watermark only advances with
+    #    its consumption by all consumers?
+    #          - I tested this and it didn't seem fruitful/obvious. (YET)
+    #
+    # Option2: Change execution schema: A PCollection's watermark represents
+    #    its *production* watermark, not its *consumption* watermark.(?)
     with self.create_pipeline() as p:
       inputs = [p | beam.Create([None])]
       for k in range(1, 10):
@@ -180,8 +195,6 @@ class FnApiRunnerTest(unittest.TestCase):
                 ExpectingSideInputsFn(f'Do{k}'),
                 *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
 
-  @unittest.skip('BEAM-13040')
-  @retry(stop=stop_after_attempt(3))
   def test_pardo_side_input_sparse_dependencies(self):
     with self.create_pipeline() as p:
       inputs = []
@@ -189,7 +202,7 @@ class FnApiRunnerTest(unittest.TestCase):
       def choose_input(s):
         return inputs[(389 + s * 5077) % len(inputs)]
 
-      for k in range(30):
+      for k in range(20):
         num_inputs = int((k * k % 16)**0.5)
         if num_inputs == 0:
           inputs.append(p | f'Create{k}' >> beam.Create([f'Create{k}']))

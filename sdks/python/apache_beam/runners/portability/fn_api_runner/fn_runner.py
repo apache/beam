@@ -84,6 +84,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
 
 _LOGGER = logging.getLogger(__name__)
+_BUNDLE_LOGGER = logging.getLogger(__name__ + ".run_bundle")
 
 T = TypeVar('T')
 
@@ -204,8 +205,6 @@ class FnApiRunner(runner.PipelineRunner):
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
     stage_context, stages = self.create_stages(pipeline_proto)
-    # TODO(pabloem, BEAM-7514): Create a watermark manager (that has access to
-    #   the teststream (if any), and all the stages).
     return self.run_stages(stage_context, stages)
 
   @contextlib.contextmanager
@@ -396,7 +395,7 @@ class FnApiRunner(runner.PipelineRunner):
           stage = runner_execution_context.stages[consuming_stage_name]
           bundle_context_manager = runner_execution_context.bundle_manager_for(
               stage)
-          _LOGGER.debug(
+          _BUNDLE_LOGGER.debug(
               'Running bundle for stage %s\n\tExpected outputs: %s timers: %s',
               bundle_context_manager.stage.name,
               bundle_context_manager.stage_data_outputs,
@@ -428,7 +427,9 @@ class FnApiRunner(runner.PipelineRunner):
                         '').values(),
                     monitoring_infos_by_stage['']))
 
-          # TODO(pabloem): This should work either way.
+          # We only compute new ready bundles whenever we run out of current
+          # ready bundles, but we could do it after every new bundle and
+          # it should work either way.
           if len(runner_execution_context.queues.ready_inputs) == 0:
             self._schedule_ready_bundles(runner_execution_context)
 
@@ -456,7 +457,7 @@ class FnApiRunner(runner.PipelineRunner):
           runner_execution_context.watermark_manager.get_stage_node(
               stage_name).input_watermark())
       if current_watermark >= bundle_watermark:
-        _LOGGER.debug(
+        _BUNDLE_LOGGER.debug(
             'Watermark: %s. Enqueuing bundle scheduled for (%s) for stage %s',
             current_watermark,
             bundle_watermark,
@@ -468,7 +469,7 @@ class FnApiRunner(runner.PipelineRunner):
         runner_execution_context.queues.ready_inputs.enque(
             (stage_name, data_input))
       else:
-        _LOGGER.debug(
+        _BUNDLE_LOGGER.debug(
             'Unable to add bundle for stage %s\n'
             '\tStage input watermark: %s\n'
             '\tBundle schedule watermark: %s',
@@ -736,6 +737,7 @@ class FnApiRunner(runner.PipelineRunner):
             bundle_manager))
 
     for pc_name, watermark in watermark_updates.items():
+      _BUNDLE_LOGGER.debug('Update: %s %s', pc_name, watermark)
       runner_execution_context.watermark_manager.set_pcoll_watermark(
           pc_name, watermark)
 
@@ -754,6 +756,13 @@ class FnApiRunner(runner.PipelineRunner):
         bundle_context_manager,
         newly_set_timers,
         bundle_input)
+
+    if not deferred_inputs and not newly_set_timers:
+      # Marking all inputs as having been fully produced.
+      for _, output_pc in bundle_context_manager.stage_data_outputs.items():
+        output_pc = output_pc.decode('utf8').split(':')[1]
+        runner_execution_context.watermark_manager.get_pcoll_node(
+            output_pc).set_produced_watermark(timestamp.MAX_TIMESTAMP)
 
     # Store the required downstream side inputs into state so it is accessible
     # for the worker when it runs bundles that consume this stage's output.
