@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.cdap.context;
 
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import javax.annotation.Nullable;
 
 /**
  * Class BatchSinkContextWrapper is a class for creating context object of different CDAP classes
@@ -35,7 +36,7 @@ public class BatchSinkContextImpl extends BatchContextImpl implements BatchSinkC
   }
 
   @Override
-  public String getStageName() {
+  public @Nullable String getStageName() {
     return null;
   }
 }
