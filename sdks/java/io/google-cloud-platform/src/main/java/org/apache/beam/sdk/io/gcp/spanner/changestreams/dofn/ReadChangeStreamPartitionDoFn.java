@@ -24,6 +24,7 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadata
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -72,6 +74,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator throughputEstimator;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
@@ -88,16 +91,19 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   * @param throughputEstimator an estimator to calculate local throughput.
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
   }
 
   @GetInitialWatermarkEstimatorState
@@ -146,6 +152,21 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     return TimestampRange.of(startTimestamp, endTimestamp);
   }
 
+  @GetSize
+  public double getSize(@Element PartitionMetadata partition, @Restriction TimestampRange range)
+      throws Exception {
+    final BigDecimal timeGapInSeconds =
+        BigDecimal.valueOf(newTracker(partition, range).getProgress().getWorkRemaining());
+    final BigDecimal throughput = BigDecimal.valueOf(this.throughputEstimator.get());
+    LOG.debug(
+        "Reported getSize() - remaining work: " + timeGapInSeconds + " throughput:" + throughput);
+    // Cap it at Double.MAX_VALUE to avoid an overflow.
+    return timeGapInSeconds
+        .multiply(throughput)
+        .min(BigDecimal.valueOf(Double.MAX_VALUE))
+        .doubleValue();
+  }
+
   @NewTracker
   public ReadChangeStreamPartitionRangeTracker newTracker(
       @Element PartitionMetadata partition, @Restriction TimestampRange range) {
@@ -180,7 +201,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
-            metrics);
+            metrics,
+            throughputEstimator);
   }
 
   /**
