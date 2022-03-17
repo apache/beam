@@ -82,15 +82,6 @@ public class PythonService {
           "Python boostrap failed with error " + result + ", " + lastNonEmptyLine);
     }
     String pythonExecutable = lastNonEmptyLine;
-    {
-      new ProcessBuilder(
-              pythonExecutable,
-              "-c",
-              "print('yyyyy'); import apache_beam; print(apache_beam); raise TypeError('Zzzzz')")
-          .redirectError(ProcessBuilder.Redirect.INHERIT)
-          .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-          .start();
-    }
     List<String> command = new ArrayList<>();
     command.add(pythonExecutable);
     command.add("-m");
