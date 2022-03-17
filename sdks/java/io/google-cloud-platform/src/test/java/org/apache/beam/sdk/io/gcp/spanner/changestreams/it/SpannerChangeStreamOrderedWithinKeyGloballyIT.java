@@ -336,7 +336,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
       String keyForTimer = seenKey.read();
       Instant timerContextTimestamp = context.timestamp();
       LOG.info("Timer reached expiration time for key {} and for timestamp {}", keyForTimer,
-          timerContextTimestamp)''
+          timerContextTimestamp);
       if (!buffer.isEmpty().read()) {
         final List<KV<SpannerChangeStreamOrderedWithinKeyGloballyIT.SortKey, DataChangeRecord>>
             records =
@@ -396,11 +396,11 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
       Instant nextTimer =
           timerContextTimestamp.plus(Duration.standardSeconds(incrementIntervalInSeconds));
       if (buffer.isEmpty() != null && !buffer.isEmpty().read()) {
-        LOG.info("Setting next timer to {} for key ", nextTimer.toString(), keyForTimer);
+        LOG.info("Setting next timer to {} for key {}", nextTimer.toString(), keyForTimer);
         timer.set(nextTimer);
       } else {
         LOG.info(
-            "Timer not being set since the buffer is empty for key {} ", keyString);
+            "Timer not being set since the buffer is empty for key {} ", keyForTimer);
         seenKey.clear();
       }
     }
