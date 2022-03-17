@@ -1078,8 +1078,6 @@ public final class KinesisIO {
           Metrics.counter(KinesisIO.Write.class, METRICS_PREFIX + "user_records_count");
       private static final Counter CLIENT_RECORDS_COUNT =
           Metrics.counter(KinesisIO.Write.class, METRICS_PREFIX + "client_records_count");
-      private static final Distribution WRITE_LATENCY_MS =
-          Metrics.distribution(KinesisIO.Write.class, METRICS_PREFIX + "latency_ms");
 
       private final MovingFunction numUserRecords = newFun(SUM);
       private final MovingFunction numClientRecords = newFun(SUM);
@@ -1129,11 +1127,6 @@ public final class KinesisIO {
       private void logPeriodically() {
         long now = DateTimeUtils.currentTimeMillis();
         // can't be updated from the async callback
-        WRITE_LATENCY_MS.update(
-            sumPutRequestLatency.get(now),
-            numPutRequests.get(now),
-            minPutRequestLatency.get(now),
-            maxPutRequestLatency.get(now));
         if (now > nextLogTime && LOG.isInfoEnabled()) {
           nextLogTime = now + LOG_STATS_PERIOD.getMillis();
           long clientRecords = numClientRecords.get(now);
