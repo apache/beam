@@ -88,7 +88,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
-import org.apache.commons.compress.utils.Lists;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -2325,7 +2324,7 @@ public class ElasticsearchIO {
 
       @StartBundle
       public void startBundle(StartBundleContext context) {
-        batch = Lists.newArrayList();
+        batch = new ArrayList<>();
         currentBatchSizeBytes = 0;
       }
 
@@ -2401,7 +2400,7 @@ public class ElasticsearchIO {
       private List<Document> flushBatch() throws IOException, InterruptedException {
 
         if (batch.isEmpty()) {
-          return Lists.newArrayList();
+          return new ArrayList<>();
         }
 
         LOG.info(
@@ -2411,7 +2410,7 @@ public class ElasticsearchIO {
 
         StringBuilder bulkRequest = new StringBuilder();
         // Create a stable list of input entries, because order is important to keep constant
-        List<Document> inputEntries = Lists.newArrayList(batch.listIterator());
+        List<Document> inputEntries = new ArrayList<>(batch);
 
         batch.clear();
         currentBatchSizeBytes = 0L;
