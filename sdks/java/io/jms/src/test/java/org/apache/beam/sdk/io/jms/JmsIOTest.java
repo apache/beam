@@ -260,6 +260,44 @@ public class JmsIOTest {
   }
 
   @Test
+  public void testWriteMessageWithError() throws Exception {
+
+    ArrayList<String> data = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      data.add("Message " + i);
+    }
+    String messageOne = "Message 1";
+    String messageTwo = "Message 2";
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new TextMessageMapperWithError())
+                    .withQueue(QUEUE)
+                    .withCoder(SerializableCoder.of(String.class))
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).containsInAnyOrder(messageOne, messageTwo);
+
+    pipeline.run();
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    int count = 0;
+    while (consumer.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(98, count);
+    assertTrue(output.getPipeline().equals(pipeline));
+  }
+
+  @Test
   public void testWriteDynamicMessage() throws Exception {
 
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
@@ -624,6 +662,23 @@ public class JmsIOTest {
 
     private String getValue() {
       return this.value;
+    }
+  }
+
+  private static class TextMessageMapperWithError implements SerializableMapper<String> {
+
+    @Override
+    public Message apply(String value, Session session) {
+      try {
+        if (value.equals("Message " + 1) || value.equals("Message " + 2)) {
+          throw new JMSException("Error!!");
+        }
+        TextMessage msg = session.createTextMessage();
+        msg.setText(value);
+        return msg;
+      } catch (JMSException e) {
+        throw new JmsIOException("Error creating TextMessage", e);
+      }
     }
   }
 }

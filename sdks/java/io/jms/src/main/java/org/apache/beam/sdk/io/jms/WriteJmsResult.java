@@ -57,6 +57,10 @@ public class WriteJmsResult<EventT> implements POutput {
     return pipeline;
   }
 
+  public PCollection<EventT> getFailedMessages() {
+    return failedMessages;
+  }
+
   @Override
   public void finishSpecifyingOutput(
       String transformName, PInput input, PTransform<?, ?> transform) {}
