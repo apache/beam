@@ -33,7 +33,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
@@ -194,7 +193,8 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                 // Delete Singers 2 and 3.
                 + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n");
 
-    pipeline.runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
+    pipeline
+        .runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
         .waitUntilFinish();
   }
 

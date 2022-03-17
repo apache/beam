@@ -31,7 +31,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
@@ -145,8 +144,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             .apply(ParDo.of(new BreakRecordByModFn()))
             .apply(ParDo.of(new KeyByIdFn()))
             .apply(ParDo.of(new KeyValueByCommitTimestampAndTransactionIdFn<>()))
-            .apply(
-                ParDo.of(new BufferKeyUntilOutputTimestamp(timeIncrementInSeconds)))
+            .apply(ParDo.of(new BufferKeyUntilOutputTimestamp(timeIncrementInSeconds)))
             .apply(ParDo.of(new ToStringFn()));
 
     // Assert that the returned PCollection contains one entry per key for the committed
@@ -193,7 +191,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
                 + "Deleted record;");
 
-    pipeline.runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
+    pipeline
+        .runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
         .waitUntilFinish();
   }
 
@@ -335,7 +334,9 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
         @StateId("seenKey") ValueState<String> seenKey) {
       String keyForTimer = seenKey.read();
       Instant timerContextTimestamp = context.timestamp();
-      LOG.info("Timer reached expiration time for key {} and for timestamp {}", keyForTimer,
+      LOG.info(
+          "Timer reached expiration time for key {} and for timestamp {}",
+          keyForTimer,
           timerContextTimestamp);
       if (!buffer.isEmpty().read()) {
         final List<KV<SpannerChangeStreamOrderedWithinKeyGloballyIT.SortKey, DataChangeRecord>>
@@ -399,8 +400,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
         LOG.info("Setting next timer to {} for key {}", nextTimer.toString(), keyForTimer);
         timer.set(nextTimer);
       } else {
-        LOG.info(
-            "Timer not being set since the buffer is empty for key {} ", keyForTimer);
+        LOG.info("Timer not being set since the buffer is empty for key {} ", keyForTimer);
         seenKey.clear();
       }
     }
