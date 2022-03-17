@@ -104,7 +104,7 @@ Questions can be asked on the [#beam channel of the ASF slack](/community/contac
 
 {{< figure src="/images/arrow-icon_list.svg">}}
 
-## Before you begin
+## Before You Begin
 
 </a>
 
@@ -124,7 +124,7 @@ Questions can be asked on the [#beam channel of the ASF slack](/community/contac
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).
 
-### Share your intent
+### Share Your Intent
 1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
    a place for notes. Later, your pull request will be linked to the issue as well.
@@ -142,7 +142,7 @@ Questions can be asked on the [#beam channel of the ASF slack](/community/contac
 
 ### Setup Your Environment
 
-#### Configuration options
+#### Configuration Options
 You have two options for configuring your development environment:
 - Local:
    - Manually installing the [prerequisites](https://beam.apache.org/contribute/#prerequisites).
@@ -219,72 +219,69 @@ script which is part of the Beam repo:
 #### Development Setup {#development-setup}
 
 1. Check [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) if you need help with git forking, cloning, branching, committing, pull requests, and squashing commits.
-1. Clone the git repository. You can download it anywhere you like.
+2. Clone the git repository. You can download it anywhere you like.
+```
+$ mkdir -p ~/go/src/github.com/apache
+$ cd ~/go/src/github.com/apache
+$ git clone https://github.com/apache/beam
+$ cd beam
+```
 
-       $ mkdir -p ~/go/src/github.com/apache
-       $ cd ~/go/src/github.com/apache
-       $ git clone https://github.com/apache/beam
-       $ cd beam
 
-       - For Go development:
-       We recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
-          1. Clone the repo, and update your branch as normal
-                  $ git clone https://github.com/apache/beam.git
-                  $ cd beam
-                  $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
-                  $ git fetch --all
-          1. Get or Update all the Go SDK dependencies
-                  $ go get -u ./...
+- For Go development:
+    We recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
 
-1. Check the environment was set up correctly.
+  2.1. Clone the repo, and update your branch as normal
+```
+$ git clone https://github.com/apache/beam.git
+$ cd beam
+$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
+$ git fetch --all
+```
+
+&emsp;&emsp;2.2. Get or Update all the Go SDK dependencies
+ ```
+$ go get -u ./...
+```
+
+3. Check the environment was set up correctly.
    - **Option 1**: validate the Go, Java, and Python environments:
 
-     **Important**: Make sure you have activated Python development.
-```
-./gradlew :checkSetup
-```
-    - **Option 2**: Run independent checks:
-        - For **Go development**:
-          1. Execute:
-```
-export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
-./gradlew :sdks:go:examples:wordCount
-```
-         - For **Python development**:
-          1. Execute:
-```
-./gradlew :sdks:python:wordCount
-```
-        - For **Java development**:
-          1. Execute:
-```
-./gradlew :examples:java:wordCount
-```
+     **Important**: Make sure you have activated Python development.  ```./gradlew :checkSetup```
+
+
+   - **Option 2**: Run independent checks:
+      - For **Go development**:
+          1. Execute:```export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:wordCount```
+      - For **Python development**:
+        1. Execute:```./gradlew :sdks:python:wordCount```
+      - For **Java development**:
+        1. Execute:```./gradlew :examples:java:wordCount```
 
 4. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
-
-       $ ./gradlew projects
-
+ ```
+$ ./gradlew projects
+ ```
    Examine the available tasks in a project. For the default set of tasks, use:
-
-       $ ./gradlew tasks
-
+ ```
+$ ./gradlew tasks
+ ```
    For a given module, use:
-
-       $ ./gradlew -p sdks/java/io/cassandra tasks
-
+ ```
+$ ./gradlew -p sdks/java/io/cassandra tasks
+ ```
    For an exhaustive list of tasks, use:
-
-       $ ./gradlew tasks --all
-
+ ```
+$ ./gradlew tasks --all
+ ```
 5. Make sure you can build and run tests
 
    Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
-
-       $ ./gradlew -p sdks/go check
-       $ ./gradlew -p sdks/java/io/cassandra check
-       $ ./gradlew -p runners/flink check
-
+ ```
+$ ./gradlew -p sdks/go check
+$ ./gradlew -p sdks/java/io/cassandra check
+$ ./gradlew -p runners/flink check
+ ```
 6. Now you may want to set up your preferred IDE and other aspects of your development
    environment. See the Developers' wiki for tips, guides, and FAQs on:
    - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
@@ -298,8 +295,6 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
 
 
 ## Contribute Code
-
- 
 
 <div class="collapse dont-collapse-sm" id="collapseContributing">
 
@@ -322,9 +317,9 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
    jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
    PR
-
-        retest this please
-
+```
+retest this please
+```
    Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
    that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
 
