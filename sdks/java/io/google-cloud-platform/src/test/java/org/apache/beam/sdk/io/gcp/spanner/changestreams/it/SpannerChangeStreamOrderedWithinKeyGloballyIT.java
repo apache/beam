@@ -193,7 +193,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                 + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
                 + "Deleted record;");
 
-    pipeline.run().waitUntilFinish();
+    pipeline.runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
+        .waitUntiFinish();
   }
 
   // Data change records may contain multiple mods if there are multiple primary keys.

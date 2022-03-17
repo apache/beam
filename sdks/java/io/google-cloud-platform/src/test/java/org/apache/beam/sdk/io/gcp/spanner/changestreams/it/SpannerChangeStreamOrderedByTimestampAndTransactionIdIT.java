@@ -193,8 +193,8 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                 // Delete Singers 2 and 3.
                 + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n");
 
-    final PipelineResult pipelineResult = pipeline.run();
-    pipelineResult.waitUntilFinish();
+    pipeline.runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
+        .waitUntiFinish();
   }
 
   // KeyByTransactionIdFn takes in a DataChangeRecord and outputs a key-value pair of
