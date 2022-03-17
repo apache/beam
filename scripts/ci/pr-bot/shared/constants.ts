@@ -28,3 +28,5 @@ export const PATH_TO_METRICS_CSV = path.resolve(
   path.join(__dirname, "../../metrics.csv")
 );
 export const BOT_NAME = "github-actions";
+export const SLOW_REVIEW_LABEL = "slow-review";
+export const NO_MATCHING_LABEL = "no-matching-label";

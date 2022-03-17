@@ -107,6 +107,7 @@ public class ActionFactory implements Serializable {
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
+   * @param metrics metrics gathering class
    * @return single instance of the {@link QueryChangeStreamAction}
    */
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
@@ -116,7 +117,8 @@ public class ActionFactory implements Serializable {
       PartitionMetadataMapper partitionMetadataMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
-      ChildPartitionsRecordAction childPartitionsRecordAction) {
+      ChildPartitionsRecordAction childPartitionsRecordAction,
+      ChangeStreamMetrics metrics) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
@@ -126,7 +128,8 @@ public class ActionFactory implements Serializable {
               partitionMetadataMapper,
               dataChangeRecordAction,
               heartbeatRecordAction,
-              childPartitionsRecordAction);
+              childPartitionsRecordAction,
+              metrics);
     }
     return queryChangeStreamActionInstance;
   }
