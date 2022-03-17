@@ -143,6 +143,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
               partitionRunningAt.toSqlTimestamp().getTime()));
     }
 
+    metrics.incActivePartitionReadCounter();
     return TimestampRange.of(startTimestamp, endTimestamp);
   }
 
@@ -179,7 +180,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
-            childPartitionsRecordAction);
+            childPartitionsRecordAction,
+            metrics);
   }
 
   /**

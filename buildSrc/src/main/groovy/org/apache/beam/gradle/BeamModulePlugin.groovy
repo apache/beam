@@ -459,7 +459,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.17.4"
+    def google_cloud_spanner_version = "6.20.0"
     def google_code_gson_version = "2.8.9"
     def google_oauth_clients_version = "1.32.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
