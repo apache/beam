@@ -120,7 +120,7 @@ function start_tunnel() {
 function create_cluster() {
   #local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
   local metadata+="flink-start-yarn-session=true,"
-  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS},"
+  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS}"
   #metadata+="hadoop-jar-url=${HADOOP_DOWNLOAD_URL}"
 
   [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
