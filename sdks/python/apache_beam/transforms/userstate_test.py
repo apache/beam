@@ -23,9 +23,9 @@ from typing import Any
 from typing import List
 
 import mock
+import pytest
 
 import apache_beam as beam
-import pytest
 from apache_beam.coders import BytesCoder
 from apache_beam.coders import ListCoder
 from apache_beam.coders import StrUtf8Coder
@@ -994,7 +994,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
   @pytest.mark.timeout(3)
   def test_dynamic_timer_clear_then_set_timer(self):
-
     class EmitTwoEvents(DoFn):
       EMIT_CLEAR_SET_TIMER = TimerSpec('emitclear', TimeDomain.WATERMARK)
 
