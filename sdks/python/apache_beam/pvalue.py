@@ -159,6 +159,14 @@ class PCollection(PValue, Generic[T]):
           self.producer.inputs)
     return self._windowing
 
+  @property
+  def schema_proto(self):
+    from apache_beam.typehints.row_type import RowTypeConstraint
+    if not self.element_type is RowTypeConstraint:
+      return None
+    else:
+      return self.element_type._schema
+
   def __reduce_ex__(self, unused_version):
     # Pickling a PCollection is almost always the wrong thing to do, but we
     # can't prohibit it as it often gets implicitly picked up (e.g. as part
