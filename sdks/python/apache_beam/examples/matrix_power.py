@@ -52,45 +52,48 @@ def multiply_elements(element, vector):
 
 def run(argv=None):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input_matrix',
-                      required=True,
-                      help='Input file containing the matrix.')
-  parser.add_argument('--input_vector',
-                      required=True,
-                      help='Input file containing initial vector.')
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--exponent',
-                      required=True,
-                      type=int,
-                      help='Exponent of input square matrix.')
+  parser.add_argument(
+      '--input_matrix', required=True, help='Input file containing the matrix.')
+  parser.add_argument(
+      '--input_vector',
+      required=True,
+      help='Input file containing initial vector.')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
+  parser.add_argument(
+      '--exponent',
+      required=True,
+      type=int,
+      help='Exponent of input square matrix.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   p = TestPipeline(options=PipelineOptions(pipeline_args))
 
   # Read the matrix from the input file and extract into the ((i,j), a) format.
-  matrix = (p | 'read matrix' >> beam.io.ReadFromText(known_args.input_matrix)
-            | 'extract matrix' >> beam.FlatMap(extract_matrix))
+  matrix = (
+      p | 'read matrix' >> beam.io.ReadFromText(known_args.input_matrix)
+      | 'extract matrix' >> beam.FlatMap(extract_matrix))
 
   # Read and extract the vector from its input file.
-  vector = (p | 'read vector' >> beam.io.ReadFromText(known_args.input_vector)
-            | 'extract vector' >> beam.FlatMap(extract_vector))
+  vector = (
+      p | 'read vector' >> beam.io.ReadFromText(known_args.input_vector)
+      | 'extract vector' >> beam.FlatMap(extract_vector))
 
   for i in range(known_args.exponent):
     # Multiply the matrix by the current vector once,
     # and keep the resulting vector for the next iteration.
-    vector = (matrix
-              # Convert vector into side-input dictionary, compute the product.
-              | 'multiply elements %d' % i >> beam.Map(
-                  multiply_elements,
-                  beam.pvalue.AsDict(vector))
-              | 'sum element products %d' % i >> beam.CombinePerKey(sum))
+    vector = (
+        matrix
+        # Convert vector into side-input dictionary, compute the product.
+        | 'multiply elements %d' % i >> beam.Map(
+            multiply_elements, beam.pvalue.AsDict(vector))
+        | 'sum element products %d' % i >> beam.CombinePerKey(sum))
 
   # Format and output final vector.
-  (vector  # pylint: disable=expression-not-assigned
-   | 'format' >> beam.Map(repr)
-   | 'write' >> beam.io.WriteToText(known_args.output))
+  _ = (
+      vector  # pylint: disable=expression-not-assigned
+      | 'format' >> beam.Map(repr)
+      | 'write' >> beam.io.WriteToText(known_args.output))
 
   p.run()
 
