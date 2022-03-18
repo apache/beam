@@ -26,6 +26,7 @@ import java.util.Objects;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -35,8 +36,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class MonitoringInfoMetricName extends MetricName {
 
-  private String urn;
-  private Map<String, String> labels = new HashMap<String, String>();
+  private final String urn;
+  private final Map<String, String> labels;
 
   private MonitoringInfoMetricName(String urn, Map<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
@@ -44,30 +45,27 @@ public class MonitoringInfoMetricName extends MetricName {
     // TODO(ajamato): Move SimpleMonitoringInfoBuilder to :runners:core-construction-java
     // and ensure all necessary labels are set for the specific URN.
     this.urn = urn;
-    for (Entry<String, String> entry : labels.entrySet()) {
-      checkArgument(entry.getKey() != null, "MonitoringInfoMetricName keys must be non-null");
-      checkArgument(
-          entry.getValue() != null,
-          "MonitoringInfoMetricName values must be non-null, but was null for key `%s`",
-          entry.getKey());
-      this.labels.put(entry.getKey(), entry.getValue());
-    }
+    this.labels = ImmutableMap.copyOf(labels);
   }
 
   @Override
   public String getNamespace() {
-    if (labels.containsKey(MonitoringInfoConstants.Labels.NAMESPACE)) {
-      // User-generated metric
-      return labels.get(MonitoringInfoConstants.Labels.NAMESPACE);
-    } else if (labels.containsKey(MonitoringInfoConstants.Labels.PCOLLECTION)) {
-      // System-generated metric
-      return labels.get(MonitoringInfoConstants.Labels.PCOLLECTION);
-    } else if (labels.containsKey(MonitoringInfoConstants.Labels.PTRANSFORM)) {
-      // System-generated metric
-      return labels.get(MonitoringInfoConstants.Labels.PTRANSFORM);
-    } else {
-      return urn.split(":", 2)[0];
+    // User-generated metric
+    String ret = labels.get(MonitoringInfoConstants.Labels.NAMESPACE);
+    if (ret != null) {
+      return ret;
     }
+    // System-generated metric
+    ret = labels.get(MonitoringInfoConstants.Labels.PCOLLECTION);
+    if (ret != null) {
+      return ret;
+    }
+    // System-generated metric
+    ret = labels.get(MonitoringInfoConstants.Labels.PTRANSFORM);
+    if (ret != null) {
+      return ret;
+    }
+    return urn.split(":", 2)[0];
   }
 
   @Override

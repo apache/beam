@@ -468,7 +468,7 @@ public class GcsUtil {
         GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
     baseLabels.put(
         MonitoringInfoConstants.Labels.GCS_PROJECT_ID,
-        MoreObjects.firstNonNull(googleCloudStorageOptions.getProjectId(), ""));
+        String.valueOf(googleCloudStorageOptions.getProjectId()));
     baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
 
     ServiceCallMetric serviceCallMetric =
@@ -583,7 +583,7 @@ public class GcsUtil {
         GcpResourceIdentifiers.cloudStorageBucket(path.getBucket()));
     baseLabels.put(
         MonitoringInfoConstants.Labels.GCS_PROJECT_ID,
-        MoreObjects.firstNonNull(googleCloudStorageOptions.getProjectId(), ""));
+        String.valueOf(googleCloudStorageOptions.getProjectId()));
     baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, path.getBucket());
 
     ServiceCallMetric serviceCallMetric =
