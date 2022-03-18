@@ -119,7 +119,7 @@ public class GameStatsIT {
     options.as(GcpOptions.class).setProject(projectId);
     options.setDataset(OUTPUT_DATASET);
     options.setSubscription(subscriptionPath.getPath());
-    options.setStreaming(false);
+    options.setStreaming(true);
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
