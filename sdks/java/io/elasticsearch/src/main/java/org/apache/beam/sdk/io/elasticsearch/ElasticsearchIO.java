@@ -85,6 +85,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
@@ -2011,6 +2012,7 @@ public class ElasticsearchIO {
 
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
+      /** @deprecated Use {@link this#setMaxParallelRequests} instead. */
       @Deprecated
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
 
@@ -2267,6 +2269,8 @@ public class ElasticsearchIO {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
+      WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
+
       PCollection<Document> docResults;
       PCollection<Document> globalDocs = input.apply(Window.into(new GlobalWindows()));
 
@@ -2280,7 +2284,7 @@ public class ElasticsearchIO {
       }
 
       return docResults
-          .setWindowingStrategyInternal(input.getWindowingStrategy())
+          .setWindowingStrategyInternal(originalStrategy)
           .apply(
               ParDo.of(new ResultFilteringFn())
                   .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
