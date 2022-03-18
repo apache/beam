@@ -20,7 +20,8 @@ package org.apache.beam.sdk.fn.stream;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
@@ -41,11 +42,13 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
   private static final int DEFAULT_MAX_MESSAGES_BEFORE_CHECK = 100;
 
+  private final ReentrantLock lock = new ReentrantLock(true);
   private final Phaser phaser;
   private final CallStreamObserver<T> outboundObserver;
   private final int maxMessagesBeforeCheck;
 
-  private AtomicInteger numMessages = new AtomicInteger();
+  @GuardedBy("lock")
+  private int numMessages = 0;
 
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
     this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK);
@@ -60,42 +63,46 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onNext(T value) {
-    if (maxMessagesBeforeCheck <= 1
-        || numMessages.incrementAndGet() % maxMessagesBeforeCheck == 0) {
-      int waitTime = 1;
-      int totalTimeWaited = 0;
-      int phase = phaser.getPhase();
-      while (!outboundObserver.isReady()) {
-        try {
-          phaser.awaitAdvanceInterruptibly(phase, waitTime, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-          totalTimeWaited += waitTime;
-          waitTime = waitTime * 2;
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
+    lock.lock();
+    try {
+      if (maxMessagesBeforeCheck <= 1 || ++numMessages % maxMessagesBeforeCheck == 0) {
+        int waitTime = 1;
+        int totalTimeWaited = 0;
+        int phase = phaser.getPhase();
+        while (!outboundObserver.isReady()) {
+          try {
+            phaser.awaitAdvanceInterruptibly(phase, waitTime, TimeUnit.SECONDS);
+          } catch (TimeoutException e) {
+            totalTimeWaited += waitTime;
+            waitTime = waitTime * 2;
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+          }
+        }
+        if (totalTimeWaited > 0) {
+          // If the phase didn't change, this means that the installed onReady callback had not
+          // been invoked.
+          if (phase == phaser.getPhase()) {
+            LOG.info(
+                "Output channel stalled for {}s, outbound thread {}. See: "
+                    + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
+                    + "this issue.",
+                totalTimeWaited,
+                Thread.currentThread().getName());
+          } else {
+            LOG.debug(
+                "Output channel stalled for {}s, outbound thread {}.",
+                totalTimeWaited,
+                Thread.currentThread().getName());
+          }
         }
       }
-      if (totalTimeWaited > 0) {
-        // If the phase didn't change, this means that the installed onReady callback had not
-        // been invoked.
-        if (phase == phaser.getPhase()) {
-          LOG.info(
-              "Output channel stalled for {}s, outbound thread {}. See: "
-                  + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
-                  + "this issue.",
-              totalTimeWaited,
-              Thread.currentThread().getName());
-        } else {
-          LOG.debug(
-              "Output channel stalled for {}s, outbound thread {}.",
-              totalTimeWaited,
-              Thread.currentThread().getName());
-        }
+      synchronized (outboundObserver) {
+        outboundObserver.onNext(value);
       }
-    }
-    synchronized (outboundObserver) {
-      outboundObserver.onNext(value);
+    } finally {
+      lock.unlock();
     }
   }
 
