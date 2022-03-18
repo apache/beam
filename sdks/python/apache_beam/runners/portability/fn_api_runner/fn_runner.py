@@ -760,9 +760,9 @@ class FnApiRunner(runner.PipelineRunner):
     if not deferred_inputs and not newly_set_timers:
       # Marking all inputs as having been fully produced.
       for _, output_pc in bundle_context_manager.stage_data_outputs.items():
-        output_pc = output_pc.decode('utf8').split(':')[1]
+        _, update_output_pc = translations.split_buffer_id(output_pc)
         runner_execution_context.watermark_manager.get_pcoll_node(
-            output_pc).set_produced_watermark(timestamp.MAX_TIMESTAMP)
+            update_output_pc).set_produced_watermark(timestamp.MAX_TIMESTAMP)
 
     # Store the required downstream side inputs into state so it is accessible
     # for the worker when it runs bundles that consume this stage's output.

@@ -992,7 +992,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_dynamic_timer_clear_then_set_timer(self):
-    from apache_beam.transforms.combiners import CountCombineFn
 
     class EmitTwoEvents(DoFn):
       EMIT_CLEAR_SET_TIMER = TimerSpec('emit', TimeDomain.WATERMARK)
