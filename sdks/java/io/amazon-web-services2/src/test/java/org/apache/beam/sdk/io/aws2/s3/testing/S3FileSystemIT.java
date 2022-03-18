@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.s3;
+package org.apache.beam.sdk.io.aws2.s3.testing;
 
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
@@ -51,7 +51,7 @@ import software.amazon.awssdk.services.s3.S3Client;
  * <pre>{@code
  * ./gradlew :sdks:java:io:amazon-web-services2:integrationTest \
  *   --info \
- *   --tests "org.apache.beam.sdk.io.aws2.s3.S3FileSystemIT" \
+ *   --tests "org.apache.beam.sdk.io.aws2.s3.testing.S3FileSystemIT" \
  *   -DintegrationTestPipelineOptions='["--awsRegion=eu-central-1","--useLocalstack=false"]'
  * }</pre>
  */
