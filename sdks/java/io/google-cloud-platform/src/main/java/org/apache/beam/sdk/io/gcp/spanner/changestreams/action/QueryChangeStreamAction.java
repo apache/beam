@@ -29,6 +29,7 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -78,6 +79,7 @@ public class QueryChangeStreamAction {
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
+  private final ChangeStreamMetrics metrics;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -91,6 +93,7 @@ public class QueryChangeStreamAction {
    * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
+   * @param metrics metrics gathering class
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -99,7 +102,8 @@ public class QueryChangeStreamAction {
       PartitionMetadataMapper partitionMetadataMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
-      ChildPartitionsRecordAction childPartitionsRecordAction) {
+      ChildPartitionsRecordAction childPartitionsRecordAction,
+      ChangeStreamMetrics metrics) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -107,6 +111,7 @@ public class QueryChangeStreamAction {
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
+    this.metrics = metrics;
   }
 
   /**
@@ -193,6 +198,7 @@ public class QueryChangeStreamAction {
           changeStreamDao.changeStreamQuery(
               token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
+        metrics.incQueryCounter();
         while (resultSet.next()) {
           final List<ChangeStreamRecord> records =
               changeStreamRecordMapper.toChangeStreamRecords(
@@ -267,6 +273,7 @@ public class QueryChangeStreamAction {
     if (tracker.tryClaim(endTimestamp)) {
       LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
+      metrics.decActivePartitionReadCounter();
       LOG.info("[" + token + "] Partition finished");
     }
     return ProcessContinuation.stop();

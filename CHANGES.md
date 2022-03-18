@@ -57,8 +57,16 @@
 * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
 ## I/Os
+* Introduce projection pushdown optimizer to the Java SDK ([BEAM-12976](https://issues.apache.org/jira/browse/BEAM-12976)). The optimizer currently only works on the [BigQuery Storage API](https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api), but more I/Os will be added in future releases. If you encounter a bug with the optimizer, please file a JIRA and disable the optimizer using pipeline option `--experiments=disable_projection_pushdown`.
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* `amazon-web-services2` has reached feature parity and is finally recommended over the earlier `amazon-web-services` and `kinesis` modules (Java). These will be deprecated in one of the next releases ([BEAM-13174](https://issues.apache.org/jira/browse/BEAM-13174)).
+  * Long outstanding write support for `Kinesis` was added ([BEAM-13175](https://issues.apache.org/jira/browse/BEAM-13175)).
+  * Configuration was simplified and made consistent across all IOs, including the usage of `AwsOptions` ([BEAM-13563](https://issues.apache.org/jira/browse/BEAM-13563), [BEAM-13663](https://issues.apache.org/jira/browse/BEAM-13663), [BEAM-13587](https://issues.apache.org/jira/browse/BEAM-13587)).
+  * Additionally, there's a long list of recent improvements and fixes to
+    `S3` Filesystem ([BEAM-13245](https://issues.apache.org/jira/browse/BEAM-13245), [BEAM-13246](https://issues.apache.org/jira/browse/BEAM-13246), [BEAM-13441](https://issues.apache.org/jira/browse/BEAM-13441), [BEAM-13445](https://issues.apache.org/jira/browse/BEAM-13445), [BEAM-14011](https://issues.apache.org/jira/browse/BEAM-14011)),
+    `DynamoDB` IO ([BEAM-13209](https://issues.apache.org/jira/browse/BEAM-13009), [BEAM-13209](https://issues.apache.org/jira/browse/BEAM-13209)),
+    `SQS` IO ([BEAM-13631](https://issues.apache.org/jira/browse/BEAM-13631), [BEAM-13510](https://issues.apache.org/jira/browse/BEAM-13510)) and others.
 
 ## New Features / Improvements
 
