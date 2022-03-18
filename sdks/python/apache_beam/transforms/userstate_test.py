@@ -22,6 +22,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 from typing import List
+from typing import Optional
 
 import mock
 import pytest
@@ -438,7 +439,7 @@ class InterfaceTest(unittest.TestCase):
 
 class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   # pylint: disable=expression-not-assigned
-  all_records: List[Any] = None
+  all_records: Optional[List[Any]] = None
 
   def setUp(self):
     # Use state on the TestCase class, since other references would be pickled

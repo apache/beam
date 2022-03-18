@@ -294,7 +294,7 @@ class TimestampedValue(object):
 
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
-  _instance: GlobalWindow = None
+  _instance: Optional[GlobalWindow] = None
 
   def __new__(cls):
     if cls._instance is None:

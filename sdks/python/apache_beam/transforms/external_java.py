@@ -24,6 +24,7 @@ import sys
 
 import grpc
 from mock import patch
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -46,8 +47,8 @@ else:
 class JavaExternalTransformTest(object):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar: str = None
-  expansion_service_port: int = None
+  expansion_service_jar: Optional[str] = None
+  expansion_service_port: Optional[int] = None
 
   class _RunWithExpansion(object):
     def __init__(self):

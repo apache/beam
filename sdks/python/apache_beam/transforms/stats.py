@@ -806,7 +806,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
   # non-optimal. The impact is logarithmic with respect to this value, so this
   # default should be fine for most uses.
   _MAX_NUM_ELEMENTS = 1e9
-  _qs: _QuantileState = None
+  _qs: _QuantileState
 
   def __init__(
       self,

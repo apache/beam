@@ -46,8 +46,8 @@ class Profile(object):
 
   SORTBY = 'cumulative'
 
-  profile_output: str = None
-  stats: pstats.Stats = None
+  profile_output: Optional[str] = None
+  stats: Optional[pstats.Stats] = None
 
   def __init__(
       self,

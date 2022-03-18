@@ -226,6 +226,7 @@ class FnApiRunner(runner.PipelineRunner):
             'The --direct_runner_bundle_repeat option is not set; '
             'a significant portion of the profile may be one-time overhead.')
       path = profiler.profile_output
+      assert path is not None
       print('CPU Profile written to %s' % path)
       try:
         import gprof2dot  # pylint: disable=unused-import
