@@ -32,7 +32,7 @@ def loadTestConfigurations = { datasetName ->
       pipelineOptions: [
         project              : 'apache-beam-testing',
         region               : 'us-central1',
-        job_name             : "performance-tests-python-debezium-IO-${now}",
+        job_name             : "performance-tests-python-debezium-io-${now}",
         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
         staging_location     : 'gs://temp-storage-for-perf-tests/loadtests',
         metrics_dataset     : datasetName,
