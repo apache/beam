@@ -81,8 +81,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   public final transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  @Rule
-  public final transient ExpectedException thrown = ExpectedException.none();
+  @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   private MockSpannerServiceImpl mockSpannerService;
   private MockServiceHelper serviceHelper;
@@ -252,7 +251,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockInvalidChangeStreamRecordReceived(Timestamp now, Timestamp after3Seconds) {
     Statement changeStreamQueryStatement =
         Statement.newBuilder(
-            "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
+                "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
             .bind("startTimestamp")
             .to(now)
             .bind("endTimestamp")
@@ -323,7 +322,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockGetPartitionsAfter(Timestamp timestamp, ResultSet getPartitionResultSet) {
     Statement getPartitionsAfterStatement =
         Statement.newBuilder(
-            "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
+                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
             .bind("timestamp")
             .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
             .build();
@@ -334,7 +333,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockGetWatermark(Timestamp watermark) {
     Statement watermarkStatement =
         Statement.newBuilder(
-            "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
+                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
             .bind("state")
             .to(State.FINISHED.name())
             .build();
