@@ -15,27 +15,22 @@
 
 package validators
 
-import (
-	"testing"
-)
+import "testing"
 
 const (
-	goUnitTestFilePath = "unitTestCode.go"
-	goCodePath         = "code.go"
-	goUnitTestCode     = "func TestDedup(t *testing.T) {\n\ttests := []struct {\n\t\tdups []interface{}\n\t\texp  []interface{}\n}}"
-	goCode             = "func main() {\n\t// beam.Init() is an initialization hook that must be called on startup.\n\tbeam.Init()\n\n\t// Create the Pipeline object and root scope.\n\tp := beam.NewPipeline()\n\ts := p.Root()\n}"
+	pyUnitTestFilePath = "test.py"
+	pyUnitTestCode     = "import unittest py code"
+	pyCodeFilePath     = "notTest.py"
+	pyTestCode         = "py code"
 )
 
-func TestCheckIsUnitTestGo(t *testing.T) {
-	testValidatorArgs := make([]interface{}, 1)
-	testValidatorArgs[0] = goUnitTestFilePath
-
+func TestCheckIsUnitTestPy(t *testing.T) {
+	unitTestValidatorArgs := make([]interface{}, 1)
+	unitTestValidatorArgs[0] = pyUnitTestFilePath
 	validatorArgs := make([]interface{}, 1)
-	validatorArgs[0] = goCodePath
-
+	validatorArgs[0] = pyCodeFilePath
 	argsWithoutRealFile := make([]interface{}, 1)
-	argsWithoutRealFile[0] = "fileNotExists.go"
-
+	argsWithoutRealFile[0] = "fileNotExists.py"
 	type args struct {
 		args []interface{}
 	}
@@ -46,18 +41,14 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Check that file is a go unit test",
-			args: args{
-				testValidatorArgs,
-			},
+			name:    "Check that file is a python unit test",
+			args:    args{args: unitTestValidatorArgs},
 			want:    true,
 			wantErr: false,
 		},
 		{
-			name: "Check that file is not a go unit test",
-			args: args{
-				validatorArgs,
-			},
+			name:    "Check that file is not a python unit test",
+			args:    args{args: validatorArgs},
 			want:    false,
 			wantErr: false,
 		},
@@ -70,13 +61,13 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CheckIsUnitTestGo(tt.args.args...)
+			got, err := CheckIsUnitTestPy(tt.args.args...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CheckIsUnitTestGo() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CheckIsUnitTestPy() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("CheckIsUnitTestGo() got = %v, want %v", got, tt.want)
+				t.Errorf("CheckIsUnitTestPy() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
