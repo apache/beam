@@ -17,9 +17,9 @@
 from __future__ import annotations
 import inspect
 import weakref
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -31,10 +31,6 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import schemas
 from apache_beam.dataframe import transforms
-
-if TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from typing import Optional
 
 
 # TODO: Or should this be called as_dataframe?
