@@ -117,7 +117,7 @@ func makeParentMap(xforms map[string]*pipepb.PTransform) map[string]string {
 // for composite transforms.
 func computeCompositeInputOutput(xforms map[string]*pipepb.PTransform) map[string]*pipepb.PTransform {
 	ret := reflectx.ShallowClone(xforms).(map[string]*pipepb.PTransform)
-
+	// Precompute the transforms that consume each PCollection as input.
 	primitiveXformsForInput := make(map[string][]string)
 	for id, pt := range xforms {
 		if len(pt.GetSubtransforms()) == 0 {
@@ -211,9 +211,13 @@ func diffAndMerge(out, in, extIn map[string]bool) map[string]string {
 
 // externalIns checks the unseen non-composite graph
 func externalIns(counted map[string]bool, primitiveXformsForInput map[string][]string, extIn, out map[string]bool) {
+	// For this composite's output PCollections.
 	for col := range out {
+		// See if any transforms are using it.
 		for _, id := range primitiveXformsForInput[col] {
 			if !counted[id] {
+				// And if they're part of the composite
+				// Ensure the collections is in the set of outputs for the composite.
 				extIn[col] = true
 			}
 		}
