@@ -193,7 +193,7 @@ Beam offers a way to provide your own custom container image. The easiest way to
   ```
 >**NOTE**: This example assumes necessary dependencies (in this case, Python 3.7 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
 >The version specified in the `RUN` instruction must match the version used to launch the pipeline.<br>
->**Users need to make sure that whatever base image they use has the same Python/Java interpreter version that they used to run the pipeline**.
+>**Make sure that the Python or Java runtime version specified in the base image is the same as the version used to run the pipeline.**
 
 
 2. [Build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker.

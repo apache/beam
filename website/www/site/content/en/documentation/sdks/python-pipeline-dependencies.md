@@ -45,7 +45,7 @@ If your pipeline uses public packages from the [Python Package Index](https://py
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
 **Important:** Remote workers will install all packages listed in the `requirements.txt` file. Because of this, it's very important that you delete non-PyPI packages from the `requirements.txt` file, as stated in step 2. If you don't remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.
-> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile the all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
+> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
 
 ## Custom Containers {#custom-containers}
 
@@ -139,7 +139,7 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
 
 In pipeline execution modes where a Beam runner launches SDK workers in Docker containers, the additional pipeline dependencies (specified via `--requirements_file` and other runtime options) are installed into the containers at runtime. This can increase the worker startup time.
  However, it may be possible to pre-build the SDK containers and perform the dependency installation once before the workers start. To pre-build the container image before pipeline submission, provide the pipeline options mentioned below.
-1. Provide the container engine. We support `local_docker`(requires local installation of Docker) and `cloud_build`(requires a GCP project with Cloud Build API enabled).
+1. Provide the container engine. Beam supports `local_docker`(requires local installation of Docker) and `cloud_build`(requires a GCP project with Cloud Build API enabled).
 
        --prebuild_sdk_container_engine=<container_engine>
 2. To pass a base image for pre-building dependencies, provide `--sdk_container_image`. If not, Apache beam's base [image](https://hub.docker.com/search?q=apache%2Fbeam&type=image) would be used.
