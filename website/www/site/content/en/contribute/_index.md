@@ -64,12 +64,10 @@ detail.
 
 ## Get Started
 
-### Connect With the Beam community
+### Connect with the Beam community
 
-1. Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
-   if you plan to make more than one change or the change will be large. All decisions happen on the
-   public dev list.
-1. (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
+1. Consider [subscribing to the dev@beam.apache.org](/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
+1. (Optionally) Join the [#beam channel of the ASF slack](https://beam.apache.org/community/contact-us/).
 1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
    (anyone can do this).
 
@@ -84,7 +82,7 @@ detail.
 
 - [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam):
   Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
-  [dev@ mailing list](/community/contact-us) (include your Wiki account user ID).
+  [dev@beam.apache.org](https://beam.apache.org/community/contact-us) mailing list (include your Wiki account user ID).
 
 - Pull requests can only be merged by a
   [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
@@ -96,9 +94,9 @@ detail.
 
 All communication is expected to align with the [Code of Conduct](https://www.apache.org/foundation/policies/conduct).
 
-Discussion about contributing code to Beam happens on the [dev@ mailing list](/community/contact-us/). Introduce yourself!
+Discussion about contributing code to Beam happens on the [dev@beam.apache.org mailing list](/community/contact-us/). Introduce yourself!
 
-Questions can be asked on the [#beam channel of the ASF slack](/community/contact-us/). Introduce yourself!
+Questions can be asked on the [#beam channel of the ASF slack](https://beam.apache.org/community/contact-us/). Introduce yourself!
 
 <a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
 
@@ -110,7 +108,7 @@ Questions can be asked on the [#beam channel of the ASF slack](/community/contac
 
 ### Prerequisites
 
-- A GitHub account.
+- A [GitHub](https://github.com/) account.
 - A Linux, macOS, or Microsoft Windows development environment
 - Java JDK 8 installed
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
@@ -131,14 +129,14 @@ Questions can be asked on the [#beam channel of the ASF slack](/community/contac
 1. If you want to get involved but don't have a project in mind, check our list of open starter tasks,
    [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
 1. Assign the issue to yourself. To get the permission to do so, email
-   the [dev@ mailing list](/community/contact-us)
+   the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
    ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
 1. If your change is large or it is your first change, it is a good idea to
-   [discuss it on the dev@ mailing list](/community/contact-us/).
+   [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 1. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
-   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 
 ### Setup Your Environment
 
@@ -232,7 +230,7 @@ $ cd beam
 
 &emsp;&emsp;For **Go development**:
 
-&emsp;&emsp;We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems). 
+&emsp;&emsp;We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems).
 
 &emsp;&emsp;Clone the repo, and update your branch as normal
 
@@ -399,13 +397,17 @@ If you didn't find the information you were looking for in this guide, please
 </div>
 
 ## Find Efforts to Contribute to
-A great way to contribute is to join an existing effort. If you want to get involved but don’t have a project in mind, check our [list of open starter tasks](https://s.apache.org/beam-starter-tasks). 
+A great way to contribute is to join an existing effort. If you want to get involved but don’t have a project in mind, check our [list of open starter tasks](https://s.apache.org/beam-starter-tasks).
 For the most intensive efforts, check out the [roadmap](https://beam.apache.org/roadmap/).
 
-## Other Resources
+## Additional Resources
 Please see Beam developers’ Wiki Contributor FAQ for more information.
+
 If you are contributing a [PTransform](https://s.apache.org/beam-starter-tasks) to Beam, we have an extensive [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide).
+
 If you are contributing a Runner to Beam, refer to the [Runner authoring guide](https://beam.apache.org/contribute/runner-guide/).
+
 Review [design documents](https://s.apache.org/beam-design-docs).
+
 You can also find out more information on the [Beam developers’ Wiki](
 https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
