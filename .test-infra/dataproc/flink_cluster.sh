@@ -118,10 +118,10 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
-  metadata+="flink-start-yarn-session=true,"
+  #local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
+  local metadata+="flink-start-yarn-session=true,"
   metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS},"
-  metadata+="hadoop-jar-url=${HADOOP_DOWNLOAD_URL}"
+  #metadata+="hadoop-jar-url=${HADOOP_DOWNLOAD_URL}"
 
   [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
   [[ -n "${JOB_SERVER_IMAGE:=}" ]] && metadata+=",beam-job-server-image=${JOB_SERVER_IMAGE}"
@@ -135,7 +135,7 @@ function create_cluster() {
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
   #--initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT Older initialization 
-  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$num_dataproc_workers  --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
+  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$num_dataproc_workers  --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster
