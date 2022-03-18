@@ -219,6 +219,8 @@ script which is part of the Beam repo:
 #### Development Setup {#development-setup}
 
 1. Check [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) if you need help with git forking, cloning, branching, committing, pull requests, and squashing commits.
+<br><br>
+
 2. Clone the git repository. You can download it anywhere you like.
 ```
 $ mkdir -p ~/go/src/github.com/apache
@@ -228,10 +230,13 @@ $ cd beam
 ```
 
 
-- For Go development:
-    We recommend putting it in your [`$GOPATH`](https://golang.org/doc/gopath_code#GOPATH) (`$HOME/go` by default on Unix systems).
+&emsp;&emsp;For **Go development**:
 
-  2.1. Clone the repo, and update your branch as normal
+&emsp;&emsp;We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems). 
+
+&emsp;&emsp;Clone the repo, and update your branch as normal
+
+
 ```
 $ git clone https://github.com/apache/beam.git
 $ cd beam
@@ -239,24 +244,37 @@ $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
 $ git fetch --all
 ```
 
-&emsp;&emsp;2.2. Get or Update all the Go SDK dependencies
+&emsp;&emsp;Get or Update all the Go SDK dependencies
  ```
 $ go get -u ./...
 ```
+<br>
 
 3. Check the environment was set up correctly.
-   - **Option 1**: validate the Go, Java, and Python environments:
 
-     **Important**: Make sure you have activated Python development.  ```./gradlew :checkSetup```
+&emsp;&emsp;**Option 1**: validate the Go, Java, and Python environments:
+
+&emsp;&emsp;**Important**: Make sure you have activated Python development.
+```
+./gradlew :checkSetup
+```
 
 
-   - **Option 2**: Run independent checks:
-      - For **Go development**:
-          1. Execute:```export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:wordCount```
-      - For **Python development**:
-        1. Execute:```./gradlew :sdks:python:wordCount```
-      - For **Java development**:
-        1. Execute:```./gradlew :examples:java:wordCount```
+&emsp;&emsp;**Option 2**: Run independent checks:
+
+&emsp;&emsp;&emsp;&emsp;For **Go development**:
+```
+export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:wordCount
+```
+&emsp;&emsp;&emsp;&emsp;For **Python development**:
+```
+./gradlew :sdks:python:wordCount
+```
+&emsp;&emsp;&emsp;&emsp;For **Java development**:
+```
+./gradlew :examples:java:wordCount
+```
+<br>
 
 4. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
  ```
