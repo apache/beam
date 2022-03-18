@@ -313,6 +313,7 @@ func TestComputeInputOutput(t *testing.T) {
 
 func BenchmarkComputeInputOutput(b *testing.B) {
 	in := make(map[string]*pipepb.PTransform)
+	// Build a long chain of composite transforms.
 	for i := 0; i < 3000; i++ {
 		compositeID := fmt.Sprintf("x%d", i)
 		primitiveID := fmt.Sprintf("y%d", i)
