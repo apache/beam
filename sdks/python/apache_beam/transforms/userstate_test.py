@@ -25,6 +25,7 @@ from typing import List
 import mock
 
 import apache_beam as beam
+import pytest
 from apache_beam.coders import BytesCoder
 from apache_beam.coders import ListCoder
 from apache_beam.coders import StrUtf8Coder
@@ -991,10 +992,11 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     self.assertEqual([('emit1', 10), ('emit2', 20), ('emit3', 30)],
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
+  @pytest.mark.timeout(3)
   def test_dynamic_timer_clear_then_set_timer(self):
 
     class EmitTwoEvents(DoFn):
-      EMIT_CLEAR_SET_TIMER = TimerSpec('emit', TimeDomain.WATERMARK)
+      EMIT_CLEAR_SET_TIMER = TimerSpec('emitclear', TimeDomain.WATERMARK)
 
       def process(self, element, emit=DoFn.TimerParam(EMIT_CLEAR_SET_TIMER)):
         yield ('1', 'set')
@@ -1028,7 +1030,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           | beam.Create([('1', 'impulse')])
           | beam.ParDo(EmitTwoEvents())
           | beam.ParDo(DynamicTimerDoFn()))
-      assert_that(res, equal_to([('emit1', 10), ('emit2', 20), ('emit3', 30)]))
+      assert_that(res, equal_to([('emit1', 10), ('emit2', 20), ('emit3', 40)]))
 
   def test_dynamic_timer_clear_timer(self):
     class DynamicTimerDoFn(DoFn):

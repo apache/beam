@@ -101,9 +101,9 @@ def show_watermark_manager(watermark_manager: WatermarkManager, filename=None):
     if pcnode.watermark() == timestamp.MIN_TIMESTAMP:
       color = 'aquamarine'
     elif pcnode.watermark() == timestamp.MAX_TIMESTAMP:
-      color = 'aquamarine2'
-    else:
       color = 'aquamarine4'
+    else:
+      color = 'aquamarine2'
     add_node(
         name,
         color=color,
