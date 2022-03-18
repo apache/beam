@@ -113,7 +113,7 @@ message LogicalType {
 message Option {
   // REQUIRED. Identifier for the option.
   string name = 1;
-  // REQUIRED. Type specifer for the structure of value.
+  // REQUIRED. Type specifier for the structure of value.
   // Conventionally, options that don't require additional configuration should
   // use a boolean type, with the value set to true.
   FieldType type = 2;
@@ -125,6 +125,7 @@ message Row {
 }
 
 message FieldValue {
+  // If none of these are set, value is considered null.
   oneof field_value {
     AtomicTypeValue atomic_value = 1;
     ArrayTypeValue array_value = 2;

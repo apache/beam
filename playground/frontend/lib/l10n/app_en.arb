@@ -63,6 +63,14 @@
   "@aboutApacheBeam": {
     "description": "Title for the About Apache Beam menu item"
   },
+  "enjoying": "Good Experience",
+  "@enjoying": {
+    "description": "Thumb up enjoying playground label"
+  },
+  "notEnjoying": "Bad Experience",
+  "@enjoying": {
+    "description": "Thumb down enjoying playground label"
+  },
   "sendFeedback": "Send feedback",
   "@sendFeedback": {
     "description": "Title of the send feedback button"
@@ -184,7 +192,31 @@
     "description": "Text value label"
   },
   "pipelineOptionsError": "Please check the format (example: --key1 value1 --key2 value2), only alphanumeric and \",*,/,-,:,;,',. symbols are allowed",
-  "@value": {
+  "@pipelineOptionsError": {
     "description": "Pipeline options parse error"
+  },
+  "viewOnGithub": "View on GitHub",
+  "@viewOnGithub": {
+    "description": "View on Github button"
+  },
+  "addExample": "Add your own example",
+  "@addExample": {
+    "description": "Add example link text"
+  },
+  "exampleDescription": "Example Description",
+  "@exampleDescription": {
+    "description": "Description icon label"
+  },
+  "exampleMultifile": "Multifile example info",
+  "@exampleDescription": {
+    "exampleMultifile": "Multifile icon label"
+  },
+  "multifile": "Multifile",
+  "@multifile": {
+    "description": "Multifile example"
+  },
+  "multifileWarning": "Multifile not supported yet for running in playground. Open it on github.",
+  "@multifileWarning": {
+    "description": "Multifile not supported text"
   }
 }

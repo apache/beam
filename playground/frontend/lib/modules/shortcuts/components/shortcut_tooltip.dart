@@ -33,6 +33,7 @@ class ShortcutTooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
+      excludeFromSemantics: true,
       message: getShortcutDisplayName(shortcut),
       child: child,
     );
