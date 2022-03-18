@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap;
+package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.nio.ByteBuffer;
 import org.apache.spark.SparkConf;
