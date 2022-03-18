@@ -23,7 +23,7 @@ kind: CronJob
 metadata:
   labels:
     app: beammetrics
-  name: influxdb-autobackup-test
+  name: influxdb-autobackup
 spec:
   schedule: "@daily"
   concurrencyPolicy: Forbid
@@ -41,7 +41,7 @@ spec:
                 - backup
                 - -portable
                 - -host
-                - influxdb-rpc-test:8088
+                - influxdb-rpc:8088
                 - /backup
               volumeMounts:
                 - mountPath: /backup
@@ -50,7 +50,7 @@ spec:
               image: gcr.io/apache-beam-testing/gsutil
               command: ['sh', '-c', 'tar czf influxdb-backup.tar.gz /backup
                         && gsutil cp influxdb-backup.tar.gz
-                        gs://apache-beam-testing-metrics-test-dani/'] #apache-beam-testing-metrics
+                        gs://apache-beam-testing-metrics/']
               volumeMounts:
                 - mountPath: /backup
                   name: shared-data
