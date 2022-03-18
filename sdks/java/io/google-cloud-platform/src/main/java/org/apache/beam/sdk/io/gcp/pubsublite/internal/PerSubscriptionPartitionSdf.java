@@ -28,8 +28,11 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
+  private static final Logger LOG = LoggerFactory.getLogger(PerSubscriptionPartitionSdf.class);
   private final Duration maxSleepTime;
   private final ManagedBacklogReaderFactory backlogReaderFactory;
   private final SubscriptionPartitionProcessorFactory processorFactory;
@@ -76,20 +79,25 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       @Element SubscriptionPartition subscriptionPartition,
       OutputReceiver<SequencedMessage> receiver)
       throws Exception {
+    LOG.debug("Starting process for {} at {}", subscriptionPartition, Instant.now());
     SubscriptionPartitionProcessor processor =
         processorFactory.newProcessor(subscriptionPartition, tracker, receiver);
     ProcessContinuation result = processor.runFor(maxSleepTime);
+    LOG.debug("Starting commit for {} at {}", subscriptionPartition, Instant.now());
+    // TODO(dpcollins-google): Move commits to a bundle finalizer for drain correctness
     processor
         .lastClaimed()
         .ifPresent(
-            lastClaimedOffset -> {
-              Offset commitOffset = Offset.of(lastClaimedOffset.value() + 1);
+            lastClaimed -> {
               try {
-                committerFactory.apply(subscriptionPartition).commitOffset(commitOffset);
+                committerFactory
+                    .apply(subscriptionPartition)
+                    .commitOffset(Offset.of(lastClaimed.value() + 1));
               } catch (Exception e) {
                 throw ExtractStatus.toCanonical(e).underlying;
               }
             });
+    LOG.debug("Finishing process for {} at {}", subscriptionPartition, Instant.now());
     return result;
   }
 
