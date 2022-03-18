@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -83,7 +84,8 @@ class OffsetByteRangeTracker extends TrackerWithProgress {
       return null;
     }
     checkArgument(rangeTracker.currentRestriction().equals(ranges.getPrimary()));
-    return SplitResult.of(currentRestriction(), OffsetByteRange.of(ranges.getResidual()));
+    return SplitResult.of(
+        currentRestriction(), OffsetByteRange.of(checkArgumentNotNull(ranges.getResidual())));
   }
 
   @Override

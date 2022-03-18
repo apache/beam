@@ -55,6 +55,7 @@ public class MemoryBufferedSubscriberImpl extends ProxyService implements Memory
   private SettableApiFuture<Void> newData = SettableApiFuture.create();
   private boolean shutdown = false;
 
+  @SuppressWarnings({"methodref.receiver.bound.invalid", "method.invocation.invalid"})
   public MemoryBufferedSubscriberImpl(
       Partition partition,
       Offset startOffset,
