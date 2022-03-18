@@ -381,6 +381,7 @@ class FnApiRunner(runner.PipelineRunner):
         # - Replace Data API endpoints in protobufs.
         runner_execution_context.setup()
 
+        bundle_counter = 0
         # Start executing all ready bundles.
         while len(runner_execution_context.queues.ready_inputs) > 0:
           _LOGGER.debug(
@@ -402,6 +403,7 @@ class FnApiRunner(runner.PipelineRunner):
               bundle_context_manager.stage_timer_outputs)
           assert consuming_stage_name == bundle_context_manager.stage.name
 
+          bundle_counter += 1
           bundle_results = self._execute_bundle(
               runner_execution_context, bundle_context_manager, bundle_input)
 

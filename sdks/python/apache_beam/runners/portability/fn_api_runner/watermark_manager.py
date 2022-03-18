@@ -59,7 +59,9 @@ class WatermarkManager(object):
       self._produced_watermark = wm
 
     def upstream_watermark(self):
-      if self.producers:
+      if len(self.producers) == 1:
+        return self._produced_watermark
+      elif self.producers:
         return min(p.output_watermark() for p in self.producers)
       else:
         return timestamp.MAX_TIMESTAMP
