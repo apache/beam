@@ -25,9 +25,9 @@ from typing import Optional
 from typing import Tuple
 
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.utils import progress_indicated
-from apache_beam.version import __version__ as beam_version
 
 try:
   from google.cloud import dataproc_v1
@@ -67,9 +67,6 @@ class DataprocClusterManager:
   required for creating and deleting Dataproc clusters for use
   under Interactive Beam.
   """
-  IMAGE_VERSION = '2.0.31-debian10'
-  STAGING_LOG_NAME = 'dataproc-startup-script_output'
-
   def __init__(self, cluster_metadata: MasterURLIdentifier) -> None:
     """Initializes the DataprocClusterManager with properties required
     to interface with the Dataproc ClusterControllerClient.
@@ -162,13 +159,12 @@ class DataprocClusterManager:
         'cluster_name': self.cluster_metadata.cluster_name,
         'config': {
             'software_config': {
-                'image_version': self.IMAGE_VERSION,
+                'image_version': ib.clusters.DATAPROC_IMAGE_VERSION,
                 'optional_components': ['DOCKER', 'FLINK']
             },
             'gce_cluster_config': {
                 'metadata': {
-                    'flink-start-yarn-session': 'true',
-                    'PIP_PACKAGES': 'apache-beam[gcp]=={}'.format(beam_version)
+                    'flink-start-yarn-session': 'true'
                 },
                 'service_account_scopes': [
                     'https://www.googleapis.com/auth/cloud-platform'
@@ -310,7 +306,7 @@ class DataprocClusterManager:
     """Returns the master_url of the current cluster."""
     startup_logs = []
     for file in self._fs._list(staging_bucket):
-      if self.STAGING_LOG_NAME in file.path:
+      if ib.clusters.DATAPROC_STAGING_LOG_NAME in file.path:
         startup_logs.append(file.path)
 
     for log in startup_logs:
