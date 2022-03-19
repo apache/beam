@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -26,7 +27,6 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -114,9 +114,9 @@ public class UngroupedShuffleReader<T> extends NativeReader<T> {
       }
       ShuffleEntry record = iterator.next();
       // Throw away the primary and the secondary keys.
-      byte[] value = record.getValue();
+      ByteString value = record.getValue();
       shuffleReader.notifyElementRead(record.length());
-      current = CoderUtils.decodeFromByteArray(shuffleReader.coder, value);
+      current = shuffleReader.coder.decode(value.newInput(), Coder.Context.OUTER);
       return true;
     }
 
