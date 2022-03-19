@@ -1,9 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "go": "youngoli"
+    "go": "lostluck"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
-  "remindAfterTestsPass": []
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
 }
