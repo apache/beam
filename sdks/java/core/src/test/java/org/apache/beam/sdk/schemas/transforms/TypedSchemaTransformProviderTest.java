@@ -63,7 +63,7 @@ public class TypedSchemaTransformProviderTest {
     }
 
     @Override
-    Class<Configuration> configurationClass() {
+    public Class<Configuration> configurationClass() {
       return Configuration.class;
     }
 
