@@ -185,8 +185,8 @@ func ExpansionAddrWrite(expansionAddr string) writeOption {
 }
 
 // WriteToPostgres is a cross-language PTransform which writes Rows to the postgres database via JDBC.
-// tableName is a required paramater, and by default, the writeStatement is generated from it.
-// The generated write_statement can be overridden by passing in a write_statment.
+// tableName is a required parameter, and by default, a write statement is generated from it.
+// The generated write statement can be overridden by passing in a WriteStatement option.
 // If an expansion service address is not provided,
 // an appropriate expansion service will be automatically started; however
 // this is slower than having a persistent expansion service running.
