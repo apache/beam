@@ -25,6 +25,7 @@ import java.util.function.BooleanSupplier;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -54,10 +55,13 @@ public class WorkerStatusPages {
     this.capturePages = new ArrayList<>();
     this.statusServer.setHandler(servletHandler);
 
-    // Install the default servlets (threadz, healthz, heapz, statusz)
+    // Install the default servlets (threadz, healthz, heapz, jfrz, statusz)
     addServlet(threadzServlet);
     addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));
+    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
+      addServlet(new JfrzServlet(memoryMonitor));
+    }
     addServlet(statuszServlet);
 
     // Add default capture pages (threadz, statusz)

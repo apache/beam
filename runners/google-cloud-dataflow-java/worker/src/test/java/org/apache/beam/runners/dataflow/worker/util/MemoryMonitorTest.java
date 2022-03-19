@@ -24,9 +24,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.runners.core.construction.Environments;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -69,7 +71,7 @@ public class MemoryMonitorTest {
     provider = new FakeGCStatsProvider();
     localDumpFolder = tempFolder.newFolder();
     // Update every 10ms, never shutdown VM.
-    monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
+    monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder, null);
     thread = new Thread(monitor);
     thread.start();
   }
@@ -123,7 +125,8 @@ public class MemoryMonitorTest {
   public void uploadToGcs() throws Exception {
     File remoteFolder = tempFolder.newFolder();
     monitor =
-        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder);
+        MemoryMonitor.forTest(
+            provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder, null);
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -138,8 +141,32 @@ public class MemoryMonitorTest {
   }
 
   @Test
+  public void uploadJfrProfilesOnThrashing() throws Exception {
+    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
+      File remoteFolder = tempFolder.newFolder();
+      monitor =
+          MemoryMonitor.forTest(
+              provider,
+              10,
+              0,
+              true,
+              50.0,
+              remoteFolder.getPath(),
+              localDumpFolder,
+              Duration.ofMillis(100));
+
+      monitor.runJfrProfileOnHeapThrashing().get();
+
+      File[] files = remoteFolder.listFiles();
+      assertThat(files, Matchers.arrayWithSize(1));
+      assertThat(files[0].getAbsolutePath(), Matchers.containsString("jfr"));
+      assertThat(files[0].getAbsolutePath(), Matchers.containsString(".jfr"));
+    }
+  }
+
+  @Test
   public void uploadToGcsDisabled() throws Exception {
-    monitor = MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder);
+    monitor = MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder, null);
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -151,7 +178,7 @@ public class MemoryMonitorTest {
   @Test
   public void disableMemoryMonitor() throws Exception {
     MemoryMonitor disabledMonitor =
-        MemoryMonitor.forTest(provider, 10, 0, true, 100.0, null, localDumpFolder);
+        MemoryMonitor.forTest(provider, 10, 0, true, 100.0, null, localDumpFolder, null);
     Thread disabledMonitorThread = new Thread(disabledMonitor);
     disabledMonitorThread.start();
 
