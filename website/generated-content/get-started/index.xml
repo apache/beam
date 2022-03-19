@@ -4910,8 +4910,8 @@ limitations under the License.
 &lt;h1 id="try-beam-playground-beta">Try Beam Playground (Beta)&lt;/h1>
 &lt;p>Beam Playground is an interactive environment to try out Beam transforms and examples
 without having to install Apache Beam in your environment.&lt;/p>
-&lt;p>You can try an Apache Beam examples at
-&lt;a href="https://frontend-beta-dot-apache-beam-testing.appspot.com/">Beam Playground&lt;/a>.&lt;/p>
+&lt;p>You can try the available Apache Beam examples at
+&lt;a href="https://play.beam.apache.org/">Beam Playground&lt;/a>.&lt;/p>
 &lt;h2 id="beam-playground-wordcount-example">Beam Playground WordCount Example&lt;/h2>
 &lt;iframe
 src="https://frontend-beta-dot-apache-beam-testing.appspot.com/embedded?enabled=true&amp;example=SDK_JAVA%2fPRECOMPILED_OBJECT_TYPE_EXAMPLE%2fMinimalWordCount&amp;code="

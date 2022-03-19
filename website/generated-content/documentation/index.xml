@@ -6800,9 +6800,8 @@ When triggers are used, Beam provides a &lt;code>DoFn.PaneInfoParam&lt;/code> ob
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
 This feature implementation in Python SDK is not fully completed; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-3759">BEAM-3759&lt;/a>.&lt;/p>
 &lt;p class="language-go">&lt;strong>PaneInfo:&lt;/strong>
-This feature isn&amp;rsquo;t implemented in the Go SDK; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-3304">BEAM-3304&lt;/a>. However, once implemented, when triggers are used, Beam provides
-information about the current firing. The pane lets you determine whether this
-is an early or a late firing, and how many times this window has already fired for this key.&lt;/p>
+When triggers are used, Beam provides &lt;code>beam.PaneInfo&lt;/code> object that contains information about the current firing. Using &lt;code>beam.PaneInfo&lt;/code>
+you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6830,9 +6829,24 @@ is an early or a late firing, and how many times this window has already fired f
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// PaneInfo and triggers are not yet implemented in the Go SDK.
-&lt;/span>&lt;span class="c1">// See https://issues.apache.org/jira/browse/BEAM-3304 for info
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="o">//&lt;/span> &lt;span class="nx">on&lt;/span> &lt;span class="nx">contributing&lt;/span> &lt;span class="nx">triggers&lt;/span> &lt;span class="nx">and&lt;/span> &lt;span class="nx">panes&lt;/span>&lt;span class="p">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">extractWordsFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">pn&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PaneInfo&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">line&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emitWords&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">pn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Timing&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">typex&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PaneEarly&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="nx">pn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Timing&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">typex&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PaneOnTime&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// ... perform operation ...
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">pn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Timing&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">typex&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">PaneLate&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// ... perform operation ...
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">pn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">IsFirst&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// ... perform operation ...
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="nx">pn&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">IsLast&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// ... perform operation ...
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;span class="nx">words&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">strings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Split&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">line&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34; &amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="nx">_&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">w&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="k">range&lt;/span> &lt;span class="nx">words&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nf">emitWords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">w&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">&lt;strong>PipelineOptions:&lt;/strong>
