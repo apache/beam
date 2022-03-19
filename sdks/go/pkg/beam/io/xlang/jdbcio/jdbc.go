@@ -301,8 +301,8 @@ func ExpansionAddrRead(expansionAddr string) readOption {
 }
 
 // ReadFromPostgres is a cross-language PTransform which read Rows from the postgres via JDBC.
-// tableName is a required paramater, and by default, the readQuery is generated from it.
-// The generated readQuery can be overridden by passing in a readQuery.If an expansion service
+// tableName is a required parameter, and by default, a read query is generated from it.
+// The generated read query can be overridden by passing in a ReadQuery. If an expansion service
 // address is not provided, an appropriate expansion service will be automatically started;
 // however this is slower than having a persistent expansion service running.
 //
