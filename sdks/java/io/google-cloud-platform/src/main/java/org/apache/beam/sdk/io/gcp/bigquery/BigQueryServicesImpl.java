@@ -97,6 +97,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -1171,9 +1172,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (!(e instanceof GoogleJsonResponseException)) {
         return null;
       }
-      GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
-      GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
-      return errorInfo;
+      return Optional.ofNullable(((GoogleJsonResponseException) e).getDetails())
+          .flatMap(error -> Optional.ofNullable(error.getErrors()))
+          .flatMap(infos -> Optional.ofNullable(Iterables.getFirst(infos, null)))
+          .orElse(null);
     }
 
     @Override
