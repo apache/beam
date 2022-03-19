@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.io.ByteArrayInputStream;
+import com.google.protobuf.ByteString;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -113,8 +113,9 @@ public class ShuffleSinkTest {
     List<Integer> actual = new ArrayList<>();
     for (ShuffleEntry record : records) {
       // Ignore the key.
-      byte[] valueBytes = record.getValue();
-      WindowedValue<Integer> value = CoderUtils.decodeFromByteArray(windowedValueCoder, valueBytes);
+      ByteString valueBytes = record.getValue();
+      WindowedValue<Integer> value =
+          windowedValueCoder.decode(valueBytes.newInput(), Coder.Context.OUTER);
       Assert.assertEquals(Lists.newArrayList(GlobalWindow.INSTANCE), value.getWindows());
       actual.add(value.getValue());
     }
@@ -156,13 +157,14 @@ public class ShuffleSinkTest {
 
     List<KV<Integer, String>> actual = new ArrayList<>();
     for (ShuffleEntry record : records) {
-      byte[] keyBytes = record.getKey();
-      byte[] valueBytes = record.getValue();
+      ByteString keyBytes = record.getKey();
+      ByteString valueBytes = record.getValue();
       Assert.assertEquals(
-          timestamp, CoderUtils.decodeFromByteArray(InstantCoder.of(), record.getSecondaryKey()));
+          timestamp,
+          InstantCoder.of().decode(record.getSecondaryKey().newInput(), Coder.Context.OUTER));
 
-      Integer key = CoderUtils.decodeFromByteArray(BigEndianIntegerCoder.of(), keyBytes);
-      String valueElem = CoderUtils.decodeFromByteArray(StringUtf8Coder.of(), valueBytes);
+      Integer key = BigEndianIntegerCoder.of().decode(keyBytes.newInput(), Coder.Context.OUTER);
+      String valueElem = StringUtf8Coder.of().decode(valueBytes.newInput(), Coder.Context.OUTER);
 
       actual.add(KV.of(key, valueElem));
     }
@@ -201,14 +203,15 @@ public class ShuffleSinkTest {
 
     List<KV<Integer, KV<String, Integer>>> actual = new ArrayList<>();
     for (ShuffleEntry record : records) {
-      byte[] keyBytes = record.getKey();
-      byte[] valueBytes = record.getValue();
-      byte[] sortKeyBytes = record.getSecondaryKey();
+      ByteString keyBytes = record.getKey();
+      ByteString valueBytes = record.getValue();
+      ByteString sortKeyBytes = record.getSecondaryKey();
 
-      Integer key = CoderUtils.decodeFromByteArray(BigEndianIntegerCoder.of(), keyBytes);
-      ByteArrayInputStream bais = new ByteArrayInputStream(sortKeyBytes);
+      Integer key = BigEndianIntegerCoder.of().decode(keyBytes.newInput(), Coder.Context.OUTER);
+      InputStream bais = sortKeyBytes.newInput();
       String sortKey = StringUtf8Coder.of().decode(bais);
-      Integer sortValue = CoderUtils.decodeFromByteArray(BigEndianIntegerCoder.of(), valueBytes);
+      Integer sortValue =
+          BigEndianIntegerCoder.of().decode(valueBytes.newInput(), Coder.Context.OUTER);
 
       actual.add(KV.of(key, KV.of(sortKey, sortValue)));
     }

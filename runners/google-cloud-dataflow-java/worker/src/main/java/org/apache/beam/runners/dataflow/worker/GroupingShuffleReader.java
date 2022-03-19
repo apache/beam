@@ -25,9 +25,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
-import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -48,7 +48,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
@@ -288,7 +287,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         }
       }
 
-      K key = CoderUtils.decodeFromByteArray(parentReader.keyCoder, groups.getCurrent().key);
+      K key = parentReader.keyCoder.decode(groups.getCurrent().key.newInput(), Coder.Context.OUTER);
       parentReader.executionContext.setKey(key);
       current =
           new ValueInEmptyWindows<>(
@@ -452,20 +451,22 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
           notifyValueReturned(currentGroupSize.getAndSet(0L));
           try {
             if (parentReader.secondaryKeyCoder != null) {
-              ByteArrayInputStream bais = new ByteArrayInputStream(entry.getSecondaryKey());
+              InputStream bais = entry.getSecondaryKey().newInput();
               @SuppressWarnings("unchecked")
               V value =
                   (V)
                       KV.of(
                           // We ignore decoding the timestamp.
                           parentReader.secondaryKeyCoder.decode(bais),
-                          CoderUtils.decodeFromByteArray(
-                              parentReader.valueCoder, entry.getValue()));
+                          parentReader.valueCoder.decode(
+                              entry.getValue().newInput(), Coder.Context.OUTER));
               return value;
             } else {
               @SuppressWarnings("unchecked")
               V value =
-                  (V) CoderUtils.decodeFromByteArray(parentReader.valueCoder, entry.getValue());
+                  (V)
+                      parentReader.valueCoder.decode(
+                          entry.getValue().newInput(), Coder.Context.OUTER);
               return value;
             }
           } catch (IOException exn) {
