@@ -332,6 +332,7 @@ class FnApiRunner(runner.PipelineRunner):
             translations.read_to_impulse,
             translations.impulse_to_input,
             translations.sort_stages,
+            translations.add_impulse_to_dangling_transforms,
             translations.setup_timer_mapping,
             translations.populate_data_channel_coders,
         ],

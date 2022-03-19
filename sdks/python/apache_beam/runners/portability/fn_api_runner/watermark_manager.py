@@ -178,6 +178,17 @@ class WatermarkManager(object):
         assert isinstance(pcoll_node, WatermarkManager.PCollectionNode)
         stage_node.side_inputs.add(pcoll_node)
 
+    self._verify(stages)
+
+  def _verify(self, stages: List[translations.Stage]):
+    for s in stages:
+      if len(self._stages_by_name[s.name].inputs) == 0:
+        from apache_beam.runners.portability.fn_api_runner import visualization_tools
+        visualization_tools.show_stage(s)
+        raise ValueError(
+            'Stage %s has no main inputs. '
+            'At least one main input is necessary.' % s.name)
+
   def get_stage_node(self, name):
     # type: (str) -> StageNode
     return self._stages_by_name[name]

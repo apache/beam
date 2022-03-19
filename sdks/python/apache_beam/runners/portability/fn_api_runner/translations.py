@@ -2006,6 +2006,39 @@ def populate_data_channel_coders(stages, pipeline_context):
   return stages
 
 
+def add_impulse_to_dangling_transforms(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
+
+  """Populate coders for GRPC input and output ports."""
+  for stage in stages:
+    for transform in stage.transforms:
+      if len(transform.inputs
+             ) == 0 and transform.spec.urn != bundle_processor.DATA_INPUT_URN:
+        print('transform! : ' + transform.spec.urn)
+        # We look through the various stages in the DAG, and transforms. If we
+        # see a transform that has no inputs whatsoever.
+        impulse_pc = unique_name(
+            pipeline_context.components.pcollections, 'Impulse')
+        output_pcoll = pipeline_context.components.pcollections[next(
+            iter(transform.outputs.values()))]
+        pipeline_context.components.pcollections[impulse_pc].CopyFrom(
+            beam_runner_api_pb2.PCollection(
+                unique_name=impulse_pc,
+                coder_id=pipeline_context.bytes_coder_id,
+                windowing_strategy_id=output_pcoll.windowing_strategy_id,
+                is_bounded=output_pcoll.is_bounded))
+        transform.inputs['in'] = impulse_pc
+
+        stage.transforms.append(
+            beam_runner_api_pb2.PTransform(
+                unique_name=transform.unique_name,
+                spec=beam_runner_api_pb2.FunctionSpec(
+                    urn=bundle_processor.DATA_INPUT_URN,
+                    payload=IMPULSE_BUFFER),
+                outputs={'out': impulse_pc}))
+    yield stage
+
+
 def union(a, b):
   # Minimize the number of distinct sets.
   if not a or a == b:
