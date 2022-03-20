@@ -21,8 +21,6 @@ package org.apache.beam.sdk.io.gcp.bigquery.schematransform;
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
-import org.apache.beam.sdk.io.gcp.bigquery.schematransform.BigQuerySchemaIOConfiguration.JobType;
-import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -41,7 +39,7 @@ public abstract class BigQuerySchemaTransform implements SchemaTransform {
   }
 
   public abstract BigQuerySchemaIOConfiguration getConfiguration();
-  
+
   @Nullable
   public abstract BigQueryServices getBigQueryServices();
 
@@ -71,7 +69,7 @@ public abstract class BigQuerySchemaTransform implements SchemaTransform {
   public static abstract class Builder {
 
     public abstract Builder setConfiguration(BigQuerySchemaIOConfiguration value);
-    
+
     public abstract Builder setBigQueryServices(BigQueryServices value);
 
     public abstract BigQuerySchemaTransform build();
