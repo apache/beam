@@ -19,6 +19,10 @@
 package org.apache.beam.sdk.io.gcp.bigquery.schematransform;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.schematransform.BigQuerySchemaIOConfiguration.JobType;
+import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -27,22 +31,48 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 public abstract class BigQuerySchemaTransform implements SchemaTransform {
 
   public static BigQuerySchemaTransform of(BigQuerySchemaIOConfiguration configuration) {
-    return new AutoValue_BigQuerySchemaTransform.Builder()
-        .setConfiguration(configuration)
+    return builderOf(configuration)
         .build();
   }
 
+  public static Builder builderOf(BigQuerySchemaIOConfiguration configuration) {
+    return new AutoValue_BigQuerySchemaTransform.Builder()
+        .setConfiguration(configuration);
+  }
+
   public abstract BigQuerySchemaIOConfiguration getConfiguration();
+  
+  @Nullable
+  public abstract BigQueryServices getBigQueryServices();
 
   @Override
   public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-    return null;
+    return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
+      @Override
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        if (input.getAll().isEmpty()) {
+
+          BigQueryRowReader.Builder builder = BigQueryRowReader.builderOf(getConfiguration());
+
+          if (getBigQueryServices() != null) {
+            builder = builder.setBigQueryServices(getBigQueryServices());
+          }
+
+          return input.getPipeline().begin().apply(builder.build());
+        }
+
+        // TODO: implement !input.getAll().isEmpty() case
+        return null;
+      }
+    };
   }
 
   @AutoValue.Builder
   public static abstract class Builder {
 
     public abstract Builder setConfiguration(BigQuerySchemaIOConfiguration value);
+    
+    public abstract Builder setBigQueryServices(BigQueryServices value);
 
     public abstract BigQuerySchemaTransform build();
   }

@@ -18,9 +18,16 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery.schematransform;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 
 /**
  * Configuration for the {@link org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaIOProvider}.
@@ -60,14 +67,243 @@ public abstract class BigQuerySchemaIOConfiguration {
         .setJobType(jobType.name());
   }
 
+  public BigQueryIO.TypedRead<TableRow> toQueryTypedRead() {
+    if (getQuery() == null || getQuery().isEmpty()) {
+      throw new InvalidConfigurationException("query is empty but required for a BigQuery Query Job");
+    }
+
+    return commonTypedRead().fromQuery(getQuery());
+  }
+
+  public BigQueryIO.TypedRead<TableRow> toExtractTypedRead() {
+    if (getTableSpec() == null || getTableSpec().isEmpty()) {
+      throw new InvalidConfigurationException("tableSpec is empty but required for a BigQuery Extract Job");
+    }
+
+    return commonTypedRead().from(getTableSpec());
+  }
+
+  private BigQueryIO.TypedRead<TableRow> commonTypedRead() {
+    BigQueryIO.TypedRead<TableRow> read = BigQueryIO.readTableRowsWithSchema();
+
+    if (getUseAvroLogicalTypes() != null && getUseAvroLogicalTypes()) {
+      read = read.useAvroLogicalTypes();
+    }
+
+    if (getUseStandardSql() != null && getUseStandardSql()) {
+      read = read.usingStandardSql();
+    }
+
+    if (getFormat() != null) {
+      read = read.withFormat(DataFormat.valueOf(getFormat()));
+    }
+
+    if (getKmsKey() != null) {
+      read = read.withKmsKey(getKmsKey());
+    }
+
+    if (getMethod() != null) {
+      read = read.withMethod(BigQueryIO.TypedRead.Method.valueOf(getMethod()));
+    }
+
+    if (getWithoutFlattenResults() != null && getWithoutFlattenResults()) {
+      read = read.withoutResultFlattening();
+    }
+
+    if (getQueryLocation() != null) {
+      read = read.withQueryLocation(getQueryLocation());
+    }
+
+    if (getQueryPriority() != null) {
+      read = read.withQueryPriority(QueryPriority.valueOf(getQueryPriority()));
+    }
+
+    if (getQueryTempDataset() != null) {
+      read = read.withQueryTempDataset(getQueryTempDataset());
+    }
+
+    if (getRowRestriction() != null) {
+      read = read.withRowRestriction(getRowRestriction());
+    }
+
+    if (getSelectedFields() != null && !getSelectedFields().isEmpty()) {
+      read = read.withSelectedFields(getSelectedFields());
+    }
+
+    if (getWithTemplateCompatibility() != null && getWithTemplateCompatibility()) {
+      read = read.withTemplateCompatibility();
+    }
+
+    return read;
+  }
+
   /** Get the configuration's Job type. **/
   public abstract String getJobType();
+
+  /** Reads results received after executing the given query. **/
+  @Nullable
+  public abstract String getQuery();
+
+  /**
+   * Reads a BigQuery table specified as "[project_id]:[dataset_id].[table_id]"
+   * or "[dataset_id].[table_id]" for tables within the current project.
+   *
+   **/
+  @Nullable
+  public abstract String getTableSpec();
+
+  /** Flags whether to use avro logical types. **/
+  @Nullable
+  public abstract Boolean getUseAvroLogicalTypes();
+
+  /** Enables BigQuery's Standard SQL dialect when reading from a query. **/
+  @Nullable
+  public abstract Boolean getUseStandardSql();
+
+  /** DateFormat for output data. See com.google.cloud.bigquery.storage.v1.DataFormat **/
+  @Nullable
+  public abstract String getFormat();
+
+  /** For query sources, use this Cloud KMS key to encrypt any temporary tables created. **/
+  @Nullable
+  public abstract String getKmsKey();
+
+  /**
+   * Determines the method used to read data from BigQuery.
+   *
+   * DEFAULT - The default behavior if no method is explicitly set.
+   * DIRECT_READ - Read the contents of a table directly using the BigQuery storage API.
+   * EXPORT - Export data to Google Cloud Storage in Avro format and read data files from that location.
+   **/
+  @Nullable
+  public abstract String getMethod();
+
+  /**
+   * Flatten the queried results.
+   *
+   * Setting this option when reading from a table will cause an error during validation.
+   **/
+  @Nullable
+  public abstract Boolean getWithoutFlattenResults();
+
+  /**
+   * Enable/disable validation that the table exists or the query succeeds prior to pipeline submission.
+   * Basic validation (such as ensuring that a query or table is specified) still occurs.
+   **/
+  @Nullable
+  public abstract Boolean getWithoutValidation();
+
+  /** BigQuery geographic location where the query job will be executed. **/
+  @Nullable
+  public abstract String getQueryLocation();
+
+  /**
+   * The priority of a query.
+   *
+   * BATCH - Specifies that a query should be run with a BATCH priority.
+   * INTERACTIVE - Specifies that a query should be run with an INTERACTIVE priority.
+   *
+   **/
+  @Nullable
+  public abstract String getQueryPriority();
+
+  /** Temporary dataset reference when querying. **/
+  @Nullable
+  public abstract String getQueryTempDataset();
+
+  /**
+   * Read only rows which match the specified filter.
+   *
+   * Must be an SQL expression compatible with Google standard SQL.
+   *
+   **/
+  @Nullable
+  public abstract String getRowRestriction();
+
+  /** Read only the specified fields (columns) from a BigQuery table. **/
+  @Nullable
+  public abstract List<String> getSelectedFields();
+
+  @Nullable
+  public abstract Boolean getWithTemplateCompatibility();
 
   @AutoValue.Builder
   public static abstract class Builder {
 
     /** Set the configuration's Job type **/
     public abstract Builder setJobType(String value);
+
+    /** Set the SQL query for the BigQuery Job. **/
+    public abstract Builder setQuery(String value);
+
+    /**
+     * Reads a BigQuery table specified as "[project_id]:[dataset_id].[table_id]"
+     * or "[dataset_id].[table_id]" for tables within the current project.
+     *
+     */
+    public abstract Builder setTableSpec(String value);
+
+    /** Set whether to use Avro logical types **/
+    public abstract Builder setUseAvroLogicalTypes(Boolean value);
+
+    /** Set whether to use standard SQL **/
+    public abstract Builder setUseStandardSql(Boolean value);
+
+    /** Set format for output data. See com.google.cloud.bigquery.storage.v1.DataFormat **/
+    public abstract Builder setFormat(String value);
+
+    /** For query sources, use this Cloud KMS key to encrypt any temporary tables created. **/
+    public abstract Builder setKmsKey(String value);
+
+    /**
+     * Determines the method used to read data from BigQuery.
+     *
+     * DEFAULT - The default behavior if no method is explicitly set.
+     * DIRECT_READ - Read the contents of a table directly using the BigQuery storage API.
+     * EXPORT - Export data to Google Cloud Storage in Avro format and read data files from that location.
+     **/
+    public abstract Builder setMethod(String value);
+
+    /**
+     * Flatten the queried results.
+     *
+     * Setting this option when reading from a table will cause an error during validation.
+     **/
+    public abstract Builder setWithoutFlattenResults(Boolean value);
+
+    /**
+     * Enable/disable validation that the table exists or the query succeeds prior to pipeline submission.
+     * Basic validation (such as ensuring that a query or table is specified) still occurs.
+     **/
+    public abstract Builder setWithoutValidation(Boolean value);
+
+    /** BigQuery geographic location where the query job will be executed. **/
+    public abstract Builder setQueryLocation(String value);
+
+    /**
+     * The priority of a query.
+     *
+     * BATCH - Specifies that a query should be run with a BATCH priority.
+     * INTERACTIVE - Specifies that a query should be run with an INTERACTIVE priority.
+     *
+     **/
+    public abstract Builder setQueryPriority(String value);
+
+    /** Temporary dataset reference when querying. **/
+    public abstract Builder setQueryTempDataset(String value);
+
+    /**
+     * Read only rows which match the specified filter.
+     *
+     * Must be an SQL expression compatible with Google standard SQL.
+     *
+     **/
+    public abstract Builder setRowRestriction(String value);
+
+    /** Read only the specified fields (columns) from a BigQuery table. **/
+    public abstract Builder setSelectedFields(List<String> value);
+
+    public abstract Builder setWithTemplateCompatibility(Boolean value);
 
     /** Build the configuration. **/
     public abstract BigQuerySchemaIOConfiguration build();
