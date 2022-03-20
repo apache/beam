@@ -43,6 +43,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_list_like
 from pandas._libs import lib
 from pandas.core.groupby.generic import DataFrameGroupBy
 
@@ -3727,35 +3728,116 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  def pivot(self, **kwargs):
-    columns = kwargs.get('columns', None)
-    selected_cols = self._expr.proxy()[columns]
+  def pivot(self, index=None, columns=None, values=None, **kwargs):
+    def verify_all_categorical(all_cols_are_categorical):
+      if not all_cols_are_categorical:
+        raise frame_base.WontImplementError(
+            "pivot() of non-categorical type is not supported because "
+            "the type of the output column depends on the data. Please use "
+            "pd.CategoricalDtype with explicit categories.",
+            reason="non-deferred-columns")
 
+    # Construct column index
+    if is_list_like(columns) and len(columns) <= 1:
+      columns = columns[0]
+    selected_cols = self._expr.proxy()[columns]
     if isinstance(selected_cols, pd.Series):
       all_cols_are_categorical = isinstance(
         selected_cols.dtype, pd.CategoricalDtype
       )
+      verify_all_categorical(all_cols_are_categorical)
+
+      # If values not provided, take all remaining columns of dataframe
+      if not values:
+        values = self._expr.proxy() \
+          .drop(index, axis=1).drop(columns, axis=1).columns.values
+
+      # Take the provided values
+      if is_list_like(values) and len(values) > 1:
+        values_in_col_index = values
+        names = [None, columns]
+        col_index = pd.MultiIndex.from_product(
+          [values_in_col_index,
+          selected_cols.dtypes.categories.astype('category')],
+          names=names
+        )
+      else:
+        col_index = pd.CategoricalIndex(
+          selected_cols.dtype.categories,
+          name=columns
+        )
     else:
       all_cols_are_categorical = all(
         isinstance(c, pd.CategoricalDtype) for c in selected_cols.dtypes
       )
-    if not all_cols_are_categorical:
-      raise frame_base.WontImplementError(
-          "pivot() of non-categorical type is not supported because "
-          "the type of the output column depends on the data. Please use "
-          "pd.CategoricalDtype with explicit categories.",
-          reason="non-deferred-columns")
+      verify_all_categorical(all_cols_are_categorical)
 
-    proxy = pd.DataFrame(columns=self._expr.proxy().pivot(**kwargs).columns)
+      categories = [
+        c.categories.astype('category') for c in selected_cols.dtypes
+      ]
+      if is_list_like(columns) and len(columns) > 1:
+        col_index = pd.MultiIndex.from_product(categories, names=columns)
+      else:
+        col_index = pd.CategoricalIndex(
+            selected_cols.dtype.categories,
+            name=columns
+        )
 
-    with expressions.allow_non_parallel_operations():
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'pivot',
-              lambda df: pd.concat([proxy, df.pivot(**kwargs)]),
-              [self._expr],
-              proxy=proxy,
-              requires_partition_by=partitionings.Singleton()))
+    # Construct row index
+    if index:
+      per_partition = expressions.ComputedExpression(
+          'pivot-per-partition',
+          lambda df: df.set_index(keys=index), [self._expr],
+          preserves_partition_by=partitionings.Singleton(),
+          requires_partition_by=partitionings.Arbitrary()
+      )
+      if is_list_like(index):
+        row_index = pd.MultiIndex.from_tuples([]*len(index), names=index)
+      else:
+        row_index = pd.Index([], name=index)
+    else:
+      per_partition = self._expr
+      row_index = self._expr.proxy().index
+
+    selected_values = self._expr.proxy()[values]
+    if isinstance(selected_values, pd.Series):
+      value_dtype = selected_values.dtype
+    else:
+      # Set dtype to object if more than one value
+      # TODO: Get greatest common type
+      value_dtype = object
+
+    # Construct proxy
+    proxy = pd.DataFrame(
+      columns=col_index, dtype=value_dtype, index = row_index
+    )
+
+    indices = []
+    for i in range(per_partition.proxy().index.nlevels):
+      level = per_partition.proxy().index.get_level_values(i)
+      idx_type = level.dtype.type
+      idx_name = level.name
+      idx = proxy.index.get_level_values(i).astype(idx_type)
+      idx.name = idx_name
+      indices.append(idx)
+    proxy.index = indices
+
+    def pivot_helper(df):
+      result = pd.concat(
+        [proxy, df.pivot(columns=columns, values=values, **kwargs)]
+      )
+      result.columns = col_index
+      result = result.rename_axis(index=index, copy=False)
+      return result
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'pivot',
+            pivot_helper,
+            [per_partition],
+            proxy=proxy,
+            preserves_partition_by=partitionings.Index(),
+            requires_partition_by=partitionings.Index()))
 
   prod = product = _agg_method(pd.DataFrame, 'prod')
   sum = _agg_method(pd.DataFrame, 'sum')
