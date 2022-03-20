@@ -2507,17 +2507,17 @@ class BeamSpecificTest(unittest.TestCase):
     result = self._evaluate(lambda s: s.unstack(level=0), s)
     self.assert_frame_data_equivalent(result, s.unstack(level=0))
 
-  @unittest.skipIf(
-      PD_VERSION < (1, 2), "pandas==1.1.5 has an indexing error bug")
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)
-    result = self._evaluate(lambda s: s.unstack(level=0).unstack(), s)
-    self.assert_frame_data_equivalent(result, s.unstack(level=0).unstack())
+    if PD_VERSION < (1, 2):
+      with self.assertRaisesRegex(frame_base.WontImplementError,
+                                  r"pandas==1.1.5 has an indexing error bug"):
+        self._evaluate(lambda s: s.unstack(level=0).unstack(), s)
+    else:
+      result = self._evaluate(lambda s: s.unstack(level=0).unstack(), s)
+      self.assert_frame_data_equivalent(result, s.unstack(level=0).unstack())
 
-  @unittest.skipIf(
-      PD_VERSION < (1, 4),
-      "pandas=1.4 fixes error when concat() of boolean types results in object")
   def test_unstack_bool(self):
     index = pd.MultiIndex.from_tuples([(True, 'a'), (True, 'b'), (False, 'a'),
                                        (False, 'b')])

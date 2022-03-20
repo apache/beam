@@ -961,6 +961,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def unstack(self, **kwargs):
+    if PD_VERSION < (1, 2):
+      raise frame_base.WontImplementError(
+        "pandas==1.1.5 has an indexing error bug," \
+        " causing an error with unstack()")
+
     level = kwargs.get('level', -1)
 
     if self._expr.proxy().index.nlevels == 1:
