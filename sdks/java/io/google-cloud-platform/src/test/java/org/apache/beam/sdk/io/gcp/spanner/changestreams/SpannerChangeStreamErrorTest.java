@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
+import static org.apache.beam.sdk.PipelineResult.State.RUNNING;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
@@ -29,6 +30,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNull;
 
 import com.google.api.gax.grpc.testing.MockServiceHelper;
 import com.google.api.gax.retrying.RetrySettings;
@@ -51,14 +53,19 @@ import com.google.spanner.v1.TypeCode;
 import io.grpc.Status;
 import java.io.Serializable;
 import java.util.Collections;
+import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -127,23 +134,21 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  public void testUnavailableExceptionRetries() {
+  public void testUnavailableExceptionRetries() throws InterruptedException {
+    DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
+    options.setBlockOnRun(false);
+    options.setRunner(DirectRunner.class);
+    Pipeline nonBlockingPipeline = TestPipeline.create(options);
+
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
-        SimulatedExecutionTime.ofExceptions(
-            ImmutableSet.of(
-                Status.UNAVAILABLE.asRuntimeException(),
-                Status.RESOURCE_EXHAUSTED.asRuntimeException())));
+        SimulatedExecutionTime.ofStickyException(Status.UNAVAILABLE.asRuntimeException()));
 
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp endTimestamp =
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
 
-    mockTableExists();
-    mockGetWatermark(startTimestamp);
-    mockGetParentPartition(startTimestamp, endTimestamp);
-
     try {
-      pipeline.apply(
+      nonBlockingPipeline.apply(
           SpannerIO.readChangeStream()
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
@@ -151,12 +156,15 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withMetadataTable(TEST_TABLE)
               .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(endTimestamp));
-      pipeline.run().waitUntilFinish();
+      PipelineResult result = nonBlockingPipeline.run();
+      while (result.getState() != RUNNING) {
+        Thread.sleep(50);
+      }
+      // The pipeline continues making requests to Spanner to retry the Unavailable errors.
+      assertNull(result.waitUntilFinish(Duration.millis(5)));
     } finally {
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(1));
-      thrown.expect(PipelineExecutionException.class);
-      thrown.expectMessage(ErrorCode.RESOURCE_EXHAUSTED.name());
     }
   }
 
