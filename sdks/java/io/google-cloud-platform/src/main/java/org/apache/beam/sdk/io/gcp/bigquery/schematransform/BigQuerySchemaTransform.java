@@ -48,18 +48,13 @@ public abstract class BigQuerySchemaTransform implements SchemaTransform {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         if (input.getAll().isEmpty()) {
-
           BigQueryRowReader.Builder builder = BigQueryRowReader.builderOf(getConfiguration());
-
-          if (getBigQueryServices() != null) {
-            builder = builder.setBigQueryServices(getBigQueryServices());
-          }
 
           return input.getPipeline().begin().apply(builder.build());
         }
 
         // TODO: implement !input.getAll().isEmpty() case
-        return null;
+        return PCollectionRowTuple.empty(input.getPipeline());
       }
     };
   }

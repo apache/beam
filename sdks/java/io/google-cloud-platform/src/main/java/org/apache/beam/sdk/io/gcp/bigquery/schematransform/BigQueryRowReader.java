@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery.schematransform;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.schematransform.BigQuerySchemaIOConfiguration.JobType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -40,25 +38,14 @@ public abstract class BigQueryRowReader extends PTransform<PBegin, PCollectionRo
 
   public abstract BigQuerySchemaIOConfiguration getConfiguration();
 
-  @Nullable
-  public abstract BigQueryServices getBigQueryServices();
-
   private BigQueryIO.TypedRead<TableRow> typedRead() {
     JobType jobType = JobType.valueOf(getConfiguration().getJobType());
     switch (jobType) {
       case QUERY:
-        BigQueryIO.TypedRead<TableRow> read = getConfiguration().toQueryTypedRead();
-        if (getBigQueryServices() != null) {
-          read = read.withTestServices(getBigQueryServices());
-        }
-        return read;
+        return getConfiguration().toQueryTypedRead();
 
       case EXTRACT:
-        read = getConfiguration().toExtractTypedRead();
-        if (getBigQueryServices() != null) {
-          read = read.withTestServices(getBigQueryServices());
-        }
-        return read;
+        return getConfiguration().toExtractTypedRead();
 
       default:
         throw new InvalidConfigurationException(
@@ -84,8 +71,6 @@ public abstract class BigQueryRowReader extends PTransform<PBegin, PCollectionRo
   public static abstract class Builder {
 
     public abstract Builder setConfiguration(BigQuerySchemaIOConfiguration value);
-
-    public abstract Builder setBigQueryServices(BigQueryServices value);
 
     public abstract BigQueryRowReader build();
   }
