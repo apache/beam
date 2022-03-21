@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sqs;
+package org.apache.beam.sdk.io.aws2.sqs.testing;
 
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
@@ -24,6 +24,8 @@ import static org.testcontainers.containers.localstack.LocalStackContainer.Servi
 import java.io.Serializable;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
+import org.apache.beam.sdk.io.aws2.sqs.SqsIO;
+import org.apache.beam.sdk.io.aws2.sqs.SqsMessage;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
@@ -45,6 +47,19 @@ import org.junit.runners.JUnit4;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
+/**
+ * Integration test to write to and read from SQS.
+ *
+ * <p>By default this runs against Localstack, but you can use {@link SqsIOIT.SqsITOptions} to
+ * configure tests to run against AWS SQS.
+ *
+ * <pre>{@code
+ * ./gradlew :sdks:java:io:amazon-web-services2:integrationTest \
+ *   --info \
+ *   --tests "org.apache.beam.sdk.io.aws2.sqs.testing.SqsIOIT" \
+ *   -DintegrationTestPipelineOptions='["--awsRegion=eu-central-1","--useLocalstack=false"]'
+ * }</pre>
+ */
 @RunWith(JUnit4.class)
 public class SqsIOIT {
   public interface SqsITOptions extends ITEnvironment.ITOptions {}
