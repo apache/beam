@@ -48,7 +48,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
   private static final long MAX_PER_PARTITION_MEMORY = 100 * MEBIBYTE;
 
   private static final MemoryLimiter LIMITER =
-      new MemoryLimiterImpl(MIN_PER_PARTITION_MEMORY, SOFT_MEMORY_LIMIT);
+      new MemoryLimiterImpl(MIN_PER_PARTITION_MEMORY, MAX_PER_PARTITION_MEMORY, SOFT_MEMORY_LIMIT);
 
   private final SubscriberOptions options;
 
@@ -99,8 +99,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
         subscriptionPartition.partition(),
         startOffset,
         LIMITER,
-        consumer -> newSubscriber(subscriptionPartition.partition(), startOffset, consumer),
-        MAX_PER_PARTITION_MEMORY);
+        consumer -> newSubscriber(subscriptionPartition.partition(), startOffset, consumer));
   }
 
   private TopicBacklogReader newBacklogReader(SubscriptionPartition subscriptionPartition) {

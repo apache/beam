@@ -63,6 +63,13 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
     backlogReaderFactory.close();
   }
 
+  /**
+   * The initial watermark state is not allowed to return less than the element's input timestamp.
+   *
+   * <p>The polling logic for identifying new partitions will export all preexisting partitions with
+   * very old (EPOCH) initial watermarks, and any new partitions with a recent watermark likely to
+   * be before all messages that could exist on that partition given the polling delay.
+   */
   @GetInitialWatermarkEstimatorState
   public Instant getInitialWatermarkState(@Timestamp Instant elementTimestamp) {
     return elementTimestamp;

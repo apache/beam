@@ -44,7 +44,6 @@ public class MemoryBufferedSubscriberImpl extends ProxyService implements Memory
   private final Partition partition;
   private final MemoryLimiter limiter;
   private final Subscriber subscriber;
-  private final long maxMemory;
   private long targetMemory;
   private Offset fetchOffset;
   private Block memBlock;
@@ -62,13 +61,11 @@ public class MemoryBufferedSubscriberImpl extends ProxyService implements Memory
       Partition partition,
       Offset startOffset,
       MemoryLimiter limiter,
-      Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory,
-      long maxMemory) {
+      Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory) {
     this.partition = partition;
     this.fetchOffset = startOffset;
     this.limiter = limiter;
-    this.maxMemory = maxMemory;
-    this.targetMemory = maxMemory;
+    this.targetMemory = limiter.maxBlockSize();
     this.subscriber = subscriberFactory.apply(this::onReceive);
     addServices(this.subscriber);
     memBlock = limiter.claim(targetMemory);
@@ -123,11 +120,12 @@ public class MemoryBufferedSubscriberImpl extends ProxyService implements Memory
       return;
     }
     if (bytesOutstandingToServer < (targetMemory / 3)) {
-      // Server is delivering lots of data
-      targetMemory = Math.min(maxMemory, targetMemory * 2);
+      // Server is delivering lots of data, increase the target so that it is not throttled.
+      targetMemory = Math.min(limiter.maxBlockSize(), targetMemory * 2);
     } else if (bytesOutstandingToServer > (2 * targetMemory / 3)) {
-      // Server is delivering little data
-      targetMemory = Math.max(limiter.getMinBlockSize(), targetMemory / 2);
+      // Server is delivering little data, decrease the target so that memory can be used for other
+      // users of the limiter.
+      targetMemory = Math.max(limiter.minBlockSize(), targetMemory / 2);
     }
     long claimTarget = Math.max(bytesOutstanding, targetMemory);
     memBlock.close();

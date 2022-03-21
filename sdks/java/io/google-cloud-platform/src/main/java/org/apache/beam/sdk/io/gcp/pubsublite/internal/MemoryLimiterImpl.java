@@ -26,13 +26,15 @@ import org.slf4j.LoggerFactory;
 public class MemoryLimiterImpl implements MemoryLimiter {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryLimiterImpl.class);
   private final long minBlockSize;
+  private final long maxBlockSize;
   private final long maxAvailable;
 
   @GuardedBy("this")
   private long available;
 
-  public MemoryLimiterImpl(long minBlockSize, long maxAvailable) {
+  public MemoryLimiterImpl(long minBlockSize, long maxBlockSize, long maxAvailable) {
     this.minBlockSize = minBlockSize;
+    this.maxBlockSize = maxBlockSize;
     this.maxAvailable = available;
     this.available = maxAvailable;
   }
@@ -45,8 +47,13 @@ public class MemoryLimiterImpl implements MemoryLimiter {
   }
 
   @Override
-  public long getMinBlockSize() {
+  public long minBlockSize() {
     return minBlockSize;
+  }
+
+  @Override
+  public long maxBlockSize() {
+    return maxBlockSize;
   }
 
   private synchronized void release(long toRelease) {

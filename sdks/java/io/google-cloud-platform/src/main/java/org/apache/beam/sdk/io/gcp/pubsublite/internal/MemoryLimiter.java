@@ -24,7 +24,9 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 interface MemoryLimiter {
   Block claim(long toAcquire);
 
-  long getMinBlockSize();
+  long minBlockSize();
+
+  long maxBlockSize();
 
   interface Block extends AutoCloseable {
     long claimed();

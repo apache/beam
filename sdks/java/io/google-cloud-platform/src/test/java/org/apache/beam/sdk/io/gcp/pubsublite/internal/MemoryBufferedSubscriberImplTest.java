@@ -83,18 +83,15 @@ public class MemoryBufferedSubscriberImplTest {
             })
         .when(subscriberFactory)
         .apply(any());
-    doReturn(1L).when(limiter).getMinBlockSize();
+    doReturn(1L).when(limiter).minBlockSize();
+    doReturn(MAX_MEMORY).when(limiter).maxBlockSize();
     checkNotNull(block);
     checkNotNull(limiter);
     doReturn(block).when(limiter).claim(anyLong());
     doReturn(MAX_MEMORY).when(block).claimed();
     bufferedSubscriber =
         new MemoryBufferedSubscriberImpl(
-            example(Partition.class),
-            example(Offset.class),
-            limiter,
-            subscriberFactory,
-            MAX_MEMORY);
+            example(Partition.class), example(Offset.class), limiter, subscriberFactory);
     checkNotNull(consumer);
     bufferedSubscriber.startAsync().awaitRunning();
     verify(subscriber).startAsync();
@@ -119,13 +116,13 @@ public class MemoryBufferedSubscriberImplTest {
   @Test
   public void rebufferCannotGoBelowMin() {
     long minBlock = MAX_MEMORY * 4 / 5;
-    doReturn(minBlock).when(limiter).getMinBlockSize();
+    doReturn(minBlock).when(limiter).minBlockSize();
     for (int i = 0; i < 1000; ++i) {
       // Rebuffer many times with no data to bring down the target value
       bufferedSubscriber.rebuffer();
     }
     reset(limiter);
-    doReturn(minBlock).when(limiter).getMinBlockSize();
+    doReturn(minBlock).when(limiter).minBlockSize();
     doReturn(block).when(limiter).claim(anyLong());
     // Deliver enough data that 3 * minBlock / 4 is outstanding, buffer is allowed to and will
     // shrink except it is limited by min block size.
