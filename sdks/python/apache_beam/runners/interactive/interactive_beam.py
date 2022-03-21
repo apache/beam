@@ -350,7 +350,9 @@ class Clusters:
   # Dataproc images:
   # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0
   DATAPROC_FLINK_VERSION = '1.12'
-  DATAPROC_IMAGE_VERSION = '2.0.31-debian10'
+  # TODO(BEAM-14142): Fix the Dataproc image version after a released image
+  # contains all missing dependencies for Flink to run.
+  # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
   DATAPROC_STAGING_LOG_NAME = 'dataproc-startup-script_output'
 
   def __init__(self) -> None:
