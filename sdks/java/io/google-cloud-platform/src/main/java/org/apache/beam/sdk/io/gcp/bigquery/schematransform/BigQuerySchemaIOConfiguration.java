@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.schematransform;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
+import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -47,15 +49,21 @@ public abstract class BigQuerySchemaIOConfiguration {
       String.format("%s:%s", API, VERSION);
 
   /** Returns a Builder for a BigQuery Query Job type. **/
-  public static Builder builderOfQueryType() {
-    return builderOf(JobType.QUERY);
+  public static Builder builderOfQueryType(String query) {
+    return builderOf(JobType.QUERY).setQuery(query);
   }
 
   /** Returns a Builder for a BigQuery Extract Job type. **/
-  public static Builder builderOfExtractType() {
-    return builderOf(JobType.EXTRACT);
+  public static Builder builderOfExtractType(String tableSpec) {
+    return builderOf(JobType.EXTRACT).setTableSpec(tableSpec);
   }
 
+  /** Returns a Builder for a BigQuery Extract Job type. **/
+  public static Builder builderOfExtractType(TableReference tableReference) {
+    return builderOfExtractType(tableReference.toString());
+  }
+
+  // TODO: Add required load parameter values.
   /** Returns a Builder for a BigQuery Load Job type. **/
   public static Builder builderOfLoadType() {
     return builderOf(JobType.LOAD);
@@ -67,69 +75,74 @@ public abstract class BigQuerySchemaIOConfiguration {
   }
 
   public BigQueryIO.TypedRead<TableRow> toQueryTypedRead() {
-    if (getQuery() == null || getQuery().isEmpty()) {
+    if (getQuery().isEmpty()) {
       throw new InvalidConfigurationException("query is empty but required for a BigQuery Query Job");
     }
-
-    return commonTypedRead().fromQuery(getQuery());
+    BigQueryIO.TypedRead<TableRow> read = BigQueryIO.readTableRowsWithSchema().fromQuery(getQuery());
+    read = applyCommonTypedReadProperties(read);
+    return read;
   }
 
   public BigQueryIO.TypedRead<TableRow> toExtractTypedRead() {
-    if (getTableSpec() == null || getTableSpec().isEmpty()) {
+    if (getTableSpec().isEmpty()) {
       throw new InvalidConfigurationException("tableSpec is empty but required for a BigQuery Extract Job");
     }
 
-    return commonTypedRead().from(getTableSpec());
+    BigQueryIO.TypedRead<TableRow> read = BigQueryIO.readTableRowsWithSchema().from(getTableSpec());
+    read = applyCommonTypedReadProperties(read);
+    return read;
   }
 
-  private BigQueryIO.TypedRead<TableRow> commonTypedRead() {
-    BigQueryIO.TypedRead<TableRow> read = BigQueryIO.readTableRowsWithSchema();
-
-    if (getUseAvroLogicalTypes() != null && getUseAvroLogicalTypes()) {
+  private BigQueryIO.TypedRead<TableRow> applyCommonTypedReadProperties(BigQueryIO.TypedRead<TableRow> read) {
+    if (getUseAvroLogicalTypes()) {
       read = read.useAvroLogicalTypes();
     }
 
-    if (getUseStandardSql() != null && getUseStandardSql()) {
+    if (getUseStandardSql()) {
       read = read.usingStandardSql();
     }
 
-    if (getFormat() != null) {
+    if (!getFormat().isEmpty()) {
       read = read.withFormat(DataFormat.valueOf(getFormat()));
     }
 
-    if (getKmsKey() != null) {
+    if (!getKmsKey().isEmpty()) {
       read = read.withKmsKey(getKmsKey());
     }
 
-    if (getMethod() != null) {
+    if (!getMethod().isEmpty()) {
       read = read.withMethod(BigQueryIO.TypedRead.Method.valueOf(getMethod()));
     }
 
-    if (getWithoutFlattenResults() != null && getWithoutFlattenResults()) {
+    if (getWithoutFlattenResults()) {
       read = read.withoutResultFlattening();
     }
 
-    if (getQueryLocation() != null) {
+    if (getWithoutValidation()) {
+      read = read.withoutValidation();
+    }
+
+    if (!getQueryLocation().isEmpty()) {
       read = read.withQueryLocation(getQueryLocation());
     }
 
-    if (getQueryPriority() != null) {
+    if (!getQueryPriority().isEmpty()) {
       read = read.withQueryPriority(QueryPriority.valueOf(getQueryPriority()));
     }
 
-    if (getQueryTempDataset() != null) {
+    if (!getQueryTempDataset().isEmpty()) {
       read = read.withQueryTempDataset(getQueryTempDataset());
     }
 
-    if (getRowRestriction() != null) {
+    if (!getRowRestriction().isEmpty()) {
       read = read.withRowRestriction(getRowRestriction());
     }
 
-    if (getSelectedFields() != null && !getSelectedFields().isEmpty()) {
+    if (!getSelectedFields().isEmpty()) {
       read = read.withSelectedFields(getSelectedFields());
     }
 
-    if (getWithTemplateCompatibility() != null && getWithTemplateCompatibility()) {
+    if (getWithTemplateCompatibility()) {
       read = read.withTemplateCompatibility();
     }
 
@@ -140,7 +153,6 @@ public abstract class BigQuerySchemaIOConfiguration {
   public abstract String getJobType();
 
   /** Reads results received after executing the given query. **/
-  @Nullable
   public abstract String getQuery();
 
   /**
@@ -148,23 +160,18 @@ public abstract class BigQuerySchemaIOConfiguration {
    * or "[dataset_id].[table_id]" for tables within the current project.
    *
    **/
-  @Nullable
   public abstract String getTableSpec();
 
   /** Flags whether to use avro logical types. **/
-  @Nullable
   public abstract Boolean getUseAvroLogicalTypes();
 
   /** Enables BigQuery's Standard SQL dialect when reading from a query. **/
-  @Nullable
   public abstract Boolean getUseStandardSql();
 
   /** DateFormat for output data. See com.google.cloud.bigquery.storage.v1.DataFormat **/
-  @Nullable
   public abstract String getFormat();
 
   /** For query sources, use this Cloud KMS key to encrypt any temporary tables created. **/
-  @Nullable
   public abstract String getKmsKey();
 
   /**
@@ -174,7 +181,6 @@ public abstract class BigQuerySchemaIOConfiguration {
    * DIRECT_READ - Read the contents of a table directly using the BigQuery storage API.
    * EXPORT - Export data to Google Cloud Storage in Avro format and read data files from that location.
    **/
-  @Nullable
   public abstract String getMethod();
 
   /**
@@ -182,18 +188,15 @@ public abstract class BigQuerySchemaIOConfiguration {
    *
    * Setting this option when reading from a table will cause an error during validation.
    **/
-  @Nullable
   public abstract Boolean getWithoutFlattenResults();
 
   /**
    * Enable/disable validation that the table exists or the query succeeds prior to pipeline submission.
    * Basic validation (such as ensuring that a query or table is specified) still occurs.
    **/
-  @Nullable
   public abstract Boolean getWithoutValidation();
 
   /** BigQuery geographic location where the query job will be executed. **/
-  @Nullable
   public abstract String getQueryLocation();
 
   /**
@@ -203,11 +206,9 @@ public abstract class BigQuerySchemaIOConfiguration {
    * INTERACTIVE - Specifies that a query should be run with an INTERACTIVE priority.
    *
    **/
-  @Nullable
   public abstract String getQueryPriority();
 
   /** Temporary dataset reference when querying. **/
-  @Nullable
   public abstract String getQueryTempDataset();
 
   /**
@@ -216,14 +217,11 @@ public abstract class BigQuerySchemaIOConfiguration {
    * Must be an SQL expression compatible with Google standard SQL.
    *
    **/
-  @Nullable
   public abstract String getRowRestriction();
 
   /** Read only the specified fields (columns) from a BigQuery table. **/
-  @Nullable
   public abstract List<String> getSelectedFields();
 
-  @Nullable
   public abstract Boolean getWithTemplateCompatibility();
 
   @AutoValue.Builder
@@ -234,6 +232,7 @@ public abstract class BigQuerySchemaIOConfiguration {
 
     /** Set the SQL query for the BigQuery Job. **/
     public abstract Builder setQuery(String value);
+    abstract Optional<String> getQuery();
 
     /**
      * Reads a BigQuery table specified as "[project_id]:[dataset_id].[table_id]"
@@ -241,18 +240,23 @@ public abstract class BigQuerySchemaIOConfiguration {
      *
      */
     public abstract Builder setTableSpec(String value);
+    abstract Optional<String> getTableSpec();
 
     /** Set whether to use Avro logical types **/
     public abstract Builder setUseAvroLogicalTypes(Boolean value);
+    abstract Optional<Boolean> getUseAvroLogicalTypes();
 
     /** Set whether to use standard SQL **/
     public abstract Builder setUseStandardSql(Boolean value);
+    abstract Optional<Boolean> getUseStandardSql();
 
     /** Set format for output data. See com.google.cloud.bigquery.storage.v1.DataFormat **/
     public abstract Builder setFormat(String value);
+    abstract Optional<String> getFormat();
 
     /** For query sources, use this Cloud KMS key to encrypt any temporary tables created. **/
     public abstract Builder setKmsKey(String value);
+    abstract Optional<String> getKmsKey();
 
     /**
      * Determines the method used to read data from BigQuery.
@@ -262,6 +266,7 @@ public abstract class BigQuerySchemaIOConfiguration {
      * EXPORT - Export data to Google Cloud Storage in Avro format and read data files from that location.
      **/
     public abstract Builder setMethod(String value);
+    abstract Optional<String> getMethod();
 
     /**
      * Flatten the queried results.
@@ -269,15 +274,18 @@ public abstract class BigQuerySchemaIOConfiguration {
      * Setting this option when reading from a table will cause an error during validation.
      **/
     public abstract Builder setWithoutFlattenResults(Boolean value);
+    abstract Optional<Boolean> getWithoutFlattenResults();
 
     /**
      * Enable/disable validation that the table exists or the query succeeds prior to pipeline submission.
      * Basic validation (such as ensuring that a query or table is specified) still occurs.
      **/
     public abstract Builder setWithoutValidation(Boolean value);
+    abstract Optional<Boolean> getWithoutValidation();
 
     /** BigQuery geographic location where the query job will be executed. **/
     public abstract Builder setQueryLocation(String value);
+    abstract Optional<String> getQueryLocation();
 
     /**
      * The priority of a query.
@@ -287,9 +295,11 @@ public abstract class BigQuerySchemaIOConfiguration {
      *
      **/
     public abstract Builder setQueryPriority(String value);
+    abstract Optional<String> getQueryPriority();
 
     /** Temporary dataset reference when querying. **/
     public abstract Builder setQueryTempDataset(String value);
+    abstract Optional<String> getQueryTempDataset();
 
     /**
      * Read only rows which match the specified filter.
@@ -298,14 +308,73 @@ public abstract class BigQuerySchemaIOConfiguration {
      *
      **/
     public abstract Builder setRowRestriction(String value);
+    abstract Optional<String> getRowRestriction();
 
     /** Read only the specified fields (columns) from a BigQuery table. **/
     public abstract Builder setSelectedFields(List<String> value);
+    abstract Optional<List<String>> getSelectedFields();
 
     public abstract Builder setWithTemplateCompatibility(Boolean value);
+    abstract Optional<Boolean> getWithTemplateCompatibility();
 
-    /** Build the configuration. **/
-    public abstract BigQuerySchemaIOConfiguration build();
+    abstract BigQuerySchemaIOConfiguration autoBuild();
+
+    /**
+     * Build the configuration.
+     *
+     * Except useStandardSql which defaults to true, all properties default to their zero value i.e.
+     * boolean = false, String = "", etc.
+     *
+     **/
+    public final BigQuerySchemaIOConfiguration build() {
+      if (getQuery().isEmpty()) {
+        setQuery("");
+      }
+      if (getTableSpec().isEmpty()) {
+        setTableSpec("");
+      }
+      if (getUseAvroLogicalTypes().isEmpty()) {
+        setUseAvroLogicalTypes(false);
+      }
+      if (getUseStandardSql().isEmpty()) {
+        setUseStandardSql(true);
+      }
+      if (getFormat().isEmpty()) {
+        setFormat("");
+      }
+      if (getKmsKey().isEmpty()) {
+        setKmsKey("");
+      }
+      if (getMethod().isEmpty()) {
+        setMethod("");
+      }
+      if (getWithoutFlattenResults().isEmpty()) {
+        setWithoutFlattenResults(false);
+      }
+      if (getQueryLocation().isEmpty()) {
+        setQueryLocation("");
+      }
+      if (getQueryPriority().isEmpty()) {
+        setQueryPriority("");
+      }
+      if (getQueryTempDataset().isEmpty()) {
+        setQueryTempDataset("");
+      }
+      if (getRowRestriction().isEmpty()) {
+        setRowRestriction("");
+      }
+      if (getSelectedFields().isEmpty()) {
+        setSelectedFields(Collections.emptyList());
+      }
+      if (getWithTemplateCompatibility().isEmpty()) {
+        setWithTemplateCompatibility(false);
+      }
+      if (getWithoutValidation().isEmpty()) {
+        setWithoutValidation(false);
+      }
+
+      return autoBuild();
+    }
   }
 
   /** Enumeration for possible BigQuery job types supported by this configuration. **/
