@@ -432,7 +432,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnType?, FnRTracker?, FnBundleFinalization?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
+// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnType?, FnBundleFinalization?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -495,10 +495,10 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
-		case FnRTracker:
-			return psRTracker, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psContext:
 		switch transition {
@@ -510,10 +510,10 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
-		case FnRTracker:
-			return psRTracker, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psPane:
 		switch transition {
@@ -523,10 +523,10 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
-		case FnRTracker:
-			return psRTracker, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psWindow:
 		switch transition {
@@ -534,33 +534,33 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
-		case FnRTracker:
-			return psRTracker, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psEventTime:
 		switch transition {
 		case FnType:
 			return psType, nil
-		case FnRTracker:
-			return psRTracker, nil
 		case FnBundleFinalization:
 			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psType:
 		switch transition {
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
-		case FnBundleFinalization:
-			return psBundleFinalization, nil
-		}
-	case psRTracker:
-		switch transition {
-		case FnBundleFinalization:
-			return psBundleFinalization, nil
 		}
 	case psBundleFinalization:
+		switch transition {
+		case FnRTracker:
+			return psRTracker, nil
+		}
+	case psRTracker:
 		// Completely handled by the default clause
 	case psInput:
 		switch transition {
@@ -585,10 +585,10 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errEventTimeParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
-	case FnRTracker:
-		return -1, errRTrackerPrecedence
 	case FnBundleFinalization:
 		return -1, errBundleFinalizationPrecedence
+	case FnRTracker:
+		return -1, errRTrackerPrecedence
 	case FnIter, FnReIter, FnValue, FnMultiMap:
 		return psInput, nil
 	case FnEmit:
