@@ -89,7 +89,6 @@ class OffsetByteRangeTracker extends TrackerWithProgress {
   }
 
   @Override
-  @SuppressWarnings("unboxing.of.nullable")
   public void checkDone() throws IllegalStateException {
     rangeTracker.checkDone();
   }

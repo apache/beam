@@ -33,8 +33,8 @@ interface MemoryBufferedSubscriber extends ApiService {
   Offset fetchOffset();
 
   /**
-   * Notify this subscriber that all previously in-memory messages are now no longer taking up space
-   * in this JVM.
+   * Notify this subscriber that all messages that have been removed with `pop` should no longer be
+   * counted against the memory budget.
    *
    * <p>Acquire a new memory buffer and allow any bytes which are now available to be sent to this
    * job.

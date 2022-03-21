@@ -55,6 +55,8 @@ public class MemoryBufferedSubscriberImpl extends ProxyService implements Memory
   private SettableApiFuture<Void> newData = SettableApiFuture.create();
   private boolean shutdown = false;
 
+  // onReceive will not be called inline as subscriber is not started.
+  // addServices is intended to be called from the constructor.
   @SuppressWarnings({"methodref.receiver.bound.invalid", "method.invocation.invalid"})
   public MemoryBufferedSubscriberImpl(
       Partition partition,

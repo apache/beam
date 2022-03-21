@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,12 +26,14 @@ import org.slf4j.LoggerFactory;
 public class MemoryLimiterImpl implements MemoryLimiter {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryLimiterImpl.class);
   private final long minBlockSize;
+  private final long maxAvailable;
 
   @GuardedBy("this")
   private long available;
 
   public MemoryLimiterImpl(long minBlockSize, long maxAvailable) {
     this.minBlockSize = minBlockSize;
+    this.maxAvailable = available;
     this.available = maxAvailable;
   }
 
@@ -47,6 +51,7 @@ public class MemoryLimiterImpl implements MemoryLimiter {
 
   private synchronized void release(long toRelease) {
     available += toRelease;
+    checkState(available <= maxAvailable);
   }
 
   public class Block implements MemoryLimiter.Block {
@@ -64,6 +69,7 @@ public class MemoryLimiterImpl implements MemoryLimiter {
 
     @Override
     public void close() {
+      checkState(!released);
       release(claimed);
       released = true;
     }

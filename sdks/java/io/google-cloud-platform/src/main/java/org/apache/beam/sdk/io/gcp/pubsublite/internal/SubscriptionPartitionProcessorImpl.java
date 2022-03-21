@@ -45,6 +45,7 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
   private final MemoryBufferedSubscriber subscriber;
   private Optional<Offset> lastClaimedOffset = Optional.empty();
 
+  // getReadySubscriber doesn't reference the subscriber member.
   @SuppressWarnings("methodref.receiver.bound.invalid")
   SubscriptionPartitionProcessorImpl(
       SubscriptionPartition subscriptionPartition,
@@ -62,6 +63,23 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
   public ProcessContinuation runFor(Duration duration) {
     Instant maxReadTime = Instant.now().plus(duration);
     while (subscriber.isRunning()) {
+      // Read any available data.
+      for (Optional<SequencedMessage> next = subscriber.peek();
+          next.isPresent();
+          next = subscriber.peek()) {
+        SequencedMessage message = next.get();
+        Offset messageOffset = Offset.of(message.getCursor().getOffset());
+        if (tracker.tryClaim(OffsetByteProgress.of(messageOffset, message.getSizeBytes()))) {
+          subscriber.pop();
+          lastClaimedOffset = Optional.of(messageOffset);
+          receiver.outputWithTimestamp(
+              message, new Instant(Timestamps.toMillis(message.getPublishTime())));
+        } else {
+          // Our claim failed, return stop()
+          return ProcessContinuation.stop();
+        }
+      }
+      // Try waiting for new data.
       try {
         Duration readTime = new Duration(Instant.now(), maxReadTime);
         Future<Void> onData = subscriber.onData();
@@ -74,25 +92,9 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
         // We should never be interrupted by beam, and onData should never return an error.
         throw new RuntimeException(e2);
       }
-      // Read any available data.
-      for (Optional<SequencedMessage> next = subscriber.peek();
-          next.isPresent();
-          next = subscriber.peek()) {
-        SequencedMessage message = next.get();
-        System.err.println("Next: " + message);
-        Offset messageOffset = Offset.of(message.getCursor().getOffset());
-        if (tracker.tryClaim(OffsetByteProgress.of(messageOffset, message.getSizeBytes()))) {
-          subscriber.pop();
-          lastClaimedOffset = Optional.of(messageOffset);
-          receiver.outputWithTimestamp(
-              message, new Instant(Timestamps.toMillis(message.getPublishTime())));
-        } else {
-          // Our claim failed, return stop()
-          return ProcessContinuation.stop();
-        }
-      }
     }
-    // We were interrupted,
+    // Subscriber is no longer running, it has likely failed. Yield to the runtime to retry reading
+    // with a new subscriber.
     return ProcessContinuation.resume();
   }
 
@@ -104,9 +106,13 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
   private MemoryBufferedSubscriber getReadySubscriber(
       Supplier<MemoryBufferedSubscriber> getOrCreate) {
     Offset startOffset = Offset.of(tracker.currentRestriction().getRange().getFrom());
-    MemoryBufferedSubscriber subscriber = getOrCreate.get();
-    Offset fetchOffset = subscriber.fetchOffset();
-    while (!startOffset.equals(fetchOffset)) {
+    while (true) {
+      MemoryBufferedSubscriber subscriber = getOrCreate.get();
+      Offset fetchOffset = subscriber.fetchOffset();
+      if (startOffset.equals(fetchOffset)) {
+        subscriber.rebuffer(); // TODO(dpcollins-google): Move this to a bundle finalizer
+        return subscriber;
+      }
       LOG.info(
           "Discarding subscriber due to mismatch, this should be rare. {}, start: {} fetch: {}",
           subscriptionPartition,
@@ -116,10 +122,6 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
         subscriber.stopAsync().awaitTerminated();
       } catch (Exception ignored) {
       }
-      subscriber = getOrCreate.get();
-      fetchOffset = subscriber.fetchOffset();
     }
-    subscriber.rebuffer(); // TODO(dpcollins-google): Move this to a bundle finalizer
-    return subscriber;
   }
 }
