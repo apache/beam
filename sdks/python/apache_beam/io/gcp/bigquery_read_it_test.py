@@ -293,6 +293,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     cls.bigquery_client.wait_for_bq_job(job_ref, max_retries=0)
     return cls.bigquery_client._get_temp_table(project)
 
+  @pytest.mark.it_postcommit
   def test_iobase_source(self):
     EXPECTED_TABLE_DATA = [
         {
@@ -322,6 +323,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               table=self.temp_table_reference))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_native_datetime(self):
     EXPECTED_TABLE_DATA = [
         {
@@ -353,6 +355,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               use_native_datetime=True))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_column_selection(self):
     EXPECTED_TABLE_DATA = [{'number': 1}, {'number': 4}]
     with beam.Pipeline(argv=self.args) as p:
@@ -363,6 +366,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               selected_fields=['number']))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_row_restriction(self):
     EXPECTED_TABLE_DATA = [{
         'number': 1,
@@ -380,6 +384,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               use_native_datetime=True))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_column_selection_and_row_restriction(self):
     EXPECTED_TABLE_DATA = [{'string': u'привет'}]
     with beam.Pipeline(argv=self.args) as p:
@@ -391,6 +396,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               selected_fields=['string']))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_very_selective_filters(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
@@ -403,6 +409,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               selected_fields=['string']))
       assert_that(result, equal_to([]))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_query(self):
     EXPECTED_TABLE_DATA = [
         {
@@ -437,6 +444,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               query=query))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_query_and_filters(self):
     EXPECTED_TABLE_DATA = [{'string': u'привет'}]
     query = StaticValueProvider(str, self.query)
