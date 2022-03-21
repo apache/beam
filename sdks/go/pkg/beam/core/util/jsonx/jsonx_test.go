@@ -16,6 +16,7 @@
 package jsonx
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 )
@@ -68,6 +69,9 @@ func TestEncodeDecode(t *testing.T) {
 			enc, err := Marshal(inputStruct)
 			if err != nil {
 				t.Fatalf("Marshal(%v) failed, got %v", inputStruct, err)
+			}
+			if !json.Valid(enc) {
+				t.Errorf("encoding is not valid JSON, got %v", enc)
 			}
 			outputStruct := &someStruct{}
 			err = Unmarshal(outputStruct, enc)
