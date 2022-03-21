@@ -43,8 +43,8 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_list_like
 from pandas._libs import lib
+from pandas.api.types import is_list_like
 from pandas.core.groupby.generic import DataFrameGroupBy
 
 from apache_beam.dataframe import expressions
