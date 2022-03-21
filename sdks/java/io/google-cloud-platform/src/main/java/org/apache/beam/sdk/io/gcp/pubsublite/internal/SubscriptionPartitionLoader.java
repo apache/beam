@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -60,7 +61,7 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
       if (!restrictionTracker.tryClaim(newCount)) {
         return ProcessContinuation.stop();
       }
-      Instant ts = previousCount == 0 ? Instant.EPOCH : getWatermark();
+      Instant ts = previousCount == 0 ? BoundedWindow.TIMESTAMP_MIN_VALUE : getWatermark();
       for (int i = previousCount; i < newCount; ++i) {
         output.outputWithTimestamp(SubscriptionPartition.of(subscription, Partition.of(i)), ts);
       }
