@@ -18,21 +18,22 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.PartitionLookupUtils;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
-import java.util.Collections;
 import org.apache.beam.sdk.testing.SerializableMatchers.SerializableSupplier;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -48,27 +49,35 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
   private final Duration pollDuration;
   private final SerializableSupplier<Boolean> terminate;
 
-  private class GeneratorFn extends DoFn<Void, SubscriptionPartition> {
+  private class GeneratorFn extends DoFn<byte[], SubscriptionPartition> {
     @ProcessElement
     public ProcessContinuation processElement(
+        RestrictionTracker<Integer, Integer> restrictionTracker,
         OutputReceiver<SubscriptionPartition> output,
-        RestrictionTracker<Integer, Integer> restrictionTracker) {
-      int previousCount = restrictionTracker.currentRestriction();
-      int newCount = getPartitionCount.apply(topic);
-      if (newCount <= previousCount) {
-        return ProcessContinuation.resume().withResumeDelay(pollDuration);
-      }
-      if (!restrictionTracker.tryClaim(newCount)) {
-        return ProcessContinuation.stop();
-      }
-      Instant ts = previousCount == 0 ? BoundedWindow.TIMESTAMP_MIN_VALUE : getWatermark();
-      for (int i = previousCount; i < newCount; ++i) {
-        output.outputWithTimestamp(SubscriptionPartition.of(subscription, Partition.of(i)), ts);
-      }
+        ManualWatermarkEstimator<Instant> estimator) {
       if (terminate.get()) {
         return ProcessContinuation.stop();
       }
+      int previousCount = restrictionTracker.currentRestriction();
+      int newCount = getPartitionCount.apply(topic);
+      if (newCount > previousCount) {
+        if (!restrictionTracker.tryClaim(newCount)) {
+          return ProcessContinuation.stop();
+        }
+        for (int i = previousCount; i < newCount; ++i) {
+          output.outputWithTimestamp(
+              SubscriptionPartition.of(subscription, Partition.of(i)),
+              estimator.currentWatermark());
+        }
+      }
+      estimator.setWatermark(getWatermark());
       return ProcessContinuation.resume().withResumeDelay(pollDuration);
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant initial) {
+      checkArgument(initial.equals(BoundedWindow.TIMESTAMP_MIN_VALUE));
+      return initial;
     }
 
     @GetInitialRestriction
@@ -99,7 +108,9 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
         }
 
         @Override
-        public void checkDone() throws IllegalStateException {}
+        public void checkDone() throws IllegalStateException {
+          checkState(terminate.get());
+        }
 
         @Override
         public IsBounded isBounded() {
@@ -109,18 +120,9 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
     }
 
     @NewWatermarkEstimator
-    public WatermarkEstimator<Void> newWatermarkEstimator() {
-      return new WatermarkEstimator<Void>() {
-        @Override
-        public Instant currentWatermark() {
-          return getWatermark();
-        }
-
-        @Override
-        public Void getState() {
-          return null;
-        }
-      };
+    public ManualWatermarkEstimator<Instant> newWatermarkEstimator(
+        @WatermarkEstimatorState Instant state) {
+      return new WatermarkEstimators.Manual(state);
     }
 
     private Instant getWatermark() {
@@ -158,7 +160,7 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
   @Override
   public PCollection<SubscriptionPartition> expand(PBegin input) {
     return input
-        .apply(Create.of(Collections.<Void>singletonList(null)))
-        .apply(ParDo.of(new GeneratorFn()));
+        .apply("Impulse", Impulse.create())
+        .apply("Watch Partition Count", ParDo.of(new GeneratorFn()));
   }
 }
