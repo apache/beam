@@ -24,34 +24,38 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.Timestamp;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ReadChangeStreamPartitionRangeTrackerTest {
 
+  private PartitionMetadata partition;
+  private TimestampRange range;
+  private ReadChangeStreamPartitionRangeTracker tracker;
+
+  @Before
+  public void setUp() throws Exception {
+    partition = mock(PartitionMetadata.class);
+    range = TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), Timestamp.ofTimeMicroseconds(20L));
+    tracker = new ReadChangeStreamPartitionRangeTracker(partition, range);
+  }
+
   @Test
   public void testTryClaim() {
-    final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final OffsetRange range = new OffsetRange(100, 200);
-    final ReadChangeStreamPartitionRangeTracker tracker =
-        new ReadChangeStreamPartitionRangeTracker(partition, range);
     assertEquals(range, tracker.currentRestriction());
-    assertTrue(tracker.tryClaim(100L));
-    assertTrue(tracker.tryClaim(100L));
-    assertTrue(tracker.tryClaim(150L));
-    assertTrue(tracker.tryClaim(199L));
-    assertFalse(tracker.tryClaim(200L));
+    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(10L)));
+    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(10L)));
+    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
+    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
+    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(19L)));
+    assertFalse(tracker.tryClaim(Timestamp.ofTimeMicroseconds(20L)));
   }
 
   @Test
   public void testTrySplitReturnsNullForInitialPartition() {
-    final PartitionMetadata partition = mock(PartitionMetadata.class);
-    final OffsetRange range = new OffsetRange(100, 200);
-    final ReadChangeStreamPartitionRangeTracker tracker =
-        new ReadChangeStreamPartitionRangeTracker(partition, range);
-
     when(partition.getPartitionToken()).thenReturn(InitialPartition.PARTITION_TOKEN);
 
     assertNull(tracker.trySplit(0.0D));

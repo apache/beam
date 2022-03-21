@@ -122,6 +122,7 @@ class MutationKeyEncoder {
             writeNumber(orderedCode, part, Double.doubleToLongBits(val.getFloat64()));
             break;
           case STRING:
+          case PG_NUMERIC:
             writeString(orderedCode, part, val.getString());
             break;
           case BYTES:
@@ -132,6 +133,12 @@ class MutationKeyEncoder {
             break;
           case DATE:
             writeNumber(orderedCode, part, encodeDate(val.getDate()));
+            break;
+          case NUMERIC:
+            writeString(orderedCode, part, val.getNumeric().toString());
+            break;
+          case JSON:
+            writeString(orderedCode, part, val.getJson());
             break;
           default:
             throw new IllegalArgumentException("Unknown type " + val.getType());

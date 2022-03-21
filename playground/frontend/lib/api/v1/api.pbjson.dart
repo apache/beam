@@ -286,11 +286,12 @@ const PrecompiledObject$json = const {
     const {'1': 'link', '3': 6, '4': 1, '5': 9, '10': 'link'},
     const {'1': 'multifile', '3': 7, '4': 1, '5': 8, '10': 'multifile'},
     const {'1': 'context_line', '3': 8, '4': 1, '5': 5, '10': 'contextLine'},
+    const {'1': 'default_example', '3': 9, '4': 1, '5': 8, '10': 'defaultExample'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZQ==');
+final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSHAoJbXVsdGlmaWxlGAcgASgIUgltdWx0aWZpbGUSIQoMY29udGV4dF9saW5lGAggASgFUgtjb250ZXh0TGluZRInCg9kZWZhdWx0X2V4YW1wbGUYCSABKAhSDmRlZmF1bHRFeGFtcGxl');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',
@@ -323,6 +324,16 @@ const GetPrecompiledObjectsRequest$json = const {
 
 /// Descriptor for `GetPrecompiledObjectsRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getPrecompiledObjectsRequestDescriptor = $convert.base64Decode('ChxHZXRQcmVjb21waWxlZE9iamVjdHNSZXF1ZXN0Eh0KA3NkaxgBIAEoDjILLmFwaS52MS5TZGtSA3NkaxIaCghjYXRlZ29yeRgCIAEoCVIIY2F0ZWdvcnk=');
+@$core.Deprecated('Use getPrecompiledObjectRequestDescriptor instead')
+const GetPrecompiledObjectRequest$json = const {
+  '1': 'GetPrecompiledObjectRequest',
+  '2': const [
+    const {'1': 'cloud_path', '3': 1, '4': 1, '5': 9, '10': 'cloudPath'},
+  ],
+};
+
+/// Descriptor for `GetPrecompiledObjectRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPrecompiledObjectRequestDescriptor = $convert.base64Decode('ChtHZXRQcmVjb21waWxlZE9iamVjdFJlcXVlc3QSHQoKY2xvdWRfcGF0aBgBIAEoCVIJY2xvdWRQYXRo');
 @$core.Deprecated('Use getPrecompiledObjectCodeRequestDescriptor instead')
 const GetPrecompiledObjectCodeRequest$json = const {
   '1': 'GetPrecompiledObjectCodeRequest',
@@ -383,6 +394,16 @@ const GetPrecompiledObjectsResponse$json = const {
 
 /// Descriptor for `GetPrecompiledObjectsResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getPrecompiledObjectsResponseDescriptor = $convert.base64Decode('Ch1HZXRQcmVjb21waWxlZE9iamVjdHNSZXNwb25zZRI5Cg5zZGtfY2F0ZWdvcmllcxgBIAMoCzISLmFwaS52MS5DYXRlZ29yaWVzUg1zZGtDYXRlZ29yaWVz');
+@$core.Deprecated('Use getPrecompiledObjectResponseDescriptor instead')
+const GetPrecompiledObjectResponse$json = const {
+  '1': 'GetPrecompiledObjectResponse',
+  '2': const [
+    const {'1': 'precompiled_object', '3': 1, '4': 1, '5': 11, '6': '.api.v1.PrecompiledObject', '10': 'precompiledObject'},
+  ],
+};
+
+/// Descriptor for `GetPrecompiledObjectResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPrecompiledObjectResponseDescriptor = $convert.base64Decode('ChxHZXRQcmVjb21waWxlZE9iamVjdFJlc3BvbnNlEkgKEnByZWNvbXBpbGVkX29iamVjdBgBIAEoCzIZLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFIRcHJlY29tcGlsZWRPYmplY3Q=');
 @$core.Deprecated('Use getPrecompiledObjectCodeResponseDescriptor instead')
 const GetPrecompiledObjectCodeResponse$json = const {
   '1': 'GetPrecompiledObjectCodeResponse',

@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import importlib
 import json
 import logging
 import os
@@ -46,6 +47,24 @@ from apache_beam.utils import profiler
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
+
+
+def _import_beam_plugins(plugins):
+  for plugin in plugins:
+    try:
+      importlib.import_module(plugin)
+      _LOGGER.info('Imported beam-plugin %s', plugin)
+    except ImportError:
+      try:
+        _LOGGER.debug((
+            "Looks like %s is not a module. "
+            "Trying to import it assuming it's a class"),
+                      plugin)
+        module, _ = plugin.rsplit('.', 1)
+        importlib.import_module(module)
+        _LOGGER.info('Imported %s for beam-plugin %s', module, plugin)
+      except ImportError as exc:
+        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
 
 
 def create_harness(environment, dry_run=False):
@@ -116,6 +135,10 @@ def create_harness(environment, dry_run=False):
 
   experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
   enable_heap_dump = 'enable_heap_dump' in experiments
+
+  beam_plugins = sdk_pipeline_options.view_as(SetupOptions).beam_plugins or []
+  _import_beam_plugins(beam_plugins)
+
   if dry_run:
     return
   sdk_harness = SdkHarness(

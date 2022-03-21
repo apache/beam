@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.snowflake.data.datetime.SnowflakeTimestamp;
 import org.apache.beam.sdk.io.snowflake.data.datetime.SnowflakeTimestampLTZ;
 import org.apache.beam.sdk.io.snowflake.data.datetime.SnowflakeTimestampNTZ;
 import org.apache.beam.sdk.io.snowflake.data.datetime.SnowflakeTimestampTZ;
+import org.apache.beam.sdk.io.snowflake.data.geospatial.SnowflakeGeography;
 import org.apache.beam.sdk.io.snowflake.data.logical.SnowflakeBoolean;
 import org.apache.beam.sdk.io.snowflake.data.numeric.SnowflakeDecimal;
 import org.apache.beam.sdk.io.snowflake.data.numeric.SnowflakeDouble;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeVarchar;
   @Type(value = SnowflakeText.class, name = "text"),
   @Type(value = SnowflakeVarBinary.class, name = "varbinary"),
   @Type(value = SnowflakeVarchar.class, name = "varchar"),
+  @Type(value = SnowflakeGeography.class, name = "geography"),
 })
 public interface SnowflakeDataType extends Serializable {
   String sql();

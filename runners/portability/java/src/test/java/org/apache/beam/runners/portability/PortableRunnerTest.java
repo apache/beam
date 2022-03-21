@@ -38,7 +38,7 @@ import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.portability.testing.TestJobService;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -94,7 +94,7 @@ public class PortableRunnerTest implements Serializable {
   @Test
   public void stagesAndRunsJob() throws Exception {
     createJobServer(JobState.Enum.DONE, JobApi.MetricResults.getDefaultInstance());
-    PortableRunner runner = PortableRunner.create(options, InProcessManagedChannelFactory.create());
+    PortableRunner runner = PortableRunner.create(options, ManagedChannelFactory.createInProcess());
     State state = runner.run(p).waitUntilFinish();
     assertThat(state, is(State.DONE));
   }
@@ -103,7 +103,7 @@ public class PortableRunnerTest implements Serializable {
   public void extractsMetrics() throws Exception {
     JobApi.MetricResults metricResults = generateMetricResults();
     createJobServer(JobState.Enum.DONE, metricResults);
-    PortableRunner runner = PortableRunner.create(options, InProcessManagedChannelFactory.create());
+    PortableRunner runner = PortableRunner.create(options, ManagedChannelFactory.createInProcess());
     PipelineResult result = runner.run(p);
     result.waitUntilFinish();
     MetricQueryResults metricQueryResults = result.metrics().allMetrics();

@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -39,23 +40,47 @@ type MainInput struct {
 	RTracker sdf.RTracker
 }
 
+type bundleFinalizationCallback struct {
+	callback   func() error
+	validUntil time.Time
+}
+
+// bundleFinalizer holds all the user defined callbacks to be run on bundle finalization.
+// Implements typex.BundleFinalization
+type bundleFinalizer struct {
+	callbacks         []bundleFinalizationCallback
+	lastValidCallback time.Time // Used to track when we can safely gc the bundleFinalizer
+}
+
+// RegisterCallback is used to register callbacks during DoFn execution.
+func (bf *bundleFinalizer) RegisterCallback(t time.Duration, cb func() error) {
+	callback := bundleFinalizationCallback{
+		callback:   cb,
+		validUntil: time.Now().Add(t),
+	}
+	bf.callbacks = append(bf.callbacks, callback)
+	if bf.lastValidCallback.Before(callback.validUntil) {
+		bf.lastValidCallback = callback.validUntil
+	}
+}
+
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+func Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 	inv := newInvoker(fn)
-	return inv.Invoke(ctx, pn, ws, ts, opt, extra...)
+	return inv.Invoke(ctx, pn, ws, ts, opt, bf, extra...)
 }
 
 // InvokeWithoutEventTime runs the given function at time 0 in the global window.
-func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 	inv := newInvoker(fn)
-	return inv.InvokeWithoutEventTime(ctx, opt, extra...)
+	return inv.InvokeWithoutEventTime(ctx, opt, bf, extra...)
 }
 
 // invoker is a container struct for hot path invocations of DoFns, to avoid
@@ -64,9 +89,9 @@ type invoker struct {
 	fn   *funcx.Fn
 	args []interface{}
 	// TODO(lostluck):  2018/07/06 consider replacing with a slice of functions to run over the args slice, as an improvement.
-	ctxIdx, pnIdx, wndIdx, etIdx int   // specialized input indexes
-	outEtIdx, outErrIdx          int   // specialized output indexes
-	in, out                      []int // general indexes
+	ctxIdx, pnIdx, wndIdx, etIdx, bfIdx int   // specialized input indexes
+	outEtIdx, outErrIdx                 int   // specialized output indexes
+	in, out                             []int // general indexes
 
 	ret                     FullValue                     // ret is a cached allocation for passing to the next Unit. Units never modify the passed in FullValue.
 	elmConvert, elm2Convert func(interface{}) interface{} // Cached conversion functions, which assums this invoker is always used with the same parameter types.
@@ -99,6 +124,11 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	if n.outErrIdx, ok = fn.Error(); !ok {
 		n.outErrIdx = -1
 	}
+	// TODO(BEAM-10976) - add this back in once BundleFinalization is implemented
+	// if n.bfIdx, ok = fn.BundleFinalization(); !ok {
+	// 	n.bfIdx = -1
+	// }
+	n.bfIdx = -1
 
 	n.initCall()
 
@@ -115,13 +145,13 @@ func (n *invoker) Reset() {
 }
 
 // InvokeWithoutEventTime runs the function at time 0 in the global window.
-func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, extra ...interface{}) (*FullValue, error) {
-	return n.Invoke(ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, extra...)
+func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
+	return n.Invoke(ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, bf, extra...)
 }
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput, bf *bundleFinalizer, extra ...interface{}) (*FullValue, error) {
 	// (1) Populate contexts
 	// extract these to make things easier to read.
 	args := n.args
@@ -142,6 +172,9 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 	}
 	if n.etIdx >= 0 {
 		args[n.etIdx] = ts
+	}
+	if n.bfIdx >= 0 {
+		args[n.bfIdx] = bf
 	}
 
 	// (2) Main input from value, if any.

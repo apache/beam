@@ -29,17 +29,17 @@ import org.joda.time.Duration;
  * Factory class for creating instances that will handle each type of record within a change stream
  * query. The instances created are all singletons.
  */
-// static fields are un-initialized, because we start them during the first fetch call (with the
-// singleton pattern)
-@SuppressWarnings("initialization.static.fields.uninitialized")
+// transient fields are un-initialized, because we start them during the first fetch call (with the
+// singleton pattern).
+@SuppressWarnings("initialization.fields.uninitialized")
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;
-  private static DataChangeRecordAction dataChangeRecordActionInstance;
-  private static HeartbeatRecordAction heartbeatRecordActionInstance;
-  private static ChildPartitionsRecordAction childPartitionsRecordActionInstance;
-  private static QueryChangeStreamAction queryChangeStreamActionInstance;
-  private static DetectNewPartitionsAction detectNewPartitionsActionInstance;
+  private transient DataChangeRecordAction dataChangeRecordActionInstance;
+  private transient HeartbeatRecordAction heartbeatRecordActionInstance;
+  private transient ChildPartitionsRecordAction childPartitionsRecordActionInstance;
+  private transient QueryChangeStreamAction queryChangeStreamActionInstance;
+  private transient DetectNewPartitionsAction detectNewPartitionsActionInstance;
 
   /**
    * Creates and returns a singleton instance of an action class capable of processing {@link
@@ -107,6 +107,7 @@ public class ActionFactory implements Serializable {
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
+   * @param metrics metrics gathering class
    * @return single instance of the {@link QueryChangeStreamAction}
    */
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
@@ -116,7 +117,8 @@ public class ActionFactory implements Serializable {
       PartitionMetadataMapper partitionMetadataMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
-      ChildPartitionsRecordAction childPartitionsRecordAction) {
+      ChildPartitionsRecordAction childPartitionsRecordAction,
+      ChangeStreamMetrics metrics) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
@@ -126,7 +128,8 @@ public class ActionFactory implements Serializable {
               partitionMetadataMapper,
               dataChangeRecordAction,
               heartbeatRecordAction,
-              childPartitionsRecordAction);
+              childPartitionsRecordAction,
+              metrics);
     }
     return queryChangeStreamActionInstance;
   }

@@ -242,8 +242,7 @@ public class FnHarness {
           new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
-          new BeamFnStateGrpcClientCache(
-              idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
+          new BeamFnStateGrpcClientCache(idGenerator, channelFactory, outboundObserverFactory);
 
       FinalizeBundleHandler finalizeBundleHandler =
           new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());

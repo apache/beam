@@ -36,11 +36,13 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
 import com.fasterxml.jackson.databind.deser.impl.MethodProperty;
+import com.fasterxml.jackson.databind.deser.impl.TypeWrappedDeserializer;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
 import com.fasterxml.jackson.databind.introspect.AnnotationCollector;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.introspect.TypeResolutionContext;
+import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.node.TreeTraversingParser;
 import com.fasterxml.jackson.databind.ser.DefaultSerializerProvider;
 import com.fasterxml.jackson.databind.type.TypeBindings;
@@ -1730,21 +1732,23 @@ public class PipelineOptionsFactory {
       BeanProperty prop = createBeanProperty(method);
       AnnotatedMember annotatedMethod = prop.getMember();
 
+      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.get();
       Object maybeDeserializerClass =
-          DESERIALIZATION_CONTEXT
-              .get()
-              .getAnnotationIntrospector()
-              .findDeserializer(annotatedMethod);
+          context.getAnnotationIntrospector().findDeserializer(annotatedMethod);
 
       JsonDeserializer<Object> jsonDeserializer =
-          DESERIALIZATION_CONTEXT
-              .get()
-              .deserializerInstance(annotatedMethod, maybeDeserializerClass);
+          context.deserializerInstance(annotatedMethod, maybeDeserializerClass);
 
       if (jsonDeserializer == null) {
-        jsonDeserializer =
-            DESERIALIZATION_CONTEXT.get().findContextualValueDeserializer(prop.getType(), prop);
+        jsonDeserializer = context.findContextualValueDeserializer(prop.getType(), prop);
       }
+
+      TypeDeserializer typeDeserializer =
+          context.getFactory().findTypeDeserializer(context.getConfig(), prop.getType());
+      if (typeDeserializer != null) {
+        jsonDeserializer = new TypeWrappedDeserializer(typeDeserializer, jsonDeserializer);
+      }
+
       return jsonDeserializer;
     } catch (JsonMappingException e) {
       throw new RuntimeException(e);

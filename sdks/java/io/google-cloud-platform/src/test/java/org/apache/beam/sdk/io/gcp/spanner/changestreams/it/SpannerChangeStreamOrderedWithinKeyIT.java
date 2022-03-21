@@ -83,6 +83,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
 
   @Test
   public void testOrderedWithinKey() {
+    LOG.info("Test pipeline: " + pipeline.toString());
     final SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withProjectId(projectId)

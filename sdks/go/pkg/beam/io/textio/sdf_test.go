@@ -28,9 +28,19 @@ import (
 // outputs the correct number of lines for it, even for an exceedingly long
 // line.
 func TestReadSdf(t *testing.T) {
-	f := "../../../../data/textio_test.txt"
 	p, s := beam.NewPipelineWithRoot()
-	lines := ReadSdf(s, f)
+	lines := ReadSdf(s, testFilePath)
+	passert.Count(s, lines, "NumLines", 1)
+
+	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
+}
+
+func TestReadAllSdf(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	files := beam.Create(s, testFilePath)
+	lines := ReadAllSdf(s, files)
 	passert.Count(s, lines, "NumLines", 1)
 
 	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
