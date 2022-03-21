@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
  * <p><b>Internal only:</b> This is actively being worked on and will likely change.
  * We provide no backwards compatibility guarantees, and it should not be implemented outside the
  * Beam repository.
+ *
  */
 @Internal
 @Experimental
