@@ -98,9 +98,10 @@ class SchemaTypeRegistry(object):
       if schema_id not in self.by_id:
         return schema_id
 
-    raise AssertionError("Failed to generate a unique UUID for schema after "
-                         f"100 tries! Registry contains {len(self.by_id)} "
-                         "schemas.")
+    raise AssertionError(
+        "Failed to generate a unique UUID for schema after "
+        f"100 tries! Registry contains {len(self.by_id)} "
+        "schemas.")
 
   def add(self, typing, schema):
     self.by_id[schema.id] = (typing, schema)
@@ -164,6 +165,7 @@ def named_fields_from_schema(
   return [(field.name, typing_from_runner_api(field.type))
           for field in schema.fields]
 
+
 def typing_to_runner_api(
     type_: type,
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY
@@ -171,12 +173,13 @@ def typing_to_runner_api(
   return SchemaTranslation(
       schema_registry=schema_registry).typing_to_runner_api(type_)
 
+
 def typing_from_runner_api(
     fieldtype_proto: schema_pb2.FieldType,
-    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY
-) -> type:
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
   return SchemaTranslation(
       schema_registry=schema_registry).typing_from_runner_api(fieldtype_proto)
+
 
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
@@ -262,8 +265,8 @@ class SchemaTranslation(object):
               representation=typing_to_runner_api(
                   logical_type.representation_type())))
 
-  def typing_from_runner_api(self,
-                             fieldtype_proto: schema_pb2.FieldType) -> type:
+  def typing_from_runner_api(
+      self, fieldtype_proto: schema_pb2.FieldType) -> type:
     if fieldtype_proto.nullable:
       # In order to determine the inner type, create a copy of fieldtype_proto
       # with nullable=False and pass back to typing_from_runner_api

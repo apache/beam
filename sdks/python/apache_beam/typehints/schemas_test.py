@@ -97,30 +97,35 @@ class SchemaTest(unittest.TestCase):
 
     for test_case in test_cases:
       self.assertEqual(
-          test_case, typing_from_runner_api(
-              typing_to_runner_api(test_case,
-                                   schema_registry=SchemaTypeRegistry()),
-              schema_registry=SchemaTypeRegistry()
-          ))
+          test_case,
+          typing_from_runner_api(
+              typing_to_runner_api(
+                  test_case, schema_registry=SchemaTypeRegistry()),
+              schema_registry=SchemaTypeRegistry()))
 
+    # Break out NamedTuple types since they require special verification
     for test_case in selected_schemas:
       self.assert_namedtuple_equivalent(
-          test_case, typing_from_runner_api(
-              typing_to_runner_api(test_case,
-                                   schema_registry=SchemaTypeRegistry()),
-              schema_registry=SchemaTypeRegistry()
-          ))
-
+          test_case,
+          typing_from_runner_api(
+              typing_to_runner_api(
+                  test_case, schema_registry=SchemaTypeRegistry()),
+              schema_registry=SchemaTypeRegistry()))
 
   def assert_namedtuple_equivalent(self, actual, expected):
-    # We can't check for equality between types
+    # Two types are only considered equal if they are literally the same
+    # object (i.e. `actual == expected` is the same as `actual is expected` in
+    # this case).
+    # That's a much stricter check than we need, and it's necessarily not true
+    # if types are pickled/unpickled. Here we just verify the features of the
+    # types that actually matter to us.
+
     self.assertTrue(match_is_named_tuple(expected))
     self.assertTrue(match_is_named_tuple(actual))
 
     self.assertEqual(actual.__annotations__, expected.__annotations__)
 
     self.assertEqual(dir(actual), dir(expected))
-
 
   def test_proto_survives_typing_roundtrip(self):
     all_nonoptional_primitives = [
@@ -204,9 +209,10 @@ class SchemaTest(unittest.TestCase):
 
     for test_case in test_cases:
       self.assertEqual(
-          test_case, typing_to_runner_api(
-              typing_from_runner_api(test_case,
-                                     schema_registry=SchemaTypeRegistry()),
+          test_case,
+          typing_to_runner_api(
+              typing_from_runner_api(
+                  test_case, schema_registry=SchemaTypeRegistry()),
               schema_registry=SchemaTypeRegistry()))
 
   def test_unknown_primitive_maps_to_any(self):
