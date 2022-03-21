@@ -46,7 +46,7 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
   private Optional<Offset> lastClaimedOffset = Optional.empty();
 
   // getReadySubscriber doesn't reference the subscriber member.
-  @SuppressWarnings("methodref.receiver.bound.invalid")
+  @SuppressWarnings("method.invocation.invalid")
   SubscriptionPartitionProcessorImpl(
       SubscriptionPartition subscriptionPartition,
       RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
