@@ -26,6 +26,7 @@ import org.apache.beam.sdk.values.Row;
 
 class TableRowToBeamRowFn extends DoFn<TableRow, Row> {
   private final Schema schema;
+
   TableRowToBeamRowFn(Schema schema) {
     this.schema = schema;
   }

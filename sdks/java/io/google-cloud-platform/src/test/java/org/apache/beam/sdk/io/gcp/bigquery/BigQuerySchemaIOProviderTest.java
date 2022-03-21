@@ -36,10 +36,11 @@ import org.junit.runners.JUnit4;
 public class BigQuerySchemaIOProviderTest {
 
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final Schema SCHEMA = AUTO_VALUE_SCHEMA.schemaFor(
-      TypeDescriptor.of(BigQuerySchemaIOConfiguration.class));
-  private static final SerializableFunction<BigQuerySchemaIOConfiguration, Row> ROW_SERIALIZABLE_FUNCTION =
-      AUTO_VALUE_SCHEMA.toRowFunction(TypeDescriptor.of(BigQuerySchemaIOConfiguration.class));
+  private static final Schema SCHEMA =
+      AUTO_VALUE_SCHEMA.schemaFor(TypeDescriptor.of(BigQuerySchemaIOConfiguration.class));
+  private static final SerializableFunction<BigQuerySchemaIOConfiguration, Row>
+      ROW_SERIALIZABLE_FUNCTION =
+          AUTO_VALUE_SCHEMA.toRowFunction(TypeDescriptor.of(BigQuerySchemaIOConfiguration.class));
 
   @Test
   public void testConfigurationSchema() {
@@ -51,8 +52,8 @@ public class BigQuerySchemaIOProviderTest {
   @Test
   public void testFrom() {
     String query = "select * from example";
-    BigQuerySchemaIOConfiguration want = BigQuerySchemaIOConfiguration.builderOfQueryType(query)
-        .build();
+    BigQuerySchemaIOConfiguration want =
+        BigQuerySchemaIOConfiguration.builderOfQueryType(query).build();
     SchemaTransformProvider provider = new BigQuerySchemaIOProvider();
     Row inputConfig = ROW_SERIALIZABLE_FUNCTION.apply(want);
     SchemaTransform schemaTransform = provider.from(inputConfig);

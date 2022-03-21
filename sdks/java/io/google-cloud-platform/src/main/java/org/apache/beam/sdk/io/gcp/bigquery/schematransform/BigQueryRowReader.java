@@ -49,8 +49,7 @@ public abstract class BigQueryRowReader extends PTransform<PBegin, PCollectionRo
 
       default:
         throw new InvalidConfigurationException(
-            String.format("invalid job type for BigQueryIO read, got: %s", jobType)
-        );
+            String.format("invalid job type for BigQueryIO read, got: %s", jobType));
     }
   }
 
@@ -62,13 +61,14 @@ public abstract class BigQueryRowReader extends PTransform<PBegin, PCollectionRo
   @Override
   public PCollectionRowTuple expand(PBegin input) {
     PCollection<TableRow> tableRowPCollection = input.apply(typedRead());
-    PCollection<Row> rowPCollection = tableRowPCollection
-        .apply(ParDo.of(new TableRowToBeamRowFn(tableRowPCollection.getSchema())));
+    PCollection<Row> rowPCollection =
+        tableRowPCollection.apply(
+            ParDo.of(new TableRowToBeamRowFn(tableRowPCollection.getSchema())));
     return PCollectionRowTuple.of(getTag(), rowPCollection);
   }
 
   @AutoValue.Builder
-  public static abstract class Builder {
+  public abstract static class Builder {
 
     public abstract Builder setConfiguration(BigQuerySchemaIOConfiguration value);
 

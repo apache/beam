@@ -27,40 +27,37 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 
 /**
- * An implementation of {@link TypedSchemaTransformProvider} for reading and writing to BigQuery with {@link
- * BigQueryIO}.
+ * An implementation of {@link TypedSchemaTransformProvider} for reading and writing to BigQuery
+ * with {@link BigQueryIO}.
  *
- * <p><b>Internal only:</b> This is actively being worked on and will likely change.
- * We provide no backwards compatibility guarantees, and it should not be implemented outside the
- * Beam repository.
- *
+ * <p><b>Internal only:</b> This is actively being worked on and will likely change. We provide no
+ * backwards compatibility guarantees, and it should not be implemented outside the Beam repository.
  */
 @Internal
 @Experimental
-public class BigQuerySchemaIOProvider extends TypedSchemaTransformProvider<BigQuerySchemaIOConfiguration> {
+public class BigQuerySchemaIOProvider
+    extends TypedSchemaTransformProvider<BigQuerySchemaIOConfiguration> {
 
   public BigQuerySchemaIOProvider() {
     super();
   }
 
-  /**
-   * Returns the expected class of the configuration object.
-   */
+  /** Returns the expected class of the configuration object. */
   @Override
   public Class<BigQuerySchemaIOConfiguration> configurationClass() {
     return BigQuerySchemaIOConfiguration.class;
   }
 
   /**
-   * Produces a {@link SchemaTransform} implementation based on the {@link BigQuerySchemaIOConfiguration}
-   * details.
+   * Produces a {@link SchemaTransform} implementation based on the {@link
+   * BigQuerySchemaIOConfiguration} details.
    */
   @Override
   public SchemaTransform from(BigQuerySchemaIOConfiguration configuration) {
     return BigQuerySchemaTransform.of(configuration);
   }
 
-  /** Returns an id that uniquely identifies this transform. **/
+  /** Returns an id that uniquely identifies this transform. */
   @Override
   public String identifier() {
     return BigQuerySchemaIOConfiguration.IDENTIFIER;

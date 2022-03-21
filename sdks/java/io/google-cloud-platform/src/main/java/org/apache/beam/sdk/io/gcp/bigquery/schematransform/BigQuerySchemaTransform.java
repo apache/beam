@@ -28,13 +28,11 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 public abstract class BigQuerySchemaTransform implements SchemaTransform {
 
   public static BigQuerySchemaTransform of(BigQuerySchemaIOConfiguration configuration) {
-    return builderOf(configuration)
-        .build();
+    return builderOf(configuration).build();
   }
 
   public static Builder builderOf(BigQuerySchemaIOConfiguration configuration) {
-    return new AutoValue_BigQuerySchemaTransform.Builder()
-        .setConfiguration(configuration);
+    return new AutoValue_BigQuerySchemaTransform.Builder().setConfiguration(configuration);
   }
 
   public abstract BigQuerySchemaIOConfiguration getConfiguration();
@@ -60,7 +58,7 @@ public abstract class BigQuerySchemaTransform implements SchemaTransform {
   }
 
   @AutoValue.Builder
-  public static abstract class Builder {
+  public abstract static class Builder {
 
     public abstract Builder setConfiguration(BigQuerySchemaIOConfiguration value);
 
