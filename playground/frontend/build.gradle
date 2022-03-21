@@ -141,7 +141,6 @@ docker {
                   project.docker_image_default_repo_root)
   files "./build/"
   tags containerImageTags()
-  println("container:" +  name)
   buildArgs(['FLUTTER_VERSION': project.rootProject.hasProperty(["flutter-version"]) ?
                                 project.rootProject["flutter-version"] :
                                 "2.5.2-stable" ])
