@@ -13,38 +13,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validators
+package preparers
 
-import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"fmt"
-)
+import "testing"
 
-const (
-	UnitTestValidatorName = "UnitTest"
-	KatasValidatorName    = "Katas"
-)
-
-type Validator struct {
-	Validator func(args ...interface{}) (bool, error)
-	Args      []interface{}
-	Name      string
-}
-
-// GetValidators returns slice of validators.Validator according to sdk
-func GetValidators(sdk pb.Sdk, filepath string) (*[]Validator, error) {
-	var val *[]Validator
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		val = GetJavaValidators(filepath)
-	case pb.Sdk_SDK_GO:
-		val = GetGoValidators(filepath)
-	case pb.Sdk_SDK_PYTHON:
-		val = GetPyValidators(filepath)
-	case pb.Sdk_SDK_SCIO:
-		val = GetScioValidators(filepath)
-	default:
-		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
+func TestGetScioPreparers(t *testing.T) {
+	type args struct {
+		filePath string
 	}
-	return val, nil
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{
+			// Test case with calling GetScioPreparers method.
+			// As a result, want to receive slice of preparers with len = 3
+			name: "get scio preparers",
+			args: args{"MOCK_FILEPATH"},
+			want: 3,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder := NewPreparersBuilder(tt.args.filePath)
+			GetScioPreparers(builder)
+			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
+				t.Errorf("GetScioPreparers() returns %v Preparers, want %v", len(*got), tt.want)
+			}
+		})
+	}
 }

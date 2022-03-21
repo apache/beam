@@ -13,37 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: pr-bot-pr-updates
+name: pr-bot-update-reviewers
 
+# Run every week on Sunday at 16:05 UTC
 on:
-  pull_request_target:
-    types: ["synchronize"] # Synchronize is the action that runs after pushes to the user branch
-  issue_comment:
+  schedule:
+  - cron: '5 16 * * 0'
+  workflow_dispatch:
 
 jobs:
-  process-pr-update:
-    # Give GITHUB_TOKEN permissions to write pull request comments and to the state branch, and read PR related info
-    permissions:
-      contents: write
-      pull-requests: write
-      checks: read
-      issues: read
-      statuses: read
-
+  update-reviewers:
     # Don't run on forks
     if: github.repository == 'apache/beam'
     runs-on: ubuntu-latest
 
     steps:
-      # Pin to master so users can't do anything malicious on their own branch and run it here.
       - uses: actions/checkout@v2
-        with:
-          ref: 'master'
       - run: npm install
         working-directory: 'scripts/ci/pr-bot'
 
       # Runs a set of commands using the runners shell
-      - run: npm run processPrUpdate
+      - run: npm run updateReviewers
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: 'scripts/ci/pr-bot'
