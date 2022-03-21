@@ -38,7 +38,7 @@ import org.apache.beam.sdk.io.gcp.pubsublite.internal.MemoryLimiter.Block;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MemoryBufferedSubscriberImpl extends ProxyService implements MemoryBufferedSubscriber {
+class MemoryBufferedSubscriberImpl extends ProxyService implements MemoryBufferedSubscriber {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryBufferedSubscriberImpl.class);
 
   private final Partition partition;

@@ -23,7 +23,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MemoryLimiterImpl implements MemoryLimiter {
+class MemoryLimiterImpl implements MemoryLimiter {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryLimiterImpl.class);
   private final long minBlockSize;
   private final long maxBlockSize;
