@@ -87,7 +87,7 @@ func TestGetRegion_BothSet(t *testing.T) {
 }
 
 // Set up fake credential file to read project from with the passed in projectId.
-func setupFakeCredentialFile(t *testing.T, projectId string) {
+func setupFakeCredentialFile(t *testing.T, projectID string) {
 	t.Helper()
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
 	if err != nil {
@@ -98,7 +98,7 @@ func setupFakeCredentialFile(t *testing.T, projectId string) {
 	content := []byte(fmt.Sprintf(`{
 		"type": "service_account",
 		"project_id": %q
-	  }`, projectId))
+	  }`, projectID))
 	if _, err := tmpFile.Write(content); err != nil {
 		t.Fatalf("Failed writing to fake credential file")
 	}
