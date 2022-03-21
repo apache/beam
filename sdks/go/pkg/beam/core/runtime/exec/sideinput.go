@@ -106,7 +106,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 // the side input cache or by opening a new stream and reading it in.
 func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
 	if s.kc == nil {
-		return nil, fmt.Errorf("cannot make a keyed iterable for an unkeyed side input %v.", s.sideInputID)
+		return nil, fmt.Errorf("cannot make a keyed iterable for an unkeyed side input %v", s.sideInputID)
 	}
 	key, err := EncodeElement(s.kc, iterKey)
 	if err != nil {
