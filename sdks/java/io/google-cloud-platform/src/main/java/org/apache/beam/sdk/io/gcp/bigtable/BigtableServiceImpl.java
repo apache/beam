@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.api.core.ApiFuture;
 import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.MutateRowsRequest;
@@ -37,6 +38,7 @@ import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -50,6 +52,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -124,8 +127,10 @@ class BigtableServiceImpl implements BigtableService {
     private Queue<Row> buffer;
     private RowSet rowSet;
     private ServiceCallMetric serviceCallMetric;
-    //private BulkRead bulkRead;
+    private boolean lastFillCompleted;
+    private ListenableFuture<List<Row>> future;
     private String tableNameStr;
+    private ByteString lastRowInBuffer;
 
     private final int MINI_BATCH_ROW_LIMIT = 100;
 
@@ -135,6 +140,7 @@ class BigtableServiceImpl implements BigtableService {
       tableNameStr = session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
       //bulkRead = session.createBulkRead(new BigtableTableName(tableNameStr));
       this.source = source;
+      this.lastFillCompleted = false;
     }
 
     @Override
@@ -177,25 +183,64 @@ class BigtableServiceImpl implements BigtableService {
       serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
 
-      fillReadRowsBuffer();
+      requestReadRows();
       return advance();
     }
 
     @Override
     public boolean advance() throws IOException {
       if (buffer.isEmpty()) {
-        return buildReadRowsRequest();
+        return waitReadRowsFuture();
+      } else if (buffer.size() < 10 && future == null && !lastFillCompleted) {
+        loadReadRowsFuture();
       }
       currentRow = buffer.remove();
       return currentRow != null;
     }
 
-    public boolean buildReadRowsRequest() throws IOException {
+    public void loadReadRowsFuture() throws IOException {
+      try {
+        if(!splitRowSet(lastRowInBuffer)) // This is probably splitting before the actual row is read (I need to get the last row in the buffer)
+          return;
+        future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
+      } catch (StatusRuntimeException e) {
+        serviceCallMetric.call(e.getStatus().getCode().value());
+        throw e;
+      }
+    }
+
+    public boolean waitReadRowsFuture() throws IOException {
+      try {
+        if (lastFillCompleted) // I think here is where I need to check the flag
+          return false;
+        results = (ResultScanner<Row>) future.get();
+        future = null;
+        return requestReadRows();
+      } catch (StatusRuntimeException e) {
+        serviceCallMetric.call(e.getStatus().getCode().value());
+        throw e;
+      } catch (InterruptedException | ExecutionException e) { // How should this be handled?
+        serviceCallMetric.call(e.getCause().toString());
+        return false;
+      }
+    }
+
+    public ReadRowsRequest buildReadRowsRequest() {
+      ReadRowsRequest.Builder request =
+          ReadRowsRequest.newBuilder().setRows(rowSet)
+              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(tableNameStr);
+      if (source.getRowFilter() != null) {
+        request.setFilter(source.getRowFilter());
+      }
+      return request.build();
+    }
+
+    public boolean splitRowSet(ByteString splitPoint) throws IOException {
       if (RowSet.getDefaultInstance().equals(rowSet)) { // Does this ever get reached?
         rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
       }
       RowSet.Builder segment = RowSet.newBuilder();
-      ByteString splitPoint = currentRow.getKey();
+      //ByteString splitPoint = currentRow.getKey();
 
       for (int i = 0; i < rowSet.getRowRangesCount(); i++) {
         RowRange rowRange = rowSet.getRowRanges(i);
@@ -217,28 +262,29 @@ class BigtableServiceImpl implements BigtableService {
         return false;
       }
       rowSet = segment.build();
-      if(fillReadRowsBuffer()) {
+      if(requestReadRows()) {
         currentRow = buffer.remove();
         return currentRow != null;
       }
       return false;
     }
 
-    public boolean fillReadRowsBuffer() throws IOException {
-      ReadRowsRequest.Builder request =
-          ReadRowsRequest.newBuilder().setRows(rowSet)
-              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(tableNameStr);
-      if (source.getRowFilter() != null) {
-        request.setFilter(source.getRowFilter());
-      }
+    public boolean requestReadRows() throws IOException {
       try {
-        results = session.getDataClient().readRows(request.build());
-        // results = session.getDataClient(). Add Callable here (Async?)
-        if (results.available() == 0) {
+        results = session.getDataClient().readRows(buildReadRowsRequest());
+        int amountOfRows = results.available();
+        if (amountOfRows == 0) {
           return false;
+        } if (amountOfRows < 100) {
+          // What if the there were exactly  100 left?
+          lastFillCompleted = true;
         }
-        buffer.addAll(Arrays.asList(
-            results.next(MINI_BATCH_ROW_LIMIT)));
+        // Save the last Row that is added to the buffer
+        // Should I move the advance to here?
+        List<Row> ReadRows = Arrays.asList(
+            results.next(MINI_BATCH_ROW_LIMIT));
+        lastRowInBuffer = ReadRows.get(ReadRows.size()-1).getKey();
+        buffer.addAll(ReadRows);
         serviceCallMetric.call("ok");
         return true;
       } catch (StatusRuntimeException e) {
@@ -246,7 +292,6 @@ class BigtableServiceImpl implements BigtableService {
         throw e;
       }
     }
-
 
     @Override
     public void close() throws IOException {

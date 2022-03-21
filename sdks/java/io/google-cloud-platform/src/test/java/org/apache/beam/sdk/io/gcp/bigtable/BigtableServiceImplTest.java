@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,12 +39,19 @@ import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -56,11 +64,15 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatcher;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -82,9 +94,13 @@ public class BigtableServiceImplTest {
 
   @Mock private BulkMutation mockBulkMutation;
 
+  //@Mock private SettableFuture<ResultScanner<Row>> mockScannerFuture;
+
   @Mock private BigtableDataClient mockBigtableDataClient;
 
   @Mock private BigtableSource mockBigtableSource;
+
+  //@Captor private ArgumentCaptor<ResultScanner<Row>> resultScannerCaptor;
 
   @Before
   public void setup() {
@@ -107,7 +123,8 @@ public class BigtableServiceImplTest {
    * @throws InterruptedException
    */
   @Test
-  public void testReadSingleRangeBelowMiniBatchLimit() throws IOException {
+  public void testReadSingleRangeBelowMiniBatchLimit() throws Exception {
+    //Future<List<Row>> mockScannerFuture = Future.
     ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
@@ -118,6 +135,8 @@ public class BigtableServiceImplTest {
     when(mockResultScanner.next(MINI_BATCH_ROW_LIMIT)).thenReturn(new Row[] {expectedRow}).thenReturn(null);
     when(mockResultScanner.available()).thenReturn(1).thenReturn(0);
     when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+    //when(mockScannerFuture.get()).thenReturn(mockResultScanner);
+
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
 
@@ -212,15 +231,16 @@ public class BigtableServiceImplTest {
 
     when(mockResultScanner.available()).thenReturn(MINI_BATCH_ROW_LIMIT).thenReturn(MINI_BATCH_ROW_LIMIT).thenReturn(1).thenReturn(0);
     when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows[0], underTest.getCurrentRow());
-    for(int i = 0; i < MINI_BATCH_ROW_LIMIT; i++)
+    for(int i = 0; i < MINI_BATCH_ROW_LIMIT - 1; i++) // Need to confirm this
       underTest.advance();
     Assert.assertEquals(endOfFirstRangeRow, underTest.getCurrentRow());
-    for(int i = 0; i < MINI_BATCH_ROW_LIMIT; i++)
+    for(int i = 0; i < MINI_BATCH_ROW_LIMIT - 1; i++) // Need to confirm this
       underTest.advance();
     Assert.assertEquals(endOfSecondRangeRow, underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
@@ -291,10 +311,10 @@ public class BigtableServiceImplTest {
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows[0], underTest.getCurrentRow());
-    for(int i = 0; i < MINI_BATCH_ROW_LIMIT; i++)
+    for(int i = 0; i < MINI_BATCH_ROW_LIMIT - 1; i++) // Check this
       underTest.advance();
     Assert.assertEquals(endOfFirstRangeRow, underTest.getCurrentRow());
-    for(int i = 0; i < MINI_BATCH_ROW_LIMIT; i++)
+    for(int i = 0; i < MINI_BATCH_ROW_LIMIT - 1; i++) // Check this
       underTest.advance();
     Assert.assertEquals(endOfSecondRangeRow, underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
@@ -324,6 +344,47 @@ public class BigtableServiceImplTest {
     underTest.close();
   }
 
+  @Test
+  public void testReadFillBuffer() throws  IOException {
+    Row[] expectedRows = new Row[MINI_BATCH_ROW_LIMIT];
+
+    Row endOfExpectedRows = Row.newBuilder().setKey(ByteString.copyFromUtf8("c")).build();
+    expectedRows[0] = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
+    for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) {
+      expectedRows[i] = Row.newBuilder().setKey(ByteString.copyFromUtf8("b"+i)).build();
+    }
+    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    ByteKey end = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+    @SuppressWarnings("unchecked")
+    ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
+    when(mockResultScanner.next(MINI_BATCH_ROW_LIMIT)).thenReturn(expectedRows).thenReturn(new Row[]{endOfExpectedRows}).thenReturn(null);
+
+    when(mockResultScanner.available()).thenReturn(MINI_BATCH_ROW_LIMIT).thenReturn(1).thenReturn(0);
+    when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+    //when(mockBigtableDataClient.readRows(any(), resultScannerCaptor.capture()));
+
+    //verify(mockBigtableDataClient).readRows(any(), resultScannerCaptor.capture());
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+
+    underTest.start();
+    // Capture here
+
+    Assert.assertEquals(expectedRows[0], underTest.getCurrentRow());
+    for(int i = 0; i < MINI_BATCH_ROW_LIMIT; i++)
+      underTest.advance();
+
+    // Compare here
+    Assert.assertEquals(endOfExpectedRows, underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
+    underTest.close();
+
+    verify(mockResultScanner, times(1)).close();
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+  }
 
 
   /**
