@@ -2291,6 +2291,11 @@ public class ElasticsearchIO {
     }
 
     private static class ResultFilteringFn extends DoFn<Document, Document> {
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return Duration.millis(Long.MAX_VALUE);
+      }
+
       @ProcessElement
       public void processElement(@Element Document doc, MultiOutputReceiver out) {
         if (doc.getHasError()) {
