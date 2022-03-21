@@ -136,16 +136,25 @@ public class ReadSDF<ParameterT, PartitionT, OutputT> extends DoFn<ParameterT, O
         // TODO: Validate that ParameterT is `StartEndRange<PositionT>` somehow.
         if (ranges.size() > 1) {
           this.upperBound = ranges.get(0).end();
-          return SplitResult.<ParameterT>of(
-              (ParameterT) ranges.get(0),
-              (ParameterT)
-                  new StartEndRange<PositionT>(
-                      ranges.get(1).start(),
-                      ranges.get(ranges.size() - 1).end(),
-                      ranges.get(0).type(),
-                      ranges.get(0).columnName()));
+          SplitResult<ParameterT> result =
+              SplitResult.<ParameterT>of(
+                  (ParameterT) ranges.get(0),
+                  (ParameterT)
+                      new StartEndRange<PositionT>(
+                          ranges.get(1).start(),
+                          ranges.get(ranges.size() - 1).end(),
+                          ranges.get(0).type(),
+                          ranges.get(0).columnName()));
+          LOG.info(
+              "Splitting range ({},{}),{} into {}",
+              this.lowerBound,
+              this.lastClaimed,
+              this.upperBound,
+              result);
+          return result;
         }
-        // TODO do something nice?
+        LOG.info(
+            "Unable to split range ({},{}){}", this.lowerBound, this.lastClaimed, this.upperBound);
       }
       return null;
     }
