@@ -14,7 +14,6 @@
 // limitations under the License.
 
 // Package jdbc contains integration tests for cross-language JDBC IO transforms.
-
 package jdbc
 
 import (
