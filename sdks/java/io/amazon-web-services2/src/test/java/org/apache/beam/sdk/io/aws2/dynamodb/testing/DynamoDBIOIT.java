@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.dynamodb;
+package org.apache.beam.sdk.io.aws2.dynamodb.testing;
 
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
@@ -24,6 +24,7 @@ import static org.testcontainers.containers.localstack.LocalStackContainer.Servi
 import java.util.Map;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
+import org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
@@ -68,7 +69,7 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  * <pre>{@code
  * ./gradlew :sdks:java:io:amazon-web-services2:integrationTest \
  *   --info \
- *   --tests "org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIOIT" \
+ *   --tests "org.apache.beam.sdk.io.aws2.dynamodb.testing.DynamoDBIOIT" \
  *   -DintegrationTestPipelineOptions='["--awsRegion=eu-central-1","--useLocalstack=false"]'
  * }</pre>
  */
