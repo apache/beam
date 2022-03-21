@@ -327,49 +327,49 @@ public abstract class BigQuerySchemaIOConfiguration {
      *
      **/
     public final BigQuerySchemaIOConfiguration build() {
-      if (getQuery().isEmpty()) {
+      if (!getQuery().isPresent()) {
         setQuery("");
       }
-      if (getTableSpec().isEmpty()) {
+      if (!getTableSpec().isPresent()) {
         setTableSpec("");
       }
-      if (getUseAvroLogicalTypes().isEmpty()) {
+      if (!getUseAvroLogicalTypes().isPresent()) {
         setUseAvroLogicalTypes(false);
       }
-      if (getUseStandardSql().isEmpty()) {
+      if (!getUseStandardSql().isPresent()) {
         setUseStandardSql(true);
       }
-      if (getFormat().isEmpty()) {
+      if (!getFormat().isPresent()) {
         setFormat("");
       }
-      if (getKmsKey().isEmpty()) {
+      if (!getKmsKey().isPresent()) {
         setKmsKey("");
       }
-      if (getMethod().isEmpty()) {
+      if (!getMethod().isPresent()) {
         setMethod("");
       }
-      if (getWithoutFlattenResults().isEmpty()) {
+      if (!getWithoutFlattenResults().isPresent()) {
         setWithoutFlattenResults(false);
       }
-      if (getQueryLocation().isEmpty()) {
+      if (!getQueryLocation().isPresent()) {
         setQueryLocation("");
       }
-      if (getQueryPriority().isEmpty()) {
+      if (!getQueryPriority().isPresent()) {
         setQueryPriority("");
       }
-      if (getQueryTempDataset().isEmpty()) {
+      if (!getQueryTempDataset().isPresent()) {
         setQueryTempDataset("");
       }
-      if (getRowRestriction().isEmpty()) {
+      if (!getRowRestriction().isPresent()) {
         setRowRestriction("");
       }
-      if (getSelectedFields().isEmpty()) {
+      if (!getSelectedFields().isPresent()) {
         setSelectedFields(Collections.emptyList());
       }
-      if (getWithTemplateCompatibility().isEmpty()) {
+      if (!getWithTemplateCompatibility().isPresent()) {
         setWithTemplateCompatibility(false);
       }
-      if (getWithoutValidation().isEmpty()) {
+      if (!getWithoutValidation().isPresent()) {
         setWithoutValidation(false);
       }
 
