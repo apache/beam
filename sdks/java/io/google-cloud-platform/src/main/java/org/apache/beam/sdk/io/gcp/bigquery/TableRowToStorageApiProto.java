@@ -47,7 +47,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -236,11 +235,10 @@ public class TableRowToStorageApiProto {
   }
 
   @VisibleForTesting
-  @Nullable
   static Object scalarToProtoValue(
       StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
       FieldDescriptor fieldDescriptor,
-      @Nonnull Object value) {
+      Object value) {
     switch (bqSchema.getBqType()) {
       case "INT64":
       case "INTEGER":
