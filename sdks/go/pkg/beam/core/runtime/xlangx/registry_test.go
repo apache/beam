@@ -24,7 +24,7 @@ import (
 )
 
 func TestRegistry(t *testing.T) {
-	var handler = func(context.Context, *HandlerParams) (*jobpb.ExpansionResponse, error) {
+	var handler = func(context.Context, *HandlerParams, interface{}) (*jobpb.ExpansionResponse, error) {
 		return nil, nil
 	}
 	toPtr := func(fn interface{}) uintptr {

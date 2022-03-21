@@ -31,6 +31,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+type Classpath []string
+
 // Expand expands an unexpanded graph.ExternalTransform as a
 // graph.ExpandedTransform and assigns it to the ExternalTransform's Expanded
 // field. This requires querying an expansion service based on the configuration
@@ -38,7 +40,7 @@ import (
 //
 // For framework use only. Users should call beam.CrossLanguage to access foreign transforms
 // rather than calling this function directly.
-func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
+func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform, opt interface{}) error {
 	// Build the ExpansionRequest
 
 	// Obtaining the components and transform proto representing this transform
@@ -70,7 +72,7 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	delete(transforms, extTransformID)
 
 	// Querying the expansion service
-	res, err := expand(context.Background(), p.GetComponents(), extTransform, edge, ext)
+	res, err := expand(context.Background(), p.GetComponents(), extTransform, edge, ext, opt)
 	if err != nil {
 		return err
 	}
@@ -89,7 +91,8 @@ func expand(
 	comps *pipepb.Components,
 	transform *pipepb.PTransform,
 	edge *graph.MultiEdge,
-	ext *graph.ExternalTransform) (*jobpb.ExpansionResponse, error) {
+	ext *graph.ExternalTransform,
+	opt interface{}) (*jobpb.ExpansionResponse, error) {
 
 	h, config := defaultReg.getHandlerFunc(transform.GetSpec().GetUrn(), ext.ExpansionAddr)
 	// Overwrite expansion address if changed due to override for service or URN.
@@ -105,7 +108,7 @@ func expand(
 		},
 		edge: edge,
 		ext:  ext,
-	})
+	}, opt)
 }
 
 // QueryExpansionService submits an external transform to be expanded by the
@@ -118,7 +121,7 @@ func expand(
 // This HandlerFunc is exported to simplify building custom handler functions
 // that do end up calling a Beam ExpansionService, either as a fallback or
 // as part of normal flow.
-func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.ExpansionResponse, error) {
+func QueryExpansionService(ctx context.Context, p *HandlerParams, opt interface{}) (*jobpb.ExpansionResponse, error) {
 	req := p.Req
 	// Setting grpc client
 	conn, err := grpc.Dial(p.Config, grpc.WithInsecure())
@@ -143,7 +146,7 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	return res, nil
 }
 
-func startAutomatedJavaExpansionService(gradleTarget string) (stopFunc func() error, address string, err error) {
+func startAutomatedJavaExpansionService(gradleTarget string, classpath []string) (stopFunc func() error, address string, err error) {
 	jarPath, err := expansionx.GetBeamJar(gradleTarget, core.SdkVersion)
 	if err != nil {
 		return nil, "", err
@@ -168,11 +171,14 @@ func startAutomatedJavaExpansionService(gradleTarget string) (stopFunc func() er
 //
 // The address to be queried is determined by the Config field of the HandlerParams after
 // the prefix tag indicating the automated service is in use.
-func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.ExpansionResponse, error) {
-	// Strip auto: tag to get Gradle target
+func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams, opt interface{}) (*jobpb.ExpansionResponse, error) {
+	// Strip auto: tag to get Gradle targetd
 	tag, target := parseAddr(p.Config)
-
-	stopFunc, address, err := startAutomatedJavaExpansionService(target)
+	classpath := []string{}
+	if v, ok := opt.([]string); ok {
+		classpath = v
+	}
+	stopFunc, address, err := startAutomatedJavaExpansionService(target, classpath)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +186,7 @@ func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*job
 
 	p.Config = address
 
-	res, err := QueryExpansionService(ctx, p)
+	res, err := QueryExpansionService(ctx, p, classpath)
 	if err != nil {
 		return nil, err
 	}

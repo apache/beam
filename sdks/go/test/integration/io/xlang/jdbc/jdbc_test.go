@@ -40,7 +40,7 @@ func checkFlags(t *testing.T) {
 	}
 }
 
-func setupTestContainer(t *testing.T, dbname, username, password string) int {
+func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, password string) int {
 	t.Helper()
 
 	var env = map[string]string{
@@ -63,7 +63,7 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 		},
 		Started: true,
 	}
-	ctx := context.Background()
+	// ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
 		t.Fatalf("failed to start container: %s", err)
@@ -88,7 +88,7 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 	return mappedPort.Int()
 }
 
-func setupMySqlContainer(t *testing.T, dbname, username, password string) int {
+func setupMySqlContainer(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
 	t.Helper()
 
 	var env = map[string]string{
@@ -104,14 +104,14 @@ func setupMySqlContainer(t *testing.T, dbname, username, password string) int {
 
 	req := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "mysql:8.0",
+			Image:        "mysql:latest",
 			ExposedPorts: []string{port},
 			Env:          env,
 			// WaitingFor:   wait.ForSQL(nat.Port(port), "mysql", dbURL).Timeout(time.Second * 5),
 		},
 		Started: true,
 	}
-	ctx := context.Background()
+	// ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
 		t.Fatalf("failed to start container: %s", err)
@@ -125,28 +125,37 @@ func setupMySqlContainer(t *testing.T, dbname, username, password string) int {
 		t.Fatalf("failed to get container external port: %s", err)
 	}
 
-	url := fmt.Sprintf("%s:%s@tcp(localhost:%d)/%s", username, password, mappedPort.Int(), dbname)
-	db, err := sql.Open("mysql", url)
-	if err != nil {
-		t.Fatalf("failed to establish database connection: %s", err)
-	}
-	db.SetConnMaxLifetime(time.Minute * 10)
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
-	defer db.Close()
+	// url := fmt.Sprintf("%s:%s@udp(localhost:%d)/%s", username, password, mappedPort.Int(), dbname)
+	// db, err := sql.Open("mysql", url)
+	// // db, err := sqlx.ConnectContext(ctx, "mysql", url)
+	// if err != nil {
+	// 	t.Fatalf("failed to establish database connection: %v", err)
+	// }
 
-	_, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id INT);")
-	if err != nil {
-		t.Fatalf("can't create table, %v", err)
-	}
-	return mappedPort.Int()
+	// db.SetMaxOpenConns(20)
+	// db.SetMaxIdleConns(20)
+	// db.SetConnMaxLifetime(time.Minute * 5)
+	// err = db.Ping()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	//
+	// // db.Se
+
+	// defer db.Close()
+
+	// _, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id int(11));")
+	// if err != nil {
+	// 	t.Fatalf("can't create table, %v", err)
+	// }
+	return container, mappedPort.Int()
 }
 
 type setupContainerFn func(*testing.T, string, string, string) int
 
 type DB struct {
 	name   string
-	setup  func(*testing.T, string, string, string) int
+	setup  func(*testing.T, context.Context, string, string, string) (testcontainers.Container, int)
 	driver string
 }
 
@@ -155,31 +164,34 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 
+	ctx := context.Background()
 	dbname := "postjdbc"
 	username := "user"
 	password := "password"
 	db := map[string]DB{
 		"postgres": {
 			name: "postgresql",
-			setup: func(t *testing.T, dbname, username, password string) int {
-				return setupTestContainer(t, dbname, username, password)
+			setup: func(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
+				return nil, setupTestContainer(t, ctx, dbname, username, password)
 			},
 			driver: "org.postgresql.Driver",
 		},
 		"mysql": {
 			name: "mysql",
-			setup: func(t *testing.T, dbname, username, password string) int {
-				return setupMySqlContainer(t, dbname, username, password)
+			setup: func(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
+				return setupMySqlContainer(t, ctx, dbname, username, password)
 			},
 			driver: "com.mysql.jdbc.Driver",
 		},
 	}
 
 	name := "mysql"
-	port := db[name].setup(t, dbname, username, password)
+	cont, port := db[name].setup(t, ctx, dbname, username, password)
+	defer cont.Terminate(ctx)
+	// defer cdb.Close()
 	tableName := "roles"
-	host := "localhost"
-	jdbcUrl := fmt.Sprintf("jdbc:%s://%s:%d/%s", db[name].name, host, port, dbname)
+	host := "127.0.0.1"
+	jdbcUrl := fmt.Sprintf("jdbc:%s://%s:%d/%s?user=%s&password=%s&maxReconnects=10&autoReconnect=true&useSSL=false&useUnicode=true&characterEncoding=UTF-8", db[name].name, host, port, dbname, username, password)
 
 	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)

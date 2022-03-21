@@ -61,11 +61,37 @@ func GetDefaultRepositoryURL() string {
 // validates that it has been passed a URL and returns an error if not.
 //
 // When changing the target repository, make sure that the value is the prefix
-// up to "org/apache/beam" and that the organization of the repository matches
+// up to "org/apache/beam" and that the organization of the repository matchest
 // that of the default from that point on to ensure that the conversion of the
 // Gradle target to the JAR name is correct.
 func SetDefaultRepositoryURL(repoURL string) error {
 	return defaultJarGetter.setRepositoryURL(repoURL)
+}
+
+func buildJarName(artifactId, version string) string {
+	return fmt.Sprintf("%s-%s.jar", artifactId, version)
+}
+
+func expandJar(jar string) string {
+	if jarExists(jar) {
+		return jar
+	} else if strings.HasPrefix(jar, "http://") || strings.HasPrefix(jar, "https://") {
+		return jar
+	} else {
+		components := strings.Split(jar, ":")
+		groupId := components[0]
+		artifactId := components[1]
+		version := components[2]
+		url := fmt.Sprintf("%s/%s/%s/%s/%s", apacheRepository, strings.ReplaceAll(groupId, ".", "/"), artifactId, version, buildJarName(artifactId, version))
+
+	}
+}
+
+func AddClasspathJars(jarPath, classpath []string) (string, error) {
+	classpathJars := []string{}
+	for _, jar := range classpath {
+		path := expandJar(jar)
+	}
 }
 
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the

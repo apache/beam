@@ -89,8 +89,11 @@ type config struct {
 	OutputParallelization *bool     `beam:"outputParallelization"`
 }
 
+// type classpath []string
+
 // jdbcConfig stores the expansion service and configuration for JDBC IO.
 type jdbcConfig struct {
+	classpath     []string
 	expansionAddr string
 	config        *config
 }
@@ -149,10 +152,16 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 		Config:   toRow(cfg.config),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguage(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil)
+	beam.CrossLanguage(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil, cfg.classpath)
 }
 
 type writeOption func(*jdbcConfig)
+
+func Classpath(classpath []string) writeOption {
+	return func(jc *jdbcConfig) {
+		jc.classpath = classpath
+	}
+}
 
 // WriteStatement option overrides the default write statement of
 // "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)".
@@ -230,7 +239,7 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 	}
 
 	pl := beam.CrossLanguagePayload(jcs)
-	result := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)))
+	result := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)), xlangx.Classpath(cfg.classpath))
 	return result[beam.UnnamedOutputTag()]
 }
 

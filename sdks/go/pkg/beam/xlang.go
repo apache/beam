@@ -156,8 +156,9 @@ func CrossLanguage(
 	expansionAddr string,
 	namedInputs map[string]PCollection,
 	namedOutputTypes map[string]FullType,
+	opt interface{},
 ) map[string]PCollection {
-	namedOutputs, err := TryCrossLanguage(s, urn, payload, expansionAddr, namedInputs, namedOutputTypes)
+	namedOutputs, err := TryCrossLanguage(s, urn, payload, expansionAddr, namedInputs, namedOutputTypes, opt)
 	if err != nil {
 		panic(errors.WithContextf(err, "tried cross-language for %v against %v and failed", urn, expansionAddr))
 	}
@@ -173,6 +174,7 @@ func TryCrossLanguage(
 	expansionAddr string,
 	namedInputs map[string]PCollection,
 	namedOutputTypes map[string]FullType,
+	opt interface{},
 ) (map[string]PCollection, error) {
 	if !s.IsValid() {
 		panic(errors.New("invalid scope"))
@@ -201,7 +203,11 @@ func TryCrossLanguage(
 	ext.Namespace = graph.NewNamespace()
 
 	// Expand the transform into ext.Expanded.
-	if err := xlangx.Expand(edge, &ext); err != nil {
+	classpath := []string{}
+	if v, ok := opt.(xlangx.Classpath); ok {
+		classpath = v
+	}
+	if err := xlangx.Expand(edge, &ext, classpath); err != nil {
 		return nil, errors.WithContext(err, "expanding external transform")
 	}
 
