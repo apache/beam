@@ -68,11 +68,11 @@ public class MonitoringInfoMetricName extends MetricName {
 
   @Override
   public String getName() {
-    if (labels.containsKey(MonitoringInfoConstants.Labels.NAME)) {
-      return labels.get(MonitoringInfoConstants.Labels.NAME);
-    } else {
-      return urn.split(":", 2)[1];
+    String ret = labels.get(MonitoringInfoConstants.Labels.NAME);
+    if (ret != null) {
+      return ret;
     }
+    return urn.split(":", 2)[1];
   }
 
   /** @return the urn of this MonitoringInfo metric. */
