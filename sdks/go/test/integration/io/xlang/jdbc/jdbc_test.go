@@ -108,6 +108,26 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	ptest.RunAndValidate(t, read)
 }
 
+// TestJDBCIO_PostgresReadWrite tests basic read and write transform from JDBC with postgres.
+func TestJDBCIO_PostgresReadWrite(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	dbname := "postjdbc"
+	username := "newuser"
+	password := "password"
+	port := setupTestContainer(t, dbname, username, password)
+	tableName := "roles"
+	host := "localhost"
+	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
+
+	write := WriteToPostgres(*integration.SchemaIoExpansionAddr, tableName, jdbcUrl, username, password)
+	ptest.RunAndValidate(t, write)
+
+	read := ReadFromPostgres(*integration.SchemaIoExpansionAddr, tableName, jdbcUrl, username, password)
+	ptest.RunAndValidate(t, read)
+}
+
 func TestMain(m *testing.M) {
 	ptest.Main(m)
 }
