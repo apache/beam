@@ -21,7 +21,6 @@ import io.opencensus.common.Scope;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DetectNewPartitionsAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
@@ -30,11 +29,12 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.joda.time.Duration;
@@ -101,22 +101,22 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   }
 
   /**
-   * Uses an {@link OffsetRange} with a max range. This is because it does not know beforehand how
-   * many partitions it will schedule.
+   * Uses an {@link TimestampRange} with a max range. This is because it does not know beforehand
+   * how many partitions it will schedule.
    *
-   * @return the offset range for the component
+   * @return the timestamp range for the component
    */
   @GetInitialRestriction
-  public OffsetRange initialRestriction(@Element PartitionMetadata partition) {
-    // FIXME: This should be in nanos
-    return new OffsetRange(
-        TimestampConverter.timestampToMicros(partition.getCreatedAt()) - 1,
-        TimestampConverter.timestampToMicros(com.google.cloud.Timestamp.MAX_VALUE));
+  public TimestampRange initialRestriction(@Element PartitionMetadata partition) {
+    final com.google.cloud.Timestamp createdAt = partition.getCreatedAt();
+    return TimestampRange.of(
+        TimestampUtils.previous(createdAt), com.google.cloud.Timestamp.MAX_VALUE);
   }
 
   @NewTracker
-  public OffsetRangeTracker restrictionTracker(@Restriction OffsetRange restriction) {
-    return new OffsetRangeTracker(restriction);
+  public DetectNewPartitionsRangeTracker restrictionTracker(
+      @Restriction TimestampRange restriction) {
+    return new DetectNewPartitionsRangeTracker(restriction);
   }
 
   /** Obtains the instance of {@link DetectNewPartitionsAction}. */
@@ -135,7 +135,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
    */
   @ProcessElement
   public ProcessContinuation processElement(
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, com.google.cloud.Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 

@@ -16,6 +16,7 @@
 package gcpopts
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,7 @@ import (
 func TestGetProjectFromFlagOrEnvironment_Unset(t *testing.T) {
 	setupFakeCredentialFile(t, "")
 	*Project = ""
-	if got, want := GetProjectFromFlagOrEnvironment(nil), ""; got != want {
+	if got, want := GetProjectFromFlagOrEnvironment(context.Background()), ""; got != want {
 		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
@@ -33,7 +34,7 @@ func TestGetProjectFromFlagOrEnvironment_Unset(t *testing.T) {
 func TestGetProjectFromFlagOrEnvironment_FlagSet(t *testing.T) {
 	setupFakeCredentialFile(t, "")
 	*Project = "test"
-	if got, want := GetProjectFromFlagOrEnvironment(nil), "test"; got != want {
+	if got, want := GetProjectFromFlagOrEnvironment(context.Background()), "test"; got != want {
 		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
@@ -41,7 +42,7 @@ func TestGetProjectFromFlagOrEnvironment_FlagSet(t *testing.T) {
 func TestGetProjectFromFlagOrEnvironment_EnvironmentSet(t *testing.T) {
 	setupFakeCredentialFile(t, "fallback")
 	*Project = ""
-	if got, want := GetProjectFromFlagOrEnvironment(nil), "fallback"; got != want {
+	if got, want := GetProjectFromFlagOrEnvironment(context.Background()), "fallback"; got != want {
 		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
@@ -49,7 +50,7 @@ func TestGetProjectFromFlagOrEnvironment_EnvironmentSet(t *testing.T) {
 func TestGetProjectFromFlagOrEnvironment_BothSet(t *testing.T) {
 	setupFakeCredentialFile(t, "fallback")
 	*Project = "test"
-	if got, want := GetProjectFromFlagOrEnvironment(nil), "test"; got != want {
+	if got, want := GetProjectFromFlagOrEnvironment(context.Background()), "test"; got != want {
 		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
@@ -57,14 +58,14 @@ func TestGetProjectFromFlagOrEnvironment_BothSet(t *testing.T) {
 func TestGetProject_FlagSet(t *testing.T) {
 	setupFakeCredentialFile(t, "")
 	*Project = "test"
-	if got, want := GetProject(nil), "test"; got != want {
+	if got, want := GetProject(context.Background()), "test"; got != want {
 		t.Fatalf("GetProject() = %q, want %q", got, want)
 	}
 }
 
 func TestGetRegion_FlagSet(t *testing.T) {
 	*Region = "test"
-	if got, want := GetRegion(nil), "test"; got != want {
+	if got, want := GetRegion(context.Background()), "test"; got != want {
 		t.Fatalf("GetRegion() = %q, want %q", got, want)
 	}
 }
@@ -72,7 +73,7 @@ func TestGetRegion_FlagSet(t *testing.T) {
 func TestGetRegion_EnvSet(t *testing.T) {
 	*Region = ""
 	os.Setenv("CLOUDSDK_COMPUTE_REGION", "envRegion")
-	if got, want := GetRegion(nil), "envRegion"; got != want {
+	if got, want := GetRegion(context.Background()), "envRegion"; got != want {
 		t.Fatalf("GetRegion() = %q, want %q", got, want)
 	}
 }
@@ -80,13 +81,13 @@ func TestGetRegion_EnvSet(t *testing.T) {
 func TestGetRegion_BothSet(t *testing.T) {
 	*Region = "test"
 	os.Setenv("CLOUDSDK_COMPUTE_REGION", "envRegion")
-	if got, want := GetRegion(nil), "test"; got != want {
+	if got, want := GetRegion(context.Background()), "test"; got != want {
 		t.Fatalf("GetRegion() = %q, want %q", got, want)
 	}
 }
 
 // Set up fake credential file to read project from with the passed in projectId.
-func setupFakeCredentialFile(t *testing.T, projectId string) {
+func setupFakeCredentialFile(t *testing.T, projectID string) {
 	t.Helper()
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
 	if err != nil {
@@ -97,7 +98,7 @@ func setupFakeCredentialFile(t *testing.T, projectId string) {
 	content := []byte(fmt.Sprintf(`{
 		"type": "service_account",
 		"project_id": %q
-	  }`, projectId))
+	  }`, projectID))
 	if _, err := tmpFile.Write(content); err != nil {
 		t.Fatalf("Failed writing to fake credential file")
 	}
