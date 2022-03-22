@@ -83,7 +83,7 @@ export class RowCoder implements Coder<any> {
     }
   }
 
-  private static InferTypeFromJSON(obj: any): FieldType {
+  private static inferTypeFromJSON(obj: any): FieldType {
     let fieldType: FieldType = {
       nullable: true,
       typeInfo: {
@@ -111,6 +111,7 @@ export class RowCoder implements Coder<any> {
             atomicType: AtomicType.INT64,
           };
         } else {
+          // TODO: Support float type.
           // field.type!.typeInfo = {
           //     oneofKind: "atomicType",
           //     atomicType: AtomicType.FLOAT
@@ -123,7 +124,7 @@ export class RowCoder implements Coder<any> {
             oneofKind: "arrayType",
             arrayType: {
               // TODO: Infer element type in a better way
-              elementType: RowCoder.InferTypeFromJSON(obj[0]),
+              elementType: RowCoder.inferTypeFromJSON(obj[0]),
             },
           };
         } else if (obj instanceof Uint8Array) {
@@ -134,7 +135,7 @@ export class RowCoder implements Coder<any> {
         } else {
           fieldType.typeInfo = {
             oneofKind: "rowType",
-            rowType: { schema: RowCoder.InferSchemaOfJSON(obj) },
+            rowType: { schema: RowCoder.inferSchemaOfJSON(obj) },
           };
         }
         break;
@@ -146,12 +147,12 @@ export class RowCoder implements Coder<any> {
     return fieldType;
   }
 
-  static InferSchemaOfJSON(obj: any): Schema {
+  static inferSchemaOfJSON(obj: any): Schema {
     let fields: Field[] = Object.entries(obj).map((entry) => {
       return {
         name: entry[0],
         description: "",
-        type: RowCoder.InferTypeFromJSON(entry[1]),
+        type: RowCoder.inferTypeFromJSON(entry[1]),
         id: 0,
         encodingPosition: 0,
         options: [],
@@ -203,7 +204,7 @@ export class RowCoder implements Coder<any> {
       // case "mapType":
       case "rowType":
         if (typeInfo.rowType.schema !== undefined) {
-          return RowCoder.OfSchema(typeInfo.rowType.schema);
+          return RowCoder.fromSchema(typeInfo.rowType.schema);
         } else {
           throw new Error("Schema missing on RowType");
         }
@@ -216,12 +217,12 @@ export class RowCoder implements Coder<any> {
     }
   }
 
-  static OfSchema(schema: Schema): RowCoder {
+  static fromSchema(schema: Schema): RowCoder {
     return new RowCoder(schema);
   }
 
-  static OfJSON(obj: any): RowCoder {
-    return new RowCoder(RowCoder.InferSchemaOfJSON(obj));
+  static fromJSON(obj: any): RowCoder {
+    return new RowCoder(RowCoder.inferSchemaOfJSON(obj));
   }
 
   constructor(rawSchema: Schema | Uint8Array) {
@@ -233,7 +234,6 @@ export class RowCoder implements Coder<any> {
     this.nFields = this.schema.fields.length;
     this.fieldNames = this.schema.fields.map((f: Field) => f.name);
     this.fieldNullable = this.schema.fields.map((f: Field) => f.type?.nullable);
-    // self.constructor = named_tuple_fromschema(schema)
     this.encodingPositions = this.schema.fields.map((_, i) => i);
 
     if (this.schema.encodingPositionsSet) {
@@ -263,8 +263,6 @@ export class RowCoder implements Coder<any> {
   }
 
   encode(element: any, writer: Writer, context: Context) {
-    // let bytesIntCoder = new BytesCoder();
-
     // The number of attributes in the schema, encoded with
     // beam:coder:varint:v1. This makes it possible to detect certain
     // allowed schema changes (appending or removing columns) in
@@ -362,7 +360,8 @@ export class RowCoder implements Coder<any> {
         });
 
     // If this coder's schema has more attributes than the encoded value, then
-    // the schema must have changed. Populate the unencoded fields with nulls.
+    // the schema must have changed. Populate the unencoded fields with
+    // undefined.
     while (sortedComponents.length < this.nFields) {
       sortedComponents.push(undefined);
     }

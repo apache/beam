@@ -68,7 +68,7 @@ export class SqlTransform<
         return pcoll;
       }
       return pcoll.apply(
-        new internal.WithCoderInternal(row_coder.RowCoder.OfJSON(type))
+        new internal.WithCoderInternal(row_coder.RowCoder.fromJSON(type))
       );
     }
 

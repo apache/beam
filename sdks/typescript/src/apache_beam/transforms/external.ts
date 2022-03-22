@@ -329,7 +329,7 @@ function encodeSchemaPayload(
 ): Uint8Array {
   const encoded = new Writer();
   if (!schema) {
-    schema = RowCoder.InferSchemaOfJSON(payload);
+    schema = RowCoder.inferSchemaOfJSON(payload);
   }
   new RowCoder(schema!).encode(payload, encoded, null!);
   return ExternalConfigurationPayload.toBinary({
