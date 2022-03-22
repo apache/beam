@@ -24,11 +24,13 @@ import (
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 type BeamFnWorkerStatusServicer struct {
 	fnpb.UnimplementedBeamFnWorkerStatusServer
 	response chan string
+	lis      *bufconn.Listener
 }
 
 func (w *BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_WorkerStatusServer) error {
@@ -41,28 +43,36 @@ func (w *BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_Work
 	return nil
 }
 
-func setUp(port string, srv *BeamFnWorkerStatusServicer) {
-	l, err := net.Listen("tcp", ":9000")
-	if err != nil {
-		log.Fatalf("failed to listen on port 9000 %v", err)
-	}
+const buffsize = 1024 * 1024
+
+var lis *bufconn.Listener
+
+func setup(srv *BeamFnWorkerStatusServicer) {
+
 	server := grpc.NewServer()
-	defer server.Stop()
+
+	lis = bufconn.Listen(buffsize)
 	fnpb.RegisterBeamFnWorkerStatusServer(server, srv)
-	if err := server.Serve(l); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	go func() {
+		if err := server.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+}
+
+func dialer(context.Context, string) (net.Conn, error) {
+	return lis.Dial()
 }
 
 func TestSendStatusResponse(t *testing.T) {
-	srv := &BeamFnWorkerStatusServicer{response: make(chan string)}
-	go setUp("9000", srv)
-
 	ctx := context.Background()
-	statusHandler, err := newWorkerStatusHandler(ctx, "localhost:9000")
+	srv := &BeamFnWorkerStatusServicer{response: make(chan string)}
+	setup(srv)
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("unable to create status handler: %v", err)
+		t.Fatalf("unable to start test server: %v", err)
 	}
+	statusHandler := workerStatusHandler{conn: conn}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	statusHandler.handleRequest(ctx, &wg)

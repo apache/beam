@@ -117,10 +117,10 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		if err != nil {
 			log.Error(ctx, err)
 		}
-		var wg sync.WaitGroup
-		wg.Add(1)
-		statusHandler.handleRequest(ctx, &wg)
-		defer statusHandler.close(ctx, &wg)
+		var swg sync.WaitGroup
+		swg.Add(1)
+		statusHandler.handleRequest(ctx, &swg)
+		defer statusHandler.close(ctx, &swg)
 	}
 
 	sideCache := statecache.SideInputCache{}
