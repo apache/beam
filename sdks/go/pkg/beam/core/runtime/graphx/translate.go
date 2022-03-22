@@ -36,7 +36,7 @@ import (
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
 	URNImpulse       = "beam:transform:impulse:v1"
-	URNParDo         = "beam:transform:org.apache.beam:pardo:v1"
+	URNParDo         = "beam:transform:pardo:v1"
 	URNFlatten       = "beam:transform:flatten:v1"
 	URNGBK           = "beam:transform:group_by_key:v1"
 	URNReshuffle     = "beam:transform:reshuffle:v1"
