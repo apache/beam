@@ -28,7 +28,7 @@ import com.google.cloud.Timestamp;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -41,7 +41,7 @@ public class DataChangeRecordActionTest {
 
   private DataChangeRecordAction action;
   private PartitionMetadata partition;
-  private RestrictionTracker<OffsetRange, Long> tracker;
+  private RestrictionTracker<TimestampRange, Timestamp> tracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
@@ -61,7 +61,7 @@ public class DataChangeRecordActionTest {
     final Instant instant = new Instant(timestamp.toSqlTimestamp().getTime());
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
-    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
@@ -78,7 +78,7 @@ public class DataChangeRecordActionTest {
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
-    when(tracker.tryClaim(10L)).thenReturn(false);
+    when(tracker.tryClaim(timestamp)).thenReturn(false);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =

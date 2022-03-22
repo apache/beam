@@ -19,6 +19,7 @@
 import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover.dart';
@@ -44,18 +45,23 @@ class MultifilePopoverButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      iconSize: kIconSizeMd,
-      splashRadius: kIconButtonSplashRadius,
-      icon: SvgPicture.asset(kMultifileIconAsset),
-      onPressed: () {
-        _showMultifilePopover(
-          parentContext ?? context,
-          example,
-          followerAnchor,
-          targetAnchor,
-        );
-      },
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    return Semantics(
+      container: true,
+      child: IconButton(
+        iconSize: kIconSizeMd,
+        splashRadius: kIconButtonSplashRadius,
+        icon: SvgPicture.asset(kMultifileIconAsset),
+        tooltip: appLocale.exampleMultifile,
+        onPressed: () {
+          _showMultifilePopover(
+            parentContext ?? context,
+            example,
+            followerAnchor,
+            targetAnchor,
+          );
+        },
+      ),
     );
   }
 
