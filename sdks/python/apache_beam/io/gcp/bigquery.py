@@ -270,6 +270,7 @@ encoding when writing to BigQuery.
 # pytype: skip-file
 
 import collections
+import functools
 import io
 import itertools
 import json
@@ -657,6 +658,22 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+class _BigQueryExportResult:
+  def __init__(self, schema, metadata_list):
+    self.schema = schema
+    self.metadata_list = metadata_list
+
+  # Store schema as JSON string since TableSchema objects cannot be pickled.
+  @property
+  @functools.lru_cache()
+  def schema(self):
+    return bigquery_tools.parse_table_schema_from_json(self._schema)
+
+  @schema.setter
+  def schema(self, value):
+    self._schema = json.dumps(bigquery_tools.table_schema_to_dict(value))
+
+
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
@@ -789,23 +806,16 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
-  def _create_source(self, path, bq):
+  def _create_source(self, path, schema):
     if not self.use_json_exports:
       return create_avro_source(path)
     else:
-      if isinstance(self.table_reference, vp.ValueProvider):
-        table_ref = bigquery_tools.parse_table_reference(
-            self.table_reference.get(), project=self.project)
-      else:
-        table_ref = self.table_reference
-      table = bq.get_table(
-          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return TextSource(
           path,
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=self.coder(table.schema))
+          coder=self.coder(schema))
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.export_result is None:
@@ -820,13 +830,13 @@ class _CustomBigQuerySource(BoundedSource):
       if not self.table_reference.projectId:
         self.table_reference.projectId = self._get_project()
 
-      self.export_result = self._export_files(bq)
+      self.export_result = _BigQueryExportResult(*self._export_files(bq))
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
-    for metadata in self.export_result:
-      source = self._create_source(metadata.path, bq)
+    for metadata in self.export_result.metadata_list:
+      source = self._create_source(metadata.path, self.export_result.schema)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
 
@@ -878,7 +888,7 @@ class _CustomBigQuerySource(BoundedSource):
     """Runs a BigQuery export job.
 
     Returns:
-      a list of FileMetadata instances
+      bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_labels = self._get_bq_metadata().add_additional_bq_job_labels(
         self.bigquery_job_labels)
@@ -908,7 +918,17 @@ class _CustomBigQuerySource(BoundedSource):
                                        job_labels=job_labels,
                                        use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
-    return FileSystems.match([gcs_location])[0].metadata_list
+    metadata_list = FileSystems.match([gcs_location])[0].metadata_list
+
+    if isinstance(self.table_reference, vp.ValueProvider):
+      table_ref = bigquery_tools.parse_table_reference(
+          self.table_reference.get(), project=self.project)
+    else:
+      table_ref = self.table_reference
+    table = bq.get_table(
+        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+
+    return table.schema, metadata_list
 
 
 class _CustomBigQueryStorageSource(BoundedSource):
