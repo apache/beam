@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-const String kAnalyticsUA = 'UA-73650088-1';
+const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
     'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
 const String kApiJavaClientURL =
