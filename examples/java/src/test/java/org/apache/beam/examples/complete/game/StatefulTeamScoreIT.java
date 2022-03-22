@@ -28,6 +28,7 @@ import com.google.pubsub.v1.PushConfig;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
@@ -123,6 +124,7 @@ public class StatefulTeamScoreIT {
     options.setAllowedLateness(1);
     options.setBigQueryDataset(OUTPUT_DATASET);
     options.setBigQueryTable(LEADERBOARD_TEAM_LEADER_TABLE);
+    options.as(FlinkPipelineOptions.class).setFasterCopy(true);
   }
 
   private void setupPubSub() throws IOException {
