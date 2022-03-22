@@ -36,6 +36,9 @@ As we take the Beam Playground forward, and make sure that it becomes a valuable
 * **Easy to maintain**: new features added to the Playground should not increase its maintenance burden.
 
 
+![Beam meetup image](/images/beam-meetup-image.png)
+
+
 # Features
 
 
