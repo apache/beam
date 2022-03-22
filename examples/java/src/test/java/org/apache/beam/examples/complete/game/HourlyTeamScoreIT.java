@@ -21,8 +21,6 @@ import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveCh
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Date;
-
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -80,6 +78,6 @@ public class HourlyTeamScoreIT {
             .resolve("results", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)
             .toString());
     options.setWindowDuration(10);
-    options.as(FlinkPipelineOptions.class).setFasterCopy(true);
+    options.setFasterCopy(true);
   }
 }

@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.complete.game.utils.WriteToText;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -205,7 +206,7 @@ public class UserScore {
   // [END DocInclude_USExtractXform]
 
   /** Options supported by {@link UserScore}. */
-  public interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions, FlinkPipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
     /* The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
