@@ -66,6 +66,7 @@ var directFilters = []string{
 	"TestKafkaIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
 	"TestPanes",
@@ -91,11 +92,7 @@ var portableFilters = []string{
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
-	// TODO(BEAM-12815): Test fails: "Insufficient number of network buffers".
-	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
-	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
-	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
 	"TestTrigger.*",
 }
@@ -130,6 +127,7 @@ var sparkFilters = []string{
 var dataflowFilters = []string{
 	// The Dataflow runner doesn't work with tests using testcontainers locally.
 	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",

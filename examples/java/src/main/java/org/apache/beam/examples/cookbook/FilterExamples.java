@@ -234,6 +234,10 @@ public class FilterExamples {
   public static void main(String[] args) throws Exception {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+    runFilterExamples(options);
+  }
+
+  static void runFilterExamples(Options options) {
     Pipeline p = Pipeline.create(options);
 
     TableSchema schema = buildWeatherSchemaProjection();
