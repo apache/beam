@@ -73,7 +73,7 @@ async function main() {
 
     const filtered = await lines
       .map((w) => ({ word: w }))
-      .apply(new internal.WithCoderInternal(RowCoder.OfJSON({ word: "str" })))
+      .apply(new internal.WithCoderInternal(RowCoder.fromJSON({ word: "str" })))
       .asyncApply(
         // java -jar sdks/java/extensions/sql/expansion-service/build/libs/beam-sdks-java-extensions-sql-expansion-service-2.37.0-SNAPSHOT.j 9999
         sqlTransform(

@@ -33,7 +33,7 @@ function removeUndefined(obj) {
 
 describe("encodes and decodes with RowCoder", function () {
   const rowCoder = new RowCoder(
-    RowCoder.InferSchemaOfJSON({
+    RowCoder.inferSchemaOfJSON({
       str_field: "str",
       int_field: 4,
       //float_field: 2.7,
