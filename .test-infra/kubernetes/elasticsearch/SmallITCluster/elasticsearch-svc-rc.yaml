@@ -92,7 +92,3 @@ spec:
       volumes:
       - name: storage
         emptyDir: {}
-
-
-      - name: storage
-        emptyDir: {}
