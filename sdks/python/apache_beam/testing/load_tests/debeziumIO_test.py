@@ -142,5 +142,15 @@ if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
   print ("Hello world testing ")
   logging.info("Hello world log testing")
+  debezium = DebeziumIOLoadTest()
+  debezium.setUp()
+  print ("Testing set up database ")
+  logging.info("Testing set up database")
+  debezium.randomInsertTest(debezium.initConnection())
+  print ("Testing random insert database ")
+  logging.info("Testing random insert database")
+  debezium.tearDown()
+  print ("Testing tear down database ")
+  logging.info("Testing test down  database")
 
 
