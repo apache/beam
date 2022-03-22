@@ -1,5 +1,5 @@
 ---
-title: "Beam Contribution Guide"
+title: "Contribute to Apache Beam"
 type: "contribute"
 layout: "arrow_template"
 aliases:
@@ -58,20 +58,20 @@ Here’s a list of things you can do to get started contributing:
   <tr>
     <td>File a bug</td>
     <td class="list-text-size-md">
-      <ol>
+      <ol class="no-bullet">
         <li>Create a Jira ticket and mark it as a bug</li>
         <br><span>OR</span><br><br>
-        <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Bug] <bug summary> and include as much detail as possible.</li>
+        <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Bug] &lt;bug summary&gt; and include as much detail as possible.</li>
       </ol>
     </td>
   </tr>
   <tr>
     <td>Propose a feature</td>
     <td class="list-text-size-md">
-      <ol>
+      <ol class="no-bullet">
         <li>Create a Jira ticket and mark it as a feature request</li>
         <br><span>OR</span><br><br>
-        <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Feature Proposal] <your idea>.</li>
+        <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Feature Proposal] &lt;your idea&gt;.</li>
       </ol>
     </td>
   </tr>
