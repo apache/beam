@@ -2,12 +2,6 @@
 title: "Beam Contribution Guide"
 type: "contribute"
 layout: "arrow_template"
-aliases:
-- /contribution-guide/
-- /contribute/contribution-guide/
-- /docs/contribute/
-- /contribute/source-repository/
-- /contribute/design-principles/
 ---
 
 <!--
