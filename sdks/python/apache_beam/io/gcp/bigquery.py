@@ -2406,7 +2406,6 @@ class ReadFromBigQuery(PTransform):
         typ = np.int64
       elif the_schema['fields'][i]['type'] == 'FLOAT':
         typ = np.float
-
       else:
         raise ValueError(the_schema['fields'][i]['type'])
       dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
