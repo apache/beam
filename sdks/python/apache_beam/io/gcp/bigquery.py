@@ -270,6 +270,7 @@ encoding when writing to BigQuery.
 # pytype: skip-file
 
 import collections
+import datetime
 import io
 import itertools
 import json
@@ -277,6 +278,7 @@ import logging
 import random
 import time
 import uuid
+import numpy as np
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -2396,7 +2398,7 @@ class ReadFromBigQuery(PTransform):
   def _produce_pcoll_with_schema(self, project_id, dataset_id, table_id):
     the_table_schema = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
     ).get_table(project_id, dataset_id, table_id)
-    the_schema = get_dict_table_schema(the_table_schema)
+    the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(the_table_schema)
     i = 0
     dict_of_tuples = []
     for x in the_schema['fields']:
@@ -2406,13 +2408,24 @@ class ReadFromBigQuery(PTransform):
         typ = np.int64
       elif the_schema['fields'][i]['type'] == 'FLOAT':
         typ = np.float
+      elif the_schema['fields'][i]['type'] == 'NUMERIC':
+        typ = str
+      elif the_schema['fields'][i]['type'] == 'BIGNUMERIC':
+        typ = np.int64
+      elif the_schema['fields'][i]['type'] == 'BOOL':
+        typ = bool
+      if the_schema['fields'][i]['type'] == 'BYTES':
+        typ = bytes
+      elif the_schema['fields'][i]['type'] == 'TIMESTAMP':
+        typ = datetime.datetime
       else:
         raise ValueError(the_schema['fields'][i]['type'])
       dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
       i += 1
     sample_schema = beam.typehints.schemas.named_fields_to_schema(
         dict_of_tuples)
-    UserType = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
+    userType = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
+    return userType
 
   def _expand_export(self, pcoll):
     # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
