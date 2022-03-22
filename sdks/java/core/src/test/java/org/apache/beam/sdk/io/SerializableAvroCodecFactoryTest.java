@@ -84,7 +84,7 @@ public class SerializableAvroCodecFactoryTest {
     }
   }
 
-  @Test(expected = NullPointerException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testNullCodecToString() throws Exception {
     // use default CTR (available cause Serializable)
     SerializableAvroCodecFactory codec = new SerializableAvroCodecFactory();

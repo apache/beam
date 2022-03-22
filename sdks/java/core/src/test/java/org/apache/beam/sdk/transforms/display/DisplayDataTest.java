@@ -451,7 +451,7 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testExtendNullPathValidation() {
     DisplayData.Path root = DisplayData.Path.root();
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     root.extend(null);
   }
 
@@ -470,7 +470,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testAbsoluteValidationNullFirstPath() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     DisplayData.Path.absolute(null, "foo", "bar");
   }
 
@@ -482,7 +482,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testAbsoluteValidationNullSubsequentPath() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     DisplayData.Path.absolute("a", "b", null, "c");
   }
 
@@ -577,7 +577,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testNullNamespaceOverride() {
-    thrown.expectCause(isA(NullPointerException.class));
+    thrown.expectCause(isA(IllegalArgumentException.class));
 
     DisplayData.from(
         new HasDisplayData() {
@@ -1034,13 +1034,13 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testFromNull() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     DisplayData.from(null);
   }
 
   @Test
   public void testIncludeNull() {
-    thrown.expectCause(isA(NullPointerException.class));
+    thrown.expectCause(isA(IllegalArgumentException.class));
     DisplayData.from(
         new HasDisplayData() {
           @Override
@@ -1052,7 +1052,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testIncludeNullPath() {
-    thrown.expectCause(isA(NullPointerException.class));
+    thrown.expectCause(isA(IllegalArgumentException.class));
     DisplayData.from(
         new HasDisplayData() {
           @Override
@@ -1076,7 +1076,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testNullKey() {
-    thrown.expectCause(isA(NullPointerException.class));
+    thrown.expectCause(isA(IllegalArgumentException.class));
     DisplayData.from(
         new HasDisplayData() {
           @Override
@@ -1095,28 +1095,28 @@ public class DisplayDataTest implements Serializable {
             try {
               builder.add(DisplayData.item("key", (String) null));
               throw new RuntimeException("Should throw on null string value");
-            } catch (NullPointerException ex) {
+            } catch (IllegalArgumentException ex) {
               // Expected
             }
 
             try {
               builder.add(DisplayData.item("key", (Class<?>) null));
               throw new RuntimeException("Should throw on null class value");
-            } catch (NullPointerException ex) {
+            } catch (IllegalArgumentException ex) {
               // Expected
             }
 
             try {
               builder.add(DisplayData.item("key", (Duration) null));
               throw new RuntimeException("Should throw on null duration value");
-            } catch (NullPointerException ex) {
+            } catch (IllegalArgumentException ex) {
               // Expected
             }
 
             try {
               builder.add(DisplayData.item("key", (Instant) null));
               throw new RuntimeException("Should throw on null instant value");
-            } catch (NullPointerException ex) {
+            } catch (IllegalArgumentException ex) {
               // Expected
             }
           }

@@ -100,14 +100,14 @@ public class LatestFnTest {
 
   @Test
   public void testAddInputNullAccumulator() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("accumulator");
     fn.addInput(null, TV);
   }
 
   @Test
   public void testAddInputNullInput() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("input");
     fn.addInput(TV, null);
   }
@@ -151,7 +151,7 @@ public class LatestFnTest {
 
   @Test
   public void testMergeAccumulatorsNullIterable() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("accumulators");
     fn.mergeAccumulators(null);
   }

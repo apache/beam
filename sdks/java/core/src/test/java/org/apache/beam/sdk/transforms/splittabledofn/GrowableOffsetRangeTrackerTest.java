@@ -56,7 +56,7 @@ public class GrowableOffsetRangeTrackerTest {
 
   @Test
   public void testIllegalInitialization() throws Exception {
-    expected.expect(NullPointerException.class);
+    expected.expect(IllegalArgumentException.class);
     new GrowableOffsetRangeTracker(0L, null);
   }
 

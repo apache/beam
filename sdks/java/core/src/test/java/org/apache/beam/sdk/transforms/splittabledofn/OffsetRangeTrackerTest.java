@@ -42,7 +42,7 @@ public class OffsetRangeTrackerTest {
 
   @Test
   public void testIllegalInitialization() throws Exception {
-    expected.expect(NullPointerException.class);
+    expected.expect(IllegalArgumentException.class);
     new OffsetRangeTracker(null);
   }
 

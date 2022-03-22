@@ -83,7 +83,7 @@ public class BigIntegerCoderTest {
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("cannot encode a null BigInteger");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);

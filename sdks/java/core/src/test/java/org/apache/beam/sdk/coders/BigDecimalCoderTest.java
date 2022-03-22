@@ -108,7 +108,7 @@ public class BigDecimalCoderTest {
 
   @Test
   public void encodeNullThrowsException() throws Exception {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("cannot encode a null BigDecimal");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
