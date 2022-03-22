@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package debezium contains integration tests for cross-language Debezium IO
+// transforms.
 package debezium
 
 import (
