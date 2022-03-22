@@ -77,6 +77,10 @@ func checkFruitCount(t *testing.T, pr beam.PipelineResult) {
 	fcr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
 		return sr.Namespace() == MetricNamespace && sr.Name() == FruitCounterName
 	})
+	if len(fcr.Counters()) == 0 {
+		t.Logf("no counters found: check if %v supports counters", *ptest.Runner)
+		return
+	}
 	if got, want := fcr.Counters()[0].Result(), int64(3); got != want {
 		t.Errorf("unexpected fruit count: got %v, want %v", got, want)
 	}
