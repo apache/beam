@@ -16,6 +16,9 @@
 package preparers
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -31,9 +34,7 @@ func TestGetPythonPreparers(t *testing.T) {
 		want int
 	}{
 		{
-			// Test case with calling GetPythonPreparers method.
-			// As a result, want to receive slice of preparers with len = 1
-			name: "get python preparers",
+			name: "get number of python preparers",
 			args: args{"MOCK_FILEPATH"},
 			want: 2,
 		},
@@ -50,14 +51,7 @@ func TestGetPythonPreparers(t *testing.T) {
 }
 
 func Test_addCodeToFile(t *testing.T) {
-	originalCode := "import logging as l\n\nif __name__ == \"__main__\":\n    logging.info(\"INFO\")\n"
-	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + originalCode
-
-	err := os.WriteFile("original.py", []byte(originalCode), 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll("original.py")
+	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + pyCode
 
 	type args struct {
 		args []interface{}
@@ -69,17 +63,17 @@ func Test_addCodeToFile(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			// Test case with calling addCodeToFile method when original file doesn't exist.
+			// Call addCodeToFile method if the file doesn't exist.
 			// As a result, want to receive error
-			name:    "original file doesn't exist",
-			args:    args{[]interface{}{"someFile.java", saveLogs}},
+			name:    "file doesn't exist",
+			args:    args{[]interface{}{incorrectPyFile, saveLogs}},
 			wantErr: true,
 		},
 		{
-			// Test case with calling addCodeToFile method when original file exists.
-			// As a result, want to receive updated code in the original file
+			// Call addCodeToFile method when file exists.
+			// As a result, want to receive an updated code
 			name:     "original file exists",
-			args:     args{[]interface{}{"original.py", saveLogs}},
+			args:     args{[]interface{}{correctPyFile, saveLogs}},
 			wantCode: wantCode,
 			wantErr:  false,
 		},
@@ -97,6 +91,143 @@ func Test_addCodeToFile(t *testing.T) {
 				if !strings.EqualFold(string(data), tt.wantCode) {
 					t.Errorf("addToCode() code = {%v}, wantCode {%v}", string(data), tt.wantCode)
 				}
+			}
+		})
+	}
+}
+
+func Test_saveLogs(t *testing.T) {
+	file, _ := os.Open(correctPyFile)
+	tmp, _ := utils.CreateTempFile(correctPyFile)
+	defer tmp.Close()
+	tmp2, _ := os.OpenFile(correctPyFile, os.O_RDONLY, 0)
+	defer tmp2.Close()
+
+	type args struct {
+		from *os.File
+		to   *os.File
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			// Call saveLogs method to add logs code to tmp file.
+			name: "Save logs successfully",
+			args: args{
+				from: file,
+				to:   tmp,
+			},
+			wantErr: false,
+		},
+		{
+			// Call saveLogs method to add logs code to read-only file.
+			name: "Save logs to read-only file",
+			args: args{
+				from: file,
+				to:   tmp2,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := saveLogs(tt.args.from, tt.args.to); (err != nil) != tt.wantErr {
+				t.Errorf("saveLogs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_writeToFile(t *testing.T) {
+	tmp, _ := utils.CreateTempFile(correctPyFile)
+	defer tmp.Close()
+	tmp2, _ := os.OpenFile(incorrectPyFile, os.O_CREATE, 0)
+	defer tmp2.Close()
+
+	type args struct {
+		to  *os.File
+		str string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			// Call writeToFile method to successfully add line to tmp file.
+			name: "Successfully write to file",
+			args: args{
+				to:  tmp,
+				str: "just a string",
+			},
+			wantErr: false,
+		},
+		{
+			// Call writeToFile method to write to tmp file which is open only for reading.
+			// As a result, want to receive error.
+			name: "Write to file which is read-only",
+			args: args{
+				to:  tmp2,
+				str: "just a string",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := writeToFile(tt.args.to, tt.args.str); (err != nil) != tt.wantErr {
+				t.Errorf("writeToFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_saveGraph(t *testing.T) {
+	file, _ := os.Open(pyGraphFile)
+	noPipelineFile, _ := os.Open(correctPyFile)
+	tmp, _ := utils.CreateTempFile(pyGraphFile)
+	defer tmp.Close()
+	type args struct {
+		from     *os.File
+		tempFile *os.File
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantErr   bool
+		wantGraph bool
+	}{
+		{
+			// Call saveGraph method to add code (to tmp file) which will save graph to file.
+			name: "Successfully save graph",
+			args: args{
+				from:     file,
+				tempFile: tmp,
+			},
+			wantErr:   false,
+			wantGraph: true,
+		},
+		{
+			// There is no pipeline definition at the code and no graph code will be added.
+			name: "No pipeline at code",
+			args: args{
+				from:     noPipelineFile,
+				tempFile: tmp,
+			},
+			wantErr:   false,
+			wantGraph: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := saveGraph(tt.args.from, tt.args.tempFile); (err != nil) != tt.wantErr {
+				t.Errorf("saveGraph() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			bytes, _ := ioutil.ReadFile(fmt.Sprintf("%s_%s", "tmp", pyGraphFile))
+			if tt.wantGraph && !strings.Contains(string(bytes), "pipeline_graph.PipelineGraph") {
+				t.Errorf("saveGraph() error = %v, wantErr %v", "No graph code was added", tt.wantErr)
 			}
 		})
 	}

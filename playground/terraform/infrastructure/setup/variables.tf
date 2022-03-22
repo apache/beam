@@ -21,10 +21,9 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
-variable "region" {
-  description = "The GCP region within which we provision resources"
-}
-
 variable "service_account_id" {
   description = "Service account ID"
+  default     = "beam-playground"
 }
+
+

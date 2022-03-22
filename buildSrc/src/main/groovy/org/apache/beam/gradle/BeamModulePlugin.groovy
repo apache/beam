@@ -449,7 +449,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
-    def aws_java_sdk2_version = "2.17.106"
+    def aws_java_sdk2_version = "2.17.127"
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
@@ -459,7 +459,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.17.4"
+    def google_cloud_spanner_version = "6.20.0"
     def google_code_gson_version = "2.8.9"
     def google_oauth_clients_version = "1.32.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -1445,6 +1445,10 @@ class BeamModulePlugin implements Plugin<Project> {
       if ((isRelease(project) || project.hasProperty('publishing')) &&
       configuration.publish) {
         project.apply plugin: "maven-publish"
+
+        // plugin to support repository authentication via ~/.m2/settings.xml
+        // https://github.com/mark-vieira/gradle-maven-settings-plugin/
+        project.apply plugin: 'net.linguica.maven-settings'
 
         // Create a task which emulates the maven-archiver plugin in generating a
         // pom.properties file.
@@ -2589,7 +2593,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // See: http://groovy-lang.org/closures.html#implicit-it
         def config = it ? it as PythonPerformanceTestConfiguration : new PythonPerformanceTestConfiguration()
 
-        project.task('integrationTest') {
+        project.tasks.register('integrationTest') {
           dependsOn installGcpTest
           dependsOn ':sdks:python:sdist'
 
@@ -2625,7 +2629,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def addPortableWordCountTask = { boolean isStreaming, String runner ->
         def taskName = 'portableWordCount' + runner + (isStreaming ? 'Streaming' : 'Batch')
         def flinkJobServerProject = ":runners:flink:${project.ext.latestFlinkVersion}:job-server"
-        project.task(taskName) {
+        project.tasks.register(taskName) {
           dependsOn = [installGcpTest]
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
