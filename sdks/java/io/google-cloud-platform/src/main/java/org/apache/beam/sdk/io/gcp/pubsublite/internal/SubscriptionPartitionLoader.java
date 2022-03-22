@@ -55,15 +55,12 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
         RestrictionTracker<Integer, Integer> restrictionTracker,
         OutputReceiver<SubscriptionPartition> output,
         ManualWatermarkEstimator<Instant> estimator) {
-      if (terminate.get()) {
-        return ProcessContinuation.stop();
-      }
       int previousCount = restrictionTracker.currentRestriction();
       int newCount = getPartitionCount.apply(topic);
+      if (!restrictionTracker.tryClaim(newCount)) {
+        return ProcessContinuation.stop();
+      }
       if (newCount > previousCount) {
-        if (!restrictionTracker.tryClaim(newCount)) {
-          return ProcessContinuation.stop();
-        }
         for (int i = previousCount; i < newCount; ++i) {
           output.outputWithTimestamp(
               SubscriptionPartition.of(subscription, Partition.of(i)),
@@ -88,11 +85,16 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
     @NewTracker
     public RestrictionTracker<Integer, Integer> newTracker(@Restriction Integer input) {
       return new RestrictionTracker<Integer, Integer>() {
+        private boolean terminated = false;
         private int position = input;
 
         @Override
         public boolean tryClaim(Integer newPosition) {
-          checkArgument(newPosition > position);
+          checkArgument(newPosition >= position);
+          if (terminate.get()) {
+            terminated = true;
+            return false;
+          }
           position = newPosition;
           return true;
         }
@@ -104,12 +106,19 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
 
         @Override
         public @Nullable SplitResult<Integer> trySplit(double fractionOfRemainder) {
-          return null;
+          if (fractionOfRemainder != 0) {
+            return null;
+          }
+          if (terminated) {
+            return null;
+          }
+          terminated = true;
+          return SplitResult.of(position, position);
         }
 
         @Override
         public void checkDone() throws IllegalStateException {
-          checkState(terminate.get());
+          checkState(terminated);
         }
 
         @Override
