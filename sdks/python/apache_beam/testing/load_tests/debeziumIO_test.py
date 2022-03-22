@@ -45,7 +45,7 @@ class DebeziumIOLoadTest():
         for i in range (retries):
             try:
                 self.db = PostgresContainer(
-                    'debezium/example-posgres:latest',
+                    'debezium/example-posgrest:latest',
                     user=self.username,
                     password=self.password, 
                     dbname=self.database
