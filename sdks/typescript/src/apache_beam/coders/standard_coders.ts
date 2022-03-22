@@ -163,7 +163,6 @@ globalRegistry().register(BoolCoder.URN, BoolCoder);
 export class IntervalWindowCoder implements Coder<IntervalWindow> {
   static URN: string = "beam:coder:interval_window:v1";
   static INSTANCE: IntervalWindowCoder = new IntervalWindowCoder();
-  static DURATION_BYTES = 8;
 
   encode(value: IntervalWindow, writer: Writer, context: Context) {
     InstantCoder.INSTANCE.encode(value.end, writer, context);
