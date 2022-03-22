@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis.testing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.io.aws2.kinesis.KinesisPartitioner.explicitRandomPartitioner;
@@ -24,6 +24,8 @@ import static org.testcontainers.containers.localstack.LocalStackContainer.Servi
 import java.io.Serializable;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.options.Default;
@@ -58,7 +60,7 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * <pre>{@code
  * ./gradlew :sdks:java:io:amazon-web-services2:integrationTest \
  *   --info \
- *   --tests "org.apache.beam.sdk.io.aws2.kinesis.KinesisIOIT" \
+ *   --tests "org.apache.beam.sdk.io.aws2.kinesis.testing.KinesisIOIT" \
  *   -DintegrationTestPipelineOptions='["--awsRegion=eu-central-1","--useLocalstack=false"]'
  * }</pre>
  */
