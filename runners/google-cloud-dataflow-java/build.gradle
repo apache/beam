@@ -398,6 +398,7 @@ task validatesRunnerStreaming {
 def setupXVR = tasks.register("setupXVR") {
   dependsOn buildAndPushDockerJavaContainer
   dependsOn buildAndPushDockerPythonContainer
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 }
 
 def cleanupXVR = tasks.register("cleanupXVR") {
