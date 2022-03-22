@@ -61,7 +61,7 @@ class DebeziumIOLoadTest():
         self.username = 'debezium'
         self.password = 'dbz'
         self.database = 'inventory'
-        self.startDbContainer(retries=1)
+        self.startDbContainers(retries=1)
         self.host = self.db.get_container_host_ip()
         self.port = self.db.get_exposed_port(5432)
         self.connector_class = DriverClassName.POSTGRESQL
