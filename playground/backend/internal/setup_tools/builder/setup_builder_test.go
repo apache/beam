@@ -87,13 +87,37 @@ func teardown() {
 }
 
 func TestValidator(t *testing.T) {
-	vals, err := validators.GetValidators(pythonSdkEnv.ApacheBeamSdk, pythonPaths.AbsoluteSourceFilePath)
+	pythonVals, err := validators.GetValidators(pythonSdkEnv.ApacheBeamSdk, pythonPaths.AbsoluteSourceFilePath)
 	if err != nil {
 		panic(err)
 	}
-	wantExecutor := executors.NewExecutorBuilder().
+	wantPythonExecutor := executors.NewExecutorBuilder().
 		WithValidator().
-		WithSdkValidators(vals)
+		WithSdkValidators(pythonVals)
+
+	goVals, err := validators.GetValidators(goSdkEnv.ApacheBeamSdk, goPaths.AbsoluteSourceFilePath)
+	if err != nil {
+		panic(err)
+	}
+	wantGoExecutor := executors.NewExecutorBuilder().
+		WithValidator().
+		WithSdkValidators(goVals)
+
+	javaVals, err := validators.GetValidators(javaSdkEnv.ApacheBeamSdk, javaPaths.AbsoluteSourceFilePath)
+	if err != nil {
+		panic(err)
+	}
+	wantJavaExecutor := executors.NewExecutorBuilder().
+		WithValidator().
+		WithSdkValidators(javaVals)
+
+	scioVals, err := validators.GetValidators(scioSdkEnv.ApacheBeamSdk, scioPaths.AbsoluteSourceFilePath)
+	if err != nil {
+		panic(err)
+	}
+	wantScioExecutor := executors.NewExecutorBuilder().
+		WithValidator().
+		WithSdkValidators(scioVals)
 
 	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, pythonSdkEnv.ExecutorConfig, "", 0)
 
@@ -110,12 +134,39 @@ func TestValidator(t *testing.T) {
 		{
 			// Test case with calling Setup with correct data.
 			// As a result, want to receive an expected validator builder.
-			name: "Test correct validator builder",
+			name: "Test correct validator builder with Python sdk",
 			args: args{
 				paths:  pythonPaths,
 				sdkEnv: pythonSdkEnv,
 			},
-			want:    &wantExecutor.ExecutorBuilder,
+			want:    &wantPythonExecutor.ExecutorBuilder,
+			wantErr: false,
+		},
+		{
+			name: "Test correct validator builder with Go sdk",
+			args: args{
+				paths:  goPaths,
+				sdkEnv: goSdkEnv,
+			},
+			want:    &wantGoExecutor.ExecutorBuilder,
+			wantErr: false,
+		},
+		{
+			name: "Test correct validator builder with Java sdk",
+			args: args{
+				paths:  javaPaths,
+				sdkEnv: javaSdkEnv,
+			},
+			want:    &wantJavaExecutor.ExecutorBuilder,
+			wantErr: false,
+		},
+		{
+			name: "Test correct validator builder with Scio sdk",
+			args: args{
+				paths:  scioPaths,
+				sdkEnv: scioSdkEnv,
+			},
+			want:    &wantScioExecutor.ExecutorBuilder,
 			wantErr: false,
 		},
 		{
@@ -153,14 +204,38 @@ func TestPreparer(t *testing.T) {
 	validationResults.Store(validators.UnitTestValidatorName, false)
 	validationResults.Store(validators.KatasValidatorName, false)
 
-	prep, err := preparers.GetPreparers(pythonSdkEnv.ApacheBeamSdk, pythonPaths.AbsoluteSourceFilePath, &validationResults)
+	pythonPrep, err := preparers.GetPreparers(pythonSdkEnv.ApacheBeamSdk, pythonPaths.AbsoluteSourceFilePath, &validationResults)
 	if err != nil {
 		panic(err)
 	}
 	pipelineOptions := ""
-	wantExecutor := executors.NewExecutorBuilder().
+	wantPythonExecutor := executors.NewExecutorBuilder().
 		WithPreparer().
-		WithSdkPreparers(prep)
+		WithSdkPreparers(pythonPrep)
+
+	goPrep, err := preparers.GetPreparers(goSdkEnv.ApacheBeamSdk, goPaths.AbsoluteSourceFilePath, &validationResults)
+	if err != nil {
+		panic(err)
+	}
+	wantGoExecutor := executors.NewExecutorBuilder().
+		WithPreparer().
+		WithSdkPreparers(goPrep)
+
+	javaPrep, err := preparers.GetPreparers(javaSdkEnv.ApacheBeamSdk, javaPaths.AbsoluteSourceFilePath, &validationResults)
+	if err != nil {
+		panic(err)
+	}
+	wantJavaExecutor := executors.NewExecutorBuilder().
+		WithPreparer().
+		WithSdkPreparers(javaPrep)
+
+	scioPrep, err := preparers.GetPreparers(scioSdkEnv.ApacheBeamSdk, scioPaths.AbsoluteSourceFilePath, &validationResults)
+	if err != nil {
+		panic(err)
+	}
+	wantScioExecutor := executors.NewExecutorBuilder().
+		WithPreparer().
+		WithSdkPreparers(scioPrep)
 
 	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, pythonSdkEnv.ExecutorConfig, "", 0)
 
@@ -187,9 +262,27 @@ func TestPreparer(t *testing.T) {
 		{
 			// Test case with calling Setup with correct SDK.
 			// As a result, want to receive an expected preparer builder.
-			name:    "Correct sdk",
+			name:    "Test correct preparer builder with Python sdk",
 			args:    args{*pythonPaths, pipelineOptions, pythonSdkEnv, &validationResults},
-			want:    &wantExecutor.ExecutorBuilder,
+			want:    &wantPythonExecutor.ExecutorBuilder,
+			wantErr: false,
+		},
+		{
+			name:    "Test correct preparer builder with Java sdk",
+			args:    args{*javaPaths, pipelineOptions, javaSdkEnv, &validationResults},
+			want:    &wantJavaExecutor.ExecutorBuilder,
+			wantErr: false,
+		},
+		{
+			name:    "Test correct preparer builder with Go sdk",
+			args:    args{*goPaths, pipelineOptions, goSdkEnv, &validationResults},
+			want:    &wantGoExecutor.ExecutorBuilder,
+			wantErr: false,
+		},
+		{
+			name:    "Test correct preparer builder with Scio sdk",
+			args:    args{*scioPaths, pipelineOptions, scioSdkEnv, &validationResults},
+			want:    &wantScioExecutor.ExecutorBuilder,
 			wantErr: false,
 		},
 	}
@@ -212,12 +305,26 @@ func TestPreparer(t *testing.T) {
 }
 
 func TestCompiler(t *testing.T) {
-	wantExecutor := executors.NewExecutorBuilder().
+	wantJavaExecutor := executors.NewExecutorBuilder().
 		WithCompiler().
 		WithCommand(javaSdkEnv.ExecutorConfig.CompileCmd).
 		WithWorkingDir(javaPaths.AbsoluteBaseFolderPath).
 		WithArgs(javaSdkEnv.ExecutorConfig.CompileArgs).
 		WithFileName(GetFirstFileFromFolder(javaPaths.AbsoluteSourceFileFolderPath))
+
+	wantGoExecutor := executors.NewExecutorBuilder().
+		WithCompiler().
+		WithCommand(goSdkEnv.ExecutorConfig.CompileCmd).
+		WithWorkingDir(goPaths.AbsoluteBaseFolderPath).
+		WithArgs(goSdkEnv.ExecutorConfig.CompileArgs).
+		WithFileName(goPaths.AbsoluteSourceFilePath)
+
+	wantScioExecutor := executors.NewExecutorBuilder().
+		WithCompiler().
+		WithCommand(scioSdkEnv.ExecutorConfig.CompileCmd).
+		WithWorkingDir(scioPaths.AbsoluteBaseFolderPath).
+		WithArgs(scioSdkEnv.ExecutorConfig.CompileArgs).
+		WithFileName(scioPaths.AbsoluteSourceFilePath)
 
 	type args struct {
 		paths  *fs_tool.LifeCyclePaths
@@ -236,7 +343,23 @@ func TestCompiler(t *testing.T) {
 				paths:  javaPaths,
 				sdkEnv: javaSdkEnv,
 			},
-			want: &wantExecutor.ExecutorBuilder,
+			want: &wantJavaExecutor.ExecutorBuilder,
+		},
+		{
+			name: "Test correct compiler builder with go sdk",
+			args: args{
+				paths:  goPaths,
+				sdkEnv: goSdkEnv,
+			},
+			want: &wantGoExecutor.ExecutorBuilder,
+		},
+		{
+			name: "Test correct compiler builder with scio sdk",
+			args: args{
+				paths:  scioPaths,
+				sdkEnv: scioSdkEnv,
+			},
+			want: &wantScioExecutor.ExecutorBuilder,
 		},
 	}
 	for _, tt := range tests {
@@ -393,6 +516,13 @@ func TestTestRunner(t *testing.T) {
 		WithArgs(javaSdkEnv.ExecutorConfig.TestArgs).
 		WithWorkingDir(goPaths.AbsoluteSourceFileFolderPath)
 
+	wantPythonExecutor := executors.NewExecutorBuilder().
+		WithTestRunner().
+		WithExecutableFileName(pythonPaths.AbsoluteExecutableFilePath).
+		WithCommand(pythonSdkEnv.ExecutorConfig.TestCmd).
+		WithArgs(pythonSdkEnv.ExecutorConfig.TestArgs).
+		WithWorkingDir(pythonPaths.AbsoluteSourceFileFolderPath)
+
 	type args struct {
 		paths  *fs_tool.LifeCyclePaths
 		sdkEnv *environment.BeamEnvs
@@ -425,6 +555,14 @@ func TestTestRunner(t *testing.T) {
 				sdkEnv: goSdkEnv,
 			},
 			want: &wantGoExecutor.ExecutorBuilder,
+		},
+		{
+			name: "Test correct run builder with Python sdk",
+			args: args{
+				paths:  pythonPaths,
+				sdkEnv: pythonSdkEnv,
+			},
+			want: &wantPythonExecutor.ExecutorBuilder,
 		},
 	}
 	for _, tt := range tests {
