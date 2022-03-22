@@ -41,21 +41,12 @@ allprojects {
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
-    implementation "org.apache.spark:spark-streaming_2.11:2.3.1"
-    implementation "commons-lang:commons-lang:2.6"
-    implementation "org.apache.spark:spark-core_2.11:2.4.8"
-    implementation "org.scala-lang:scala-library:2.11.12"
+    implementation library.java.commons_lang3
+    implementation library.java.spark_streaming
+    implementation library.java.spark_core
+    implementation library.java.jackson_module_scala_2_11
     implementation "org.sonatype.sisu.inject:cglib:2.2.1-v20090111"
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation project(path: ":sdks:java:io:cdap", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
-    testImplementation project(":sdks:java:io:jdbc")
-    testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(":sdks:java:io:google-cloud-platform")
-    testImplementation project(":sdks:java:extensions:ml")
-    testImplementation library.java.hamcrest
     testImplementation library.java.junit
-    testImplementation library.java.mockito_core
 }

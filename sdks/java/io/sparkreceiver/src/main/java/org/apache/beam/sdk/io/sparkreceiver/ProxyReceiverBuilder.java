@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "unchecked",
-  "UnusedVariable",
   "argument.type.incompatible",
   "return.type.incompatible",
   "dereference.of.nullable"
