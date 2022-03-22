@@ -24,16 +24,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-## Contribute to Apache Beam
+# Contribute to Apache Beam
 
 Apache Beam is an open source project developed and maintained by a friendly community of users, contributors, committers, and project management committee (PMC) members.
 
-Everyone is welcome to join and contribute to the project in multiple ways, not only with code contributions. Contributions like asking questions, reporting bugs, proposing new features, improving documentation, adding to the website, organizing events, or writing blog posts among other contributions, are welcome and recognized. 
+Everyone is welcome to join and contribute to the project in multiple ways, not only with code contributions. Contributions like asking questions, reporting bugs, proposing new features, improving documentation, adding to the website, organizing events, or writing blog posts among other contributions, are welcome and recognized.
 
-### What’s In It for You? 
+### What’s In It for You?
   - Become a part of the world’s largest, most welcoming open source community
   - Drive innovation for next-gen distributed data processing
-  - Make an impact by bringing advanced technology solutions into reality 
+  - Make an impact by bringing advanced technology solutions into reality
   - Empower your brand recognition and thought leadership in the data world
 
 ### Ways You Can Contribute
@@ -60,7 +60,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ol>
         <li>Create a Jira ticket and mark it as a bug</li>
-        <br>OR<br><br>
+        <br><span>OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Bug] <bug summary> and include as much detail as possible.</li>
       </ol>
     </td>
@@ -70,7 +70,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ol>
         <li>Create a Jira ticket and mark it as a feature request</li>
-        <br>OR<br><br>
+        <br><span>OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Feature Proposal] <your idea>.</li>
       </ol>
     </td>
@@ -78,7 +78,7 @@ Here’s a list of things you can do to get started contributing:
   <tr>
     <td>Improve documentation</td>
     <td>
-      Click the edit icon in our documentation and it’ll take you to our <a href="https://github.com/apache/beam/">GitHub</a>, where you can automatically make the change you want and send a Pull Request. 
+      Click the edit icon in our documentation and it’ll take you to our <a href="https://github.com/apache/beam/">GitHub</a>, where you can automatically make the change you want and send a Pull Request.
     </td>
   </tr>
   <tr>
@@ -177,12 +177,24 @@ A PMC member is also a committer, so if they are not initiated already, they wil
 
 ## Hear from the Community
 
-“Knowledge sharing and collaboration is something that comes naturally in the community. Together, we can work with the most complex problems and just solve them.
-”Matt Casters, Co-founder @ Apache Hop
+“Knowledge sharing and collaboration is something that comes naturally in the community. Together, we can work with the most complex problems and just solve them.”
+<div class="contribute-quote-block">
+  <span>Matt Casters, Co-founder @ Apache Hop</span>
+  <img src="https://beam.apache.org/images/matt_casters_photo.png" alt="Matt Casters">
+</div>
+
 
 “I really enjoy working with Beam. The understanding of its internals empowers you to fine-tune the open source, customize it. Beam is very powerful and the abstraction is its most significant feature.”
-Talat Ulyarer, Sr Principal Software Engineer @ Palo Alto Networks
+<div class="contribute-quote-block">
+  <span>Talat Ulyarer, Sr Principal Software Engineer @ Palo Alto Networks</span>
+  <img src="https://beam.apache.org/images/case-study/paloalto/talat_uyarer.png" alt="Talat Ulyarer">
+</div>
+
 
 “My takeaway: everyone should join the [Apache Beam] mailing lists! This is where all the discussions happen, and it is a great place for learning. I also encourage everyone to attend and participate in conferences to meet and connect with the community.”
-Tobias Kaymak, Senior Data Engineer @ Ricardo
+<div class="contribute-quote-block">
+  <span>Tobias Kaymak, Senior Data Engineer @ Ricardo</span>
+  <img src="https://beam.apache.org/images/tobias_kaymak_photo.png" alt="Tobias Kaymak">
+</div>
+
 
