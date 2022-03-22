@@ -57,7 +57,9 @@ class OffsetByteRangeTracker extends TrackerWithProgress {
 
   @Override
   public boolean tryClaim(OffsetByteProgress position) {
-    if (!rangeTracker.tryClaim(position.lastOffset().value())) return false;
+    if (!rangeTracker.tryClaim(position.lastOffset().value())) {
+      return false;
+    }
     lastClaimed = position.lastOffset().value();
     bytes += position.batchBytes();
     return true;
