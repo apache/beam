@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -1416,7 +1416,7 @@ public class ByteBuddyUtils {
       for (int i = 0; i < fields.size(); ++i) {
         // Method parameters are allowed to either correspond to the schema field names or to the
         // actual Java field or method names.
-        FieldValueTypeInformation fieldValue = checkNotNull(fields.get(i));
+        FieldValueTypeInformation fieldValue = checkArgumentNotNull(fields.get(i));
         fieldsByLogicalName.put(fieldValue.getName(), i);
         if (fieldValue.getField() != null) {
           fieldsByJavaClassMember.put(fieldValue.getField().getName(), i);

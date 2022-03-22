@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -38,7 +38,7 @@ public class WatermarkEstimators {
 
     public Manual(Instant watermark) {
       BoundedWindow.validateTimestampBounds(watermark);
-      this.watermark = checkNotNull(watermark, "watermark must not be null.");
+      this.watermark = checkArgumentNotNull(watermark, "watermark must not be null.");
     }
 
     @Override
@@ -76,7 +76,7 @@ public class WatermarkEstimators {
 
     public WallTime(Instant watermark) {
       BoundedWindow.validateTimestampBounds(watermark);
-      this.watermark = checkNotNull(watermark, "watermark must not be null.");
+      this.watermark = checkArgumentNotNull(watermark, "watermark must not be null.");
     }
 
     @Override
@@ -109,7 +109,7 @@ public class WatermarkEstimators {
 
     public MonotonicallyIncreasing(Instant watermark) {
       BoundedWindow.validateTimestampBounds(watermark);
-      this.watermark = checkNotNull(watermark, "timestamp must not be null.");
+      this.watermark = checkArgumentNotNull(watermark, "timestamp must not be null.");
     }
 
     @Override

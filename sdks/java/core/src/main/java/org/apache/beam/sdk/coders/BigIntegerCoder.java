@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,7 +49,7 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   @Override
   public void encode(BigInteger value, OutputStream outStream, Context context)
       throws IOException, CoderException {
-    checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
+    checkArgumentNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     BYTE_ARRAY_CODER.encode(value.toByteArray(), outStream, context);
   }
 
@@ -96,7 +96,7 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
    */
   @Override
   protected long getEncodedElementByteSize(BigInteger value) throws Exception {
-    checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
+    checkArgumentNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray());
   }
 }

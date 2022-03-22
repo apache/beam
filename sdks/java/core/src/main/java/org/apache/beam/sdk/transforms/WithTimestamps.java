@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -77,7 +77,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
   private final Duration allowedTimestampSkew;
 
   private WithTimestamps(SerializableFunction<T, Instant> fn, Duration allowedTimestampSkew) {
-    this.fn = checkNotNull(fn, "WithTimestamps fn cannot be null");
+    this.fn = checkArgumentNotNull(fn, "WithTimestamps fn cannot be null");
     this.allowedTimestampSkew = allowedTimestampSkew;
   }
 
@@ -131,7 +131,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
     @ProcessElement
     public void processElement(@Element T element, OutputReceiver<T> r) {
       Instant timestamp = fn.apply(element);
-      checkNotNull(
+      checkArgumentNotNull(
           timestamp, "Timestamps for WithTimestamps cannot be null. Timestamp provided by %s.", fn);
       r.outputWithTimestamp(element, timestamp);
     }

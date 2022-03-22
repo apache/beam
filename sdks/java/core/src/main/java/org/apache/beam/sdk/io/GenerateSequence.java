@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -30,7 +31,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -109,7 +109,7 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
 
     @Override
     public GenerateSequence buildExternal(External.ExternalConfiguration config) {
-      Preconditions.checkNotNull(config.start, "Parameters 'from' must not be null.");
+      checkArgumentNotNull(config.start, "Parameters 'from' must not be null.");
       setFrom(config.start);
       setTo(-1);
       setElementsPerPeriod(0);

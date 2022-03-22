@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -244,9 +244,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   public void validate() {
     super.validate();
-    checkNotNull(sourceDelegate);
+    checkArgumentNotNull(sourceDelegate);
     sourceDelegate.validate();
-    checkNotNull(channelFactory);
+    checkArgumentNotNull(channelFactory);
   }
 
   /**

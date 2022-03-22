@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -162,7 +162,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
         oneOfValue = value;
       }
     }
-    checkNotNull(oneOfValue, "No value set in union" + this);
+    checkArgumentNotNull(oneOfValue, "No value set in union" + this);
     return createValue(caseType, oneOfValue);
   }
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -530,7 +530,7 @@ public class FileSystems {
    */
   @Internal
   public static void setDefaultPipelineOptions(PipelineOptions options) {
-    checkNotNull(options, "options");
+    checkArgumentNotNull(options, "options");
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     registrars.addAll(

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -139,7 +139,7 @@ public class SelectHelpers {
         fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
       FieldDescriptor fieldDescriptor = nested.getKey();
       FieldAccessDescriptor nestedAccess = nested.getValue();
-      Field field = inputSchema.getField(checkNotNull(fieldDescriptor.getFieldId()));
+      Field field = inputSchema.getField(checkArgumentNotNull(fieldDescriptor.getFieldId()));
       if (fieldDescriptor.getFieldRename() != null) {
         field = field.withName(fieldDescriptor.getFieldRename());
       }
@@ -175,7 +175,7 @@ public class SelectHelpers {
     switch (qualifier.getKind()) {
       case LIST:
         checkArgument(qualifier.getList().equals(ListQualifier.ALL));
-        FieldType componentType = checkNotNull(inputFieldType.getCollectionElementType());
+        FieldType componentType = checkArgumentNotNull(inputFieldType.getCollectionElementType());
         Schema outputComponent =
             getOutputSchemaHelper(
                 componentType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1, false);
@@ -192,8 +192,8 @@ public class SelectHelpers {
         return builder.build();
       case MAP:
         checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
-        FieldType keyType = checkNotNull(inputFieldType.getMapKeyType());
-        FieldType valueType = checkNotNull(inputFieldType.getMapValueType());
+        FieldType keyType = checkArgumentNotNull(inputFieldType.getMapKeyType());
+        FieldType valueType = checkArgumentNotNull(inputFieldType.getMapValueType());
         Schema outputValueSchema =
             getOutputSchemaHelper(
                 valueType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1, false);
@@ -315,8 +315,8 @@ public class SelectHelpers {
     switch (qualifier.getKind()) {
       case LIST:
         {
-          FieldType nestedInputType = checkNotNull(inputType.getCollectionElementType());
-          FieldType nestedOutputType = checkNotNull(outputType.getCollectionElementType());
+          FieldType nestedInputType = checkArgumentNotNull(inputType.getCollectionElementType());
+          FieldType nestedOutputType = checkArgumentNotNull(outputType.getCollectionElementType());
           Iterable<Object> iterable = (Iterable) value;
 
           // When selecting multiple subelements under a list, we distribute the select
@@ -365,8 +365,8 @@ public class SelectHelpers {
         }
       case MAP:
         {
-          FieldType nestedInputType = checkNotNull(inputType.getMapValueType());
-          FieldType nestedOutputType = checkNotNull(outputType.getMapValueType());
+          FieldType nestedInputType = checkArgumentNotNull(inputType.getMapValueType());
+          FieldType nestedOutputType = checkArgumentNotNull(outputType.getMapValueType());
 
           // When selecting multiple subelements under a map, we distribute the select
           // resulting in multiple maps. The semantics are the same as for lists above (except we

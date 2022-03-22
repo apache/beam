@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -40,7 +40,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    * @return The newly created runner.
    */
   public static PipelineRunner<? extends PipelineResult> fromOptions(PipelineOptions options) {
-    checkNotNull(options);
+    checkArgumentNotNull(options);
     PipelineOptionsValidator.validate(PipelineOptions.class, options);
 
     // (Re-)register standard FileSystems. Clobbers any prior credentials.

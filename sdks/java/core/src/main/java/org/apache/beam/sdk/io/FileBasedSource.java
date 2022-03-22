@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
@@ -121,7 +121,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       Metadata fileMetadata, long minBundleSize, long startOffset, long endOffset) {
     super(startOffset, endOffset, minBundleSize);
     mode = Mode.SINGLE_FILE_OR_SUBRANGE;
-    this.singleFileMetadata = checkNotNull(fileMetadata, "fileMetadata");
+    this.singleFileMetadata = checkArgumentNotNull(fileMetadata, "fileMetadata");
     this.fileOrPatternSpec = StaticValueProvider.of(fileMetadata.resourceId().toString());
 
     // This field will be unused in this mode.

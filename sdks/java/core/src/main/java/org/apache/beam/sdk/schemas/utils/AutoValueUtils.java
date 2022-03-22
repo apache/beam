@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -270,7 +270,7 @@ public class AutoValueUtils {
 
         TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
         for (int i = 0; i < setters.size(); ++i) {
-          Method setterMethod = checkNotNull(setters.get(i).getMethod());
+          Method setterMethod = checkArgumentNotNull(setters.get(i).getMethod());
           Parameter parameter = setterMethod.getParameters()[0];
           ForLoadedType convertedType =
               new ForLoadedType(

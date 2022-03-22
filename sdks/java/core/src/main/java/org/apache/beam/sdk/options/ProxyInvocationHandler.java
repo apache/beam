@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -223,7 +223,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * @return An object that implements the interface {@code <T>}.
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
-    checkNotNull(iface);
+    checkArgumentNotNull(iface);
     checkArgument(iface.isInterface(), "Not an interface: %s", iface);
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =

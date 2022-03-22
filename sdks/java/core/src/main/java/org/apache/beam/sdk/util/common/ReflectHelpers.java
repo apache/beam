@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.util.common;
 
 import static java.util.Arrays.asList;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -170,7 +170,7 @@ public class ReflectHelpers {
    * @return An iterable of {@link Method}s which {@code iface} exposes.
    */
   public static Iterable<Method> getClosureOfMethodsOnInterface(Class<?> iface) {
-    checkNotNull(iface);
+    checkArgumentNotNull(iface);
     checkArgument(iface.isInterface());
     ImmutableSet.Builder<Method> builder = ImmutableSet.builder();
     Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();

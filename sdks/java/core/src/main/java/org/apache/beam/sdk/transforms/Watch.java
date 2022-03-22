@@ -20,8 +20,8 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.transforms.Contextful.Fn.Context.wrapProcessContext;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -198,13 +198,13 @@ public class Watch {
        * PollFn}.
        */
       public PollResult<OutputT> withWatermark(Instant watermark) {
-        checkNotNull(watermark, "watermark");
+        checkArgumentNotNull(watermark, "watermark");
         return new PollResult<>(outputs, watermark);
       }
 
       /** Returns a new {@link PollResult} like this one with the provided outputs. */
       public PollResult<OutputT> withOutputs(List<TimestampedValue<OutputT>> outputs) {
-        checkNotNull(outputs);
+        checkArgumentNotNull(outputs);
         return new PollResult<>(outputs, watermark);
       }
 
@@ -731,8 +731,8 @@ public class Watch {
 
     @Override
     public PCollection<KV<InputT, OutputT>> expand(PCollection<InputT> input) {
-      checkNotNull(getPollInterval(), "pollInterval");
-      checkNotNull(getTerminationPerInput(), "terminationPerInput");
+      checkArgumentNotNull(getPollInterval(), "pollInterval");
+      checkArgumentNotNull(getTerminationPerInput(), "terminationPerInput");
 
       Coder<OutputT> outputCoder = getOutputCoder();
       if (outputCoder == null) {

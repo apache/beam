@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
@@ -154,7 +154,7 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
     return input.apply(
         "MapKeys",
         MapElements.into(getKvTypeDescriptor())
-            .via(checkNotNull(fn, "Must specify a function on MapKeys using .via()")));
+            .via(checkArgumentNotNull(fn, "Must specify a function on MapKeys using .via()")));
   }
 
   private TypeDescriptor<KV<K2, V>> getKvTypeDescriptor() {

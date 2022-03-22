@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileBasedSource.Mode.SINGLE_FILE_OR_SUBRANGE;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
@@ -416,9 +416,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     private final String schemaString;
 
     AvroMetadata(byte[] syncMarker, String codec, String schemaString) {
-      this.syncMarker = checkNotNull(syncMarker, "syncMarker");
-      this.codec = checkNotNull(codec, "codec");
-      this.schemaString = internSchemaString(checkNotNull(schemaString, "schemaString"));
+      this.syncMarker = checkArgumentNotNull(syncMarker, "syncMarker");
+      this.codec = checkArgumentNotNull(codec, "codec");
+      this.schemaString = internSchemaString(checkArgumentNotNull(schemaString, "schemaString"));
     }
 
     /**
@@ -617,7 +617,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         throws IOException {
       this.mode = mode;
       this.numRecords = numRecords;
-      checkNotNull(writerSchemaString, "writerSchemaString");
+      checkArgumentNotNull(writerSchemaString, "writerSchemaString");
       Schema writerSchema = internOrParseSchemaString(writerSchemaString);
       Schema readerSchema =
           internOrParseSchemaString(

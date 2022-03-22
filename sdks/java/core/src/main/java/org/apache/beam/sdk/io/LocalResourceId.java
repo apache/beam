@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
@@ -40,7 +40,7 @@ class LocalResourceId implements ResourceId {
   private transient volatile @Nullable Path cachedPath;
 
   static LocalResourceId fromPath(Path path, boolean isDirectory) {
-    checkNotNull(path, "path");
+    checkArgumentNotNull(path, "path");
     return new LocalResourceId(path, isDirectory);
   }
 

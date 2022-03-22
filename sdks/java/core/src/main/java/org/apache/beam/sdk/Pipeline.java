@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.transform;
 
@@ -425,7 +425,7 @@ public class Pipeline {
 
       @Override
       public void enterPipeline(Pipeline pipeline) {
-        this.pipeline = checkNotNull(pipeline);
+        this.pipeline = checkArgumentNotNull(pipeline);
       }
 
       @Override

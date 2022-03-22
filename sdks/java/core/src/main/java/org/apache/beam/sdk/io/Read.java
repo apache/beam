@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -525,8 +525,8 @@ public class Read {
         restrictionTracker(
             @Restriction UnboundedSourceRestriction<OutputT, CheckpointT> restriction,
             PipelineOptions pipelineOptions) {
-      checkNotNull(restrictionCoder);
-      checkNotNull(cachedReaders);
+      checkArgumentNotNull(restrictionCoder);
+      checkArgumentNotNull(cachedReaders);
       return new UnboundedSourceAsSDFRestrictionTracker(
           restriction, pipelineOptions, cachedReaders, restrictionCoder);
     }
@@ -817,7 +817,7 @@ public class Read {
 
       private Object createCacheKey(
           UnboundedSource<OutputT, CheckpointT> source, CheckpointT checkpoint) {
-        checkNotNull(restrictionCoder);
+        checkArgumentNotNull(restrictionCoder);
         // For caching reader, we don't care about the watermark.
         return restrictionCoder.structuralValue(
             UnboundedSourceRestriction.create(

@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
 
@@ -427,7 +427,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       WritableByteChannelFactory writableByteChannelFactory) {
     this.tempDirectoryProvider =
         NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
-    this.dynamicDestinations = checkNotNull(dynamicDestinations);
+    this.dynamicDestinations = checkArgumentNotNull(dynamicDestinations);
     this.writableByteChannelFactory = writableByteChannelFactory;
   }
 
@@ -930,7 +930,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     /** Construct a new {@link Writer} that will produce files of the given MIME type. */
     public Writer(WriteOperation<DestinationT, OutputT> writeOperation, String mimeType) {
-      checkNotNull(writeOperation);
+      checkArgumentNotNull(writeOperation);
       this.writeOperation = writeOperation;
       this.mimeType = mimeType;
     }

@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -685,8 +685,8 @@ public class AvroIO {
     @Override
     @SuppressWarnings("unchecked")
     public PCollection<T> expand(PBegin input) {
-      checkNotNull(getFilepattern(), "filepattern");
-      checkNotNull(getSchema(), "schema");
+      checkArgumentNotNull(getFilepattern(), "filepattern");
+      checkArgumentNotNull(getSchema(), "schema");
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         PCollection<T> read =
@@ -825,7 +825,7 @@ public class AvroIO {
 
     @Override
     public PCollection<T> expand(PCollection<ReadableFile> input) {
-      checkNotNull(getSchema(), "schema");
+      checkArgumentNotNull(getSchema(), "schema");
       PCollection<T> read =
           input.apply(
               "Read all via FileBasedSource",
@@ -922,7 +922,7 @@ public class AvroIO {
 
     @Override
     public PCollection<T> expand(PCollection<String> input) {
-      checkNotNull(getSchema(), "schema");
+      checkArgumentNotNull(getSchema(), "schema");
       PCollection<T> read =
           input
               .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
@@ -1049,7 +1049,7 @@ public class AvroIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkNotNull(getFilepattern(), "filepattern");
+      checkArgumentNotNull(getFilepattern(), "filepattern");
       Coder<T> coder = inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {

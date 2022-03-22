@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
@@ -72,7 +72,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @SuppressWarnings("unchecked")
   @Deprecated
   public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-    checkNotNull(fn, "fn can't be null");
+    checkArgumentNotNull(fn, "fn can't be null");
     LOG.warn(
         "Your tests use DoFnTester, which may not exercise DoFns correctly. "
             + "Please use TestPipeline instead.");
@@ -198,7 +198,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
-    checkNotNull(element, "Timestamped element cannot be null");
+    checkArgumentNotNull(element, "Timestamped element cannot be null");
     processWindowedElement(element.getValue(), element.getTimestamp(), GlobalWindow.INSTANCE);
   }
 

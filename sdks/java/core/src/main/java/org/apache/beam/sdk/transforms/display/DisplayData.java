@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.display;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -75,7 +75,7 @@ public class DisplayData implements Serializable {
    * a namespace derived from the component.
    */
   public static DisplayData from(HasDisplayData component) {
-    checkNotNull(component, "component argument cannot be null");
+    checkArgumentNotNull(component, "component argument cannot be null");
 
     InternalBuilder builder = new InternalBuilder();
     builder.include(Path.root(), component);
@@ -281,9 +281,9 @@ public class DisplayData implements Serializable {
     public abstract @Nullable String getLinkUrl();
 
     private static Item create(ItemSpec<?> spec, Path path) {
-      checkNotNull(spec, "spec cannot be null");
-      checkNotNull(path, "path cannot be null");
-      Class<?> ns = checkNotNull(spec.getNamespace(), "namespace must be set");
+      checkArgumentNotNull(spec, "spec cannot be null");
+      checkArgumentNotNull(path, "path cannot be null");
+      Class<?> ns = checkArgumentNotNull(spec.getNamespace(), "namespace must be set");
 
       return new AutoValue_DisplayData_Item(
           path,
@@ -372,7 +372,7 @@ public class DisplayData implements Serializable {
      * ItemSpec} with the namespace set.
      */
     public ItemSpec<T> withNamespace(Class<?> namespace) {
-      checkNotNull(namespace, "namespace argument cannot be null");
+      checkArgumentNotNull(namespace, "namespace argument cannot be null");
       return toBuilder().setNamespace(namespace).build();
     }
 
@@ -545,7 +545,7 @@ public class DisplayData implements Serializable {
     }
 
     private static void validatePathElement(String path) {
-      checkNotNull(path);
+      checkArgumentNotNull(path);
       checkArgument(!"".equals(path), "path cannot be empty");
     }
 
@@ -716,8 +716,8 @@ public class DisplayData implements Serializable {
 
     @Override
     public Builder include(String path, HasDisplayData subComponent) {
-      checkNotNull(subComponent, "subComponent argument cannot be null");
-      checkNotNull(path, "path argument cannot be null");
+      checkArgumentNotNull(subComponent, "subComponent argument cannot be null");
+      checkArgumentNotNull(path, "path argument cannot be null");
 
       Path absolutePath = latestPath.extend(path);
 
@@ -735,7 +735,7 @@ public class DisplayData implements Serializable {
 
     @Override
     public Builder delegate(HasDisplayData component) {
-      checkNotNull(component);
+      checkArgumentNotNull(component);
 
       return include(latestPath, component);
     }
@@ -804,19 +804,19 @@ public class DisplayData implements Serializable {
 
     @Override
     public Builder add(ItemSpec<?> item) {
-      checkNotNull(item, "Input display item cannot be null");
+      checkArgumentNotNull(item, "Input display item cannot be null");
       return addItemIf(true, item);
     }
 
     @Override
     public Builder addIfNotNull(ItemSpec<?> item) {
-      checkNotNull(item, "Input display item cannot be null");
+      checkArgumentNotNull(item, "Input display item cannot be null");
       return addItemIf(item.getValue() != null, item);
     }
 
     @Override
     public <T> Builder addIfNotDefault(ItemSpec<T> item, @Nullable T defaultValue) {
-      checkNotNull(item, "Input display item cannot be null");
+      checkArgumentNotNull(item, "Input display item cannot be null");
       ItemSpec<T> defaultItem = item.withValue(defaultValue);
       return addItemIf(!Objects.equals(item, defaultItem), item);
     }
@@ -826,8 +826,8 @@ public class DisplayData implements Serializable {
         return this;
       }
 
-      checkNotNull(spec, "Input display item cannot be null");
-      checkNotNull(spec.getValue(), "Input display value cannot be null");
+      checkArgumentNotNull(spec, "Input display item cannot be null");
+      checkArgumentNotNull(spec.getValue(), "Input display value cannot be null");
 
       if (spec.getNamespace() == null) {
         spec = spec.withNamespace(latestNs);
@@ -925,8 +925,8 @@ public class DisplayData implements Serializable {
    * @see Type#inferType(Object)
    */
   public static <T> ItemSpec<T> item(String key, Type type, @Nullable T value) {
-    checkNotNull(key, "key argument cannot be null");
-    checkNotNull(type, "type argument cannot be null");
+    checkArgumentNotNull(key, "key argument cannot be null");
+    checkArgumentNotNull(type, "type argument cannot be null");
 
     return ItemSpec.create(key, type, value);
   }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -757,7 +757,7 @@ public class SourceTestUtils {
     private final BoundedSource<T> boundedSource;
 
     private UnsplittableSource(BoundedSource<T> boundedSource) {
-      this.boundedSource = checkNotNull(boundedSource, "boundedSource");
+      this.boundedSource = checkArgumentNotNull(boundedSource, "boundedSource");
     }
 
     @Override
@@ -797,8 +797,8 @@ public class SourceTestUtils {
       private final BoundedReader<T> boundedReader;
 
       private UnsplittableReader(BoundedSource<T> boundedSource, BoundedReader<T> boundedReader) {
-        this.boundedSource = checkNotNull(boundedSource, "boundedSource");
-        this.boundedReader = checkNotNull(boundedReader, "boundedReader");
+        this.boundedSource = checkArgumentNotNull(boundedSource, "boundedSource");
+        this.boundedReader = checkArgumentNotNull(boundedReader, "boundedReader");
       }
 
       @Override

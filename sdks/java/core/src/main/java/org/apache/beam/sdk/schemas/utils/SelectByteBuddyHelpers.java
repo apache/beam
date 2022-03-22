@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.lang.reflect.InvocationTargetException;
@@ -49,7 +49,6 @@ import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.I
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation.Context;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Duplication;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Removal;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
@@ -539,7 +538,7 @@ class SelectByteBuddyHelpers {
         MethodVisitor methodVisitor,
         Context implementationContext) {
       StackManipulation.Size size = new StackManipulation.Size(0, 0);
-      FieldType nestedInputType = checkNotNull(inputType.getCollectionElementType());
+      FieldType nestedInputType = checkArgumentNotNull(inputType.getCollectionElementType());
       Schema nestedSchema = getNestedSchema(nestedInputType, fieldAccessDescriptor);
 
       // We create temp local variables to store all the arrays we create. Each field in
@@ -707,7 +706,7 @@ class SelectByteBuddyHelpers {
         MethodVisitor methodVisitor,
         Context implementationContext) {
       StackManipulation.Size size = new StackManipulation.Size(0, 0);
-      FieldType nestedInputType = checkNotNull(inputType.getMapValueType());
+      FieldType nestedInputType = checkArgumentNotNull(inputType.getMapValueType());
       Schema nestedSchema = getNestedSchema(nestedInputType, fieldAccessDescriptor);
 
       // We create temp local variables to store all the maps we create. Each field in

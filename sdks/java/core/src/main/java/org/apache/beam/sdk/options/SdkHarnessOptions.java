@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Arrays;
@@ -168,7 +168,7 @@ public interface SdkHarnessOptions extends PipelineOptions {
     public @NonNegative Integer create(PipelineOptions options) {
       SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
       return (Integer)
-          checkNotNull(
+          checkArgumentNotNull(
               InstanceBuilder.ofType(MaxCacheMemoryUsageMb.class)
                   .fromClass(sdkHarnessOptions.getMaxCacheMemoryUsageMbClass())
                   .build()
@@ -239,7 +239,7 @@ public interface SdkHarnessOptions extends PipelineOptions {
      * the {@link Class#getName() class name}.
      */
     public SdkHarnessLogLevelOverrides addOverrideForClass(Class<?> klass, LogLevel logLevel) {
-      checkNotNull(klass, "Expected class to be not null.");
+      checkArgumentNotNull(klass, "Expected class to be not null.");
       addOverrideForName(klass.getName(), logLevel);
       return this;
     }
@@ -251,7 +251,7 @@ public interface SdkHarnessOptions extends PipelineOptions {
      * the {@link Package#getName() package name}.
      */
     public SdkHarnessLogLevelOverrides addOverrideForPackage(Package pkg, LogLevel logLevel) {
-      checkNotNull(pkg, "Expected package to be not null.");
+      checkArgumentNotNull(pkg, "Expected package to be not null.");
       addOverrideForName(pkg.getName(), logLevel);
       return this;
     }
@@ -264,8 +264,8 @@ public interface SdkHarnessOptions extends PipelineOptions {
      * in name.
      */
     public SdkHarnessLogLevelOverrides addOverrideForName(String name, LogLevel logLevel) {
-      checkNotNull(name, "Expected name to be not null.");
-      checkNotNull(
+      checkArgumentNotNull(name, "Expected name to be not null.");
+      checkArgumentNotNull(
           logLevel, "Expected logLevel to be one of %s.", Arrays.toString(LogLevel.values()));
       put(name, logLevel);
       return this;
@@ -279,7 +279,7 @@ public interface SdkHarnessOptions extends PipelineOptions {
      */
     @JsonCreator
     public static SdkHarnessLogLevelOverrides from(Map<String, String> values) {
-      checkNotNull(values, "Expected values to be not null.");
+      checkArgumentNotNull(values, "Expected values to be not null.");
       SdkHarnessLogLevelOverrides overrides = new SdkHarnessLogLevelOverrides();
       for (Map.Entry<String, String> entry : values.entrySet()) {
         try {

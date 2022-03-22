@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.range;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -107,7 +107,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
    */
   @Override
   public int compareTo(@Nonnull ByteKey other) {
-    checkNotNull(other, "other");
+    checkArgumentNotNull(other, "other");
     ByteIterator thisIt = value.iterator();
     ByteIterator otherIt = other.value.iterator();
     while (thisIt.hasNext() && otherIt.hasNext()) {

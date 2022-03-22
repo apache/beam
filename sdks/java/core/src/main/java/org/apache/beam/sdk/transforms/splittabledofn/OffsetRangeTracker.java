@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.math.BigDecimal;
@@ -45,7 +45,7 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   protected @Nullable Long lastAttemptedOffset = null;
 
   public OffsetRangeTracker(OffsetRange range) {
-    this.range = checkNotNull(range);
+    this.range = checkArgumentNotNull(range);
   }
 
   @Override

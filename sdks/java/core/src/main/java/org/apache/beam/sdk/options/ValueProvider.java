@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -129,8 +129,8 @@ public interface ValueProvider<T> extends Serializable {
     private transient volatile T cachedValue;
 
     NestedValueProvider(ValueProvider<X> value, SerializableFunction<X, T> translator) {
-      this.value = checkNotNull(value);
-      this.translator = checkNotNull(translator);
+      this.value = checkArgumentNotNull(value);
+      this.translator = checkArgumentNotNull(translator);
     }
 
     /** Creates a {@link NestedValueProvider} that wraps the provided value. */
@@ -342,8 +342,8 @@ public interface ValueProvider<T> extends Serializable {
     @Override
     public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property)
         throws JsonMappingException {
-      checkNotNull(ctxt, "Null DeserializationContext.");
-      JavaType type = checkNotNull(ctxt.getContextualType(), "Invalid type: %s", getClass());
+      checkArgumentNotNull(ctxt, "Null DeserializationContext.");
+      JavaType type = checkArgumentNotNull(ctxt.getContextualType(), "Invalid type: %s", getClass());
       JavaType[] params = type.findTypeParameters(ValueProvider.class);
       if (params.length != 1) {
         throw new RuntimeException("Unable to derive type for ValueProvider: " + type.toString());
@@ -357,7 +357,7 @@ public interface ValueProvider<T> extends Serializable {
         throws IOException, JsonProcessingException {
       JsonDeserializer dser =
           ctxt.findRootValueDeserializer(
-              checkNotNull(
+              checkArgumentNotNull(
                   innerType, "Invalid %s: innerType is null. Serialization error?", getClass()));
       Object o = dser.deserialize(jp, ctxt);
       return StaticValueProvider.of(o);

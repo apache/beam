@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Map;
@@ -46,7 +46,7 @@ public class DoFnOutputReceivers {
         @Nullable TupleTag<T> outputTag,
         SchemaCoder<T> schemaCoder) {
       outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
-      this.schemaCoder = checkNotNull(schemaCoder);
+      this.schemaCoder = checkArgumentNotNull(schemaCoder);
     }
 
     @Override
@@ -111,7 +111,7 @@ public class DoFnOutputReceivers {
 
     @Override
     public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
-      Coder<T> outputCoder = (Coder<T>) checkNotNull(outputCoders).get(tag);
+      Coder<T> outputCoder = (Coder<T>) checkArgumentNotNull(outputCoders).get(tag);
       checkState(outputCoder != null, "No output tag for " + tag);
       checkState(
           outputCoder instanceof SchemaCoder,

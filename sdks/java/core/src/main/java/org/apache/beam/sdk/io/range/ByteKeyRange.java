@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.range;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
@@ -157,7 +157,7 @@ public final class ByteKeyRange
    * @see ByteKeyRange the ByteKeyRange class Javadoc for more information about fraction semantics.
    */
   public double estimateFractionForKey(ByteKey key) {
-    checkNotNull(key, "key");
+    checkArgumentNotNull(key, "key");
     checkArgument(!key.isEmpty(), "Cannot compute fraction for an empty key");
     checkArgument(
         key.compareTo(startKey) >= 0, "Expected key %s >= range start key %s", key, startKey);
@@ -275,8 +275,8 @@ public final class ByteKeyRange
   private final ByteKey endKey;
 
   private ByteKeyRange(ByteKey startKey, ByteKey endKey) {
-    this.startKey = checkNotNull(startKey, "startKey");
-    this.endKey = checkNotNull(endKey, "endKey");
+    this.startKey = checkArgumentNotNull(startKey, "startKey");
+    this.endKey = checkArgumentNotNull(endKey, "endKey");
     checkArgument(
         endKey.isEmpty() || startKey.compareTo(endKey) <= 0,
         "Start %s must be less than or equal to end %s",

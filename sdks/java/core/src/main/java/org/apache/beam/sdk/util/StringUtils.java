@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -99,8 +99,8 @@ public class StringUtils {
    * (i.e. insertions, deletions or substitutions) required to change one string into the other.
    */
   public static int getLevenshteinDistance(final String s, final String t) {
-    checkNotNull(s);
-    checkNotNull(t);
+    checkArgumentNotNull(s);
+    checkArgumentNotNull(t);
 
     // base cases
     if (s.equals(t)) {

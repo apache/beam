@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -278,7 +278,7 @@ public class PipelineOptionsFactory {
      * PipelineOptionsFactory#printHelp(PrintStream, Class)}.
      */
     public Builder fromArgs(String... args) {
-      checkNotNull(args, "Arguments should not be null.");
+      checkArgumentNotNull(args, "Arguments should not be null.");
       return new Builder(args, validation, strictParsing, true);
     }
 
@@ -592,7 +592,7 @@ public class PipelineOptionsFactory {
    * window.
    */
   public static void printHelp(PrintStream out) {
-    checkNotNull(out);
+    checkArgumentNotNull(out);
     out.println("The set of registered options are:");
     Set<Class<? extends PipelineOptions>> sortedOptions =
         new TreeSet<>(ClassNameComparator.INSTANCE);
@@ -627,8 +627,8 @@ public class PipelineOptionsFactory {
    * This method will attempt to format its output to be compatible with a terminal window.
    */
   public static void printHelp(PrintStream out, Class<? extends PipelineOptions> iface) {
-    checkNotNull(out);
-    checkNotNull(iface);
+    checkArgumentNotNull(out);
+    checkArgumentNotNull(iface);
     CACHE.get().validateWellFormed(iface);
 
     Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface, true);
@@ -702,7 +702,7 @@ public class PipelineOptionsFactory {
    */
   public static List<PipelineOptionDescriptor> describe(
       Set<Class<? extends PipelineOptions>> ifaces) {
-    checkNotNull(ifaces);
+    checkArgumentNotNull(ifaces);
     List<PipelineOptionDescriptor> result = new ArrayList<>();
     Set<Method> seenMethods = Sets.newHashSet();
 
@@ -2094,7 +2094,7 @@ public class PipelineOptionsFactory {
     }
 
     private synchronized void register(Class<? extends PipelineOptions> iface) {
-      checkNotNull(iface);
+      checkArgumentNotNull(iface);
       checkArgument(iface.isInterface(), "Only interface types are supported.");
 
       if (registeredOptions.contains(iface)) {

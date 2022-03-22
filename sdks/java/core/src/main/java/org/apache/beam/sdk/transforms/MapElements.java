@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.annotations.Experimental;
@@ -130,7 +130,7 @@ public class MapElements<InputT, OutputT>
 
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-    checkNotNull(fn, "Must specify a function on MapElements using .via()");
+    checkArgumentNotNull(fn, "Must specify a function on MapElements using .via()");
     return input.apply(
         "Map",
         ParDo.of(

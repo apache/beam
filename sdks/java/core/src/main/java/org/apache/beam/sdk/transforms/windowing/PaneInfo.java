@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -194,14 +194,14 @@ public final class PaneInfo {
   public static PaneInfo createPane(
       boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
     if (isFirst || timing == Timing.UNKNOWN) {
-      return checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
+      return checkArgumentNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
     } else {
       return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex);
     }
   }
 
   public static PaneInfo decodePane(byte encodedPane) {
-    return checkNotNull(BYTE_TO_PANE_INFO.get(encodedPane));
+    return checkArgumentNotNull(BYTE_TO_PANE_INFO.get(encodedPane));
   }
 
   /**

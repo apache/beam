@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Iterator;
@@ -104,8 +104,8 @@ public class Latest {
     @Override
     public TimestampedValue<T> addInput(
         TimestampedValue<T> accumulator, TimestampedValue<T> input) {
-      checkNotNull(accumulator, "accumulator must be non-null");
-      checkNotNull(input, "input must be non-null");
+      checkArgumentNotNull(accumulator, "accumulator must be non-null");
+      checkArgumentNotNull(input, "input must be non-null");
 
       if (input.getTimestamp().isBefore(accumulator.getTimestamp())) {
         return accumulator;
@@ -137,7 +137,7 @@ public class Latest {
 
     @Override
     public TimestampedValue<T> mergeAccumulators(Iterable<TimestampedValue<T>> accumulators) {
-      checkNotNull(accumulators, "accumulators must be non-null");
+      checkArgumentNotNull(accumulators, "accumulators must be non-null");
 
       Iterator<TimestampedValue<T>> iter = accumulators.iterator();
       if (!iter.hasNext()) {
@@ -176,7 +176,7 @@ public class Latest {
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
     @Override
     public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
-      checkNotNull(input);
+      checkArgumentNotNull(input);
       checkArgument(
           input.getCoder() instanceof KvCoder,
           "Input specifiedCoder must be an instance of KvCoder, but was %s",

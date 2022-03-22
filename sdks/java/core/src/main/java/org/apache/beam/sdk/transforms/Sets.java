@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -115,7 +115,7 @@ public class Sets {
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> intersectDistinct(
       PCollection<T> rightCollection) {
-    checkNotNull(rightCollection, "rightCollection argument is null");
+    checkArgumentNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, intersectDistinct());
   }
 
@@ -203,7 +203,7 @@ public class Sets {
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> intersectAll(
       PCollection<T> rightCollection) {
-    checkNotNull(rightCollection, "rightCollection argument is null");
+    checkArgumentNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, intersectAll());
   }
 
@@ -284,7 +284,7 @@ public class Sets {
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> exceptDistinct(
       PCollection<T> rightCollection) {
-    checkNotNull(rightCollection, "rightCollection argument is null");
+    checkArgumentNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, exceptDistinct());
   }
 
@@ -374,7 +374,7 @@ public class Sets {
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> exceptAll(
       PCollection<T> rightCollection) {
-    checkNotNull(rightCollection, "rightCollection argument is null");
+    checkArgumentNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, exceptAll());
   }
 
@@ -458,7 +458,7 @@ public class Sets {
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> unionDistinct(
       PCollection<T> rightCollection) {
-    checkNotNull(rightCollection, "rightCollection argument is null");
+    checkArgumentNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, unionDistinct());
   }
 
@@ -541,7 +541,7 @@ public class Sets {
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> unionAll(
       PCollection<T> rightCollection) {
-    checkNotNull(rightCollection, "rightCollection argument is null");
+    checkArgumentNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, unionAll());
   }
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.List;
@@ -317,7 +317,7 @@ public class CountingSource {
      */
     public UnboundedCountingSource withTimestampFn(
         SerializableFunction<Long, Instant> timestampFn) {
-      checkNotNull(timestampFn);
+      checkArgumentNotNull(timestampFn);
       return new UnboundedCountingSource(start, stride, elementsPerPeriod, period, timestampFn);
     }
 

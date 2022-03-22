@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -88,7 +88,7 @@ public class NumberedShardedFile implements ShardedFile {
         !Strings.isNullOrEmpty(filePattern),
         "Expected valid file path, but received %s",
         filePattern);
-    checkNotNull(
+    checkArgumentNotNull(
         shardTemplate,
         "Expected non-null shard pattern. "
             + "Please call the other constructor to use default pattern: %s",

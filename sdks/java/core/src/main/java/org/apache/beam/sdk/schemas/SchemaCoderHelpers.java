@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -44,7 +46,6 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
 
@@ -163,7 +164,7 @@ class SchemaCoderHelpers {
       default:
         coder = (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
     }
-    Preconditions.checkNotNull(coder, "Unexpected field type " + fieldType.getTypeName());
+    checkArgumentNotNull(coder, "Unexpected field type " + fieldType.getTypeName());
     if (fieldType.getNullable()) {
       coder = NullableCoder.of(coder);
     }

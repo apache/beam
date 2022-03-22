@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
@@ -91,11 +91,11 @@ public class TransformHierarchy {
    * @return the added node
    */
   public Node pushNode(String name, PInput input, PTransform<?, ?> transform) {
-    checkNotNull(
+    checkArgumentNotNull(
         transform, "A %s must be provided for all Nodes", PTransform.class.getSimpleName());
-    checkNotNull(
+    checkArgumentNotNull(
         name, "A name must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    checkNotNull(
+    checkArgumentNotNull(
         input, "An input must be provided for all %s Nodes", PTransform.class.getSimpleName());
     Node node = new Node(current, transform, name, input);
     unexpandedInputs.put(node, input);
@@ -105,9 +105,9 @@ public class TransformHierarchy {
   }
 
   public Node replaceNode(Node existing, PInput input, PTransform<?, ?> transform) {
-    checkNotNull(existing);
-    checkNotNull(input);
-    checkNotNull(transform);
+    checkArgumentNotNull(existing);
+    checkArgumentNotNull(input);
+    checkArgumentNotNull(transform);
     checkState(
         unexpandedInputs.isEmpty(),
         "Replacing a node when the graph has an unexpanded input. This is an SDK bug.");
@@ -205,7 +205,7 @@ public class TransformHierarchy {
   }
 
   Node getProducer(PCollection<?> produced) {
-    return checkNotNull(maybeGetProducer(produced), "No producer found for %s", produced);
+    return checkArgumentNotNull(maybeGetProducer(produced), "No producer found for %s", produced);
   }
 
   public Set<PValue> visit(PipelineVisitor visitor) {
@@ -353,8 +353,8 @@ public class TransformHierarchy {
      * node need not be fully specified.
      */
     public void replaceChild(Node existing, Node replacement) {
-      checkNotNull(existing);
-      checkNotNull(replacement);
+      checkArgumentNotNull(existing);
+      checkArgumentNotNull(replacement);
       int existingIndex = parts.indexOf(existing);
       checkArgument(
           existingIndex >= 0,
@@ -410,7 +410,7 @@ public class TransformHierarchy {
       checkState(!finishedSpecifying);
       checkState(
           this.outputs == null, "Tried to specify more than one output for %s", getFullName());
-      checkNotNull(output, "Tried to set the output of %s to null", getFullName());
+      checkArgumentNotNull(output, "Tried to set the output of %s to null", getFullName());
       this.outputs = PValues.expandOutput(output);
 
       // Validate that a primitive transform produces only primitive output, and a composite
@@ -454,7 +454,7 @@ public class TransformHierarchy {
      *     original output.
      */
     void replaceOutputs(Map<PCollection<?>, ReplacementOutput> originalToReplacement) {
-      checkNotNull(this.outputs, "Outputs haven't been specified for node %s yet", getFullName());
+      checkArgumentNotNull(this.outputs, "Outputs haven't been specified for node %s yet", getFullName());
       for (Node component : this.parts) {
         // Replace the outputs of the component nodes
         component.replaceOutputs(originalToReplacement);
@@ -594,7 +594,7 @@ public class TransformHierarchy {
       }
 
       if (!isRootNode()) {
-        checkNotNull(outputs, "Outputs for non-root node %s are null", getFullName());
+        checkArgumentNotNull(outputs, "Outputs for non-root node %s are null", getFullName());
         // Visit outputs.
         for (PValue pValue : outputs.values()) {
           if (visitedValues.add(pValue)) {

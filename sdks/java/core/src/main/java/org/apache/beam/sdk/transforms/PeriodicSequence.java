@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
@@ -97,7 +97,7 @@ public class PeriodicSequence
     private @Nullable Long lastAttemptedOffset = null;
 
     public OutputRangeTracker(OffsetRange range) {
-      this.range = checkNotNull(range);
+      this.range = checkArgumentNotNull(range);
       lastClaimedOffset = this.range.getFrom();
       lastAttemptedOffset = lastClaimedOffset;
     }

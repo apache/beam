@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -883,9 +883,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       if (numShardsView != null) {
         shardCount = context.sideInput(numShardsView);
       } else {
-        checkNotNull(getNumShardsProvider());
+        checkArgumentNotNull(getNumShardsProvider());
         shardCount =
-            checkNotNull(getNumShardsProvider().get(), "Must have non-null number of shards.");
+            checkArgumentNotNull(getNumShardsProvider().get(), "Must have non-null number of shards.");
       }
       checkArgument(
           shardCount > 0,

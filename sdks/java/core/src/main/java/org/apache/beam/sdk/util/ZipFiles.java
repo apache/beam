@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -70,8 +70,8 @@ public final class ZipFiles {
     private final ZipEntry entry;
 
     ZipEntryByteSource(ZipFile file, ZipEntry entry) {
-      this.file = checkNotNull(file);
-      this.entry = checkNotNull(entry);
+      this.file = checkArgumentNotNull(file);
+      this.entry = checkArgumentNotNull(entry);
     }
 
     @Override
@@ -92,7 +92,7 @@ public final class ZipFiles {
   // to Iterator<ZipEntry>
   @SuppressWarnings("unchecked")
   static FluentIterable<ZipEntry> entries(final ZipFile file) {
-    checkNotNull(file);
+    checkArgumentNotNull(file);
     return new FluentIterable<ZipEntry>() {
       @Override
       public Iterator<ZipEntry> iterator() {
@@ -116,8 +116,8 @@ public final class ZipFiles {
    *     exist, or is a file instead of a directory)
    */
   static void unzipFile(File zipFile, File targetDirectory) throws IOException {
-    checkNotNull(zipFile);
-    checkNotNull(targetDirectory);
+    checkArgumentNotNull(zipFile);
+    checkArgumentNotNull(targetDirectory);
     checkArgument(
         targetDirectory.isDirectory(),
         "%s is not a valid directory",
@@ -197,8 +197,8 @@ public final class ZipFiles {
 
   private static void zipDirectory(File sourceDirectory, File zipFile, boolean allowOverwrite)
       throws IOException {
-    checkNotNull(sourceDirectory);
-    checkNotNull(zipFile);
+    checkArgumentNotNull(sourceDirectory);
+    checkArgumentNotNull(zipFile);
     checkArgument(
         sourceDirectory.isDirectory(),
         "%s is not a valid directory",
@@ -226,8 +226,8 @@ public final class ZipFiles {
    */
   public static void zipDirectory(File sourceDirectory, OutputStream outputStream)
       throws IOException {
-    checkNotNull(sourceDirectory);
-    checkNotNull(outputStream);
+    checkArgumentNotNull(sourceDirectory);
+    checkArgumentNotNull(outputStream);
     checkArgument(
         sourceDirectory.isDirectory(),
         "%s is not a valid directory",

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -224,7 +224,7 @@ public abstract class WindowedValue<T> {
 
     protected SimpleWindowedValue(T value, PaneInfo pane) {
       this.value = value;
-      this.pane = checkNotNull(pane);
+      this.pane = checkArgumentNotNull(pane);
     }
 
     @Override
@@ -309,7 +309,7 @@ public abstract class WindowedValue<T> {
 
     public TimestampedWindowedValue(T value, Instant timestamp, PaneInfo pane) {
       super(value, pane);
-      this.timestamp = checkNotNull(timestamp);
+      this.timestamp = checkArgumentNotNull(timestamp);
     }
 
     @Override
@@ -392,7 +392,7 @@ public abstract class WindowedValue<T> {
     public TimestampedValueInSingleWindow(
         T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
       super(value, timestamp, pane);
-      this.window = checkNotNull(window);
+      this.window = checkArgumentNotNull(window);
     }
 
     @Override
@@ -455,7 +455,7 @@ public abstract class WindowedValue<T> {
     public TimestampedValueInMultipleWindows(
         T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
       super(value, timestamp, pane);
-      this.windows = checkNotNull(windows);
+      this.windows = checkArgumentNotNull(windows);
     }
 
     @Override
@@ -539,7 +539,7 @@ public abstract class WindowedValue<T> {
     final Coder<T> valueCoder;
 
     WindowedValueCoder(Coder<T> valueCoder) {
-      this.valueCoder = checkNotNull(valueCoder);
+      this.valueCoder = checkArgumentNotNull(valueCoder);
     }
 
     /** Returns the value coder. */
@@ -567,7 +567,7 @@ public abstract class WindowedValue<T> {
 
     FullWindowedValueCoder(Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
       super(valueCoder);
-      this.windowCoder = checkNotNull(windowCoder);
+      this.windowCoder = checkArgumentNotNull(windowCoder);
       // It's not possible to statically type-check correct use of the
       // windowCoder (we have to ensure externally that we only get
       // windows of the class handled by windowCoder), so type

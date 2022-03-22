@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,7 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
   public static <T> LengthPrefixCoder<T> of(Coder<T> valueCoder) {
-    checkNotNull(valueCoder, "Coder not expected to be null");
+    checkArgumentNotNull(valueCoder, "Coder not expected to be null");
     return new LengthPrefixCoder<>(valueCoder);
   }
 

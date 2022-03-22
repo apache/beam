@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -51,7 +51,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   private @Nullable ByteKey lastAttemptedKey = null;
 
   private ByteKeyRangeTracker(ByteKeyRange range) {
-    this.range = checkNotNull(range);
+    this.range = checkArgumentNotNull(range);
   }
 
   public static ByteKeyRangeTracker of(ByteKeyRange range) {

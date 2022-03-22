@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.lang.reflect.Type;
@@ -86,7 +86,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
 
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
-      FieldValueTypeInformation typeInformation = checkNotNull(typeInformations.get(i));
+      FieldValueTypeInformation typeInformation = checkArgumentNotNull(typeInformations.get(i));
       params[i] =
           fromValue(
               type, row.getValue(i), typeInformation.getRawType(), typeInformation, typeFactory);
@@ -135,7 +135,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
         EnumerationType oneOfEnum = oneOfType.getCaseEnumType();
         OneOfType.Value oneOfValue = (OneOfType.Value) value;
         FieldValueTypeInformation oneOfFieldValueTypeInformation =
-            checkNotNull(
+            checkArgumentNotNull(
                 fieldValueTypeInformation
                     .getOneOfTypes()
                     .get(oneOfEnum.toString(oneOfValue.getCaseType())));

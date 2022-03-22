@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -97,7 +97,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
 
   private TestStream(Coder<T> coder, List<Event<T>> events) {
     this.coder = coder;
-    this.events = checkNotNull(events);
+    this.events = checkArgumentNotNull(events);
   }
 
   /**

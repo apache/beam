@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
@@ -155,7 +155,7 @@ public class MapValues<K, V1, V2>
     return input.apply(
         "MapValues",
         MapElements.into(getKvTypeDescriptor())
-            .via(checkNotNull(fn, "Must specify a function on MapValues using .via()")));
+            .via(checkArgumentNotNull(fn, "Must specify a function on MapValues using .via()")));
   }
 
   private TypeDescriptor<KV<K, V2>> getKvTypeDescriptor() {

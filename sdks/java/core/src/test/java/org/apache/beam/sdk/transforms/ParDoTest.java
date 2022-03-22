@@ -24,10 +24,10 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabe
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
@@ -334,7 +334,7 @@ public class ParDoTest implements Serializable {
     @ProcessElement
     public void processElement(
         @Element T value, @Timestamp Instant timestamp, OutputReceiver<T> r) {
-      checkNotNull(timestamp);
+      checkArgumentNotNull(timestamp);
       r.outputWithTimestamp(value, timestamp.plus(durationToShift));
     }
   }
@@ -343,7 +343,7 @@ public class ParDoTest implements Serializable {
     @ProcessElement
     public void processElement(
         @Element T element, @Timestamp Instant timestamp, OutputReceiver<String> r) {
-      checkNotNull(timestamp);
+      checkArgumentNotNull(timestamp);
       r.output("processing: " + element + ", timestamp: " + timestamp.getMillis());
     }
   }

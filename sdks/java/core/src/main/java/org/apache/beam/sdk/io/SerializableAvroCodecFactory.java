@@ -22,7 +22,7 @@ import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Externalizable;
@@ -56,7 +56,7 @@ class SerializableAvroCodecFactory implements Externalizable {
   public SerializableAvroCodecFactory() {}
 
   public SerializableAvroCodecFactory(CodecFactory codecFactory) {
-    checkNotNull(codecFactory, "Codec can't be null");
+    checkArgumentNotNull(codecFactory, "Codec can't be null");
     checkState(checkIsSupportedCodec(codecFactory), "%s is not supported", codecFactory);
     this.codecFactory = codecFactory;
   }
@@ -106,7 +106,7 @@ class SerializableAvroCodecFactory implements Externalizable {
 
   @Override
   public String toString() {
-    checkNotNull(codecFactory, "Inner CodecFactory is null, please use non default constructor");
+    checkArgumentNotNull(codecFactory, "Inner CodecFactory is null, please use non default constructor");
     return codecFactory.toString();
   }
 }

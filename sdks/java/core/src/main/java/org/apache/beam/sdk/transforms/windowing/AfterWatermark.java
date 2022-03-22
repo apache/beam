@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -92,7 +92,7 @@ public class AfterWatermark {
           lateTrigger == null
               ? ImmutableList.of(earlyTrigger)
               : ImmutableList.of(earlyTrigger, lateTrigger));
-      this.earlyTrigger = checkNotNull(earlyTrigger, "earlyTrigger should not be null");
+      this.earlyTrigger = checkArgumentNotNull(earlyTrigger, "earlyTrigger should not be null");
       this.lateTrigger = lateTrigger;
     }
 
@@ -157,7 +157,7 @@ public class AfterWatermark {
      * given {@code Trigger} fires before the watermark has passed the end of the window.
      */
     public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTrigger earlyFirings) {
-      checkNotNull(earlyFirings, "Must specify the trigger to use for early firings");
+      checkArgumentNotNull(earlyFirings, "Must specify the trigger to use for early firings");
       return new AfterWatermarkEarlyAndLate(earlyFirings, null);
     }
 
@@ -166,7 +166,7 @@ public class AfterWatermark {
      * given {@code Trigger} fires after the watermark has passed the end of the window.
      */
     public AfterWatermarkEarlyAndLate withLateFirings(OnceTrigger lateFirings) {
-      checkNotNull(lateFirings, "Must specify the trigger to use for late firings");
+      checkArgumentNotNull(lateFirings, "Must specify the trigger to use for late firings");
       return new AfterWatermarkEarlyAndLate(Never.ever(), lateFirings);
     }
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -67,8 +67,8 @@ public class PipelineOptionsValidator {
 
   private static <T extends PipelineOptions> T validate(
       Class<T> klass, PipelineOptions options, boolean isCli) {
-    checkNotNull(klass);
-    checkNotNull(options);
+    checkArgumentNotNull(klass);
+    checkArgumentNotNull(options);
     checkArgument(Proxy.isProxyClass(options.getClass()));
     checkArgument(Proxy.getInvocationHandler(options) instanceof ProxyInvocationHandler);
 

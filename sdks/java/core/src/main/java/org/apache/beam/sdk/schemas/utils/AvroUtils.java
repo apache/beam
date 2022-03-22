@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -902,7 +902,7 @@ public class AvroUtils {
         switch (fieldType.getLogicalType().getIdentifier()) {
           case FixedBytes.IDENTIFIER:
             FixedBytesField fixedBytesField =
-                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+                checkArgumentNotNull(FixedBytesField.fromBeamFieldType(fieldType));
             baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
             break;
           case EnumerationType.IDENTIFIER:
@@ -1025,7 +1025,7 @@ public class AvroUtils {
         switch (fieldType.getLogicalType().getIdentifier()) {
           case FixedBytes.IDENTIFIER:
             FixedBytesField fixedBytesField =
-                checkNotNull(FixedBytesField.fromBeamFieldType(fieldType));
+                checkArgumentNotNull(FixedBytesField.fromBeamFieldType(fieldType));
             byte[] byteArray = (byte[]) value;
             if (byteArray.length != fixedBytesField.getSize()) {
               throw new IllegalArgumentException("Incorrectly sized byte array.");
@@ -1295,8 +1295,8 @@ public class AvroUtils {
       org.apache.avro.Schema valueAvroSchema,
       Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), Schema.TypeName.MAP, "map");
-    checkNotNull(fieldType.getMapKeyType());
-    checkNotNull(fieldType.getMapValueType());
+    checkArgumentNotNull(fieldType.getMapKeyType());
+    checkArgumentNotNull(fieldType.getMapValueType());
 
     if (!fieldType.getMapKeyType().equals(Schema.FieldType.STRING)) {
       throw new IllegalArgumentException(

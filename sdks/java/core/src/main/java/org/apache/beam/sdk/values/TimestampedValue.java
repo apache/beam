@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -104,7 +104,7 @@ public class TimestampedValue<V> {
 
     @SuppressWarnings("unchecked")
     TimestampedValueCoder(Coder<T> valueCoder) {
-      this.valueCoder = checkNotNull(valueCoder);
+      this.valueCoder = checkArgumentNotNull(valueCoder);
     }
 
     @Override
@@ -154,7 +154,7 @@ public class TimestampedValue<V> {
   private final Instant timestamp;
 
   protected TimestampedValue(@Nullable V value, Instant timestamp) {
-    checkNotNull(timestamp, "timestamp must be non-null");
+    checkArgumentNotNull(timestamp, "timestamp must be non-null");
 
     this.value = value;
     this.timestamp = timestamp;

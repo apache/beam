@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
@@ -842,7 +842,7 @@ public abstract class Row implements Serializable {
     }
 
     public Row build() {
-      checkNotNull(schema);
+      checkArgumentNotNull(schema);
 
       if (!values.isEmpty() && values.size() != schema.getFieldCount()) {
         throw new IllegalArgumentException(

@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
@@ -342,7 +342,7 @@ public class CombineTest implements Serializable {
           all.append(accumulator.value);
           accumulator.value = "cleared in mergeAccumulators";
         }
-        return new Accumulator(checkNotNull(seedAccumulator).seed, all.toString());
+        return new Accumulator(checkArgumentNotNull(seedAccumulator).seed, all.toString());
       }
 
       @Override
