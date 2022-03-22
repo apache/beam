@@ -82,7 +82,7 @@ class DebeziumIOLoadTest():
         connection = psycopg2.connect(
             host = self.host,
             database = self.database,
-            user = self.user,
+            user = self.username,
             password = self.password
         )
         return connection
