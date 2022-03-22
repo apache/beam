@@ -2398,7 +2398,8 @@ class ReadFromBigQuery(PTransform):
   def _produce_pcoll_with_schema(self, project_id, dataset_id, table_id):
     the_table_schema = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
     ).get_table(project_id, dataset_id, table_id)
-    the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(the_table_schema)
+    the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
+        the_table_schema)
     i = 0
     dict_of_tuples = []
     for x in the_schema['fields']:
