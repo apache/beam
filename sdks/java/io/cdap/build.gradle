@@ -44,26 +44,13 @@ allprojects {
 }
 
 dependencies {
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.cdap_api
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
     implementation library.java.slf4j_api
-    implementation "io.cdap.cdap:cdap-api:6.5.1"
-    implementation "com.fasterxml.jackson.core:jackson-core:2.13.0"
-    implementation "com.fasterxml.jackson.core:jackson-databind:2.13.0"
-    testImplementation library.java.vendored_guava_26_0_jre
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
-    testImplementation "io.cdap.cdap:cdap-etl-api:6.5.1"
-    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
-    testImplementation project(":sdks:java:io:jdbc")
-    testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(":sdks:java:io:google-cloud-platform")
-    testImplementation project(":sdks:java:extensions:ml")
-    testImplementation library.java.google_cloud_bigquery
-    testImplementation library.java.hamcrest
+    testImplementation library.java.cdap_etl_api
+    testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit
-    testImplementation library.java.mockito_core
-    testImplementation library.java.testcontainers_kafka
-    testImplementation library.java.testcontainers_gcloud
 }

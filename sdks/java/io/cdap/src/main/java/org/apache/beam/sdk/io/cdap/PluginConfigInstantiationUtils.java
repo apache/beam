@@ -32,24 +32,26 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Class for getting any filled {@link io.cdap.cdap.api.plugin.PluginConfig} configuration object.
- */
+/** Class for getting any filled {@link PluginConfig} configuration object. */
 @SuppressWarnings({"unchecked", "assignment.type.incompatible"})
 public class PluginConfigInstantiationUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginConfigInstantiationUtils.class);
 
   /**
+   * Method for instantiating {@link PluginConfig} object of specific class {@param configClass}.
+   * After instantiating, it will go over all {@link Field}s with the {@link Name} annotation and
+   * set the appropriate parameter values from the {@param params} map for them.
+   *
    * @param params map of config fields, where key is the name of the field, value must be String or
    *     boxed primitive
    * @return Config object for given map of arguments and configuration class
    */
-  public static @Nullable <T extends PluginConfig> T getPluginConfig(
+  static @Nullable <T extends PluginConfig> T getPluginConfig(
       Map<String, Object> params, Class<T> configClass) {
     // Validate configClass
-    if (configClass == null || configClass.isPrimitive() || configClass.isArray()) {
-      throw new IllegalArgumentException("Config class must be correct!");
+    if (configClass == null) {
+      throw new IllegalArgumentException("Config class must be not null!");
     }
     List<Field> allFields = new ArrayList<>();
     Class<?> currClass = configClass;
@@ -61,7 +63,7 @@ public class PluginConfigInstantiationUtils {
               .collect(Collectors.toList()));
       currClass = currClass.getSuperclass();
     }
-    T config = getEmptyObjectOf(configClass);
+    T config = getEmptyObjectFromDefaultValues(configClass);
 
     if (config != null) {
       for (Field field : allFields) {
@@ -77,7 +79,7 @@ public class PluginConfigInstantiationUtils {
           try {
             field.set(config, fieldValue);
           } catch (IllegalAccessException e) {
-            LOG.error("Can not set a field", e);
+            LOG.error("Can not set a field with value {}", fieldValue);
           }
         }
       }
@@ -86,7 +88,7 @@ public class PluginConfigInstantiationUtils {
   }
 
   /** @return empty {@link Object} of {@param tClass} */
-  private static @Nullable <T> T getEmptyObjectOf(Class<T> tClass) {
+  private static @Nullable <T> T getEmptyObjectFromDefaultValues(Class<T> tClass) {
     for (Constructor<?> constructor : tClass.getDeclaredConstructors()) {
       constructor.setAccessible(true);
       Class<?>[] parameterTypes = constructor.getParameterTypes();
@@ -97,13 +99,13 @@ public class PluginConfigInstantiationUtils {
       try {
         return (T) constructor.newInstance(parameters);
       } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-        LOG.error("Can not instantiate an empty object", e);
+        LOG.warn("Can not instantiate an empty object", e);
       }
     }
     return null;
   }
 
-  /** @return default value for given {@param tClass} */
+  /** @return default value for given {@param tClass} if it's primitive, otherwise returns null */
   private static @Nullable Object getDefaultValue(@Nullable Class<?> tClass) {
     if (Boolean.TYPE.equals(tClass)) {
       return false;
