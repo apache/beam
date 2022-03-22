@@ -665,7 +665,7 @@ public class JmsIOTest {
     }
   }
 
-  private static class TextMessageMapperWithError implements SerializableMapper<String> {
+  private static class TextMessageMapperWithError implements SerializableMessageMapper<String> {
 
     @Override
     public Message apply(String value, Session session) {

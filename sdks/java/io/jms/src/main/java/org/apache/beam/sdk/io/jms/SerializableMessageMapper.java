@@ -21,5 +21,9 @@ import javax.jms.Message;
 import javax.jms.Session;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 
-public interface SerializableMapper<EventT>
+/**
+ * SerializableMessageMapper Takes a {@link String} value, a {@link javax.jms.Session} and returns a
+ * {@link javax.jms.Message}.
+ */
+public interface SerializableMessageMapper<EventT>
     extends SerializableBiFunction<EventT, Session, Message> {}

@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
@@ -58,6 +59,8 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source for JMS destinations (queues or topics).
@@ -110,6 +113,9 @@ import org.joda.time.Instant;
  *   .apply(JmsIO.write()
  *       .withConnectionFactory(myConnectionFactory)
  *       .withQueue("my-queue")
+ *       .withCoder(
+ *         // a coder for T
+ *       )
  *
  * }</pre>
  */
@@ -118,6 +124,8 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class JmsIO {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
 
   public static Read<JmsRecord> read() {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
@@ -620,7 +628,7 @@ public class JmsIO {
 
     abstract @Nullable String getPassword();
 
-    abstract @Nullable SerializableMapper<EventT> getValueMapper();
+    abstract @Nullable SerializableMessageMapper<EventT> getValueMapper();
 
     abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
 
@@ -640,7 +648,7 @@ public class JmsIO {
 
       abstract Builder<EventT> setPassword(String password);
 
-      abstract Builder<EventT> setValueMapper(SerializableMapper<EventT> valueMapper);
+      abstract Builder<EventT> setValueMapper(SerializableMessageMapper<EventT> valueMapper);
 
       abstract Builder<EventT> setTopicNameMapper(
           SerializableFunction<EventT, String> topicNameMapper);
@@ -724,12 +732,64 @@ public class JmsIO {
       return builder().setPassword(password).build();
     }
 
+    /**
+     * Specify the JMS topic destination name where to send messages to dynamically. The {@link
+     * JmsIO.Write} acts as a publisher on the topic.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String) and
+     *{@link JmsIO.Write#withTopic(String)}. The user has to specify a Serializable function
+     * that takes the Event Object as parameter, and returns the topîc name depending of the content
+     * of the event object.
+     *
+     * <p>For instance:
+     * <pre>{@code
+     * SerializableFunction<SomeEventObject, String> topicNameMapper =
+     *         (e ->
+     *             return the topic name ;
+     *
+     * }</pre>
+     *
+     * <pre>{@code
+     * .apply(JmsIO.write().withTopicNameMapper(topicNameNapper)
+     *
+     * }</pre>
+     *
+     * @param topicNameMapper The function returning the dynamic topic name.
+     * @return The corresponding {@link JmsIO.Write}.
+     */
     public Write<EventT> withTopicNameMapper(SerializableFunction<EventT, String> topicNameMapper) {
       checkArgument(topicNameMapper != null, "topicNameMapper can not be null");
       return builder().setTopicNameMapper(topicNameMapper).build();
     }
 
-    public Write<EventT> withValueMapper(SerializableMapper<EventT> valueMapper) {
+    /**
+     * Map the Event object with a {@link javax.jms.Message}.
+     *
+     * <p>For instance:
+     *
+     * <pre>{@code
+     * SerializableMapper<VehicleEvent> valueMapper = (e, s) -> {
+     *
+     *       try {
+     *         TextMessage msg = s.createTextMessage();
+     *         msg.setText(Mapper.MAPPER.toJson(e));
+     *         return msg;
+     *       } catch (JMSException ex) {
+     *         throw new JmsIOException("Error!!", ex);
+     *       }
+     *     };
+     *
+     * }</pre>
+     *
+     * <pre>{@code
+     * .apply(JmsIO.write().withValueMapper(valueNapper)
+     *
+     * }</pre>
+     *
+     * @param valueMapper The function returning the {@link javax.jms.Message}
+     * @return The corresponding {@link JmsIO.Write}.
+     */
+    public Write<EventT> withValueMapper(SerializableMessageMapper<EventT> valueMapper) {
       checkArgument(valueMapper != null, "valueMapper can not be null");
       return builder().setValueMapper(valueMapper).build();
     }
@@ -746,19 +806,30 @@ public class JmsIO {
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
           "Either withTopicNameMapper(topicNameMapper) or withQueue(queue) or withTopic(topic) is required");
+      boolean exclusiveTopicQueue = isExclusiveTopicQueue();
       checkArgument(
-          getQueue() == null || getTopic() == null,
-          "withQueue(queue) and withTopic(topic) are exclusive");
+          exclusiveTopicQueue,
+          "withQueue(queue) and withTopic(topic) and withTopicNameMapper(function) are exclusive");
+      checkArgument(getValueMapper() != null, "withValueeMapper() is required");
 
       final TupleTag<EventT> failedMessagesTag = new TupleTag<>();
       final TupleTag<EventT> messagesTag = new TupleTag<>();
       PCollectionTuple res =
           input.apply(
-              ParDo.of(new WriterFn<EventT>(this, failedMessagesTag))
+              ParDo.of(new WriterFn<>(this, failedMessagesTag))
                   .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
       PCollection<EventT> failedMessages = res.get(failedMessagesTag).setCoder(getCoder());
       res.get(messagesTag).setCoder(getCoder());
       return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedMessages);
+    }
+
+    private boolean isExclusiveTopicQueue() {
+      boolean exclusiveTopicQueue =
+          Stream.of(getQueue() != null, getTopic() != null, getTopicNameMapper() != null)
+                  .filter(b -> b)
+                  .count()
+              == 1;
+      return exclusiveTopicQueue;
     }
 
     private static class WriterFn<EventT> extends DoFn<EventT, EventT> {
@@ -802,10 +873,11 @@ public class JmsIO {
 
       @ProcessElement
       public void processElement(ProcessContext ctx) {
+        Destination dynamicDestination = null;
         try {
           Message message = spec.getValueMapper().apply(ctx.element(), session);
           if (spec.getTopicNameMapper() != null) {
-            Destination dynamicDestination =
+            dynamicDestination =
                 session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
             producer.send(dynamicDestination, message);
 
@@ -814,6 +886,9 @@ public class JmsIO {
           }
 
         } catch (Exception ex) {
+          LOG.error(
+              "Error sending message on topic {}",
+              dynamicDestination != null ? dynamicDestination : destination);
           ctx.output(failedMessageTag, ctx.element());
         }
       }

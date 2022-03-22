@@ -27,6 +27,10 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
+/**
+ * Return type of {@link JmsIO.Write} transform. All messages in error are identified by: -
+ * TupleTag<EventT> failedMessageTag - PCollection<EventT> failedMessages
+ */
 public class WriteJmsResult<EventT> implements POutput {
 
   private final Pipeline pipeline;
