@@ -91,6 +91,9 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
         @Override
         public boolean tryClaim(Integer newPosition) {
           checkArgument(newPosition >= position);
+          if (terminated) {
+            return false;
+          }
           if (terminate.get()) {
             terminated = true;
             return false;
