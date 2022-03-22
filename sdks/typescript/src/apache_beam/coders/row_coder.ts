@@ -62,7 +62,7 @@ export class RowCoder implements Coder<any> {
           obj[f.name] = value;
           break;
         case "arrayType":
-          obj[f.name] = Array.from(value);
+          obj[f.name] = value === undefined ? undefined : Array.from(value);
           break;
         // case "iterableType":
         // case "mapType":
@@ -157,18 +157,6 @@ export class RowCoder implements Coder<any> {
         options: [],
       };
     });
-    console.log(
-      JSON.stringify(
-        {
-          id: (Math.random() + 1).toString(36).substring(7),
-          fields: fields,
-          options: [],
-          encodingPositionsSet: false,
-        },
-        null,
-        4
-      )
-    );
     return {
       id: uuid.v4(),
       fields: fields,
