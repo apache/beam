@@ -2393,6 +2393,28 @@ class ReadFromBigQuery(PTransform):
           'The method to read from BigQuery must be either EXPORT'
           'or DIRECT_READ.')
 
+  def _produce_pcoll_with_schema(self, project_id, dataset_id, table_id):
+    the_table_schema = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
+    ).get_table(project_id, dataset_id, table_id)
+    the_schema = get_dict_table_schema(the_table_schema)
+    i = 0
+    dict_of_tuples = []
+    for x in the_schema['fields']:
+      if the_schema['fields'][i]['type'] == 'STRING':
+        typ = str
+      elif the_schema['fields'][i]['type'] == 'INTEGER':
+        typ = np.int64
+      elif the_schema['fields'][i]['type'] == 'FLOAT':
+        typ = np.float
+
+      else:
+        raise ValueError(the_schema['fields'][i]['type'])
+      dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
+      i += 1
+    sample_schema = beam.typehints.schemas.named_fields_to_schema(
+        dict_of_tuples)
+    UserType = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
+
   def _expand_export(self, pcoll):
     # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
     temp_location = pcoll.pipeline.options.view_as(
