@@ -28,7 +28,7 @@ import 'package:playground/modules/examples/repositories/example_client/example_
     as _i5;
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart'
     as _i8;
-import 'package:playground/modules/examples/repositories/models/get_example_response.dart'
+import 'package:playground/modules/examples/repositories/models/get_example_code_response.dart'
     as _i3;
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart'
     as _i7;
