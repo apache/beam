@@ -25,6 +25,8 @@ import static org.hamcrest.core.Is.is;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.junit.Test;
 
+import java.util.Arrays;
+
 /** Tests for {@link ExpansionServer}. */
 public class ExpansionServerTest {
 
@@ -62,5 +64,35 @@ public class ExpansionServerTest {
             .as(PortablePipelineOptions.class)
             .getDefaultEnvironmentType(),
         equalTo("PROCESS"));
+  }
+
+  @Test
+  public void testNonEmptyFilesToStage() {
+    String[] args = {
+            "--filesToStage=nonExistent1.jar,nonExistent2.jar"
+    };
+    ExpansionService service = new ExpansionService(args);
+    assertThat(
+            service
+                    .createPipeline()
+                    .getOptions()
+                    .as(PortablePipelineOptions.class)
+                    .getFilesToStage(),
+            equalTo(Arrays.asList("nonExistent1.jar", "nonExistent2.jar")));
+  }
+
+  @Test
+  public void testEmptyFilesToStageIsOK() {
+    String[] args = {
+            "--filesToStage="
+    };
+    ExpansionService service = new ExpansionService(args);
+    assertThat(
+            service
+                    .createPipeline()
+                    .getOptions()
+                    .as(PortablePipelineOptions.class)
+                    .getFilesToStage(),
+            equalTo(Arrays.asList("")));
   }
 }
