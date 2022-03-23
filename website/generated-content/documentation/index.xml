@@ -12774,6 +12774,16 @@ SnsIO
 &lt;td style="word-break: break-all;">
 &lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html">org.apache.beam.sdk.io.aws2.sns.SnsIO (recommended)&lt;/a>&lt;/div>
 &lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sns/SnsIO.html">org.apache.beam.sdk.io.aws.sns.SnsIO&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html">org.apache.beam.sdk.io.aws2.sns.SnsIO&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
+Pub/Sub Lite
+&lt;/td>
+&lt;td>I/O transforms for reading from Google Pub/Sub Lite.&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html">org.apache.beam.sdk.io.pubsublite.PubSubLiteIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;/table>
@@ -13022,6 +13032,33 @@ DatabaseIO
 &lt;div>&lt;a target="_blank" href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/databaseio">github.com/apache/beam/sdks/go/pkg/beam/io/databaseio&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
+InfluxDB
+&lt;/td>
+&lt;td>IO to read and write from InfluxDB.&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html">org.apache.beam.sdk.io.influxdb.InfluxDbIO&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
+Firestore IO
+&lt;/td>
+&lt;td>FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html">org.apache.beam.sdk.io.gcp.healthcare.FirestoreIO&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
+Neo4j
+&lt;/td>
+&lt;td>&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="">&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
 &lt;/table>
 &lt;h3>Miscellaneous&lt;/h3>
 &lt;p>Miscellaneous I/O sources.&lt;/p>
@@ -13109,24 +13146,16 @@ HL7v2IO
 &lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>InfluxDB&lt;/td>&lt;td>Java&lt;/td>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
 &lt;td>Memcached&lt;/td>&lt;td>Java&lt;/td>
 &lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1678">BEAM-1678&lt;/a>&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>Neo4j&lt;/td>&lt;td>Java&lt;/td>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>Pub/Sub Lite&lt;/td>&lt;td>Java&lt;/td>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-10114">BEAM-10114&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
 &lt;td>RestIO&lt;/td>&lt;td>Java&lt;/td>
 &lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>NATS IO&lt;/td>&lt;td>&lt;/td>
+&lt;td>&lt;/td>
 &lt;/tr>
 &lt;/table></description></item><item><title>Documentation: CoGroupByKey</title><link>/documentation/transforms/java/aggregation/cogroupbykey/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/cogroupbykey/</guid><description>
 &lt;!--
