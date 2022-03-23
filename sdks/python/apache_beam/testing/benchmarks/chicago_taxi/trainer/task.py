@@ -17,11 +17,10 @@
 
 import argparse
 import os
-
 import tensorflow as tf
-from tensorflow import estimator as tf_estimator
 import tensorflow_model_analysis as tfma
 import tensorflow_transform as tft
+from tensorflow import estimator as tf_estimator
 from trainer import model
 from trainer import taxi
 

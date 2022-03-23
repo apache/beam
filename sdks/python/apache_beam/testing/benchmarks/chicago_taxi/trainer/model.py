@@ -16,9 +16,8 @@
 # pytype: skip-file
 
 import tensorflow as tf
-
-from tensorflow import estimator as tf_estimator
 import tensorflow_model_analysis as tfma
+from tensorflow import estimator as tf_estimator
 from trainer import taxi
 
 
