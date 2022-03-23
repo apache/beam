@@ -18,7 +18,8 @@ name: Collect And Deploy Playground Examples
 on:
   push:
     tags: 'v*'
-    branch: 'beta-version'
+    branches: ['master', 'release-*']
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -52,7 +53,7 @@ jobs:
              chmod 700 get_helm.sh &&\
              ./get_helm.sh
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.3.0
+        uses: google-github-actions/setup-gcloud@v0
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
@@ -61,7 +62,7 @@ jobs:
         run: rm ~/.m2/settings.xml
       - name: Setup GCP account
         run: |
-             echo "${{ secrets.PLAYGROUND_GCP_ACCESS_KEY }}" | base64 -d > /tmp/gcp_access.json
+             echo "${{ secrets.GCP_PLAYGROUND_SA_KEY }}" | base64 -d > /tmp/gcp_access.json
              which gcloud
              gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
       - name: Set Docker Tag
@@ -75,17 +76,17 @@ jobs:
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
       - name: Build And Push Java Backend
         run: |
-             ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag=${{ env.DOCKERTAG }} 
+             ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag=${{ env.DOCKERTAG }}
       - name: Build And Push Go Backend
-        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
       - name: Build And Push Python Backend
-        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
+        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
       - name: Clean All Build directories
         run: ./gradlew clean
       - name: Install helm chart
         run: |
              kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - &&\
-             helm install  --namespace $K8S_NAMESPACE $HELM_APP_NAME . --set global.registry="${{ secrets.PLAYGROUND_REGISTRY_NAME }}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" --set global.tag=${{ env.DOCKERTAG }} &&\
+             helm install  --namespace $K8S_NAMESPACE $HELM_APP_NAME . --set global.registry="${{ secrets.PLAYGROUND_REGISTRY_NAME }}/${{ secrets.GCP_PLAYGROUND_PROJECT_ID }}/playground-repository" --set global.tag=${{ env.DOCKERTAG }} &&\
              sleep 120
         working-directory: playground/infrastructure/helm
       - name: Run Python Examples CI

@@ -35,21 +35,21 @@ goBuild {
   outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
 }
 
-task buildAll {
+tasks.register("buildAll") {
   dependsOn ':sdks:python:container:py36:docker'
   dependsOn ':sdks:python:container:py37:docker'
   dependsOn ':sdks:python:container:py38:docker'
   dependsOn ':sdks:python:container:py39:docker'
 }
 
-task pushAll {
+tasks.register("pushAll") {
   dependsOn ':sdks:python:container:py36:dockerPush'
   dependsOn ':sdks:python:container:py37:dockerPush'
   dependsOn ':sdks:python:container:py38:dockerPush'
   dependsOn ':sdks:python:container:py39:dockerPush'
 }
 
-task generatePythonRequirementsAll {
+tasks.register("generatePythonRequirementsAll") {
   dependsOn ':sdks:python:container:py36:generatePythonRequirements'
   dependsOn ':sdks:python:container:py37:generatePythonRequirements'
   dependsOn ':sdks:python:container:py38:generatePythonRequirements'

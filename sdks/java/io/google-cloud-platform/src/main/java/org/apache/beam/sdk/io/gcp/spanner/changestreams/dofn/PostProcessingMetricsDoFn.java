@@ -90,6 +90,8 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
             emittedTimestamp.toSqlTimestamp().getTime());
     final long commitedToEmittedMillis = committedToEmitted.getMillis();
 
+    metrics.updateDataRecordCommittedToEmitted(committedToEmitted);
+
     if (commitedToEmittedMillis > COMMITTED_TO_EMITTED_THRESHOLD_MS) {
       LOG.debug(
           "Data record took "
