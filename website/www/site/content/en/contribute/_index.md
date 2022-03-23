@@ -66,8 +66,8 @@ detail.
 
 ### Connect with the Beam community
 
-1. Consider [subscribing to the dev@beam.apache.org](/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
-1. (Optionally) Join the [#beam channel of the ASF slack](https://beam.apache.org/community/contact-us/).
+1. Consider [subscribing to the dev@beam.apache.org]( https://beam.apache.org/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
+1. (Optionally) Join the [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
 1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
    (anyone can do this).
 
@@ -94,9 +94,9 @@ detail.
 
 All communication is expected to align with the [Code of Conduct](https://www.apache.org/foundation/policies/conduct).
 
-Discussion about contributing code to Beam happens on the [dev@beam.apache.org mailing list](/community/contact-us/). Introduce yourself!
+Discussion about contributing code to Beam happens on the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/). Introduce yourself!
 
-Questions can be asked on the [#beam channel of the ASF slack](https://beam.apache.org/community/contact-us/). Introduce yourself!
+Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/). Introduce yourself!
 
 <a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
 
@@ -109,12 +109,12 @@ Questions can be asked on the [#beam channel of the ASF slack](https://beam.apac
 ### Prerequisites
 
 - A [GitHub](https://github.com/) account.
-- A Linux, macOS, or Microsoft Windows development environment
-- Java JDK 8 installed
+- A Linux, macOS, or Microsoft Windows development environment.
+- Java JDK 8 installed.
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
   changes locally.
 - For SDK Development:
-   - [Go](https://golang.org) 1.12 or later installed for Go SDK development
+   - [Go](https://golang.org) 1.12 or later installed for Go SDK development.
    - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
      Interpreters should be installed and available in shell via `python3.x` commands. For more information, see:
      Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
@@ -125,18 +125,20 @@ Questions can be asked on the [#beam channel of the ASF slack](https://beam.apac
 ### Share Your Intent
 1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
-   a place for notes. Later, your pull request will be linked to the issue as well.
-1. Assign the issue to yourself. To get the permission to do so, email
+   a place for notes. Later, your pull request will be linked to the issue as well. You may find the [Jira beginner’s guide](https://cwiki.apache.org/confluence/display/BEAM/Beam+Jira+Beginner%27s+Guide) and some useful [Jira tips](https://cwiki.apache.org/confluence/display/BEAM/Jira+Tips) in our Wiki.
+2. Assign the issue to yourself. To get the permission to do so, email
    the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
    ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
-1. If your change is large or it is your first change, it is a good idea to
+3. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
-1. For large changes create a design doc
+4. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 
 ### Setup Your Environment
+
+Before you begin, check out the Wiki pages. There are many useful tips about [Git](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips), [Go](https://cwiki.apache.org/confluence/display/BEAM/Go+Tips), [Gradle](https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips), [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips), [Python](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips), etc.
 
 #### Configuration Options
 You have two options for configuring your development environment:
