@@ -30,8 +30,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 _ReadSchema = typing.NamedTuple(
     '_ReadSchema',
-    [('subscription_path', str), ('min_bundle_timeout', int),
-     ('deduplicate', bool)])
+    [('subscription_path', str), ('deduplicate', bool)])
 
 
 def _default_io_expansion_service():
@@ -51,7 +50,6 @@ class _ReadExternal(ExternalTransform):
   def __init__(
       self,
       subscription_path,
-      min_bundle_timeout=None,
       deduplicate=None,
       expansion_service=None,
   ):
@@ -61,15 +59,9 @@ class _ReadExternal(ExternalTransform):
 
     Args:
       subscription_path: A Pub/Sub Lite Subscription path.
-      min_bundle_timeout: The minimum wall time to pass before allowing
-          bundle closure. Setting this to too small of a value will result in
-          increased compute costs and lower throughput per byte. Immediate
-          timeouts (0) may be useful for testing.
       deduplicate: Whether to deduplicate messages based on the value of
           the 'x-goog-pubsublite-dataflow-uuid' attribute.
     """
-    if min_bundle_timeout is None:
-      min_bundle_timeout = 60 * 1000
     if deduplicate is None:
       deduplicate = False
     if expansion_service is None:
@@ -79,7 +71,6 @@ class _ReadExternal(ExternalTransform):
         NamedTupleBasedPayloadBuilder(
             _ReadSchema(
                 subscription_path=subscription_path,
-                min_bundle_timeout=min_bundle_timeout,
                 deduplicate=deduplicate)),
         expansion_service)
 

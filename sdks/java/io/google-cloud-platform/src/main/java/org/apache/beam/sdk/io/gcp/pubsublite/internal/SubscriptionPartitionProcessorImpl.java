@@ -17,16 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -59,43 +53,28 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
   }
 
   @Override
-  @SuppressWarnings("argument.type.incompatible")
-  public ProcessContinuation runFor(Duration duration) {
-    Instant maxReadTime = Instant.now().plus(duration);
-    while (subscriber.isRunning()) {
-      // Read any available data.
-      for (Optional<SequencedMessage> next = subscriber.peek();
-          next.isPresent();
-          next = subscriber.peek()) {
-        SequencedMessage message = next.get();
-        Offset messageOffset = Offset.of(message.getCursor().getOffset());
-        if (tracker.tryClaim(OffsetByteProgress.of(messageOffset, message.getSizeBytes()))) {
-          subscriber.pop();
-          lastClaimedOffset = Optional.of(messageOffset);
-          receiver.outputWithTimestamp(
-              message, new Instant(Timestamps.toMillis(message.getPublishTime())));
-        } else {
-          // Our claim failed, return stop()
-          return ProcessContinuation.stop();
-        }
-      }
-      // Try waiting for new data.
-      try {
-        Duration readTime = new Duration(Instant.now(), maxReadTime);
-        Future<Void> onData = subscriber.onData();
-        checkArgumentNotNull(onData);
-        onData.get(readTime.getMillis(), TimeUnit.MILLISECONDS);
-      } catch (TimeoutException e) {
-        // Read timed out without us being cut off, yield to the runtime.
-        return ProcessContinuation.resume();
-      } catch (InterruptedException | ExecutionException e2) {
-        // We should never be interrupted by beam, and onData should never return an error.
-        throw new RuntimeException(e2);
+  public ProcessContinuation run() {
+    // Read any available data.
+    for (Optional<SequencedMessage> next = subscriber.peek();
+        next.isPresent();
+        next = subscriber.peek()) {
+      SequencedMessage message = next.get();
+      Offset messageOffset = Offset.of(message.getCursor().getOffset());
+      if (tracker.tryClaim(OffsetByteProgress.of(messageOffset, message.getSizeBytes()))) {
+        subscriber.pop();
+        lastClaimedOffset = Optional.of(messageOffset);
+        receiver.outputWithTimestamp(
+            message, new Instant(Timestamps.toMillis(message.getPublishTime())));
+      } else {
+        // Our claim failed, return stop()
+        return ProcessContinuation.stop();
       }
     }
-    // Subscriber is no longer running, it has likely failed. Yield to the runtime to retry reading
-    // with a new subscriber.
-    return ProcessContinuation.resume();
+    // There is no more data available. If we received any messages, tell the runtime reschedule us
+    // as soon as possible. If not, tell it to reschedule us 5 seconds from now.
+    return ProcessContinuation.resume()
+        .withResumeDelay(
+            lastClaimedOffset.isPresent() ? Duration.ZERO : Duration.standardSeconds(5));
   }
 
   @Override

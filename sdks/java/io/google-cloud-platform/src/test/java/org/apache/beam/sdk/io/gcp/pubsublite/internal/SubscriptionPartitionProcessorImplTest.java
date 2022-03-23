@@ -31,8 +31,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.api.core.ApiFutures;
-import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
@@ -66,6 +64,7 @@ import org.mockito.Spy;
 public class SubscriptionPartitionProcessorImplTest {
   private static final SubscriptionPartition PARTITION =
       SubscriptionPartition.of(example(SubscriptionPath.class), example(Partition.class));
+  private static final Duration NO_DATA_RESUME_DELAY = Duration.standardSeconds(5);
 
   @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
@@ -96,7 +95,6 @@ public class SubscriptionPartitionProcessorImplTest {
     when(tracker.currentRestriction()).thenReturn(initialRange());
     doReturn(true).when(subscriber).isRunning();
     doReturn(example(Offset.class)).when(subscriber).fetchOffset();
-    doReturn(SettableApiFuture.create()).when(subscriber).onData();
   }
 
   private SubscriptionPartitionProcessor newProcessor() {
@@ -106,7 +104,8 @@ public class SubscriptionPartitionProcessorImplTest {
   @Test
   public void lifecycle() {
     SubscriptionPartitionProcessor processor = newProcessor();
-    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
+    assertEquals(
+        ProcessContinuation.resume().withResumeDelay(NO_DATA_RESUME_DELAY), processor.run());
     InOrder order = inOrder(subscriberFactory, subscriber);
     order.verify(subscriberFactory).get();
     order.verify(subscriber).fetchOffset();
@@ -120,7 +119,8 @@ public class SubscriptionPartitionProcessorImplTest {
     doThrow(new RuntimeException("Ignored")).when(badSubscriber).awaitTerminated();
     doReturn(badSubscriber, subscriber).when(subscriberFactory).get();
     SubscriptionPartitionProcessor processor = newProcessor();
-    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
+    assertEquals(
+        ProcessContinuation.resume().withResumeDelay(NO_DATA_RESUME_DELAY), processor.run());
     InOrder order = inOrder(subscriberFactory, badSubscriber, subscriber);
     order.verify(subscriberFactory).get();
     order.verify(badSubscriber).fetchOffset();
@@ -138,29 +138,13 @@ public class SubscriptionPartitionProcessorImplTest {
   }
 
   @Test
-  public void subscriberFailureReturnsResume() throws Exception {
-    SubscriptionPartitionProcessor processor = newProcessor();
-    doReturn(ApiFutures.immediateFuture(null)).when(subscriber).onData();
-    doReturn(false).when(subscriber).isRunning();
-    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.standardHours(1)));
-  }
-
-  @Test
-  public void timeoutReturnsResume() {
-    SubscriptionPartitionProcessor processor = newProcessor();
-    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
-    assertFalse(processor.lastClaimed().isPresent());
-  }
-
-  @Test
   public void failedClaimCausesStop() {
     SubscriptionPartitionProcessor processor = newProcessor();
 
     when(tracker.tryClaim(any())).thenReturn(false);
-    doReturn(ApiFutures.immediateFuture(null)).when(subscriber).onData();
     doReturn(Optional.of(messageWithOffset(1))).when(subscriber).peek();
 
-    assertEquals(ProcessContinuation.stop(), processor.runFor(Duration.standardHours(10)));
+    assertEquals(ProcessContinuation.stop(), processor.run());
 
     verify(tracker, times(1)).tryClaim(any());
     verify(subscriber, times(0)).pop();
@@ -170,9 +154,6 @@ public class SubscriptionPartitionProcessorImplTest {
   @Test
   public void successfulClaimThenTimeout() {
     doReturn(true).when(tracker).tryClaim(any());
-    doReturn(ApiFutures.immediateFuture(null), SettableApiFuture.create())
-        .when(subscriber)
-        .onData();
 
     SequencedMessage message1 = messageWithOffset(1);
     SequencedMessage message3 = messageWithOffset(3);
@@ -181,7 +162,7 @@ public class SubscriptionPartitionProcessorImplTest {
         .peek();
 
     SubscriptionPartitionProcessor processor = newProcessor();
-    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.standardSeconds(3)));
+    assertEquals(ProcessContinuation.resume(), processor.run());
 
     InOrder order = inOrder(tracker, receiver);
     order.verify(tracker).tryClaim(OffsetByteProgress.of(Offset.of(1), message1.getSizeBytes()));
