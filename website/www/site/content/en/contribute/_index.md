@@ -118,7 +118,7 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
    - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
      Interpreters should be installed and available in shell via `python3.x` commands. For more information, see:
      Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
-- For large contributions, a signed [Individual Contributor License
+- For large contributions, a signed [Individual Contributor License.
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).
 
@@ -228,7 +228,7 @@ $ cd beam
 
 &emsp;&emsp;We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems).
 
-&emsp;&emsp;Clone the repo, and update your branch as normal
+&emsp;&emsp;Clone the repo, and update your branch as normal:
 
 
 ```
@@ -238,7 +238,7 @@ $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
 $ git fetch --all
 ```
 
-&emsp;&emsp;Get or Update all the Go SDK dependencies
+&emsp;&emsp;Get or Update all the Go SDK dependencies:
  ```
 $ go get -u ./...
 ```
@@ -345,7 +345,7 @@ retest this please
    To find a committer for your area, either:
     - look in the OWNERS file of the directory where you changed files, or
     - look for similar code merges, or
-    - ask on [dev@beam.apache.org](/community/contact-us/)
+    - ask on [dev@beam.apache.org](https://beam.apache.org/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
 
@@ -386,10 +386,10 @@ unassigned from the author but will stay open.
 
 ### Troubleshooting
 
-If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](/community/contact-us/) or [#beam channel of the ASF slack](/community/contact-us/).
+If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](https://beam.apache.org/community/contact-us/) or [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
 
 If you didn't find the information you were looking for in this guide, please
-[reach out to the Beam community](/community/contact-us).
+[reach out to the Beam community](https://beam.apache.org/community/contact-us/).
 
 </div>
 
@@ -398,9 +398,9 @@ A great way to contribute is to join an existing effort. If you want to get invo
 For the most intensive efforts, check out the [roadmap](https://beam.apache.org/roadmap/).
 
 ## Additional Resources
-Please see Beam developers’ Wiki Contributor FAQ for more information.
+Please see Beam developers’ [Wiki Contributor FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) for more information.
 
-If you are contributing a [PTransform](https://s.apache.org/beam-starter-tasks) to Beam, we have an extensive [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide).
+If you are contributing a ```PTransform``` to Beam, we have an extensive [PTransform Style Guide](https://beam.apache.org/contribute/ptransform-style-guide).
 
 If you are contributing a Runner to Beam, refer to the [Runner authoring guide](https://beam.apache.org/contribute/runner-guide/).
 
