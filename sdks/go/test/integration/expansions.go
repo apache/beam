@@ -39,17 +39,16 @@ import (
 // recommended to only use ExpansionServices in TestMain to avoid this.
 //
 // Example:
-//   var retCode int
-//   defer func() { os.Exit(retCode) }()  // Defer os.Exit so it happens after other defers.
+//   flag.Parse()
+//   beam.Init()
 //   services := integration.NewExpansionServices()
 //   defer func() { services.Shutdown() }()
 //   addr, err := services.GetAddr("example")
 //   if err != nil {
-//     retCode = 1
 //     panic(err)
 //   }
 //   expansionAddr = addr  // Save address to a package-level variable used by tests.
-//   retCode = ptest.MainRet(m)
+//   ptest.MainRet(m)
 type ExpansionServices struct {
 	addrs map[string]string
 	jars  map[string]string

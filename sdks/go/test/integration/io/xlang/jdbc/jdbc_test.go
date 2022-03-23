@@ -17,10 +17,12 @@ package jdbc
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
@@ -34,8 +36,10 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+var expansionAddr string // Populate with expansion address labelled "schemaio".
+
 func checkFlags(t *testing.T) {
-	if *integration.SchemaIoExpansionAddr == "" {
+	if expansionAddr == "" {
 		t.Skip("No Schema IO expansion address provided.")
 	}
 }
@@ -101,10 +105,10 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
 
-	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	write := WritePipeline(expansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	read := ReadPipeline(expansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 
@@ -121,13 +125,24 @@ func TestJDBCIO_PostgresReadWrite(t *testing.T) {
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
 
-	write := WriteToPostgres(*integration.SchemaIoExpansionAddr, tableName, jdbcUrl, username, password)
+	write := WriteToPostgres(expansionAddr, tableName, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadFromPostgres(*integration.SchemaIoExpansionAddr, tableName, jdbcUrl, username, password)
+	read := ReadFromPostgres(expansionAddr, tableName, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	flag.Parse()
+	beam.Init()
+
+	services := integration.NewExpansionServices()
+	defer func() { services.Shutdown() }()
+	addr, err := services.GetAddr("schemaio")
+	if err != nil {
+		panic(err)
+	}
+	expansionAddr = addr
+
+	ptest.MainRet(m)
 }

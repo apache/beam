@@ -26,22 +26,6 @@ import (
 // Because any flags used with those commands are used for each package, every
 // integration test package must import these flags, even if they are not used.
 var (
-	// TestExpansionAddr is the endpoint for the expansion service for test-only
-	// cross-language transforms.
-	TestExpansionAddr = flag.String("test_expansion_addr", "", "Address of Expansion Service for test cross-language transforms.")
-
-	// IoExpansionAddr is the endpoint for the expansion service for
-	// cross-language IO transforms.
-	IoExpansionAddr = flag.String("io_expansion_addr", "", "Address of Expansion Service for cross-language IOs.")
-
-	// SchemaIoExpansionAddr is the endpoint for the expansion service for
-	// cross-language SchemaIO-based transforms.
-	SchemaIoExpansionAddr = flag.String("schemaio_expansion_addr", "", "Address of Expansion Service for cross-language SchemaIO-based IOs.")
-
-	// DebeziumIoExpansionAddr is the endpoint for the expansion service for
-	// cross-language DebeziumIO transforms.
-	DebeziumIoExpansionAddr = flag.String("debeziumio_expansion_addr", "", "Address of Expansion Service for cross-language Debezium IOs.")
-
 	// BootstrapServers is the address of the bootstrap servers for a Kafka
 	// cluster, used for Kafka IO tests.
 	BootstrapServers = flag.String("bootstrap_servers", "",
