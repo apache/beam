@@ -2421,8 +2421,8 @@ class ReadFromBigQuery(PTransform):
         typ = datetime.datetime
       else:
         raise ValueError(the_schema['fields'][i]['type'])
-      dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
-      i += 1
+    dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
+    i += 1
     sample_schema = beam.typehints.schemas.named_fields_to_schema(
         dict_of_tuples)
     userType = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
