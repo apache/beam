@@ -41,7 +41,6 @@ public final class SbeSchemaTest {
     SbeSchema actual = SbeSchema.fromIr(ir, IrOptions.DEFAULT);
 
     assertNotNull(actual.getIr());
-    assertNotNull(actual.getIrOptions());
     assertNotSame(ir, actual.getIr());
     assertEquals(IrOptions.DEFAULT, actual.getIrOptions());
     assertEquals(OnlyPrimitives.FIELDS, actual.getSbeFields());

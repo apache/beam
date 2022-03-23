@@ -23,16 +23,12 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.real_logic.sbe.ir.Ir;
 
 /**
- * Represents an SBE schema that can be translated to a Beam {@link Schema} and {@link
- * PayloadSerializerProvider}.
+ * Represents an SBE schema.
  *
  * <p>The schema represents a single SBE message. If the XML schema contains more than one message,
  * then a new instance must be created for each message that the pipeline will work with.
@@ -48,7 +44,7 @@ import uk.co.real_logic.sbe.ir.Ir;
  * <p>An {@link Ir} allows for a reflection-less way of getting a very accurate representation of
  * the SBE schema, since it is a tokenized form of the original XML schema. To help deal with some
  * ambiguities, such as which message to base the schema around, passing {@link IrOptions} is
- * required. See the Javadoc for the options for more details.
+ * required.
  */
 @Experimental(Kind.SCHEMAS)
 public final class SbeSchema implements Serializable {
@@ -82,36 +78,32 @@ public final class SbeSchema implements Serializable {
    */
   public static SbeSchema fromIr(Ir ir, IrOptions irOptions) {
     ImmutableList<SbeField> sbeFields = IrFieldGenerator.generateFields(ir, irOptions);
-
-    Ir copy =
-        new Ir(
-            ir.packageName(),
-            ir.namespaceName(),
-            ir.id(),
-            ir.version(),
-            ir.description(),
-            ir.semanticVersion(),
-            ir.byteOrder(),
-            ImmutableList.copyOf(ir.headerStructure().tokens()));
-
+    Ir copy = createIrCopy(ir);
     return new SbeSchema(SerializableIr.fromIr(copy), irOptions, sbeFields);
   }
 
-  @VisibleForTesting
-  @Nullable
-  Ir getIr() {
-    return ir == null ? null : ir.ir();
+  public @Nullable Ir getIr() {
+    return ir == null ? null : createIrCopy(ir.ir());
   }
 
-  @VisibleForTesting
-  @Nullable
-  IrOptions getIrOptions() {
+  public @Nullable IrOptions getIrOptions() {
     return irOptions;
   }
 
-  @VisibleForTesting
-  ImmutableList<SbeField> getSbeFields() {
+  public ImmutableList<SbeField> getSbeFields() {
     return sbeFields;
+  }
+
+  private static Ir createIrCopy(Ir ir) {
+    return new Ir(
+        ir.packageName(),
+        ir.namespaceName(),
+        ir.id(),
+        ir.version(),
+        ir.description(),
+        ir.semanticVersion(),
+        ir.byteOrder(),
+        ImmutableList.copyOf(ir.headerStructure().tokens()));
   }
 
   /**

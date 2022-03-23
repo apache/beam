@@ -33,7 +33,7 @@ import uk.co.real_logic.sbe.ir.Token;
 
 /** Utility for generating {@link SbeField}s from an {@link Ir}. */
 @Experimental(Kind.SCHEMAS)
-public final class IrFieldGenerator {
+final class IrFieldGenerator {
   private IrFieldGenerator() {}
 
   /**

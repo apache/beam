@@ -28,7 +28,7 @@ import uk.co.real_logic.sbe.PrimitiveType;
 /** Represents a primitive SBE field. */
 @Experimental(Kind.SCHEMAS)
 @AutoValue
-public abstract class PrimitiveSbeField implements SbeField {
+abstract class PrimitiveSbeField implements SbeField {
   private static final long serialVersionUID = 1L;
 
   @Override
@@ -49,7 +49,7 @@ public abstract class PrimitiveSbeField implements SbeField {
     switch (type()) {
       case CHAR:
         // TODO(BEAM-12697): Support char types
-        throw new UnsupportedOperationException("char type not supported yet");
+        throw new UnsupportedOperationException("char type not supported yet (BEAM-12697)");
       case INT8:
         return FieldType.BYTE;
       case INT16:
