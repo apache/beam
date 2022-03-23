@@ -141,6 +141,8 @@ public class BagUserState<T> {
 
     // Modify the underlying cached state depending on the mutations performed
     if (isCleared) {
+      // Note this takes ownership of newValues. This object is no longer used after it has been
+      // closed.
       oldValues.clearAndAppend(newValues);
     } else {
       oldValues.append(newValues);
