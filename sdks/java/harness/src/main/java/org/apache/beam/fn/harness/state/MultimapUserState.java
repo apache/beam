@@ -318,7 +318,7 @@ public class MultimapUserState<K, V> {
 
     if (isCleared) {
       // This will clear all keys and values since values is a sub-cache of keys. Note this
-      // takes ownership of pendingAddKeys.
+      // takes ownership of pendingAddKeys. This object is no longer used after it has been closed.
       persistedKeys.clearAndAppend(pendingAddsKeys);
 
       // Since the map was cleared we can add all the values that are pending since we know
