@@ -18,6 +18,9 @@
 package expansionx
 
 import (
+	"archive/zip"
+	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,6 +28,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -72,6 +76,10 @@ func buildJarName(artifactId, version string) string {
 	return fmt.Sprintf("%s-%s.jar", artifactId, version)
 }
 
+func getMavenJar(artifactID, groupID, version string) string {
+	return strings.Join([]string{string(apacheRepository), strings.ReplaceAll(groupID, ".", "/"), artifactID, version, buildJarName(artifactID, version)}, "/")
+}
+
 func expandJar(jar string) string {
 	if jarExists(jar) {
 		return jar
@@ -79,19 +87,124 @@ func expandJar(jar string) string {
 		return jar
 	} else {
 		components := strings.Split(jar, ":")
-		groupId := components[0]
-		artifactId := components[1]
-		version := components[2]
-		url := fmt.Sprintf("%s/%s/%s/%s/%s", apacheRepository, strings.ReplaceAll(groupId, ".", "/"), artifactId, version, buildJarName(artifactId, version))
-
+		groupID, artifactID, version := components[0], components[1], components[2]
+		path := getMavenJar(artifactID, groupID, version)
+		return path
 	}
 }
 
-func AddClasspathJars(jarPath, classpath []string) (string, error) {
+func getLocalJar(url string) (string, error) {
+
+	jarName := path.Base(url)
+	usr, _ := user.Current()
+	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
+	jarPath := filepath.Join(cacheDir, jarName)
+
+	if jarExists(jarPath) {
+		return jarPath, nil
+	}
+
+	resp, err := http.Get(string(url))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("failed to connect to %v: received non 200 response code, got %v", url, resp.StatusCode)
+	}
+
+	file, err := os.Create(jarPath)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("error in create: %v", err))
+	}
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("error in copy: %v", err))
+	}
+
+	return jarPath, nil
+}
+
+func AddClasspathJars(mainJar string, classpath []string) (string, error) {
+	usr, _ := user.Current()
+	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
 	classpathJars := []string{}
 	for _, jar := range classpath {
 		path := expandJar(jar)
+		if j, err := getLocalJar(path); err == nil {
+			classpathJars = append(classpathJars, j)
+		} else {
+			return "", errors.New(fmt.Sprintf("error in getLocal(): %v", err))
+		}
 	}
+
+	compositeJarDir := filepath.Join(cacheDir, "composite-jar")
+	err := os.MkdirAll(compositeJarDir, 0700)
+	if err != nil {
+		return "", err
+	}
+	relClasspath := []string{}
+
+	for _, pattern := range append([]string{mainJar}, classpathJars...) {
+		path, err := filepath.Abs(pattern)
+		if err != nil {
+			return "", err
+		}
+		relPath, err := filepath.Rel(compositeJarDir, path)
+		if err != nil {
+			return "", fmt.Errorf("error in creating relative path: %v", err)
+		}
+		relClasspath = append(relClasspath, relPath)
+		if _, err = os.Stat(filepath.Join(compositeJarDir, relPath)); errors.Is(err, os.ErrNotExist) {
+			os.Symlink(path, filepath.Join(compositeJarDir, relPath))
+		}
+	}
+	sort.Strings(relClasspath)
+	// compositeJar := filepath.Join(compositeJarDir, strings.Join(relClasspath, " "))
+	compositeJar := filepath.Join(compositeJarDir, "composite.jar")
+	if !jarExists(compositeJar) {
+		archive, err := zip.OpenReader(mainJar)
+		if err != nil {
+			return "", fmt.Errorf("error in OpenReader(): %v", err)
+		}
+		defer archive.Close()
+		manifest, err := archive.Open("META-INF/MANIFEST.MF")
+		if err != nil {
+			return "", err
+		}
+		defer manifest.Close()
+
+		scanner := bufio.NewScanner(manifest)
+		mainClass := ""
+		for scanner.Scan() {
+			if scan := scanner.Text(); strings.HasPrefix(scan, "Main-Class:") {
+				mainClass = scan
+				break
+			}
+		}
+		tmpJar := fmt.Sprintf("%s.tmp", compositeJar)
+		tmpArchive, err := os.Create(tmpJar)
+		if err != nil {
+			return "", err
+		}
+		defer tmpArchive.Close()
+
+		zipf := zip.NewWriter(tmpArchive)
+		defer zipf.Close()
+		mfile, err := zipf.Create("META-INF/MANIFEST.MF")
+		if err != nil {
+			return "", err
+		}
+		writeBuf := []byte(fmt.Sprintf("Manifest-Version: 1.0\n%s\nClass-Path: %s\n", mainClass, strings.Join(relClasspath, " ")))
+		mfile.Write(writeBuf)
+		err = os.Rename(tmpJar, compositeJar)
+		if err != nil {
+			return "", nil
+		}
+	}
+	return compositeJar, nil
 }
 
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the

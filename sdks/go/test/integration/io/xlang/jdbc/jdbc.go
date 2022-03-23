@@ -36,7 +36,7 @@ type JdbcTestRow struct {
 
 func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string, input beam.PCollection) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	jdbcio.Write(s, tableName, driverClassName, jdbcUrl, username, password, input, jdbcio.ExpansionAddrWrite(expansionAddr), jdbcio.Classpath([]string{}))
+	jdbcio.Write(s, tableName, driverClassName, jdbcUrl, username, password, input, jdbcio.ExpansionAddrWrite(expansionAddr), jdbcio.Classpath([]string{"org.postgresql:postgresql:42.3.3"}))
 }
 
 // WritePipeline creates a pipeline for JDBC IO Write transform.

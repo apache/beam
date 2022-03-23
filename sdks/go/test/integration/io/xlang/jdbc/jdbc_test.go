@@ -40,7 +40,7 @@ func checkFlags(t *testing.T) {
 	}
 }
 
-func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, password string) int {
+func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
 	t.Helper()
 
 	var env = map[string]string{
@@ -85,7 +85,7 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 	if err != nil {
 		t.Fatalf("can't create table, check command and access level")
 	}
-	return mappedPort.Int()
+	return container, mappedPort.Int()
 }
 
 func setupMySqlContainer(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
@@ -161,8 +161,8 @@ type DB struct {
 
 // TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
 func TestJDBCIO_BasicReadWrite(t *testing.T) {
-	integration.CheckFilters(t)
-	checkFlags(t)
+	// integration.CheckFilters(t)
+	// checkFlags(t)
 
 	ctx := context.Background()
 	dbname := "postjdbc"
@@ -172,7 +172,7 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 		"postgres": {
 			name: "postgresql",
 			setup: func(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
-				return nil, setupTestContainer(t, ctx, dbname, username, password)
+				return setupTestContainer(t, ctx, dbname, username, password)
 			},
 			driver: "org.postgresql.Driver",
 		},
@@ -185,7 +185,7 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 		},
 	}
 
-	name := "mysql"
+	name := "postgres"
 	cont, port := db[name].setup(t, ctx, dbname, username, password)
 	defer cont.Terminate(ctx)
 	// defer cdb.Close()
@@ -193,10 +193,10 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	host := "127.0.0.1"
 	jdbcUrl := fmt.Sprintf("jdbc:%s://%s:%d/%s?user=%s&password=%s&maxReconnects=10&autoReconnect=true&useSSL=false&useUnicode=true&characterEncoding=UTF-8", db[name].name, host, port, dbname, username, password)
 
-	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
+	write := WritePipeline("", tableName, db[name].driver, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
+	read := ReadPipeline("", tableName, db[name].driver, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 

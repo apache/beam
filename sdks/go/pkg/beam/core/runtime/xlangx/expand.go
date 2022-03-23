@@ -20,7 +20,6 @@ package xlangx
 import (
 	"context"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
@@ -147,17 +146,21 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams, opt interface{
 }
 
 func startAutomatedJavaExpansionService(gradleTarget string, classpath []string) (stopFunc func() error, address string, err error) {
-	jarPath, err := expansionx.GetBeamJar(gradleTarget, core.SdkVersion)
+	jarPath, err := expansionx.GetBeamJar(gradleTarget, "2.37.0")
 	if err != nil {
 		return nil, "", err
 	}
+	// jarPath, err = expansionx.AddClasspathJars(jarPath, classpath)
+	// if err != nil {
+	// 	return nil, "", err
+	// }
 	serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Errorf("error in new expansion service: %v", err)
 	}
 	err = serviceRunner.StartService()
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Errorf("error in start: %v", err)
 	}
 	stopFunc = serviceRunner.StopService
 	address = serviceRunner.Endpoint()
