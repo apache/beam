@@ -35,7 +35,7 @@ class MemoryLimiterImpl implements MemoryLimiter {
   public MemoryLimiterImpl(long minBlockSize, long maxBlockSize, long maxAvailable) {
     this.minBlockSize = minBlockSize;
     this.maxBlockSize = maxBlockSize;
-    this.maxAvailable = available;
+    this.maxAvailable = maxAvailable;
     this.available = maxAvailable;
   }
 
@@ -77,8 +77,8 @@ class MemoryLimiterImpl implements MemoryLimiter {
     @Override
     public void close() {
       checkState(!released);
-      release(claimed);
       released = true;
+      release(claimed);
     }
 
     @Override
