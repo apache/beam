@@ -77,7 +77,7 @@ detail.
   Anyone can access it and browse issues. Anyone can register an account and login
   to create issues or add comments. Only contributors can be assigned issues. If
   you want to be assigned issues, a PMC member can add you to the project contributor
-  group.  Email the [dev@ mailing list](/community/contact-us)
+  group.  Email the [dev@beam.apache.org](/community/contact-us)
   to ask to be added as a contributor in the Beam issue tracker, and include your ASF Jira username.
 
 - [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam):
@@ -126,8 +126,6 @@ Questions can be asked on the [#beam channel of the ASF slack](https://beam.apac
 1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
    a place for notes. Later, your pull request will be linked to the issue as well.
-1. If you want to get involved but don't have a project in mind, check our list of open starter tasks,
-   [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
 1. Assign the issue to yourself. To get the permission to do so, email
    the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
@@ -145,7 +143,7 @@ You have two options for configuring your development environment:
 - Local:
    - Manually installing the [prerequisites](https://beam.apache.org/contribute/#prerequisites).
    - Using the automated script for Linux and macOS.
-- Container: using a [Docker](https://www.docker.com/) image.
+- Container-based: using a [Docker](https://www.docker.com/) image.
 
 ##### Local: Debian-based Distribution
 
@@ -194,9 +192,7 @@ You can install these in a Debian-based distribution for Linux or macOs using th
 * Python
 * Docker
 
-To install:
-
-1. Execute:
+To install execute:
 ```
 ./local-env-setup.sh
 ```
@@ -206,10 +202,9 @@ To install:
 Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
 into a container meeting the requirements above.
 
-You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh)
-script which is part of the Beam repo:
+You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh) script which is part of the Beam repo.
 
-1. Execute:
+Execute:
 ```
 ./start-build-env.sh
 ```
@@ -217,7 +212,6 @@ script which is part of the Beam repo:
 #### Development Setup {#development-setup}
 
 1. Check [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) if you need help with git forking, cloning, branching, committing, pull requests, and squashing commits.
-<br><br>
 
 2. Clone the git repository. You can download it anywhere you like.
 ```
@@ -274,23 +268,25 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:w
 ```
 <br>
 
-4. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
+4. Familiarize yourself with gradle and the project structure. 
+
+&emsp;&emsp;At the root of the git repository, run:
  ```
 $ ./gradlew projects
  ```
-   Examine the available tasks in a project. For the default set of tasks, use:
+&emsp;&emsp;Examine the available tasks in a project. For the default set of tasks, use:
  ```
 $ ./gradlew tasks
  ```
-   For a given module, use:
+&emsp;&emsp;For a given module, use:
  ```
 $ ./gradlew -p sdks/java/io/cassandra tasks
  ```
-   For an exhaustive list of tasks, use:
+&emsp;&emsp;For an exhaustive list of tasks, use:
  ```
 $ ./gradlew tasks --all
  ```
-5. Make sure you can build and run tests
+5. Make sure you can build and run tests.
 
    Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
  ```
@@ -332,7 +328,7 @@ $ ./gradlew -p runners/flink check
 1. The pull request and any changes pushed to it will trigger [pre-commit
    jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
-   PR
+   PR:
 ```
 retest this please
 ```
@@ -351,10 +347,9 @@ retest this please
 
    Use `R: @username` in the pull request to notify a reviewer.
 
-1. If you don't get any response in 3 business days, email the [dev@ mailing list](/community/contact-us) to ask for someone to look at your pull
-   request.
+1. If you don't get any response in 3 business days, email the [dev@beam.apache.org mailing list](/community/contact-us) to ask for someone to look at your pull request.
 
-#### Make the reviewer's job easier
+#### Make the Reviewer’s Job Easier
 
 1. Provide context for your changes in the associated JIRA issue and/or PR description.
 
@@ -379,7 +374,7 @@ Apache Beam makes minor releases every 6 weeks. Apache Beam has a
 cutting the next release branch. Your change needs to be checked into master before the release branch is cut
 to make the next release.
 
-#### Stale pull requests
+#### Stale Pull Requests
 
 The community will close stale pull requests in order to keep the project
 healthy. A pull request becomes stale after its author fails to respond to
