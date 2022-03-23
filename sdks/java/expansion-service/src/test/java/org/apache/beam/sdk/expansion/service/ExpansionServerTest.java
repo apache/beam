@@ -22,10 +22,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.is;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 /** Tests for {@link ExpansionServer}. */
 public class ExpansionServerTest {
@@ -68,31 +67,19 @@ public class ExpansionServerTest {
 
   @Test
   public void testNonEmptyFilesToStage() {
-    String[] args = {
-            "--filesToStage=nonExistent1.jar,nonExistent2.jar"
-    };
+    String[] args = {"--filesToStage=nonExistent1.jar,nonExistent2.jar"};
     ExpansionService service = new ExpansionService(args);
     assertThat(
-            service
-                    .createPipeline()
-                    .getOptions()
-                    .as(PortablePipelineOptions.class)
-                    .getFilesToStage(),
-            equalTo(Arrays.asList("nonExistent1.jar", "nonExistent2.jar")));
+        service.createPipeline().getOptions().as(PortablePipelineOptions.class).getFilesToStage(),
+        equalTo(Arrays.asList("nonExistent1.jar", "nonExistent2.jar")));
   }
 
   @Test
   public void testEmptyFilesToStageIsOK() {
-    String[] args = {
-            "--filesToStage="
-    };
+    String[] args = {"--filesToStage="};
     ExpansionService service = new ExpansionService(args);
     assertThat(
-            service
-                    .createPipeline()
-                    .getOptions()
-                    .as(PortablePipelineOptions.class)
-                    .getFilesToStage(),
-            equalTo(Arrays.asList("")));
+        service.createPipeline().getOptions().as(PortablePipelineOptions.class).getFilesToStage(),
+        equalTo(Arrays.asList("")));
   }
 }
