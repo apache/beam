@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -140,9 +141,10 @@ func TestMain(m *testing.M) {
 	defer func() { services.Shutdown() }()
 	addr, err := services.GetAddr("schemaio")
 	if err != nil {
-		panic(err)
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
 	}
-	expansionAddr = addr
 
 	ptest.MainRet(m)
 }

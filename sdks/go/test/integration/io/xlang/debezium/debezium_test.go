@@ -18,6 +18,7 @@ package debezium
 import (
 	"context"
 	"flag"
+	"log"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -100,9 +101,10 @@ func TestMain(m *testing.M) {
 	defer func() { services.Shutdown() }()
 	addr, err := services.GetAddr("debeziumio")
 	if err != nil {
-		panic(err)
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
 	}
-	expansionAddr = addr
 
 	ptest.MainRet(m)
 }

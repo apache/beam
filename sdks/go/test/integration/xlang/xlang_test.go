@@ -18,6 +18,7 @@ package xlang
 import (
 	"flag"
 	"fmt"
+	"log"
 	"reflect"
 	"sort"
 	"testing"
@@ -270,9 +271,10 @@ func TestMain(m *testing.M) {
 	defer func() { services.Shutdown() }()
 	addr, err := services.GetAddr("test")
 	if err != nil {
-		panic(err)
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
 	}
-	expansionAddr = addr
 
 	ptest.MainRet(m)
 }
