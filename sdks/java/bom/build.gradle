@@ -26,6 +26,7 @@ plugins {
   id 'org.apache.beam.module'
   id 'java'
   id 'maven-publish'
+  id 'net.linguica.maven-settings'
 }
 
 def isRelease(Project project) {

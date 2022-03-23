@@ -17,6 +17,7 @@
  */
 
 import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
@@ -34,6 +35,13 @@ class ExampleRepository {
   ) async {
     final result = await _client.getListOfExamples(request);
     return result.categories;
+  }
+
+  Future<ExampleModel> getDefaultExample(
+    GetExampleRequestWrapper request,
+  ) async {
+    final result = await _client.getDefaultExample(request);
+    return result.example;
   }
 
   Future<String> getExampleSource(GetExampleRequestWrapper request) async {

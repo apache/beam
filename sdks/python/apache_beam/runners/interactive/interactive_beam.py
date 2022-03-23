@@ -364,20 +364,23 @@ class Clusters:
     # pipelines that use the corresponding master_url.
     self.master_urls_to_pipelines: DefaultDict[
         str, List[beam.Pipeline]] = defaultdict(list)
+    # self.master_urls_to_dashboards map string master_urls to the
+    # corresponding Apache Flink dashboards.
+    self.master_urls_to_dashboards: Dict[str, str] = {}
 
   def describe(self, pipeline: Optional[beam.Pipeline] = None) -> dict:
     """Returns a description of the cluster associated to the given pipeline.
 
     If no pipeline is given then this returns a dictionary of descriptions for
-    all pipelines.
+    all pipelines, mapped to by id.
     """
     description = {
-        ie.current_env().pipeline_id_to_pipeline(pid): dcm.describe()
+        pid: dcm.describe()
         for pid,
         dcm in self.dataproc_cluster_managers.items()
     }
     if pipeline:
-      return description.get(pipeline, None)
+      return description.get(str(id(pipeline)), None)
     return description
 
   def cleanup(
@@ -419,11 +422,8 @@ class Clusters:
           cluster_manager.cleanup()
           self.master_urls.pop(master_url, None)
           self.master_urls_to_pipelines.pop(master_url, None)
+          self.master_urls_to_dashboards.pop(master_url, None)
           self.dataproc_cluster_managers.pop(str(id(pipeline)), None)
-      else:
-        _LOGGER.error(
-            'No cluster_manager is associated with the provided '
-            'pipeline!')
     else:
       cluster_manager_identifiers = set()
       for cluster_manager in self.dataproc_cluster_managers.values():
@@ -433,6 +433,7 @@ class Clusters:
       self.dataproc_cluster_managers.clear()
       self.master_urls.clear()
       self.master_urls_to_pipelines.clear()
+      self.master_urls_to_dashboards.clear()
 
 
 # Users can set options to guide how Interactive Beam works.
@@ -456,7 +457,7 @@ recordings = Recordings()
 # Examples:
 # ib.clusters.describe(p)
 # Check the docstrings for detailed usages.
-# TODO(victorhc): Implement all functionality for Clusters()
+# TODO(victorhc): Resolve connection issue and add a working example
 # clusters = Clusters()
 
 

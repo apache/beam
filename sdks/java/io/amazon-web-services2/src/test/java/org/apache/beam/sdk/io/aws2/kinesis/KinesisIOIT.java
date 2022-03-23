@@ -17,17 +17,15 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.io.aws2.kinesis.KinesisPartitioner.explicitRandomPartitioner;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.KINESIS;
 
-import com.amazonaws.regions.Regions;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
-import java.util.Random;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.io.kinesis.KinesisPartitioner;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.PAssert;
@@ -36,6 +34,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -45,7 +44,6 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.StreamStatus;
@@ -79,6 +77,12 @@ public class KinesisIOIT implements Serializable {
 
     void setKinesisShards(Integer count);
 
+    @Description("Use record aggregation when writing to Kinesis")
+    @Default.Boolean(true)
+    Boolean getUseRecordAggregation();
+
+    void setUseRecordAggregation(Boolean enabled);
+
     @Description("Create stream")
     @Default.Boolean(false)
     Boolean getCreateStream();
@@ -111,23 +115,19 @@ public class KinesisIOIT implements Serializable {
   /** Write test dataset into Kinesis stream. */
   private void runWrite() {
     ITOptions options = env.options();
-    AwsCredentials credentials = options.getAwsCredentialsProvider().resolveCredentials();
+    KinesisIO.Write<TestRow> write =
+        KinesisIO.<TestRow>write()
+            .withStreamName(env.options().getKinesisStream())
+            .withPartitioner(explicitRandomPartitioner(env.options().getKinesisShards()))
+            .withSerializer(testRowToBytes);
+    if (!options.getUseRecordAggregation()) {
+      write = write.withRecordAggregationDisabled();
+    }
 
     writePipeline
         .apply("Generate Sequence", GenerateSequence.from(0).to(options.getNumberOfRows()))
         .apply("Prepare TestRows", ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-        .apply("Prepare Kinesis input records", ParDo.of(new ConvertToBytes()))
-        .apply(
-            "Write to Kinesis",
-            org.apache.beam.sdk.io.kinesis.KinesisIO.write()
-                .withStreamName(options.getKinesisStream())
-                .withPartitioner(new RandomPartitioner())
-                .withAWSClientsProvider(
-                    credentials.accessKeyId(),
-                    credentials.secretAccessKey(),
-                    Regions.fromName(options.getAwsRegion().id()),
-                    options.getEndpoint() != null ? options.getEndpoint().toString() : null,
-                    !options.getUseLocalstack()));
+        .apply("Write to Kinesis", write);
 
     writePipeline.run().waitUntilFinish();
   }
@@ -143,17 +143,16 @@ public class KinesisIOIT implements Serializable {
                 .withStreamName(options.getKinesisStream())
                 .withMaxNumRecords(records)
                 // to prevent endless running in case of error
-                .withMaxReadTime(Duration.standardMinutes(10))
+                .withMaxReadTime(Duration.standardMinutes(5))
                 .withInitialPositionInStream(InitialPositionInStream.AT_TIMESTAMP)
-                .withInitialTimestampInStream(now)
-                .withRequestRecordsLimit(1000));
+                .withInitialTimestampInStream(now));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo((long) records);
 
     PCollection<String> consolidatedHashcode =
         output
             .apply(ParDo.of(new ExtractDataValues()))
-            .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
+            .apply(Combine.globally(new HashingFn()).withoutDefaults());
 
     PAssert.that(consolidatedHashcode)
         .containsInAnyOrder(TestRow.getExpectedHashForRowCount(records));
@@ -193,33 +192,13 @@ public class KinesisIOIT implements Serializable {
     }
   }
 
-  /** Produces test rows. */
-  private static class ConvertToBytes extends DoFn<TestRow, byte[]> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(String.valueOf(c.element().name()).getBytes(StandardCharsets.UTF_8));
-    }
-  }
+  private static final SerializableFunction<TestRow, byte[]> testRowToBytes =
+      row -> row.name().getBytes(UTF_8);
 
-  /** Read rows from Table. */
   private static class ExtractDataValues extends DoFn<KinesisRecord, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(new String(c.element().getDataAsBytes(), StandardCharsets.UTF_8));
-    }
-  }
-
-  private static final class RandomPartitioner implements KinesisPartitioner {
-    @Override
-    public String getPartitionKey(byte[] value) {
-      Random rand = new Random();
-      int n = rand.nextInt(env.options().getKinesisShards()) + 1;
-      return String.valueOf(n);
-    }
-
-    @Override
-    public String getExplicitHashKey(byte[] value) {
-      return null;
+      c.output(new String(c.element().getDataAsBytes(), UTF_8));
     }
   }
 }

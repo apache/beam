@@ -290,7 +290,7 @@ tasks.register('validatesRunner') {
 // Generates :runners:flink:1.13:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
 
-task examplesIntegrationTest(type: Test) {
+tasks.register("examplesIntegrationTest", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
@@ -305,13 +305,18 @@ task examplesIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
   include '**/*IT.class'
-  // TODO (BEAM-12572) Fix integration Tests to run with FlinkRunner
-  exclude '**/BigQueryTornadoesIT.class' // Fails with AssertionError
-  exclude '**/WindowedWordCountIT.class' // Failed with Grpc connection error
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    filter{
+      // TODO (BEAM-14019) Fix integration Tests to run with FlinkRunner: Assertion error
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
+      // TODO (BEAM-14019) Fix integration Tests to run with FlinkRunner: Error deleting table, Not found: Dataset
+      excludeTestsMatching 'org.apache.beam.examples.cookbook.BigQueryTornadoesIT.testE2eBigQueryTornadoesWithStorageApiUsingQuery'
+    }
+  }
+
 }
 
 /**

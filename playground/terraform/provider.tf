@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,9 +17,32 @@
 # under the License.
 #
 
-provider "google" {
-  region      = "us-central"
+terraform {
+  # this describe buket for save state playground cloud
+  backend "gcs" {
+  }
+
+  required_providers {
+    google = {
+      source = "hashicorp/google"
+      version = "4.0.0"
+    }
+  }
 }
+
+provider "google" {
+  region = var.region
+  project = var.project_id
+  // TODO may need to run module.setup first independent of this solution and add the terraform service account as a variable
+  // This allows us to use a service account to provision resources without downloading or storing service account keys
+  #  impersonate_service_account = module.setup.terraform_service_account_email
+}
+
+// TODO: required by artifact registry and memorystore; remove when generally available
 provider "google-beta" {
-  region      = "us-central"
+  region = var.region
+  project = var.project_id
+  // TODO may need to run module.setup first independent of this solution and add the terraform service account as a variable
+  // This allows us to use a service account to provision resources without downloading or storing service account keys
+  #  impersonate_service_account = module.setup.terraform_service_account_email
 }

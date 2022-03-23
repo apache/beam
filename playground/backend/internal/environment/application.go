@@ -99,10 +99,13 @@ type ApplicationEnvs struct {
 
 	// pipelinesFolder is name of folder in which the pipelines resources are stored
 	pipelinesFolder string
+
+	// bucketName is a name of the GCS's bucket with examples
+	bucketName string
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
-func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
+func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration, bucketName string) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
 		cacheEnvs:              cacheEnvs,
@@ -110,6 +113,7 @@ func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder strin
 		launchSite:             launchSite,
 		projectId:              projectId,
 		pipelinesFolder:        pipelinesFolder,
+		bucketName:             bucketName,
 	}
 }
 
@@ -141,4 +145,9 @@ func (ae *ApplicationEnvs) GoogleProjectId() string {
 // PipelinesFolder returns name of folder in which the pipelines resources are stored
 func (ae *ApplicationEnvs) PipelinesFolder() string {
 	return ae.pipelinesFolder
+}
+
+// BucketName returns name of the GCS's bucket with examples
+func (ae *ApplicationEnvs) BucketName() string {
+	return ae.bucketName
 }

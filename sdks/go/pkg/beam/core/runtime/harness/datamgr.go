@@ -492,7 +492,7 @@ func (w *dataWriter) send(msg *fnpb.Elements) error {
 			for err == nil {
 				// Per GRPC stream documentation, if there's an EOF, we must call Recv
 				// until a non-nil error is returned, to ensure resources are cleaned up.
-				// https://godoc.org/google.golang.org/grpc#ClientConn.NewStream
+				// https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
 				_, err = w.ch.client.Recv()
 			}
 		}
