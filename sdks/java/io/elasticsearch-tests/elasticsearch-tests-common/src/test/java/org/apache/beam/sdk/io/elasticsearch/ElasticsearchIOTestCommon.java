@@ -171,23 +171,15 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    BoundedElasticsearchSource initialSource =
-        new BoundedElasticsearchSource(read, null, null, null);
+    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null);
     List<? extends BoundedSource<String>> splits =
         initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
 
     int expectedNumSources;
-    if (desiredBundleSizeBytes == 0) {
-      // desiredBundleSize is ignored because in ES 2.x there is no way to split shards.
-      // 5 is the number of ES shards
-      // (By default, each index in Elasticsearch is allocated 5 primary shards)
-      expectedNumSources = 5;
-    } else {
-      float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
-      expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
-    }
+    float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
+    expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
     assertEquals("Wrong number of splits", expectedNumSources, splits.size());
 
     int emptySplits = 0;
@@ -208,8 +200,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    BoundedElasticsearchSource initialSource =
-        new BoundedElasticsearchSource(read, null, null, null);
+    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null);
     // can't use equal assert as Elasticsearch indexes never have same size
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
