@@ -51,6 +51,8 @@ dependencies {
     implementation "com.fasterxml.jackson.core:jackson-databind:2.13.0"
     implementation "io.cdap.cdap:cdap-etl-api:6.5.1"
     implementation "io.cdap.cdap:cdap-etl-api-spark:6.2.0"
+    implementation "io.cdap.cdap:cdap-api-common:6.5.1"
+    implementation "org.apache.tephra:tephra-api:0.15.0-incubating"
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
