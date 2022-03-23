@@ -47,9 +47,9 @@ dependencies {
   implementation "org.apache.parquet:parquet-common:$parquet_version"
   implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
   implementation library.java.avro
-  compileOnly library.java.hadoop_client
+  provided library.java.hadoop_client
   permitUnusedDeclared library.java.hadoop_client
-  compileOnly library.java.hadoop_common
+  provided library.java.hadoop_common
   testImplementation library.java.hadoop_client
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit

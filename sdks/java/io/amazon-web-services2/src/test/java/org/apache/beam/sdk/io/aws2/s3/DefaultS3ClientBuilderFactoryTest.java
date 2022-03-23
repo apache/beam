@@ -25,7 +25,9 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.net.URI;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.DefaultClientBuilder;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -40,6 +42,11 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 public class DefaultS3ClientBuilderFactoryTest {
   @Mock S3Options s3Options;
   @Mock S3ClientBuilder builder;
+
+  @Before
+  public void prepareOptions() {
+    when(s3Options.getClientBuilderFactory()).thenReturn((Class) DefaultClientBuilder.class);
+  }
 
   @Test
   public void testEmptyOptions() {
@@ -62,29 +69,22 @@ public class DefaultS3ClientBuilderFactoryTest {
     when(s3Options.getProxyConfiguration()).thenReturn(ProxyConfiguration.builder().build());
 
     DefaultS3ClientBuilderFactory.createBuilder(builder, s3Options);
-    verify(builder).httpClient(any(ApacheHttpClient.class));
+    verify(builder).httpClientBuilder(any(ApacheHttpClient.Builder.class));
     verifyNoMoreInteractions(builder);
   }
 
   @Test
   public void testSetEndpoint() {
-    when(s3Options.getEndpoint()).thenReturn("");
+    URI endpointOverride = URI.create("https://localhost");
+    when(s3Options.getEndpoint()).thenReturn(endpointOverride);
     DefaultS3ClientBuilderFactory.createBuilder(builder, s3Options);
-    verifyNoInteractions(builder); // ignore empty endpoint
-
-    when(s3Options.getEndpoint()).thenReturn("https://localhost");
-    DefaultS3ClientBuilderFactory.createBuilder(builder, s3Options);
-    verify(builder).endpointOverride(URI.create("https://localhost"));
+    verify(builder).endpointOverride(endpointOverride);
     verifyNoMoreInteractions(builder);
   }
 
   @Test
   public void testSetRegion() {
-    when(s3Options.getAwsRegion()).thenReturn("");
-    DefaultS3ClientBuilderFactory.createBuilder(builder, s3Options);
-    verifyNoInteractions(builder); // ignore empty region
-
-    when(s3Options.getAwsRegion()).thenReturn(Region.US_WEST_1.id());
+    when(s3Options.getAwsRegion()).thenReturn(Region.US_WEST_1);
     DefaultS3ClientBuilderFactory.createBuilder(builder, s3Options);
     verify(builder).region(Region.US_WEST_1);
     verifyNoMoreInteractions(builder);

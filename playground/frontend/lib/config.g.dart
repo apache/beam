@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
+const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com';
-const String kAnalyticsUA = 'UA-73650088-1';
+    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
 const String kApiJavaClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/java/';
+    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
 const String kApiGoClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/go/';
+    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
 const String kApiPythonClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/python/';
+    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
 const String kApiScioClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/scio/';
+    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';

@@ -71,6 +71,38 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
                 expansion_service.ExpansionServiceServicer()),
             equal_to(['xay', 'xby', 'xcy']))
 
+  def test_as_external_transform_no_args(self):
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      with beam.Pipeline() as p:
+        assert_that(
+            p
+            | beam.Create(['a', 'b', 'c'])
+            | beam.ExternalTransform(
+                PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN,
+                ImplicitSchemaPayloadBuilder({
+                    'constructor': 'apache_beam.transforms'
+                    '.fully_qualified_named_transform_test._TestTransform',
+                    'kwargs': beam.Row(prefix='x', suffix='y'),
+                }),
+                expansion_service.ExpansionServiceServicer()),
+            equal_to(['xay', 'xby', 'xcy']))
+
+  def test_as_external_transform_no_kwargs(self):
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      with beam.Pipeline() as p:
+        assert_that(
+            p
+            | beam.Create(['a', 'b', 'c'])
+            | beam.ExternalTransform(
+                PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN,
+                ImplicitSchemaPayloadBuilder({
+                    'constructor': 'apache_beam.transforms'
+                    '.fully_qualified_named_transform_test._TestTransform',
+                    'args': beam.Row(arg0='x', arg1='y'),
+                }),
+                expansion_service.ExpansionServiceServicer()),
+            equal_to(['xay', 'xby', 'xcy']))
+
   def test_glob_filter(self):
     with FullyQualifiedNamedTransform.with_filter('*'):
       self.assertIs(

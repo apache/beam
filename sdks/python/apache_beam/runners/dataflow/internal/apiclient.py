@@ -20,6 +20,11 @@
 Dataflow client utility functions."""
 
 # pytype: skip-file
+# To regenerate the client:
+# pip install google-apitools[cli]
+# gen_client --discovery_url=cloudbuild.v1 --overwrite \
+#  --outdir=apache_beam/runners/dataflow/internal/clients/cloudbuild \
+#  --root_package=. client
 
 import codecs
 from functools import partial
@@ -30,6 +35,7 @@ import json
 import logging
 import os
 import random
+import string
 
 import pkg_resources
 import re
@@ -75,7 +81,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9']
 
 
 class Step(object):
@@ -282,8 +288,6 @@ class Environment(object):
     # Dataflow workers.
     environments_to_use = self._get_environments_from_tranforms()
     if _use_unified_worker(options):
-      python_sdk_container_image = get_container_image_from_options(options)
-
       # Adding container images for other SDKs that may be needed for
       # cross-language pipelines.
       for id, environment in environments_to_use:
@@ -297,11 +301,12 @@ class Environment(object):
 
         container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
-        # Currently we only set following to True for Python SDK.
-        # TODO: set this correctly for remote environments that might be Python.
         container_image.useSingleCorePerContainer = (
-            container_image_url == python_sdk_container_image)
+            common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING in
+            environment.capabilities)
         container_image.environmentId = id
+        for capability in environment.capabilities:
+          container_image.capabilities.append(capability)
         pool.sdkHarnessContainerImages.append(container_image)
 
     if self.debug_options.number_of_worker_harness_threads:
@@ -421,10 +426,16 @@ class Job(object):
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
     date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
     app_user_name = 'beamapp-{}'.format(user_name)
-    job_name = '{}-{}'.format(app_user_name, date_component)
+    # append 8 random alphanumeric characters to avoid collisions.
+    random_component = ''.join(
+        random.choices(string.ascii_lowercase + string.digits, k=8))
+    job_name = '{}-{}-{}'.format(
+        app_user_name, date_component, random_component)
     if len(job_name) > 63:
-      job_name = '{}-{}'.format(
-          app_user_name[:-(len(job_name) - 63)], date_component)
+      job_name = '{}-{}-{}'.format(
+          app_user_name[:-(len(job_name) - 63)],
+          date_component,
+          random_component)
     return job_name
 
   @staticmethod

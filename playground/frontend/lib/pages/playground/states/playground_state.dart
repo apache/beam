@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -27,10 +28,14 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
+const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
+const kExecutionCancelledText = '\nPipeline cancelled';
 const kPipelineOptionsParseError =
     'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
+const kCachedResultsLog =
+    'The results of this example are taken from the Apache Beam Playground cache.\n';
 
 class PlaygroundState with ChangeNotifier {
   late SDK _sdk;
@@ -38,8 +43,10 @@ class PlaygroundState with ChangeNotifier {
   ExampleModel? _selectedExample;
   String _source = '';
   RunCodeResult? _result;
+  StreamSubscription<RunCodeResult>? _runSubscription;
   String _pipelineOptions = '';
   DateTime? resetKey;
+  StreamController<int>? _executionTime;
 
   PlaygroundState({
     SDK sdk = SDK.java,
@@ -70,11 +77,26 @@ class PlaygroundState with ChangeNotifier {
 
   String get pipelineOptions => _pipelineOptions;
 
+  Stream<int>? get executionTime => _executionTime?.stream;
+
+  bool get isExampleChanged {
+    return selectedExample?.source != source || _arePipelineOptionsChanges;
+  }
+
+  bool get _arePipelineOptionsChanges {
+    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
+  }
+
+  bool get graphAvailable =>
+      selectedExample?.type != ExampleType.test &&
+      [SDK.java, SDK.python].contains(sdk);
+
   setExample(ExampleModel example) {
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions ?? '';
     _source = example.source ?? '';
     _result = null;
+    _executionTime = null;
     notifyListeners();
   }
 
@@ -96,6 +118,7 @@ class PlaygroundState with ChangeNotifier {
     _source = _selectedExample?.source ?? '';
     _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     resetKey = DateTime.now();
+    _executionTime = null;
     notifyListeners();
   }
 
@@ -109,6 +132,7 @@ class PlaygroundState with ChangeNotifier {
 
   setPipelineOptions(String options) {
     _pipelineOptions = options;
+    notifyListeners();
   }
 
   void runCode({Function? onFinish}) {
@@ -121,9 +145,9 @@ class PlaygroundState with ChangeNotifier {
       notifyListeners();
       return;
     }
-    if (_selectedExample?.source == source &&
-        _selectedExample?.outputs != null &&
-        !_arePipelineOptionsChanges) {
+    _executionTime?.close();
+    _executionTime = _createExecutionTimeStream();
+    if (!isExampleChanged && _selectedExample?.outputs != null) {
       _showPrecompiledResult();
     } else {
       final request = RunCodeRequestWrapper(
@@ -131,18 +155,32 @@ class PlaygroundState with ChangeNotifier {
         sdk: sdk,
         pipelineOptions: parsedPipelineOptions,
       );
-      _codeRepository?.runCode(request).listen((event) {
+      _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
         if (event.isFinished && onFinish != null) {
           onFinish();
+          _executionTime?.close();
         }
         notifyListeners();
       });
+      notifyListeners();
     }
   }
 
-  bool get _arePipelineOptionsChanges {
-    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
+  Future<void> cancelRun() async {
+    _runSubscription?.cancel();
+    final pipelineUuid = result?.pipelineUuid ?? '';
+    if (pipelineUuid.isNotEmpty) {
+      await _codeRepository?.cancelExecution(pipelineUuid);
+    }
+    _result = RunCodeResult(
+      status: RunCodeStatus.finished,
+      output: _result?.output,
+      log: (_result?.log ?? '') + kExecutionCancelledText,
+      graph: _result?.graph,
+    );
+    _executionTime?.close();
+    notifyListeners();
   }
 
   _showPrecompiledResult() async {
@@ -152,11 +190,42 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
     // add a little delay to improve user experience
     await Future.delayed(kPrecompiledDelay);
+    String logs = _selectedExample!.logs ?? '';
     _result = RunCodeResult(
       status: RunCodeStatus.finished,
       output: _selectedExample!.outputs,
-      log: _selectedExample!.logs,
+      log: kCachedResultsLog + logs,
+      graph: _selectedExample!.graph,
     );
+    _executionTime?.close();
     notifyListeners();
+  }
+
+  StreamController<int> _createExecutionTimeStream() {
+    StreamController<int>? streamController;
+    Timer? timer;
+    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
+    int ms = 0;
+
+    void stopTimer() {
+      timer?.cancel();
+      streamController?.close();
+    }
+
+    void tick(_) {
+      ms += kExecutionTimeUpdate;
+      streamController?.add(ms);
+    }
+
+    void startTimer() {
+      timer = Timer.periodic(timerInterval, tick);
+    }
+
+    streamController = StreamController<int>.broadcast(
+      onListen: startTimer,
+      onCancel: stopTimer,
+    );
+
+    return streamController;
   }
 }

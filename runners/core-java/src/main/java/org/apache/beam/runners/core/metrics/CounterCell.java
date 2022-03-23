@@ -49,8 +49,8 @@ public class CounterCell implements Counter, MetricCell<Long> {
 
   @Override
   public void reset() {
-    dirty.afterModification();
     value.set(0L);
+    dirty.reset();
   }
 
   /**
@@ -99,7 +99,7 @@ public class CounterCell implements Counter, MetricCell<Long> {
     if (object instanceof CounterCell) {
       CounterCell counterCell = (CounterCell) object;
       return Objects.equals(dirty, counterCell.dirty)
-          && Objects.equals(value.get(), counterCell.value.get())
+          && value.get() == counterCell.value.get()
           && Objects.equals(name, counterCell.name);
     }
 

@@ -16,7 +16,7 @@
 package fs_tool
 
 import (
-	"fmt"
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
@@ -26,14 +26,14 @@ import (
 
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
-	srcFileFolder := baseFileFolder + "/src"
-	binFileFolder := baseFileFolder + "/bin"
+	workingDir, _ := filepath.Abs("workingDir")
+	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
+	srcFileFolder := filepath.Join(baseFileFolder, "src")
+	binFileFolder := filepath.Join(baseFileFolder, "bin")
 
 	type args struct {
-		pipelineId uuid.UUID
-		workingDir string
+		pipelineId      uuid.UUID
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name string
@@ -43,41 +43,36 @@ func Test_newJavaLifeCycle(t *testing.T) {
 		{
 			// Test case with calling newJavaLifeCycle method with correct pipelineId and workingDir.
 			// As a result, want to receive an expected java life cycle.
-			name: "newJavaLifeCycle",
+			name: "NewJavaLifeCycle",
 			args: args{
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				pipelineId:      pipelineId,
+				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     srcFileFolder,
-					ExecutableFileFolder: binFileFolder,
+				Paths: LifeCyclePaths{
+					SourceFileName:                   pipelineId.String() + JavaSourceFileExtension,
+					AbsoluteSourceFileFolderPath:     srcFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+JavaSourceFileExtension),
+					ExecutableFileName:               pipelineId.String() + javaCompiledFileExtension,
+					AbsoluteExecutableFileFolderPath: binFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+javaCompiledFileExtension),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
+					ExecutableName:                   executableName,
 				},
-				Extension: Extension{
-					SourceFileExtension:     JavaSourceFileExtension,
-					ExecutableFileExtension: javaCompiledFileExtension,
-				},
-				ExecutableName: executableName,
-				pipelineId:     pipelineId,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := newJavaLifeCycle(tt.args.pipelineId, tt.args.workingDir)
+			got := newJavaLifeCycle(tt.args.pipelineId, tt.args.pipelinesFolder)
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newJavaLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newJavaLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
-			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newJavaLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
-			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newJavaLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !checkPathsEqual(got.Paths, tt.want.Paths) {
+				t.Errorf("newJavaLifeCycle() Paths = %v, want %v", got.Paths, tt.want.Paths)
 			}
 		})
 	}
@@ -86,14 +81,13 @@ func Test_newJavaLifeCycle(t *testing.T) {
 func Test_executableName(t *testing.T) {
 	pipelineId := uuid.New()
 	workDir := "workingDir"
-
-	lc := newJavaLifeCycle(pipelineId, workDir)
+	preparedPipelinesFolder := filepath.Join(workDir, pipelinesFolder)
+	lc := newJavaLifeCycle(pipelineId, preparedPipelinesFolder)
 	lc.CreateFolders()
 	defer os.RemoveAll(workDir)
 
 	type args struct {
-		pipelineId uuid.UUID
-		workingDir string
+		executableFolder string
 	}
 	tests := []struct {
 		name    string
@@ -103,11 +97,22 @@ func Test_executableName(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with calling sourceFileName method with empty directory.
+			// As a result, want to receive an error.
+			name:    "Directory is empty",
+			prepare: func() {},
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
 			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
 			// As a result, want to receive a name that should be executed
-			name: "get executable name",
+			name: "Get executable name",
 			prepare: func() {
-				compiled := filepath.Join(workDir, baseFileFolder, pipelineId.String(), compiledFolderName)
+				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
 				filePath := filepath.Join(compiled, "temp.class")
 				err := os.WriteFile(filePath, []byte("TEMP_DATA"), 0600)
 				if err != nil {
@@ -115,20 +120,18 @@ func Test_executableName(t *testing.T) {
 				}
 			},
 			args: args{
-				pipelineId: pipelineId,
-				workingDir: workDir,
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
 			want:    "temp",
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// Test case with calling sourceFileName method with wrong directory.
 			// As a result, want to receive an error.
-			name:    "directory doesn't exist",
+			name:    "Directory doesn't exist",
 			prepare: func() {},
 			args: args{
-				pipelineId: uuid.New(),
-				workingDir: workDir,
+				executableFolder: filepath.Join(workDir, pipelineId.String()),
 			},
 			want:    "",
 			wantErr: true,
@@ -137,7 +140,7 @@ func Test_executableName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := executableName(tt.args.pipelineId, tt.args.workingDir)
+			got, err := executableName(tt.args.executableFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return

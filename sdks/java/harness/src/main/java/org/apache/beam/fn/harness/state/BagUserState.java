@@ -32,7 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -141,6 +141,8 @@ public class BagUserState<T> {
 
     // Modify the underlying cached state depending on the mutations performed
     if (isCleared) {
+      // Note this takes ownership of newValues. This object is no longer used after it has been
+      // closed.
       oldValues.clearAndAppend(newValues);
     } else {
       oldValues.append(newValues);

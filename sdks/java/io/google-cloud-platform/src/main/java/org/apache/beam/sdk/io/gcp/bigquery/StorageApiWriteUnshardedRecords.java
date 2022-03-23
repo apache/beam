@@ -173,17 +173,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.useDefaultStream = useDefaultStream;
       }
 
-      void close() {
-        if (streamAppendClient != null) {
-          try {
-            streamAppendClient.close();
-            streamAppendClient = null;
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        }
-      }
-
       String getDefaultStreamName() {
         return BigQueryHelpers.stripPartitionDecorator(tableUrn) + "/streams/_default";
       }
@@ -403,9 +392,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     @Teardown
     public void teardown() {
-      for (DestinationState state : destinations.values()) {
-        state.close();
-      }
       destinations.clear();
       try {
         if (datasetService != null) {

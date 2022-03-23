@@ -16,50 +16,70 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
 	"path/filepath"
 )
 
 const (
-	baseFileFolder     = "executable_files"
 	sourceFolderName   = "src"
 	compiledFolderName = "bin"
 )
 
 // newCompilingLifeCycle creates LifeCycle for compiled SDK environment.
-func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string, compiledFileExtension string) *LifeCycle {
-	baseFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+func newCompilingLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExtension, compiledFileExtension string) *LifeCycle {
+	baseFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, sourceFolderName)
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
+
+	srcFileName := pipelineId.String() + sourceFileExtension
+	absSrcFileFolderPath, _ := filepath.Abs(srcFileFolder)
+	absSrcFilePath, _ := filepath.Abs(filepath.Join(absSrcFileFolderPath, srcFileName))
+	execFileName := pipelineId.String() + compiledFileExtension
+	absExecFileFolderPath, _ := filepath.Abs(binFileFolder)
+	absExecFilePath, _ := filepath.Abs(filepath.Join(absExecFileFolderPath, execFileName))
+	absBaseFolderPath, _ := filepath.Abs(baseFileFolder)
+	absLogFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, logFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, utils.GraphFileName))
+
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-		Folder: Folder{
-			BaseFolder:           baseFileFolder,
-			SourceFileFolder:     srcFileFolder,
-			ExecutableFileFolder: binFileFolder,
+		Paths: LifeCyclePaths{
+			SourceFileName:                   srcFileName,
+			AbsoluteSourceFileFolderPath:     absSrcFileFolderPath,
+			AbsoluteSourceFilePath:           absSrcFilePath,
+			ExecutableFileName:               execFileName,
+			AbsoluteExecutableFileFolderPath: absExecFileFolderPath,
+			AbsoluteExecutableFilePath:       absExecFilePath,
+			AbsoluteBaseFolderPath:           absBaseFolderPath,
+			AbsoluteLogFilePath:              absLogFilePath,
+			AbsoluteGraphFilePath:            absGraphFilePath,
 		},
-		Extension: Extension{
-			SourceFileExtension:     sourceFileExtension,
-			ExecutableFileExtension: compiledFileExtension,
-		},
-		pipelineId: pipelineId,
 	}
 }
 
 // newInterpretedLifeCycle creates LifeCycle for interpreted SDK environment.
-func newInterpretedLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string) *LifeCycle {
-	sourceFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+func newInterpretedLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExtension string) *LifeCycle {
+	sourceFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
+
+	fileName := pipelineId.String() + sourceFileExtension
+	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)
+	absFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, fileName))
+	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, utils.GraphFileName))
+
 	return &LifeCycle{
 		folderGlobs: []string{sourceFileFolder},
-		Folder: Folder{
-			BaseFolder:           sourceFileFolder,
-			SourceFileFolder:     sourceFileFolder,
-			ExecutableFileFolder: sourceFileFolder,
+		Paths: LifeCyclePaths{
+			SourceFileName:                   fileName,
+			AbsoluteSourceFileFolderPath:     absFileFolderPath,
+			AbsoluteSourceFilePath:           absFilePath,
+			ExecutableFileName:               fileName,
+			AbsoluteExecutableFileFolderPath: absFileFolderPath,
+			AbsoluteExecutableFilePath:       absFilePath,
+			AbsoluteBaseFolderPath:           absFileFolderPath,
+			AbsoluteLogFilePath:              absLogFilePath,
+			AbsoluteGraphFilePath:            absGraphFilePath,
 		},
-		Extension: Extension{
-			ExecutableFileExtension: sourceFileExtension,
-			SourceFileExtension:     sourceFileExtension,
-		},
-		pipelineId: pipelineId,
 	}
 }

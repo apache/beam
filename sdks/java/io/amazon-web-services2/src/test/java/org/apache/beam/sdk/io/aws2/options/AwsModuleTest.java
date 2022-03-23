@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static software.amazon.awssdk.core.SdkSystemSetting.AWS_ACCESS_KEY_ID;
 import static software.amazon.awssdk.core.SdkSystemSetting.AWS_REGION;
 import static software.amazon.awssdk.core.SdkSystemSetting.AWS_SECRET_ACCESS_KEY;
@@ -31,10 +30,8 @@ import com.amazonaws.regions.Regions;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
-import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -43,7 +40,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
@@ -52,24 +48,14 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
-import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
-import software.amazon.awssdk.utils.AttributeMap;
 
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
 public class AwsModuleTest {
-  private static final String ACCESS_KEY = "accessKey";
-  private static final String SECRET_KEY = "secretKey";
-  private static final String SESSION_TOKEN = "sessionToken";
-
-  private Consumer<AwsCredentials> expectedBasicCredentials =
-      c -> assertTrue(c.accessKeyId().equals(ACCESS_KEY) && c.secretAccessKey().equals(SECRET_KEY));
-
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new AwsModule());
 
   @Test
   public void testObjectMapperIsAbleToFindModule() {
@@ -77,36 +63,28 @@ public class AwsModuleTest {
     MatcherAssert.assertThat(modules, hasItem(instanceOf(AwsModule.class)));
   }
 
-  private <T> T serializeAndDeserialize(T obj) throws Exception {
-    String serialized = objectMapper.writeValueAsString(obj);
-    return (T) objectMapper.readValue(serialized, obj.getClass());
+  private <T> T serializeAndDeserialize(T obj) {
+    return SerializationTestUtil.serializeDeserialize((Class<T>) obj.getClass(), obj);
   }
 
   @Test
-  public void testStaticCredentialsProviderSerializationDeserialization() throws Exception {
+  public void testStaticCredentialsProviderSerializationDeserialization() {
     AwsCredentialsProvider provider =
-        StaticCredentialsProvider.create(AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY));
-    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
+        StaticCredentialsProvider.create(AwsBasicCredentials.create("key", "secret"));
 
-    assertThat(deserializedProvider).hasSameClassAs(provider);
-    assertThat(deserializedProvider.resolveCredentials())
-        .isInstanceOf(AwsBasicCredentials.class)
-        .satisfies(expectedBasicCredentials);
+    assertThat(serializeAndDeserialize(provider))
+        .hasSameClassAs(provider)
+        .isEqualToComparingFieldByFieldRecursively(provider);
 
     provider =
-        StaticCredentialsProvider.create(
-            AwsSessionCredentials.create(ACCESS_KEY, SECRET_KEY, SESSION_TOKEN));
-    deserializedProvider = serializeAndDeserialize(provider);
-
-    assertThat(deserializedProvider).hasSameClassAs(provider);
-    assertThat(deserializedProvider.resolveCredentials())
-        .isInstanceOf(AwsSessionCredentials.class)
-        .satisfies(expectedBasicCredentials)
-        .hasFieldOrPropertyWithValue("sessionToken", SESSION_TOKEN);
+        StaticCredentialsProvider.create(AwsSessionCredentials.create("key", "secret", "token"));
+    assertThat(serializeAndDeserialize(provider))
+        .hasSameClassAs(provider)
+        .isEqualToComparingFieldByFieldRecursively(provider);
   }
 
   @Test
-  public void testAwsCredentialsProviderSerializationDeserialization() throws Exception {
+  public void testAwsCredentialsProviderSerializationDeserialization() {
     AwsCredentialsProvider provider = DefaultCredentialsProvider.create();
     AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
     assertEquals(provider.getClass(), deserializedProvider.getClass());
@@ -140,8 +118,8 @@ public class AwsModuleTest {
 
     Properties overrides = new Properties();
     overrides.setProperty(AWS_REGION.property(), Regions.US_EAST_1.getName());
-    overrides.setProperty(AWS_ACCESS_KEY_ID.property(), ACCESS_KEY);
-    overrides.setProperty(AWS_SECRET_ACCESS_KEY.property(), SECRET_KEY);
+    overrides.setProperty(AWS_ACCESS_KEY_ID.property(), "key");
+    overrides.setProperty(AWS_SECRET_ACCESS_KEY.property(), "secret");
 
     // Region and credentials for STS client are resolved using default providers
     AwsCredentialsProvider deserializedProvider =
@@ -154,7 +132,7 @@ public class AwsModuleTest {
   }
 
   @Test
-  public void testProxyConfigurationSerializationDeserialization() throws Exception {
+  public void testProxyConfigurationSerializationDeserialization() {
     ProxyConfiguration proxyConfiguration =
         ProxyConfiguration.builder()
             .endpoint(URI.create("http://localhost:8080"))
@@ -167,26 +145,6 @@ public class AwsModuleTest {
     assertEquals(8080, deserializedProxyConfiguration.port());
     assertEquals("username", deserializedProxyConfiguration.username());
     assertEquals("password", deserializedProxyConfiguration.password());
-  }
-
-  @Test
-  public void testHttpClientConfigurationSerializationDeserialization() throws Exception {
-    AttributeMap attributeMap =
-        AttributeMap.builder()
-            .put(SdkHttpConfigurationOption.CONNECTION_TIMEOUT, Duration.parse("PT100S"))
-            .put(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE, Duration.parse("PT30S"))
-            .put(SdkHttpConfigurationOption.MAX_CONNECTIONS, 15)
-            .build();
-
-    AttributeMap deserializedAttributeMap = serializeAndDeserialize(attributeMap);
-    assertEquals(
-        Duration.parse("PT100S"),
-        deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIMEOUT));
-    assertEquals(
-        Duration.parse("PT30S"),
-        deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE));
-    assertEquals(
-        (Integer) 15, deserializedAttributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS));
   }
 
   private <T> T withSystemPropertyOverrides(Properties overrides, ThrowingSupplier<T> fun)

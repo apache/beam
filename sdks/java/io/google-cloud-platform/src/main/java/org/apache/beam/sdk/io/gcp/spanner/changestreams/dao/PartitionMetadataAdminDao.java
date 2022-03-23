@@ -124,7 +124,7 @@ public class PartitionMetadataAdminDao {
             + COLUMN_START_TIMESTAMP
             + " TIMESTAMP NOT NULL,"
             + COLUMN_END_TIMESTAMP
-            + " TIMESTAMP,"
+            + " TIMESTAMP NOT NULL,"
             + COLUMN_HEARTBEAT_MILLIS
             + " INT64 NOT NULL,"
             + COLUMN_STATE

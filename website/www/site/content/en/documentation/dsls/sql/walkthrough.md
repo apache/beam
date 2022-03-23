@@ -117,7 +117,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
         SqlTransform.query(
           "SELECT appId, description, rowtime "
             + "FROM PCOLLECTION "
-            + "WHERE id=1"));
+            + "WHERE appId=1"));
     {{< /highlight >}}
   - when applying to a `PCollectionTuple`, the tuple tag for each `PCollection` in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific `PCollectionTuple`, and thus are only valid in the context of queries applied to it.
 

@@ -70,13 +70,19 @@ hadoopVersions.each {kv ->
       force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
       force "org.apache.hadoop:hadoop-minicluster:$kv.value"
       force "org.apache.hadoop:hadoop-hdfs:$kv.value:tests"
+      force "org.apache.hadoop:hadoop-hdfs-client:$kv.value:tests"
       force library.java.slf4j_jdk14
     }
   }
 }
 
 // Hadoop dependencies require old version of Guava (BEAM-11626)
-configurations.all {
+configurations.all (Configuration it) -> {
+  // error-prone requires newer guava, don't override for annotation processing
+  // https://github.com/google/error-prone/issues/2745
+  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+    return
+  }
   resolutionStrategy {
     force 'com.google.guava:guava:25.1-jre'
   }

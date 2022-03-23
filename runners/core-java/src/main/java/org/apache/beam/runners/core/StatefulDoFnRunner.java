@@ -273,7 +273,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   /**
-   * Setup timer for flush time @{code flush}. The time is adjusted to respect allowed lateness and
+   * Setup timer for flush time {@code flush}. The time is adjusted to respect allowed lateness and
    * window garbage collection time. Setup watermark hold for the flush time.
    *
    * <p>Note that this is equivalent to {@link org.apache.beam.sdk.state.Timer#withOutputTimestamp}

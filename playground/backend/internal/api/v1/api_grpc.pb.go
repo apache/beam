@@ -43,8 +43,12 @@ type PlaygroundServiceClient interface {
 	GetRunOutput(ctx context.Context, in *GetRunOutputRequest, opts ...grpc.CallOption) (*GetRunOutputResponse, error)
 	// Get the logs of pipeline execution.
 	GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error)
+	// Get the string representation of the pipeline execution graph in DOT format.
+	GetGraph(ctx context.Context, in *GetGraphRequest, opts ...grpc.CallOption) (*GetGraphResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error)
+	// Get the result of pipeline validation.
+	GetValidationOutput(ctx context.Context, in *GetValidationOutputRequest, opts ...grpc.CallOption) (*GetValidationOutputResponse, error)
 	// Get the result of pipeline preparation.
 	GetPreparationOutput(ctx context.Context, in *GetPreparationOutputRequest, opts ...grpc.CallOption) (*GetPreparationOutputResponse, error)
 	// Get the result of pipeline compilation.
@@ -53,12 +57,18 @@ type PlaygroundServiceClient interface {
 	Cancel(ctx context.Context, in *CancelRequest, opts ...grpc.CallOption) (*CancelResponse, error)
 	// Get all precompiled objects from the cloud storage.
 	GetPrecompiledObjects(ctx context.Context, in *GetPrecompiledObjectsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectsResponse, error)
+	// Get precompiled object from the cloud storage.
+	GetPrecompiledObject(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error)
 	// Get the code of an PrecompiledObject.
 	GetPrecompiledObjectCode(ctx context.Context, in *GetPrecompiledObjectCodeRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectCodeResponse, error)
 	// Get the precompiled details of an PrecompiledObject.
 	GetPrecompiledObjectOutput(ctx context.Context, in *GetPrecompiledObjectOutputRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectOutputResponse, error)
 	// Get the logs of an PrecompiledObject.
 	GetPrecompiledObjectLogs(ctx context.Context, in *GetPrecompiledObjectLogsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectLogsResponse, error)
+	// Get the graph of an PrecompiledObject.
+	GetPrecompiledObjectGraph(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error)
+	// Get the default precompile object for the sdk.
+	GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error)
 }
 
 type playgroundServiceClient struct {
@@ -105,9 +115,27 @@ func (c *playgroundServiceClient) GetLogs(ctx context.Context, in *GetLogsReques
 	return out, nil
 }
 
+func (c *playgroundServiceClient) GetGraph(ctx context.Context, in *GetGraphRequest, opts ...grpc.CallOption) (*GetGraphResponse, error) {
+	out := new(GetGraphResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetGraph", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *playgroundServiceClient) GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error) {
 	out := new(GetRunErrorResponse)
 	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetRunError", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetValidationOutput(ctx context.Context, in *GetValidationOutputRequest, opts ...grpc.CallOption) (*GetValidationOutputResponse, error) {
+	out := new(GetValidationOutputResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetValidationOutput", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +178,15 @@ func (c *playgroundServiceClient) GetPrecompiledObjects(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *playgroundServiceClient) GetPrecompiledObject(ctx context.Context, in *GetPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectResponse, error) {
+	out := new(GetPrecompiledObjectResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetPrecompiledObject", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *playgroundServiceClient) GetPrecompiledObjectCode(ctx context.Context, in *GetPrecompiledObjectCodeRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectCodeResponse, error) {
 	out := new(GetPrecompiledObjectCodeResponse)
 	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetPrecompiledObjectCode", in, out, opts...)
@@ -177,6 +214,24 @@ func (c *playgroundServiceClient) GetPrecompiledObjectLogs(ctx context.Context, 
 	return out, nil
 }
 
+func (c *playgroundServiceClient) GetPrecompiledObjectGraph(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error) {
+	out := new(GetPrecompiledObjectGraphResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetPrecompiledObjectGraph", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error) {
+	out := new(GetDefaultPrecompiledObjectResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetDefaultPrecompiledObject", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PlaygroundServiceServer is the server API for PlaygroundService service.
 // All implementations should embed UnimplementedPlaygroundServiceServer
 // for forward compatibility
@@ -189,8 +244,12 @@ type PlaygroundServiceServer interface {
 	GetRunOutput(context.Context, *GetRunOutputRequest) (*GetRunOutputResponse, error)
 	// Get the logs of pipeline execution.
 	GetLogs(context.Context, *GetLogsRequest) (*GetLogsResponse, error)
+	// Get the string representation of the pipeline execution graph in DOT format.
+	GetGraph(context.Context, *GetGraphRequest) (*GetGraphResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error)
+	// Get the result of pipeline validation.
+	GetValidationOutput(context.Context, *GetValidationOutputRequest) (*GetValidationOutputResponse, error)
 	// Get the result of pipeline preparation.
 	GetPreparationOutput(context.Context, *GetPreparationOutputRequest) (*GetPreparationOutputResponse, error)
 	// Get the result of pipeline compilation.
@@ -199,12 +258,18 @@ type PlaygroundServiceServer interface {
 	Cancel(context.Context, *CancelRequest) (*CancelResponse, error)
 	// Get all precompiled objects from the cloud storage.
 	GetPrecompiledObjects(context.Context, *GetPrecompiledObjectsRequest) (*GetPrecompiledObjectsResponse, error)
+	// Get precompiled object from the cloud storage.
+	GetPrecompiledObject(context.Context, *GetPrecompiledObjectRequest) (*GetPrecompiledObjectResponse, error)
 	// Get the code of an PrecompiledObject.
 	GetPrecompiledObjectCode(context.Context, *GetPrecompiledObjectCodeRequest) (*GetPrecompiledObjectCodeResponse, error)
 	// Get the precompiled details of an PrecompiledObject.
 	GetPrecompiledObjectOutput(context.Context, *GetPrecompiledObjectOutputRequest) (*GetPrecompiledObjectOutputResponse, error)
 	// Get the logs of an PrecompiledObject.
 	GetPrecompiledObjectLogs(context.Context, *GetPrecompiledObjectLogsRequest) (*GetPrecompiledObjectLogsResponse, error)
+	// Get the graph of an PrecompiledObject.
+	GetPrecompiledObjectGraph(context.Context, *GetPrecompiledObjectGraphRequest) (*GetPrecompiledObjectGraphResponse, error)
+	// Get the default precompile object for the sdk.
+	GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error)
 }
 
 // UnimplementedPlaygroundServiceServer should be embedded to have forward compatible implementations.
@@ -223,8 +288,14 @@ func (UnimplementedPlaygroundServiceServer) GetRunOutput(context.Context, *GetRu
 func (UnimplementedPlaygroundServiceServer) GetLogs(context.Context, *GetLogsRequest) (*GetLogsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLogs not implemented")
 }
+func (UnimplementedPlaygroundServiceServer) GetGraph(context.Context, *GetGraphRequest) (*GetGraphResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGraph not implemented")
+}
 func (UnimplementedPlaygroundServiceServer) GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRunError not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetValidationOutput(context.Context, *GetValidationOutputRequest) (*GetValidationOutputResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValidationOutput not implemented")
 }
 func (UnimplementedPlaygroundServiceServer) GetPreparationOutput(context.Context, *GetPreparationOutputRequest) (*GetPreparationOutputResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPreparationOutput not implemented")
@@ -238,6 +309,9 @@ func (UnimplementedPlaygroundServiceServer) Cancel(context.Context, *CancelReque
 func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjects(context.Context, *GetPrecompiledObjectsRequest) (*GetPrecompiledObjectsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjects not implemented")
 }
+func (UnimplementedPlaygroundServiceServer) GetPrecompiledObject(context.Context, *GetPrecompiledObjectRequest) (*GetPrecompiledObjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObject not implemented")
+}
 func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectCode(context.Context, *GetPrecompiledObjectCodeRequest) (*GetPrecompiledObjectCodeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjectCode not implemented")
 }
@@ -246,6 +320,12 @@ func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectOutput(context.C
 }
 func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectLogs(context.Context, *GetPrecompiledObjectLogsRequest) (*GetPrecompiledObjectLogsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjectLogs not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectGraph(context.Context, *GetPrecompiledObjectGraphRequest) (*GetPrecompiledObjectGraphResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjectGraph not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultPrecompiledObject not implemented")
 }
 
 // UnsafePlaygroundServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -331,6 +411,24 @@ func _PlaygroundService_GetLogs_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_GetGraph_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGraphRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetGraph(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetGraph",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetGraph(ctx, req.(*GetGraphRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PlaygroundService_GetRunError_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRunErrorRequest)
 	if err := dec(in); err != nil {
@@ -345,6 +443,24 @@ func _PlaygroundService_GetRunError_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PlaygroundServiceServer).GetRunError(ctx, req.(*GetRunErrorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetValidationOutput_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetValidationOutputRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetValidationOutput(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetValidationOutput",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetValidationOutput(ctx, req.(*GetValidationOutputRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -421,6 +537,24 @@ func _PlaygroundService_GetPrecompiledObjects_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_GetPrecompiledObject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPrecompiledObjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetPrecompiledObject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetPrecompiledObject",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetPrecompiledObject(ctx, req.(*GetPrecompiledObjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PlaygroundService_GetPrecompiledObjectCode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetPrecompiledObjectCodeRequest)
 	if err := dec(in); err != nil {
@@ -475,6 +609,42 @@ func _PlaygroundService_GetPrecompiledObjectLogs_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_GetPrecompiledObjectGraph_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPrecompiledObjectGraphRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetPrecompiledObjectGraph(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetPrecompiledObjectGraph",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetPrecompiledObjectGraph(ctx, req.(*GetPrecompiledObjectGraphRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetDefaultPrecompiledObject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDefaultPrecompiledObjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetDefaultPrecompiledObject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetDefaultPrecompiledObject",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetDefaultPrecompiledObject(ctx, req.(*GetDefaultPrecompiledObjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PlaygroundService_ServiceDesc is the grpc.ServiceDesc for PlaygroundService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -499,8 +669,16 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PlaygroundService_GetLogs_Handler,
 		},
 		{
+			MethodName: "GetGraph",
+			Handler:    _PlaygroundService_GetGraph_Handler,
+		},
+		{
 			MethodName: "GetRunError",
 			Handler:    _PlaygroundService_GetRunError_Handler,
+		},
+		{
+			MethodName: "GetValidationOutput",
+			Handler:    _PlaygroundService_GetValidationOutput_Handler,
 		},
 		{
 			MethodName: "GetPreparationOutput",
@@ -519,6 +697,10 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PlaygroundService_GetPrecompiledObjects_Handler,
 		},
 		{
+			MethodName: "GetPrecompiledObject",
+			Handler:    _PlaygroundService_GetPrecompiledObject_Handler,
+		},
+		{
 			MethodName: "GetPrecompiledObjectCode",
 			Handler:    _PlaygroundService_GetPrecompiledObjectCode_Handler,
 		},
@@ -529,6 +711,14 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPrecompiledObjectLogs",
 			Handler:    _PlaygroundService_GetPrecompiledObjectLogs_Handler,
+		},
+		{
+			MethodName: "GetPrecompiledObjectGraph",
+			Handler:    _PlaygroundService_GetPrecompiledObjectGraph_Handler,
+		},
+		{
+			MethodName: "GetDefaultPrecompiledObject",
+			Handler:    _PlaygroundService_GetDefaultPrecompiledObject_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

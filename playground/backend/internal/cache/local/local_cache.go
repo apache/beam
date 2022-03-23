@@ -16,6 +16,7 @@
 package local
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"fmt"
@@ -30,18 +31,23 @@ const (
 
 type Cache struct {
 	sync.RWMutex
-	cleanupInterval     time.Duration
-	items               map[uuid.UUID]map[cache.SubKey]interface{}
-	pipelinesExpiration map[uuid.UUID]time.Time
+	cleanupInterval           time.Duration
+	items                     map[uuid.UUID]map[cache.SubKey]interface{}
+	pipelinesExpiration       map[uuid.UUID]time.Time
+	catalog                   []*pb.Categories
+	defaultPrecompiledObjects map[pb.Sdk]*pb.PrecompiledObject
 }
 
 func New(ctx context.Context) *Cache {
 	items := make(map[uuid.UUID]map[cache.SubKey]interface{})
 	pipelinesExpiration := make(map[uuid.UUID]time.Time)
+	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject)
 	ls := &Cache{
-		cleanupInterval:     cleanupInterval,
-		items:               items,
-		pipelinesExpiration: pipelinesExpiration,
+		cleanupInterval:           cleanupInterval,
+		items:                     items,
+		pipelinesExpiration:       pipelinesExpiration,
+		catalog:                   nil,
+		defaultPrecompiledObjects: defaultPrecompiledObjects,
 	}
 
 	go ls.startGC(ctx)
@@ -103,6 +109,39 @@ func (lc *Cache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime t
 	}
 	lc.pipelinesExpiration[pipelineId] = time.Now().Add(expTime)
 	return nil
+}
+
+func (lc *Cache) SetCatalog(ctx context.Context, catalog []*pb.Categories) error {
+	lc.Lock()
+	defer lc.Unlock()
+	lc.catalog = catalog
+	return nil
+}
+
+func (lc *Cache) GetCatalog(ctx context.Context) ([]*pb.Categories, error) {
+	lc.RLock()
+	defer lc.RUnlock()
+	if lc.catalog == nil {
+		return nil, fmt.Errorf("catalog is not found")
+	}
+	return lc.catalog, nil
+}
+
+func (lc *Cache) SetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, precompiledObject *pb.PrecompiledObject) error {
+	lc.Lock()
+	defer lc.Unlock()
+	lc.defaultPrecompiledObjects[sdk] = precompiledObject
+	return nil
+}
+
+func (lc *Cache) GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*pb.PrecompiledObject, error) {
+	lc.RLock()
+	defer lc.RUnlock()
+	defaultPrecompiledObject := lc.defaultPrecompiledObjects[sdk]
+	if defaultPrecompiledObject == nil {
+		return nil, fmt.Errorf("default precompiled obejct is not found for %s sdk", sdk.String())
+	}
+	return defaultPrecompiledObject, nil
 }
 
 func (lc *Cache) startGC(ctx context.Context) {

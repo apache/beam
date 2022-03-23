@@ -22,16 +22,15 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,22 +46,24 @@ public class BeamFnStateGrpcClientCache {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnStateGrpcClientCache.class);
 
   private final ConcurrentMap<ApiServiceDescriptor, BeamFnStateClient> cache;
-  private final Function<ApiServiceDescriptor, ManagedChannel> channelFactory;
+  private final ManagedChannelFactory channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
   private final IdGenerator idGenerator;
 
   public BeamFnStateGrpcClientCache(
       IdGenerator idGenerator,
-      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
+      ManagedChannelFactory channelFactory,
       OutboundObserverFactory outboundObserverFactory) {
     this.idGenerator = idGenerator;
-    this.channelFactory = channelFactory;
+    // We use the directExecutor because we just complete futures when handling responses.
+    // This showed a 1-2% improvement in the ProcessBundleBenchmark#testState* benchmarks.
+    this.channelFactory = channelFactory.withDirectExecutor();
     this.outboundObserverFactory = outboundObserverFactory;
     this.cache = new ConcurrentHashMap<>();
   }
 
   /**
-   * ( Creates or returns an existing {@link BeamFnStateClient} depending on whether the passed in
+   * Creates or returns an existing {@link BeamFnStateClient} depending on whether the passed in
    * {@link ApiServiceDescriptor} currently has a {@link BeamFnStateClient} bound to the same
    * channel.
    */
@@ -86,7 +87,7 @@ public class BeamFnStateGrpcClientCache {
     private GrpcStateClient(ApiServiceDescriptor apiServiceDescriptor) {
       this.apiServiceDescriptor = apiServiceDescriptor;
       this.outstandingRequests = new ConcurrentHashMap<>();
-      this.channel = channelFactory.apply(apiServiceDescriptor);
+      this.channel = channelFactory.forDescriptor(apiServiceDescriptor);
       this.outboundObserver =
           outboundObserverFactory.outboundObserverFor(
               BeamFnStateGrpc.newStub(channel)::state, new InboundObserver());
@@ -135,6 +136,8 @@ public class BeamFnStateGrpcClientCache {
      *
      * <p>Also propagates server side failures and closes completing any outstanding requests
      * exceptionally.
+     *
+     * <p>This implementation must never block since we use a direct executor.
      */
     private class InboundObserver implements StreamObserver<StateResponse> {
       @Override

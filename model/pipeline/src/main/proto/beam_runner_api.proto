@@ -452,8 +452,26 @@ message StandardSideInputTypes {
     // Represents a view over a PCollection<KV<K, V>>.
     //
     // StateGetRequests performed on this side input must use
-    // StateKey.IterableSideInput or StateKey.MultimapSideInput.
+    // StateKey.MultimapKeysSideInput or StateKey.MultimapSideInput.
     MULTIMAP = 1 [(beam_urn) = "beam:side_input:multimap:v1"];
+  }
+}
+
+message StandardUserStateTypes {
+  enum Enum {
+    // Represents a user state specification that supports a bag.
+    //
+    // StateRequests performed on this user state must use
+    // StateKey.BagUserState.
+    BAG = 0 [(beam_urn) = "beam:user_state:bag:v1"];
+
+    // Represents a user state specification that supports a multimap.
+    //
+    // StateRequests performed on this user state must use
+    // StateKey.MultimapKeysUserState or StateKey.MultimapUserState.
+    MULTIMAP = 1 [(beam_urn) = "beam:user_state:multimap:v1"];
+
+    // TODO(BEAM-10650): Add protocol to support OrderedListState
   }
 }
 
@@ -524,10 +542,17 @@ message ParDoPayload {
   // be placed in the pipeline requirements.
   bool requires_stable_input = 11;
 
+  // If populated, the name of the timer family spec which should be notified
+  // on each window expiry.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
+  string on_window_expiration_timer_family_spec = 12;
+
   reserved 6;
 }
 
 message StateSpec {
+  // TODO(BEAM-13930): Deprecate and remove these state specs
   oneof spec {
     ReadModifyWriteStateSpec read_modify_write_spec = 1;
     BagStateSpec bag_spec = 2;
@@ -536,6 +561,16 @@ message StateSpec {
     SetStateSpec set_spec = 5;
     OrderedListStateSpec ordered_list_spec = 6;
   }
+
+  // (Required) URN of the protocol required by this state specification to present
+  // the desired SDK-specific interface to a UDF.
+  //
+  // This protocol defines the SDK harness <-> Runner Harness RPC
+  // interface for accessing and mutating user state.
+  //
+  // See StandardUserStateTypes for an enumeration of all user state types
+  // defined.
+  FunctionSpec protocol = 7;
 }
 
 message ReadModifyWriteStateSpec {
@@ -1020,6 +1055,10 @@ message StandardCoders {
     //   - A timestamp without a timezone where seconds + micros represents the
     //     amount of time since the epoch.
     //
+    //   beam:logical_type:schema:v1
+    //   - Representation type: BYTES
+    //   - A Beam Schema stored as a serialized proto.
+    //
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
@@ -1354,9 +1393,8 @@ message SideInput {
   // This access pattern defines the SDK harness <-> Runner Harness RPC
   // interface for accessing a side input.
   //
-  // The only access pattern intended for Beam, because of its superior
-  // performance possibilities, is "beam:sideinput:multimap" (or some such
-  // URN)
+  // See StandardSideInputTypes for an enumeration of all side input types
+  // defined.
   FunctionSpec access_pattern = 1;
 
   // (Required) The FunctionSpec of the UDF that adapts a particular
@@ -1409,6 +1447,12 @@ message StandardArtifacts {
     // A URN for pip-requirements-file role.
     // payload: None
     PIP_REQUIREMENTS_FILE  = 1 [(beam_urn) = "beam:artifact:role:pip_requirements_file:v1"];
+
+    // A URN for the Go worker binary role.
+    // This represents the executable for a Go SDK environment.
+    // A Go environment may have one such artifact with this role.
+    // payload: None
+    GO_WORKER_BINARY  = 2 [(beam_urn) = "beam:artifact:role:go_worker_binary:v1"];
   }
 }
 
@@ -1576,6 +1620,12 @@ message StandardProtocols {
     // https://s.apache.org/beam-fn-api-control-data-embedding
     CONTROL_REQUEST_ELEMENTS_EMBEDDING = 6
         [(beam_urn) = "beam:protocol:control_request_elements_embedding:v1"];
+
+    // Indicates that this SDK can cache user state and side inputs across
+    // bundle boundaries. This is a hint to runners that runners can rely on the
+    // SDKs ability to store the data in memory reducing the amount of memory
+    // used overall.
+    STATE_CACHING = 7 [(beam_urn) = "beam:protocol:state_caching:v1"];
   }
 }
 
@@ -1601,7 +1651,7 @@ message StandardRunnerProtocols {
 // to be added in a forwards-compatible way).
 message StandardRequirements {
   enum Enum {
-    // This requirement indicates the state_spec and time_spec fields of ParDo
+    // This requirement indicates the state_specs and timer_family_specs fields of ParDo
     // transform payloads must be inspected.
     REQUIRES_STATEFUL_PROCESSING = 0 [(beam_urn) = "beam:requirement:pardo:stateful:v1"];
 
@@ -1620,6 +1670,10 @@ message StandardRequirements {
     // This requirement indicates the restriction_coder_id field of ParDo
     // transform payloads must be inspected.
     REQUIRES_SPLITTABLE_DOFN = 4 [(beam_urn) = "beam:requirement:pardo:splittable_dofn:v1"];
+
+    // This requirement indicates that the on_window_expiration_timer_family_spec field
+    // of ParDo transform payloads must be inspected.
+    REQUIRES_ON_WINDOW_EXPIRATION = 5 [(beam_urn) = "beam:requirement:pardo:on_window_expiration:v1"];
   }
 }
 

@@ -31,10 +31,11 @@ COPY src /go/src/playground/backend
 
 ARG BEAM_VERSION=2.33.0
 ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
+ENV PIPELINES_FOLDER_NAME="executable_files"
 RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR
 WORKDIR $PREPARED_MOD_DIR
-# 'executable_files' name of go.mod module
-RUN go mod init executable_files &&\
+
+RUN go mod init $PIPELINES_FOLDER_NAME &&\
     go get -u github.com/apache/beam/sdks/v2@v$BEAM_VERSION &&\
     go mod download all
 
@@ -53,6 +54,7 @@ ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_GO"
+ENV BUCKET_NAME="playground-precompiled-objects"
 ## Copy build result
 COPY src/configs /opt/playground/backend/configs/
 
@@ -62,10 +64,24 @@ RUN mkdir /opt/mitmproxy &&\
     wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
     tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
     mkdir /usr/local/share/ca-certificates/extra
-COPY entrypoint.sh /
 COPY allow_list_proxy.py /opt/mitmproxy/
 COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
+
+COPY entrypoint.sh /
+
+# Create a user group `appgroup` and a user `appuser`
+RUN groupadd --gid 20000 appgroup \
+  && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
+
+RUN mkdir -p /opt/playground/backend/executable_files/
+
+# Chown all required files to the `appuser`.
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
+  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
+
+# Switch to appuser
+USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]

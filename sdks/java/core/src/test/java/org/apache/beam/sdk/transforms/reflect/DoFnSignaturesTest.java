@@ -1374,6 +1374,34 @@ public class DoFnSignaturesTest {
     }
   }
 
+  /**
+   * It is important that we don't add any state/timers to this class to ensure that statefulness is
+   * detected from {@link DoFn.OnWindowExpiration @OnWindowExpiration} only.
+   */
+  private static class StatefulWithOnWindowExpiration extends DoFn<KV<String, String>, String>
+      implements FeatureTest {
+
+    @ProcessElement
+    public void process(@Element KV<String, String> input) {}
+
+    @OnWindowExpiration
+    public void onWindowExpiration() {}
+
+    @Override
+    public void test() {
+      assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(false));
+    }
+  }
+
   private static class StatefulWithTimers extends DoFn<KV<String, String>, String>
       implements FeatureTest {
 
@@ -1553,6 +1581,7 @@ public class DoFnSignaturesTest {
       Lists.newArrayList(
           new StatelessDoFn(),
           new StatefulWithValueState(),
+          new StatefulWithOnWindowExpiration(),
           new StatefulWithTimers(),
           new StatefulWithTimersAndValueState(),
           new StatefulWithSetState(),

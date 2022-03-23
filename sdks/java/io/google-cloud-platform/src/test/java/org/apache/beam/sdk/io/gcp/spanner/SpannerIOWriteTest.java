@@ -38,6 +38,7 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.CommitResponse;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
@@ -76,9 +77,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -104,6 +107,7 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
+
   private static final long CELLS_PER_KEY = 7;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -133,6 +137,8 @@ public class SpannerIOWriteTest implements Serializable {
     // Simplest schema: a table with int64 key
     preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
     prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64", CELLS_PER_KEY)));
+    preparePgColumnMetadata(
+        tx, Arrays.asList(columnMetadata("tEsT", "key", "bigint", CELLS_PER_KEY)));
 
     // Setup the ProcessWideContainer for testing metrics are set.
     MetricsContainerImpl container = new MetricsContainerImpl(null);
@@ -189,6 +195,31 @@ public class SpannerIOWriteTest implements Serializable {
                     }
                     Statement st = (Statement) argument;
                     return st.getSql().contains("information_schema.columns");
+                  }
+                })))
+        .thenReturn(ResultSets.forRows(type, rows));
+  }
+
+  private void preparePgColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+    Type type =
+        Type.struct(
+            Type.StructField.of("table_name", Type.string()),
+            Type.StructField.of("column_name", Type.string()),
+            Type.StructField.of("spanner_type", Type.string()),
+            Type.StructField.of("cells_mutated", Type.int64()));
+    when(tx.executeQuery(
+            argThat(
+                new ArgumentMatcher<Statement>() {
+
+                  @Override
+                  public boolean matches(Statement argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.columns")
+                        && st.getSql()
+                            .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
                   }
                 })))
         .thenReturn(ResultSets.forRows(type, rows));
@@ -257,6 +288,42 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void singlePgMutationPipeline() throws Exception {
+    Mutation mutation = m(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
+
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withDialectView(pgDialectView));
+    pipeline.run();
+
+    verifyBatches(batch(m(2L)));
+  }
+
+  @Test
+  public void singleMutationPipelineNoProjectId() throws Exception {
+    Mutation mutation = m(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+
+    mutations.apply(
+        SpannerIO.write()
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    verifyBatches(batch(m(2L)));
+  }
+
+  @Test
   public void singleMutationGroupPipeline() throws Exception {
     PCollection<MutationGroup> mutations =
         pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
@@ -266,6 +333,28 @@ public class SpannerIOWriteTest implements Serializable {
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
+            .grouped());
+    pipeline.run();
+
+    verifyBatches(batch(m(1L), m(2L), m(3L)));
+  }
+
+  @Test
+  public void singlePgMutationGroupPipeline() throws Exception {
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
+
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withDialectView(pgDialectView)
             .grouped());
     pipeline.run();
 
@@ -358,7 +447,7 @@ public class SpannerIOWriteTest implements Serializable {
             .withHighPriority();
     pipeline.apply(testStream).apply(write);
     pipeline.run();
-    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority().get());
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
   }
 
@@ -406,7 +495,7 @@ public class SpannerIOWriteTest implements Serializable {
             .withLowPriority();
     pipeline.apply(testStream).apply(write);
     pipeline.run();
-    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority().get());
 
     // Output should be batches of sorted mutations.
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));

@@ -2510,7 +2510,9 @@ public class DoFnSignatures {
   }
 
   public static boolean usesTimers(DoFn<?, ?> doFn) {
-    return signatureForDoFn(doFn).usesTimers() || requiresTimeSortedInput(doFn);
+    return signatureForDoFn(doFn).usesTimers()
+        || requiresTimeSortedInput(doFn)
+        || signatureForDoFn(doFn).onWindowExpiration() != null;
   }
 
   public static boolean usesState(DoFn<?, ?> doFn) {
