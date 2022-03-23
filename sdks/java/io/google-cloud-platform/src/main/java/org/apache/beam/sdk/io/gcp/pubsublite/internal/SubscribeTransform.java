@@ -30,6 +30,7 @@ import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -38,12 +39,16 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Duration;
 
 public class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage>> {
   private static final long MEBIBYTE = 1L << 20;
+  private static final long SOFT_MEMORY_LIMIT = 512 * MEBIBYTE;
+  private static final long MIN_PER_PARTITION_MEMORY = 4 * MEBIBYTE;
+  private static final long MAX_PER_PARTITION_MEMORY = 100 * MEBIBYTE;
+
+  private static final MemoryLimiter LIMITER =
+      new MemoryLimiterImpl(MIN_PER_PARTITION_MEMORY, MAX_PER_PARTITION_MEMORY, SOFT_MEMORY_LIMIT);
 
   private final SubscriberOptions options;
 
@@ -74,18 +79,27 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
   private SubscriptionPartitionProcessor newPartitionProcessor(
       SubscriptionPartition subscriptionPartition,
       RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker,
-      OutputReceiver<SequencedMessage> receiver)
-      throws ApiException {
-    checkSubscription(subscriptionPartition);
+      OutputReceiver<SequencedMessage> receiver) {
+    Supplier<MemoryBufferedSubscriber> newSubscriber =
+        () ->
+            newBufferedSubscriber(
+                subscriptionPartition,
+                Offset.of(tracker.currentRestriction().getRange().getFrom()));
     return new SubscriptionPartitionProcessorImpl(
+        subscriptionPartition,
         tracker,
         receiver,
-        consumer ->
-            newSubscriber(
-                subscriptionPartition.partition(),
-                Offset.of(tracker.currentRestriction().getRange().getFrom()),
-                consumer),
-        options.flowControlSettings());
+        () -> PerServerSubscriberCache.CACHE.get(subscriptionPartition, newSubscriber));
+  }
+
+  private MemoryBufferedSubscriber newBufferedSubscriber(
+      SubscriptionPartition subscriptionPartition, Offset startOffset) throws ApiException {
+    checkSubscription(subscriptionPartition);
+    return new MemoryBufferedSubscriberImpl(
+        subscriptionPartition.partition(),
+        startOffset,
+        LIMITER,
+        consumer -> newSubscriber(subscriptionPartition.partition(), startOffset, consumer));
   }
 
   private TopicBacklogReader newBacklogReader(SubscriptionPartition subscriptionPartition) {
@@ -93,21 +107,9 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
     return new SubscriberAssembler(options, subscriptionPartition.partition()).getBacklogReader();
   }
 
-  private long calculateMinWindowBytes() {
-    long minFromFlowControl =
-        LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10);
-    // Dataflow will not accept outputs larger than 1 GiB. Cap the maximum at 750 MiB to avoid this.
-    return Math.min(minFromFlowControl, 750 * MEBIBYTE);
-  }
-
   private TrackerWithProgress newRestrictionTracker(
       TopicBacklogReader backlogReader, OffsetByteRange initial) {
-    return new OffsetByteRangeTracker(
-        initial,
-        backlogReader,
-        Stopwatch.createUnstarted(),
-        options.minBundleTimeout(),
-        calculateMinWindowBytes());
+    return new OffsetByteRangeTracker(initial, backlogReader);
   }
 
   private InitialOffsetReader newInitialOffsetReader(SubscriptionPartition subscriptionPartition) {

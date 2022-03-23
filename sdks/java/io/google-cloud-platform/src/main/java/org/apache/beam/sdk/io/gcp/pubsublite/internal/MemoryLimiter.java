@@ -17,23 +17,21 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.cloud.pubsublite.MessageMetadata;
-import com.google.cloud.pubsublite.internal.Publisher;
-import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
-
 /**
- * A shared cache per-worker instance of Pub/Sub Lite publishers.
- *
- * <p>Pub/Sub Lite publishers connect to all available partitions: it would be a pessimization for
- * all instances of the PubsubLiteSink to do this.
+ * A class which tracks blocks of memory which have been given out, and tries to limit total memory
+ * size.
  */
-final class PerServerPublisherCache {
-  private PerServerPublisherCache() {}
+interface MemoryLimiter {
+  Block claim(long toAcquire);
 
-  static final ServiceCache<PublisherOptions, Publisher<MessageMetadata>> PUBLISHER_CACHE =
-      new ServiceCache<>();
+  long minBlockSize();
 
-  static {
-    Runtime.getRuntime().addShutdownHook(new Thread(PUBLISHER_CACHE::close));
+  long maxBlockSize();
+
+  interface Block extends AutoCloseable {
+    long claimed();
+
+    @Override
+    void close();
   }
 }
