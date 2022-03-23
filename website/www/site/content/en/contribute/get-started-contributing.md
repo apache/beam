@@ -31,9 +31,9 @@ limitations under the License.
 
 There are lots of opportunities to contribute. You can for example:
 
-- ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
+- ask or answer questions on [user@beam.apache.org](https://beam.apache.org/community/contact-us/) or
   [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
-- review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
+- review proposed design ideas on [dev@beam.apache.org](https://beam.apache.org/community/contact-us/)
 - improve the documentation
 - file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
 - test releases

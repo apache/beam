@@ -85,7 +85,7 @@ Here’s a list of things you can do to get started contributing:
     <td>Improve the website</td>
     <td class="list-text-size-md">
       <ul>
-        <li>Follow the website <a href="https://beam.apache.org/contribute/">Contribution Guide</a> to make changes yourself.</li>
+        <li>Follow the website <a href="https://beam.apache.org/contribute/get-started-contributing/">Contribution Guide</a> to make changes yourself.</li>
         <li>Check our <a href="https://issues.apache.org/jira/browse/BEAM-13229?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20website%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Website Backlog</a> in Jira to find rooms for improvement areas, or propose one.</li>
       </ul>
     </td>
@@ -120,7 +120,7 @@ Here’s a list of things you can do to get started contributing:
       <ul>
         <li>Create and contribute a custom <a href="https://beam.apache.org/documentation/programming-guide/#pipeline-io">I/O connector</a> for a specific data storage system you want to connect to, if it is not on <a href="https://beam.apache.org/documentation/io/built-in/">the I/O list yet</a>.</li>
         <li>Look at our project backlog to get some inspiration on what to build.</li>
-        <li>Follow our <a href="https://beam.apache.org/contribute/">Code Contribution Guide</a>.</li>
+        <li>Follow our <a href="https://beam.apache.org/contribute/get-started-contributing/">Code Contribution Guide</a>.</li>
       </ul>
     </td>
   </tr>
@@ -128,9 +128,9 @@ Here’s a list of things you can do to get started contributing:
     <td>Share a code sample or template</td>
     <td class="list-text-size-md">
       <ol>
-        <li>Read our <a href="https://beam.apache.org/contribute/">Code Contribution Guide</a>.</li>
+        <li>Read our <a href="https://beam.apache.org/contribute/get-started-contributing/">Code Contribution Guide</a>.</li>
         <li>Create your code sample or template. </li>
-        <li><a href="https://beam.apache.org/contribute/#make-your-change">Make a Pull Request</a> to add it to the Beam example folder.</li>
+        <li><a href="https://beam.apache.org/contribute/get-started-contributing/#make-your-change">Make a Pull Request</a> to add it to the Beam example folder.</li>
       </ol>
     </td>
   </tr>
@@ -177,24 +177,64 @@ A PMC member is also a committer, so if they are not initiated already, they wil
 
 ## Hear from the Community
 
-“Knowledge sharing and collaboration is something that comes naturally in the community. Together, we can work with the most complex problems and just solve them.”
-<div class="contribute-quote-block">
-  <span>Matt Casters, Co-founder @ Apache Hop</span>
-  <img src="https://beam.apache.org/images/matt_casters_photo.png" alt="Matt Casters">
-</div>
+<blockquote class="case-study-quote-block case-study-quote-wrapped">
+  <p class="case-study-quote-text">
+    Knowledge sharing and collaboration is something that comes naturally in the community. Together, we can work with the most complex problems and just solve them.
+  </p>
+  <div class="case-study-quote-author">
+    <div class="case-study-quote-author-img">
+        <img src="/images/matt_casters_photo.png">
+    </div>
+    <div class="case-study-quote-author-info">
+        <div class="case-study-quote-author-name">
+          Matt Casters
+        </div>
+        <div class="case-study-quote-author-position">
+          Co-founder
+          <br>Apache Hop
+        </div>
+    </div>
+  </div>
+</blockquote>
 
+<blockquote class="case-study-quote-block case-study-quote-wrapped">
+  <p class="case-study-quote-text">
+    “I really enjoy working with Beam. The understanding of its internals empowers you to fine-tune the open source, customize it. Beam is very powerful and the abstraction is its most significant feature.
+  </p>
+  <div class="case-study-quote-author">
+    <div class="case-study-quote-author-img">
+        <img src="/images/talat_uyarer_photo.png">
+    </div>
+    <div class="case-study-quote-author-info">
+        <div class="case-study-quote-author-name">
+          Talat Ulyarer
+        </div>
+        <div class="case-study-quote-author-position">
+          Sr Principal<br>Software Engineer
+          <br>Palo Alto Networks
+        </div>
+    </div>
+  </div>
+</blockquote>
 
-“I really enjoy working with Beam. The understanding of its internals empowers you to fine-tune the open source, customize it. Beam is very powerful and the abstraction is its most significant feature.”
-<div class="contribute-quote-block">
-  <span>Talat Ulyarer, Sr Principal Software Engineer @ Palo Alto Networks</span>
-  <img src="https://beam.apache.org/images/case-study/paloalto/talat_uyarer.png" alt="Talat Ulyarer">
-</div>
-
-
-“My takeaway: everyone should join the [Apache Beam] mailing lists! This is where all the discussions happen, and it is a great place for learning. I also encourage everyone to attend and participate in conferences to meet and connect with the community.”
-<div class="contribute-quote-block">
-  <span>Tobias Kaymak, Senior Data Engineer @ Ricardo</span>
-  <img src="https://beam.apache.org/images/tobias_kaymak_photo.png" alt="Tobias Kaymak">
-</div>
+<blockquote class="case-study-quote-block case-study-quote-wrapped">
+  <p class="case-study-quote-text">
+    My takeaway: everyone should join the [Apache Beam] mailing lists! This is where all the discussions happen, and it is a great place for learning. I also encourage everyone to attend and participate in conferences to meet and connect with the community.
+  </p>
+  <div class="case-study-quote-author">
+    <div class="case-study-quote-author-img">
+        <img src="/images/tobias_kaymak_photo.png">
+    </div>
+    <div class="case-study-quote-author-info">
+        <div class="case-study-quote-author-name">
+          Tobias Kaymak
+        </div>
+        <div class="case-study-quote-author-position">
+          Senior Data Engineer
+          <br>Ricardo
+        </div>
+    </div>
+  </div>
+</blockquote>
 
 
