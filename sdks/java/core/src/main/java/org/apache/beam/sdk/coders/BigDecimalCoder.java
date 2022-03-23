@@ -55,7 +55,8 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   @Override
   public void encode(BigDecimal value, OutputStream outStream, Context context)
       throws IOException, CoderException {
-    checkArgumentNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
+    checkArgumentNotNull(
+        value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
     VAR_INT_CODER.encode(value.scale(), outStream);
     BIG_INT_CODER.encode(value.unscaledValue(), outStream, context);
   }
@@ -108,7 +109,8 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
    */
   @Override
   protected long getEncodedElementByteSize(BigDecimal value) throws Exception {
-    checkArgumentNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
+    checkArgumentNotNull(
+        value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
     return VAR_INT_CODER.getEncodedElementByteSize(value.scale())
         + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue());
   }

@@ -44,6 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class SerializableAvroCodecFactory implements Externalizable {
+
   private static final long serialVersionUID = 7445324844109564303L;
   private static final List<String> noOptAvroCodecs =
       Arrays.asList(NULL_CODEC, SNAPPY_CODEC, BZIP2_CODEC);
@@ -56,12 +57,14 @@ class SerializableAvroCodecFactory implements Externalizable {
   public SerializableAvroCodecFactory() {}
 
   public SerializableAvroCodecFactory(CodecFactory codecFactory) {
+
     checkArgumentNotNull(codecFactory, "Codec can't be null");
     checkState(checkIsSupportedCodec(codecFactory), "%s is not supported", codecFactory);
     this.codecFactory = codecFactory;
   }
 
   private boolean checkIsSupportedCodec(CodecFactory codecFactory) {
+
     final String codecStr = codecFactory.toString();
     return noOptAvroCodecs.contains(codecStr)
         || deflatePattern.matcher(codecStr).matches()
@@ -70,11 +73,13 @@ class SerializableAvroCodecFactory implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
+
     out.writeUTF(codecFactory.toString());
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+
     final String codecStr = in.readUTF();
 
     switch (codecStr) {
@@ -101,12 +106,15 @@ class SerializableAvroCodecFactory implements Externalizable {
   }
 
   public CodecFactory getCodec() {
+
     return codecFactory;
   }
 
   @Override
   public String toString() {
-    checkArgumentNotNull(codecFactory, "Inner CodecFactory is null, please use non default constructor");
+
+    checkArgumentNotNull(
+        codecFactory, "Inner CodecFactory is null, please use non default constructor");
     return codecFactory.toString();
   }
 }

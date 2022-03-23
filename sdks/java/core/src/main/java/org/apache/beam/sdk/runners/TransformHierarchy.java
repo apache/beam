@@ -454,7 +454,8 @@ public class TransformHierarchy {
      *     original output.
      */
     void replaceOutputs(Map<PCollection<?>, ReplacementOutput> originalToReplacement) {
-      checkArgumentNotNull(this.outputs, "Outputs haven't been specified for node %s yet", getFullName());
+      checkArgumentNotNull(
+          this.outputs, "Outputs haven't been specified for node %s yet", getFullName());
       for (Node component : this.parts) {
         // Replace the outputs of the component nodes
         component.replaceOutputs(originalToReplacement);

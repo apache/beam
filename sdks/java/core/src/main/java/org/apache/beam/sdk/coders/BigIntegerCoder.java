@@ -49,7 +49,8 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   @Override
   public void encode(BigInteger value, OutputStream outStream, Context context)
       throws IOException, CoderException {
-    checkArgumentNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
+    checkArgumentNotNull(
+        value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     BYTE_ARRAY_CODER.encode(value.toByteArray(), outStream, context);
   }
 
@@ -96,7 +97,8 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
    */
   @Override
   protected long getEncodedElementByteSize(BigInteger value) throws Exception {
-    checkArgumentNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
+    checkArgumentNotNull(
+        value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray());
   }
 }

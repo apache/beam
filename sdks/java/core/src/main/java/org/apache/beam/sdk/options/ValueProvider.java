@@ -343,7 +343,8 @@ public interface ValueProvider<T> extends Serializable {
     public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property)
         throws JsonMappingException {
       checkArgumentNotNull(ctxt, "Null DeserializationContext.");
-      JavaType type = checkArgumentNotNull(ctxt.getContextualType(), "Invalid type: %s", getClass());
+      JavaType type =
+          checkArgumentNotNull(ctxt.getContextualType(), "Invalid type: %s", getClass());
       JavaType[] params = type.findTypeParameters(ValueProvider.class);
       if (params.length != 1) {
         throw new RuntimeException("Unable to derive type for ValueProvider: " + type.toString());

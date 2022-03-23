@@ -397,7 +397,8 @@ public class TextIO {
 
     @Override
     public PCollection<String> expand(PBegin input) {
-      checkArgumentNotNull(getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
+      checkArgumentNotNull(
+          getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
       }

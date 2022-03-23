@@ -347,7 +347,8 @@ public class AddFields {
     }
 
     private static Row fillNewFields(Row row, AddFieldsInformation addFieldsInformation) {
-      Schema outputSchema = checkArgumentNotNull(addFieldsInformation.getOutputFieldType().getRowSchema());
+      Schema outputSchema =
+          checkArgumentNotNull(addFieldsInformation.getOutputFieldType().getRowSchema());
 
       List<Object> newValues = Lists.newArrayListWithCapacity(outputSchema.getFieldCount());
       for (int i = 0; i < row.getFieldCount(); ++i) {
@@ -425,7 +426,8 @@ public class AddFields {
     public PCollection<Row> expand(PCollection<T> input) {
       final AddFieldsInformation addFieldsInformation =
           getAddFieldsInformation(input.getSchema(), newFields);
-      Schema outputSchema = checkArgumentNotNull(addFieldsInformation.getOutputFieldType().getRowSchema());
+      Schema outputSchema =
+          checkArgumentNotNull(addFieldsInformation.getOutputFieldType().getRowSchema());
 
       return input
           .apply(
