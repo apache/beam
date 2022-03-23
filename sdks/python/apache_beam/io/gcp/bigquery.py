@@ -1796,6 +1796,7 @@ class _StreamToBigQuery(PTransform):
       retry_strategy,
       additional_bq_parameters,
       ignore_insert_ids,
+      ignore_unknown_columns,
       with_auto_sharding,
       test_client=None):
     self.table_reference = table_reference
@@ -1811,6 +1812,7 @@ class _StreamToBigQuery(PTransform):
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
     self.ignore_insert_ids = ignore_insert_ids
+    self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
 
   class InsertIdPrefixFn(DoFn):
@@ -1836,6 +1838,7 @@ class _StreamToBigQuery(PTransform):
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
+        ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding)
 
     def _add_random_shard(element):
@@ -2168,6 +2171,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           retry_strategy=self.insert_retry_strategy,
           additional_bq_parameters=self.additional_bq_parameters,
           ignore_insert_ids=self._ignore_insert_ids,
+          ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client)
 

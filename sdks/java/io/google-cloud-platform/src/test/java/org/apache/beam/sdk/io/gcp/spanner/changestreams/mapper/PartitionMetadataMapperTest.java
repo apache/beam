@@ -105,7 +105,7 @@ public class PartitionMetadataMapperTest {
             .set(COLUMN_START_TIMESTAMP)
             .to(Timestamp.ofTimeMicroseconds(10L))
             .set(COLUMN_END_TIMESTAMP)
-            .to((Timestamp) null)
+            .to(Timestamp.ofTimeMicroseconds(20L))
             .set(COLUMN_HEARTBEAT_MILLIS)
             .to(5_000L)
             .set(COLUMN_STATE)
@@ -129,7 +129,7 @@ public class PartitionMetadataMapperTest {
             "token",
             Sets.newHashSet("parentToken"),
             Timestamp.ofTimeMicroseconds(10L),
-            null,
+            Timestamp.ofTimeMicroseconds(20L),
             5_000L,
             State.CREATED,
             Timestamp.ofTimeMicroseconds(30),

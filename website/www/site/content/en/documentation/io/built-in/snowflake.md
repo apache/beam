@@ -112,8 +112,6 @@ To use key pair authentication with SnowflakeIO, invoke your pipeline with one o
 
   {{< /highlight >}}
 
-**Important notice**: Only encrypted private key are supported. Unencrypted (without pasphrase) private key are not supported. For details, see: [BEAM-13818](https://issues.apache.org/jira/browse/BEAM-13818).
-
 ### OAuth token
 SnowflakeIO also supports OAuth token.
 
@@ -955,7 +953,5 @@ You can read about Snowflake data types at [Snowflake data types](https://docs.s
 SnowflakeIO currently has the following limitations.
 
 1. Streaming writing supports only pair key authentication. For details, see: [BEAM-13817](https://issues.apache.org/jira/browse/BEAM-13817).
-
-1. Only encrypted private key are supported. Unencrypted private key are not supported. For details, see: [BEAM-13818](https://issues.apache.org/jira/browse/BEAM-13818).
 
 1. The role parameter configured in `SnowflakeIO.DataSourceConfiguration` object is ignored for streaming writing. For details, see: [BEAM-13819](https://issues.apache.org/jira/browse/BEAM-13819)
