@@ -64,7 +64,6 @@ import org.mockito.Spy;
 public class SubscriptionPartitionProcessorImplTest {
   private static final SubscriptionPartition PARTITION =
       SubscriptionPartition.of(example(SubscriptionPath.class), example(Partition.class));
-  private static final Duration NO_DATA_RESUME_DELAY = Duration.standardSeconds(5);
 
   @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
@@ -104,8 +103,7 @@ public class SubscriptionPartitionProcessorImplTest {
   @Test
   public void lifecycle() {
     SubscriptionPartitionProcessor processor = newProcessor();
-    assertEquals(
-        ProcessContinuation.resume().withResumeDelay(NO_DATA_RESUME_DELAY), processor.run());
+    assertEquals(ProcessContinuation.resume(), processor.run());
     InOrder order = inOrder(subscriberFactory, subscriber);
     order.verify(subscriberFactory).get();
     order.verify(subscriber).fetchOffset();
@@ -119,8 +117,7 @@ public class SubscriptionPartitionProcessorImplTest {
     doThrow(new RuntimeException("Ignored")).when(badSubscriber).awaitTerminated();
     doReturn(badSubscriber, subscriber).when(subscriberFactory).get();
     SubscriptionPartitionProcessor processor = newProcessor();
-    assertEquals(
-        ProcessContinuation.resume().withResumeDelay(NO_DATA_RESUME_DELAY), processor.run());
+    assertEquals(ProcessContinuation.resume(), processor.run());
     InOrder order = inOrder(subscriberFactory, badSubscriber, subscriber);
     order.verify(subscriberFactory).get();
     order.verify(badSubscriber).fetchOffset();

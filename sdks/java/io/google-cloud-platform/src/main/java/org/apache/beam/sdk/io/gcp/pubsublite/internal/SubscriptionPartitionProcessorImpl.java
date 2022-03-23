@@ -25,7 +25,6 @@ import java.util.function.Supplier;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,9 +71,7 @@ class SubscriptionPartitionProcessorImpl implements SubscriptionPartitionProcess
     }
     // There is no more data available. If we received any messages, tell the runtime reschedule us
     // as soon as possible. If not, tell it to reschedule us 5 seconds from now.
-    return ProcessContinuation.resume()
-        .withResumeDelay(
-            lastClaimedOffset.isPresent() ? Duration.ZERO : Duration.standardSeconds(5));
+    return ProcessContinuation.resume();
   }
 
   @Override
