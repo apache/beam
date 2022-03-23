@@ -22,6 +22,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 	"bufio"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"os"
@@ -69,17 +70,17 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir, pipelinesF
 	case pb.Sdk_SDK_GO:
 		if err = prepareGoFiles(lc, preparedModDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			return nil, errors.New("error during create necessary files for the Go sdk")
+			return nil, fmt.Errorf("error during create necessary files for the Go sdk: %v", err)
 		}
 	case pb.Sdk_SDK_JAVA:
 		if err = prepareJavaFiles(lc, workingDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			return nil, errors.New("error during create necessary files for the Java sdk")
+			return nil, fmt.Errorf("error during create necessary files for the Java sdk: %v", err)
 		}
 	case pb.Sdk_SDK_SCIO:
 		if lc, err = prepareSbtFiles(lc, lc.Paths.AbsoluteBaseFolderPath, workingDir); err != nil {
 			lc.DeleteFolders()
-			return nil, errors.New("error during create necessary files for the SCIO sdk")
+			return nil, fmt.Errorf("error during create necessary files for the Scio sdk: %v", err)
 		}
 	}
 
