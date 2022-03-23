@@ -17,23 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.cloud.pubsublite.MessageMetadata;
-import com.google.cloud.pubsublite.internal.Publisher;
-import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
-
 /**
- * A shared cache per-worker instance of Pub/Sub Lite publishers.
+ * A shared cache per-worker instance of Pub/Sub Lite subscribers.
  *
- * <p>Pub/Sub Lite publishers connect to all available partitions: it would be a pessimization for
- * all instances of the PubsubLiteSink to do this.
+ * <p>This allows subscribers to buffer in the background while processElement is not running.
  */
-final class PerServerPublisherCache {
-  private PerServerPublisherCache() {}
+final class PerServerSubscriberCache {
+  private PerServerSubscriberCache() {}
 
-  static final ServiceCache<PublisherOptions, Publisher<MessageMetadata>> PUBLISHER_CACHE =
+  static final ServiceCache<SubscriptionPartition, MemoryBufferedSubscriber> CACHE =
       new ServiceCache<>();
 
   static {
-    Runtime.getRuntime().addShutdownHook(new Thread(PUBLISHER_CACHE::close));
+    Runtime.getRuntime().addShutdownHook(new Thread(CACHE::close));
   }
 }
