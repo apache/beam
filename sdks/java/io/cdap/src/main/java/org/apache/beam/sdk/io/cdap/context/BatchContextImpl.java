@@ -43,7 +43,7 @@ import javax.annotation.Nullable;
  * Class OperationContext is a common class for Batch, Sink and Stream CDAP wrapper classes that use
  * it to provide common details.
  */
-@SuppressWarnings("TypeParameterUnusedInFormals")
+@SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
 public class BatchContextImpl implements BatchContext {
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
@@ -51,17 +51,17 @@ public class BatchContextImpl implements BatchContext {
   private final Timestamp startTime = new Timestamp(System.currentTimeMillis());
 
   @Override
-  public @Nullable String getStageName() {
+  public String getStageName() {
     return null;
   }
 
   @Override
-  public @Nullable String getNamespace() {
+  public String getNamespace() {
     return null;
   }
 
   @Override
-  public @Nullable String getPipelineName() {
+  public String getPipelineName() {
     return null;
   }
 
@@ -76,27 +76,27 @@ public class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public @Nullable PluginProperties getPluginProperties() {
+  public PluginProperties getPluginProperties() {
     return null;
   }
 
   @Override
-  public @Nullable PluginProperties getPluginProperties(String pluginId) {
+  public PluginProperties getPluginProperties(String pluginId) {
     return null;
   }
 
   @Override
-  public @Nullable <T> Class<T> loadPluginClass(String pluginId) {
+  public <T> Class<T> loadPluginClass(String pluginId) {
     return null;
   }
 
   @Override
-  public @Nullable <T> T newPluginInstance(String pluginId) throws InstantiationException {
+  public <T> T newPluginInstance(String pluginId) throws InstantiationException {
     return null;
   }
 
   @Override
-  public @Nullable Schema getInputSchema() {
+  public Schema getInputSchema() {
     return null;
   }
 
@@ -111,7 +111,7 @@ public class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public @Nullable Map<String, Schema> getOutputPortSchemas() {
+  public Map<String, Schema> getOutputPortSchemas() {
     return null;
   }
 
@@ -125,7 +125,7 @@ public class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public @Nullable SettableArguments getArguments() {
+  public SettableArguments getArguments() {
     return null;
   }
 
@@ -135,23 +135,23 @@ public class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public @Nullable URL getServiceURL(String applicationId, String serviceId) {
+  public URL getServiceURL(String applicationId, String serviceId) {
     return null;
   }
 
   @Override
-  public @Nullable URL getServiceURL(String serviceId) {
+  public URL getServiceURL(String serviceId) {
     return null;
   }
 
   @Override
-  public @Nullable Map<MetadataScope, Metadata> getMetadata(MetadataEntity metadataEntity)
+  public Map<MetadataScope, Metadata> getMetadata(MetadataEntity metadataEntity)
       throws MetadataException {
     return null;
   }
 
   @Override
-  public @Nullable Metadata getMetadata(MetadataScope scope, MetadataEntity metadataEntity)
+  public Metadata getMetadata(MetadataScope scope, MetadataEntity metadataEntity)
       throws MetadataException {
     return null;
   }
@@ -189,19 +189,19 @@ public class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public @Nullable <T extends Dataset> T getDataset(String namespace, String name)
+  public <T extends Dataset> T getDataset(String namespace, String name)
       throws DatasetInstantiationException {
     return null;
   }
 
   @Override
-  public @Nullable <T extends Dataset> T getDataset(String name, Map<String, String> arguments)
+  public <T extends Dataset> T getDataset(String name, Map<String, String> arguments)
       throws DatasetInstantiationException {
     return null;
   }
 
   @Override
-  public @Nullable <T extends Dataset> T getDataset(
+  public <T extends Dataset> T getDataset(
       String namespace, String name, Map<String, String> arguments)
       throws DatasetInstantiationException {
     return null;
@@ -214,7 +214,7 @@ public class BatchContextImpl implements BatchContext {
   public void discardDataset(Dataset dataset) {}
 
   @Override
-  public @Nullable <T> Lookup<T> provide(String table, Map<String, String> arguments) {
+  public <T> Lookup<T> provide(String table, Map<String, String> arguments) {
     return null;
   }
 }

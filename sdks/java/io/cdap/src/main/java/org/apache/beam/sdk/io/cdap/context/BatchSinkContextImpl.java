@@ -34,9 +34,4 @@ public class BatchSinkContextImpl extends BatchContextImpl implements BatchSinkC
   public boolean isPreviewEnabled() {
     return false;
   }
-
-  @Override
-  public @Nullable String getStageName() {
-    return null;
-  }
 }
