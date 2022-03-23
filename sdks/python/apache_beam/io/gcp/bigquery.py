@@ -2415,18 +2415,18 @@ class ReadFromBigQuery(PTransform):
         typ = np.int64
       elif the_schema['fields'][i]['type'] == 'BOOL':
         typ = bool
-      if the_schema['fields'][i]['type'] == 'BYTES':
+      elif the_schema['fields'][i]['type'] == 'BYTES':
         typ = bytes
       elif the_schema['fields'][i]['type'] == 'TIMESTAMP':
         typ = datetime.datetime
       else:
         raise ValueError(the_schema['fields'][i]['type'])
-    dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
-    i += 1
-    sample_schema = beam.typehints.schemas.named_fields_to_schema(
-        dict_of_tuples)
-    usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
-    return usertype
+      dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
+      i += 1
+      sample_schema = beam.typehints.schemas.named_fields_to_schema(
+          dict_of_tuples)
+      usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
+      return usertype
 
   def _expand_export(self, pcoll):
     # TODO(BEAM-11115): Make ReadFromBQ rely on ReadAllFromBQ implementation.
