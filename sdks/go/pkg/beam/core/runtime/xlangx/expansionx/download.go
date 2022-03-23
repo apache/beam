@@ -50,13 +50,13 @@ func newJarGetter() *jarGetter {
 	return &jarGetter{repository: apacheRepository, groupID: beamGroupID, jarCache: cacheDir}
 }
 
-// GetRepositoryURL returns the current target URL for the defaultJarGetter,
+// GetDefaultRepositoryURL returns the current target URL for the defaultJarGetter,
 // indicating what repository will be connected to when getting a Beam JAR.
 func GetDefaultRepositoryURL() string {
 	return defaultJarGetter.getRepositoryURL()
 }
 
-// SetRepositoryURL updates the target URL for the defaultJarGetter, changing
+// SetDefaultRepositoryURL updates the target URL for the defaultJarGetter, changing
 // which Maven repository will be connected to when getting a Beam JAR. Also
 // validates that it has been passed a URL and returns an error if not.
 //

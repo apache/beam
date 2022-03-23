@@ -17,10 +17,15 @@
  */
 package org.apache.beam.sdk.io.snowflake.test.unit;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
@@ -162,7 +167,13 @@ public class DataSourceConfigurationTest {
   @Test
   public void testSettingUsernamePasswordAuth() {
 
-    configuration = configuration.withUsernamePasswordAuth(USERNAME, PASSWORD);
+    configuration =
+        configuration.withUsernamePasswordAuth(USERNAME, PASSWORD).withServerName(SERVER_NAME);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(USERNAME, configuration.getUsername().get());
     assertEquals(PASSWORD, configuration.getPassword().get());
   }
@@ -180,13 +191,18 @@ public class DataSourceConfigurationTest {
   public void testSettingOAuth() {
     String token = "token";
 
-    configuration = configuration.withOAuth(token);
+    configuration = configuration.withOAuth(token).withServerName(SERVER_NAME);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(token, configuration.getOauthToken().get());
   }
 
   @Test
   public void testSettingKeyPairAuthWithProperPathToKey() {
-    String privateKeyPath = TestUtils.getValidPrivateKeyPath(getClass());
+    String privateKeyPath = TestUtils.getValidEncryptedPrivateKeyPath(getClass());
     String keyPassphrase = TestUtils.getPrivateKeyPassphrase();
 
     configuration =
@@ -194,8 +210,12 @@ public class DataSourceConfigurationTest {
             .withServerName(SERVER_NAME)
             .withKeyPairPathAuth(USERNAME, privateKeyPath, keyPassphrase);
 
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(USERNAME, configuration.getUsername().get());
-    //  TODO  assertEquals(privateKeyPath, configuration.getPrivateKeyPath());
+    assertNotNull(configuration.getRawPrivateKey());
     assertEquals(keyPassphrase, configuration.getPrivateKeyPassphrase().get());
   }
 
@@ -210,12 +230,57 @@ public class DataSourceConfigurationTest {
             .withKeyPairPathAuth(USERNAME, privateKeyPath, keyPassphrase);
 
     Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
-    assertEquals("Can't create private key", ex.getMessage());
+    assertThat(ex.getMessage(), containsString("Can't create private key: "));
+  }
+
+  @Test
+  public void testSettingKeyPairAuthWithProperPathToUnencryptedKeyAndPassphrase() {
+    String privateKeyPath = TestUtils.getValidUnencryptedPrivateKeyPath(getClass());
+    String keyPassphrase = "test-passphrase";
+
+    configuration =
+        configuration
+            .withServerName(SERVER_NAME)
+            .withKeyPairPathAuth(USERNAME, privateKeyPath, keyPassphrase);
+
+    Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
+    assertThat(
+        ex.getMessage(),
+        containsString(
+            "The private key is unencrypted but private key key passphrase has been provided."));
+  }
+
+  @Test
+  public void testSettingKeyPairAuthWithProperPathToEncryptedKeyAndNoPassphrase() {
+    String privateKeyPath = TestUtils.getValidEncryptedPrivateKeyPath(getClass());
+
+    configuration =
+        configuration.withServerName(SERVER_NAME).withKeyPairPathAuth(USERNAME, privateKeyPath);
+
+    Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
+    assertThat(
+        ex.getMessage(),
+        containsString(
+            "The private key is encrypted but no private key key passphrase has been provided."));
+  }
+
+  @Test
+  public void testSettingKeyPairAuthWithProperPathToEncryptedKeyAndInvalidPassphrase() {
+    String privateKeyPath = TestUtils.getValidEncryptedPrivateKeyPath(getClass());
+    String keyPassphrase = "invalid-passphrase";
+
+    configuration =
+        configuration
+            .withServerName(SERVER_NAME)
+            .withKeyPairPathAuth(USERNAME, privateKeyPath, keyPassphrase);
+
+    Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
+    assertThat(ex.getMessage(), containsString("Can't create private key: "));
   }
 
   @Test
   public void testSettingKeyPairAuthWithProperPathToKeyAndMissingUsername() {
-    String privateKeyPath = TestUtils.getValidPrivateKeyPath(getClass());
+    String privateKeyPath = TestUtils.getValidEncryptedPrivateKeyPath(getClass());
     String keyPassphrase = TestUtils.getPrivateKeyPassphrase();
 
     configuration =
@@ -229,7 +294,7 @@ public class DataSourceConfigurationTest {
 
   @Test
   public void testSettingKeyPairAuthWithProperRawKey() throws IOException {
-    String rawPrivateKey = TestUtils.getRawValidPrivateKey(getClass());
+    String rawPrivateKey = TestUtils.getRawValidEncryptedPrivateKey(getClass());
     String keyPassphrase = TestUtils.getPrivateKeyPassphrase();
 
     configuration =
@@ -237,14 +302,73 @@ public class DataSourceConfigurationTest {
             .withServerName(SERVER_NAME)
             .withKeyPairRawAuth(USERNAME, rawPrivateKey, keyPassphrase);
 
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(USERNAME, configuration.getUsername().get());
     assertEquals(rawPrivateKey, configuration.getRawPrivateKey().get());
     assertEquals(keyPassphrase, configuration.getPrivateKeyPassphrase().get());
   }
 
   @Test
+  public void testSettingKeyPairAuthWithProperRawEncryptedKeyWithoutHeaders() throws IOException {
+    String rawPrivateKey =
+        Arrays.stream(TestUtils.getRawValidEncryptedPrivateKey(getClass()).split("\n"))
+            .filter(d -> !d.contains("---"))
+            .collect(Collectors.joining("\n"));
+    String keyPassphrase = TestUtils.getPrivateKeyPassphrase();
+
+    configuration =
+        configuration
+            .withServerName(SERVER_NAME)
+            .withKeyPairRawAuth(USERNAME, rawPrivateKey, keyPassphrase);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
+    assertEquals(USERNAME, configuration.getUsername().get());
+    assertEquals(rawPrivateKey, configuration.getRawPrivateKey().get());
+    assertEquals(keyPassphrase, configuration.getPrivateKeyPassphrase().get());
+  }
+
+  @Test
+  public void testSettingKeyPairAuthWithProperRawUnencryptedKeyWithoutHeaders() throws IOException {
+    String rawPrivateKey =
+        Arrays.stream(TestUtils.getRawValidUnencryptedPrivateKey(getClass()).split("\n"))
+            .filter(d -> !d.contains("---"))
+            .collect(Collectors.joining("\n"));
+
+    configuration =
+        configuration.withServerName(SERVER_NAME).withKeyPairRawAuth(USERNAME, rawPrivateKey);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
+    assertEquals(USERNAME, configuration.getUsername().get());
+    assertEquals(rawPrivateKey, configuration.getRawPrivateKey().get());
+  }
+
+  @Test
+  public void testSettingKeyPairAuthWithProperRawUnencryptedKey() throws IOException {
+    String rawPrivateKey = TestUtils.getRawValidUnencryptedPrivateKey(getClass());
+
+    configuration =
+        configuration.withServerName(SERVER_NAME).withKeyPairRawAuth(USERNAME, rawPrivateKey);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
+    assertEquals(USERNAME, configuration.getUsername().get());
+    assertEquals(rawPrivateKey, configuration.getRawPrivateKey().get());
+  }
+
+  @Test
   public void testSettingKeyPairAuthWithProperRawKeyAndMissingUsername() throws IOException {
-    String rawPrivateKey = TestUtils.getRawValidPrivateKey(getClass());
+    String rawPrivateKey = TestUtils.getRawValidEncryptedPrivateKey(getClass());
     String keyPassphrase = TestUtils.getPrivateKeyPassphrase();
 
     configuration =
@@ -282,7 +406,7 @@ public class DataSourceConfigurationTest {
             .withKeyPairRawAuth(USERNAME, rawPrivateKey, keyPassphrase);
 
     Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
-    assertEquals("Can't create private key", ex.getMessage());
+    assertThat(ex.getMessage(), containsString("Can't create private key: "));
   }
 
   @Test
