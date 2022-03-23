@@ -50,7 +50,7 @@ jobs:
         run: |
           $diff = git diff --name-only master
           Write-Host "::set-output name=example_diff::$diff"
-      - name: has Exapmles
+      - name: has Examples
         run: |
           output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})
           echo "::set-output name=example_has_changed::$output"

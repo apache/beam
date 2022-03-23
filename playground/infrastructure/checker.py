@@ -56,11 +56,7 @@ def check(paths) -> bool:
 
 
 if __name__ == "__main__":
-  paths = ""
-  if len(sys.argv) > 1:
-    for arg in sys.argv[1:len(sys.argv) - 1]:
-      paths += arg + " "
-    paths += sys.argv[len(sys.argv) - 1]
-  else:
+  paths = " ".join(sys.argv[1:])
+  if paths == "":
     print(False)
   print(check(paths))
