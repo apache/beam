@@ -211,14 +211,15 @@ public class StateFetchingIteratorsTest {
               ImmutableMap.of(requestForFirstChunk.getStateKey(), Ints.asList(expected)),
               4);
 
-      Cache<StateKey, Blocks<Integer>> cache = Caches.eternal();
+      Cache<StateFetchingIterators.IterableCacheKey, Blocks<Integer>> cache = Caches.eternal();
       CachingStateIterable<Integer> iterable =
           new CachingStateIterable<>(
               cache, fakeStateClient, requestForFirstChunk, BigEndianIntegerCoder.of());
       // Loads the entire iterable into memory
       verifyFetch(iterable.iterator(), expected);
       assertThat(
-          cache.peek(requestForFirstChunk.getStateKey()), is(instanceOf(BlocksPrefix.class)));
+          cache.peek(StateFetchingIterators.IterableCacheKey.INSTANCE),
+          is(instanceOf(BlocksPrefix.class)));
 
       int stateRequestCount = fakeStateClient.getCallCount();
       // Start an iterator that is reading fully from cache.
@@ -228,21 +229,22 @@ public class StateFetchingIteratorsTest {
 
       // Remove from the cache when it is partially done and show that state is required
       stateRequestCount = fakeStateClient.getCallCount();
-      cache.remove(requestForFirstChunk.getStateKey());
+      cache.remove(StateFetchingIterators.IterableCacheKey.INSTANCE);
       assertEquals(1, (int) iterator.next());
       stateRequestCount += 2; // The first to get 1 and the second to start the prefetch of 2
       assertEquals(stateRequestCount, fakeStateClient.getCallCount());
       stateRequestCount += 1; // Start the prefetch for 3
       assertEquals(2, (int) iterator.next());
       assertEquals(stateRequestCount, fakeStateClient.getCallCount());
-      assertNull(cache.peek(requestForFirstChunk.getStateKey()));
+      assertNull(cache.peek(StateFetchingIterators.IterableCacheKey.INSTANCE));
 
       // Start another iterator and ensure that the cache is populated and state is interacted with
       stateRequestCount = fakeStateClient.getCallCount();
       PrefetchableIterator<Integer> iterator2 = iterable.iterator();
       assertEquals(0, (int) iterator2.next());
       assertThat(
-          cache.peek(requestForFirstChunk.getStateKey()), is(instanceOf(BlocksPrefix.class)));
+          cache.peek(StateFetchingIterators.IterableCacheKey.INSTANCE),
+          is(instanceOf(BlocksPrefix.class)));
       assertTrue(stateRequestCount < fakeStateClient.getCallCount());
 
       // Have the second iterator surpass the first and show that the first iterator starts to

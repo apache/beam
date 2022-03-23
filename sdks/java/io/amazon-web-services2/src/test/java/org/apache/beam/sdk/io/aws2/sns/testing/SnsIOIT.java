@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sns;
+package org.apache.beam.sdk.io.aws2.sns.testing;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
+import org.apache.beam.sdk.io.aws2.sns.SnsIO;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO;
 import org.apache.beam.sdk.io.aws2.sqs.SqsMessage;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -52,6 +53,21 @@ import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
+/**
+ * Integration test to write to SNS.
+ *
+ * <p>Records are then read via SQS for validation.
+ *
+ * <p>By default this runs against Localstack, but you can use {@link SnsIOIT.ITOptions} to
+ * configure tests to run against AWS SNS / SQS.
+ *
+ * <pre>{@code
+ * ./gradlew :sdks:java:io:amazon-web-services2:integrationTest \
+ *   --info \
+ *   --tests "org.apache.beam.sdk.io.aws2.sns.testing.SnsIOIT" \
+ *   -DintegrationTestPipelineOptions='["--awsRegion=eu-central-1","--useLocalstack=false"]'
+ * }</pre>
+ */
 @RunWith(JUnit4.class)
 public class SnsIOIT {
   public interface ITOptions extends ITEnvironment.ITOptions {}
