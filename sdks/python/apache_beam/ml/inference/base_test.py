@@ -14,37 +14,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""Tests for apache_beam.ml.base."""
 
+import pickle
 from typing import Any
 from typing import Iterable
 import unittest
 
 import apache_beam as beam
-import apache_beam.ml.inference.base as base
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.ml.inference.api import PredictionResult
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.test_pipeline import TestPipeline
+import apache_beam.ml.inference.base as base
 
 
 class FakeModel:
-  def predict(self, example: int):
+
+  def predict(self, example: int) -> int:
     return example + 1
 
 
 class FakeInferenceRunner(base.InferenceRunner):
+
   def __init__(self, clock=None):
     self._mock_clock = clock
 
-  def run_inference(self, batch: Any, model: Any) -> Iterable[PredictionResult]:
+  def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
     if self._mock_clock:
       self._mock_clock.current_time += 3000
     for example in batch:
       yield model.predict(example)
 
 
-class MockModelLoader(base.ModelLoader):
+class FakeModelLoader(base.ModelLoader):
+
   def __init__(self, clock=None):
     self._mock_clock = clock
 
@@ -53,8 +57,12 @@ class MockModelLoader(base.ModelLoader):
       self._mock_clock.current_time += 50000
     return FakeModel()
 
+  def get_inference_runner(self):
+    return FakeInferenceRunner(self._mock_clock)
+
 
 class MockClock(base.Clock):
+
   def __init__(self):
     self.current_time = 10000
 
@@ -63,59 +71,65 @@ class MockClock(base.Clock):
 
 
 class ExtractInferences(beam.DoFn):
+
   def process(self, prediction_result):
     yield prediction_result.inference
 
 
-class BaseTest(unittest.TestCase):
-  def setup(self):
-    pass
+class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
-      expected = [
-          PredictionResult(example, example + 1) for example in examples
-      ]
+      expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInferenceImpl(
-          MockModelLoader(), FakeInferenceRunner())
+      actual = pcoll | base.RunInference(FakeModelLoader())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_with_keyed_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
-      expected = [(i, PredictionResult(example, example + 1)) for i,
-                  example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      actual = pcoll | base.RunInferenceImpl(
-          MockModelLoader(), FakeInferenceRunner())
+      actual = pcoll | base.RunInference(FakeModelLoader())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_num_inferences_metrics_counted(self):
+  def test_counted_metrics(self):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
     pcoll = pipeline | 'start' >> beam.Create(examples)
-    actual = pcoll | base.RunInferenceImpl(
-        MockModelLoader(), FakeInferenceRunner())
-    res = pipeline.run()
-    res.wait_until_finish()
+    _ = pcoll | base.RunInference(FakeModelLoader())
+    run_result = pipeline.run()
+    run_result.wait_until_finish()
 
     metric_results = (
-        res.metrics().query(MetricsFilter().with_name('num_inferences')))
+        run_result.metrics().query(MetricsFilter().with_name('num_inferences')))
     num_inferences_counter = metric_results['counters'][0]
     self.assertEqual(num_inferences_counter.committed, 4)
+
+    inference_request_batch_size = run_result.metrics().query(
+        MetricsFilter().with_name('inference_request_batch_size'))
+    self.assertTrue(inference_request_batch_size['distributions'])
+    self.assertEqual(
+        inference_request_batch_size['distributions'][0].result.sum, 4)
+    inference_request_batch_byte_size = run_result.metrics().query(
+        MetricsFilter().with_name('inference_request_batch_byte_size'))
+    self.assertTrue(inference_request_batch_byte_size['distributions'])
+    self.assertGreaterEqual(
+        inference_request_batch_byte_size['distributions'][0].result.sum,
+        len(pickle.dumps(examples)))
+    inference_request_batch_byte_size = run_result.metrics().query(
+        MetricsFilter().with_name('model_byte_size'))
+    self.assertTrue(inference_request_batch_byte_size['distributions'])
 
   def test_timing_metrics(self):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
     pcoll = pipeline | 'start' >> beam.Create(examples)
     mock_clock = MockClock()
-    actual = pcoll | base.RunInferenceImpl(
-        MockModelLoader(clock=mock_clock),
-        FakeInferenceRunner(clock=mock_clock),
-        clock=mock_clock)
+    _ = pcoll | base.RunInference(
+        FakeModelLoader(clock=mock_clock), clock=mock_clock)
     res = pipeline.run()
     res.wait_until_finish()
 
@@ -123,7 +137,7 @@ class BaseTest(unittest.TestCase):
         res.metrics().query(
             MetricsFilter().with_name('inference_batch_latency_micro_secs')))
     batch_latency = metric_results['distributions'][0]
-    self.assertEqual(batch_latency.result.count, 2)
+    self.assertEqual(batch_latency.result.count, 3)
     self.assertEqual(batch_latency.result.mean, 3000)
 
     metric_results = (
@@ -132,3 +146,7 @@ class BaseTest(unittest.TestCase):
     load_model_latency = metric_results['distributions'][0]
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 50)
+
+
+if __name__ == '__main__':
+  unittest.main()
