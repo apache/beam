@@ -31,16 +31,17 @@ import static org.apache.beam.sdk.values.RowWithGettersBenchmark.SimplePojoBundl
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.Options;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -336,8 +337,11 @@ public class RowWithGettersBenchmark {
     @Param({"1", "3"})
     int reads;
 
-    @Param({"true", "false"})
-    boolean cache;
+    @Param({"false", "HashMap", "TreeMap"})
+    String cache;
+
+    @Param({"false", "true"})
+    boolean persistPojoLists;
 
     // ignore
     public Bundle() { // just to silence warnings
@@ -356,19 +360,16 @@ public class RowWithGettersBenchmark {
     // Level must be Invocation to not generate cache hits by repeatedly reading the same rows.
     @Setup(Level.Invocation)
     public void setup() throws NoSuchSchemaException {
+      GetterBasedSchemaProvider.persistPojoLists = persistPojoLists;
+      if (cache.equals("HashMap")) {
+        RowWithGetters.cacheSupplier = HashMap::new;
+      } else if (cache.equals("TreeMap")) {
+        RowWithGetters.cacheSupplier = TreeMap::new;
+      } else {
+        RowWithGetters.cacheSupplier = null;
+      }
+
       if (toRow == null) {
-        if (!cache) {
-          // use option to disable cache in RowWithGetters
-          Options noCache = Options.setOption("nocache", FieldType.BOOLEAN, true).build();
-          registry.registerSchemaProvider(
-              clazz,
-              new JavaFieldSchema() {
-                @Override
-                public <X> Schema schemaFor(TypeDescriptor<X> typeDescriptor) {
-                  return super.schemaFor(typeDescriptor).withOptions(noCache);
-                }
-              });
-        }
         toRow = registry.getToRowFunction(clazz);
       }
       // prepare bundle of rows to exclude associated costs from benchmark

@@ -1,0 +1,1344 @@
+[
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArrayOfPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 4.625861119838294,
+      "scoreError": 0.12055028329740473,
+      "scoreConfidence": [
+        4.50531083654089,
+        4.746411403135699
+      ],
+      "scorePercentiles": {
+        "0.0": 4.54203488455207,
+        "50.0": 4.61006609324725,
+        "90.0": 4.785837944382904,
+        "95.0": 4.785837944382904,
+        "99.0": 4.785837944382904,
+        "99.9": 4.785837944382904,
+        "99.99": 4.785837944382904,
+        "99.999": 4.785837944382904,
+        "99.9999": 4.785837944382904,
+        "100.0": 4.785837944382904
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          4.54203488455207,
+          4.592386223546352,
+          4.567113274687044
+        ],
+        [
+          4.6716796888609,
+          4.597782554486616,
+          4.6521844904726315
+        ],
+        [
+          4.61366492430888,
+          4.785837944382904,
+          4.61006609324725
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArrayOfPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 2.0726451246555184,
+      "scoreError": 0.0326810417622762,
+      "scoreConfidence": [
+        2.0399640828932424,
+        2.1053261664177945
+      ],
+      "scorePercentiles": {
+        "0.0": 2.0507201693798613,
+        "50.0": 2.0730872646071834,
+        "90.0": 2.108750856204981,
+        "95.0": 2.108750856204981,
+        "99.0": 2.108750856204981,
+        "99.9": 2.108750856204981,
+        "99.99": 2.108750856204981,
+        "99.999": 2.108750856204981,
+        "99.9999": 2.108750856204981,
+        "100.0": 2.108750856204981
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          2.0512766994952982,
+          2.0641922288315726,
+          2.0809443432343895
+        ],
+        [
+          2.0903141935494065,
+          2.108750856204981,
+          2.078967746979611
+        ],
+        [
+          2.0730872646071834,
+          2.055552619617362,
+          2.0507201693798613
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArrayOfPojoMapOfPrimitive",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 2.006185389927101,
+      "scoreError": 0.24020823438432362,
+      "scoreConfidence": [
+        1.7659771555427775,
+        2.2463936243114246
+      ],
+      "scorePercentiles": {
+        "0.0": 1.7715136330050247,
+        "50.0": 2.05314539035123,
+        "90.0": 2.188787753320847,
+        "95.0": 2.188787753320847,
+        "99.0": 2.188787753320847,
+        "99.9": 2.188787753320847,
+        "99.99": 2.188787753320847,
+        "99.999": 2.188787753320847,
+        "99.9999": 2.188787753320847,
+        "100.0": 2.188787753320847
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          2.108345468135922,
+          2.037806053089998,
+          1.8253226300700771
+        ],
+        [
+          1.887515202947644,
+          2.0886997936120766,
+          1.7715136330050247
+        ],
+        [
+          2.05314539035123,
+          2.0945325848110894,
+          2.188787753320847
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArrayOfPojoMapOfPrimitive",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 0.9567493787674538,
+      "scoreError": 0.06273564331510305,
+      "scoreConfidence": [
+        0.8940137354523507,
+        1.0194850220825569
+      ],
+      "scorePercentiles": {
+        "0.0": 0.9047335207065125,
+        "50.0": 0.9562672108849346,
+        "90.0": 1.0279834644120747,
+        "95.0": 1.0279834644120747,
+        "99.0": 1.0279834644120747,
+        "99.9": 1.0279834644120747,
+        "99.99": 1.0279834644120747,
+        "99.999": 1.0279834644120747,
+        "99.9999": 1.0279834644120747,
+        "100.0": 1.0279834644120747
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          0.9742407872793233,
+          0.9600867262277241,
+          1.0279834644120747
+        ],
+        [
+          0.9231418428423926,
+          0.9880301794388897,
+          0.9493430932398932
+        ],
+        [
+          0.9047335207065125,
+          0.9562672108849346,
+          0.9269175838753392
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArrayOfStringArray",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 34.843328603185626,
+      "scoreError": 2.7756092018390066,
+      "scoreConfidence": [
+        32.06771940134662,
+        37.61893780502463
+      ],
+      "scorePercentiles": {
+        "0.0": 32.46863369350914,
+        "50.0": 35.3419446912456,
+        "90.0": 37.15071174173668,
+        "95.0": 37.15071174173668,
+        "99.0": 37.15071174173668,
+        "99.9": 37.15071174173668,
+        "99.99": 37.15071174173668,
+        "99.999": 37.15071174173668,
+        "99.9999": 37.15071174173668,
+        "100.0": 37.15071174173668
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          32.50690242832965,
+          32.46863369350914,
+          33.86020123683471
+        ],
+        [
+          37.15071174173668,
+          36.33637595797978,
+          35.59546014441484
+        ],
+        [
+          35.3419446912456,
+          35.935105850796255,
+          34.394621683823985
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArrayOfStringArray",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 13.894827028585594,
+      "scoreError": 0.6574520116821015,
+      "scoreConfidence": [
+        13.237375016903492,
+        14.552279040267695
+      ],
+      "scorePercentiles": {
+        "0.0": 13.42289966051968,
+        "50.0": 13.864107244654964,
+        "90.0": 14.502942178550885,
+        "95.0": 14.502942178550885,
+        "99.0": 14.502942178550885,
+        "99.9": 14.502942178550885,
+        "99.99": 14.502942178550885,
+        "99.999": 14.502942178550885,
+        "99.9999": 14.502942178550885,
+        "100.0": 14.502942178550885
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          13.42289966051968,
+          13.450698621119885,
+          13.615902279091566
+        ],
+        [
+          14.132054621531367,
+          14.366151678529944,
+          13.864107244654964
+        ],
+        [
+          14.502942178550885,
+          14.041008502672842,
+          13.657678470599219
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArraysOfPrimitives",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 22.632583693900116,
+      "scoreError": 0.5883907830634126,
+      "scoreConfidence": [
+        22.044192910836703,
+        23.22097447696353
+      ],
+      "scorePercentiles": {
+        "0.0": 22.07646688897111,
+        "50.0": 22.779186746632003,
+        "90.0": 22.964391894568976,
+        "95.0": 22.964391894568976,
+        "99.0": 22.964391894568976,
+        "99.9": 22.964391894568976,
+        "99.99": 22.964391894568976,
+        "99.999": 22.964391894568976,
+        "99.9999": 22.964391894568976,
+        "100.0": 22.964391894568976
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          22.964391894568976,
+          22.85999043893809,
+          22.779186746632003
+        ],
+        [
+          22.262992777951542,
+          22.205169540798803,
+          22.07646688897111
+        ],
+        [
+          22.956008932638973,
+          22.8716370748114,
+          22.717408949790197
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readArraysOfPrimitives",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 8.029645820159992,
+      "scoreError": 0.09947641312978188,
+      "scoreConfidence": [
+        7.93016940703021,
+        8.129122233289774
+      ],
+      "scorePercentiles": {
+        "0.0": 7.934716347075057,
+        "50.0": 8.035291624732587,
+        "90.0": 8.113210015389912,
+        "95.0": 8.113210015389912,
+        "99.0": 8.113210015389912,
+        "99.9": 8.113210015389912,
+        "99.99": 8.113210015389912,
+        "99.999": 8.113210015389912,
+        "99.9999": 8.113210015389912,
+        "100.0": 8.113210015389912
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          8.086674960823288,
+          8.036465310702985,
+          8.01005473145771
+        ],
+        [
+          7.992877083957061,
+          7.969720883850759,
+          7.934716347075057
+        ],
+        [
+          8.113210015389912,
+          8.087801423450577,
+          8.035291624732587
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readCollectionsOfPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 2.6658857585473266,
+      "scoreError": 0.30590607309564527,
+      "scoreConfidence": [
+        2.3599796854516812,
+        2.971791831642972
+      ],
+      "scorePercentiles": {
+        "0.0": 2.468686038350554,
+        "50.0": 2.59628608274297,
+        "90.0": 2.932232111452675,
+        "95.0": 2.932232111452675,
+        "99.0": 2.932232111452675,
+        "99.9": 2.932232111452675,
+        "99.99": 2.932232111452675,
+        "99.999": 2.932232111452675,
+        "99.9999": 2.932232111452675,
+        "100.0": 2.932232111452675
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          2.884499975031768,
+          2.883477338954718,
+          2.932232111452675
+        ],
+        [
+          2.59628608274297,
+          2.6112864502435995,
+          2.5879497349401177
+        ],
+        [
+          2.502617373502822,
+          2.525936721706711,
+          2.468686038350554
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readCollectionsOfPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 1.1112921432247485,
+      "scoreError": 0.009302623517948548,
+      "scoreConfidence": [
+        1.1019895197068,
+        1.120594766742697
+      ],
+      "scorePercentiles": {
+        "0.0": 1.1041309444257583,
+        "50.0": 1.111552511083379,
+        "90.0": 1.1187121087284442,
+        "95.0": 1.1187121087284442,
+        "99.0": 1.1187121087284442,
+        "99.9": 1.1187121087284442,
+        "99.99": 1.1187121087284442,
+        "99.999": 1.1187121087284442,
+        "99.9999": 1.1187121087284442,
+        "100.0": 1.1187121087284442
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          1.111552511083379,
+          1.112098856308973,
+          1.1187121087284442
+        ],
+        [
+          1.1064024521195017,
+          1.1041309444257583,
+          1.1054087715304695
+        ],
+        [
+          1.1179888430728242,
+          1.108733220827808,
+          1.1166015809255774
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readMapOfPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 3.913099930593935,
+      "scoreError": 0.27709035071262494,
+      "scoreConfidence": [
+        3.63600957988131,
+        4.19019028130656
+      ],
+      "scorePercentiles": {
+        "0.0": 3.6901345337033953,
+        "50.0": 3.874981174103615,
+        "90.0": 4.126538820026055,
+        "95.0": 4.126538820026055,
+        "99.0": 4.126538820026055,
+        "99.9": 4.126538820026055,
+        "99.99": 4.126538820026055,
+        "99.999": 4.126538820026055,
+        "99.9999": 4.126538820026055,
+        "100.0": 4.126538820026055
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          4.109417563920246,
+          4.11900182733063,
+          4.126538820026055
+        ],
+        [
+          3.6901345337033953,
+          3.8919156111189905,
+          3.8399760070926323
+        ],
+        [
+          3.874981174103615,
+          3.773195076864023,
+          3.7927387611858294
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readMapOfPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 1.8458677124004137,
+      "scoreError": 0.0350647667539712,
+      "scoreConfidence": [
+        1.8108029456464425,
+        1.8809324791543849
+      ],
+      "scorePercentiles": {
+        "0.0": 1.8136230779927163,
+        "50.0": 1.8487383102581965,
+        "90.0": 1.8751635064445806,
+        "95.0": 1.8751635064445806,
+        "99.0": 1.8751635064445806,
+        "99.9": 1.8751635064445806,
+        "99.99": 1.8751635064445806,
+        "99.999": 1.8751635064445806,
+        "99.9999": 1.8751635064445806,
+        "100.0": 1.8751635064445806
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          1.8531716021645053,
+          1.835668473660622,
+          1.851249568374221
+        ],
+        [
+          1.8487383102581965,
+          1.8751635064445806,
+          1.8712489267584327
+        ],
+        [
+          1.8185489200187872,
+          1.8453970259316612,
+          1.8136230779927163
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readMapOfPrimitive",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 34.85581838932772,
+      "scoreError": 1.614668679019749,
+      "scoreConfidence": [
+        33.24114971030797,
+        36.470487068347474
+      ],
+      "scorePercentiles": {
+        "0.0": 33.5889323911887,
+        "50.0": 34.57977399771575,
+        "90.0": 36.150504467299065,
+        "95.0": 36.150504467299065,
+        "99.0": 36.150504467299065,
+        "99.9": 36.150504467299065,
+        "99.99": 36.150504467299065,
+        "99.999": 36.150504467299065,
+        "99.9999": 36.150504467299065,
+        "100.0": 36.150504467299065
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          34.50859907913809,
+          35.204516457825406,
+          34.57977399771575
+        ],
+        [
+          36.150504467299065,
+          35.73495994847527,
+          36.02418884618012
+        ],
+        [
+          34.07202277460399,
+          33.5889323911887,
+          33.83886754152317
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readMapOfPrimitive",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 15.038306897808205,
+      "scoreError": 0.06531599298495545,
+      "scoreConfidence": [
+        14.97299090482325,
+        15.10362289079316
+      ],
+      "scorePercentiles": {
+        "0.0": 14.973247170937567,
+        "50.0": 15.040968027569686,
+        "90.0": 15.088745652296472,
+        "95.0": 15.088745652296472,
+        "99.0": 15.088745652296472,
+        "99.9": 15.088745652296472,
+        "99.99": 15.088745652296472,
+        "99.999": 15.088745652296472,
+        "99.9999": 15.088745652296472,
+        "100.0": 15.088745652296472
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          15.088745652296472,
+          15.046480666803225,
+          14.973247170937567
+        ],
+        [
+          15.013498109715607,
+          15.064550658196216,
+          15.040968027569686
+        ],
+        [
+          15.039833311481992,
+          15.083038950200175,
+          14.994399533072919
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readNestedMapOfPrimitive",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 30.799113779947035,
+      "scoreError": 0.39604310262670567,
+      "scoreConfidence": [
+        30.40307067732033,
+        31.19515688257374
+      ],
+      "scorePercentiles": {
+        "0.0": 30.494117361612513,
+        "50.0": 30.940733485809766,
+        "90.0": 31.045555075548155,
+        "95.0": 31.045555075548155,
+        "99.0": 31.045555075548155,
+        "99.9": 31.045555075548155,
+        "99.99": 31.045555075548155,
+        "99.999": 31.045555075548155,
+        "99.9999": 31.045555075548155,
+        "100.0": 31.045555075548155
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          31.045555075548155,
+          30.940733485809766,
+          30.985941667908783
+        ],
+        [
+          31.003726546189675,
+          30.97654655677143,
+          30.494117361612513
+        ],
+        [
+          30.500046648050898,
+          30.549909660426867,
+          30.695447017205236
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readNestedMapOfPrimitive",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 12.714050744069262,
+      "scoreError": 0.587392150191228,
+      "scoreConfidence": [
+        12.126658593878034,
+        13.30144289426049
+      ],
+      "scorePercentiles": {
+        "0.0": 12.243032725474649,
+        "50.0": 12.785532494461687,
+        "90.0": 13.13996409064779,
+        "95.0": 13.13996409064779,
+        "99.0": 13.13996409064779,
+        "99.9": 13.13996409064779,
+        "99.99": 13.13996409064779,
+        "99.999": 13.13996409064779,
+        "99.9999": 13.13996409064779,
+        "100.0": 13.13996409064779
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          12.367879385767276,
+          12.250025065886833,
+          12.243032725474649
+        ],
+        [
+          12.832837659492233,
+          12.720871525102735,
+          12.785532494461687
+        ],
+        [
+          13.082941802542932,
+          13.003371947247215,
+          13.13996409064779
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readNestedPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 46.55316058408771,
+      "scoreError": 1.2918653244919618,
+      "scoreConfidence": [
+        45.261295259595755,
+        47.84502590857967
+      ],
+      "scorePercentiles": {
+        "0.0": 45.38611830190297,
+        "50.0": 46.42513165257554,
+        "90.0": 48.23667743268138,
+        "95.0": 48.23667743268138,
+        "99.0": 48.23667743268138,
+        "99.9": 48.23667743268138,
+        "99.99": 48.23667743268138,
+        "99.999": 48.23667743268138,
+        "99.9999": 48.23667743268138,
+        "100.0": 48.23667743268138
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          45.38611830190297,
+          46.630952553996174,
+          48.23667743268138
+        ],
+        [
+          46.32468769778753,
+          46.05259063087014,
+          46.31776595132834
+        ],
+        [
+          46.42513165257554,
+          46.68586462832014,
+          46.91865640732718
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readNestedPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 19.953409153826463,
+      "scoreError": 0.7016063238301625,
+      "scoreConfidence": [
+        19.2518028299963,
+        20.655015477656626
+      ],
+      "scorePercentiles": {
+        "0.0": 19.197251049209402,
+        "50.0": 20.136263415669166,
+        "90.0": 20.334861504788382,
+        "95.0": 20.334861504788382,
+        "99.0": 20.334861504788382,
+        "99.9": 20.334861504788382,
+        "99.99": 20.334861504788382,
+        "99.999": 20.334861504788382,
+        "99.9999": 20.334861504788382,
+        "100.0": 20.334861504788382
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          20.329629632814054,
+          20.23592950272326,
+          20.136263415669166
+        ],
+        [
+          19.599698696203266,
+          19.47365026981395,
+          19.197251049209402
+        ],
+        [
+          20.334861504788382,
+          20.135800276764904,
+          20.137598036451774
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "1"
+    },
+    "primaryMetric": {
+      "score": 59.501602446088654,
+      "scoreError": 1.9257185534452825,
+      "scoreConfidence": [
+        57.57588389264337,
+        61.42732099953394
+      ],
+      "scorePercentiles": {
+        "0.0": 57.80932614391905,
+        "50.0": 59.939920315426896,
+        "90.0": 60.53238587652154,
+        "95.0": 60.53238587652154,
+        "99.0": 60.53238587652154,
+        "99.9": 60.53238587652154,
+        "99.99": 60.53238587652154,
+        "99.999": 60.53238587652154,
+        "99.9999": 60.53238587652154,
+        "100.0": 60.53238587652154
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          60.53238587652154,
+          59.929069038917106,
+          60.29321830930786
+        ],
+        [
+          59.939920315426896,
+          60.39860936718698,
+          60.41423204699127
+        ],
+        [
+          57.80932614391905,
+          58.04883143355041,
+          58.14882948297685
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  },
+  {
+    "jmhVersion": "1.34",
+    "benchmark": "org.apache.beam.sdk.values.RowWithGettersBenchmark.readPojo",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/Users/mmack/.sdkman/candidates/java/8.322.06.1-amzn/jre/bin/java",
+    "jvmArgs": [
+      "-javaagent:/Users/mmack/.gradle/caches/modules-2/files-2.1/io.github.stephankoelle/jamm/0.4.1/df04e7daebba29088daaf1a00f103863b9df61c2/jamm-0.4.1.jar",
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=DE",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "1.8.0_322",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "25.322-b06",
+    "warmupIterations": 3,
+    "warmupTime": "10 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "20 s",
+    "measurementBatchSize": 1,
+    "params": {
+      "reads": "3"
+    },
+    "primaryMetric": {
+      "score": 25.8594094071199,
+      "scoreError": 0.5157100778257019,
+      "scoreConfidence": [
+        25.3436993292942,
+        26.375119484945603
+      ],
+      "scorePercentiles": {
+        "0.0": 25.292992580741448,
+        "50.0": 25.92332499627541,
+        "90.0": 26.31832600129366,
+        "95.0": 26.31832600129366,
+        "99.0": 26.31832600129366,
+        "99.9": 26.31832600129366,
+        "99.99": 26.31832600129366,
+        "99.999": 26.31832600129366,
+        "99.9999": 26.31832600129366,
+        "100.0": 26.31832600129366
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          25.808545903061002,
+          25.936422468144404,
+          25.92332499627541
+        ],
+        [
+          26.112210857266533,
+          26.31832600129366,
+          26.067709557916036
+        ],
+        [
+          25.292992580741448,
+          25.680601698038622,
+          25.594550601342
+        ]
+      ]
+    },
+    "secondaryMetrics": {
+    }
+  }
+]
+
+
