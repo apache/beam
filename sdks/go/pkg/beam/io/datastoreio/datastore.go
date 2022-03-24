@@ -32,7 +32,19 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
+
+type clientType interface {
+	Run(context.Context, *datastore.Query) *datastore.Iterator
+	Close() error
+}
+
+// call to newClient returns an instance of datastore.Client
+// redirect this call for unit test usage
+var newClient = func(ctx context.Context, projectID string, opts ...option.ClientOption) (clientType, error) {
+	return datastore.NewClient(ctx, projectID, opts...)
+}
 
 const (
 	scatterPropertyName = "__scatter__"
@@ -89,7 +101,7 @@ func (s *splitQueryFn) ProcessElement(ctx context.Context, _ []byte, emit func(k
 		return nil
 	}
 
-	client, err := datastore.NewClient(ctx, s.Project)
+	client, err := newClient(ctx, s.Project)
 	if err != nil {
 		return err
 	}
@@ -190,8 +202,7 @@ type queryFn struct {
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) bool, emit func(beam.X)) error {
-
-	client, err := datastore.NewClient(ctx, f.Project)
+	client, err := newClient(ctx, f.Project)
 	if err != nil {
 		return err
 	}
