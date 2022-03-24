@@ -97,9 +97,11 @@ pip_dependencies:
   monotonic:
     license: "https://raw.githubusercontent.com/atdt/monotonic/master/LICENSE"
   nose:
-    license: "https://raw.githubusercontent.com/nose-devs/nose/master/lgpl.txt"
+      license: "https://raw.githubusercontent.com/nose-devs/nose/master/lgpl.txt"
   numpy:
     license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
+  oauth2client:
+    license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
   orjson:
     license: "https://github.com/ijl/orjson/raw/master/LICENSE-APACHE"
   pandas:
