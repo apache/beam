@@ -17,19 +17,16 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
 // This job runs the Java examples tests with FlinkRunner.
-job('beam_PostCommit_Java_Examples_Flink') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Flink',
+        'Run Java Examples_Flink', 'Java Flink Runner Examples', this) {
+
   description('Run Java Examples on Flink Runner')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
-
-  // Allows triggering this build against pull requests.
-  commonJobProperties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java Flink Runner Examples',
-      'Run Java Examples_Flink')
 
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')

@@ -17,19 +17,16 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
 // This job runs the Java examples tests with SparkRunner.
-job('beam_PostCommit_Java_Examples_Spark') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Spark',
+        'Run Java Examples_Spark', 'Java Spark Runner Examples', this) {
+
   description('Run Java Examples on Spark Runner')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
-
-  // Allows triggering this build against pull requests.
-  commonJobProperties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java Spark Runner Examples',
-      'Run Java Examples_Spark')
 
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')

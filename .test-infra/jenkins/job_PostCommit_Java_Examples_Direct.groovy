@@ -17,20 +17,17 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
 // This job runs the Java examples tests with DirectRunner.
-job('beam_PostCommit_Java_Examples_Direct') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Direct',
+        'Run Java Examples_Direct', 'Java Direct Runner Examples', this) {
+
   description('Run Java Examples on Direct Runner')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
-
-  // Allows triggering this build against pull requests.
-  commonJobProperties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java Direct Runner Examples',
-      'Run Java Examples_Direct')
-
+  
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
