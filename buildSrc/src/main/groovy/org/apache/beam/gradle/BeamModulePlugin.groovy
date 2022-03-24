@@ -538,12 +538,14 @@ class BeamModulePlugin implements Plugin<Project> {
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
         cdap_etl_api                                : "io.cdap.cdap:cdap-etl-api:$cdap_version",
+        cglib                                       : "org.sonatype.sisu.inject:cglib:2.2.1-v20090111",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
         commons_compress                            : "org.apache.commons:commons-compress:1.21",
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.6",
+        commons_lang2_6                             : "commons-lang:commons-lang:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
@@ -669,6 +671,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
+        scala                                       : "org.scala-lang:scala-library:2.11.12",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",

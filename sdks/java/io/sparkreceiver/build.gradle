@@ -39,13 +39,13 @@ allprojects {
 }
 
 dependencies {
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.cglib
+    implementation library.java.commons_lang2_6
+    implementation library.java.scala
     implementation library.java.slf4j_api
-    implementation library.java.commons_lang3
     implementation library.java.spark_streaming
     implementation library.java.spark_core
-    implementation library.java.jackson_module_scala_2_11
-    implementation "org.sonatype.sisu.inject:cglib:2.2.1-v20090111"
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation project(path: ":sdks:java:io:cdap", configuration: "testRuntimeMigration")
     testImplementation library.java.junit
