@@ -22,12 +22,21 @@ import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.OutputFormat;
 
+/**
+ * Class for CDAP plugin constants.
+ */
 public final class PluginConstants {
+    /**
+     * Plugin types.
+     */
     public enum PluginType {
         SOURCE,
         SINK
     }
 
+    /**
+     * Format types.
+     */
     public enum Format {
         INPUT(InputFormat.class, "InputFormat"),
         OUTPUT(OutputFormat.class, "OutputFormat");
@@ -49,6 +58,9 @@ public final class PluginConstants {
         }
     }
 
+    /**
+     * Format provider types.
+     */
     public enum FormatProvider {
         INPUT(InputFormatProvider.class, "InputFormatProvider"),
         OUTPUT(OutputFormatProvider.class, "OutputFormatProvider");
@@ -70,6 +82,9 @@ public final class PluginConstants {
         }
     }
 
+    /**
+     * Hadoop types.
+     */
     public enum Hadoop {
         SOURCE("mapreduce.job.inputformat.class",
                 "key.class",
