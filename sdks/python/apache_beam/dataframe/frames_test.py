@@ -114,7 +114,13 @@ class _AbstractFrameTest(unittest.TestCase):
     self._run_test(wrapper, arg, **kwargs)
 
   def _run_test(
-      self, func, *args, distributed=True, nonparallel=False, check_proxy=True):
+      self,
+      func,
+      *args,
+      distributed=True,
+      nonparallel=False,
+      check_proxy=True,
+      check_dtypes=True):
     """Verify that func(*args) produces the same result in pandas and in Beam.
 
     Args:
@@ -131,7 +137,12 @@ class _AbstractFrameTest(unittest.TestCase):
             This option should NOT be set to False in tests added for new
             operations if at all possible. Instead make sure the new operation
             produces the correct proxy. This flag only exists as an escape hatch
-            until existing failures can be addressed (BEAM-12379)."""
+            until existing failures can be addressed (BEAM-12379).
+        check_dtypes (bool): Whether or not to check the dtypes of the values.
+            The default is True. This option should be set to False for
+            non-deferred operations, where the dtype of the values in the proxy
+            are not known ahead of time.
+    """
     # Compute expected value
     expected = func(*args)
 
@@ -170,11 +181,12 @@ class _AbstractFrameTest(unittest.TestCase):
         else:
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
-
       if isinstance(expected, pd.Series):
-        pd.testing.assert_series_equal(expected, actual)
+        pd.testing.assert_series_equal(
+            expected, actual, check_dtype=check_dtypes)
       elif isinstance(expected, pd.DataFrame):
-        pd.testing.assert_frame_equal(expected, actual)
+        pd.testing.assert_frame_equal(
+            expected, actual, check_dtype=check_dtypes)
       else:
         raise ValueError(
             f"Expected value is a {type(expected)},"
@@ -203,10 +215,12 @@ class _AbstractFrameTest(unittest.TestCase):
 
       if isinstance(expected, pd.core.generic.NDFrame):
         if isinstance(expected, pd.Series):
-          self.assertEqual(actual.dtype, proxy.dtype)
+          if check_dtypes:
+            self.assertEqual(actual.dtype, proxy.dtype)
           self.assertEqual(actual.name, proxy.name)
         elif isinstance(expected, pd.DataFrame):
-          pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
+          if check_dtypes:
+            pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
 
         else:
           raise ValueError(
@@ -214,10 +228,11 @@ class _AbstractFrameTest(unittest.TestCase):
               "not a Series or DataFrame.")
 
         self.assertEqual(actual.index.names, proxy.index.names)
-        for i in range(actual.index.nlevels):
-          self.assertEqual(
-              actual.index.get_level_values(i).dtype,
-              proxy.index.get_level_values(i).dtype)
+        if check_dtypes:
+          for i in range(actual.index.nlevels):
+            self.assertEqual(
+                actual.index.get_level_values(i).dtype,
+                proxy.index.get_level_values(i).dtype)
 
 
 class DeferredFrameTest(_AbstractFrameTest):
@@ -1294,6 +1309,118 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda s: s.pipe(s_times, 2), s)
     self._run_test(lambda s: s.pipe((s_times_shuffled, 's'), 2), s)
+
+  def test_unstack_pandas_series_not_multiindex(self):
+    # Pandas should throw a ValueError if performing unstack
+    # on a Series without MultiIndex
+    s = pd.Series([1, 2, 3, 4], index=['one', 'two', 'three', 'four'])
+    with self.assertRaises((AttributeError, ValueError)):
+      self._run_test(lambda s: s.unstack(), s)
+
+  def test_unstack_non_categorical_index(self):
+    index = pd.MultiIndex.from_tuples([('one', 'a'), ('one', 'b'), ('two', 'a'),
+                                       ('two', 'b')])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"unstack\(\) is only supported on DataFrames if"):
+      self._run_test(lambda s: s.unstack(level=-1), s)
+
+  def _unstack_get_categorical_index(self):
+    index = pd.MultiIndex.from_tuples([('one', 'a'), ('one', 'b'), ('two', 'a'),
+                                       ('two', 'b')])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
+    return index
+
+  def test_unstack_pandas_example1(self):
+    index = self._unstack_get_categorical_index()
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    self._run_test(lambda s: s.unstack(level=-1), s, check_dtypes=False)
+
+  def test_unstack_pandas_example2(self):
+    index = self._unstack_get_categorical_index()
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    self._run_test(lambda s: s.unstack(level=0), s, check_dtypes=False)
+
+  def test_unstack_pandas_example3(self):
+    index = self._unstack_get_categorical_index()
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    df = s.unstack(level=0)
+    if PD_VERSION < (1, 2):
+      with self.assertRaisesRegex(frame_base.WontImplementError,
+                                  r"pandas==1.1.5 has an indexing error bug"):
+        self._run_test(lambda df: df.unstack(), df, check_dtypes=False)
+    else:
+      self._run_test(lambda df: df.unstack(), df, check_dtypes=False)
+
+  @unittest.skipIf(
+      PD_VERSION < (1, 4),
+      "pandas=1.4 fixes error when concat() of boolean types results in object")
+  def test_unstack_bool(self):
+    index = pd.MultiIndex.from_tuples([(True, 'a'), (True, 'b'), (False, 'a'),
+                                       (False, 'b')])
+    index = index.set_levels(index.levels[0].astype('boolean'), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
+    s = pd.Series(np.arange(1.0, 5.0), index=index)
+    self._run_test(lambda s: s.unstack(level=0), s, check_dtypes=False)
+
+  def test_unstack_series_multiple_index_levels(self):
+    tuples = list(
+        zip(
+            *[
+                ["bar", "bar", "bar", "bar", "baz", "baz", "baz", "baz"],
+                ["one", "one", "two", "two", "one", "one", "two", "two"],
+                ["A", "B", "A", "B", "A", "B", "A", "B"],
+            ]))
+    index = pd.MultiIndex.from_tuples(
+        tuples, names=["first", "second", "third"])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['bar', 'baz'])), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['one', 'two'])), level=1)
+    index = index.set_levels(
+        index.levels[2].astype(pd.CategoricalDtype(['A', 'B'])), level=2)
+    df = pd.Series(np.random.randn(8), index=index)
+    self._run_test(
+        lambda df: df.unstack(level=['first', 'third']), df, check_dtypes=False)
+    # self.assert_frame_data_equivalent(
+    # result, df.unstack(level=['first', 'third']))
+
+  def test_unstack_series_multiple_index_and_column_levels(self):
+    columns = pd.MultiIndex.from_tuples(
+        [
+            ("A", "cat", "long"),
+            ("B", "cat", "long"),
+            ("A", "dog", "short"),
+            ("B", "dog", "short"),
+        ],
+        names=["exp", "animal", "hair_length"],
+    )
+    index = pd.MultiIndex.from_product(
+        [['one', 'two'], ['a', 'b'], ['bar', 'baz']],
+        names=["first", "second", "third"])
+    index = index.set_levels(
+        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
+    index = index.set_levels(
+        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
+    index = index.set_levels(
+        index.levels[2].astype(pd.CategoricalDtype(['bar', 'baz'])), level=2)
+    df = pd.DataFrame(np.random.randn(8, 4), index=index, columns=columns)
+    df = df.stack(level=["animal", "hair_length"])
+    self._run_test(
+        lambda df: df.unstack(level=['second', 'third']),
+        df,
+        check_dtypes=False)
+    self._run_test(
+        lambda df: df.unstack(level=['second']), df, check_dtypes=False)
+    # self.assert_frame_data_equivalent(
+    # result, df.unstack(level=['second', 'third']))
 
 
 # pandas doesn't support kurtosis on GroupBys:
@@ -2467,113 +2594,6 @@ class BeamSpecificTest(unittest.TestCase):
         lambda s: s.str.split(r"\.jpg", regex=True, expand=False), s)
     self.assert_frame_data_equivalent(
         result, s.str.split(r"\.jpg", regex=True, expand=False))
-
-  def test_unstack_pandas_series_not_multiindex(self):
-    # Pandas should throw a ValueError if performing unstack
-    # on a Series without MultiIndex
-    s = pd.Series([1, 2, 3, 4], index=['one', 'two', 'three', 'four'])
-    with self.assertRaises((AttributeError, ValueError)):
-      self._evaluate(lambda s: s.unstack(), s)
-
-  def test_unstack_non_categorical_index(self):
-    index = pd.MultiIndex.from_tuples([('one', 'a'), ('one', 'b'), ('two', 'a'),
-                                       ('two', 'b')])
-    index = index.set_levels(
-        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
-    s = pd.Series(np.arange(1.0, 5.0), index=index)
-    with self.assertRaisesRegex(
-        frame_base.WontImplementError,
-        r"unstack\(\) is only supported on DataFrames if"):
-      self._evaluate(lambda s: s.unstack(level=-1), s)
-
-  def _unstack_get_categorical_index(self):
-    index = pd.MultiIndex.from_tuples([('one', 'a'), ('one', 'b'), ('two', 'a'),
-                                       ('two', 'b')])
-    index = index.set_levels(
-        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
-    index = index.set_levels(
-        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
-    return index
-
-  def test_unstack_pandas_example1(self):
-    index = self._unstack_get_categorical_index()
-    s = pd.Series(np.arange(1.0, 5.0), index=index)
-    result = self._evaluate(lambda s: s.unstack(level=-1), s)
-    self.assert_frame_data_equivalent(result, s.unstack(level=-1))
-
-  def test_unstack_pandas_example2(self):
-    index = self._unstack_get_categorical_index()
-    s = pd.Series(np.arange(1.0, 5.0), index=index)
-    result = self._evaluate(lambda s: s.unstack(level=0), s)
-    self.assert_frame_data_equivalent(result, s.unstack(level=0))
-
-  def test_unstack_pandas_example3(self):
-    index = self._unstack_get_categorical_index()
-    s = pd.Series(np.arange(1.0, 5.0), index=index)
-    if PD_VERSION < (1, 2):
-      with self.assertRaisesRegex(frame_base.WontImplementError,
-                                  r"pandas==1.1.5 has an indexing error bug"):
-        self._evaluate(lambda s: s.unstack(level=0).unstack(), s)
-    else:
-      result = self._evaluate(lambda s: s.unstack(level=0).unstack(), s)
-      self.assert_frame_data_equivalent(result, s.unstack(level=0).unstack())
-
-  def test_unstack_bool(self):
-    index = pd.MultiIndex.from_tuples([(True, 'a'), (True, 'b'), (False, 'a'),
-                                       (False, 'b')])
-    index = index.set_levels(index.levels[0].astype('boolean'), level=0)
-    index = index.set_levels(
-        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
-    s = pd.Series(np.arange(1.0, 5.0), index=index)
-    result = self._evaluate(lambda s: s.unstack(level=0), s)
-    self.assert_frame_data_equivalent(result, s.unstack(level=0))
-
-  def test_unstack_series_multiple_index_levels(self):
-    tuples = list(
-        zip(
-            *[
-                ["bar", "bar", "bar", "bar", "baz", "baz", "baz", "baz"],
-                ["one", "one", "two", "two", "one", "one", "two", "two"],
-                ["A", "B", "A", "B", "A", "B", "A", "B"],
-            ]))
-    index = pd.MultiIndex.from_tuples(
-        tuples, names=["first", "second", "third"])
-    index = index.set_levels(
-        index.levels[0].astype(pd.CategoricalDtype(['bar', 'baz'])), level=0)
-    index = index.set_levels(
-        index.levels[1].astype(pd.CategoricalDtype(['one', 'two'])), level=1)
-    index = index.set_levels(
-        index.levels[2].astype(pd.CategoricalDtype(['A', 'B'])), level=2)
-    df = pd.Series(np.random.randn(8), index=index)
-    result = self._evaluate(lambda df: df.unstack(level=['first', 'third']), df)
-    self.assert_frame_data_equivalent(
-        result, df.unstack(level=['first', 'third']))
-
-  def test_unstack_series_multiple_index_and_column_levels(self):
-    columns = pd.MultiIndex.from_tuples(
-        [
-            ("A", "cat", "long"),
-            ("B", "cat", "long"),
-            ("A", "dog", "short"),
-            ("B", "dog", "short"),
-        ],
-        names=["exp", "animal", "hair_length"],
-    )
-    index = pd.MultiIndex.from_product(
-        [['one', 'two'], ['a', 'b'], ['bar', 'baz']],
-        names=["first", "second", "third"])
-    index = index.set_levels(
-        index.levels[0].astype(pd.CategoricalDtype(['one', 'two'])), level=0)
-    index = index.set_levels(
-        index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
-    index = index.set_levels(
-        index.levels[2].astype(pd.CategoricalDtype(['bar', 'baz'])), level=2)
-    df = pd.DataFrame(np.random.randn(8, 4), index=index, columns=columns)
-    df.stack(level=["animal", "hair_length"])
-    result = self._evaluate(
-        lambda df: df.unstack(level=['second', 'third']), df)
-    self.assert_frame_data_equivalent(
-        result, df.unstack(level=['second', 'third']))
 
 
 class AllowNonParallelTest(unittest.TestCase):

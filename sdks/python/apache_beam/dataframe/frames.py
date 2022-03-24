@@ -961,18 +961,17 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def unstack(self, **kwargs):
-    if PD_VERSION < (1, 2):
-      raise frame_base.WontImplementError(
-        "pandas==1.1.5 has an indexing error bug," \
-        " causing an error with unstack()")
-
     level = kwargs.get('level', -1)
 
     if self._expr.proxy().index.nlevels == 1:
+      if PD_VERSION < (1, 2):
+        raise frame_base.WontImplementError(
+          "pandas==1.1.5 has an indexing error bug," \
+          " causing an error with unstack()")
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'unstack',
-              lambda s: s.unstack(level, **kwargs), [self._expr],
+              lambda s: s.unstack(**kwargs), [self._expr],
               requires_partition_by=partitionings.Index()))
     else:
       # Unstacking MultiIndex objects
@@ -991,7 +990,26 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             "is a categorical or boolean column",
             reason="non-deferred-columns")
       else:
-        proxy = pd.DataFrame(columns=self._expr.proxy().unstack().columns)
+        tmp = self._expr.proxy().unstack(**kwargs)
+        if isinstance(tmp.columns, pd.MultiIndex):
+          levels = []
+          for i in range(tmp.columns.nlevels):
+            level = tmp.columns.levels[i]
+            levels.append(level)
+          col_idx = pd.MultiIndex.from_product(levels)
+        else:
+          if tmp.columns.dtype == 'boolean':
+            col_idx = pd.Index(tmp.columns)
+          else:
+            col_idx = pd.CategoricalIndex(tmp.columns.categories)
+
+        if isinstance(tmp.index, pd.MultiIndex):
+          levels = [[] for _ in range(tmp.index.nlevels)]
+          row_idx = pd.MultiIndex.from_product(levels, names=tmp.index.names)
+        else:
+          row_idx = pd.Index([], name=tmp.index.name, dtype=tmp.index.dtype)
+
+        proxy = pd.DataFrame(columns=col_idx, dtype=object, index=row_idx)
 
         with expressions.allow_non_parallel_operations(True):
           return frame_base.DeferredFrame.wrap(
