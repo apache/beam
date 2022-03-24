@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assume.assumeFalse;
 
 import java.io.Serializable;
 import java.net.URI;
@@ -64,7 +63,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.hamcrest.Matchers;
 import org.hamcrest.core.IsIterableContaining;
 import org.joda.time.Instant;
@@ -160,8 +158,6 @@ public class FlinkSavepointTest implements Serializable {
 
   @Test
   public void testSavepointRestoreLegacy() throws Exception {
-    // Don't run on Flink 1.11. https://issues.apache.org/jira/browse/BEAM-10955
-    assumeFalse(EnvironmentInformation.getVersion().startsWith("1.11"));
     runSavepointAndRestore(false);
   }
 
