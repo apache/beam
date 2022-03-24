@@ -30,7 +30,7 @@ dependencies {
   sdkHarnessLauncher project(path: ":sdks:python:container", configuration: "sdkHarnessLauncher")
 }
 
-task generatePythonRequirements() {
+def generatePythonRequirements = tasks.register("generatePythonRequirements") {
   dependsOn ':sdks:python:sdist'
   def runScriptsPath = "${rootDir}/sdks/python/container/run_generate_requirements.sh"
   doLast {
@@ -43,7 +43,7 @@ task generatePythonRequirements() {
   }
 }
 
-task copyDockerfileDependencies(type: Copy) {
+def copyDockerfileDependencies = tasks.register("copyDockerfileDependencies", Copy) {
   from configurations.sdkSourceTarball
   from file("base_image_requirements.txt")
   into "build/target"
@@ -52,12 +52,12 @@ task copyDockerfileDependencies(type: Copy) {
   }
 }
 
-task copyLicenseScripts(type: Copy){
+def copyLicenseScripts = tasks.register("copyLicenseScripts", Copy){
   from ("../license_scripts")
   into "build/target/license_scripts"
 }
 
-task copyLauncherDependencies(type: Copy) {
+def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) {
   from configurations.sdkHarnessLauncher
   into "build/target/launcher"
   if(configurations.sdkHarnessLauncher.isEmpty()) {
@@ -86,16 +86,16 @@ dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn copyLicenseScripts
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
-  task copyGolangLicenses(type: Copy) {
+  def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
     from "${project(':release:go-licenses:py').buildDir}/output"
     into "build/target/go-licenses"
     dependsOn ':release:go-licenses:py:createLicenses'
   }
-  dockerPrepare.dependsOn 'copyGolangLicenses'
+  dockerPrepare.dependsOn copyGolangLicenses
 } else {
-  task skipPullLicenses(type: Exec) {
+  def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
     executable "sh"
     args "-c", "mkdir -p build/target/go-licenses"
   }
-  dockerPrepare.dependsOn 'skipPullLicenses'
+  dockerPrepare.dependsOn skipPullLicenses
 }

@@ -55,7 +55,10 @@ public class TestUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
 
-  private static final String VALID_PRIVATE_KEY_FILE_NAME = "valid_test_rsa_key.p8";
+  private static final String VALID_ENCRYPTED_PRIVATE_KEY_FILE_NAME =
+      "valid_encrypted_test_rsa_key.p8";
+  private static final String VALID_UNENCRYPTED_PRIVATE_KEY_FILE_NAME =
+      "valid_unencrypted_test_rsa_key.p8";
   private static final String INVALID_PRIVATE_KEY_FILE_NAME = "invalid_test_rsa_key.p8";
   private static final String PRIVATE_KEY_PASSPHRASE = "snowflake";
 
@@ -164,16 +167,25 @@ public class TestUtils {
     return lines;
   }
 
+  public static String getValidEncryptedPrivateKeyPath(Class c) {
+    return getPrivateKeyPath(c, VALID_ENCRYPTED_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getValidUnencryptedPrivateKeyPath(Class c) {
+    return getPrivateKeyPath(c, VALID_UNENCRYPTED_PRIVATE_KEY_FILE_NAME);
+  }
+
   public static String getInvalidPrivateKeyPath(Class c) {
     return getPrivateKeyPath(c, INVALID_PRIVATE_KEY_FILE_NAME);
   }
 
-  public static String getValidPrivateKeyPath(Class c) {
-    return getPrivateKeyPath(c, VALID_PRIVATE_KEY_FILE_NAME);
+  public static String getRawValidEncryptedPrivateKey(Class c) throws IOException {
+    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidEncryptedPrivateKeyPath(c)));
+    return new String(keyBytes, StandardCharsets.UTF_8);
   }
 
-  public static String getRawValidPrivateKey(Class c) throws IOException {
-    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidPrivateKeyPath(c)));
+  public static String getRawValidUnencryptedPrivateKey(Class c) throws IOException {
+    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidUnencryptedPrivateKeyPath(c)));
     return new String(keyBytes, StandardCharsets.UTF_8);
   }
 

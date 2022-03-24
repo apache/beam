@@ -381,6 +381,13 @@ public class BigqueryClient {
   /** Creates a new dataset. */
   public void createNewDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
+    createNewDataset(projectId, datasetId, null);
+  }
+
+  /** Creates a new dataset with defaultTableExpirationMs. */
+  public void createNewDataset(
+      String projectId, String datasetId, @Nullable Long defaultTableExpirationMs)
+      throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
     IOException lastException = null;
@@ -395,7 +402,8 @@ public class BigqueryClient {
                 .insert(
                     projectId,
                     new Dataset()
-                        .setDatasetReference(new DatasetReference().setDatasetId(datasetId)))
+                        .setDatasetReference(new DatasetReference().setDatasetId(datasetId))
+                        .setDefaultTableExpirationMs(defaultTableExpirationMs))
                 .execute();
         if (response != null) {
           LOG.info("Successfully created new dataset : " + response.getId());

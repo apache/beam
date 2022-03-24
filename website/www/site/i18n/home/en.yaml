@@ -22,6 +22,8 @@
   translation: "Python Quickstart"
 - id: home-go-quickstart
   translation: "Go Quickstart"
+- id: home-playground
+  translation: "Try Playground"
 - id: home-hero-blog-title
   translation: "The latest from the blog"
 - id: home-cards-title
@@ -35,15 +37,15 @@
 - id: home-ctas-title
   translation: "Get started"
 - id: home-model-title1
-  translation: "How Does it work?"
+  translation: "How Does It Work?"
 - id: home-model-title2
-  translation: "Write it in your language of choice - run it anywhere"
+  translation: "You Choose Your Favorite Environment and Programming Language!"
 - id: home-graphic-more
   translation: "& MORE"
 - id: home-graphic-runner-title
   translation: "Choose your runner"
 - id: home-graphic-runner-body
-  translation: "A Beam pipeline can execute in the most popular distributed data processing systems such as Spark, Flink or Samza."
+  translation: "A Beam pipeline can execute in the most popular distributed data processing systems - choose a commercial service such as Google Cloud Dataflow or Amazon Kinesis Data Analytics, or roll your own Spark or Flink clusters."
 - id: home-graphic-language-title
   translation: "Choose your language"
 - id: home-graphic-language-body

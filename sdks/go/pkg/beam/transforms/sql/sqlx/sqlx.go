@@ -32,6 +32,8 @@ const (
 	serviceGradleTarget = ":sdks:java:extensions:sql:expansion-service:shadowJar"
 )
 
+// DefaultExpansionAddr sets the default expansion address for cross-language SQL transforms
+// to route through the automated exansion service start-up process, enabling it by default.
 var DefaultExpansionAddr string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 // Options is the interface for adding SQL transform options.

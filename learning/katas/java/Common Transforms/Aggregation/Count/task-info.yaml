@@ -22,8 +22,8 @@ files:
 - name: src/org/apache/beam/learning/katas/commontransforms/aggregation/count/Task.java
   visible: true
   placeholders:
-  - offset: 1707
-    length: 29
+  - offset: 1896
+    length: 36
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/commontransforms/aggregation/count/TaskTest.java
   visible: false
