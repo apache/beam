@@ -21,23 +21,23 @@ import PostcommitJobBuilder
 
 // This job runs the Java examples tests with DirectRunner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Direct',
-        'Run Java Examples_Direct', 'Java Direct Runner Examples', this) {
+    'Run Java Examples_Direct', 'Java Direct Runner Examples', this) {
 
-  description('Run Java Examples on Direct Runner')
+      description('Run Java Examples on Direct Runner')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
-  
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-  // Execute shell command to run examples.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:direct:examplesIntegrationTest')
-      commonJobProperties.setGradleSwitches(delegate)
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
+
+      // Execute shell command to run examples.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:direct:examplesIntegrationTest')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

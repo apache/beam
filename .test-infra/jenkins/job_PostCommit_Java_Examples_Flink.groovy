@@ -21,23 +21,23 @@ import PostcommitJobBuilder
 
 // This job runs the Java examples tests with FlinkRunner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Flink',
-        'Run Java Examples_Flink', 'Java Flink Runner Examples', this) {
+    'Run Java Examples_Flink', 'Java Flink Runner Examples', this) {
 
-  description('Run Java Examples on Flink Runner')
+      description('Run Java Examples on Flink Runner')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
 
-  // Execute shell command to run examples.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:examplesIntegrationTest")
-      commonJobProperties.setGradleSwitches(delegate)
+      // Execute shell command to run examples.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:examplesIntegrationTest")
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}
