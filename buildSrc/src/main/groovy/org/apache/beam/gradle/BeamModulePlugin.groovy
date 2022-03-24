@@ -449,8 +449,9 @@ class BeamModulePlugin implements Plugin<Project> {
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
-    def aws_java_sdk2_version = "2.17.106"
+    def aws_java_sdk2_version = "2.17.127"
     def cassandra_driver_version = "3.10.2"
+    def cdap_version = "6.5.1"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
     def errorprone_version = "2.10.0"
@@ -459,7 +460,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.17.4"
+    def google_cloud_spanner_version = "6.20.0"
     def google_code_gson_version = "2.8.9"
     def google_oauth_clients_version = "1.32.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -535,6 +536,8 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
+        cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
+        cdap_etl_api                                : "io.cdap.cdap:cdap-etl-api:$cdap_version",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
@@ -577,7 +580,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
         // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.3.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:24.3.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:24.4.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -695,6 +698,7 @@ class BeamModulePlugin implements Plugin<Project> {
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
+        quickcheck_generators                       : "com.pholser:junit-quickcheck-generators:$quickcheck_version",
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
         arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
         arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",
@@ -1444,6 +1448,10 @@ class BeamModulePlugin implements Plugin<Project> {
       if ((isRelease(project) || project.hasProperty('publishing')) &&
       configuration.publish) {
         project.apply plugin: "maven-publish"
+
+        // plugin to support repository authentication via ~/.m2/settings.xml
+        // https://github.com/mark-vieira/gradle-maven-settings-plugin/
+        project.apply plugin: 'net.linguica.maven-settings'
 
         // Create a task which emulates the maven-archiver plugin in generating a
         // pom.properties file.
@@ -2588,7 +2596,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // See: http://groovy-lang.org/closures.html#implicit-it
         def config = it ? it as PythonPerformanceTestConfiguration : new PythonPerformanceTestConfiguration()
 
-        project.task('integrationTest') {
+        project.tasks.register('integrationTest') {
           dependsOn installGcpTest
           dependsOn ':sdks:python:sdist'
 
@@ -2624,7 +2632,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def addPortableWordCountTask = { boolean isStreaming, String runner ->
         def taskName = 'portableWordCount' + runner + (isStreaming ? 'Streaming' : 'Batch')
         def flinkJobServerProject = ":runners:flink:${project.ext.latestFlinkVersion}:job-server"
-        project.task(taskName) {
+        project.tasks.register(taskName) {
           dependsOn = [installGcpTest]
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",

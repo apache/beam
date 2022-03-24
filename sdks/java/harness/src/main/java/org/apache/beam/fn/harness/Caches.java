@@ -65,7 +65,6 @@ public final class Caches {
     } catch (RuntimeException e) {
       // Checking for RuntimeException since java.lang.reflect.InaccessibleObjectException is only
       // available starting Java 9
-      // TODO(BEAM-13695) Provide more accurate memory measurements for Java 17
       LOG.warn("JVM prevents jamm from accessing subgraph - cache sizes may be underestimated", e);
       return MEMORY_METER.measure(o);
     }

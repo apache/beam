@@ -58,5 +58,4 @@ public class Task {
             .via(sentence -> Arrays.asList(sentence.split(" ")))
     );
   }
-
 }

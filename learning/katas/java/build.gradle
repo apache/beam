@@ -18,15 +18,15 @@
 
 buildscript {
   ext {
-    beamVersion = '2.19.0'
-    guavaVersion = '28.1-jre'
-    jodaTimeVersion = '2.10.4'
-    slf4jVersion = '1.7.28'
-    log4jSlf4jImpl = '2.12.1'
+    beamVersion = '2.36.0'
+    guavaVersion = '31.0.1-jre'
+    jodaTimeVersion = '2.10.10'
+    slf4jVersion = '1.7.30'
+    log4jSlf4jImpl = '2.17.1'
 
-    assertjVersion = '3.13.2'
+    assertjVersion = '3.22.0'
     hamcrestVersion = '2.1'
-    junitVersion = '4.12'
+    junitVersion = '4.13.1'
   }
 
   repositories {

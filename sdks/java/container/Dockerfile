@@ -41,6 +41,11 @@ COPY target/NOTICE /opt/apache/beam/
 # copy third party licenses
 ADD target/third_party_licenses /opt/apache/beam/third_party_licenses/
 
+# Copy Java options. Because the options directory may be empty and
+# COPY fails if there are no files, copy an extra LICENSE file then remove it.
+COPY target/LICENSE target/options/* /opt/apache/beam/options/
+RUN rm /opt/apache/beam/options/LICENSE
+
 # Add golang licenses. Because the go-license directory may be empty if
 # pull_licenses is false, and COPY fails if there are no files,
 # copy an extra LICENSE file then remove it.
