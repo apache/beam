@@ -208,7 +208,7 @@
       {{ T "home-quotes-title" }}
     </div>
 
-    <div class="quotes-desktop">
+    <div class="quotes-desktop keen-slider-JS">
       {{ $data := index $.Site.Data .Site.Language.Lang }}
       {{ range $quote := $data.quotes }}
           {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
@@ -218,7 +218,7 @@
     {{/*
       The id "my-keen-slider" and "dots" should be named as defaults to make the external library (Keen Slider) works well
     */}}
-    <div id="my-keen-slider" class="keen-slider quote-mobile">
+    <div id="my-keen-slider" class="quote-mobile keen-slider-JS">
       {{ $data := index $.Site.Data .Site.Language.Lang }}
       {{ range $quote := $data.quotes }}
           {{ partial "quotes/quote-mobile.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}

@@ -67,11 +67,8 @@
   }
 
   // Sliding feature is only displayed on mobile version
-  .keen-slider {
-    display: none;
-  }
 
-  .dots {
+  .dots-JS {
     display: none;
   }
 
@@ -105,8 +102,13 @@
     }
   }
 
-  .dots {
+  .keen-slider-JS {
     display: none;
+  }
+
+  .dots {
+    //display: none;
+    display: flex;
     padding: 10px 0;
     justify-content: center;
     margin-top: 46px;
@@ -130,27 +132,39 @@
   .dot--active {
     background: $color-sun;
   }
+
+  .keen-slider-JS.visible {
+    display: flex;
+  }
 }
 
 @media (max-width: $tablet) {
   .quotes {
+
     .quotes-title {
       margin-bottom: 64px;
     }
+
     h2 {
       margin-bottom: 0 !important;
     }
-    .quotes-desktop {
-      display: none;
-    }
 
-    .keen-slider {
+    //.quotes-desktop {
+    //  display: none;
+    //}
+
+
+    .quote-mobile {
       display: flex;
       width: 100%;
     }
 
-    .dots {
-      display: flex;
+    .keen-slider-JS {
+      display: none;
     }
+
+    //.dots {
+    //  display: flex;
+    //}
   }
 }
