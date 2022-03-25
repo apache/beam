@@ -10,62 +10,82 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+function calcBodyWidth() {
+  return window.innerWidth && document.documentElement.clientWidth ?
+    Math.min(window.innerWidth, document.documentElement.clientWidth) :
+    window.innerWidth ||
+    document.documentElement.clientWidth ||
+    document.getElementsByTagName('body')[0].clientWidth;
+}
+
 (function () {
 
-    // var scrollBarWidth = 17;
-    // var tabletWidth = 1024 - scrollBarWidth;
-    // var sliderSelector = '.keen-slider-JS';
+  var CountOfSlides = {
+    min: 1,
+    renderedOnDesktop: 3,
+  }
 
-    var desktopSliderSelector = '.quotes-desktop.keen-slider-JS';
-    var mobileSliderSelector = '.quote-mobile.keen-slider-JS';
-    var classVisible = 'visible';
-    var tabletWidth = 1024;
-    var bodyWidth = window.innerWidth && document.documentElement.clientWidth ?
-        Math.min(window.innerWidth, document.documentElement.clientWidth) :
-        window.innerWidth ||
-        document.documentElement.clientWidth ||
-        document.getElementsByTagName('body')[0].clientWidth;
+  var Selectors = {
+    desktopSlider: '.quotes-desktop.keen-slider-JS',
+    mobileSlider: '.quote-mobile.keen-slider-JS',
+    oneSlide: '.keen-slider__slide',
+  }
+  var classVisible = 'visible';
 
-    var currentSliderSelector = bodyWidth >= tabletWidth
-        ? desktopSliderSelector
-        : mobileSliderSelector;
+  var tabletWidth = 1024;
+  var bodyWidth = calcBodyWidth();
+  var isDesktopWidth = bodyWidth >= tabletWidth;
 
-    var countOfSlides = bodyWidth >= tabletWidth
-        ? 3
-        : 1;
+  var currentSliderSelector = isDesktopWidth ? Selectors.desktopSlider : Selectors.mobileSlider;
+  var currentSliderDOM = document.querySelector(currentSliderSelector);
+  currentSliderDOM.classList.add(classVisible);
 
-    document.querySelector(currentSliderSelector).classList.add(classVisible);
+  var renderedCountOfSlides = isDesktopWidth ? CountOfSlides.renderedOnDesktop : CountOfSlides.min;
+  var actualCountOfSlides = document
+    .querySelector(currentSliderSelector)
+    .querySelectorAll(Selectors.oneSlide)
+    .length;
 
-    var slider = new KeenSlider(currentSliderSelector, {
-        // slides: countOfSlides,
-        loop: true,
-        created: function (instance) {
-            var dots_wrapper = document.getElementById("dots");
-            var slides = document.querySelectorAll(".keen-slider__slide");
-            slides.forEach(function (t, idx) {
-                var dot = document.createElement("button");
-                dot.classList.add("dot");
-                dots_wrapper.appendChild(dot);
-                dot.addEventListener("click", function () {
-                    instance.moveToSlide(idx);
-                });
-            });
-            updateClasses(instance);
-        },
-        slideChanged(instance) {
-            updateClasses(instance);
-        }
-    });
+  var isNeedLoop = true;
+  if (isDesktopWidth && actualCountOfSlides <= CountOfSlides.renderedOnDesktop) {
+    isNeedLoop = false;
+  }
+  if (!isDesktopWidth && actualCountOfSlides === CountOfSlides.min) {
+    isNeedLoop = false;
+  }
 
-    function updateClasses(instance) {
-        var slide = instance.details().relativeSlide;
-
-        var dots = document.querySelectorAll(".dot");
-        dots.forEach(function (dot, idx) {
-            idx === slide
-                ? dot.classList.add("dot--active")
-                : dot.classList.remove("dot--active");
+  var slider = new KeenSlider(currentSliderSelector, {
+    slidesPerView: renderedCountOfSlides,
+    loop: isNeedLoop,
+    created: function (instance) {
+      if (!isNeedLoop) {
+        return;
+      }
+      var dots_wrapper = document.getElementById("dots");
+      var slides = currentSliderDOM.querySelectorAll(".keen-slider__slide");
+      slides.forEach(function (t, idx) {
+        var dot = document.createElement("button");
+        dot.classList.add("dot");
+        dots_wrapper.appendChild(dot);
+        dot.addEventListener("click", function () {
+          instance.moveToSlide(idx);
         });
+      });
+      updateClasses(instance);
+    },
+    slideChanged(instance) {
+      updateClasses(instance);
     }
+  });
 
-}())
+  function updateClasses(instance) {
+    var slide = instance.details().relativeSlide;
+
+    var dots = document.querySelectorAll(".dot");
+    dots.forEach(function (dot, idx) {
+      idx === slide
+        ? dot.classList.add("dot--active")
+        : dot.classList.remove("dot--active");
+    });
+  }
+}());
