@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -62,6 +65,30 @@ public class BigQuerySchemaTransformWriteProvider
     return new BigQuerySchemaTransformWrite(configuration);
   }
 
+  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
+  @Override
+  public String identifier() {
+    return String.format("%s:%s", API, VERSION);
+  }
+
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since a
+   * single is expected, this returns a list with a single name.
+   */
+  @Override
+  public List<String> inputCollectionNames() {
+    return Collections.singletonList(TAG);
+  }
+
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
+   * no output is expected, this returns an empty list.
+   */
+  @Override
+  public List<String> outputCollectionNames() {
+    return Collections.emptyList();
+  }
+
   /**
    * An implementation of {@link SchemaTransform} for BigQuery write jobs configured using {@link
    * BigQuerySchemaTransformWriteConfiguration}.
@@ -71,10 +98,6 @@ public class BigQuerySchemaTransformWriteProvider
 
     BigQuerySchemaTransformWrite(BigQuerySchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
-    }
-
-    BigQuerySchemaTransformWriteConfiguration getConfiguration() {
-      return configuration;
     }
 
     @Override
@@ -106,32 +129,22 @@ public class BigQuerySchemaTransformWriteProvider
       PCollection<TableRow> tableRowPCollection =
           rowPCollection.apply(
               MapElements.into(TypeDescriptor.of(TableRow.class)).via(BigQueryUtils::toTableRow));
-      tableRowPCollection.apply(configuration.toWrite(schema));
+      tableRowPCollection.apply(toWrite(schema));
       return PCollectionRowTuple.empty(input.getPipeline());
     }
-  }
 
-  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
-  @Override
-  public String identifier() {
-    return String.format("%s:%s", API, VERSION);
-  }
+    BigQueryIO.Write<TableRow> toWrite(Schema schema) {
+      TableSchema tableSchema = BigQueryUtils.toTableSchema(schema);
+      CreateDisposition createDisposition =
+          CreateDisposition.valueOf(configuration.getCreateDisposition());
+      WriteDisposition writeDisposition =
+          WriteDisposition.valueOf(configuration.getWriteDisposition());
 
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since a
-   * single is expected, this returns a list with a single name.
-   */
-  @Override
-  public List<String> inputCollectionNames() {
-    return Collections.singletonList(TAG);
-  }
-
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
-   * no output is expected, this returns an empty list.
-   */
-  @Override
-  public List<String> outputCollectionNames() {
-    return Collections.emptyList();
+      return BigQueryIO.writeTableRows()
+          .to(configuration.getTableSpec())
+          .withCreateDisposition(createDisposition)
+          .withWriteDisposition(writeDisposition)
+          .withSchema(tableSchema);
+    }
   }
 }

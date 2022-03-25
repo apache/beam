@@ -18,11 +18,10 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 
 /**
  * Configuration for reading from BigQuery.
@@ -77,54 +76,23 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
   abstract JobType getJobType();
 
   /** Configures the BigQuery read job with the SQL query. */
+  @Nullable
   public abstract String getQuery();
 
   /**
    * Specifies a table for a BigQuery read job. See {@link BigQueryIO.TypedRead#from(String)} for
    * more details on the expected format.
    */
+  @Nullable
   public abstract String getTableSpec();
 
   /** BigQuery geographic location where the query job will be executed. */
+  @Nullable
   public abstract String getQueryLocation();
 
   /** Enables BigQuery's Standard SQL dialect when reading from a query. */
+  @Nullable
   public abstract Boolean getUseStandardSql();
-
-  /** Instantiates a {@link BigQueryIO.TypedRead<TableRow>} from the configuration. */
-  public BigQueryIO.TypedRead<TableRow> toTypedRead() {
-    JobType jobType = getJobType();
-    switch (jobType) {
-      case QUERY:
-        return toQueryTypedRead();
-
-      case EXTRACT:
-        return toExtractTypedRead();
-
-      default:
-        throw new InvalidConfigurationException(
-            String.format("invalid job type for BigQueryIO read, got: %s", jobType));
-    }
-  }
-
-  private BigQueryIO.TypedRead<TableRow> toQueryTypedRead() {
-    BigQueryIO.TypedRead<TableRow> read =
-        BigQueryIO.readTableRowsWithSchema().fromQuery(getQuery());
-
-    if (!getQueryLocation().isEmpty()) {
-      read = read.withQueryLocation(getQueryLocation());
-    }
-
-    if (getUseStandardSql()) {
-      read = read.usingStandardSql();
-    }
-
-    return read;
-  }
-
-  private BigQueryIO.TypedRead<TableRow> toExtractTypedRead() {
-    return BigQueryIO.readTableRowsWithSchema().from(getTableSpec());
-  }
 
   @AutoValue.Builder
   public abstract static class Builder {

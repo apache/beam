@@ -18,13 +18,10 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /**
@@ -74,34 +71,6 @@ public abstract class BigQuerySchemaTransformWriteConfiguration {
 
   /** Specifies what to do with existing data in the table, in case the table already exists. */
   public abstract String getWriteDisposition();
-
-  /**
-   * Instantiates a {@link BigQueryIO.Write<TableRow>} from the {@link
-   * BigQuerySchemaTransformWriteConfiguration} and the given {@link Schema}.
-   */
-  public BigQueryIO.Write<TableRow> toWrite(Schema schema) {
-    return toWrite(BigQueryUtils.toTableSchema(schema));
-  }
-
-  /**
-   * Instantiates a {@link BigQueryIO.Write<TableRow>} from the {@link
-   * BigQuerySchemaTransformWriteConfiguration} and the given {@link TableSchema}.
-   */
-  public BigQueryIO.Write<TableRow> toWrite(TableSchema schema) {
-    return BigQueryIO.writeTableRows()
-        .withSchema(schema)
-        .to(getTableSpec())
-        .withCreateDisposition(parseCreateDisposition())
-        .withWriteDisposition(parseWriteDisposition());
-  }
-
-  private CreateDisposition parseCreateDisposition() {
-    return CreateDisposition.valueOf(getCreateDisposition());
-  }
-
-  private WriteDisposition parseWriteDisposition() {
-    return WriteDisposition.valueOf(getWriteDisposition());
-  }
 
   @AutoValue.Builder
   public abstract static class Builder {

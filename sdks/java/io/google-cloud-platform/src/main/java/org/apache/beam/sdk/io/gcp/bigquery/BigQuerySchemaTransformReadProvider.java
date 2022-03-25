@@ -20,10 +20,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformReadConfiguration.JobType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -48,7 +51,7 @@ public class BigQuerySchemaTransformReadProvider
 
   private static final String API = "bigquery";
   private static final String VERSION = "v2";
-  private static final String TAG = "ToRows";
+  private static final String OUTPUT_TAG = "OUTPUT";
 
   /** Returns the expected class of the configuration. */
   @Override
@@ -62,6 +65,30 @@ public class BigQuerySchemaTransformReadProvider
     return new BigQuerySchemaTransformRead(configuration);
   }
 
+  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
+  @Override
+  public String identifier() {
+    return String.format("%s:%s", API, VERSION);
+  }
+
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since
+   * no input is expected, this returns an empty list.
+   */
+  @Override
+  public List<String> inputCollectionNames() {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
+   * a single output is expected, this returns a list with a single name.
+   */
+  @Override
+  public List<String> outputCollectionNames() {
+    return Collections.singletonList(OUTPUT_TAG);
+  }
+
   /**
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
    * BigQuerySchemaTransformReadConfiguration}.
@@ -71,10 +98,6 @@ public class BigQuerySchemaTransformReadProvider
 
     BigQuerySchemaTransformRead(BigQuerySchemaTransformReadConfiguration configuration) {
       this.configuration = configuration;
-    }
-
-    BigQuerySchemaTransformReadConfiguration getConfiguration() {
-      return configuration;
     }
 
     /** Implements {@link SchemaTransform} buildTransform method. */
@@ -101,38 +124,50 @@ public class BigQuerySchemaTransformReadProvider
       if (!input.getAll().isEmpty()) {
         throw new IllegalArgumentException("PCollectionRowTuple input is expected to be empty");
       }
-      PCollection<TableRow> tableRowPCollection =
-          input.getPipeline().apply(configuration.toTypedRead());
+      PCollection<TableRow> tableRowPCollection = input.getPipeline().apply(toTypedRead());
       Schema schema = tableRowPCollection.getSchema();
       PCollection<Row> rowPCollection =
           tableRowPCollection.apply(
               MapElements.into(TypeDescriptor.of(Row.class))
                   .via((tableRow) -> BigQueryUtils.toBeamRow(schema, tableRow)));
-      return PCollectionRowTuple.of(TAG, rowPCollection);
+      return PCollectionRowTuple.of(OUTPUT_TAG, rowPCollection);
     }
-  }
 
-  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
-  @Override
-  public String identifier() {
-    return String.format("%s:%s", API, VERSION);
-  }
+    BigQueryIO.TypedRead<TableRow> toTypedRead() {
+      JobType jobType = configuration.getJobType();
+      switch (jobType) {
+        case QUERY:
+          return toQueryTypedRead();
 
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since
-   * no input is expected, this returns an empty list.
-   */
-  @Override
-  public List<String> inputCollectionNames() {
-    return Collections.emptyList();
-  }
+        case EXTRACT:
+          return toExtractTypedRead();
 
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
-   * a single output is expected, this returns a list with a single name.
-   */
-  @Override
-  public List<String> outputCollectionNames() {
-    return Collections.singletonList(TAG);
+        default:
+          throw new InvalidConfigurationException(
+              String.format("invalid job type for BigQueryIO read, got: %s", jobType));
+      }
+    }
+
+    private BigQueryIO.TypedRead<TableRow> toExtractTypedRead() {
+      return BigQueryIO.readTableRowsWithSchema().from(configuration.getTableSpec());
+    }
+
+    private BigQueryIO.TypedRead<TableRow> toQueryTypedRead() {
+      String query = Objects.requireNonNull(configuration.getQuery());
+
+      BigQueryIO.TypedRead<TableRow> read = BigQueryIO.readTableRowsWithSchema().fromQuery(query);
+
+      if (configuration.getQueryLocation() != null) {
+        read = read.withQueryLocation(configuration.getQueryLocation());
+      }
+
+      if (configuration.getUseStandardSql() != null) {
+        if (configuration.getUseStandardSql()) {
+          read = read.usingStandardSql();
+        }
+      }
+
+      return read;
+    }
   }
 }
