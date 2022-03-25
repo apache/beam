@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformReadProvider.BigQuerySchemaTransformReadTransform;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -46,7 +45,6 @@ public class BigQuerySchemaTransformReadProviderTest {
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
   private static final TypeDescriptor<BigQuerySchemaTransformReadConfiguration> TYPE_DESCRIPTOR =
       TypeDescriptor.of(BigQuerySchemaTransformReadConfiguration.class);
-  private static final Schema SCHEMA = AUTO_VALUE_SCHEMA.schemaFor(TYPE_DESCRIPTOR);
   private static final SerializableFunction<BigQuerySchemaTransformReadConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
@@ -122,12 +120,5 @@ public class BigQuerySchemaTransformReadProviderTest {
       }
       assertEquals(want, got);
     }
-  }
-
-  @Test
-  public void testGetConfiguration() {
-    SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
-    Schema got = provider.configurationSchema();
-    assertEquals(SCHEMA, got);
   }
 }

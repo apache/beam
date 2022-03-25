@@ -51,7 +51,6 @@ public class BigQuerySchemaTransformWriteProviderTest {
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
   private static final TypeDescriptor<BigQuerySchemaTransformWriteConfiguration> TYPE_DESCRIPTOR =
       TypeDescriptor.of(BigQuerySchemaTransformWriteConfiguration.class);
-  private static final Schema CONFIGURATION_SCHEMA = AUTO_VALUE_SCHEMA.schemaFor(TYPE_DESCRIPTOR);
   private static final SerializableFunction<BigQuerySchemaTransformWriteConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
@@ -144,12 +143,5 @@ public class BigQuerySchemaTransformWriteProviderTest {
       }
       assertEquals(want, got);
     }
-  }
-
-  @Test
-  public void testGetConfiguration() {
-    SchemaTransformProvider provider = new BigQuerySchemaTransformWriteProvider();
-    Schema got = provider.configurationSchema();
-    assertEquals(CONFIGURATION_SCHEMA, got);
   }
 }
