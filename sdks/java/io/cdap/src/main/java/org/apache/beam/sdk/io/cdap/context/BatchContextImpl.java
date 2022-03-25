@@ -45,7 +45,7 @@ import javax.annotation.Nullable;
  * Class OperationContext is a common class for Batch, Sink and Stream CDAP wrapper classes that use
  * it to provide common details.
  */
-@SuppressWarnings("TypeParameterUnusedInFormals")
+@SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
 public class BatchContextImpl implements BatchContext {
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
@@ -114,13 +114,12 @@ public class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public Map<String, Schema> getInputSchemas() {
+  public @Nullable Map<String, Schema> getInputSchemas() {
     return null;
   }
 
-  @Nullable
   @Override
-  public Schema getOutputSchema() {
+  public @Nullable Schema getOutputSchema() {
     return null;
   }
 

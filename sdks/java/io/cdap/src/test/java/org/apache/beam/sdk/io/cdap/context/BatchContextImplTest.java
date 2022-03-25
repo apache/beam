@@ -24,8 +24,11 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import java.sql.Timestamp;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test class for {@link BatchContextImpl}. */
+@RunWith(JUnit4.class)
 public class BatchContextImplTest {
 
   @Test

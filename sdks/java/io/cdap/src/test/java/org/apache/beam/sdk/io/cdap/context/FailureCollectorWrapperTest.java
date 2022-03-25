@@ -24,8 +24,11 @@ import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import java.util.ArrayList;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test class for {@link FailureCollectorWrapper}. */
+@RunWith(JUnit4.class)
 public class FailureCollectorWrapperTest {
 
   @Test
@@ -84,9 +87,7 @@ public class FailureCollectorWrapperTest {
 
     /** assert */
     assertEquals(1, exceptionCollector.size());
-    String actualMessage = exceptionCollector.get(0).getMessage();
-    assertEquals(errorMessage, actualMessage);
-
+    assertEquals(errorMessage, exceptionCollector.get(0).getMessage());
     assertEquals(0, emptyExceptionCollector.size());
   }
 }

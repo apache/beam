@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-/** CDAP contexts. */
+/** Context for CDAP classes. */
 @Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.cdap.context;
 

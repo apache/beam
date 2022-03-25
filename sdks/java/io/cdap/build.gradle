@@ -49,6 +49,9 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.slf4j_api
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation "io.cdap.cdap:cdap-etl-api-spark:6.2.0"
+    implementation "io.cdap.cdap:cdap-api-common:6.5.1"
+    implementation "org.apache.tephra:tephra-api:0.15.0-incubating"
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.vendored_guava_26_0_jre
