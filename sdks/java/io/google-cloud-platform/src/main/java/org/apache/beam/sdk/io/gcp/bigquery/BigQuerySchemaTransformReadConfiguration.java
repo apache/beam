@@ -61,14 +61,7 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
    * extract jobs.
    */
   public static Builder createExtractBuilder(TableReference tableSpec) {
-    if (tableSpec.getProjectId().isEmpty()) {
-      return createExtractBuilder(
-          String.format("%s.%s", tableSpec.getDatasetId(), tableSpec.getTableId()));
-    }
-    return createExtractBuilder(
-        String.format(
-            "%s:%s.%s",
-            tableSpec.getProjectId(), tableSpec.getDatasetId(), tableSpec.getTableId()));
+    return createExtractBuilder(BigQueryHelpers.toTableSpec(tableSpec));
   }
 
   private static Builder defaultBuilder() {
@@ -87,8 +80,8 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
   public abstract String getQuery();
 
   /**
-   * Specifies a table for a BigQuery read job as "[project_id]:[dataset_id].[table_id]" or
-   * "[dataset_id].[table_id]" for tables within the current project.
+   * Specifies a table for a BigQuery read job. See {@link BigQueryIO.TypedRead#from(String)} for
+   * more details on the expected format.
    */
   public abstract String getTableSpec();
 
@@ -98,7 +91,7 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
   /** Enables BigQuery's Standard SQL dialect when reading from a query. */
   public abstract Boolean getUseStandardSql();
 
-  /** Instantiates a {@link BigQueryIO.TypedRead} from the configuration. */
+  /** Instantiates a {@link BigQueryIO.TypedRead<TableRow>} from the configuration. */
   public BigQueryIO.TypedRead<TableRow> toTypedRead() {
     JobType jobType = getJobType();
     switch (jobType) {
@@ -143,8 +136,8 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
     public abstract Builder setQuery(String value);
 
     /**
-     * Specifies a table for a BigQuery read job as "[project_id]:[dataset_id].[table_id]" or
-     * "[dataset_id].[table_id]" for tables within the current project.
+     * Specifies a table for a BigQuery read job. See {@link BigQueryIO.TypedRead#from(String)} for
+     * more details on the expected format.
      */
     public abstract Builder setTableSpec(String value);
 
