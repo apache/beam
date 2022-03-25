@@ -349,7 +349,7 @@ public class RedisIO {
       checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
       PCollection<KV<String, String>> output =
           input
-              .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
+              .apply(ParDo.of(new ReadFn(connectionConfiguration())))
               .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
       if (outputParallelization()) {
         output = output.apply(new Reparallelize());
@@ -363,12 +363,9 @@ public class RedisIO {
 
     protected final RedisConnectionConfiguration connectionConfiguration;
     transient Jedis jedis;
-    private final long batchSize;
-    @Nullable AtomicInteger batchCount = null;
 
-    ReadFn(RedisConnectionConfiguration connectionConfiguration, int batchSize) {
+    ReadFn(RedisConnectionConfiguration connectionConfiguration) {
       this.connectionConfiguration = connectionConfiguration;
-      this.batchSize = batchSize;
     }
 
     @Setup
