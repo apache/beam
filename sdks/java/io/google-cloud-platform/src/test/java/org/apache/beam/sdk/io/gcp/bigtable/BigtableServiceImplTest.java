@@ -178,10 +178,9 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
-   * uses two ranges with MINI_BATCH_ROW_LIMIT rows. The buffer should be refilled twice and ReadRowsAsync
-   * should be called twice. The following test follows this example:
-   * FirstRange: [a,b1,...,b99,c)
-   * SecondRange: [c,d1,...,d99,e)
+   * uses two ranges with MINI_BATCH_ROW_LIMIT rows. The buffer should be refilled twice and
+   * ReadRowsAsync should be called twice. The following test follows this example: FirstRange:
+   * [a,b1,...,b99,c) SecondRange: [c,d1,...,d99,e)
    *
    * @throws IOException
    */
@@ -236,10 +235,8 @@ public class BigtableServiceImplTest {
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
    * uses three overlapping ranges. The logic should remove all keys that were added to the buffer.
-   * The following test follows this example:
-   * FirstRange: [a,b1,...,b99,b100)
-   * SecondRange: [b50,d1,...,d99,c)
-   * ThirdRange: [b70, b130)
+   * The following test follows this example: FirstRange: [a,b1,...,b99,b100) SecondRange:
+   * [b50,d1,...,d99,c) ThirdRange: [b70, b130)
    *
    * @throws IOException
    */
@@ -308,8 +305,7 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
-   * uses an empty request to trigger a full table scan.
-   * RowRange: [b0, b1, ... b299)
+   * uses an empty request to trigger a full table scan. RowRange: [b0, b1, ... b299)
    *
    * @throws IOException
    */
@@ -321,24 +317,22 @@ public class BigtableServiceImplTest {
       if (i < MINI_BATCH_ROW_LIMIT) {
         expectedRangeRows.add(Row.newBuilder().setKey(ByteString.copyFromUtf8("b" + i)).build());
       } else if (i < MINI_BATCH_ROW_LIMIT * 2) {
-        expectedRangeRows.add(
-            Row.newBuilder()
-                .setKey(ByteString.copyFromUtf8("b"+i))
-                .build());
+        expectedRangeRows.add(Row.newBuilder().setKey(ByteString.copyFromUtf8("b" + i)).build());
       } else {
-        expectedRangeRows.add(
-            Row.newBuilder()
-                .setKey(ByteString.copyFromUtf8("b"+i))
-                .build());
+        expectedRangeRows.add(Row.newBuilder().setKey(ByteString.copyFromUtf8("b" + i)).build());
       }
     }
 
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList());
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     when(mockBigtableDataClient.readRowsAsync(any(ReadRowsRequest.class)))
-        .thenReturn(Futures.immediateFuture(expectedRangeRows.subList(0,MINI_BATCH_ROW_LIMIT)))
-        .thenReturn(Futures.immediateFuture(expectedRangeRows.subList(MINI_BATCH_ROW_LIMIT, MINI_BATCH_ROW_LIMIT*2)))
-        .thenReturn(Futures.immediateFuture(expectedRangeRows.subList(MINI_BATCH_ROW_LIMIT*2, MINI_BATCH_ROW_LIMIT*3)))
+        .thenReturn(Futures.immediateFuture(expectedRangeRows.subList(0, MINI_BATCH_ROW_LIMIT)))
+        .thenReturn(
+            Futures.immediateFuture(
+                expectedRangeRows.subList(MINI_BATCH_ROW_LIMIT, MINI_BATCH_ROW_LIMIT * 2)))
+        .thenReturn(
+            Futures.immediateFuture(
+                expectedRangeRows.subList(MINI_BATCH_ROW_LIMIT * 2, MINI_BATCH_ROW_LIMIT * 3)))
         .thenReturn(null);
 
     BigtableService.Reader underTest =
@@ -367,8 +361,7 @@ public class BigtableServiceImplTest {
       if (i < MINI_BATCH_ROW_LIMIT) {
         rowsInRowRanges.add(Row.newBuilder().setKey(ByteString.copyFromUtf8("b" + i)).build());
       } else {
-        rowsInRowRanges.add(
-            Row.newBuilder().setKey(ByteString.copyFromUtf8("c" + i)).build());
+        rowsInRowRanges.add(Row.newBuilder().setKey(ByteString.copyFromUtf8("c" + i)).build());
       }
     }
     rowsInRowRanges.set(0, Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build());
@@ -394,8 +387,11 @@ public class BigtableServiceImplTest {
                 ByteKeyRange.of(thirdStart, thirdEnd)));
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     when(mockBigtableDataClient.readRowsAsync(any(ReadRowsRequest.class)))
-        .thenReturn(Futures.immediateFuture(rowsInRowRanges.subList(0,MINI_BATCH_ROW_LIMIT)))
-        .thenReturn(Futures.immediateFuture(rowsInRowRanges.subList(MINI_BATCH_ROW_LIMIT, MINI_BATCH_ROW_LIMIT + MINI_BATCH_ROW_LIMIT /2)))
+        .thenReturn(Futures.immediateFuture(rowsInRowRanges.subList(0, MINI_BATCH_ROW_LIMIT)))
+        .thenReturn(
+            Futures.immediateFuture(
+                rowsInRowRanges.subList(
+                    MINI_BATCH_ROW_LIMIT, MINI_BATCH_ROW_LIMIT + MINI_BATCH_ROW_LIMIT / 2)))
         .thenReturn(null);
 
     BigtableService.Reader underTest =
@@ -412,8 +408,7 @@ public class BigtableServiceImplTest {
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
-    Assert.assertEquals(
-        rowsInRowRanges.get(rowsInRowRanges.size() - 1), underTest.getCurrentRow());
+    Assert.assertEquals(rowsInRowRanges.get(rowsInRowRanges.size() - 1), underTest.getCurrentRow());
     Assert.assertEquals(1, requestCaptor.getValue().getRows().getRowRangesCount());
     Assert.assertFalse(underTest.advance());
 
