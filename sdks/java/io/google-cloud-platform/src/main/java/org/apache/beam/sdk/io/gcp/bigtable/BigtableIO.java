@@ -1137,7 +1137,6 @@ public class BigtableIO {
 
       List<BigtableSource> ret = splits.build();
       LOG.info("Generated {} splits. First split: {}", ret.size(), ret.get(0));
-      LOG.info("Generated {} splits. Second split: {}", ret.size(), ret.get(1));
       return ret;
     }
 

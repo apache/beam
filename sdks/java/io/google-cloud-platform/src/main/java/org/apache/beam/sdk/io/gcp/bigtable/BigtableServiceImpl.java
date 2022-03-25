@@ -123,7 +123,6 @@ class BigtableServiceImpl implements BigtableService {
     private Queue<Row> buffer;
     private RowSet rowSet;
     private ServiceCallMetric serviceCallMetric;
-    private boolean lastFillCompleted;
     private ListenableFuture<List<Row>> future;
     private String tableNameStr;
     private ByteString lastRowInBuffer;
@@ -135,9 +134,7 @@ class BigtableServiceImpl implements BigtableService {
       this.session = session;
       tableNameStr =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
-      // bulkRead = session.createBulkRead(new BigtableTableName(tableNameStr));
       this.source = source;
-      this.lastFillCompleted = false;
     }
 
     @Override
@@ -183,9 +180,6 @@ class BigtableServiceImpl implements BigtableService {
       serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
 
-      // if (RowSet.getDefaultInstance().equals(rowSet)) {
-      //   rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
-      // }
       future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
       return advance();
     }
@@ -193,25 +187,21 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public boolean advance() throws IOException {
       if (buffer.isEmpty()) {
-        System.out.println("Here is before null check: " + future);
-
         if (future == null || !waitReadRowsFuture()) {
           return false;
         }
-        // TODO (diegomez): WaitReadRowsFuture Correction
-        // What does it mean that advance returns false?
-        // Are Advance()
-      } else if (buffer.size() < 10 && future == null && !lastFillCompleted) {
+      } else if (future == null && buffer.size() < 10) {
         loadReadRowsFuture();
       }
-      System.out.println(buffer.peek().getKey().toStringUtf8());
       currentRow = buffer.remove();
       return currentRow != null;
     }
 
     private void loadReadRowsFuture() throws IOException {
       try {
-        if (!splitRowSet(lastRowInBuffer)) return;
+        if (!splitRowSet(lastRowInBuffer)) {
+          return;
+        }
         future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().value());
@@ -275,10 +265,9 @@ class BigtableServiceImpl implements BigtableService {
 
     private boolean fillReadRowsBuffer() {
       try {
-        // Error here
         List<Row> readRows;
         int amountOfRows = results.size();
-        // If no rows are available from the result
+
         if (amountOfRows == 0) {
           return false;
         } else {
@@ -286,7 +275,6 @@ class BigtableServiceImpl implements BigtableService {
         }
         lastRowInBuffer = readRows.get(readRows.size() - 1).getKey();
         buffer.addAll(readRows);
-        System.out.println("Size of buffer: " + buffer.size());
         serviceCallMetric.call("ok");
         return true;
       } catch (StatusRuntimeException e) {
