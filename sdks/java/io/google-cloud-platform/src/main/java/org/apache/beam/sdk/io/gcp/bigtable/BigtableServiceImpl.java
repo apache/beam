@@ -197,22 +197,18 @@ class BigtableServiceImpl implements BigtableService {
       return currentRow != null;
     }
 
-    private void loadReadRowsFuture() throws IOException {
-      try {
-        if (!splitRowSet(lastRowInBuffer)) {
-          return;
-        }
-        future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
-      } catch (StatusRuntimeException e) {
-        serviceCallMetric.call(e.getStatus().getCode().value());
-        throw e;
+    private void loadReadRowsFuture() {
+      if (!splitRowSet(lastRowInBuffer)) {
+        return;
       }
+      future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
     }
 
     private boolean waitReadRowsFuture() throws IOException {
       try {
         results = future.get();
         future = null;
+        serviceCallMetric.call("ok");
         return fillReadRowsBuffer();
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().value());
@@ -242,7 +238,6 @@ class BigtableServiceImpl implements BigtableService {
       RowSet.Builder segment = RowSet.newBuilder();
       for (int i = 0; i < rowSet.getRowRangesCount(); i++) {
         RowRange rowRange = rowSet.getRowRanges(i);
-
         int startCmp = StartPoint.extract(rowRange).compareTo(new StartPoint(splitPoint, true));
         int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(splitPoint, true));
 
@@ -255,7 +250,6 @@ class BigtableServiceImpl implements BigtableService {
           segment.addRowRanges(subRange);
         }
       }
-
       if (segment.getRowRangesCount() == 0) {
         return false;
       }
@@ -264,23 +258,17 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     private boolean fillReadRowsBuffer() {
-      try {
-        List<Row> readRows;
-        int amountOfRows = results.size();
+      List<Row> readRows;
+      int amountOfRows = results.size();
 
-        if (amountOfRows == 0) {
-          return false;
-        } else {
-          readRows = results.subList(0, results.size());
-        }
-        lastRowInBuffer = readRows.get(readRows.size() - 1).getKey();
-        buffer.addAll(readRows);
-        serviceCallMetric.call("ok");
-        return true;
-      } catch (StatusRuntimeException e) {
-        serviceCallMetric.call(e.getStatus().getCode().value());
-        throw e;
+      if (amountOfRows == 0) {
+        return false;
+      } else {
+        readRows = results.subList(0, results.size());
       }
+      lastRowInBuffer = readRows.get(readRows.size() - 1).getKey();
+      buffer.addAll(readRows);
+      return true;
     }
 
     @Override
