@@ -46,7 +46,7 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin config. */
-  public PluginConfig getPluginConfig() {
+  public @Nullable PluginConfig getPluginConfig() {
     return pluginConfig;
   }
 
@@ -73,7 +73,7 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin Hadoop configuration. */
-  public Configuration getHadoopConfiguration() {
+  public @Nullable Configuration getHadoopConfiguration() {
     return hadoopConfiguration;
   }
 
