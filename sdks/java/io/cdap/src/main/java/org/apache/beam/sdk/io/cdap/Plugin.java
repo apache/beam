@@ -21,13 +21,14 @@ import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSource;
+import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
 public abstract class Plugin {
-  protected PluginConfig pluginConfig;
-  protected Configuration hadoopConfiguration;
+  @Nullable protected PluginConfig pluginConfig;
+  @Nullable protected Configuration hadoopConfiguration;
 
   /** Gets the main class of a plugin. */
   public abstract Class<?> getPluginClass();

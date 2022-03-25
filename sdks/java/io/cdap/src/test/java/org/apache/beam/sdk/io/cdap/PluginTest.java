@@ -39,7 +39,7 @@ public class PluginTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginTest.class);
 
-  private final ImmutableMap<String, String> TEST_SALESFORCE_PARAMS_MAP =
+  private static final ImmutableMap<String, String> TEST_SALESFORCE_PARAMS_MAP =
       ImmutableMap.<String, String>builder()
           .put("sObjectName", "sObject")
           .put("datetimeAfter", "datetime")
@@ -51,10 +51,10 @@ public class PluginTest {
           .put("referenceName", "some reference name")
           .build();
 
-  private final HashMap<String, Object> TEST_SALESFORCE_PARAMS_MAP_OBJ =
+  private static final HashMap<String, Object> TEST_SALESFORCE_PARAMS_MAP_OBJ =
       new HashMap<>(TEST_SALESFORCE_PARAMS_MAP);
 
-  private final String REFERENCE_NAME_PARAM_NAME = "referenceName";
+  private static final String REFERENCE_NAME_PARAM_NAME = "referenceName";
 
   /** Config for Salesforce Batch Source plugin. */
   public SalesforceSourceConfig salesforceSourceConfig =
