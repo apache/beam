@@ -181,6 +181,9 @@ class BigtableServiceImpl implements BigtableService {
       serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
 
+      // if (RowSet.getDefaultInstance().equals(rowSet)) {
+      //   rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
+      // }
       future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
       return advance();
     }
@@ -188,13 +191,18 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public boolean advance() throws IOException {
       if (buffer.isEmpty()) {
-        if (future == null) {
+        System.out.println("Here is before null check: "+future);
+
+        if (future == null || !waitReadRowsFuture()) {
           return false;
         }
-        waitReadRowsFuture();
+        // TODO (diegomez): WaitReadRowsFuture Correction
+        // What does it mean that advance returns false?
+        // Are Advance()
       } else if (buffer.size() < 10 && future == null && !lastFillCompleted) {
         loadReadRowsFuture();
       }
+      System.out.println(buffer.peek().getKey().toStringUtf8());
       currentRow = buffer.remove();
       return currentRow != null;
     }
@@ -264,6 +272,7 @@ class BigtableServiceImpl implements BigtableService {
 
     private boolean fillReadRowsBuffer() {
       try {
+        // Error here
         List<Row> readRows;
         int amountOfRows = results.size();
         // If no rows are available from the result
@@ -274,6 +283,7 @@ class BigtableServiceImpl implements BigtableService {
         }
         lastRowInBuffer = readRows.get(readRows.size()-1).getKey();
         buffer.addAll(readRows);
+        System.out.println("Size of buffer: "+ buffer.size());
         serviceCallMetric.call("ok");
         return true;
       } catch (StatusRuntimeException e) {
