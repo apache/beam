@@ -122,7 +122,9 @@ public class BigQuerySchemaTransformWriteProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       if (!input.has(TAG)) {
         throw new IllegalArgumentException(
-            String.format("expected PCollection for tag: %s is missing", TAG));
+            String.format(
+                "%s %s is missing expected tag: %s",
+                getClass().getSimpleName(), input.getClass().getSimpleName(), TAG));
       }
       PCollection<Row> rowPCollection = input.get(TAG);
       Schema schema = rowPCollection.getSchema();

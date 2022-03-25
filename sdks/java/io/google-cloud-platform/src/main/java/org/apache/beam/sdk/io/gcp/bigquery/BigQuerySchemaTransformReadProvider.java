@@ -122,7 +122,10 @@ public class BigQuerySchemaTransformReadProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       if (!input.getAll().isEmpty()) {
-        throw new IllegalArgumentException("PCollectionRowTuple input is expected to be empty");
+        throw new IllegalArgumentException(
+            String.format(
+                "%s %s input is expected to be empty",
+                input.getClass().getSimpleName(), getClass().getSimpleName()));
       }
       PCollection<TableRow> tableRowPCollection = input.getPipeline().apply(toTypedRead());
       Schema schema = tableRowPCollection.getSchema();
