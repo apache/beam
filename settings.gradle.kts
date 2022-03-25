@@ -180,6 +180,7 @@ include(":sdks:java:io:mongodb")
 include(":sdks:java:io:mqtt")
 include(":sdks:java:io:neo4j")
 include(":sdks:java:io:parquet")
+include(":sdks:java:io:pulsar")
 include(":sdks:java:io:rabbitmq")
 include(":sdks:java:io:redis")
 include(":sdks:java:io:solr")
@@ -247,5 +248,3 @@ include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
-
-
