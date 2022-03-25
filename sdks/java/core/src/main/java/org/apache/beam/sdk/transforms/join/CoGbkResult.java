@@ -653,6 +653,7 @@ public class CoGbkResult {
           return next;
         }
 
+        // Invariant: After advanced is called, either isDone is true or next is valid.
         private void advance() {
           assert !advanced;
           assert !isDone;
@@ -674,6 +675,7 @@ public class CoGbkResult {
           Preconditions.checkState(maybeAdvance());
         }
 
+        // Invariant: If returns true, either isDone is true or next is valid.
         private boolean maybeAdvance() {
           if (index < head.size()) {
             // First consume head.
