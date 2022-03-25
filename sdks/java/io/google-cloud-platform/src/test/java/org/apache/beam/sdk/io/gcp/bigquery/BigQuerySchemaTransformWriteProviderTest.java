@@ -29,7 +29,11 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+/** Test for {@link BigQuerySchemaTransformWriteProvider}. */
+@RunWith(JUnit4.class)
 public class BigQuerySchemaTransformWriteProviderTest {
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
   private static final TypeDescriptor<BigQuerySchemaTransformWriteConfiguration> TYPE_DESCRIPTOR =

@@ -34,8 +34,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * An implementation of {@link TypedSchemaTransformProvider} for BigQuery read jobs configured using
- * {@link BigQuerySchemaTransformWriteConfiguration}.
+ * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
+ * using {@link BigQuerySchemaTransformWriteConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam

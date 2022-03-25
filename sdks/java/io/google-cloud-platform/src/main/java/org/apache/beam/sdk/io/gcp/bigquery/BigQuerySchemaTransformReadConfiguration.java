@@ -50,7 +50,7 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
 
   /**
    * Instantiates a {@link BigQuerySchemaTransformReadConfiguration.Builder} to support BigQuery
-   * extract jobs. See the getTableSpec() getter for details.
+   * extract jobs. See {@link BigQueryIO.TypedRead#from(String)} for the expected format.
    */
   public static Builder createExtractBuilder(String tableSpec) {
     return defaultBuilder().setTableSpec(tableSpec).setJobType(JobType.EXTRACT);
