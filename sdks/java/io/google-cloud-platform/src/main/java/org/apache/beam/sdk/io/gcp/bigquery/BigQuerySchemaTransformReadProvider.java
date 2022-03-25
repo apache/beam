@@ -44,6 +44,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 @Internal
 @Experimental(Kind.SCHEMAS)
 public class BigQuerySchemaTransformReadProvider
