@@ -32,4 +32,9 @@ public class StreamingSourceContextImpl extends BatchContextImpl implements Stre
   @Override
   public void registerLineage(String referenceName, @Nullable Schema schema)
       throws DatasetManagementException, TransactionFailureException {}
+
+  @Override
+  public boolean isPreviewEnabled() {
+    return false;
+  }
 }
