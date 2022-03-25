@@ -66,7 +66,7 @@ public class BigQuerySchemaTransformReadProviderTest {
   }
 
   @Test
-  public void getConfiguration() {
+  public void testGetConfiguration() {
     SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
     Schema got = provider.configurationSchema();
     assertEquals(SCHEMA, got);

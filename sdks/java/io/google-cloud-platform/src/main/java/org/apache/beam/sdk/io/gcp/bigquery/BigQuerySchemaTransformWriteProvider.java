@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery read jobs configured using
- * {@link BigQuerySchemaTransformReadConfiguration}.
+ * {@link BigQuerySchemaTransformWriteConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -43,96 +43,76 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Internal
 @Experimental(Kind.SCHEMAS)
-public class BigQuerySchemaTransformReadProvider
-    extends TypedSchemaTransformProvider<BigQuerySchemaTransformReadConfiguration> {
+public class BigQuerySchemaTransformWriteProvider
+    extends TypedSchemaTransformProvider<BigQuerySchemaTransformWriteConfiguration> {
 
   private static final String API = "bigquery";
   private static final String VERSION = "v2";
-  private static final String TAG = "ToRows";
+  private static final String TAG = "FromRows";
 
-  /** Returns the expected class of the configuration. */
   @Override
-  protected Class<BigQuerySchemaTransformReadConfiguration> configurationClass() {
-    return BigQuerySchemaTransformReadConfiguration.class;
+  protected Class<BigQuerySchemaTransformWriteConfiguration> configurationClass() {
+    return BigQuerySchemaTransformWriteConfiguration.class;
   }
 
-  /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQuerySchemaTransformReadConfiguration configuration) {
-    return new BigQuerySchemaTransformRead(configuration);
+  protected SchemaTransform from(BigQuerySchemaTransformWriteConfiguration configuration) {
+    return new BigQuerySchemaTransformWrite(configuration);
   }
 
-  /**
-   * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
-   * BigQuerySchemaTransformReadConfiguration}.
-   */
-  static class BigQuerySchemaTransformRead implements SchemaTransform {
-    private final BigQuerySchemaTransformReadConfiguration configuration;
+  static class BigQuerySchemaTransformWrite implements SchemaTransform {
+    private final BigQuerySchemaTransformWriteConfiguration configuration;
 
-    BigQuerySchemaTransformRead(BigQuerySchemaTransformReadConfiguration configuration) {
+    BigQuerySchemaTransformWrite(BigQuerySchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
     }
 
-    BigQuerySchemaTransformReadConfiguration getConfiguration() {
+    BigQuerySchemaTransformWriteConfiguration getConfiguration() {
       return configuration;
     }
 
-    /** Implements {@link SchemaTransform} buildTransform method. */
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQuerySchemaTransformReadTransform(configuration);
+      return new BigQuerySchemaTransformWriteTransform(configuration);
     }
   }
 
-  /**
-   * An implementation of {@link PTransform} for BigQuery read jobs configured using {@link
-   * BigQuerySchemaTransformReadConfiguration}.
-   */
-  static class BigQuerySchemaTransformReadTransform
+  static class BigQuerySchemaTransformWriteTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-    private final BigQuerySchemaTransformReadConfiguration configuration;
+    private final BigQuerySchemaTransformWriteConfiguration configuration;
 
-    BigQuerySchemaTransformReadTransform(BigQuerySchemaTransformReadConfiguration configuration) {
+    BigQuerySchemaTransformWriteTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      if (!input.getAll().isEmpty()) {
-        throw new IllegalArgumentException("PCollectionRowTuple input is expected to be empty");
+      if (!input.has(TAG)) {
+        throw new IllegalArgumentException(
+            String.format("expected PCollection for tag: %s is missing", TAG));
       }
+      PCollection<Row> rowPCollection = input.get(TAG);
+      Schema schema = rowPCollection.getSchema();
       PCollection<TableRow> tableRowPCollection =
-          input.getPipeline().apply(configuration.toTypedRead());
-      Schema schema = tableRowPCollection.getSchema();
-      PCollection<Row> rowPCollection =
-          tableRowPCollection.apply(
-              MapElements.into(TypeDescriptor.of(Row.class))
-                  .via((tableRow) -> BigQueryUtils.toBeamRow(schema, tableRow)));
-      return PCollectionRowTuple.of(TAG, rowPCollection);
+          rowPCollection.apply(
+              MapElements.into(TypeDescriptor.of(TableRow.class)).via(BigQueryUtils::toTableRow));
+      tableRowPCollection.apply(configuration.toWrite(schema));
+      return PCollectionRowTuple.empty(input.getPipeline());
     }
   }
 
-  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
     return String.format("%s:%s", API, VERSION);
   }
 
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since
-   * no input is expected, this returns an empty list.
-   */
   @Override
   public List<String> inputCollectionNames() {
-    return Collections.emptyList();
+    return Collections.singletonList(TAG);
   }
 
-  /**
-   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionName method. Since a
-   * single output is expected, this returns a list with a single name.
-   */
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList(TAG);
+    return Collections.emptyList();
   }
 }
