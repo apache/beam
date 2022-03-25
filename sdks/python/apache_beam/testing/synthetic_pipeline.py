@@ -53,6 +53,7 @@ from apache_beam.io import range_trackers
 from apache_beam.io import restriction_trackers
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.watermark_estimators import WalltimeWatermarkEstimator
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -488,13 +489,20 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     }
 
   """
-  def initial_restriction(self, element):
+  def __init__(self, is_bounded=True):
+    self.is_bounded = is_bounded
+
+  def initial_restriction(self, element: dict) -> OffsetRange:
+    if not self.is_bounded:
+      return OffsetRange(0, sys.maxsize)
     return OffsetRange(0, element['num_records'])
 
-  def create_tracker(self, restriction):
+  def create_tracker(self, restriction: OffsetRange):
+    if not self.is_bounded:
+      return restriction_trackers.UnboundedOffsetRestrictionTracker(restriction)
     return restriction_trackers.OffsetRestrictionTracker(restriction)
 
-  def split(self, element, restriction):
+  def split(self, element: dict, restriction: OffsetRange):
     bundle_ranges = []
     start_position = restriction.start
     stop_position = restriction.stop
@@ -540,7 +548,7 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
         bundle_ranges.append(OffsetRange(start, stop))
     return bundle_ranges
 
-  def restriction_size(self, element, restriction):
+  def restriction_size(self, element: dict, restriction: OffsetRange):
     return (element['key_size'] + element['value_size']) * restriction.size()
 
 
@@ -577,7 +585,27 @@ class SyntheticSDFAsSource(beam.DoFn):
       self,
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
-          SyntheticSDFSourceRestrictionProvider())):
+          SyntheticSDFSourceRestrictionProvider(is_bounded=True))):
+    cur = restriction_tracker.current_restriction().start
+    while restriction_tracker.try_claim(cur):
+      r = Generator()
+      r.seed(cur)
+      time.sleep(element['sleep_per_input_record_sec'])
+      yield r.bytes(element['key_size']), r.bytes(element['value_size'])
+      cur += 1
+
+
+class SyntheticSdkAsUnboundedSource(beam.DoFn):
+  """A SDK that generates infinite number of records.
+  """
+  @DoFn.unbounded_per_element()
+  def process(
+      self,
+      element,
+      restriction_tracker=beam.DoFn.RestrictionParam(
+          SyntheticSDFSourceRestrictionProvider(is_bounded=False)),
+      watermark_estimater=beam.DoFn.WatermarkEstimatorParam(
+          WalltimeWatermarkEstimator.default_provider())):
     cur = restriction_tracker.current_restriction().start
     while restriction_tracker.try_claim(cur):
       r = Generator()

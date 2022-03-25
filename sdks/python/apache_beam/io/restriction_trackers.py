@@ -17,7 +17,6 @@
 
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
 # pytype: skip-file
-
 from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
@@ -156,6 +155,11 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def is_bounded(self):
     return True
+
+
+class UnboundedOffsetRestrictionTracker(OffsetRestrictionTracker):
+  def is_bounded(self):
+    return False
 
 
 class UnsplittableRestrictionTracker(RestrictionTracker):
