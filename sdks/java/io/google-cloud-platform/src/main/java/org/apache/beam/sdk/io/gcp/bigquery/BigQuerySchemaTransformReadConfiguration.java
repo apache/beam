@@ -66,9 +66,6 @@ public abstract class BigQuerySchemaTransformReadConfiguration {
   private static Builder defaultBuilder() {
     return new AutoValue_BigQuerySchemaTransformReadConfiguration.Builder()
         .setJobType(JobType.UNSPECIFIED)
-        .setQuery("")
-        .setQueryLocation("")
-        .setTableSpec("")
         .setUseStandardSql(DEFAULT_USE_STANDARD_SQL);
   }
 
