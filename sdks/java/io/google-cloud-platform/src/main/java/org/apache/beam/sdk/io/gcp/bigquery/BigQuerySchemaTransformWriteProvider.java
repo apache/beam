@@ -51,7 +51,7 @@ public class BigQuerySchemaTransformWriteProvider
 
   private static final String API = "bigquery";
   private static final String VERSION = "v2";
-  private static final String TAG = "INPUT";
+  private static final String INPUT_TAG = "INPUT";
 
   /** Returns the expected class of the configuration. */
   @Override
@@ -77,7 +77,7 @@ public class BigQuerySchemaTransformWriteProvider
    */
   @Override
   public List<String> inputCollectionNames() {
-    return Collections.singletonList(TAG);
+    return Collections.singletonList(INPUT_TAG);
   }
 
   /**
@@ -120,13 +120,13 @@ public class BigQuerySchemaTransformWriteProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      if (!input.has(TAG)) {
+      if (!input.has(INPUT_TAG)) {
         throw new IllegalArgumentException(
             String.format(
                 "%s %s is missing expected tag: %s",
-                getClass().getSimpleName(), input.getClass().getSimpleName(), TAG));
+                getClass().getSimpleName(), input.getClass().getSimpleName(), INPUT_TAG));
       }
-      PCollection<Row> rowPCollection = input.get(TAG);
+      PCollection<Row> rowPCollection = input.get(INPUT_TAG);
       Schema schema = rowPCollection.getSchema();
       PCollection<TableRow> tableRowPCollection =
           rowPCollection.apply(
