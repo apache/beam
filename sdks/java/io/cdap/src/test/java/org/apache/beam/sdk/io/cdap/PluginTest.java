@@ -20,13 +20,13 @@ package org.apache.beam.sdk.io.cdap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormat;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormatProvider;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
-import java.util.*;
+import java.util.HashMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.io.MapWritable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
