@@ -50,16 +50,22 @@ public class BigQuerySchemaTransformWriteProvider
   private static final String VERSION = "v2";
   private static final String TAG = "FromRows";
 
+  /** Returns the expected class of the configuration. */
   @Override
   protected Class<BigQuerySchemaTransformWriteConfiguration> configurationClass() {
     return BigQuerySchemaTransformWriteConfiguration.class;
   }
 
+  /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
   protected SchemaTransform from(BigQuerySchemaTransformWriteConfiguration configuration) {
     return new BigQuerySchemaTransformWrite(configuration);
   }
 
+  /**
+   * An implementation of {@link SchemaTransform} for BigQuery write jobs configured using {@link
+   * BigQuerySchemaTransformWriteConfiguration}.
+   */
   static class BigQuerySchemaTransformWrite implements SchemaTransform {
     private final BigQuerySchemaTransformWriteConfiguration configuration;
 
@@ -77,6 +83,10 @@ public class BigQuerySchemaTransformWriteProvider
     }
   }
 
+  /**
+   * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
+   * BigQuerySchemaTransformWriteConfiguration}.
+   */
   static class BigQuerySchemaTransformWriteTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQuerySchemaTransformWriteConfiguration configuration;
@@ -101,16 +111,25 @@ public class BigQuerySchemaTransformWriteProvider
     }
   }
 
+  /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
     return String.format("%s:%s", API, VERSION);
   }
 
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} inputCollectionNames method. Since a
+   * single is expected, this returns a list with a single name.
+   */
   @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(TAG);
   }
 
+  /**
+   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
+   * no output is expected, this returns an empty list.
+   */
   @Override
   public List<String> outputCollectionNames() {
     return Collections.emptyList();

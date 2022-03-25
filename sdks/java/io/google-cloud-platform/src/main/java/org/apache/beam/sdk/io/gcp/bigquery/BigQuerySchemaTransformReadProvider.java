@@ -128,8 +128,8 @@ public class BigQuerySchemaTransformReadProvider
   }
 
   /**
-   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionName method. Since a
-   * single output is expected, this returns a list with a single name.
+   * Implementation of the {@link TypedSchemaTransformProvider} outputCollectionNames method. Since
+   * a single output is expected, this returns a list with a single name.
    */
   @Override
   public List<String> outputCollectionNames() {
