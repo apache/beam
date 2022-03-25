@@ -24,6 +24,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,31 +34,33 @@ public class ConfigWrapper<T extends PluginConfig> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapper.class);
 
-  private Map<String, Object> paramsMap;
+  @Nullable private Map<String, Object> paramsMap = null;
   private final Class<T> configClass;
 
   public ConfigWrapper(Class<T> configClass) {
     this.configClass = configClass;
   }
 
-  public ConfigWrapper<T> fromJsonString(String jsonString) {
+  public ConfigWrapper<T> fromJsonString(String jsonString) throws IOException {
     TypeReference<HashMap<String, Object>> typeRef =
         new TypeReference<HashMap<String, Object>>() {};
     try {
       paramsMap = new ObjectMapper().readValue(jsonString, typeRef);
     } catch (IOException e) {
       LOG.error("Can not read json string to params map", e);
+      throw e;
     }
     return this;
   }
 
-  public ConfigWrapper<T> fromJsonFile(File jsonFile) {
+  public ConfigWrapper<T> fromJsonFile(File jsonFile) throws IOException {
     TypeReference<HashMap<String, Object>> typeRef =
         new TypeReference<HashMap<String, Object>>() {};
     try {
       paramsMap = new ObjectMapper().readValue(jsonFile, typeRef);
     } catch (IOException e) {
       LOG.error("Can not read json file to params map", e);
+      throw e;
     }
     return this;
   }
@@ -71,11 +75,11 @@ public class ConfigWrapper<T extends PluginConfig> {
     return this;
   }
 
-  public T build() {
+  public @Nullable T build() {
     return PluginConfigInstantiationUtils.getPluginConfig(getParamsMap(), configClass);
   }
 
-  private Map<String, Object> getParamsMap() {
+  private @Nonnull Map<String, Object> getParamsMap() {
     if (paramsMap == null) {
       paramsMap = new HashMap<>();
     }

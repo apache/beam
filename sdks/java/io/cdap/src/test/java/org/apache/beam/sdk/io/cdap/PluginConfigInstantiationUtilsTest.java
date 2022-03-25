@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 import io.cdap.plugin.salesforce.SalesforceConstants;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
 import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConstants;
-import java.io.File;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
@@ -33,11 +33,12 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Test class for {@link ConfigWrapper}. */
+/** Test class for {@link PluginConfigInstantiationUtils}. */
 @RunWith(JUnit4.class)
-public class ConfigWrapperTest {
+public class PluginConfigInstantiationUtilsTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapperTest.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(PluginConfigInstantiationUtilsTest.class);
 
   private static final ImmutableMap<String, Object> TEST_SALESFORCE_PARAMS_MAP =
       ImmutableMap.<String, java.lang.Object>builder()
@@ -50,33 +51,15 @@ public class ConfigWrapperTest {
           .put("loginUrl", "https://www.google.com")
           .put("referenceName", "oldReference")
           .build();
-  private static final String TEST_SALESFORCE_PARAMS_JSON_STRING =
-      "{\n"
-          + "\"sObjectName\": \"sObject\",\n"
-          + "\"datetimeAfter\": \"datetime\",\n"
-          + "\"consumerKey\": \"key\",\n"
-          + "\"consumerSecret\": \"secret\",\n"
-          + "\"username\": \"user\",\n"
-          + "\"password\": \"password\",\n"
-          + "\"loginUrl\": \"https://www.google.com\",\n"
-          + "\"referenceName\": \"reference\"\n"
-          + "}";
-  private static final String SALESFORCE_TEST_PARAMS_JSON =
-      "src/test/resources/salesforce_test_params.json";
-  public static final String REFERENCE_NAME_PARAM_NAME = "referenceName";
 
   @Test
   public void testBuildingPluginConfigFromParamsMap() {
     try {
-      String newReferenceName = "new reference name";
       SalesforceSourceConfig config =
-          new ConfigWrapper<>(SalesforceSourceConfig.class)
-              .withParams(TEST_SALESFORCE_PARAMS_MAP)
-              .setParam("referenceName", newReferenceName)
-              .build();
+          PluginConfigInstantiationUtils.getPluginConfig(
+              TEST_SALESFORCE_PARAMS_MAP, SalesforceSourceConfig.class);
       assertNotNull(config);
       validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
-      assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
       fail();
@@ -84,17 +67,12 @@ public class ConfigWrapperTest {
   }
 
   @Test
-  public void testBuildingPluginConfigFromJsonFile() {
+  public void testBuildingPluginConfigFromEmptyParamsMap() {
     try {
-      String newReferenceName = "new reference name";
       SalesforceSourceConfig config =
-          new ConfigWrapper<>(SalesforceSourceConfig.class)
-              .fromJsonFile(new File(SALESFORCE_TEST_PARAMS_JSON))
-              .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
-              .build();
+          PluginConfigInstantiationUtils.getPluginConfig(
+              new HashMap<>(), SalesforceSourceConfig.class);
       assertNotNull(config);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
-      assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
       fail();
@@ -102,20 +80,12 @@ public class ConfigWrapperTest {
   }
 
   @Test
-  public void testBuildingPluginConfigFromJsonString() {
+  public void testBuildingPluginConfigFromNullClassFail() {
     try {
-      String newReferenceName = "new reference name";
-      SalesforceSourceConfig config =
-          new ConfigWrapper<>(SalesforceSourceConfig.class)
-              .fromJsonString(TEST_SALESFORCE_PARAMS_JSON_STRING)
-              .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
-              .build();
-      assertNotNull(config);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
-      assertEquals(newReferenceName, config.referenceName);
-    } catch (Exception e) {
-      LOG.error("Error occurred while building the config object", e);
+      PluginConfigInstantiationUtils.getPluginConfig(TEST_SALESFORCE_PARAMS_MAP, null);
       fail();
+    } catch (IllegalArgumentException e) {
+      assertEquals("Config class must be not null!", e.getMessage());
     }
   }
 
