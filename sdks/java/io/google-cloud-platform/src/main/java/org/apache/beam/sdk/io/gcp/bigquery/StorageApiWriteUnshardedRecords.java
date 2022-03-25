@@ -212,12 +212,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       void invalidateWriteStream() {
-        synchronized (APPEND_CLIENTS) {
-          // Unpin in a different thread, as it may execute a blocking close.
-          runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
-          APPEND_CLIENTS.invalidate(streamName);
+        if (streamAppendClient != null) {
+          synchronized (APPEND_CLIENTS) {
+            // Unpin in a different thread, as it may execute a blocking close.
+            runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+            APPEND_CLIENTS.invalidate(streamName);
+          }
+          streamAppendClient = null;
         }
-        streamAppendClient = null;
       }
 
       void addMessage(byte[] message) throws Exception {
@@ -398,12 +400,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
         state.teardown();
       }
+      destinations.clear();
       destinations = null;
     }
 
     @Teardown
     public void teardown() {
-      destinations.clear();
+      destinations = null;
       try {
         if (datasetService != null) {
           datasetService.close();
