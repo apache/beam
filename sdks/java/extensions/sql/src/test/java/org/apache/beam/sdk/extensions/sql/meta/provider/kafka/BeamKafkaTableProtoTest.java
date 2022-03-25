@@ -86,7 +86,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
 
   private static BeamKafkaTable getBeamKafkaTable(Schema schema) {
     return (BeamKafkaTable)
-        (new KafkaTableProvider()
+        new KafkaTableProvider()
             .buildBeamSqlTable(
                 Table.builder()
                     .name("kafka")
@@ -98,7 +98,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
                             "{ \"format\": \"proto\", \"protoClass\": \""
                                 + PayloadMessages.TestMessage.class.getName()
                                 + "\" }"))
-                    .build()));
+                    .build());
   }
 
   @Override

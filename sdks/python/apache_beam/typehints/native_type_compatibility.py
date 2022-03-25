@@ -107,7 +107,7 @@ def _match_is_exactly_iterable(user_type):
 def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
-      hasattr(user_type, '_field_types'))
+      hasattr(user_type, '__annotations__'))
 
 
 def _match_is_optional(user_type):
@@ -258,11 +258,11 @@ def convert_to_beam_type(typ):
     elif _match_is_union(typ):
       raise ValueError('Unsupported Union with no arguments.')
     elif _match_issubclass(typing.Generator)(typ):
-      raise ValueError('Unsupported Generator with no arguments.')
+      # Assume a simple generator.
+      args = (typehints.TypeVariable('T_co'), type(None), type(None))
     elif _match_issubclass(typing.Dict)(typ):
       args = (typehints.TypeVariable('KT'), typehints.TypeVariable('VT'))
     elif (_match_issubclass(typing.Iterator)(typ) or
-          _match_issubclass(typing.Generator)(typ) or
           _match_is_exactly_iterable(typ)):
       args = (typehints.TypeVariable('T_co'), )
     else:

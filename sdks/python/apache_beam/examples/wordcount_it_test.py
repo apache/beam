@@ -97,8 +97,7 @@ class WordCountIT(unittest.TestCase):
     # Register clean up before pipeline execution
     self.addCleanup(delete_files, [test_output + '*'])
 
-    publish_to_bq = bool(
-        test_pipeline.get_option('publish_to_big_query') or False)
+    publish_to_bq = bool(test_pipeline.get_option('publish_to_big_query'))
 
     # Start measure time for performance test
     start_time = time.time()

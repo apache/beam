@@ -78,7 +78,7 @@ class MetricKey(object):
     """
     self.step = step
     self.metric = metric
-    self.labels = labels if labels else dict()
+    self.labels = labels if labels else {}
 
   def __eq__(self, other):
     return (
@@ -239,7 +239,7 @@ class MetricsContainer(object):
   def __init__(self, step_name):
     self.step_name = step_name
     self.lock = threading.Lock()
-    self.metrics = dict()  # type: Dict[_TypedMetricName, MetricCell]
+    self.metrics = {}  # type: Dict[_TypedMetricName, MetricCell]
 
   def get_counter(self, metric_name):
     # type: (MetricName) -> CounterCell

@@ -55,7 +55,6 @@ import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.I
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation.Context;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Duplication;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
@@ -173,16 +172,16 @@ public class ByteBuddyUtils {
     }
 
     @Override
-    public Size apply(MethodVisitor methodVisitor, Context context) {
-      Size size = new Size(0, 0);
+    public StackManipulation.Size apply(MethodVisitor methodVisitor, Context context) {
+      StackManipulation.Size size = new StackManipulation.Size(0, 0);
       size = size.aggregate(readValue.apply(methodVisitor, context));
       Label label = new Label();
       Label skipLabel = new Label();
       methodVisitor.visitJumpInsn(Opcodes.IFNONNULL, label);
-      size = size.aggregate(new Size(-1, 0));
+      size = size.aggregate(new StackManipulation.Size(-1, 0));
       size = size.aggregate(onNull.apply(methodVisitor, context));
       methodVisitor.visitJumpInsn(Opcodes.GOTO, skipLabel);
-      size = size.aggregate(new Size(0, 1));
+      size = size.aggregate(new StackManipulation.Size(0, 1));
       methodVisitor.visitLabel(label);
       // We set COMPUTE_FRAMES on our builders, which causes ASM to calculate the correct frame
       // information to insert here.
@@ -445,7 +444,7 @@ public class ByteBuddyUtils {
 
                           StackManipulation.Size size =
                               stackManipulation.apply(methodVisitor, implementationContext);
-                          return new Size(size.getMaximalSize(), numLocals);
+                          return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
                         };
                       }
 
@@ -1484,7 +1483,7 @@ public class ByteBuddyUtils {
                 stackManipulation, afterPushingParameters(), MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
-        return new Size(size.getMaximalSize(), numLocals);
+        return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
       };
     }
 

@@ -62,7 +62,8 @@ import org.slf4j.LoggerFactory;
  * <p>A real system would use an external system to maintain the id-to-person association.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
 
@@ -176,9 +177,6 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     @TimerId(STATE_EXPIRING)
     private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-    // Used to refer the metrics namespace
-    private final String name;
-
     private final Counter newAuctionCounter;
     private final Counter newPersonCounter;
     private final Counter newOldOutputCounter;
@@ -186,7 +184,6 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
     private final Counter fatalCounter;
 
     private JoinDoFn(String name, int maxAuctionsWaitingTime) {
-      this.name = name;
       this.maxAuctionsWaitingTime = maxAuctionsWaitingTime;
       newAuctionCounter = Metrics.counter(name, "newAuction");
       newPersonCounter = Metrics.counter(name, "newPerson");
@@ -252,8 +249,7 @@ public class Query3 extends NexmarkQueryTransform<NameCityStateId> {
       }
       if (eventTime != null) {
         // Set or reset the cleanup timer to clear the state.
-        Instant firingTime =
-            new Instant(eventTime).plus(Duration.standardSeconds(maxAuctionsWaitingTime));
+        Instant firingTime = eventTime.plus(Duration.standardSeconds(maxAuctionsWaitingTime));
         timer.set(firingTime);
       }
     }

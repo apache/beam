@@ -189,9 +189,10 @@ public class TestBigQuery implements TestRule {
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString()
-        + "_"
-        + String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()));
+    long randomNumber = ThreadLocalRandom.current().nextLong();
+    randomNumber = (randomNumber == Long.MIN_VALUE) ? 0 : Math.abs(randomNumber);
+
+    return topicName.toString() + "_" + String.valueOf(randomNumber);
   }
 
   public String tableSpec() {
@@ -273,14 +274,6 @@ public class TestBigQuery implements TestRule {
     return bqRows.stream()
         .map(bqRow -> BigQueryUtils.toBeamRow(rowSchema, bqSchema, bqRow))
         .collect(Collectors.toList());
-  }
-
-  private List<TableRow> beamRowsToBqRows(List<Row> bqRows) {
-    if (bqRows == null) {
-      return Collections.emptyList();
-    }
-
-    return bqRows.stream().map(BigQueryUtils::toTableRow).collect(Collectors.toList());
   }
 
   private TableSchema getSchema(Bigquery bq) {

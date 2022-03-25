@@ -224,7 +224,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
 @unittest.skip("BEAM-7248")
 class PortableRunnerOptimized(PortableRunnerTest):
   def create_options(self):
-    options = super(PortableRunnerOptimized, self).create_options()
+    options = super().create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
     options.view_as(DebugOptions).add_experiment(
@@ -236,7 +236,7 @@ class PortableRunnerOptimized(PortableRunnerTest):
 # beam:runner:executable_stage:v1.
 class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
   def create_options(self):
-    options = super(PortableRunnerOptimizedWithoutFusion, self).create_options()
+    options = super().create_options()
     options.view_as(DebugOptions).add_experiment(
         'pre_optimize=all_except_fusion')
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
@@ -257,7 +257,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     cls._worker_server.stop(1)
 
   def create_options(self):
-    options = super(PortableRunnerTestWithExternalEnv, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).environment_type = 'EXTERNAL'
     options.view_as(PortableOptions).environment_config = self._worker_address
     return options
@@ -268,7 +268,7 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 
   def create_options(self):
-    options = super(PortableRunnerTestWithSubprocesses, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).environment_type = (
         python_urns.SUBPROCESS_SDK)
     options.view_as(PortableOptions).environment_config = (
@@ -297,7 +297,7 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
   _use_subprocesses = True
 
   def create_options(self):
-    options = super(PortableRunnerTestWithSubprocessesAndMultiWorkers, self) \
+    options = super() \
       .create_options()
     options.view_as(DirectOptions).direct_num_workers = 2
     return options
@@ -396,7 +396,7 @@ def hasDockerImage():
     "no docker image")
 class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
   def create_options(self):
-    options = super(PortableRunnerTestWithLocalDocker, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).job_endpoint = 'embed'
     return options
 

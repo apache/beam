@@ -1,0 +1,8 @@
+{
+  "compile_cmd": "",
+  "run_cmd": "python3",
+  "test_cmd": "pytest",
+  "compile_args": [],
+  "run_args": [],
+  "test_args": []
+}

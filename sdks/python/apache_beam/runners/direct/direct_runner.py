@@ -154,7 +154,7 @@ class _GroupByKeyOnly(PTransform):
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
   def __init__(self, windowing):
-    super(_GroupAlsoByWindow, self).__init__(_GroupAlsoByWindowDoFn(windowing))
+    super().__init__(_GroupAlsoByWindowDoFn(windowing))
     self.windowing = windowing
 
   def expand(self, pcoll):
@@ -166,15 +166,14 @@ class _GroupAlsoByWindowDoFn(DoFn):
   # TODO(robertwb): Support combiner lifting.
 
   def __init__(self, windowing):
-    super(_GroupAlsoByWindowDoFn, self).__init__()
+    super().__init__()
     self.windowing = windowing
 
   def infer_output_type(self, input_type):
     key_type, windowed_value_iter_type = trivial_inference.key_value_types(
         input_type)
     value_type = windowed_value_iter_type.inner_type.inner_type
-    return typehints.Iterable[typehints.KV[key_type,
-                                           typehints.Iterable[value_type]]]
+    return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def start_bundle(self):
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -254,7 +253,7 @@ class _GroupByKey(PTransform):
                   value_type]]])
       gbk_output_type = typehints.KV[key_type, typehints.Iterable[value_type]]
 
-      # pylint: disable=bad-continuation
+      # pylint: disable=bad-option-value
       return (
           pcoll
           | 'ReifyWindows' >> (
@@ -565,7 +564,7 @@ DirectRunner = SwitchingDirectRunner
 class DirectPipelineResult(PipelineResult):
   """A DirectPipelineResult provides access to info about a pipeline."""
   def __init__(self, executor, evaluation_context):
-    super(DirectPipelineResult, self).__init__(PipelineState.RUNNING)
+    super().__init__(PipelineState.RUNNING)
     self._executor = executor
     self._evaluation_context = evaluation_context
 

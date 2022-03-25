@@ -19,9 +19,9 @@ import math
 import time
 
 import apache_beam as beam
-import apache_beam.runners.sdf_utils as sdf_utils
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.runners import sdf_utils
 from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform
@@ -124,6 +124,8 @@ class PeriodicSequence(PTransform):
   PeriodicSequence guarantees that elements would not be output prior to given
   runtime timestamp.
   '''
+
+  # pylint: disable=unused-private-member
   def __init_(self):
     pass
 

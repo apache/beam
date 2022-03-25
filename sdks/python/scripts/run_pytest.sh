@@ -30,6 +30,11 @@ envname=${1?First argument required: suite base name}
 posargs=$2
 pytest_args=$3
 
+if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
+  echo "$0 cannot be called with -m as it interferes with 'no_xdist' logic, see BEAM-12985."
+  exit 1
+fi
+
 # Run with pytest-xdist and without.
 pytest -o junit_suite_name=${envname} \
   --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs ${posargs}

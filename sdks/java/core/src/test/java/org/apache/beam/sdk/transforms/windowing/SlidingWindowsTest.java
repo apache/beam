@@ -52,7 +52,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(1, 2, 5, 9));
     expected.put(new IntervalWindow(new Instant(5), new Instant(15)), set(5, 9, 10, 11));
     expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10, 11));
-    SlidingWindows windowFn = SlidingWindows.of(new Duration(10)).every(new Duration(5));
+    SlidingWindows windowFn = SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5));
     assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
     assertThat(windowFn.assignsToOneWindow(), is(false));
   }
@@ -64,7 +64,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(0), new Instant(7)), set(1, 2, 5));
     expected.put(new IntervalWindow(new Instant(5), new Instant(12)), set(5, 9, 10, 11));
     expected.put(new IntervalWindow(new Instant(10), new Instant(17)), set(10, 11));
-    SlidingWindows windowFn = SlidingWindows.of(new Duration(7)).every(new Duration(5));
+    SlidingWindows windowFn = SlidingWindows.of(Duration.millis(7)).every(Duration.millis(5));
     assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
     assertThat(windowFn.assignsToOneWindow(), is(false));
   }
@@ -75,7 +75,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
     expected.put(new IntervalWindow(new Instant(3), new Instant(6)), set(3, 4, 5));
     expected.put(new IntervalWindow(new Instant(6), new Instant(9)), set(6, 7));
-    SlidingWindows windowFn = SlidingWindows.of(new Duration(3)).every(new Duration(3));
+    SlidingWindows windowFn = SlidingWindows.of(Duration.millis(3)).every(Duration.millis(3));
     assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L)));
     assertThat(windowFn.assignsToOneWindow(), is(true));
   }
@@ -86,7 +86,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
     expected.put(new IntervalWindow(new Instant(10), new Instant(13)), set(10, 11));
     expected.put(new IntervalWindow(new Instant(100), new Instant(103)), set(100));
-    SlidingWindows windowFn = SlidingWindows.of(new Duration(3)).every(new Duration(10));
+    SlidingWindows windowFn = SlidingWindows.of(Duration.millis(3)).every(Duration.millis(10));
     assertEquals(
         expected,
         runWindowFn(
@@ -105,7 +105,9 @@ public class SlidingWindowsTest {
     assertEquals(
         expected,
         runWindowFn(
-            SlidingWindows.of(new Duration(10)).every(new Duration(5)).withOffset(new Duration(2)),
+            SlidingWindows.of(Duration.millis(10))
+                .every(Duration.millis(5))
+                .withOffset(Duration.millis(2)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
   }
 
@@ -146,28 +148,36 @@ public class SlidingWindowsTest {
   @Test
   public void testEquality() {
     assertTrue(
-        SlidingWindows.of(new Duration(10)).isCompatible(SlidingWindows.of(new Duration(10))));
+        SlidingWindows.of(Duration.millis(10))
+            .isCompatible(SlidingWindows.of(Duration.millis(10))));
     assertTrue(
-        SlidingWindows.of(new Duration(10)).isCompatible(SlidingWindows.of(new Duration(10))));
+        SlidingWindows.of(Duration.millis(10))
+            .isCompatible(SlidingWindows.of(Duration.millis(10))));
 
     assertFalse(
-        SlidingWindows.of(new Duration(10)).isCompatible(SlidingWindows.of(new Duration(20))));
+        SlidingWindows.of(Duration.millis(10))
+            .isCompatible(SlidingWindows.of(Duration.millis(20))));
     assertFalse(
-        SlidingWindows.of(new Duration(10)).isCompatible(SlidingWindows.of(new Duration(20))));
+        SlidingWindows.of(Duration.millis(10))
+            .isCompatible(SlidingWindows.of(Duration.millis(20))));
   }
 
   @Test
   public void testVerifyCompatibility() throws IncompatibleWindowException {
-    SlidingWindows.of(new Duration(10)).verifyCompatibility(SlidingWindows.of(new Duration(10)));
+    SlidingWindows.of(Duration.millis(10))
+        .verifyCompatibility(SlidingWindows.of(Duration.millis(10)));
     thrown.expect(IncompatibleWindowException.class);
-    SlidingWindows.of(new Duration(10)).verifyCompatibility(SlidingWindows.of(new Duration(20)));
+    SlidingWindows.of(Duration.millis(10))
+        .verifyCompatibility(SlidingWindows.of(Duration.millis(20)));
   }
 
   @Test
   public void testDefaultWindowMappingFn() {
     // [40, 1040), [340, 1340), [640, 1640) ...
     SlidingWindows slidingWindows =
-        SlidingWindows.of(new Duration(1000)).every(new Duration(300)).withOffset(new Duration(40));
+        SlidingWindows.of(Duration.millis(1000))
+            .every(Duration.millis(300))
+            .withOffset(Duration.millis(40));
     WindowMappingFn<?> mapping = slidingWindows.getDefaultWindowMappingFn();
 
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));

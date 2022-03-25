@@ -307,6 +307,83 @@ class TranslationsTest(unittest.TestCase):
       vals = [6, 3, 1, -1, 9, 1, 5, 2, 0, 6]
       _ = pipeline | Create(vals) | 'multiple-combines' >> MultipleCombines()
 
+  @pytest.mark.it_validatesrunner
+  def test_run_packable_combine_limit(self):
+    class MultipleLargeCombines(beam.PTransform):
+      def annotations(self):
+        # Limit to at most 2 combiners per packed combiner.
+        return {python_urns.APPLY_COMBINER_PACKING: b'2'}
+
+      def expand(self, pcoll):
+        assert_that(
+            pcoll | 'min-1-globally' >> core.CombineGlobally(min),
+            equal_to([-1]),
+            label='assert-min-1-globally')
+        assert_that(
+            pcoll | 'min-2-globally' >> core.CombineGlobally(min),
+            equal_to([-1]),
+            label='assert-min-2-globally')
+        assert_that(
+            pcoll | 'min-3-globally' >> core.CombineGlobally(min),
+            equal_to([-1]),
+            label='assert-min-3-globally')
+
+    class MultipleSmallCombines(beam.PTransform):
+      def annotations(self):
+        # Limit to at most 4 combiners per packed combiner.
+        return {python_urns.APPLY_COMBINER_PACKING: b'4'}
+
+      def expand(self, pcoll):
+        assert_that(
+            pcoll | 'min-4-globally' >> core.CombineGlobally(min),
+            equal_to([-1]),
+            label='assert-min-4-globally')
+        assert_that(
+            pcoll | 'min-5-globally' >> core.CombineGlobally(min),
+            equal_to([-1]),
+            label='assert-min-5-globally')
+
+    with TestPipeline() as pipeline:
+      vals = [6, 3, 1, -1, 9, 1, 5, 2, 0, 6]
+      pcoll = pipeline | Create(vals)
+      _ = pcoll | 'multiple-large-combines' >> MultipleLargeCombines()
+      _ = pcoll | 'multiple-small-combines' >> MultipleSmallCombines()
+
+    proto = pipeline.to_runner_api(
+        default_environment=environments.EmbeddedPythonEnvironment(
+            capabilities=environments.python_sdk_capabilities()))
+    optimized = translations.optimize_pipeline(
+        proto,
+        phases=[translations.pack_combiners],
+        known_runner_urns=frozenset(),
+        partial=True)
+    optimized_stage_names = [
+        t.unique_name for t in optimized.components.transforms.values()
+    ]
+    self.assertIn(
+        'multiple-large-combines/Packed[min-1-globally_CombinePerKey, '
+        'min-2-globally_CombinePerKey]/Pack',
+        optimized_stage_names)
+    self.assertIn(
+        'Packed[multiple-large-combines_min-3-globally_CombinePerKey, '
+        'multiple-small-combines_min-4-globally_CombinePerKey]/Pack',
+        optimized_stage_names)
+    self.assertIn(
+        'multiple-small-combines/min-5-globally/CombinePerKey',
+        optimized_stage_names)
+    self.assertNotIn(
+        'multiple-large-combines/min-1-globally/CombinePerKey',
+        optimized_stage_names)
+    self.assertNotIn(
+        'multiple-large-combines/min-2-globally/CombinePerKey',
+        optimized_stage_names)
+    self.assertNotIn(
+        'multiple-large-combines/min-3-globally/CombinePerKey',
+        optimized_stage_names)
+    self.assertNotIn(
+        'multiple-small-combines/min-4-globally/CombinePerKey',
+        optimized_stage_names)
+
   def test_conditionally_packed_combiners(self):
     class RecursiveCombine(beam.PTransform):
       def __init__(self, labels):

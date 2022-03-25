@@ -30,8 +30,6 @@ import com.google.api.services.dataflow.model.WorkItemStatus;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Mapping from counter names to short IDs.
@@ -45,7 +43,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class CounterShortIdCache {
-  private static final Logger LOG = LoggerFactory.getLogger(CounterShortIdCache.class);
+
   private Cache cache = new Cache();
 
   /**

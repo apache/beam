@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 import unittest
 
 import numpy as np
@@ -25,7 +26,8 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames
 
-PD_VERSION = tuple(map(int, pd.__version__.split('.')))
+# Get major, minor version
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
 
 GROUPBY_DF = pd.DataFrame({
     'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
@@ -186,7 +188,7 @@ class _AbstractFrameTest(unittest.TestCase):
         else:
           cmp = lambda x: np.isclose(expected, x)
       else:
-        cmp = expected.__eq__
+        cmp = lambda x: x == expected
       self.assertTrue(
           cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
@@ -235,6 +237,17 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df, df2: df.subtract(2).multiply(df2).divide(df), df, df2)
 
+  @unittest.skipIf(PD_VERSION < (1, 3), "dropna=False is new in pandas 1.3")
+  def test_value_counts_dropna_false(self):
+    df = pd.DataFrame({
+        'first_name': ['John', 'Anne', 'John', 'Beth'],
+        'middle_name': ['Smith', pd.NA, pd.NA, 'Louise']
+    })
+    # TODO(BEAM-12495): Remove the assertRaises this when the underlying bug in
+    # https://github.com/pandas-dev/pandas/issues/36470 is fixed.
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.value_counts(dropna=False), df)
+
   def test_get_column(self):
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
@@ -263,6 +276,21 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
+
+  def test_dataframe_xs(self):
+    # Test cases reported in BEAM-13421
+    df = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day1', 1],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+
+    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'), df.set_index(['provider', 'time']))
 
   def test_set_column(self):
     def new_column(df):
@@ -369,10 +397,15 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True)
 
   def test_combine_Series(self):
-    with expressions.allow_non_parallel_operations():
-      s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
-      s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
-      self._run_test(lambda s1, s2: s1.combine(s2, max), s1, s2)
+    s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
+    s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
+    self._run_test(
+        lambda s1,
+        s2: s1.combine(s2, max),
+        s1,
+        s2,
+        nonparallel=True,
+        check_proxy=False)
 
   def test_combine_first_dataframe(self):
     df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
@@ -415,6 +448,23 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(lambda df: df.set_index('bad'), df)
     self._run_error_test(
         lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
+
+  def test_set_axis(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}, index=['X', 'Y', 'Z'])
+
+    self._run_test(lambda df: df.set_axis(['I', 'II'], axis='columns'), df)
+    self._run_test(lambda df: df.set_axis([0, 1], axis=1), df)
+    self._run_inplace_test(
+        lambda df: df.set_axis(['i', 'ii'], axis='columns'), df)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
+      self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
+
+  def test_series_set_axis(self):
+    s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
+      self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
 
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
@@ -575,6 +625,16 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True,
         check_proxy=False)
 
+  def test_swaplevel(self):
+    df = pd.DataFrame(
+        {"Grade": ["A", "B", "A", "C"]},
+        index=[
+            ["Final exam", "Final exam", "Coursework", "Coursework"],
+            ["History", "Geography", "History", "Geography"],
+            ["January", "February", "March", "April"],
+        ])
+    self._run_test(lambda df: df.swaplevel(), df)
+
   def test_value_counts_with_nans(self):
     # similar to doctests that verify value_counts, but include nan values to
     # make sure we handle them correctly.
@@ -587,8 +647,27 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
 
+    if PD_VERSION >= (1, 3):
+      # dropna=False is new in pandas 1.3
+      # TODO(BEAM-12495): Remove the assertRaises this when the underlying bug
+      # in https://github.com/pandas-dev/pandas/issues/36470 is fixed.
+      with self.assertRaises(NotImplementedError):
+        self._run_test(lambda df: df.value_counts(dropna=False), df)
+
+    # Test the defaults.
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
+    self._run_test(lambda df: df.num_wings.value_counts(dropna=False), df)
+
+    # Test the combination interactions.
+    for normalize in (True, False):
+      for dropna in (True, False):
+        self._run_test(
+            lambda df,
+            dropna=dropna,
+            normalize=normalize: df.num_wings.value_counts(
+                dropna=dropna, normalize=normalize),
+            df)
 
   def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({
@@ -615,6 +694,19 @@ class DeferredFrameTest(_AbstractFrameTest):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
+  def test_series_truncate(self):
+    s = pd.Series(['a', 'b', 'c', 'd', 'e', 'f'])
+    self._run_test(lambda s: s.truncate(before=1, after=3), s)
+
+  def test_dataframe_truncate(self):
+    df = pd.DataFrame({
+        'C': list('abcde'), 'B': list('fghij'), 'A': list('klmno')
+    },
+                      index=[1, 2, 3, 4, 5])
+    self._run_test(lambda df: df.truncate(before=1, after=3), df)
+    self._run_test(lambda df: df.truncate(before='A', after='B', axis=1), df)
+    self._run_test(lambda df: df['A'].truncate(before=2, after=4), df)
+
   @parameterized.expand([
       (pd.Series(range(10)), ),  # unique
       (pd.Series(list(range(100)) + [0]), ),  # non-unique int
@@ -624,6 +716,15 @@ class DeferredFrameTest(_AbstractFrameTest):
   ])
   def test_series_is_unique(self, series):
     self._run_test(lambda s: s.is_unique, series)
+
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # False
+      (pd.Series([1, 2, np.nan, 3, np.nan]), ),  # True
+      (pd.Series(['a', 'b', 'c', 'd', 'e']), ),  # False
+      (pd.Series(['a', 'b', None, 'c', None]), ),  # True
+  ])
+  def test_series_hasnans(self, series):
+    self._run_test(lambda s: s.hasnans, series)
 
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
@@ -684,6 +785,9 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s + 1), s)
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
+      self._run_test(lambda s: s.skew(), s)
+      self._run_test(lambda s: s.kurtosis(), s)
+      self._run_test(lambda s: s.kurt(), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
@@ -1037,6 +1141,160 @@ class DeferredFrameTest(_AbstractFrameTest):
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
 
+  def test_compare_series(self):
+    s1 = pd.Series(["a", "b", "c", "d", "e"])
+    s2 = pd.Series(["a", "a", "c", "b", "e"])
+
+    self._run_test(lambda s1, s2: s1.compare(s2), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, align_axis=0), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, keep_shape=True), s1, s2)
+    self._run_test(
+        lambda s1, s2: s1.compare(s2, keep_shape=True, keep_equal=True), s1, s2)
+
+  def test_compare_dataframe(self):
+    df1 = pd.DataFrame(
+        {
+            "col1": ["a", "a", "b", "b", "a"],
+            "col2": [1.0, 2.0, 3.0, np.nan, 5.0],
+            "col3": [1.0, 2.0, 3.0, 4.0, 5.0]
+        },
+        columns=["col1", "col2", "col3"],
+    )
+    df2 = df1.copy()
+    df2.loc[0, 'col1'] = 'c'
+    df2.loc[2, 'col3'] = 4.0
+
+    # Skipped because keep_shape=False won't be implemented
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"compare\(align_axis\=1, keep_shape\=False\) is not allowed"):
+      self._run_test(lambda df1, df2: df1.compare(df2), df1, df2)
+
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0),
+        df1,
+        df2,
+        check_proxy=False)
+    self._run_test(lambda df1, df2: df1.compare(df2, keep_shape=True), df1, df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+
+  def test_idxmin(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmin(skipna=False), df)
+    self._run_test(lambda df: df.idxmin(axis=1), df)
+    self._run_test(lambda df: df.idxmin(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmin(), df2)
+    self._run_test(lambda df2: df2.idxmin(axis=1), df2)
+    self._run_test(lambda df2: df2.idxmin(skipna=False), df2, check_proxy=False)
+    self._run_test(
+        lambda df2: df2.idxmin(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmin(), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmin(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmin(), s)
+    self._run_test(lambda s: s.idxmin(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmin(), s2)
+    self._run_test(lambda s2: s2.idxmin(skipna=False), s2)
+
+  def test_idxmax(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df: df.idxmax(skipna=False), df)
+    self._run_test(lambda df: df.idxmax(axis=1), df)
+    self._run_test(lambda df: df.idxmax(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmax(), df2)
+    self._run_test(lambda df2: df2.idxmax(axis=1), df2)
+    self._run_test(
+        lambda df2: df2.idxmax(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df2: df2.idxmax(skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmax(), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmax(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmax(), s)
+    self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmax(), s2)
+    self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
+
+  def test_pipe(self):
+    def df_times(df, column, times):
+      df[column] = df[column] * times
+      return df
+
+    def df_times_shuffled(column, times, df):
+      return df_times(df, column, times)
+
+    def s_times(s, times):
+      return s * times
+
+    def s_times_shuffled(times, s):
+      return s_times(s, times)
+
+    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
+    s = pd.Series([1, 2, 3, 4, 5], index=[0, 1, 2, 3, 4])
+
+    self._run_inplace_test(lambda df: df.pipe(df_times, 'A', 2), df)
+    self._run_inplace_test(
+        lambda df: df.pipe((df_times_shuffled, 'df'), 'A', 2), df)
+
+    self._run_test(lambda s: s.pipe(s_times, 2), s)
+    self._run_test(lambda s: s.pipe((s_times_shuffled, 's'), 2), s)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
@@ -1221,6 +1479,18 @@ class GroupByTest(_AbstractFrameTest):
             lambda x: (x - x.mean()) / x.std()),
         df)
 
+  def test_groupby_pipe(self):
+    df = GROUPBY_DF
+
+    self._run_test(lambda df: df.groupby('group').pipe(lambda x: x.sum()), df)
+    self._run_test(
+        lambda df: df.groupby('group')['bool'].pipe(lambda x: x.any()), df)
+    self._run_test(
+        lambda df: df.groupby(['group', 'foo']).pipe(
+            (lambda a, x: x.sum(numeric_only=a), 'x'), False),
+        df,
+        check_proxy=False)
+
   def test_groupby_apply_modified_index(self):
     df = GROUPBY_DF
 
@@ -1355,15 +1625,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1382,15 +1644,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1406,15 +1660,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1431,15 +1677,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1723,9 +1961,55 @@ class BeamSpecificTest(unittest.TestCase):
   """Tests for functionality that's specific to the Beam DataFrame API.
 
   These features don't exist in pandas so we must verify them independently."""
-  def assert_frame_data_equivalent(self, actual, expected):
+  def assert_frame_data_equivalent(
+      self, actual, expected, check_column_subset=False, extra_col_value=0):
     """Verify that actual is the same as expected, ignoring the index and order
-    of the data."""
+    of the data.
+
+    Note: In order to perform non-deferred column operations in Beam, we have
+    to enumerate all possible categories of data, even if they are ultimately
+    unobserved. The default Pandas implementation on the other hand does not
+    produce unobserved columns. This means when conducting tests, we need to
+    account for the fact that the Beam result may be a superset of that of the
+    Pandas result.
+
+    If ``check_column_subset`` is `True`, we verify that all of the columns in
+    the Dataframe returned from the Pandas implementation is contained in the
+    Dataframe created from the Beam implementation.
+
+    We also check if all columns that exist in the Beam implementation but
+    not in the Pandas implementation are all equal to the ``extra_col_value``
+    to ensure that they were not erroneously populated.
+    """
+    if check_column_subset:
+      if isinstance(expected, pd.DataFrame):
+        expected_cols = set(expected.columns)
+        actual_cols = set(actual.columns)
+        # Verifying that expected columns is a subset of the actual columns
+        if not set(expected_cols).issubset(set(actual_cols)):
+          raise AssertionError(
+              f"Expected columns:\n{expected.columns}\n is not a"
+              f"subset of {actual.columns}.")
+
+        # Verifying that columns that don't exist in expected
+        # but do in actual, are all equal to `extra_col_value` (default of 0)
+        extra_columns = actual_cols - expected_cols
+        if extra_columns:
+          actual_extra_only = actual[list(extra_columns)]
+
+          if np.isnan(extra_col_value):
+            extra_cols_all_match = actual_extra_only.isna().all().all()
+          else:
+            extra_cols_all_match = actual_extra_only.eq(
+                extra_col_value).all().all()
+          if not extra_cols_all_match:
+            raise AssertionError(
+                f"Extra columns:{extra_columns}\n should all "
+                f"be {extra_col_value}, but got \n{actual_extra_only}.")
+
+        # Filtering actual to contain only columns in expected
+        actual = actual[expected.columns]
+
     def sort_and_drop_index(df):
       if isinstance(df, pd.Series):
         df = df.sort_values()
@@ -1801,6 +2085,59 @@ class BeamSpecificTest(unittest.TestCase):
 
     # Verify that the result is the same as conventional duplicated
     self.assert_frame_data_equivalent(result, df.duplicated())
+
+  def test_get_dummies_not_categoricaldtype(self):
+    # Should not work because series is not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series(['a ,b', 'a', 'a, d'])
+      self._evaluate(lambda s: s.str.get_dummies(','), s)
+
+    # bool series do not work because they are not a CategoricalDtype type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series([True, False, False, True])
+      self._evaluate(lambda s: s.str.get_dummies(), s)
+
+  def test_get_dummies_comma_separator(self):
+    s = pd.Series(['a ,b', 'a', 'a, d', 'c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a ,b', 'c', 'b', 'a,d']))
+    result = self._evaluate(lambda s: s.str.get_dummies(','), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(','), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example1(self):
+    s = pd.Series(['a|b', 'a', 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pandas_doc_example2(self):
+    # Shouldn't still work even though np.nan is not considered a category
+    # because we automatically create a nan column
+    s = pd.Series(['a|b', np.nan, 'a|c'])
+    s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a|c']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_pass_nan_as_category(self):
+    # Explicitly pass 'nan' as a category
+    s = pd.Series(['a|b', 'b|c', 'a|c', 'c', 'd'])
+    s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c', 'nan']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
+
+  def test_get_dummies_bools_casted_to_string(self):
+    s = pd.Series([True, False, False, True]).astype('str')
+    s = s.astype(pd.CategoricalDtype(categories=['True', 'False']))
+    result = self._evaluate(lambda s: s.str.get_dummies(), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.get_dummies(), check_column_subset=True)
 
   def test_nsmallest_any(self):
     df = pd.DataFrame({
@@ -2019,6 +2356,117 @@ class BeamSpecificTest(unittest.TestCase):
     # (as computed using the Bernoulli distribution) is about 0.0012%.
     expected = num_samples * target_prob
     self.assertTrue(expected / 3 < result < expected * 2, (expected, result))
+
+  def test_split_pandas_examples_no_expand(self):
+    # if expand=False (default), then no need to cast dtype to be
+    # CategoricalDtype.
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    result = self._evaluate(lambda s: s.str.split(), s)
+    self.assert_frame_data_equivalent(result, s.str.split())
+
+    result = self._evaluate(lambda s: s.str.rsplit(), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit())
+
+    result = self._evaluate(lambda s: s.str.split(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.split(n=2))
+
+    result = self._evaluate(lambda s: s.str.rsplit(n=2), s)
+    self.assert_frame_data_equivalent(result, s.str.rsplit(n=2))
+
+    result = self._evaluate(lambda s: s.str.split(pat="/"), s)
+    self.assert_frame_data_equivalent(result, s.str.split(pat="/"))
+
+  def test_split_pandas_examples_expand_not_categorical(self):
+    # When expand=True, there is exception because series is not categorical
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"split\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.split(expand=True), s)
+
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"rsplit\(\) of non-categorical type is not supported"):
+      self._evaluate(lambda s: s.str.rsplit(expand=True), s)
+
+  def test_split_pandas_examples_expand_pat_is_string_literal1(self):
+    # When expand=True and pattern is treated as a string literal
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    s = s.astype(
+        pd.CategoricalDtype(
+            categories=[
+                'this is a regular sentence',
+                'https://docs.python.org/3/tutorial/index.html'
+            ]))
+    result = self._evaluate(lambda s: s.str.split(expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(expand=True))
+
+    result = self._evaluate(lambda s: s.str.rsplit("/", n=1, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.rsplit("/", n=1, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_string_literal2(self):
+    # when regex is None (default) regex pat is string literal if len(pat) == 1
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r".", expand=True), s)
+    self.assert_frame_data_equivalent(result, s.str.split(r".", expand=True))
+
+    # When regex=False, pat is interpreted as the string itself
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=False, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=False, expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pandas_examples_expand_pat_is_regex(self):
+    # when regex is None (default) regex pat is compiled if len(pat) != 1
+    s = pd.Series(["foo and bar plus baz"])
+    s = s.astype(pd.CategoricalDtype(categories=["foo and bar plus baz"]))
+    result = self._evaluate(lambda s: s.str.split(r"and|plus", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"and|plus", expand=True))
+
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(lambda s: s.str.split(r"\.jpg", expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", expand=True))
+
+    # When regex=True, pat is interpreted as a regex
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=True))
+
+    # A compiled regex can be passed as pat
+    result = self._evaluate(
+        lambda s: s.str.split(re.compile(r"\.jpg"), expand=True), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(re.compile(r"\.jpg"), expand=True))
+
+  @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
+  def test_split_pat_is_regex(self):
+    # regex=True, but expand=False
+    s = pd.Series(['foojpgbar.jpg']).astype('category')
+    s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
+    result = self._evaluate(
+        lambda s: s.str.split(r"\.jpg", regex=True, expand=False), s)
+    self.assert_frame_data_equivalent(
+        result, s.str.split(r"\.jpg", regex=True, expand=False))
 
 
 class AllowNonParallelTest(unittest.TestCase):

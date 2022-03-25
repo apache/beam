@@ -126,7 +126,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
     return 'localhost:%s' % cls.expansion_port
 
   def create_options(self):
-    options = super(SamzaRunnerTest, self).create_options()
+    options = super().create_options()
     options.view_as(PortableOptions).environment_type = self.environment_type
     options.view_as(
         PortableOptions).environment_options = self.environment_options
@@ -140,8 +140,7 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
     # https://issues.apache.org/jira/browse/BEAM-12681
-    super(SamzaRunnerTest,
-          self).test_flattened_side_input(with_transcoding=False)
+    super().test_flattened_side_input(with_transcoding=False)
 
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused

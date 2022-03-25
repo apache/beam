@@ -48,6 +48,8 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import metric
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -91,6 +93,8 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
 
 class FnApiRunner(runner.PipelineRunner):
 
+  NUM_FUSED_STAGES_COUNTER = "__num_fused_stages"
+
   def __init__(
       self,
       default_environment=None,  # type: Optional[environments.Environment]
@@ -115,7 +119,7 @@ class FnApiRunner(runner.PipelineRunner):
           waits before requesting progress from the SDK.
       is_drain: identify whether expand the sdf graph in the drain mode.
     """
-    super(FnApiRunner, self).__init__()
+    super().__init__()
     self._default_environment = (
         default_environment or environments.EmbeddedPythonEnvironment.default())
     self._bundle_repeat = bundle_repeat
@@ -352,6 +356,13 @@ class FnApiRunner(runner.PipelineRunner):
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
+    pipeline_metrics = MetricsContainer('')
+    pipeline_metrics.get_counter(
+        MetricName(
+            str(type(self)),
+            self.NUM_FUSED_STAGES_COUNTER,
+            urn='internal:' + self.NUM_FUSED_STAGES_COUNTER)).update(
+                len(stages))
     monitoring_infos_by_stage = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
@@ -398,7 +409,10 @@ class FnApiRunner(runner.PipelineRunner):
           )
 
           monitoring_infos_by_stage[stage.name] = (
-              stage_results.process_bundle.monitoring_infos)
+              list(stage_results.process_bundle.monitoring_infos))
+
+      monitoring_infos_by_stage[''] = list(
+          pipeline_metrics.to_runner_api_monitoring_infos('').values())
     finally:
       worker_handler_manager.close_all()
     return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)
@@ -1140,7 +1154,7 @@ class ParallelBundleManager(BundleManager):
       cache_token_generator=None,
       **kwargs):
     # type: (...) -> None
-    super(ParallelBundleManager, self).__init__(
+    super().__init__(
         bundle_context_manager,
         progress_frequency,
         cache_token_generator=cache_token_generator)
@@ -1184,7 +1198,7 @@ class ParallelBundleManager(BundleManager):
           dry_run)
 
     with thread_pool_executor.shared_unbounded_instance() as executor:
-      for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=zip-builtin-not-iterating
+      for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=bad-option-value
                                                             timer_inputs)):
         split_result_list += split_result
         if merged_result is None:
@@ -1214,7 +1228,7 @@ class ProgressRequester(threading.Thread):
                callback=None
               ):
     # type: (...) -> None
-    super(ProgressRequester, self).__init__()
+    super().__init__()
     self._worker_handler = worker_handler
     self._instruction_id = instruction_id
     self._frequency = frequency
@@ -1299,7 +1313,7 @@ class FnApiMetrics(metric.MetricResults):
 
 class RunnerResult(runner.PipelineResult):
   def __init__(self, state, monitoring_infos_by_stage):
-    super(RunnerResult, self).__init__(state)
+    super().__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage
     self._metrics = None
     self._monitoring_metrics = None

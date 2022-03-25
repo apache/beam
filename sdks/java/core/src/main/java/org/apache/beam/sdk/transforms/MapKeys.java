@@ -61,7 +61,7 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
       SerializableFunction<NewKeyT, K2> fn) {
     return new MapKeys<>(
         Contextful.fn(
-            ((element, c) -> KV.of(fn.apply(element.getKey()), element.getValue())),
+            (element, c) -> KV.of(fn.apply(element.getKey()), element.getValue()),
             Requirements.empty()),
         outputType);
   }

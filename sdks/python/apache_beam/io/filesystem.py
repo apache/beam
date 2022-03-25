@@ -257,8 +257,7 @@ class CompressedFile(object):
     self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
-  def read(self, num_bytes):
-    # type: (int) -> bytes
+  def read(self, num_bytes: Optional[int] = None) -> bytes:
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
@@ -468,7 +467,7 @@ class BeamIOError(IOError):
         the current state of the system.
     """
     message = "%s with exceptions %s" % (msg, exception_details)
-    super(BeamIOError, self).__init__(message)
+    super().__init__(message)
     self.exception_details = exception_details
 
 

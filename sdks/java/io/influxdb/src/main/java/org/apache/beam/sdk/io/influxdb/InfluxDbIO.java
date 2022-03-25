@@ -56,8 +56,6 @@ import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.influxdb.dto.QueryResult.Result;
 import org.influxdb.dto.QueryResult.Series;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write from InfluxDB.
@@ -103,7 +101,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class InfluxDbIO {
-  private static final Logger LOG = LoggerFactory.getLogger(InfluxDbIO.class);
 
   private static final String DEFAULT_RETENTION_POLICY = "autogen";
 

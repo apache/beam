@@ -65,7 +65,7 @@ public class Twister2PipelineExecutionEnvironment {
     Twister2PipelineTranslator translator;
     if (options.isStreaming()) {
       twister2TranslationContext = new Twister2StreamTranslationContext(options);
-      translator = new Twister2StreamPipelineTranslator(options, twister2TranslationContext);
+      translator = new Twister2StreamPipelineTranslator();
     } else {
       twister2TranslationContext = new Twister2BatchTranslationContext(options);
       translator =

@@ -31,7 +31,6 @@ import org.apache.beam.sdk.values.Row;
 })
 public class SelectEvent extends PTransform<PCollection<Event>, PCollection<Row>> {
   private Event.Type eventType;
-  private int fieldIndex = -1;
 
   public SelectEvent(Event.Type eventType) {
     this.eventType = eventType;

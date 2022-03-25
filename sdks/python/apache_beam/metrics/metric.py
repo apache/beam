@@ -122,7 +122,7 @@ class Metrics(object):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name, process_wide=False):
       # type: (MetricName, bool) -> None
-      super(Metrics.DelegatingCounter, self).__init__(metric_name)
+      super().__init__(metric_name)
       self.inc = MetricUpdater(  # type: ignore[assignment]
           cells.CounterCell,
           metric_name,
@@ -133,14 +133,14 @@ class Metrics(object):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name):
       # type: (MetricName) -> None
-      super(Metrics.DelegatingDistribution, self).__init__(metric_name)
+      super().__init__(metric_name)
       self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[assignment]
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name):
       # type: (MetricName) -> None
-      super(Metrics.DelegatingGauge, self).__init__(metric_name)
+      super().__init__(metric_name)
       self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[assignment]
 
 
@@ -179,8 +179,9 @@ class MetricResults(object):
 
     """True iff the '/'-delimited pieces of filter_scope exist as a sub-list
     of the '/'-delimited pieces of actual_scope"""
-    return MetricResults._is_sub_list(
-        filter_scope.split('/'), actual_scope.split('/'))
+    return bool(
+        actual_scope and MetricResults._is_sub_list(
+            filter_scope.split('/'), actual_scope.split('/')))
 
   @staticmethod
   def _matches_scope(filter, metric_key):

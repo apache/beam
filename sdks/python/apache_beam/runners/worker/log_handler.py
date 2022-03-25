@@ -72,7 +72,7 @@ class FnApiLogRecordHandler(logging.Handler):
 
   def __init__(self, log_service_descriptor):
     # type: (endpoints_pb2.ApiServiceDescriptor) -> None
-    super(FnApiLogRecordHandler, self).__init__()
+    super().__init__()
 
     self._alive = True
     self._dropped_logs = 0
@@ -150,7 +150,7 @@ class FnApiLogRecordHandler(logging.Handler):
       self._reader.join()
       self.release()
       # Unregister this handler.
-      super(FnApiLogRecordHandler, self).close()
+      super().close()
     except Exception:
       # Log rather than raising exceptions, to avoid clobbering
       # underlying errors that may have caused this to close

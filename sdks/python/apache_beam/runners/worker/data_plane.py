@@ -24,10 +24,8 @@ import abc
 import collections
 import logging
 import queue
-import sys
 import threading
 import time
-from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -41,7 +39,6 @@ from typing import Mapping
 from typing import Optional
 from typing import Set
 from typing import Tuple
-from typing import Type
 from typing import Union
 
 import grpc
@@ -59,9 +56,6 @@ if TYPE_CHECKING:
                        beam_fn_api_pb2.Elements.Timers]
 else:
   OutputStream = type(coder_impl.create_OutputStream())
-
-ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -82,7 +76,7 @@ class ClosableOutputStream(OutputStream):
       close_callback=None  # type: Optional[Callable[[bytes], None]]
   ):
     # type: (...) -> None
-    super(ClosableOutputStream, self).__init__()
+    super().__init__()
     self._close_callback = close_callback
 
   def close(self):
@@ -123,7 +117,7 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
       flush_callback=None,  # type: Optional[Callable[[bytes], None]]
       size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD  # type: int
   ):
-    super(SizeBasedBufferingClosableOutputStream, self).__init__(close_callback)
+    super().__init__(close_callback)
     self._flush_callback = flush_callback
     self._size_flush_threshold = size_flush_threshold
 
@@ -153,8 +147,7 @@ class TimeBasedBufferingClosableOutputStream(
       time_flush_threshold_ms=_DEFAULT_TIME_FLUSH_THRESHOLD_MS  # type: int
   ):
     # type: (...) -> None
-    super(TimeBasedBufferingClosableOutputStream,
-          self).__init__(close_callback, flush_callback, size_flush_threshold)
+    super().__init__(close_callback, flush_callback, size_flush_threshold)
     assert time_flush_threshold_ms > 0
     self._time_flush_threshold_ms = time_flush_threshold_ms
     self._flush_lock = threading.Lock()
@@ -165,7 +158,7 @@ class TimeBasedBufferingClosableOutputStream(
   def flush(self):
     # type: () -> None
     with self._flush_lock:
-      super(TimeBasedBufferingClosableOutputStream, self).flush()
+      super().flush()
 
   def close(self):
     # type: () -> None
@@ -174,7 +167,7 @@ class TimeBasedBufferingClosableOutputStream(
       if self._periodic_flusher:
         self._periodic_flusher.cancel()
         self._periodic_flusher = None
-    super(TimeBasedBufferingClosableOutputStream, self).close()
+    super().close()
 
   def _schedule_periodic_flush(self):
     # type: () -> None
@@ -429,7 +422,7 @@ class _GrpcDataChannel(DataChannel):
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
-    self._exc_info = (None, None, None)  # type: OptExcInfo
+    self._exception = None  # type: Optional[Exception]
 
   def close(self):
     # type: () -> None
@@ -497,9 +490,8 @@ class _GrpcDataChannel(DataChannel):
             raise RuntimeError('Channel closed prematurely.')
           if abort_callback():
             return
-          t, v, tb = self._exc_info
-          if t:
-            raise t(v).with_traceback(tb)
+          if self._exception:
+            raise self._exception from None
         else:
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
@@ -644,10 +636,10 @@ class _GrpcDataChannel(DataChannel):
           _put_queue(timer.instruction_id, timer)
         for data in elements.data:
           _put_queue(data.instruction_id, data)
-    except:  # pylint: disable=bare-except
+    except Exception as e:
       if not self._closed:
         _LOGGER.exception('Failed to read inputs in the data plane.')
-        self._exc_info = sys.exc_info()
+        self._exception = e
         raise
     finally:
       self._closed = True
@@ -670,7 +662,7 @@ class GrpcClientDataChannel(_GrpcDataChannel):
       data_buffer_time_limit_ms=0  # type: int
   ):
     # type: (...) -> None
-    super(GrpcClientDataChannel, self).__init__(data_buffer_time_limit_ms)
+    super().__init__(data_buffer_time_limit_ms)
     self.set_inputs(data_stub.Data(self._write_outputs()))
 
 

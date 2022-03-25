@@ -76,6 +76,7 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
@@ -142,9 +143,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString.Output;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString.Output;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -171,6 +172,8 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class StreamingDataflowWorkerTest {
 
   private final boolean streamingEngine;
@@ -187,7 +190,7 @@ public class StreamingDataflowWorkerTest {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
 
   private static final IntervalWindow DEFAULT_WINDOW =
-      new IntervalWindow(new Instant(1234), new Duration(1000));
+      new IntervalWindow(new Instant(1234), Duration.millis(1000));
 
   private static final IntervalWindow WINDOW_AT_ZERO =
       new IntervalWindow(new Instant(0), new Instant(1000));
@@ -798,7 +801,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    server.waitForAndGetCommits(numIters);
     worker.stop();
 
     verify(hotKeyLogger, atLeastOnce())
@@ -834,7 +837,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    server.waitForAndGetCommits(numIters);
     worker.stop();
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
@@ -2690,14 +2693,14 @@ public class StreamingDataflowWorkerTest {
 
     MockWork m1 = new MockWork(1);
     assertTrue(computationState.activateWork(key1, m1));
-    Mockito.verify(mockExecutor).execute(m1);
+    Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
     computationState.completeWork(key1, 1);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
     MockWork m2 = new MockWork(2);
     assertTrue(computationState.activateWork(key1, m2));
-    Mockito.verify(mockExecutor).execute(m2);
+    Mockito.verify(mockExecutor).execute(m2, m2.getWorkItem().getSerializedSize());
     MockWork m3 = new MockWork(3);
     assertTrue(computationState.activateWork(key1, m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2705,19 +2708,19 @@ public class StreamingDataflowWorkerTest {
     // Verify another key is a separate queue.
     MockWork m4 = new MockWork(4);
     assertTrue(computationState.activateWork(key2, m4));
-    Mockito.verify(mockExecutor).execute(m4);
+    Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());
     computationState.completeWork(key2, 4);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     computationState.completeWork(key1, 2);
-    Mockito.verify(mockExecutor).forceExecute(m3);
+    Mockito.verify(mockExecutor).forceExecute(m3, m3.getWorkItem().getSerializedSize());
     computationState.completeWork(key1, 3);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify duplicate work dropped.
     MockWork m5 = new MockWork(5);
     computationState.activateWork(key1, m5);
-    Mockito.verify(mockExecutor).execute(m5);
+    Mockito.verify(mockExecutor).execute(m5, m5.getWorkItem().getSerializedSize());
     assertFalse(computationState.activateWork(key1, m5));
     Mockito.verifyNoMoreInteractions(mockExecutor);
     computationState.completeWork(key1, 5);
@@ -2740,14 +2743,14 @@ public class StreamingDataflowWorkerTest {
 
     MockWork m1 = new MockWork(1);
     assertTrue(computationState.activateWork(key1Shard1, m1));
-    Mockito.verify(mockExecutor).execute(m1);
+    Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
     computationState.completeWork(key1Shard1, 1);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
     MockWork m2 = new MockWork(2);
     assertTrue(computationState.activateWork(key1Shard1, m2));
-    Mockito.verify(mockExecutor).execute(m2);
+    Mockito.verify(mockExecutor).execute(m2, m2.getWorkItem().getSerializedSize());
     MockWork m3 = new MockWork(3);
     assertTrue(computationState.activateWork(key1Shard1, m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2757,7 +2760,7 @@ public class StreamingDataflowWorkerTest {
     assertFalse(computationState.activateWork(key1Shard1, m4));
     Mockito.verifyNoMoreInteractions(mockExecutor);
     assertTrue(computationState.activateWork(key1Shard2, m4));
-    Mockito.verify(mockExecutor).execute(m4);
+    Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());
 
     // Verify duplicate work dropped
     assertFalse(computationState.activateWork(key1Shard2, m4));
@@ -2802,209 +2805,206 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testExceptionInvalidatesCache() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    options.setNumWorkers(1);
-
     // We'll need to force the system to limit bundles to one message at a time.
-    int originalMaxUnboundedBundleSize = WorkerCustomSources.maxUnboundedBundleSize;
-    WorkerCustomSources.maxUnboundedBundleSize = 1;
-    try {
-      // Sequence is as follows:
-      // 01. GetWork[0] (token 0)
-      // 02. Create counter reader
-      // 03. Counter yields 0
-      // 04. GetData[0] (state as null)
-      // 05. Read state as null
-      // 06. Set state as 42
-      // 07. THROW on taking counter reader checkpoint
-      // 08. Create counter reader
-      // 09. Counter yields 0
-      // 10. GetData[1] (state as null)
-      // 11. Read state as null (*** not 42 ***)
-      // 12. Take counter reader checkpoint as 0
-      // 13. CommitWork[0] (message 0:0, state 42, checkpoint 0)
-      // 14. GetWork[1] (token 1, checkpoint as 0)
-      // 15. Counter yields 1
-      // 16. Read (cached) state as 42
-      // 17. Take counter reader checkpoint 1
-      // 18. CommitWork[1] (message 0:1, checkpoint 1)
-      // 19. GetWork[2] (token 2, checkpoint as 1)
-      // 20. Counter yields 2
-      // 21. THROW on processElement
-      // 22. Recreate reader from checkpoint 1
-      // 23. Counter yields 2 (*** not eof ***)
-      // 24. GetData[2] (state as 42)
-      // 25. Read state as 42
-      // 26. Take counter reader checkpoint 2
-      // 27. CommitWork[2] (message 0:2, checkpoint 2)
+    // Sequence is as follows:
+    // 01. GetWork[0] (token 0)
+    // 02. Create counter reader
+    // 03. Counter yields 0
+    // 04. GetData[0] (state as null)
+    // 05. Read state as null
+    // 06. Set state as 42
+    // 07. THROW on taking counter reader checkpoint
+    // 08. Create counter reader
+    // 09. Counter yields 0
+    // 10. GetData[1] (state as null)
+    // 11. Read state as null (*** not 42 ***)
+    // 12. Take counter reader checkpoint as 0
+    // 13. CommitWork[0] (message 0:0, state 42, checkpoint 0)
+    // 14. GetWork[1] (token 1, checkpoint as 0)
+    // 15. Counter yields 1
+    // 16. Read (cached) state as 42
+    // 17. Take counter reader checkpoint 1
+    // 18. CommitWork[1] (message 0:1, checkpoint 1)
+    // 19. GetWork[2] (token 2, checkpoint as 1)
+    // 20. Counter yields 2
+    // 21. THROW on processElement
+    // 22. Recreate reader from checkpoint 1
+    // 23. Counter yields 2 (*** not eof ***)
+    // 24. GetData[2] (state as 42)
+    // 25. Read state as 42
+    // 26. Take counter reader checkpoint 2
+    // 27. CommitWork[2] (message 0:2, checkpoint 2)
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    server.setExpectedExceptionCount(2);
 
-      CloudObject codec =
-          CloudObjects.asCloudObject(
-              WindowedValue.getFullCoder(
-                  ValueWithRecordId.ValueWithRecordIdCoder.of(
-                      KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
-                  GlobalWindow.Coder.INSTANCE),
-              /*sdkComponents=*/ null);
+    DataflowPipelineOptions options = createTestingPipelineOptions(server);
+    options.setNumWorkers(1);
+    DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+    debugOptions.setUnboundedReaderMaxElements(1);
 
-      TestCountingSource counter = new TestCountingSource(3).withThrowOnFirstSnapshot(true);
-      List<ParallelInstruction> instructions =
-          Arrays.asList(
-              new ParallelInstruction()
-                  .setOriginalName("OriginalReadName")
-                  .setSystemName("Read")
-                  .setName(DEFAULT_PARDO_USER_NAME)
-                  .setRead(
-                      new ReadInstruction()
-                          .setSource(
-                              CustomSources.serializeToCloudSource(counter, options)
-                                  .setCodec(codec)))
-                  .setOutputs(
-                      Arrays.asList(
-                          new InstructionOutput()
-                              .setName("read_output")
-                              .setOriginalName(DEFAULT_OUTPUT_ORIGINAL_NAME)
-                              .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
-                              .setCodec(codec))),
-              makeDoFnInstruction(
-                  new TestExceptionInvalidatesCacheFn(),
-                  0,
-                  StringUtf8Coder.of(),
-                  WindowingStrategy.globalDefault()),
-              makeSinkInstruction(StringUtf8Coder.of(), 1, GlobalWindow.Coder.INSTANCE));
+    CloudObject codec =
+        CloudObjects.asCloudObject(
+            WindowedValue.getFullCoder(
+                ValueWithRecordId.ValueWithRecordIdCoder.of(
+                    KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
+                GlobalWindow.Coder.INSTANCE),
+            /*sdkComponents=*/ null);
 
-      FakeWindmillServer server = new FakeWindmillServer(errorCollector);
-      server.setExpectedExceptionCount(2);
-      StreamingDataflowWorker worker =
-          makeWorker(
-              instructions, createTestingPipelineOptions(server), true /* publishCounters */);
-      worker.setRetryLocallyDelayMs(100);
-      worker.start();
+    TestCountingSource counter = new TestCountingSource(3).withThrowOnFirstSnapshot(true);
 
-      // Three GetData requests
-      for (int i = 0; i < 3; i++) {
-        ByteString state;
-        if (i == 0 || i == 1) {
-          state = ByteString.EMPTY;
-        } else {
-          state = ByteString.copyFrom(new byte[] {42});
-        }
-        Windmill.GetDataResponse.Builder dataResponse = Windmill.GetDataResponse.newBuilder();
-        dataResponse
-            .addDataBuilder()
-            .setComputationId(DEFAULT_COMPUTATION_ID)
-            .addDataBuilder()
-            .setKey(ByteString.copyFromUtf8("0000000000000001"))
-            .setShardingKey(1)
-            .addValuesBuilder()
-            .setTag(ByteString.copyFromUtf8("//+uint"))
-            .setStateFamily(DEFAULT_PARDO_STATE_FAMILY)
-            .getValueBuilder()
-            .setTimestamp(0)
-            .setData(state);
-        server.addDataToOffer(dataResponse.build());
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            new ParallelInstruction()
+                .setOriginalName("OriginalReadName")
+                .setSystemName("Read")
+                .setName(DEFAULT_PARDO_USER_NAME)
+                .setRead(
+                    new ReadInstruction()
+                        .setSource(
+                            CustomSources.serializeToCloudSource(counter, options).setCodec(codec)))
+                .setOutputs(
+                    Arrays.asList(
+                        new InstructionOutput()
+                            .setName("read_output")
+                            .setOriginalName(DEFAULT_OUTPUT_ORIGINAL_NAME)
+                            .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
+                            .setCodec(codec))),
+            makeDoFnInstruction(
+                new TestExceptionInvalidatesCacheFn(),
+                0,
+                StringUtf8Coder.of(),
+                WindowingStrategy.globalDefault()),
+            makeSinkInstruction(StringUtf8Coder.of(), 1, GlobalWindow.Coder.INSTANCE));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            instructions,
+            options.as(StreamingDataflowWorkerOptions.class),
+            true /* publishCounters */);
+    worker.setRetryLocallyDelayMs(100);
+    worker.start();
+
+    // Three GetData requests
+    for (int i = 0; i < 3; i++) {
+      ByteString state;
+      if (i == 0 || i == 1) {
+        state = ByteString.EMPTY;
+      } else {
+        state = ByteString.copyFrom(new byte[] {42});
       }
+      Windmill.GetDataResponse.Builder dataResponse = Windmill.GetDataResponse.newBuilder();
+      dataResponse
+          .addDataBuilder()
+          .setComputationId(DEFAULT_COMPUTATION_ID)
+          .addDataBuilder()
+          .setKey(ByteString.copyFromUtf8("0000000000000001"))
+          .setShardingKey(1)
+          .addValuesBuilder()
+          .setTag(ByteString.copyFromUtf8("//+uint"))
+          .setStateFamily(DEFAULT_PARDO_STATE_FAMILY)
+          .getValueBuilder()
+          .setTimestamp(0)
+          .setData(state);
+      server.addDataToOffer(dataResponse.build());
+    }
 
-      // Three GetWork requests and commits
-      for (int i = 0; i < 3; i++) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("work {\n");
-        sb.append("  computation_id: \"computation\"\n");
-        sb.append("  input_data_watermark: 0\n");
-        sb.append("  work {\n");
-        sb.append("    key: \"0000000000000001\"\n");
-        sb.append("    sharding_key: 1\n");
-        sb.append("    work_token: ");
-        sb.append(i);
-        sb.append("    cache_token: 1");
-        sb.append("\n");
-        if (i > 0) {
-          int previousCheckpoint = i - 1;
-          sb.append("    source_state {\n");
-          sb.append("      state: \"");
-          sb.append((char) previousCheckpoint);
-          sb.append("\"\n");
-          // We'll elide the finalize ids since it's not necessary to trigger the finalizer
-          // for this test.
-          sb.append("    }\n");
-        }
-        sb.append("  }\n");
-        sb.append("}\n");
-
-        server.addWorkToOffer(buildInput(sb.toString(), null));
-
-        Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-
-        Windmill.WorkItemCommitRequest commit = result.get((long) i);
-        UnsignedLong finalizeId =
-            UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
-
-        sb = new StringBuilder();
-        sb.append("key: \"0000000000000001\"\n");
-        sb.append("sharding_key: 1\n");
-        sb.append("work_token: ");
-        sb.append(i);
-        sb.append("\n");
-        sb.append("cache_token: 1\n");
-        sb.append("output_messages {\n");
-        sb.append("  destination_stream_id: \"out\"\n");
-        sb.append("  bundles {\n");
-        sb.append("    key: \"0000000000000001\"\n");
-
-        int messageNum = i;
-        sb.append("    messages {\n");
-        sb.append("      timestamp: ");
-        sb.append(messageNum * 1000);
-        sb.append("\n");
-        sb.append("      data: \"0:");
-        sb.append(messageNum);
+    // Three GetWork requests and commits
+    for (int i = 0; i < 3; i++) {
+      StringBuilder sb = new StringBuilder();
+      sb.append("work {\n");
+      sb.append("  computation_id: \"computation\"\n");
+      sb.append("  input_data_watermark: 0\n");
+      sb.append("  work {\n");
+      sb.append("    key: \"0000000000000001\"\n");
+      sb.append("    sharding_key: 1\n");
+      sb.append("    work_token: ");
+      sb.append(i);
+      sb.append("    cache_token: 1");
+      sb.append("\n");
+      if (i > 0) {
+        int previousCheckpoint = i - 1;
+        sb.append("    source_state {\n");
+        sb.append("      state: \"");
+        sb.append((char) previousCheckpoint);
         sb.append("\"\n");
+        // We'll elide the finalize ids since it's not necessary to trigger the finalizer
+        // for this test.
         sb.append("    }\n");
-
-        sb.append("    messages_ids: \"\"\n");
-        sb.append("  }\n");
-        sb.append("}\n");
-        if (i == 0) {
-          sb.append("value_updates {\n");
-          sb.append("  tag: \"//+uint\"\n");
-          sb.append("  value {\n");
-          sb.append("    timestamp: 0\n");
-          sb.append("    data: \"");
-          sb.append((char) 42);
-          sb.append("\"\n");
-          sb.append("  }\n");
-          sb.append("  state_family: \"parDoStateFamily\"\n");
-          sb.append("}\n");
-        }
-
-        int sourceState = i;
-        sb.append("source_state_updates {\n");
-        sb.append("  state: \"");
-        sb.append((char) sourceState);
-        sb.append("\"\n");
-        sb.append("  finalize_ids: ");
-        sb.append(finalizeId);
-        sb.append("}\n");
-        sb.append("source_watermark: ");
-        sb.append((sourceState + 1) * 1000);
-        sb.append("\n");
-        sb.append("source_backlog_bytes: 7\n");
-
-        assertThat(
-            // The commit will include a timer to clean up state - this timer is irrelevant
-            // for the current test.
-            setValuesTimestamps(commit.toBuilder().clearOutputTimers()).build(),
-            equalTo(
-                setMessagesMetadata(
-                        PaneInfo.NO_FIRING,
-                        CoderUtils.encodeToByteArray(
-                            CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
-                            ImmutableList.of(GlobalWindow.INSTANCE)),
-                        parseCommitRequest(sb.toString()))
-                    .build()));
       }
-    } finally {
-      WorkerCustomSources.maxUnboundedBundleSize = originalMaxUnboundedBundleSize;
+      sb.append("  }\n");
+      sb.append("}\n");
+
+      server.addWorkToOffer(buildInput(sb.toString(), null));
+
+      Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+      Windmill.WorkItemCommitRequest commit = result.get((long) i);
+      UnsignedLong finalizeId =
+          UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+      sb = new StringBuilder();
+      sb.append("key: \"0000000000000001\"\n");
+      sb.append("sharding_key: 1\n");
+      sb.append("work_token: ");
+      sb.append(i);
+      sb.append("\n");
+      sb.append("cache_token: 1\n");
+      sb.append("output_messages {\n");
+      sb.append("  destination_stream_id: \"out\"\n");
+      sb.append("  bundles {\n");
+      sb.append("    key: \"0000000000000001\"\n");
+
+      int messageNum = i;
+      sb.append("    messages {\n");
+      sb.append("      timestamp: ");
+      sb.append(messageNum * 1000);
+      sb.append("\n");
+      sb.append("      data: \"0:");
+      sb.append(messageNum);
+      sb.append("\"\n");
+      sb.append("    }\n");
+
+      sb.append("    messages_ids: \"\"\n");
+      sb.append("  }\n");
+      sb.append("}\n");
+      if (i == 0) {
+        sb.append("value_updates {\n");
+        sb.append("  tag: \"//+uint\"\n");
+        sb.append("  value {\n");
+        sb.append("    timestamp: 0\n");
+        sb.append("    data: \"");
+        sb.append((char) 42);
+        sb.append("\"\n");
+        sb.append("  }\n");
+        sb.append("  state_family: \"parDoStateFamily\"\n");
+        sb.append("}\n");
+      }
+
+      int sourceState = i;
+      sb.append("source_state_updates {\n");
+      sb.append("  state: \"");
+      sb.append((char) sourceState);
+      sb.append("\"\n");
+      sb.append("  finalize_ids: ");
+      sb.append(finalizeId);
+      sb.append("}\n");
+      sb.append("source_watermark: ");
+      sb.append((sourceState + 1) * 1000);
+      sb.append("\n");
+      sb.append("source_backlog_bytes: 7\n");
+
+      assertThat(
+          // The commit will include a timer to clean up state - this timer is irrelevant
+          // for the current test.
+          setValuesTimestamps(commit.toBuilder().clearOutputTimers()).build(),
+          equalTo(
+              setMessagesMetadata(
+                      PaneInfo.NO_FIRING,
+                      CoderUtils.encodeToByteArray(
+                          CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+                          ImmutableList.of(GlobalWindow.INSTANCE)),
+                      parseCommitRequest(sb.toString()))
+                  .build()));
     }
   }
 

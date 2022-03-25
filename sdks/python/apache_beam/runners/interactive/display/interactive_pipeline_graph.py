@@ -71,7 +71,7 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
     self._referenced_pcollections = referenced_pcollections or set()
     self._cached_pcollections = cached_pcollections or set()
 
-    super(InteractivePipelineGraph, self).__init__(
+    super().__init__(
         pipeline=pipeline,
         default_vertex_attrs={
             'color': 'gray', 'fontcolor': 'gray'

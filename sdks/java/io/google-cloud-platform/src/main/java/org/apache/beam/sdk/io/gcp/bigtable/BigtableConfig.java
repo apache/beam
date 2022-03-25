@@ -245,7 +245,7 @@ abstract class BigtableConfig implements Serializable {
   }
 
   @Override
-  public String toString() {
+  public final String toString() {
     return MoreObjects.toStringHelper(BigtableConfig.class)
         .add("projectId", getProjectId())
         .add("instanceId", getInstanceId())

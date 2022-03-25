@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleSwitches: [
       '-PdisableSpotlessCheck=true'
     ], // spotless checked in separate pre-commit
+    timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
@@ -57,6 +58,8 @@ builder.build {
     }
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
+      exclusionPattern('**/org/apache/beam/gradle/**,**/org/apache/beam/model/**,' +
+          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*')
     }
   }
 }

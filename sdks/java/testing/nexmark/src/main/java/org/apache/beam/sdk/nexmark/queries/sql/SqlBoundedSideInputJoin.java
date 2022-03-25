@@ -49,7 +49,6 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
   private final Class<? extends QueryPlanner> plannerClass;
 
   private SqlBoundedSideInputJoin(
-      String name,
       NexmarkConfiguration configuration,
       Class<? extends QueryPlanner> plannerClass,
       String query) {
@@ -68,7 +67,6 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
     //  - must have the CAST inside the WITH clause for the same reason, otherwise the cast
     //    occurs in the join condition CAST(side_id AS BIGINT) = side.id
     return new SqlBoundedSideInputJoin(
-        "SqlBoundedSideInputJoin",
         configuration,
         CalciteQueryPlanner.class,
         "WITH bid_with_side (auction, bidder, price, dateTime, extra, side_id) AS (%n"
@@ -89,7 +87,6 @@ public class SqlBoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
     //   - INT64 instead of BIGINT
     //   - no column list for WITH table alias
     return new SqlBoundedSideInputJoin(
-        "ZetaSqlBoundedSideInputJoin",
         configuration,
         ZetaSQLQueryPlanner.class,
         "WITH bid_with_side AS (%n"

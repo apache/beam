@@ -121,7 +121,7 @@ class SubprocessJobServer(JobServer):
 
 class JavaJarJobServer(SubprocessJobServer):
   def __init__(self, options):
-    super(JavaJarJobServer, self).__init__()
+    super().__init__()
     options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = options.job_port
     self._artifact_port = options.artifact_port

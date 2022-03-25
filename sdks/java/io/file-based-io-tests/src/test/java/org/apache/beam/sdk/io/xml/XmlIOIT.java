@@ -93,8 +93,6 @@ public class XmlIOIT {
   }
 
   private static String filenamePrefix;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static Integer numberOfTextLines;
   private static Integer datasetSize;
   private static String expectedHash;
@@ -111,8 +109,6 @@ public class XmlIOIT {
     XmlIOITPipelineOptions options = readIOTestPipelineOptions(XmlIOITPipelineOptions.class);
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     charset = Charset.forName(options.getCharset());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     datasetSize = options.getDatasetSize();
     expectedHash = options.getExpectedHash();
     numberOfTextLines = options.getNumberOfRecords();
@@ -187,7 +183,6 @@ public class XmlIOIT {
         fillMetricSuppliers(uuid, timestamp);
     final IOITMetrics metrics =
         new IOITMetrics(metricSuppliers, result, XMLIOIT_NAMESPACE, uuid, timestamp);
-    metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }
 

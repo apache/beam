@@ -51,7 +51,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -60,7 +59,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @AutoService(Module.class)
 public class AzureModule extends SimpleModule {
 
-  private static final String TYPE_PROPERTY = "@type";
   private static final String AZURE_CLIENT_ID = "azureClientId";
   private static final String AZURE_TENANT_ID = "azureTenantId";
   private static final String AZURE_CLIENT_SECRET = "azureClientSecret";
@@ -154,10 +152,6 @@ public class AzureModule extends SimpleModule {
   }
 
   private static class TokenCredentialSerializer extends JsonSerializer<TokenCredential> {
-    // These providers are singletons, so don't require any serialization, other than type.
-    // add any singleton credentials...
-    private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS = ImmutableSet.of();
-
     @Override
     public void serialize(
         TokenCredential tokenCredential,

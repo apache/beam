@@ -253,7 +253,7 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
             + " o1.site_id=o2.site_id ";
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(StringContains.containsString("OUTER JOIN must be a non Seekable table"));
-    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    compilePipeline(sql, pipeline);
     pipeline.run();
   }
 
@@ -271,7 +271,7 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
             + " o1.site_id=o2.site_id";
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(StringContains.containsString("not supported"));
-    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    compilePipeline(sql, pipeline);
     pipeline.run();
   }
 
@@ -289,7 +289,7 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
             + " o1.site_id=o2.site_id";
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(StringContains.containsString("OUTER JOIN must be a non Seekable table"));
-    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    compilePipeline(sql, pipeline);
     pipeline.run();
   }
 }

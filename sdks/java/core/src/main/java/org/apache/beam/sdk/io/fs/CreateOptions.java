@@ -24,9 +24,14 @@ public abstract class CreateOptions {
   /** The file-like resource mime type. */
   public abstract String mimeType();
 
+  /** True if the file is expected to not exist. */
+  public abstract Boolean expectFileToNotExist();
+
   /** An abstract builder for {@link CreateOptions}. */
   public abstract static class Builder<BuilderT extends CreateOptions.Builder<BuilderT>> {
     public abstract BuilderT setMimeType(String value);
+
+    public abstract BuilderT setExpectFileToNotExist(Boolean value);
   }
 
   /** A standard configuration options with builder. */
@@ -35,7 +40,8 @@ public abstract class CreateOptions {
 
     /** Returns a {@link StandardCreateOptions.Builder}. */
     public static StandardCreateOptions.Builder builder() {
-      return new AutoValue_CreateOptions_StandardCreateOptions.Builder();
+      return new AutoValue_CreateOptions_StandardCreateOptions.Builder()
+          .setExpectFileToNotExist(false);
     }
 
     /** Builder for {@link StandardCreateOptions}. */

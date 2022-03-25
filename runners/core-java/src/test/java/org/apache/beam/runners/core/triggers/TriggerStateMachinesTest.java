@@ -86,9 +86,6 @@ public class TriggerStateMachinesTest {
         RunnerApi.Trigger.newBuilder()
             .setAfterEndOfWindow(RunnerApi.Trigger.AfterEndOfWindow.getDefaultInstance())
             .build();
-    AfterWatermarkStateMachine.FromEndOfWindow machine =
-        (AfterWatermarkStateMachine.FromEndOfWindow)
-            TriggerStateMachines.stateMachineForTrigger(trigger);
 
     assertThat(
         TriggerStateMachines.stateMachineForTrigger(trigger),
@@ -113,8 +110,7 @@ public class TriggerStateMachinesTest {
         RunnerApi.Trigger.newBuilder()
             .setNever(RunnerApi.Trigger.Never.getDefaultInstance())
             .build();
-    NeverStateMachine machine =
-        (NeverStateMachine) checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
+    checkNotNull(TriggerStateMachines.stateMachineForTrigger(trigger));
     // No parameters, so if it doesn't crash, we win!
   }
 

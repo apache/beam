@@ -20,6 +20,9 @@
 set -e
 set -v
 
+# Get currently used Python version from args or assume a default.
+PYTHON=${1:-python3}
+
 REPORT_DESCRIPTION="
 <h4> A dependency update is high priority if it satisfies one of following criteria: </h4>
 <ul>
@@ -39,24 +42,24 @@ REPORT_DESCRIPTION="
 
 
 # Virtualenv for the rest of the script to run setup
-virtualenv dependency/check
-. dependency/check/bin/activate
-pip install --upgrade google-cloud-bigquery
-pip install --upgrade google-cloud-bigtable
-pip install --upgrade google-cloud-core
+$PYTHON -m venv dependency/check
+
+. ./dependency/check/bin/activate
+pip install --upgrade pip setuptools wheel
+pip install --upgrade google-cloud-bigquery google-cloud-bigtable google-cloud-core
 rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 
 # Insall packages and run the unit tests of the report generator and the jira manager
 pip install mock jira pyyaml
 cd $WORKSPACE/src/.test-infra/jenkins
-python -m dependency_check.dependency_check_report_generator_test
-python -m jira_utils.jira_manager_test
-python -m dependency_check.version_comparer_test
+$PYTHON -m dependency_check.dependency_check_report_generator_test
+$PYTHON -m jira_utils.jira_manager_test
+$PYTHON -m dependency_check.version_comparer_test
 
 echo "<html><body>" > $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
 
-python -m dependency_check.dependency_check_report_generator Python
+$PYTHON -m dependency_check.dependency_check_report_generator Python
 
-python -m dependency_check.dependency_check_report_generator Java
+$PYTHON -m dependency_check.dependency_check_report_generator Java
 
 echo "$REPORT_DESCRIPTION </body></html>" >> $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html

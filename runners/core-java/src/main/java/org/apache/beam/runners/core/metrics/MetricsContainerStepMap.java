@@ -35,9 +35,9 @@ import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -229,7 +229,7 @@ public class MetricsContainerStepMap implements Serializable {
     for (MetricUpdate<T> metricUpdate : updates) {
       MetricKey key = metricUpdate.getKey();
       if (metricResultMap.computeIfPresent(
-              key, ((k, current) -> current.addCommitted(metricUpdate.getUpdate(), combine)))
+              key, (k, current) -> current.addCommitted(metricUpdate.getUpdate(), combine))
           == null) {
         throw new IllegalStateException(
             String.format(

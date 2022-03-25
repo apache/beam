@@ -48,7 +48,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
 try:
-  from google.cloud import bigquery  # type: ignore
+  from google.cloud import bigquery  # type: ignore[attr-defined]
   from google.cloud.bigquery.schema import SchemaField
   from google.cloud.exceptions import NotFound
 except ImportError:
@@ -216,7 +216,7 @@ class MetricsReader(object):
           'InfluxDB')
     self.filters = filters
 
-  def publish_metrics(self, result, extra_metrics: dict):
+  def publish_metrics(self, result, extra_metrics: Optional[dict] = None):
     metric_id = uuid.uuid4().hex
     metrics = result.metrics().query(self.filters)
 
@@ -227,13 +227,16 @@ class MetricsReader(object):
     # a list of dictionaries matching the schema.
     insert_dicts = self._prepare_all_metrics(metrics, metric_id)
 
-    insert_dicts += self._prepare_extra_metrics(extra_metrics, metric_id)
+    insert_dicts += self._prepare_extra_metrics(metric_id, extra_metrics)
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
 
-  def _prepare_extra_metrics(self, extra_metrics: dict, metric_id: str):
+  def _prepare_extra_metrics(
+      self, metric_id: str, extra_metrics: Optional[dict] = None):
     ts = time.time()
+    if not extra_metrics:
+      extra_metrics = {}
     return [
         Metric(ts, metric_id, v, label=k).as_dict() for k,
         v in extra_metrics.items()
@@ -319,8 +322,7 @@ class CounterMetric(Metric):
   """
   def __init__(self, counter_metric, submit_timestamp, metric_id):
     value = counter_metric.result
-    super(CounterMetric,
-          self).__init__(submit_timestamp, metric_id, value, counter_metric)
+    super().__init__(submit_timestamp, metric_id, value, counter_metric)
 
 
 class DistributionMetric(Metric):
@@ -342,7 +344,7 @@ class DistributionMetric(Metric):
             'not None.' % custom_label
       _LOGGER.debug(msg)
       raise ValueError(msg)
-    super(DistributionMetric, self) \
+    super() \
       .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
 
@@ -361,8 +363,7 @@ class RuntimeMetric(Metric):
     # out of many steps
     label = runtime_list[0].key.metric.namespace + \
             '_' + RUNTIME_METRIC
-    super(RuntimeMetric,
-          self).__init__(submit_timestamp, metric_id, value, None, label)
+    super().__init__(submit_timestamp, metric_id, value, None, label)
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []

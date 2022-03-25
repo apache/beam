@@ -104,7 +104,8 @@ public class FileBasedSinkTest {
   public void testWriter() throws Exception {
     String testUid = "testId";
     ResourceId expectedTempFile =
-        getBaseTempDirectory().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
+        getBaseTempDirectory()
+            .resolve(Writer.spreadUid(testUid), StandardResolveOptions.RESOLVE_FILE);
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
     List<String> expected = new ArrayList<>();
     expected.add(SimpleSink.SimpleWriter.HEADER);
@@ -252,9 +253,9 @@ public class FileBasedSinkTest {
       assertFalse(temporaryFiles.get(i).exists());
     }
 
-    assertFalse(new File(writeOp.tempDirectory.get().toString()).exists());
+    assertFalse(new File(writeOp.getTempDirectory().toString()).exists());
     // Test that repeated requests of the temp directory return a stable result.
-    assertEquals(writeOp.tempDirectory.get(), writeOp.tempDirectory.get());
+    assertEquals(writeOp.getTempDirectory(), writeOp.getTempDirectory());
   }
 
   /**
@@ -528,7 +529,9 @@ public class FileBasedSinkTest {
             .createWriteOperation();
     final Writer<Void, String> writer = writeOp.createWriter();
     final ResourceId expectedFile =
-        writeOp.tempDirectory.get().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
+        writeOp
+            .getTempDirectory()
+            .resolve(Writer.spreadUid(testUid), StandardResolveOptions.RESOLVE_FILE);
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");

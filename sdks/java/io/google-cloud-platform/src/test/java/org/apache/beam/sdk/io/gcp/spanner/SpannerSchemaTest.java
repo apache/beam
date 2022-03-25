@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.Type;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,11 +37,13 @@ public class SpannerSchemaTest {
             .addKeyPart("test", "pk", false)
             .addColumn("test", "maxKey", "STRING(MAX)")
             .addColumn("test", "numericVal", "NUMERIC")
+            .addColumn("test", "jsonVal", "JSON")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(3, schema.getColumns("test").size());
+    assertEquals(4, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
+    assertEquals(Type.json(), schema.getColumns("test").get(3).getType());
   }
 
   @Test
@@ -52,6 +56,41 @@ public class SpannerSchemaTest {
             .addColumn("other", "pk", "INT64")
             .addKeyPart("other", "pk", true)
             .addColumn("other", "maxKey", "STRING(MAX)")
+            .build();
+
+    assertEquals(2, schema.getTables().size());
+    assertEquals(2, schema.getColumns("test").size());
+    assertEquals(1, schema.getKeyParts("test").size());
+
+    assertEquals(2, schema.getColumns("other").size());
+    assertEquals(1, schema.getKeyParts("other").size());
+  }
+
+  @Test
+  public void testSinglePgTable() throws Exception {
+    SpannerSchema schema =
+        SpannerSchema.builder(Dialect.POSTGRESQL)
+            .addColumn("test", "pk", "character varying(48)")
+            .addKeyPart("test", "pk", false)
+            .addColumn("test", "maxKey", "character varying")
+            .addColumn("test", "numericVal", "numeric")
+            .build();
+
+    assertEquals(1, schema.getTables().size());
+    assertEquals(3, schema.getColumns("test").size());
+    assertEquals(1, schema.getKeyParts("test").size());
+  }
+
+  @Test
+  public void testTwoPgTables() throws Exception {
+    SpannerSchema schema =
+        SpannerSchema.builder(Dialect.POSTGRESQL)
+            .addColumn("test", "pk", "character varying(48)")
+            .addKeyPart("test", "pk", false)
+            .addColumn("test", "maxKey", "character varying")
+            .addColumn("other", "pk", "bigint")
+            .addKeyPart("other", "pk", true)
+            .addColumn("other", "maxKey", "character varying")
             .build();
 
     assertEquals(2, schema.getTables().size());

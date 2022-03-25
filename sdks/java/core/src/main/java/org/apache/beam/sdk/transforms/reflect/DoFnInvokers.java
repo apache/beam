@@ -50,7 +50,7 @@ public class DoFnInvokers {
       DoFn<InputT, OutputT> fn, PipelineOptions options) {
     DoFnInvoker<InputT, OutputT> doFnInvoker = invokerFor(fn);
     try {
-      doFnInvoker.invokeSetup(new DoFnSetupArgumentProvider<>(fn, options));
+      doFnInvoker.invokeSetup(new DoFnSetupArgumentProvider<>(options));
     } catch (Exception e) {
       try {
         doFnInvoker.invokeTeardown();
@@ -65,11 +65,9 @@ public class DoFnInvokers {
   /** An {@link DoFnInvoker.ArgumentProvider} for {@link DoFn.Setup @Setup}. */
   private static class DoFnSetupArgumentProvider<InputT, OutputT>
       extends DoFnInvoker.BaseArgumentProvider<InputT, OutputT> {
-    private final DoFn fn;
     private final PipelineOptions options;
 
-    private DoFnSetupArgumentProvider(DoFn fn, PipelineOptions options) {
-      this.fn = fn;
+    private DoFnSetupArgumentProvider(PipelineOptions options) {
       this.options = options;
     }
 

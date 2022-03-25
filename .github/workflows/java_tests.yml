@@ -38,7 +38,6 @@ on:
 
 
 jobs:
-
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
@@ -120,6 +119,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Install go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.12'
       - name: Run WordCount Unix
         uses: ./.github/actions/gradle-command-action
         with:
@@ -153,8 +156,12 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Install go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.12'
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}

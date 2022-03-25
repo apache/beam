@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static java.util.stream.Collectors.toList;
 
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -35,6 +36,7 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,6 +70,7 @@ public class TableRowToStorageApiProto {
           .put("TIME", Type.TYPE_STRING) // Pass through the JSON encoding.
           .put("DATETIME", Type.TYPE_STRING) // Pass through the JSON encoding.
           .put("TIMESTAMP", Type.TYPE_STRING) // Pass through the JSON encoding.
+          .put("JSON", Type.TYPE_STRING)
           .build();
 
   /**
@@ -85,13 +88,10 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
-  /**
-   * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
-   * using the BigQuery Storage API.
-   */
-  public static DynamicMessage messageFromTableRow(Descriptor descriptor, TableRow tableRow) {
+  public static DynamicMessage messageFromMap(
+      Descriptor descriptor, AbstractMap<String, Object> map) {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
-    for (Map.Entry<String, Object> entry : tableRow.entrySet()) {
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
       @Nullable
       FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
       if (fieldDescriptor == null) {
@@ -104,6 +104,32 @@ public class TableRowToStorageApiProto {
       }
     }
     return builder.build();
+  }
+
+  /**
+   * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
+   * using the BigQuery Storage API.
+   */
+  public static DynamicMessage messageFromTableRow(Descriptor descriptor, TableRow tableRow) {
+    @Nullable List<TableCell> cells = tableRow.getF();
+    if (cells != null) {
+      DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+      if (cells.size() > descriptor.getFields().size()) {
+        throw new RuntimeException("TableRow contained too many fields");
+      }
+      for (int i = 0; i < cells.size(); ++i) {
+        TableCell cell = cells.get(i);
+        FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
+        @Nullable Object value = messageValueFromFieldValue(fieldDescriptor, cell.getV());
+        if (value != null) {
+          builder.setField(fieldDescriptor, value);
+        }
+      }
+
+      return builder.build();
+    } else {
+      return messageFromMap(descriptor, tableRow);
+    }
   }
 
   @VisibleForTesting
@@ -162,7 +188,10 @@ public class TableRowToStorageApiProto {
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
-      } else {
+      } else if (fieldDescriptor.isRepeated()) {
+        return Collections.emptyList();
+      }
+      {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
       }
@@ -191,25 +220,17 @@ public class TableRowToStorageApiProto {
       FieldDescriptor fieldDescriptor, Object jsonBQValue, boolean isRepeated) {
     if (isRepeated) {
       return ((List<Object>) jsonBQValue)
-          .stream()
-              .map(
-                  v -> {
-                    if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-                      return ((Map<String, Object>) v).get("v");
-                    } else {
-                      return v;
-                    }
-                  })
-              .map(v -> toProtoValue(fieldDescriptor, v, false))
-              .collect(toList());
+          .stream().map(v -> toProtoValue(fieldDescriptor, v, false)).collect(toList());
     }
 
     if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-      if (jsonBQValue instanceof AbstractMap) {
+      if (jsonBQValue instanceof TableRow) {
+        TableRow tableRow = (TableRow) jsonBQValue;
+        return messageFromTableRow(fieldDescriptor.getMessageType(), tableRow);
+      } else if (jsonBQValue instanceof AbstractMap) {
         // This will handle nested rows.
-        TableRow tr = new TableRow();
-        tr.putAll((AbstractMap<String, Object>) jsonBQValue);
-        return messageFromTableRow(fieldDescriptor.getMessageType(), tr);
+        AbstractMap<String, Object> map = ((AbstractMap<String, Object>) jsonBQValue);
+        return messageFromMap(fieldDescriptor.getMessageType(), map);
       } else {
         throw new RuntimeException("Unexpected value " + jsonBQValue + " Expected a JSON map.");
       }

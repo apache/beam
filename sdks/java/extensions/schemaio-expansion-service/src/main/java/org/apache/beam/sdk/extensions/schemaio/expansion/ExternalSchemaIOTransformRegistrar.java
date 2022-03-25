@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -54,10 +54,12 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
     try {
       for (SchemaIOProvider schemaIOProvider : ServiceLoader.load(SchemaIOProvider.class)) {
         builder.put(
-            "beam:external:java:schemaio:" + schemaIOProvider.identifier() + ":read:v1",
+            "beam:transform:org.apache.beam:schemaio_" + schemaIOProvider.identifier() + "_read:v1",
             new ReaderBuilder(schemaIOProvider));
         builder.put(
-            "beam:external:java:schemaio:" + schemaIOProvider.identifier() + ":write:v1",
+            "beam:transform:org.apache.beam:schemaio_"
+                + schemaIOProvider.identifier()
+                + "_write:v1",
             new WriterBuilder(schemaIOProvider));
       }
     } catch (Exception e) {

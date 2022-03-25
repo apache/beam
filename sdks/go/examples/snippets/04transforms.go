@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -300,7 +301,7 @@ func filterWordsAbove(word string, lengthCutOffIter func(*float64) bool, emitAbo
 	var cutOff float64
 	ok := lengthCutOffIter(&cutOff)
 	if !ok {
-		return fmt.Errorf("No length cutoff provided.")
+		return fmt.Errorf("no length cutoff provided")
 	}
 	if float64(len(word)) > cutOff {
 		emitAboveCutoff(word)
@@ -393,12 +394,29 @@ func applyMultipleOut(s beam.Scope, words beam.PCollection) (belows, aboves, mar
 	return below, above, marked, length, mixedMarked
 }
 
-func extractWordsFn(line string, emitWords func(string)) {
+// [START model_paneinfo]
+
+func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
+	if pn.Timing == typex.PaneEarly || pn.Timing == typex.PaneOnTime {
+		// ... perform operation ...
+	}
+	if pn.Timing == typex.PaneLate {
+		// ... perform operation ...
+	}
+	if pn.IsFirst {
+		// ... perform operation ...
+	}
+	if pn.IsLast {
+		// ... perform operation ...
+	}
+
 	words := strings.Split(line, " ")
 	for _, w := range words {
 		emitWords(w)
 	}
 }
+
+// [END model_paneinfo]
 
 func init() {
 	beam.RegisterFunction(extractWordsFn)

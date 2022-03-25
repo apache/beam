@@ -354,7 +354,8 @@ public class WindowTest implements Serializable {
         new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE.maxTimestamp());
     private static final IntervalWindow ODD_WINDOW =
         new IntervalWindow(
-            BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE.maxTimestamp().minus(1));
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            GlobalWindow.INSTANCE.maxTimestamp().minus(Duration.millis(1)));
 
     @Override
     public Collection<IntervalWindow> assignWindows(AssignContext c) throws Exception {

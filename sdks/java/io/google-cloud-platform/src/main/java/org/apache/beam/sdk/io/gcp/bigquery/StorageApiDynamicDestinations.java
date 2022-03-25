@@ -22,6 +22,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -42,8 +43,8 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
     this.inner = inner;
   }
 
-  public abstract MessageConverter<T> getMessageConverter(DestinationT destination)
-      throws Exception;
+  public abstract MessageConverter<T> getMessageConverter(
+      DestinationT destination, DatasetService datasetService) throws Exception;
 
   @Override
   public DestinationT getDestination(ValueInSingleWindow<T> element) {

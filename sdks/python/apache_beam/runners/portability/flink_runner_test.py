@@ -70,7 +70,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   flink_job_server_jar = None
 
   def __init__(self, *args, **kwargs):
-    super(FlinkRunnerTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self.environment_type = None
     self.environment_config = None
 
@@ -123,7 +123,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     if cls.conf_dir and exists(cls.conf_dir):
       _LOGGER.info("removing conf dir: %s" % cls.conf_dir)
       rmtree(cls.conf_dir)
-    super(FlinkRunnerTest, cls).tearDownClass()
+    super().tearDownClass()
 
   @classmethod
   def _create_conf_dir(cls):
@@ -195,7 +195,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     cls.flink_job_server_jar = flink_job_server_jar
 
   def create_options(self):
-    options = super(FlinkRunnerTest, self).create_options()
+    options = super().create_options()
     options.view_as(DebugOptions).experiments = ['beam_fn_api']
     options._all_options['parallelism'] = 2
     options.view_as(PortableOptions).environment_type = self.environment_type
@@ -291,11 +291,10 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
     # https://jira.apache.org/jira/browse/BEAM-6523
-    super(FlinkRunnerTest,
-          self).test_flattened_side_input(with_transcoding=False)
+    super().test_flattened_side_input(with_transcoding=False)
 
   def test_metrics(self):
-    super(FlinkRunnerTest, self).test_metrics(check_gauge=False)
+    super().test_metrics(check_gauge=False)
 
   def test_flink_metrics(self):
     """Run a simple DoFn that increments a counter and verifies state
@@ -405,7 +404,7 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
   # TODO: Remove these tests after resolving BEAM-7248 and enabling
   #  PortableRunnerOptimized
   def create_options(self):
-    options = super(FlinkRunnerTestOptimized, self).create_options()
+    options = super().create_options()
     options.view_as(DebugOptions).experiments = [
         'pre_optimize=all'
     ] + options.view_as(DebugOptions).experiments
@@ -432,14 +431,14 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):
   def __init__(self, *args, **kwargs):
-    super(FlinkRunnerTestStreaming, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self.enable_commit = False
 
   def setUp(self):
     self.enable_commit = False
 
   def create_options(self):
-    options = super(FlinkRunnerTestStreaming, self).create_options()
+    options = super().create_options()
     options.view_as(StandardOptions).streaming = True
     if self.enable_commit:
       options._all_options['checkpointing_interval'] = 3000
@@ -448,11 +447,11 @@ class FlinkRunnerTestStreaming(FlinkRunnerTest):
 
   def test_callbacks_with_exception(self):
     self.enable_commit = True
-    super(FlinkRunnerTest, self).test_callbacks_with_exception()
+    super().test_callbacks_with_exception()
 
   def test_register_finalizations(self):
     self.enable_commit = True
-    super(FlinkRunnerTest, self).test_register_finalizations()
+    super().test_register_finalizations()
 
 
 if __name__ == '__main__':

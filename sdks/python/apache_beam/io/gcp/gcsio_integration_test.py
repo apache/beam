@@ -141,7 +141,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
         max_bytes_rewritten_per_call=50 * 1024 * 1024,
         src=self.INPUT_FILE_LARGE)
     # Verify that there was a multi-part rewrite.
-    self.assertTrue(any([not r.done for r in rewrite_responses]))
+    self.assertTrue(any(not r.done for r in rewrite_responses))
 
   def _test_copy_batch(
       self,
@@ -195,7 +195,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
         max_bytes_rewritten_per_call=50 * 1024 * 1024,
         src=self.INPUT_FILE_LARGE)
     # Verify that there was a multi-part rewrite.
-    self.assertTrue(any([not r.done for r in rewrite_responses]))
+    self.assertTrue(any(not r.done for r in rewrite_responses))
 
 
 if __name__ == '__main__':

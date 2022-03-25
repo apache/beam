@@ -36,3 +36,13 @@ func TestParDoKVSideInput(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, ParDoKVSideInput())
 }
+
+func TestParDoMultiMapSideInput(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoMultiMapSideInput())
+}
+
+func TestParDoPipelineOptions(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoPipelineOptions())
+}

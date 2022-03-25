@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -55,8 +56,9 @@ public class WindowedValueTest {
             "abc",
             new Instant(1234),
             Arrays.asList(
-                new IntervalWindow(timestamp, timestamp.plus(1000)),
-                new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
+                new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000))),
+                new IntervalWindow(
+                    timestamp.plus(Duration.millis(1000)), timestamp.plus(Duration.millis(2000)))),
             PaneInfo.NO_FIRING);
 
     Coder<WindowedValue<String>> windowedValueCoder =
@@ -97,7 +99,8 @@ public class WindowedValueTest {
   @Test
   public void testExplodeWindowsInOneWindowEquals() {
     Instant now = Instant.now();
-    BoundedWindow window = new IntervalWindow(now.minus(1000L), now.plus(1000L));
+    BoundedWindow window =
+        new IntervalWindow(now.minus(Duration.millis(1000L)), now.plus(Duration.millis(1000L)));
     WindowedValue<String> value =
         WindowedValue.of("foo", now, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
 
@@ -107,10 +110,13 @@ public class WindowedValueTest {
   @Test
   public void testExplodeWindowsManyWindowsMultipleWindowedValues() {
     Instant now = Instant.now();
-    BoundedWindow centerWindow = new IntervalWindow(now.minus(1000L), now.plus(1000L));
-    BoundedWindow pastWindow = new IntervalWindow(now.minus(1500L), now.plus(500L));
-    BoundedWindow futureWindow = new IntervalWindow(now.minus(500L), now.plus(1500L));
-    BoundedWindow futureFutureWindow = new IntervalWindow(now, now.plus(2000L));
+    BoundedWindow centerWindow =
+        new IntervalWindow(now.minus(Duration.millis(1000L)), now.plus(Duration.millis(1000L)));
+    BoundedWindow pastWindow =
+        new IntervalWindow(now.minus(Duration.millis(1500L)), now.plus(Duration.millis(500L)));
+    BoundedWindow futureWindow =
+        new IntervalWindow(now.minus(Duration.millis(500L)), now.plus(Duration.millis(1500L)));
+    BoundedWindow futureFutureWindow = new IntervalWindow(now, now.plus(Duration.millis(2000L)));
     PaneInfo pane = PaneInfo.createPane(false, false, Timing.ON_TIME, 3L, 0L);
     WindowedValue<String> value =
         WindowedValue.of(
@@ -142,7 +148,7 @@ public class WindowedValueTest {
   @Test
   public void testSingleWindowedValueInFixedWindow() {
     Instant now = Instant.now();
-    BoundedWindow w = new IntervalWindow(now, now.plus(1));
+    BoundedWindow w = new IntervalWindow(now, now.plus(Duration.millis(1)));
     WindowedValue<Integer> value = WindowedValue.of(1, now, w, PaneInfo.NO_FIRING);
     assertThat(value.isSingleWindowedValue(), equalTo(true));
     assertThat(((WindowedValue.SingleWindowedValue) value).getWindow(), equalTo(w));

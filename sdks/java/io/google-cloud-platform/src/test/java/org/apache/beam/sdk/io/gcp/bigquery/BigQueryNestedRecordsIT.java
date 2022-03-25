@@ -41,8 +41,6 @@ public class BigQueryNestedRecordsIT {
   private static final String UNFLATTENABLE_QUERY =
       "SELECT * FROM [apache-beam-testing:big_query_nested_test.genomics_2]";
 
-  private static Integer stringifyCount = 0;
-
   /** Options supported by this class. */
   public interface Options extends PipelineOptions {
 

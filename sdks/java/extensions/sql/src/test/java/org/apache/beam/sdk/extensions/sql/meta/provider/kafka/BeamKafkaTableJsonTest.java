@@ -24,7 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
 
@@ -60,7 +60,7 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
     return (BeamKafkaTable)
-        (new KafkaTableProvider()
+        new KafkaTableProvider()
             .buildBeamSqlTable(
                 Table.builder()
                     .name("kafka")
@@ -68,7 +68,7 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
                     .schema(TEST_SCHEMA)
                     .location("localhost/mytopic")
                     .properties(JSON.parseObject("{ \"format\": \"json\" }"))
-                    .build()));
+                    .build());
   }
 
   private String createJson(int i) {

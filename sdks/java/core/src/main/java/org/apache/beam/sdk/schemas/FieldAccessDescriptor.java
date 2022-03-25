@@ -58,7 +58,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>This class always puts the selected fields in a deterministic order.
  */
-@Experimental(Kind.SCHEMAS)
+@Experimental(Experimental.Kind.SCHEMAS)
 @AutoValue
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
@@ -87,7 +87,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
         MAP
       };
 
-      public abstract Kind getKind();
+      public abstract Qualifier.Kind getKind();
 
       public abstract ListQualifier getList();
 
@@ -656,7 +656,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   @Override
-  public String toString() {
+  public final String toString() {
     if (getAllFields()) {
       return "*";
     }

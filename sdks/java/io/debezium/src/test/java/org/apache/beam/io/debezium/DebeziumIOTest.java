@@ -30,13 +30,11 @@ import org.apache.kafka.common.config.ConfigValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Test on the DebeziumIO. */
 @RunWith(JUnit4.class)
 public class DebeziumIOTest implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(DebeziumIOTest.class);
+
   private static final ConnectorConfiguration MYSQL_CONNECTOR_CONFIGURATION =
       ConnectorConfiguration.create()
           .withUsername("debezium")

@@ -129,9 +129,17 @@ fi
     fi
   fi
 
+  # Tag for Go SDK.
+  # Go Modules defined in sub directories need to have a prefixed tag
+  # in order to get the matching version.
+  # See BEAM-13119 for context.
+  git tag -a "sdks/$RC_TAG" -m "Go SDK $RC_TAG" HEAD
+
+  # Primary tag for the repo.
   git tag -a -m "$RC_TAG" "$RC_TAG" HEAD
 
   if [[ "$PUSH_TAG" == yes ]] ; then
+    git push --follow-tags origin "sdks/$RC_TAG"
     git push --follow-tags origin "$RC_TAG"
   else 
     echo "Not pushing tag $RC_TAG. You can push it manually or run with --push-tag."

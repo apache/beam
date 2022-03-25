@@ -90,7 +90,7 @@ class CoGroupByKeyTest(LoadTest):
   CO_INPUT_TAG = 'pc2'
 
   def __init__(self):
-    super(CoGroupByKeyTest, self).__init__()
+    super().__init__()
     self.co_input_options = json.loads(
         self.pipeline.get_option('co_input_options'))
     self.iterations = self.get_option_or_default('iterations', 1)

@@ -41,6 +41,16 @@ var (
 	output = flag.String("output", "", "Output filename")
 )
 
+func init() {
+	beam.RegisterFunction(extractEventDataFn)
+	beam.RegisterFunction(extractCountryInfoFn)
+	beam.RegisterFunction(formatFn)
+	beam.RegisterFunction(processFn)
+	beam.RegisterType(reflect.TypeOf((*Code)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*CountryInfoRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*EventDataRow)(nil)).Elem())
+}
+
 type Code string
 
 type CountryInfoRow struct {

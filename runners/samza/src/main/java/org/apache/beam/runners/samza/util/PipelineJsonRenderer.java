@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.samza.util;
 
+import com.google.errorprone.annotations.DoNotCall;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -29,8 +32,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A JSON renderer for BEAM {@link Pipeline} DAG. This can help us with visualization of the Beam
@@ -56,7 +57,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     SamzaIOInfo getSamzaIO();
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
   private static final String OUTERMOST_NODE = "OuterMostNode";
   @Nullable private static final SamzaIOInfo SAMZA_IO_INFO = loadSamzaIOInfo();
 
@@ -78,6 +78,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
    * @param pipeline The beam portable pipeline
    * @return JSON string representation of the pipeline
    */
+  @DoNotCall("JSON DAG for portable pipeline is not supported yet.")
   public static String toJsonString(RunnerApi.Pipeline pipeline) {
     throw new UnsupportedOperationException("JSON DAG for portable pipeline is not supported yet.");
   }
@@ -172,7 +173,8 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     indent -= 4;
   }
 
-  private void writeLine(String format, Object... args) {
+  @FormatMethod
+  private void writeLine(@FormatString String format, Object... args) {
     // Since we append a comma after every entry to the graph, we will need to remove that one extra
     // comma towards the end of the JSON.
     int secondLastCharIndex = jsonBuilder.length() - 2;
@@ -190,10 +192,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
 
   private static String escapeString(String x) {
     return x.replace("\"", "\\\"");
-  }
-
-  private static String shortenTag(String tag) {
-    return tag.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
   }
 
   private String assignNodeName(String nodeName) {

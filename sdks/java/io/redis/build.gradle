@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.redis')
+applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.redis')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Redis"
 ext.summary ="IO to read and write on a Redis keystore."
@@ -25,10 +25,15 @@ ext.summary ="IO to read and write on a Redis keystore."
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation "redis.clients:jedis:3.5.2"
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  implementation "redis.clients:jedis:4.0.1"
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
-  testImplementation "com.github.kstyrc:embedded-redis:0.6"
+  testImplementation "org.signal:embedded-redis:0.8.2"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+configurations.testRuntimeClasspath {
+  // force version required by embedded-redis:0.8.2 in tests
+  resolutionStrategy { force "commons-io:commons-io:2.7" }
 }

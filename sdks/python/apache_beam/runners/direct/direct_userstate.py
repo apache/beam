@@ -62,8 +62,7 @@ UNREAD_VALUE = object()
 class ReadModifyWriteRuntimeState(DirectRuntimeState,
                                   userstate.ReadModifyWriteRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(ReadModifyWriteRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._value = UNREAD_VALUE
     self._cleared = False
     self._modified = False
@@ -96,8 +95,7 @@ class ReadModifyWriteRuntimeState(DirectRuntimeState,
 
 class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(BagRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._cached_value = UNREAD_VALUE
     self._cleared = False
     self._new_values = []
@@ -122,8 +120,7 @@ class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
 
 class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(SetRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
 
@@ -155,8 +152,7 @@ class CombiningValueRuntimeState(DirectRuntimeState,
                                  userstate.CombiningValueRuntimeState):
   """Combining value state interface object passed to user code."""
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(CombiningValueRuntimeState,
-          self).__init__(state_spec, state_tag, current_value_accessor)
+    super().__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
     self._combine_fn = copy.deepcopy(state_spec.combine_fn)

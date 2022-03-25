@@ -31,8 +31,6 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.hamcrest.Matchers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@link TestPortableRunner} is a pipeline runner that wraps a {@link PortableRunner} when running
@@ -44,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * @see TestPipeline
  */
 public class TestPortableRunner extends PipelineRunner<PipelineResult> {
-  private static final Logger LOG = LoggerFactory.getLogger(TestPortableRunner.class);
+
   private final PortablePipelineOptions options;
 
   private TestPortableRunner(PortablePipelineOptions options) {

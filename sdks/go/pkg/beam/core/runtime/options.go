@@ -16,13 +16,20 @@
 package runtime
 
 import (
+	"flag"
 	"sync"
 )
 
 // GlobalOptions are the global options for the active graph. Options can be
 // defined at any time before execution and are re-created by the harness on
 // remote execution workers. Global options should be used sparingly.
-var GlobalOptions = &Options{opt: make(map[string]string)}
+var GlobalOptions = NewOptions()
+
+// NewOptions provides an initialized set of options. It
+// is only intended for framework and test use.
+func NewOptions() *Options {
+	return &Options{opt: make(map[string]string)}
+}
 
 // Options are untyped options.
 type Options struct {
@@ -109,6 +116,23 @@ func (o *Options) Export() RawOptions {
 	defer o.mu.Unlock()
 
 	return RawOptions{Options: copyMap(o.opt)}
+}
+
+// LoadOptionsFromFlags adds any flags not defined in excludeFlags to the options.
+// If the key is already defnined, it ignores that flag
+func (o *Options) LoadOptionsFromFlags(excludeFlags map[string]bool) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.ro {
+		return // ignore silently to allow init-time set of options
+	}
+
+	flag.Visit(func(f *flag.Flag) {
+		if !excludeFlags[f.Name] && o.opt[f.Name] == "" {
+			o.opt[f.Name] = f.Value.String()
+		}
+	})
 }
 
 func copyMap(m map[string]string) map[string]string {

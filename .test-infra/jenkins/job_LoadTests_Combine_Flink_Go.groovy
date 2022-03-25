@@ -132,5 +132,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Go_Combine_Flink_Batch', 'H 8 * * *', thi
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
+  // TODO(BEAM): Fix this test.
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }

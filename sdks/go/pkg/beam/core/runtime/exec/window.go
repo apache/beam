@@ -69,7 +69,7 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 		var ret []typex.Window
 
 		period := mtime.FromDuration(wfn.Period)
-		lastStart := ts - (ts.Add(wfn.Size) % period)
+		lastStart := ts - (ts % period)
 		for start := lastStart; start > ts.Subtract(wfn.Size); start -= period {
 			ret = append(ret, window.IntervalWindow{Start: start, End: start.Add(wfn.Size)})
 		}
@@ -95,4 +95,24 @@ func (w *WindowInto) Down(ctx context.Context) error {
 
 func (w *WindowInto) String() string {
 	return fmt.Sprintf("WindowInto[%v]. Out:%v", w.Fn, w.Out.ID())
+}
+
+// WindowMapper defines an interface maps windows from a main input window space
+// to windows from a side input window space. Used during side input materialization.
+type WindowMapper interface {
+	MapWindow(w typex.Window) (typex.Window, error)
+}
+
+type windowMapper struct {
+	wfn *window.Fn
+}
+
+func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
+	candidates := assignWindows(f.wfn, w.MaxTimestamp())
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
+	}
+	// Return earliest candidate window in terms of event time (only relevant for sliding windows)
+	// Sliding windows append the latest window first in assignWindows.
+	return candidates[len(candidates)-1], nil
 }

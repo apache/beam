@@ -15,7 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+
+# beam-playground:
+#   name: WindowAccumulationMode
+#   description: Task from katas to count events using ACCUMULATING as accumulation mode
+#   multifile: true
+#   context_line: 51
+#   categories:
+#     - Streaming
 
 import apache_beam as beam
 from generate_event import GenerateEvent
@@ -29,23 +36,19 @@ from apache_beam.options.pipeline_options import StandardOptions
 from log_elements import LogElements
 
 
-def apply_transform(events):
+class CountEventsWithAccumulating(beam.PTransform):
+  def expand(self, events):
     return (events
-            | beam.WindowInto(FixedWindows(1*24*60*60),  # 1 Day Window
+            | beam.WindowInto(FixedWindows(1 * 24 * 60 * 60),  # 1 Day Window
                               trigger=AfterWatermark(early=AfterCount(1)),
                               accumulation_mode=AccumulationMode.ACCUMULATING,
                               allowed_lateness=Duration(seconds=0))
             | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())
 
 
-def main():
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    with beam.Pipeline(options=options) as p:
-        events = p | GenerateEvent.sample_data()
-        output = apply_transform(events)
-        output | LogElements(with_window=True)
-
-
-if __name__ == "__main__":
-    main()
+options = PipelineOptions()
+options.view_as(StandardOptions).streaming = True
+with beam.Pipeline(options=options) as p:
+  (p | GenerateEvent.sample_data()
+   | CountEventsWithAccumulating()
+   | LogElements(with_window=True))

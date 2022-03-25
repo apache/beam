@@ -84,24 +84,13 @@ a quick reference). For a more general and complete getting started guide, see
 *   Install [GraphViz](https://www.graphviz.org/download/) with your favorite
     system package manager.
 
--   Install [JupyterLab](https://jupyter.org/install.html). You can use
-    either **conda** or **pip**.
-
-    * conda
-        ```bash
-        conda install -c conda-forge jupyterlab
-        ```
-    * pip
-        ```bash
-        pip install jupyterlab
-        ```
-
--   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
+*   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
     (optional but recommended)
 
     ```bash
     python3 -m venv /path/to/beam_venv_dir
     source /path/to/beam_venv_dir/bin/activate
+    pip install --upgrade pip setuptools wheel
     ```
 
     If you are using shells other than bash (e.g. fish, csh), check
@@ -114,6 +103,18 @@ a quick reference). For a more general and complete getting started guide, see
     which python  # This sould point to beam_venv_dir/bin/python
     ```
 
+*   Install [JupyterLab](https://jupyter.org/install.html). You can use
+    either **conda** or **pip**.
+
+    * conda
+        ```bash
+        conda install -c conda-forge jupyterlab
+        ```
+    * pip
+        ```bash
+        pip install jupyterlab
+        ```
+
 *   Set up Apache Beam Python. **Make sure the virtual environment is activated
     when you run `setup.py`**
 
@@ -123,7 +124,7 @@ a quick reference). For a more general and complete getting started guide, see
     python setup.py install
     ```
 
--   Install an IPython kernel for the virtual environment you've just created.
+*   Install an IPython kernel for the virtual environment you've just created.
     **Make sure the virtual environment is activate when you do this.** You can
     skip this step if not using venv.
 
@@ -139,7 +140,7 @@ a quick reference). For a more general and complete getting started guide, see
     jupyter kernelspec list
     ```
 
--   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
+*   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
     from pre-lab jupyter notebooks.
 
     All jupyter labextensions need nodejs

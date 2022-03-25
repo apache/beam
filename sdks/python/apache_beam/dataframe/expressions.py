@@ -69,7 +69,7 @@ class PartitioningSession(Session):
 
     if expr not in self._bindings:
       if is_scalar(expr) or not expr.args():
-        result = super(PartitioningSession, self).evaluate(expr)
+        result = super().evaluate(expr)
       else:
         scaler_args = [arg for arg in expr.args() if is_scalar(arg)]
 
@@ -121,6 +121,7 @@ class PartitioningSession(Session):
         # is computed trivially with Singleton partitioning and passes.
         for input_partitioning in sorted(set([expr.requires_partition_by(),
                                               partitionings.Arbitrary(),
+                                              partitionings.JoinIndex(),
                                               partitionings.Index(),
                                               partitionings.Singleton()])):
           if not expr.requires_partition_by().is_subpartitioning_of(
@@ -260,7 +261,7 @@ class PlaceholderExpression(Expression):
       proxy: A proxy object with the type expected to be bound to this
         expression. Used for type checking at pipeline construction time.
     """
-    super(PlaceholderExpression, self).__init__('placeholder', proxy)
+    super().__init__('placeholder', proxy)
     self._reference = reference
 
   def placeholders(self):
@@ -296,7 +297,7 @@ class ConstantExpression(Expression):
     """
     if proxy is None:
       proxy = value
-    super(ConstantExpression, self).__init__('constant', proxy)
+    super().__init__('constant', proxy)
     self._value = value
 
   def placeholders(self):
@@ -357,7 +358,7 @@ class ComputedExpression(Expression):
     args = tuple(args)
     if proxy is None:
       proxy = func(*(arg.proxy() for arg in args))
-    super(ComputedExpression, self).__init__(name, proxy, _id)
+    super().__init__(name, proxy, _id)
     self._func = func
     self._args = args
     self._requires_partition_by = requires_partition_by
@@ -409,5 +410,5 @@ def allow_non_parallel_operations(allow=True):
 
 class NonParallelOperation(Exception):
   def __init__(self, msg):
-    super(NonParallelOperation, self).__init__(self, msg)
+    super().__init__(self, msg)
     self.msg = msg

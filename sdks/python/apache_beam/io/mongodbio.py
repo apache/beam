@@ -299,8 +299,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
     # for desired bundle size, if desired chunk size smaller than 1mb, use
     # MongoDB default split size of 1mb.
-    if desired_bundle_size_in_mb < 1:
-      desired_bundle_size_in_mb = 1
+    desired_bundle_size_in_mb = max(desired_bundle_size_in_mb, 1)
 
     is_initial_split = start_position is None and stop_position is None
     start_position, stop_position = self._replace_none_positions(
@@ -765,7 +764,7 @@ class _WriteMongoFn(DoFn):
       self.batch = []
 
   def display_data(self):
-    res = super(_WriteMongoFn, self).display_data()
+    res = super().display_data()
     res["database"] = self.db
     res["collection"] = self.coll
     res["batch_size"] = self.batch_size

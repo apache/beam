@@ -66,7 +66,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class KuduIOTest {
-  private static final Logger LOG = LoggerFactory.getLogger(KuduIOTest.class);
 
   @Rule public final TestPipeline writePipeline = TestPipeline.create();
   @Rule public final TestPipeline readPipeline = TestPipeline.create();

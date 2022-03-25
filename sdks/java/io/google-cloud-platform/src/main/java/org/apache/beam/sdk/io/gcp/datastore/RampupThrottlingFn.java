@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -28,6 +30,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -46,19 +49,19 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   private static final Duration RAMP_UP_INTERVAL = Duration.standardMinutes(5);
   private static final FluentBackoff fluentBackoff = FluentBackoff.DEFAULT;
 
-  private final int numWorkers;
+  private final ValueProvider<Integer> numWorkers;
+  private final PCollectionView<Instant> firstInstantSideInput;
 
   @VisibleForTesting
   Counter throttlingMsecs = Metrics.counter(RampupThrottlingFn.class, "throttling-msecs");
 
   // Initialized on every setup.
   private transient MovingFunction successfulOps;
-  // Initialized once in constructor.
-  private Instant firstInstant;
 
   @VisibleForTesting transient Sleeper sleeper;
 
-  public RampupThrottlingFn(int numWorkers) {
+  public RampupThrottlingFn(
+      ValueProvider<Integer> numWorkers, PCollectionView<Instant> firstInstantSideInput) {
     this.numWorkers = numWorkers;
     this.sleeper = Sleeper.DEFAULT;
     this.successfulOps =
@@ -68,18 +71,22 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
             1 /* numSignificantBuckets */,
             1 /* numSignificantSamples */,
             Sum.ofLongs());
-    this.firstInstant = Instant.now();
+    this.firstInstantSideInput = firstInstantSideInput;
+  }
+
+  public RampupThrottlingFn(int numWorkers, PCollectionView<Instant> timestampSideInput) {
+    this(StaticValueProvider.of(numWorkers), timestampSideInput);
   }
 
   // 500 / numWorkers * 1.5^max(0, (x-5)/5), or "+50% every 5 minutes"
-  private int calcMaxOpsBudget(Instant first, Instant instant) {
+  private int calcMaxOpsBudget(Instant first, Instant instant, int hintNumWorkers) {
     double rampUpIntervalMinutes = (double) RAMP_UP_INTERVAL.getStandardMinutes();
     Duration durationSinceFirst = new Duration(first, instant);
 
     double calculatedGrowth =
         (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
     double growth = Math.max(0, calculatedGrowth);
-    double maxOpsBudget = BASE_BUDGET / this.numWorkers * Math.pow(1.5, growth);
+    double maxOpsBudget = BASE_BUDGET / hintNumWorkers * Math.pow(1.5, growth);
     return (int) Math.min(Integer.MAX_VALUE, Math.max(1, maxOpsBudget));
   }
 
@@ -98,13 +105,13 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   /** Emit only as many elements as the exponentially increasing budget allows. */
   @ProcessElement
   public void processElement(ProcessContext c) throws IOException, InterruptedException {
-    Instant nonNullableFirstInstant = firstInstant;
+    Instant firstInstant = c.sideInput(firstInstantSideInput);
 
     T element = c.element();
     BackOff backoff = fluentBackoff.backoff();
     while (true) {
       Instant instant = Instant.now();
-      int maxOpsBudget = calcMaxOpsBudget(nonNullableFirstInstant, instant);
+      int maxOpsBudget = calcMaxOpsBudget(firstInstant, instant, this.numWorkers.get());
       long currentOpCount = successfulOps.get(instant.getMillis());
       long availableOps = maxOpsBudget - currentOpCount;
 

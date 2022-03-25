@@ -77,8 +77,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -129,8 +129,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
-    return new RegisterNodeFunction(
-        pipeline, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
+    return new RegisterNodeFunction(pipeline, idGenerator, stateApiServiceDescriptor);
   }
 
   /**
@@ -142,15 +141,13 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
-    return new RegisterNodeFunction(
-        null, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
+    return new RegisterNodeFunction(null, idGenerator, stateApiServiceDescriptor);
   }
 
   private RegisterNodeFunction(
       RunnerApi.@Nullable Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
     this.pipeline = pipeline;
     this.idGenerator = idGenerator;
     this.stateApiServiceDescriptor = stateApiServiceDescriptor;

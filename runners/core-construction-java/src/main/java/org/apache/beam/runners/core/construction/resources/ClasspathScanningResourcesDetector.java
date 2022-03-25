@@ -45,7 +45,11 @@ public class ClasspathScanningResourcesDetector implements PipelineResourcesDete
   @Override
   public List<String> detect(ClassLoader classLoader) {
     List<File> classpathContents =
-        classGraph.disableNestedJarScanning().addClassLoader(classLoader).getClasspathFiles();
+        classGraph
+            .disableNestedJarScanning()
+            .addClassLoader(classLoader)
+            .scan(1)
+            .getClasspathFiles();
 
     return classpathContents.stream().map(File::getAbsolutePath).collect(Collectors.toList());
   }

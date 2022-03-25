@@ -37,15 +37,12 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.DeadLetteredTransform;
-import org.apache.beam.sdk.schemas.io.Failure;
-import org.apache.beam.sdk.schemas.io.GenericDlq;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -164,14 +161,6 @@ public class PubsubLiteTableProvider extends InMemoryMetaTableProvider {
       return new RowHandler(schema, optionalSerializer.get());
     }
     return new RowHandler(schema);
-  }
-
-  private static Optional<PTransform<PCollection<Failure>, PDone>> getDlqTransform(
-      JSONObject properties) {
-    if (!properties.containsKey("deadLetterQueue")) {
-      return Optional.empty();
-    }
-    return Optional.of(GenericDlq.getDlqTransform(properties.getString("deadLetterQueue")));
   }
 
   private static <InputT, OutputT>

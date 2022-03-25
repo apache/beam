@@ -139,7 +139,7 @@ public class MergingActiveWindowSetTest {
   }
 
   private IntervalWindow window(long start, long size) {
-    return new IntervalWindow(new Instant(start), new Duration(size));
+    return new IntervalWindow(new Instant(start), Duration.millis(size));
   }
 
   @Test

@@ -92,7 +92,7 @@ public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
 
   private static BeamKafkaTable getBeamKafkaTable(Schema schema) {
     return (BeamKafkaTable)
-        (new KafkaTableProvider()
+        new KafkaTableProvider()
             .buildBeamSqlTable(
                 Table.builder()
                     .name("kafka")
@@ -106,7 +106,7 @@ public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
                                 + "\", \"thriftProtocolFactoryClass\": \""
                                 + TCompactProtocol.Factory.class.getName()
                                 + "\" }"))
-                    .build()));
+                    .build());
   }
 
   @Override

@@ -58,7 +58,7 @@ TimestampType = Union[int, float, Timestamp, Duration]
 class CombinerWithoutDefaults(ptransform.PTransform):
   """Super class to inherit without_defaults to built-in Combiners."""
   def __init__(self, has_defaults=True):
-    super(CombinerWithoutDefaults, self).__init__()
+    super().__init__()
     self.has_defaults = has_defaults
 
   def with_defaults(self, has_defaults=True):
@@ -119,6 +119,8 @@ class MeanCombineFn(core.CombineFn):
 
 class Count(object):
   """Combiners for counting elements."""
+  @with_input_types(T)
+  @with_output_types(int)
   class Globally(CombinerWithoutDefaults):
     """combiners.Count.Globally counts the total number of elements."""
     def expand(self, pcoll):
@@ -127,11 +129,15 @@ class Count(object):
       else:
         return pcoll | core.CombineGlobally(CountCombineFn()).without_defaults()
 
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, int])
   class PerKey(ptransform.PTransform):
     """combiners.Count.PerKey counts how many elements each unique key has."""
     def expand(self, pcoll):
       return pcoll | core.CombinePerKey(CountCombineFn())
 
+  @with_input_types(T)
+  @with_output_types(Tuple[T, int])
   class PerElement(ptransform.PTransform):
     """combiners.Count.PerElement counts how many times each element occurs."""
     def expand(self, pcoll):
@@ -191,7 +197,7 @@ class Top(object):
         reverse: (optional) whether to order things smallest to largest, rather
             than largest to smallest
       """
-      super(Top.Of, self).__init__()
+      super().__init__()
       self._n = n
       self._key = key
       self._reverse = reverse
@@ -365,6 +371,10 @@ class _MergeTopPerBundle(core.DoFn):
               for element in bundle
           ]
           continue
+        # TODO(BEAM-13117): Remove this workaround once legacy dataflow
+        # correctly handles coders with combiner packing and/or is deprecated.
+        if not isinstance(bundle, list):
+          bundle = list(bundle)
         for element in reversed(bundle):
           if push(heapc,
                   cy_combiners.ComparableValue(element,
@@ -377,6 +387,10 @@ class _MergeTopPerBundle(core.DoFn):
     else:
       heap = []
       for bundle in bundles:
+        # TODO(BEAM-13117): Remove this workaround once legacy dataflow
+        # correctly handles coders with combiner packing and/or is deprecated.
+        if not isinstance(bundle, list):
+          bundle = list(bundle)
         if not heap:
           heap = bundle
           continue
@@ -519,7 +533,7 @@ class Largest(TopCombineFn):
 
 class Smallest(TopCombineFn):
   def __init__(self, n):
-    super(Smallest, self).__init__(n, reverse=True)
+    super().__init__(n, reverse=True)
 
   def default_label(self):
     return 'Smallest(%s)' % self._n
@@ -535,7 +549,7 @@ class Sample(object):
   class FixedSizeGlobally(CombinerWithoutDefaults):
     """Sample n elements from the input PCollection without replacement."""
     def __init__(self, n):
-      super(Sample.FixedSizeGlobally, self).__init__()
+      super().__init__()
       self._n = n
 
     def expand(self, pcoll):
@@ -573,7 +587,7 @@ class Sample(object):
 class SampleCombineFn(core.CombineFn):
   """CombineFn for all Sample transforms."""
   def __init__(self, n):
-    super(SampleCombineFn, self).__init__()
+    super().__init__()
     # Most of this combiner's work is done by a TopCombineFn. We could just
     # subclass TopCombineFn to make this class, but since sampling is not
     # really a kind of Top operation, we use a TopCombineFn instance as a
@@ -659,10 +673,9 @@ class _TupleCombineFnBase(core.CombineFn):
     ]
 
   def extract_output(self, accumulator, *args, **kwargs):
-    return tuple([
+    return tuple(
         c.extract_output(a, *args, **kwargs) for c,
-        a in zip(self._combiners, accumulator)
-    ])
+        a in zip(self._combiners, accumulator))
 
   def teardown(self, *args, **kwargs):
     for c in reversed(self._combiners):
@@ -753,7 +766,7 @@ class ToDict(CombinerWithoutDefaults):
 class ToDictCombineFn(core.CombineFn):
   """CombineFn for to_dict."""
   def create_accumulator(self):
-    return dict()
+    return {}
 
   def add_input(self, accumulator, element):
     key, value = element
@@ -761,7 +774,7 @@ class ToDictCombineFn(core.CombineFn):
     return accumulator
 
   def merge_accumulators(self, accumulators):
-    result = dict()
+    result = {}
     for a in accumulators:
       result.update(a)
     return result

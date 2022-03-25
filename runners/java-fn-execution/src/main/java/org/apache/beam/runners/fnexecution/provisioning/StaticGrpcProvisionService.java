@@ -28,7 +28,7 @@ import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServic
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.server.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ProvisionServiceImplBase provision service} that returns a static response to all calls.
@@ -58,8 +58,7 @@ public class StaticGrpcProvisionService extends ProvisionServiceGrpc.ProvisionSe
   public void getProvisionInfo(
       ProvisionApi.GetProvisionInfoRequest request,
       StreamObserver<GetProvisionInfoResponse> responseObserver) {
-    if (headerAccessor.getSdkWorkerId() == null
-        || !environments.containsKey(headerAccessor.getSdkWorkerId())) {
+    if (!environments.containsKey(headerAccessor.getSdkWorkerId())) {
       // TODO(BEAM-9818): Remove once the JRH is gone.
       responseObserver.onNext(GetProvisionInfoResponse.newBuilder().setInfo(info).build());
       responseObserver.onCompleted();

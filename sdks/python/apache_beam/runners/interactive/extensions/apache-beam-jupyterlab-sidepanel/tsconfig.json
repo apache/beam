@@ -20,7 +20,8 @@
     "target": "es2017",
     "types": [
       "jest"
-    ]
+    ],
+    "skipLibCheck": true
   },
   "include": [
     "src/*",

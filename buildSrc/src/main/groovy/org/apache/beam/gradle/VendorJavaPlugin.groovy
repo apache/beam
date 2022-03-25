@@ -83,6 +83,10 @@ class VendorJavaPlugin implements Plugin<Project> {
 
       project.apply plugin: 'java'
 
+      // plugin to support repository authentication via ~/.m2/settings.xml
+      // https://github.com/mark-vieira/gradle-maven-settings-plugin/
+      project.apply plugin: 'net.linguica.maven-settings'
+
       // Projects should only depend on the shadowJar output
       project.jar.enabled = false
       project.assemble.dependsOn(project.shadowJar)
@@ -97,7 +101,7 @@ class VendorJavaPlugin implements Plugin<Project> {
       project.apply plugin: "project-report"
 
       project.dependencies {
-        config.dependencies.each { compile it }
+        config.dependencies.each { implementation it }
         config.runtimeDependencies.each { runtimeOnly it }
         config.testDependencies.each { compileOnly it}
       }

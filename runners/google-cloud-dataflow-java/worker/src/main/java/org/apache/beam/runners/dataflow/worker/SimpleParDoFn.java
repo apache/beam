@@ -60,6 +60,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -504,7 +505,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
         // does
         // not advance until OnWindowExpiration completes.
         Instant cleanupOutputTimestamp =
-            fnSignature.onWindowExpiration() == null ? cleanupTime : cleanupTime.minus(1L);
+            fnSignature.onWindowExpiration() == null
+                ? cleanupTime
+                : cleanupTime.minus(Duration.millis(1L));
         stepContext.setStateCleanupTimer(
             CLEANUP_TIMER_ID, window, windowCoder, cleanupTime, cleanupOutputTimestamp);
       }
@@ -513,7 +516,10 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
   private Instant earliestAllowableCleanupTime(
       BoundedWindow window, WindowingStrategy windowingStrategy) {
-    return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness()).plus(1L);
+    return window
+        .maxTimestamp()
+        .plus(windowingStrategy.getAllowedLateness())
+        .plus(Duration.millis(1L));
   }
 
   /**

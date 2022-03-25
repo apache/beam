@@ -234,7 +234,7 @@ class _BaseDataframeUnbatchDoFn(beam.DoFn):
     all_series = self._get_series(df)
     iterators = [
         make_null_checking_generator(series) for series,
-        typehint in zip(all_series, self._namedtuple_ctor._field_types)
+        typehint in zip(all_series, self._namedtuple_ctor.__annotations__)
     ]
 
     # TODO: Avoid materializing the rows. Produce an object that references the
@@ -274,8 +274,7 @@ def _unbatch_transform(proxy, include_indexes):
     ctor = element_type_from_dataframe(proxy, include_indexes=include_indexes)
 
     return beam.ParDo(
-        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor)
-    ).with_output_types(ctor)
+        _UnbatchWithIndex(ctor) if include_indexes else _UnbatchNoIndex(ctor))
   elif isinstance(proxy, pd.Series):
     # Raise a TypeError if proxy has an unknown type
     output_type = _dtype_to_fieldtype(proxy.dtype)

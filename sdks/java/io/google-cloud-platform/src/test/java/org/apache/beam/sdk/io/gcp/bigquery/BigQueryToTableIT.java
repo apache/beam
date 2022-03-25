@@ -72,7 +72,7 @@ public class BigQueryToTableIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryToTableIT");
 
   private static final String BIG_QUERY_DATASET_ID =
-      "bq_query_to_table_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
+      "bq_query_to_table_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
   private static final TableSchema LEGACY_QUERY_TABLE_SCHEMA =
       new TableSchema()
@@ -185,9 +185,8 @@ public class BigQueryToTableIT {
             "abc=,2000-01-01,00:00:00",
             "dec=,3000-12-31,23:59:59.990000",
             "xyw=,2011-01-01,23:59:59.999999");
-    QueryResponse response =
-        BQ_CLIENT.queryWithRetries(
-            String.format("SELECT bytes, date, time FROM [%s];", outputTable), project);
+    BQ_CLIENT.queryWithRetries(
+        String.format("SELECT bytes, date, time FROM [%s];", outputTable), project);
     List<TableRow> tableRows =
         getTableRowsFromQuery(
             String.format("SELECT bytes, date, time FROM [%s];", outputTable), MAX_RETRY);

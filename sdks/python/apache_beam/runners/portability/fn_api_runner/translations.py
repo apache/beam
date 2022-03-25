@@ -24,7 +24,9 @@ import collections
 import functools
 import itertools
 import logging
+import operator
 from typing import Callable
+from typing import Collection
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
@@ -36,6 +38,7 @@ from typing import Optional
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 from apache_beam import coders
 from apache_beam.internal import pickler
@@ -357,11 +360,28 @@ def memoize_on_instance(f):
 
 class TransformContext(object):
 
-  _KNOWN_CODER_URNS = set(
+  _COMMON_CODER_URNS = set(
       value.urn for (key, value) in common_urns.coders.__dict__.items()
       if not key.startswith('_')
       # Length prefix Rows rather than re-coding them.
   ) - set([common_urns.coders.ROW.urn])
+
+  _REQUIRED_CODER_URNS = set([
+      common_urns.coders.WINDOWED_VALUE.urn,
+      # For impulse.
+      common_urns.coders.BYTES.urn,
+      common_urns.coders.GLOBAL_WINDOW.urn,
+      # For GBK.
+      common_urns.coders.KV.urn,
+      common_urns.coders.ITERABLE.urn,
+      # For SDF.
+      common_urns.coders.DOUBLE.urn,
+      # For timers.
+      common_urns.coders.TIMER.urn,
+      # For everything else.
+      common_urns.coders.LENGTH_PREFIX.urn,
+      common_urns.coders.CUSTOM_WINDOW.urn,
+  ])
 
   def __init__(
       self,
@@ -373,6 +393,14 @@ class TransformContext(object):
     self.known_runner_urns = known_runner_urns
     self.runner_only_urns = known_runner_urns - frozenset(
         [common_urns.primitives.FLATTEN.urn])
+    self._known_coder_urns = set.union(
+        # Those which are required.
+        self._REQUIRED_CODER_URNS,
+        # Those common coders which are understood by all environments.
+        self._COMMON_CODER_URNS.intersection(
+            *(
+                set(env.capabilities)
+                for env in self.components.environments.values())))
     self.use_state_iterables = use_state_iterables
     self.is_drain = is_drain
     # ok to pass None for context because BytesCoder has no components
@@ -456,7 +484,7 @@ class TransformContext(object):
     coder = self.components.coders[coder_id]
     if coder.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
       return coder_id, self.bytes_coder_id
-    elif coder.spec.urn in self._KNOWN_CODER_URNS:
+    elif coder.spec.urn in self._known_coder_urns:
       new_component_ids = [
           self.maybe_length_prefixed_coder(c) for c in coder.component_coder_ids
       ]
@@ -765,6 +793,27 @@ def _group_stages_by_key(stages, get_stage_key):
   return (grouped_stages, stages_with_none_key)
 
 
+def _group_stages_with_limit(stages, get_limit):
+  # type: (Iterable[Stage], Callable[[str], int]) -> Iterable[Collection[Stage]]
+  stages_with_limit = [(stage, get_limit(stage.name)) for stage in stages]
+  group: List[Stage] = []
+  group_limit = 0
+  for stage, limit in sorted(stages_with_limit, key=operator.itemgetter(1)):
+    if limit < 1:
+      raise Exception(
+          'expected get_limit to return an integer >= 1, '
+          'instead got: %d for stage: %s' % (limit, stage))
+    if not group:
+      group_limit = limit
+    assert len(group) < group_limit
+    group.append(stage)
+    if len(group) >= group_limit:
+      yield group
+      group = []
+  if group:
+    yield group
+
+
 def _remap_input_pcolls(transform, pcoll_id_remap):
   for input_key in list(transform.inputs.keys()):
     if transform.inputs[input_key] in pcoll_id_remap:
@@ -803,7 +852,7 @@ def _make_pack_name(names):
 
 
 def _eliminate_common_key_with_none(stages, context, can_pack=lambda s: True):
-  # type: (Iterable[Stage], TransformContext, Callable[[str], bool]) -> Iterable[Stage]
+  # type: (Iterable[Stage], TransformContext, Callable[[str], Union[bool, int]]) -> Iterable[Stage]
 
   """Runs common subexpression elimination for sibling KeyWithNone stages.
 
@@ -866,8 +915,11 @@ def _eliminate_common_key_with_none(stages, context, can_pack=lambda s: True):
     yield stage
 
 
+_DEFAULT_PACK_COMBINERS_LIMIT = 128
+
+
 def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
-  # type: (Iterable[Stage], TransformContext, Callable[[str], bool]) -> Iterator[Stage]
+  # type: (Iterable[Stage], TransformContext, Callable[[str], Union[bool, int]]) -> Iterator[Stage]
 
   """Packs sibling CombinePerKey stages into a single CombinePerKey.
 
@@ -919,6 +971,13 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
     else:
       raise ValueError
 
+  def _get_limit(stage_name):
+    result = can_pack(stage_name)
+    if result is True:
+      return _DEFAULT_PACK_COMBINERS_LIMIT
+    else:
+      return int(result)
+
   # Partition stages by whether they are eligible for CombinePerKey packing
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
@@ -939,7 +998,12 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
   for stage in ineligible_stages:
     yield stage
 
-  for stage_key, packable_stages in grouped_eligible_stages.items():
+  grouped_packable_stages = [(stage_key, subgrouped_stages) for stage_key,
+                             grouped_stages in grouped_eligible_stages.items()
+                             for subgrouped_stages in _group_stages_with_limit(
+                                 grouped_stages, _get_limit)]
+
+  for stage_key, packable_stages in grouped_packable_stages:
     input_pcoll_id, _ = stage_key
     try:
       if not len(packable_stages) > 1:
@@ -1063,18 +1127,22 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
 
 
 def pack_combiners(stages, context, can_pack=None):
-  # type: (Iterable[Stage], TransformContext, Optional[Callable[[str], bool]]) -> Iterator[Stage]
+  # type: (Iterable[Stage], TransformContext, Optional[Callable[[str], Union[bool, int]]]) -> Iterator[Stage]
   if can_pack is None:
-    can_pack_names = {}  # type: Dict[str, bool]
+    can_pack_names = {}  # type: Dict[str, Union[bool, int]]
     parents = context.parents_map()
 
-    def can_pack_fn(name: str) -> bool:
+    def can_pack_fn(name: str) -> Union[bool, int]:
       if name in can_pack_names:
         return can_pack_names[name]
       else:
         transform = context.components.transforms[name]
         if python_urns.APPLY_COMBINER_PACKING in transform.annotations:
-          result = True
+          try:
+            result = int(
+                transform.annotations[python_urns.APPLY_COMBINER_PACKING])
+          except ValueError:
+            result = True
         elif name in parents:
           result = can_pack_fn(parents[name])
         else:

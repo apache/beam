@@ -71,7 +71,6 @@ import com.google.rpc.Code;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -100,7 +99,6 @@ import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
@@ -139,9 +137,6 @@ public class DatastoreV1Test {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-
-    DatastoreV1.Read initialRead =
-        DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
 
     when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class), any()))
         .thenReturn(mockDatastore);
@@ -914,15 +909,6 @@ public class DatastoreV1Test {
   }
 
   /** Helper Methods */
-
-  /** A helper function that verifies if all the queries have unique keys. */
-  private void verifyUniqueKeys(List<KV<Integer, Query>> queries) {
-    Set<Integer> keys = new HashSet<>();
-    for (KV<Integer, Query> kv : queries) {
-      keys.add(kv.getKey());
-    }
-    assertEquals(keys.size(), queries.size());
-  }
 
   /**
    * A helper function that creates mock {@link Entity} results in response to a query. Always

@@ -16,6 +16,8 @@
 
 set -e
 
+# Get currently used Python version from Gradle or assume a default.
+PYTHON=${1:-python3}
 SCRIPT_DIR="${PWD}/license_scripts"
 ENV_DIR="${PWD}/build/virtualenv"
 
@@ -38,19 +40,20 @@ if [ -d "$DOWNLOAD_DIR" ]; then rm -rf "$DOWNLOAD_DIR" ; fi
 mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
 
-# activate virtualenv
-virtualenv --python=python3 ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+$PYTHON -m venv --clear ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages
-${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt
+pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
 FLAGS="--license_index=${INDEX_FILE} \
        --output_dir=${DOWNLOAD_DIR} \
-       --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml "
+       --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml \
+       --manual_license_path=${SCRIPT_DIR}/manual_licenses"
 
-echo "Executing ${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
-"${ENV_DIR}/bin/python" "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS
+echo "Executing python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
+python "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS
 
 # If this script is running, it is assumed that outputs are out of date and should be cleared and rewritten
 if [ -d "$DEST_DIR" ]; then rm -rf "$DEST_DIR"; fi

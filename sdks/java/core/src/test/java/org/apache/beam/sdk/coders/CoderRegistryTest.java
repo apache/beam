@@ -62,10 +62,6 @@ public class CoderRegistryTest {
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(CoderRegistry.class);
 
-  private static class SerializableClass implements Serializable {}
-
-  private static class NotSerializableClass {}
-
   @Test
   public void testRegisterInstantiatedCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
@@ -292,7 +288,7 @@ public class CoderRegistryTest {
     @Override
     public PCollection<KV<String, MySerializableGeneric<String>>> expand(
         PCollection<String> input) {
-      return input.apply(ParDo.of(new OutputDoFn()));
+      return input.apply(ParDo.of(new PTransformOutputingMySerializableGeneric.OutputDoFn()));
     }
   }
 

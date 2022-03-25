@@ -58,13 +58,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.util.MutableHandlerRegistry;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -138,7 +138,7 @@ public class GrpcWindmillServerTest {
       int i = 0;
       while (true) {
         try {
-          Thread.sleep(ThreadLocalRandom.current().nextInt((++i) * 10));
+          Thread.sleep(ThreadLocalRandom.current().nextInt(++i * 10));
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           break;
@@ -360,9 +360,7 @@ public class GrpcWindmillServerTest {
                     compRequest.getComputationId(), Matchers.is("computation"));
                 KeyedGetDataRequest request = compRequest.getRequests(0);
                 KeyedGetDataResponse response =
-                    makeGetDataResponse(
-                        request.getKey().toStringUtf8(),
-                        request.getValuesToFetch(0).getTag().toStringUtf8());
+                    makeGetDataResponse(request.getValuesToFetch(0).getTag().toStringUtf8());
                 return response.toByteString();
               }
 
@@ -422,7 +420,7 @@ public class GrpcWindmillServerTest {
           () -> {
             errorCollector.checkThat(
                 stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
-                Matchers.equalTo(makeGetDataResponse(key, s)));
+                Matchers.equalTo(makeGetDataResponse(s)));
             done.countDown();
           });
       executor.execute(
@@ -451,7 +449,7 @@ public class GrpcWindmillServerTest {
         .build();
   }
 
-  private KeyedGetDataResponse makeGetDataResponse(String key, String tag) {
+  private KeyedGetDataResponse makeGetDataResponse(String tag) {
     return KeyedGetDataResponse.newBuilder()
         .setKey(ByteString.copyFromUtf8("key"))
         .addValues(

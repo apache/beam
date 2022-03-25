@@ -19,6 +19,19 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: WordCountWithMetrics
+#   description: A word-counting workflow with metrics.
+#   multifile: false
+#   default_example: true
+#   pipeline_options: --output output.txt
+#   context_line: 48
+#   categories:
+#     - Combiners
+#     - Options
+#     - Metrics
+#     - Quickstart
+
 import argparse
 import logging
 import re
@@ -36,7 +49,7 @@ class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(WordExtractingDoFn, self).__init__()
+    # super().__init__()
     beam.DoFn.__init__(self)
     self.words_counter = Metrics.counter(self.__class__, 'words')
     self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')

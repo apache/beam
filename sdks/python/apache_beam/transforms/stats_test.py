@@ -621,7 +621,7 @@ def _build_quantilebuffer_test_data():
                               [391, 977, 1221, 1526,
                                954], [782, 977, 1221, 1526,
                                       1908], [3125, 3907, 9766, 12208, 15259]]
-  test_data = list()
+  test_data = []
   i = 0
   for epsilon in epsilons:
     j = 0

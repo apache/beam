@@ -73,7 +73,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 		case *jobpb.ArtifactRequestWrapper_ResolveArtifact:
 			err = stream.Send(&jobpb.ArtifactResponseWrapper{
 				Response: &jobpb.ArtifactResponseWrapper_ResolveArtifactResponse{
-					&jobpb.ResolveArtifactsResponse{
+					ResolveArtifactResponse: &jobpb.ResolveArtifactsResponse{
 						Replacements: request.ResolveArtifact.Artifacts,
 					},
 				}})
@@ -83,11 +83,13 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 
 		case *jobpb.ArtifactRequestWrapper_GetArtifact:
 			switch typeUrn := request.GetArtifact.Artifact.TypeUrn; typeUrn {
+			// TODO(BEAM-13647): Legacy Type URN. If requested, provide the binary.
+			// To be removed later in 2022, once thoroughly obsolete.
 			case graphx.URNArtifactGoWorker:
 				if err := StageFile(binary, stream); err != nil {
 					return errors.Wrap(err, "failed to stage Go worker binary")
 				}
-			case "beam:artifact:type:file:v1":
+			case graphx.URNArtifactFileType:
 				typePl := pipepb.ArtifactFilePayload{}
 				if err := proto.Unmarshal(request.GetArtifact.Artifact.TypePayload, &typePl); err != nil {
 					return errors.Wrap(err, "failed to parse artifact file payload")
@@ -118,7 +120,7 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 		if n > 0 {
 			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
 				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
-					&jobpb.GetArtifactResponse{
+					GetArtifactResponse: &jobpb.GetArtifactResponse{
 						Data: data[:n],
 					},
 				}})
@@ -132,7 +134,7 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
 				IsLast: true,
 				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
-					&jobpb.GetArtifactResponse{},
+					GetArtifactResponse: &jobpb.GetArtifactResponse{},
 				}})
 			return sendErr
 		}

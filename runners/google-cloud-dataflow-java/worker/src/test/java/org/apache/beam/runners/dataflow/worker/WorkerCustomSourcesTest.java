@@ -76,6 +76,7 @@ import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -108,7 +109,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -519,9 +520,12 @@ public class WorkerCustomSourcesTest {
             Long.MAX_VALUE);
 
     options.setNumWorkers(5);
+    int maxElements = 10;
+    DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+    debugOptions.setUnboundedReaderMaxElements(maxElements);
 
     ByteString state = ByteString.EMPTY;
-    for (int i = 0; i < 10 * WorkerCustomSources.maxUnboundedBundleSize;
+    for (int i = 0; i < 10 * maxElements;
     /* Incremented in inner loop */ ) {
       // Initialize streaming context with state from previous iteration.
       context.start(
@@ -565,12 +569,12 @@ public class WorkerCustomSourcesTest {
         numReadOnThisIteration++;
       }
       Instant afterReading = Instant.now();
+      long maxReadSec = debugOptions.getUnboundedReaderMaxReadTimeSec();
       assertThat(
           new Duration(beforeReading, afterReading).getStandardSeconds(),
-          lessThanOrEqualTo(
-              WorkerCustomSources.MAX_UNBOUNDED_BUNDLE_READ_TIME.getStandardSeconds() + 1));
+          lessThanOrEqualTo(maxReadSec + 1));
       assertThat(
-          numReadOnThisIteration, lessThanOrEqualTo(WorkerCustomSources.maxUnboundedBundleSize));
+          numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
       // Extract and verify state modifications.
       context.flushState();

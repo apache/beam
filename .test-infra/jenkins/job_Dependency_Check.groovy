@@ -47,7 +47,8 @@ job('beam_Dependency_Check') {
     }
 
     shell('cd ' + commonJobProperties.checkoutDir +
-        ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
+        ' && bash .test-infra/jenkins/dependency_check/generate_report.sh ' +
+        commonJobProperties.PYTHON)
   }
 
   wrappers{

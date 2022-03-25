@@ -95,7 +95,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element T element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
                         PaneInfo pane,
                         OutputReceiver<ValueInSingleWindow<T>> r) {
@@ -120,7 +120,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element T element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         OutputReceiver<TimestampedValue<T>> r) {
                       r.output(TimestampedValue.of(element, timestamp));
                     }
@@ -141,7 +141,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element KV<K, V> element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
                         PaneInfo pane,
                         OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
@@ -172,7 +172,7 @@ public class Reify {
                     @ProcessElement
                     public void processElement(
                         @Element KV<K, V> element,
-                        @Timestamp Instant timestamp,
+                        @DoFn.Timestamp Instant timestamp,
                         OutputReceiver<KV<K, TimestampedValue<V>>> r) {
                       r.output(
                           KV.of(

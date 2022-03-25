@@ -22,10 +22,14 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.json.GenericJson;
 import com.google.cloud.recommendationengine.v1beta1.CatalogItem;
+import com.google.cloud.recommendationengine.v1beta1.CatalogName;
+import com.google.cloud.recommendationengine.v1beta1.CatalogServiceClient;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,32 +37,34 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.junit.AfterClass;
+import org.junit.ClassRule;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class RecommendationAICatalogItemIT {
-  @Rule public TestPipeline testPipeline = TestPipeline.create();
+  @ClassRule public static TestPipeline testPipeline = TestPipeline.create();
+  private static String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
+  private static final String randomId =
+      "aitest-" + Instant.now().getEpochSecond() + UUID.randomUUID().toString();
 
-  private static GenericJson getCatalogItem() {
+  private GenericJson getCatalogItem() {
     List<Object> categories = new ArrayList<Object>();
     categories.add(new GenericJson().set("categories", Arrays.asList("Electronics", "Computers")));
     categories.add(new GenericJson().set("categories", Arrays.asList("Laptops")));
     return new GenericJson()
-        .set("id", Integer.toString(new Random().nextInt()))
+        .set("id", randomId)
         .set("title", "Sample Laptop")
         .set("description", "Indisputably the most fantastic laptop ever created.")
         .set("categoryHierarchies", categories)
         .set("languageCode", "en");
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-12733")
   @Test
   public void createCatalogItem() {
-    String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
     GenericJson catalogItem = getCatalogItem();
 
     PCollectionTuple createCatalogItemResult =
@@ -75,7 +81,6 @@ public class RecommendationAICatalogItemIT {
   @Ignore("Import method causing issues")
   @Test
   public void importCatalogItems() {
-    String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
     ArrayList<KV<String, GenericJson>> catalogItems = new ArrayList<>();
 
     GenericJson catalogItem1 = getCatalogItem();
@@ -91,6 +96,23 @@ public class RecommendationAICatalogItemIT {
     PAssert.that(importCatalogItemResult.get(RecommendationAIImportCatalogItems.SUCCESS_TAG))
         .satisfies(new VerifyCatalogItemResult(2, (String) catalogItem1.get("id")));
     testPipeline.run().waitUntilFinish();
+  }
+
+  @AfterClass
+  public static void tearDownAfterClass() throws Exception {
+    try (CatalogServiceClient catalogServiceClient = CatalogServiceClient.create()) {
+      String parent = CatalogName.of(projectId, "global", "default_catalog").toString();
+      String filter = "";
+      for (CatalogItem item : catalogServiceClient.listCatalogItems(parent, filter).iterateAll()) {
+        StringBuilder toDelete = new StringBuilder();
+        toDelete.append("projects/");
+        toDelete.append(projectId);
+        toDelete.append("/locations/global/catalogs/default_catalog/catalogItems/");
+        toDelete.append(item.getId());
+
+        catalogServiceClient.deleteCatalogItem(toDelete.toString());
+      }
+    }
   }
 
   private static class VerifyCatalogItemResult

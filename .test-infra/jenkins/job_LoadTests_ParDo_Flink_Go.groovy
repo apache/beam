@@ -146,5 +146,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Go_ParDo_Flink_Batch', 'H 10 * * *', this
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
+  // TODO(BEAM): Fix this test.
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }

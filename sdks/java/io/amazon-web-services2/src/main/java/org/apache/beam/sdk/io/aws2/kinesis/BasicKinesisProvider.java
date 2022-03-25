@@ -17,62 +17,60 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.defaultFactory;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.net.URI;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.KinesisClientBuilder;
 
-/** Basic implementation of {@link AWSClientsProvider} used by default in {@link KinesisIO}. */
+/**
+ * Basic implementation of {@link AWSClientsProvider} used by default in {@link KinesisIO}.
+ *
+ * @deprecated Configure a custom {@link org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory}
+ *     using {@link AwsOptions#getClientBuilderFactory()} instead.
+ */
+@Deprecated
 class BasicKinesisProvider implements AWSClientsProvider {
-  private final String accessKey;
-  private final String secretKey;
-  private final String region;
-  private final @Nullable String serviceEndpoint;
+  private final ClientConfiguration config;
 
   BasicKinesisProvider(
-      String accessKey, String secretKey, Region region, @Nullable String serviceEndpoint) {
-    checkArgument(accessKey != null, "accessKey can not be null");
-    checkArgument(secretKey != null, "secretKey can not be null");
+      AwsCredentialsProvider credentialsProvider, Region region, @Nullable String serviceEndpoint) {
+    checkArgument(credentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
-    this.accessKey = accessKey;
-    this.secretKey = secretKey;
-    this.region = region.toString();
-    this.serviceEndpoint = serviceEndpoint;
-  }
-
-  private AwsCredentialsProvider getCredentialsProvider() {
-    return StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
+    URI endpoint = serviceEndpoint != null ? URI.create(serviceEndpoint) : null;
+    config = ClientConfiguration.create(credentialsProvider, region, endpoint);
   }
 
   @Override
   public KinesisClient getKinesisClient() {
-    KinesisClientBuilder clientBuilder =
-        KinesisClient.builder()
-            .credentialsProvider(getCredentialsProvider())
-            .region(Region.of(region));
-    if (serviceEndpoint != null) {
-      clientBuilder.endpointOverride(URI.create(serviceEndpoint));
-    }
-    return clientBuilder.build();
+    return defaultFactory().create(KinesisClient.builder(), config, null).build();
   }
 
   @Override
   public CloudWatchClient getCloudWatchClient() {
-    CloudWatchClientBuilder clientBuilder =
-        CloudWatchClient.builder()
-            .credentialsProvider(getCredentialsProvider())
-            .region(Region.of(region));
-    if (serviceEndpoint != null) {
-      clientBuilder.endpointOverride(URI.create(serviceEndpoint));
+    return defaultFactory().create(CloudWatchClient.builder(), config, null).build();
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
     }
-    return clientBuilder.build();
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    BasicKinesisProvider that = (BasicKinesisProvider) o;
+    return config.equals(that.config);
+  }
+
+  @Override
+  public int hashCode() {
+    return config.hashCode();
   }
 }

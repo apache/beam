@@ -230,7 +230,6 @@ public class AutoValueUtils {
   }
 
   static class BuilderCreateInstruction implements Implementation {
-    private final List<FieldValueTypeInformation> types;
     private final List<FieldValueTypeInformation> setters;
     private final Class<?> builderClass;
     private final Method buildMethod;
@@ -240,7 +239,6 @@ public class AutoValueUtils {
         List<FieldValueTypeInformation> setters,
         Class<?> builderClass,
         Method buildMethod) {
-      this.types = types;
       this.setters = setters;
       this.builderClass = builderClass;
       this.buildMethod = buildMethod;

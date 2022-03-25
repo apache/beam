@@ -146,7 +146,8 @@ class PubSubUtilTest(unittest.TestCase):
     output = utils.read_from_pubsub(
         mock_pubsub, subscription_path, number_of_elements=1)
     self.assertEqual([data], output)
-    mock_pubsub.acknowledge.assert_called_once_with(subscription_path, [ack_id])
+    mock_pubsub.acknowledge.assert_called_once_with(
+        subscription=subscription_path, ack_ids=[ack_id])
 
   def test_read_from_pubsub_with_attributes(self):
     mock_pubsub = mock.Mock()
@@ -164,7 +165,8 @@ class PubSubUtilTest(unittest.TestCase):
         with_attributes=True,
         number_of_elements=1)
     self.assertEqual([message], output)
-    mock_pubsub.acknowledge.assert_called_once_with(subscription_path, [ack_id])
+    mock_pubsub.acknowledge.assert_called_once_with(
+        subscription=subscription_path, ack_ids=[ack_id])
 
   def test_read_from_pubsub_flaky(self):
     number_of_elements = 10
@@ -253,7 +255,7 @@ class PubSubUtilTest(unittest.TestCase):
   def _assert_ack_ids_equal(self, mock_pubsub, ack_ids):
     actual_ack_ids = [
         ack_id for args_list in mock_pubsub.acknowledge.call_args_list
-        for ack_id in args_list[0][1]
+        for ack_id in args_list[1]["ack_ids"]
     ]
     self.assertEqual(actual_ack_ids, ack_ids)
 

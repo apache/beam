@@ -48,6 +48,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesSchema;
+import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
@@ -69,6 +70,8 @@ import org.junit.runners.JUnit4;
 /** Test {@link Schema} support. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class ParDoSchemaTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -726,6 +729,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+
           @StateId(stateId)
           private final StateSpec<BagState<TestStateSchemaValue>> bufferState = StateSpecs.bag();
 
@@ -768,7 +772,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class})
+  @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesSetState.class})
   public void testSetStateSchemaInference() throws NoSuchSchemaException {
     final String stateId = "foo";
 
@@ -776,6 +780,7 @@ public class ParDoSchemaTest implements Serializable {
         new DoFn<KV<String, TestStateSchemaValue>, TestStateSchemaValues>() {
 
           // This should infer the schema.
+
           @StateId(stateId)
           private final StateSpec<SetState<TestStateSchemaValue>> bufferState = StateSpecs.set();
 

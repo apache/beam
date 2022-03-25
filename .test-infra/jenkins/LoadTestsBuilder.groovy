@@ -31,7 +31,7 @@ class LoadTestsBuilder {
       List<String> jobSpecificSwitches = null) {
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 720)
 
     for (testConfiguration in testConfigurations) {
       loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions,

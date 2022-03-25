@@ -80,8 +80,9 @@ detail.
    changes locally.
  - For SDK Development:
       - [Go](https://golang.org) 1.12 or later installed for Go SDK development
- - Python 3.6, 3.7, and 3.8. Yes, you need all three versions installed.
-      - pip, setuptools, virtualenv, and tox installed for Python development
+      - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
+        Interpreters should be installed and available in shell via `python3.x` commands. For more information, see:
+        Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
  - For large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).

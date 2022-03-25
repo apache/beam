@@ -20,6 +20,7 @@ import unittest
 import pandas as pd
 
 from apache_beam.dataframe import doctests
+from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
@@ -56,11 +57,17 @@ class DoctestTest(unittest.TestCase):
                 # These inputs rely on tail (wont implement, order
                 # sensitive) for verification
                 "df.tail()",
-                "df.loc['2016-01-05':'2016-01-10', :].tail()",
+                "df.truncate(before=pd.Timestamp('2016-01-05'),\n"
+                "            after=pd.Timestamp('2016-01-10')).tail()",
+                "df.truncate('2016-01-05', '2016-01-10').tail()",
+                "df.loc['2016-01-05':'2016-01-10', :].tail()"
             ],
             'pandas.core.generic.NDFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
+                "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
                 "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
@@ -68,7 +75,8 @@ class DoctestTest(unittest.TestCase):
                 "df.replace(regex={r'^ba.$': 'new', 'foo': 'xyz'})"
             ],
             'pandas.core.generic.NDFrame.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.generic.NDFrame.sort_values': ['*'],
@@ -91,6 +99,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.infer_objects': ['*'],
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
+            'pandas.core.generic.NDFrame.get': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -116,11 +125,21 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.convert_dtypes': ['*'],
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
+            'pandas.core.generic.NDFrame.get': ['*'],
             'pandas.core.generic.NDFrame.rank': [
                 # Modified dataframe
                 'df'
             ],
             'pandas.core.generic.NDFrame.rename': [
+                # Seems to be an upstream bug. The actual error has a different
+                # message:
+                #   TypeError: Index(...) must be called with a collection of
+                #   some kind, 2 was passed
+                # pandas doctests only verify the type of exception
+                'df.rename(2)'
+            ],
+            # For pandas >= 1.4, rename is changed to _rename
+            'pandas.core.generic.NDFrame._rename': [
                 # Seems to be an upstream bug. The actual error has a different
                 # message:
                 #   TypeError: Index(...) must be called with a collection of
@@ -164,7 +183,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cumprod': ['*'],
             'pandas.core.frame.DataFrame.diff': ['*'],
             'pandas.core.frame.DataFrame.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.frame.DataFrame.items': ['*'],
@@ -185,6 +205,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
+                "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
                 "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
@@ -237,6 +260,8 @@ class DoctestTest(unittest.TestCase):
                 # reindex not supported
                 's2 = s.reindex([1, 0, 2, 3])',
             ],
+            'pandas.core.frame.DataFrame.resample': ['*'],
+            'pandas.core.frame.DataFrame.values': ['*'],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': [
@@ -244,6 +269,7 @@ class DoctestTest(unittest.TestCase):
                 # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
                 "df.groupby('Date')['Data'].transform('sum')",
             ],
+            'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
             'pandas.core.frame.DataFrame.round': [
                 'df.round(decimals)',
@@ -267,18 +293,36 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.set_index': [
                 "df.set_index([s, s**2])",
             ],
+
+            'pandas.core.frame.DataFrame.set_axis': [
+                "df.set_axis(range(0,2), axis='index')",
+            ],
+
+            # TODO(BEAM-12495)
+            'pandas.core.frame.DataFrame.value_counts': [
+              'df.value_counts(dropna=False)'
+            ],
         },
         skip={
+            # DataFrame construction from a dictionary and
+            # Series requires using the len() function, which
+            # is a non-deferred operation that we do not allow
+            'pandas.core.frame.DataFrame': [
+                'pd.DataFrame(data=d, index=[0, 1, 2, 3])',
+            ],
             # s2 created with reindex
             'pandas.core.frame.DataFrame.dot': [
                 'df.dot(s2)',
             ],
 
+            'pandas.core.frame.DataFrame.resample': ['df'],
+            'pandas.core.frame.DataFrame.asfreq': ['*'],
             # Throws NotImplementedError when modifying df
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
                 'df.axes',
             ],
+            # Skipped because the relies on loc to set cells in df2
             'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.cov': [
                 # Relies on setting entries ahead of time.
@@ -286,8 +330,6 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            'pandas.core.frame.DataFrame.idxmax': ['*'],
-            'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
                 # Returns deferred index.
                 'df.index',
@@ -298,9 +340,21 @@ class DoctestTest(unittest.TestCase):
                 # a DeferredIndex, and we should fail it as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
-            'pandas.core.frame.DataFrame.set_axis': ['*'],
+            'pandas.core.frame.DataFrame.set_axis': [
+                # This should pass as set_axis(axis='columns')
+                # and fail with set_axis(axis='index')
+                "df.set_axis(['a', 'b', 'c'], axis='index')"
+            ],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
+
+            # Raises right exception, but testing framework has matching issues.
+            # Tested in `frames_test.py`.
+            'pandas.core.frame.DataFrame.insert': [
+                'df',
+                'df.insert(1, "newcol", [99, 99])',
+                'df.insert(0, "col1", [100, 100], allow_duplicates=True)'
+            ],
 
             'pandas.core.frame.DataFrame.to_records': [
                 'df.index = df.index.rename("I")',
@@ -385,9 +439,11 @@ class DoctestTest(unittest.TestCase):
                 's.dot(arr)',  # non-deferred result
             ],
             'pandas.core.series.Series.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
+            'pandas.core.series.Series.info': ['*'],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -420,6 +476,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
+                "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
                 "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
@@ -434,11 +493,11 @@ class DoctestTest(unittest.TestCase):
                 's.drop_duplicates()',
                 "s.drop_duplicates(keep='last')",
             ],
-            'pandas.core.series.Series.repeat': [
-                's.repeat([1, 2, 3])'
-            ],
             'pandas.core.series.Series.reindex': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
+            'pandas.core.series.Series.repeat': ['s.repeat([1, 2, 3])'],
+            'pandas.core.series.Series.resample': ['*'],
+            'pandas.core.series.Series': ['ser.iloc[0] = 999'],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': [
@@ -453,6 +512,8 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         skip={
+            # Relies on setting values with iloc
+            'pandas.core.series.Series': ['ser', 'r'],
             'pandas.core.series.Series.groupby': [
                 # TODO(BEAM-11393): This example requires aligning two series
                 # with non-unique indexes. It only works in pandas because
@@ -460,19 +521,20 @@ class DoctestTest(unittest.TestCase):
                 # alignment.
                 'ser.groupby(ser > 100).mean()',
             ],
+            'pandas.core.series.Series.asfreq': ['*'],
             # error formatting
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
             ],
-            # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.series.Series.idxmin': ['s.idxmin()'],
+            'pandas.core.series.Series.idxmax': ['s.idxmax()'],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.idxmax': ['*'],
-            'pandas.core.series.Series.idxmin': ['*'],
+            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
             # Raises right exception, but testing framework has matching issues.
@@ -483,7 +545,6 @@ class DoctestTest(unittest.TestCase):
                 # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
-            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
             'pandas.core.series.Series.to_markdown': ['*'],
             'pandas.core.series.Series.update': ['*'],
@@ -491,12 +552,12 @@ class DoctestTest(unittest.TestCase):
                 # Inspection after modification.
                 's'
             ],
+            'pandas.core.series.Series.resample': ['df'],
         })
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
-    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.'))
-    if PD_VERSION < (1, 2, 0):
+    if PD_VERSION < (1, 2):
       module = pd.core.strings
     else:
       # Definitions were moved to accessor in pandas 1.2.0
@@ -518,11 +579,11 @@ class DoctestTest(unittest.TestCase):
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
             f'{module_name}.str_repeat': ['s.str.repeat(repeats=[1, 2, 3])'],
+            # get_dummies pandas examples are not casted to CategoricalDtype
+            # Must be CategoricalDtype to work in Beam
             f'{module_name}.StringMethods.get_dummies': ['*'],
             f'{module_name}.str_get_dummies': ['*'],
             f'{module_name}.StringMethods': ['s.str.split("_")'],
-            f'{module_name}.StringMethods.rsplit': ['*'],
-            f'{module_name}.StringMethods.split': ['*'],
         },
         skip={
             # count() on Series with a NaN produces mismatched type if we
@@ -539,7 +600,32 @@ class DoctestTest(unittest.TestCase):
             ],
 
             # output has incorrect formatting in 1.2.x
-            f'{module_name}.StringMethods.extractall': ['*']
+            f'{module_name}.StringMethods.extractall': ['*'],
+
+            # For split and rsplit, if expand=True, then the series
+            # must be of CategoricalDtype, which pandas doesn't convert to
+            f'{module_name}.StringMethods.rsplit': [
+                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+                's.str.split(r"and|plus", expand=True)',
+                's.str.split(r".", expand=True)',
+                's.str.split(r"\\.jpg", expand=True)',
+                's.str.split(r"\\.jpg", regex=True, expand=True)',
+                's.str.split(re.compile(r"\\.jpg"), expand=True)',
+                's.str.split(r"\\.jpg", regex=False, expand=True)'
+            ],
+            f'{module_name}.StringMethods.split': [
+                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+                's.str.split(r"and|plus", expand=True)',
+                's.str.split(r".", expand=True)',
+                's.str.split(r"\\.jpg", expand=True)',
+                's.str.split(r"\\.jpg", regex=True, expand=True)',
+                's.str.split(re.compile(r"\\.jpg"), expand=True)',
+                's.str.split(r"\\.jpg", regex=False, expand=True)'
+            ]
         })
     self.assertEqual(result.failed, 0)
 
@@ -623,9 +709,7 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
-            'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
-            # pipe tests are in a different location in pandas 1.1.x
-            'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.rank': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': [
                 "df.groupby('A', as_index=False).nth(1)",
             ],
@@ -636,6 +720,8 @@ class DoctestTest(unittest.TestCase):
                 'df.iloc[2, 0] = 5',
                 'df',
             ],
+            # df is reassigned
+            'pandas.core.groupby.groupby.GroupBy.rank': ['df'],
             # TODO: Raise wont implement for list passed as a grouping column
             # Currently raises unhashable type: list
             'pandas.core.groupby.groupby.GroupBy.ngroup': [
@@ -668,11 +754,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
-                "df.fillna(method='ffill')",
+                'df.fillna(method=\'ffill\')',
+                'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
         },
@@ -682,6 +770,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.apply': ['*'],
         },
         skip={
             'pandas.core.groupby.generic.SeriesGroupBy.cov': [
@@ -698,6 +787,23 @@ class DoctestTest(unittest.TestCase):
             # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.aggregate': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.aggregate': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.transform': [
+                # Dropping invalid columns during a transform is unsupported.
+                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
+            ],
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': [
+                # Dropping invalid columns during a transform is unsupported.
+                'grouped.transform(lambda x: (x - x.mean()) / x.std())'
+            ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
+            # Uses as_index, which is currently not_implemented
+            'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': [
+                "df.groupby('gender', as_index=False).value_counts()",
+                # pylint: disable=line-too-long
+                "df.groupby('gender', as_index=False).value_counts(normalize=True)",
+            ],
         })
     self.assertEqual(result.failed, 0)
 

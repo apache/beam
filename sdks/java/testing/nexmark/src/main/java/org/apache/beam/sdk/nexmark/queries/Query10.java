@@ -120,6 +120,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   }
 
   /** Return channel for writing bytes to GCS. */
+  @SuppressWarnings("unused")
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {
     // TODO

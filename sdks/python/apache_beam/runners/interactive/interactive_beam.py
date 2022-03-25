@@ -32,7 +32,12 @@ this module in your notebook or application code.
 # pytype: skip-file
 
 import logging
+from collections import defaultdict
 from datetime import timedelta
+from typing import DefaultDict
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import pandas as pd
 
@@ -41,9 +46,12 @@ from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
+from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
 from apache_beam.runners.interactive.options import interactive_options
+from apache_beam.runners.interactive.utils import bidict
 from apache_beam.runners.interactive.utils import deferred_df_to_pcollection
 from apache_beam.runners.interactive.utils import elements_to_df
+from apache_beam.runners.interactive.utils import find_pcoll_name
 from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.runners.runner import PipelineState
 
@@ -218,6 +226,36 @@ class Options(interactive_options.InteractiveOptions):
     """
     self._display_timezone = value
 
+  @property
+  def cache_root(self):
+    """The cache directory specified by the user.
+
+    Defaults to None.
+    """
+    return self._cache_root
+
+  @cache_root.setter
+  def cache_root(self, value):
+    """Sets the cache directory.
+
+    Defaults to None.
+
+    Example of local directory usage::
+      interactive_beam.options.cache_root = '/Users/username/my/cache/dir'
+
+    Example of GCS directory usage::
+      interactive_beam.options.cache_root = 'gs://my-gcs-bucket/cache/dir'
+    """
+    _LOGGER.warning(
+        'Interactive Beam has detected a set value for the cache_root '
+        'option. Please note: existing cache managers will not have '
+        'their current cache directory changed. The option must be '
+        'set in Interactive Beam prior to the initialization of new '
+        'pipelines to take effect. To apply changes to new pipelines, '
+        'the kernel must be restarted or the pipeline creation codes '
+        'must be re-executed. ')
+    self._cache_root = value
+
 
 class Recordings():
   """An introspection interface for recordings for pipelines.
@@ -297,6 +335,115 @@ class Recordings():
     return recording_manager.record_pipeline()
 
 
+class Clusters:
+  """An interface for users to modify the pipelines that are being run by the
+  Interactive Environment.
+
+  Methods of the Interactive Beam Clusters class can be accessed via:
+    from apache_beam.runners.interactive import interactive_beam as ib
+    ib.clusters
+
+  Example of calling the Interactive Beam clusters describe method::
+    ib.clusters.describe()
+  """
+  # Explicitly set the Flink version here to ensure compatibility with 2.0
+  # Dataproc images:
+  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0
+  DATAPROC_FLINK_VERSION = '1.12'
+  # TODO(BEAM-14142): Fix the Dataproc image version after a released image
+  # contains all missing dependencies for Flink to run.
+  # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
+  DATAPROC_STAGING_LOG_NAME = 'dataproc-startup-script_output'
+
+  def __init__(self) -> None:
+    """Instantiates default values for Dataproc cluster interactions.
+    """
+    # Set the default_cluster_name that will be used when creating Dataproc
+    # clusters.
+    self.default_cluster_name = 'interactive-beam-cluster'
+    # Bidirectional 1-1 mapping between master_urls (str) to cluster metadata
+    # (MasterURLIdentifier), where self.master_urls.inverse is a mapping from
+    # MasterURLIdentifier -> str.
+    self.master_urls = bidict()
+    # self.dataproc_cluster_managers map string pipeline ids to instances of
+    # DataprocClusterManager.
+    self.dataproc_cluster_managers = {}
+    # self.master_urls_to_pipelines map string master_urls to lists of
+    # pipelines that use the corresponding master_url.
+    self.master_urls_to_pipelines: DefaultDict[
+        str, List[beam.Pipeline]] = defaultdict(list)
+    # self.master_urls_to_dashboards map string master_urls to the
+    # corresponding Apache Flink dashboards.
+    self.master_urls_to_dashboards: Dict[str, str] = {}
+
+  def describe(self, pipeline: Optional[beam.Pipeline] = None) -> dict:
+    """Returns a description of the cluster associated to the given pipeline.
+
+    If no pipeline is given then this returns a dictionary of descriptions for
+    all pipelines, mapped to by id.
+    """
+    description = {
+        pid: dcm.describe()
+        for pid,
+        dcm in self.dataproc_cluster_managers.items()
+    }
+    if pipeline:
+      return description.get(str(id(pipeline)), None)
+    return description
+
+  def cleanup(
+      self, pipeline: Optional[beam.Pipeline] = None, force=False) -> None:
+    """Attempt to cleanup the Dataproc Cluster corresponding to the given
+    pipeline.
+
+    If the cluster is not managed by interactive_beam, a corresponding cluster
+    manager is not detected, and deletion is skipped.
+
+    For clusters managed by Interactive Beam, by default, deletion is skipped
+    if any other pipelines are using the cluster.
+
+    Optionally, the cleanup for a cluster managed by Interactive Beam can be
+    forced, by setting the 'force' parameter to True.
+
+    Example usage of default cleanup::
+      interactive_beam.clusters.cleanup(p)
+
+    Example usage of forceful cleanup::
+      interactive_beam.clusters.cleanup(p, force=True)
+    """
+    if pipeline:
+      cluster_manager = self.dataproc_cluster_managers.get(
+          str(id(pipeline)), None)
+      if cluster_manager:
+        master_url = cluster_manager.master_url
+        if len(self.master_urls_to_pipelines[master_url]) > 1:
+          if force:
+            _LOGGER.warning(
+                'Cluster is currently being used by another cluster, but '
+                'will be forcefully cleaned up.')
+            cluster_manager.cleanup()
+          else:
+            _LOGGER.warning(
+                'Cluster is currently being used, skipping deletion.')
+          self.master_urls_to_pipelines[master_url].remove(str(id(pipeline)))
+        else:
+          cluster_manager.cleanup()
+          self.master_urls.pop(master_url, None)
+          self.master_urls_to_pipelines.pop(master_url, None)
+          self.master_urls_to_dashboards.pop(master_url, None)
+          self.dataproc_cluster_managers.pop(str(id(pipeline)), None)
+    else:
+      cluster_manager_identifiers = set()
+      for cluster_manager in self.dataproc_cluster_managers.values():
+        if cluster_manager.cluster_metadata not in cluster_manager_identifiers:
+          cluster_manager_identifiers.add(cluster_manager.cluster_metadata)
+          cluster_manager.cleanup()
+      self.dataproc_cluster_managers.clear()
+      self.master_urls.clear()
+      self.master_urls_to_pipelines.clear()
+      self.master_urls_to_dashboards.clear()
+
+
 # Users can set options to guide how Interactive Beam works.
 # Examples:
 # from apache_beam.runners.interactive import interactive_beam as ib
@@ -313,6 +460,12 @@ options = Options()
 # ib.show(elems)
 # ib.recordings.describe(p)
 recordings = Recordings()
+
+# Users can interact with the clusters used by their environment.
+# Examples:
+# ib.clusters.describe(p)
+# Check the docstrings for detailed usages.
+clusters = Clusters()
 
 
 def watch(watchable):
@@ -448,7 +601,7 @@ def show(
 
   # Iterate through the given PCollections and convert any deferred DataFrames
   # or Series into PCollections.
-  pcolls = []
+  pcolls = set()
 
   # The element type is used to help visualize the given PCollection. For the
   # deferred DataFrame/Series case it is the proxy of the frame.
@@ -462,14 +615,20 @@ def show(
 
     element_types[pcoll] = element_type
 
-    pcolls.append(pcoll)
+    pcolls.add(pcoll)
     assert isinstance(pcoll, beam.pvalue.PCollection), (
         '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
 
   assert len(pcolls) > 0, (
       'Need at least 1 PCollection to show data visualization.')
 
-  user_pipeline = pcolls[0].pipeline
+  pcoll_pipeline = next(iter(pcolls)).pipeline
+  user_pipeline = ie.current_env().user_pipeline(pcoll_pipeline)
+  # Possibly showing a PCollection defined in a local scope that is not
+  # explicitly watched. Ad hoc watch it though it's a little late.
+  if not user_pipeline:
+    watch({'anonymous_pipeline_{}'.format(id(pcoll_pipeline)): pcoll_pipeline})
+    user_pipeline = pcoll_pipeline
 
   if isinstance(n, str):
     assert n == 'inf', (
@@ -487,6 +646,20 @@ def show(
 
   if duration == 'inf':
     duration = float('inf')
+
+  previously_computed_pcolls = {
+      pcoll
+      for pcoll in pcolls if pcoll in ie.current_env().computed_pcollections
+  }
+  for pcoll in previously_computed_pcolls:
+    visualize_computed_pcoll(
+        find_pcoll_name(pcoll),
+        pcoll,
+        n,
+        duration,
+        include_window_info=include_window_info,
+        display_facets=visualize_data)
+  pcolls = pcolls - previously_computed_pcolls
 
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
@@ -509,7 +682,6 @@ def show(
             stream,
             include_window_info=include_window_info,
             element_type=element_types[stream.pcoll])
-
     if recording.is_computed():
       return
 
@@ -591,9 +763,24 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   if duration == 'inf':
     duration = float('inf')
 
-  user_pipeline = pcoll.pipeline
+  user_pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
+  # Possibly collecting a PCollection defined in a local scope that is not
+  # explicitly watched. Ad hoc watch it though it's a little late.
+  if not user_pipeline:
+    watch({'anonymous_pipeline_{}'.format(id(pcoll.pipeline)): pcoll.pipeline})
+    user_pipeline = pcoll.pipeline
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
+
+  # If already computed, directly read the stream and return.
+  if pcoll in ie.current_env().computed_pcollections:
+    pcoll_name = find_pcoll_name(pcoll)
+    elements = list(
+        recording_manager.read(pcoll_name, pcoll, n, duration).read())
+    return elements_to_df(
+        elements,
+        include_window_info=include_window_info,
+        element_type=element_type)
 
   recording = recording_manager.record([pcoll], max_n=n, max_duration=duration)
 

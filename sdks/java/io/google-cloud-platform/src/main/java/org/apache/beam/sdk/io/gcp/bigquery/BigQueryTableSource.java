@@ -26,8 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A {@link BigQuerySourceBase} for reading BigQuery tables. */
 @VisibleForTesting
@@ -35,7 +33,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSource.class);
 
   static <T> BigQueryTableSource<T> create(
       String stepUuid,

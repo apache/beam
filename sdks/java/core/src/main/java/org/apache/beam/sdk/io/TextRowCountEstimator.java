@@ -57,7 +57,7 @@ public abstract class TextRowCountEstimator {
   public abstract FileIO.ReadMatches.DirectoryTreatment getDirectoryTreatment();
 
   public static TextRowCountEstimator.Builder builder() {
-    return (new AutoValue_TextRowCountEstimator.Builder())
+    return new AutoValue_TextRowCountEstimator.Builder()
         .setSamplingStrategy(DEFAULT_SAMPLING_STRATEGY)
         .setNumSampledBytesPerFile(DEFAULT_NUM_BYTES_PER_FILE)
         .setCompression(DEFAULT_COMPRESSION)

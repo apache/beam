@@ -161,7 +161,6 @@ public class KafkaIOIT {
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
-      IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
     }
   }
@@ -200,7 +199,6 @@ public class KafkaIOIT {
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
-      IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
     }
   }

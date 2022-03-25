@@ -124,7 +124,7 @@ def retry_on_server_errors_filter(exception):
   if (HttpError is not None) and isinstance(exception, HttpError):
     return exception.status_code >= 500
   if (S3ClientError is not None) and isinstance(exception, S3ClientError):
-    return exception.code >= 500
+    return exception.code is None or exception.code >= 500
   return not isinstance(exception, PermanentException)
 
 

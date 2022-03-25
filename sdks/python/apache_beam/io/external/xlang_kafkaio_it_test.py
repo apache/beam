@@ -73,7 +73,7 @@ class CrossLanguageKafkaIO(object):
   def build_write_pipeline(self, pipeline):
     _ = (
         pipeline
-        | 'Generate' >> beam.Create(range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
+        | 'Generate' >> beam.Create(range(NUM_RECORDS))  # pylint: disable=bad-option-value
         | 'MakeKV' >> beam.Map(lambda x:
                                (b'', str(x).encode())).with_output_types(
                                    typing.Tuple[bytes, bytes])

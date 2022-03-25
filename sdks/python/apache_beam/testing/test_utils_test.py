@@ -85,14 +85,14 @@ class TestUtilsTest(unittest.TestCase):
     sub = mock.Mock()
     sub.name = 'test_sub'
     utils.cleanup_subscriptions(sub_client, [sub])
-    sub_client.delete_subscription.assert_called_with(sub.name)
+    sub_client.delete_subscription.assert_called_with(subscription=sub.name)
 
   def test_cleanup_topics(self):
     pub_client = mock.Mock()
     topic = mock.Mock()
     topic.name = 'test_topic'
     utils.cleanup_topics(pub_client, [topic])
-    pub_client.delete_topic.assert_called_with(topic.name)
+    pub_client.delete_topic.assert_called_with(topic=topic.name)
 
 
 if __name__ == '__main__':

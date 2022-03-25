@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,7 +85,8 @@ public class WindmillTimerInternalsTest {
               List<TimerData> anonymousTimers =
                   ImmutableList.of(
                       TimerData.of(namespace, timestamp, timestamp, timeDomain),
-                      TimerData.of(namespace, timestamp, timestamp.minus(1), timeDomain));
+                      TimerData.of(
+                          namespace, timestamp, timestamp.minus(Duration.millis(1)), timeDomain));
               for (TimerData timer : anonymousTimers) {
                 assertThat(
                     WindmillTimerInternals.windmillTimerToTimerData(
@@ -100,13 +102,18 @@ public class WindmillTimerInternalsTest {
                         TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain),
                         TimerData.of(
                             timerId, "family", namespace, timestamp, timestamp, timeDomain),
-                        TimerData.of(timerId, namespace, timestamp, timestamp.minus(1), timeDomain),
+                        TimerData.of(
+                            timerId,
+                            namespace,
+                            timestamp,
+                            timestamp.minus(Duration.millis(1)),
+                            timeDomain),
                         TimerData.of(
                             timerId,
                             "family",
                             namespace,
                             timestamp,
-                            timestamp.minus(1),
+                            timestamp.minus(Duration.millis(1)),
                             timeDomain));
 
                 for (TimerData timer : timers) {

@@ -50,8 +50,7 @@ class TestDataflowRunner(DataflowRunner):
     # send this option to remote executors.
     test_options.on_success_matcher = None
 
-    self.result = super(TestDataflowRunner,
-                        self).run_pipeline(pipeline, options)
+    self.result = super().run_pipeline(pipeline, options)
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.

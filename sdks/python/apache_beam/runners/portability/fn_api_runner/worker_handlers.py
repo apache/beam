@@ -106,7 +106,7 @@ class ControlConnection(object):
     self._push_queue = queue.Queue(
     )  # type: queue.Queue[Union[beam_fn_api_pb2.InstructionRequest, Sentinel]]
     self._input = None  # type: Optional[Iterable[beam_fn_api_pb2.InstructionResponse]]
-    self._futures_by_id = dict()  # type: Dict[str, ControlFuture]
+    self._futures_by_id = {}  # type: Dict[str, ControlFuture]
     self._read_thread = threading.Thread(
         name='beam_control_read', target=self._read)
     self._state = BeamFnControlServicer.UNSTARTED_STATE
@@ -354,7 +354,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
                worker_manager,  # type: WorkerHandlerManager
               ):
     # type: (...) -> None
-    super(EmbeddedWorkerHandler, self).__init__(
+    super().__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self  # type: ignore  # need Protocol to describe this
     self.data_conn = self.data_plane_handler
@@ -457,26 +457,29 @@ class GrpcServer(object):
                worker_manager,  # type: WorkerHandlerManager
               ):
     # type: (...) -> None
-    self.state = state
-    self.provision_info = provision_info
-    self.control_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance())
-    self.control_port = self.control_server.add_insecure_port('[::]:0')
-    self.control_address = 'localhost:%s' % self.control_port
 
     # Options to have no limits (-1) on the size of the messages
     # received or sent over the data plane. The actual buffer size
-    # is controlled in a layer above.
-    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
-                            ("grpc.max_send_message_length", -1)]
+    # is controlled in a layer above. Also, options to keep the server alive
+    # when too many pings are received.
+    options = [("grpc.max_receive_message_length", -1),
+               ("grpc.max_send_message_length", -1),
+               ("grpc.http2.max_pings_without_data", 0),
+               ("grpc.http2.max_ping_strikes", 0)]
+
+    self.state = state
+    self.provision_info = provision_info
+    self.control_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(), options=options)
+    self.control_port = self.control_server.add_insecure_port('[::]:0')
+    self.control_address = 'localhost:%s' % self.control_port
+
     self.data_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
     self.control_handler = BeamFnControlServicer(worker_manager)
@@ -510,8 +513,7 @@ class GrpcServer(object):
         GrpcStateServicer(state), self.state_server)
 
     self.logging_server = grpc.server(
-        thread_pool_executor.shared_unbounded_instance(),
-        options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(), options=options)
     self.logging_port = self.logging_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         BasicLoggingService(), self.logging_server)
@@ -548,7 +550,7 @@ class GrpcWorkerHandler(WorkerHandler):
               ):
     # type: (...) -> None
     self._grpc_server = grpc_server
-    super(GrpcWorkerHandler, self).__init__(
+    super().__init__(
         self._grpc_server.control_handler,
         self._grpc_server.data_plane_handler,
         state,
@@ -591,7 +593,7 @@ class GrpcWorkerHandler(WorkerHandler):
     # type: () -> None
     self.control_conn.close()
     self.data_conn.close()
-    super(GrpcWorkerHandler, self).close()
+    super().close()
 
   def port_from_worker(self, port):
     # type: (int) -> str
@@ -612,8 +614,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(ExternalWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._external_payload = external_payload
 
   def start_worker(self):
@@ -657,8 +658,7 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(EmbeddedGrpcWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
 
     from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
     config = EmbeddedPythonGrpcEnvironment.parse_config(payload.decode('utf-8'))
@@ -697,8 +697,7 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(SubprocessSdkWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._worker_command_line = worker_command_line
 
   def start_worker(self):
@@ -728,8 +727,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
                grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
-    super(DockerSdkWorkerHandler,
-          self).__init__(state, provision_info, grpc_server)
+    super().__init__(state, provision_info, grpc_server)
     self._container_image = payload.container_image
     self._container_id = None  # type: Optional[bytes]
 
@@ -743,7 +741,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
       # Gets ipv4 address of current host. Note the host is not guaranteed to
       # be localhost because the python SDK could be running within a container.
       return socket.gethostbyname(socket.getfqdn())
-    return super(DockerSdkWorkerHandler, self).host_from_worker()
+    return super().host_from_worker()
 
   def start_worker(self):
     # type: () -> None
@@ -813,7 +811,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
                   'SDK exited unexpectedly. '
                   'Final status is %s. Final log line is %s' % (
                       status.decode('utf-8'),
-                      logs.decode('utf-8').strip().split('\n')[-1])))
+                      logs.decode('utf-8').strip().rsplit('\n',
+                                                          maxsplit=1)[-1])))
       time.sleep(5)
 
   def stop_worker(self):

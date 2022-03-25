@@ -33,21 +33,25 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.fn.harness.logging.RestoreBeamFnLoggingMDC;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.function.ThrowingFunction;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -85,6 +89,8 @@ public class BeamFnControlClientTest {
           .setError(getStackTraceAsString(FAILURE))
           .build();
 
+  @Rule public TestRule restoreMDCAfterTest = new RestoreBeamFnLoggingMDC();
+
   @Test
   public void testDelegation() throws Exception {
     AtomicBoolean clientClosedStream = new AtomicBoolean();
@@ -120,12 +126,15 @@ public class BeamFnControlClientTest {
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
-          value ->
-              BeamFnApi.InstructionResponse.newBuilder()
-                  .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance()));
+          value -> {
+            assertEquals(value.getInstructionId(), BeamFnLoggingMDC.getInstructionId());
+            return BeamFnApi.InstructionResponse.newBuilder()
+                .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
+          });
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.REGISTER,
           value -> {
+            assertEquals(value.getInstructionId(), BeamFnLoggingMDC.getInstructionId());
             throw FAILURE;
           });
 
@@ -133,7 +142,7 @@ public class BeamFnControlClientTest {
       BeamFnControlClient client =
           new BeamFnControlClient(
               apiServiceDescriptor,
-              InProcessManagedChannelFactory.create(),
+              ManagedChannelFactory.createInProcess(),
               OutboundObserverFactory.trivial(),
               executor,
               handlers);
@@ -199,6 +208,7 @@ public class BeamFnControlClientTest {
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.REGISTER,
           value -> {
+            assertEquals(value.getInstructionId(), BeamFnLoggingMDC.getInstructionId());
             throw new Error("Test Error");
           });
 
@@ -206,7 +216,7 @@ public class BeamFnControlClientTest {
       BeamFnControlClient client =
           new BeamFnControlClient(
               apiServiceDescriptor,
-              InProcessManagedChannelFactory.create(),
+              ManagedChannelFactory.createInProcess(),
               OutboundObserverFactory.trivial(),
               executor,
               handlers);

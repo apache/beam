@@ -31,9 +31,17 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform :: Exp
 ext.summary = "Expansion service serving GCP Java IOs"
 
 dependencies {
-    compile project(":sdks:java:expansion-service")
+    implementation project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-    compile project(":sdks:java:io:google-cloud-platform")
+    implementation project(":sdks:java:io:google-cloud-platform")
     permitUnusedDeclared project(":sdks:java:io:google-cloud-platform") // BEAM-11761
-    runtime library.java.slf4j_jdk14
+    implementation project(":sdks:java:extensions:schemaio-expansion-service")
+    permitUnusedDeclared project(":sdks:java:extensions:schemaio-expansion-service") // BEAM-11761
+    runtimeOnly library.java.slf4j_jdk14
+}
+
+task runExpansionService (type: JavaExec) {
+    mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
+    classpath = sourceSets.test.runtimeClasspath
+    args = [project.findProperty("constructionService.port") ?: "8097"]
 }

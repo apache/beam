@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Options;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithCustomEndpointAndPathStyleAccessEnabled;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.toMd5;
-import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -73,6 +72,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
@@ -1162,7 +1162,9 @@ public class S3FileSystemTest {
     // First create an object and write data to it
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar.txt");
     WritableByteChannel writableByteChannel =
-        s3FileSystem.create(path, builder().setMimeType("application/text").build());
+        s3FileSystem.create(
+            path,
+            CreateOptions.StandardCreateOptions.builder().setMimeType("application/text").build());
     writableByteChannel.write(bb);
     writableByteChannel.close();
 
@@ -1190,7 +1192,9 @@ public class S3FileSystemTest {
     // First create an object and write data to it
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar.txt");
     WritableByteChannel writableByteChannel =
-        s3FileSystem.create(path, builder().setMimeType("application/text").build());
+        s3FileSystem.create(
+            path,
+            CreateOptions.StandardCreateOptions.builder().setMimeType("application/text").build());
     writableByteChannel.write(bb);
     writableByteChannel.close();
 

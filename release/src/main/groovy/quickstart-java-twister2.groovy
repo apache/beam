@@ -28,7 +28,7 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Twister2'
   t.intent 'Gets the WordCount Example Code'
     QuickstartArchetype.generate(t)
 
-  t.intent 'Runs the WordCount Code with Spark runner'
+  t.intent 'Runs the WordCount Code with Twister2 runner'
     // Run the wordcount example with the Twister2 runner
     t.run """mvn compile exec:java -q \
       -Dmaven.wagon.http.retryHandler.class=default \

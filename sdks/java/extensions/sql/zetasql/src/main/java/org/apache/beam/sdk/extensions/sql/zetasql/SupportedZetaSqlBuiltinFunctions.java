@@ -405,18 +405,16 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_MAX, // max
           FunctionSignatureId.FN_MIN, // min
           FunctionSignatureId.FN_STRING_AGG_STRING, // string_agg(s)
-          // FunctionSignatureId.FN_STRING_AGG_DELIM_STRING, // string_agg(s, delim_s)
-          // FunctionSignatureId.FN_STRING_AGG_BYTES, // string_agg(b)
-          // FunctionSignatureId.FN_STRING_AGG_DELIM_BYTES, // string_agg(b, delim_b)
+          FunctionSignatureId.FN_STRING_AGG_DELIM_STRING, // string_agg(s, delim_s)
+          FunctionSignatureId.FN_STRING_AGG_BYTES, // string_agg(b)
+          FunctionSignatureId.FN_STRING_AGG_DELIM_BYTES, // string_agg(b, delim_b)
           FunctionSignatureId.FN_SUM_INT64, // sum
           FunctionSignatureId.FN_SUM_DOUBLE, // sum
           FunctionSignatureId.FN_SUM_NUMERIC, // sum
           // FunctionSignatureId.FN_SUM_BIGNUMERIC, // sum
-          // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
-          // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
+          FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
           FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
-          // TODO(BEAM-10379) Re-enable when nulls are handled properly.
-          // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
+          FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
           // Approximate aggregate functions.

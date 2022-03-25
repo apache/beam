@@ -26,6 +26,7 @@ import unittest
 from ast import literal_eval as make_tuple
 
 import numpy as np
+import pytest
 from mock import MagicMock
 from mock import patch
 
@@ -48,6 +49,7 @@ class DistribOptimizationTest(unittest.TestCase):
     with open(path, 'w') as f:
       f.write(contents)
 
+  @pytest.mark.examples_postcommit
   def test_basics(self):
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()

@@ -536,7 +536,7 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] createAccumulator(Context c) {
+    public Object[] createAccumulator(CombineWithContext.Context c) {
       Object[] accumsArray = new Object[combineFnCount];
       for (int i = 0; i < combineFnCount; ++i) {
         accumsArray[i] = combineFnWithContexts.get(i).createAccumulator(c);
@@ -545,7 +545,7 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] addInput(Object[] accumulator, DataT value, Context c) {
+    public Object[] addInput(Object[] accumulator, DataT value, CombineWithContext.Context c) {
       for (int i = 0; i < combineFnCount; ++i) {
         Object input = extractInputFns.get(i).apply(value);
         accumulator[i] = combineFnWithContexts.get(i).addInput(accumulator[i], input, c);
@@ -554,7 +554,8 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] mergeAccumulators(Iterable<Object[]> accumulators, Context c) {
+    public Object[] mergeAccumulators(
+        Iterable<Object[]> accumulators, CombineWithContext.Context c) {
       Iterator<Object[]> iter = accumulators.iterator();
       if (!iter.hasNext()) {
         return createAccumulator(c);
@@ -574,7 +575,7 @@ public class CombineFns {
     }
 
     @Override
-    public CoCombineResult extractOutput(Object[] accumulator, Context c) {
+    public CoCombineResult extractOutput(Object[] accumulator, CombineWithContext.Context c) {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
         valuesMap.put(
@@ -584,7 +585,7 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] compact(Object[] accumulator, Context c) {
+    public Object[] compact(Object[] accumulator, CombineWithContext.Context c) {
       for (int i = 0; i < combineFnCount; ++i) {
         accumulator[i] = combineFnWithContexts.get(i).compact(accumulator[i], c);
       }
@@ -660,7 +661,7 @@ public class CombineFns {
     }
 
     @Override
-    public void encode(Object[] value, OutputStream outStream, Context context)
+    public void encode(Object[] value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       checkArgument(value.length == codersCount);
       if (value.length == 0) {
@@ -679,7 +680,7 @@ public class CombineFns {
     }
 
     @Override
-    public Object[] decode(InputStream inStream, Context context)
+    public Object[] decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       Object[] ret = new Object[codersCount];
       if (codersCount == 0) {

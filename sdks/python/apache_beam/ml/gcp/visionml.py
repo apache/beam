@@ -122,7 +122,7 @@ class AnnotateImage(PTransform):
       metadata: (Optional[Sequence[Tuple[str, str]]]): Optional.
         Additional metadata that is provided to the method.
     """
-    super(AnnotateImage, self).__init__()
+    super().__init__()
     self.features = features
     self.retry = retry
     self.timeout = timeout
@@ -219,7 +219,7 @@ class AnnotateImageWithContext(AnnotateImage):
       metadata: (Optional[Sequence[Tuple[str, str]]]): Optional.
         Additional metadata that is provided to the method.
     """
-    super(AnnotateImageWithContext, self).__init__(
+    super().__init__(
         features=features,
         retry=retry,
         timeout=timeout,
@@ -265,7 +265,7 @@ class _ImageAnnotateFn(DoFn):
   Returns ``google.cloud.vision.types.BatchAnnotateImagesResponse``.
   """
   def __init__(self, features, retry, timeout, client_options, metadata):
-    super(_ImageAnnotateFn, self).__init__()
+    super().__init__()
     self._client = None
     self.features = features
     self.retry = retry
