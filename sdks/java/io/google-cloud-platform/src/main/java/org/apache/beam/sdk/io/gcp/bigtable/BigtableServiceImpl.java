@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
-import com.google.api.core.ApiFuture;
 import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.MutateRowsRequest;
@@ -47,23 +46,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
-import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +70,7 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class BigtableServiceImpl implements BigtableService {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
@@ -135,8 +133,9 @@ class BigtableServiceImpl implements BigtableService {
     @VisibleForTesting
     BigtableReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
-      tableNameStr = session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
-      //bulkRead = session.createBulkRead(new BigtableTableName(tableNameStr));
+      tableNameStr =
+          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
+      // bulkRead = session.createBulkRead(new BigtableTableName(tableNameStr));
       this.source = source;
       this.lastFillCompleted = false;
     }
@@ -146,17 +145,20 @@ class BigtableServiceImpl implements BigtableService {
       buffer = new ConcurrentLinkedQueue<Row>();
       RowRange[] rowRanges = new RowRange[source.getRanges().size()];
       for (int i = 0; i < source.getRanges().size(); i++) {
-        rowRanges[i] = RowRange.newBuilder()
-            .setStartKeyClosed(
-                ByteString.copyFrom(source.getRanges().get(i).getStartKey().getValue()))
-            .setEndKeyOpen(
-                ByteString.copyFrom(source.getRanges().get(i).getEndKey().getValue()))
-            .build();
+        rowRanges[i] =
+            RowRange.newBuilder()
+                .setStartKeyClosed(
+                    ByteString.copyFrom(source.getRanges().get(i).getStartKey().getValue()))
+                .setEndKeyOpen(
+                    ByteString.copyFrom(source.getRanges().get(i).getEndKey().getValue()))
+                .build();
       }
       // Sort the rowRanges by startKey
       Arrays.sort(rowRanges, RANGE_START_COMPARATOR);
-      rowSet = RowSet.newBuilder().
-          addAllRowRanges(Arrays.stream(rowRanges).collect(Collectors.toList())).build();
+      rowSet =
+          RowSet.newBuilder()
+              .addAllRowRanges(Arrays.stream(rowRanges).collect(Collectors.toList()))
+              .build();
 
       HashMap<String, String> baseLabels = new HashMap<>();
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
@@ -191,7 +193,7 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public boolean advance() throws IOException {
       if (buffer.isEmpty()) {
-        System.out.println("Here is before null check: "+future);
+        System.out.println("Here is before null check: " + future);
 
         if (future == null || !waitReadRowsFuture()) {
           return false;
@@ -209,8 +211,7 @@ class BigtableServiceImpl implements BigtableService {
 
     private void loadReadRowsFuture() throws IOException {
       try {
-        if(!splitRowSet(lastRowInBuffer))
-          return;
+        if (!splitRowSet(lastRowInBuffer)) return;
         future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().value());
@@ -234,8 +235,10 @@ class BigtableServiceImpl implements BigtableService {
 
     private ReadRowsRequest buildReadRowsRequest() {
       ReadRowsRequest.Builder request =
-          ReadRowsRequest.newBuilder().setRows(rowSet)
-              .setRowsLimit(MINI_BATCH_ROW_LIMIT).setTableName(tableNameStr);
+          ReadRowsRequest.newBuilder()
+              .setRows(rowSet)
+              .setRowsLimit(MINI_BATCH_ROW_LIMIT)
+              .setTableName(tableNameStr);
       if (source.getRowFilter() != null) {
         request.setFilter(source.getRowFilter());
       }
@@ -281,9 +284,9 @@ class BigtableServiceImpl implements BigtableService {
         } else {
           readRows = results.subList(0, results.size());
         }
-        lastRowInBuffer = readRows.get(readRows.size()-1).getKey();
+        lastRowInBuffer = readRows.get(readRows.size() - 1).getKey();
         buffer.addAll(readRows);
-        System.out.println("Size of buffer: "+ buffer.size());
+        System.out.println("Size of buffer: " + buffer.size());
         serviceCallMetric.call("ok");
         return true;
       } catch (StatusRuntimeException e) {
