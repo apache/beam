@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.cdap;
 
 import com.google.auto.value.AutoValue;
@@ -24,146 +23,115 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import org.apache.hadoop.conf.Configuration;
 
-/**
- * Class wrapper for a CDAP plugin.
- */
+/** Class wrapper for a CDAP plugin. */
 @AutoValue
 public abstract class Plugin {
-    protected PluginConfig pluginConfig;
-    protected Configuration hadoopConfiguration;
+  protected PluginConfig pluginConfig;
+  protected Configuration hadoopConfiguration;
 
-    /**
-     * Gets the main class of a plugin.
-     */
-    public abstract Class<?> getPluginClass();
+  /** Gets the main class of a plugin. */
+  public abstract Class<?> getPluginClass();
 
-    /**
-     * Gets InputFormat or OutputFormat class for a plugin.
-     */
-    public abstract Class<?> getFormatClass();
+  /** Gets InputFormat or OutputFormat class for a plugin. */
+  public abstract Class<?> getFormatClass();
 
-    /**
-     * Gets InputFormatProvider or OutputFormatProvider class for a plugin.
-     */
-    public abstract Class<?> getFormatProviderClass();
+  /** Gets InputFormatProvider or OutputFormatProvider class for a plugin. */
+  public abstract Class<?> getFormatProviderClass();
 
-    /**
-     * Sets a plugin config.
-     */
-    public Plugin withConfig(PluginConfig pluginConfig) {
-        this.pluginConfig = pluginConfig;
-        return this;
+  /** Sets a plugin config. */
+  public Plugin withConfig(PluginConfig pluginConfig) {
+    this.pluginConfig = pluginConfig;
+    return this;
+  }
+
+  /** Gets a plugin config. */
+  public PluginConfig getPluginConfig() {
+    return pluginConfig;
+  }
+
+  /** Sets a plugin Hadoop configuration. */
+  public Plugin withHadoopConfiguration(Class<?> formatKeyClass, Class<?> formatValueClass) {
+    PluginConstants.Format formatType = getFormatType();
+    PluginConstants.Hadoop hadoopType = getHadoopType();
+
+    this.hadoopConfiguration = new Configuration(false);
+
+    this.hadoopConfiguration.setClass(
+        hadoopType.getFormatClass(), getFormatClass(), formatType.getFormatClass());
+    this.hadoopConfiguration.setClass(hadoopType.getKeyClass(), formatKeyClass, Object.class);
+    this.hadoopConfiguration.setClass(hadoopType.getValueClass(), formatValueClass, Object.class);
+
+    return this;
+  }
+
+  /** Sets a plugin Hadoop configuration. */
+  public Plugin withHadoopConfiguration(Configuration hadoopConfiguration) {
+    this.hadoopConfiguration = hadoopConfiguration;
+
+    return this;
+  }
+
+  /** Gets a plugin Hadoop configuration. */
+  public Configuration getHadoopConfiguration() {
+    return hadoopConfiguration;
+  }
+
+  /** Gets a plugin type. */
+  public abstract PluginConstants.PluginType getPluginType();
+
+  /** Gets a format type. */
+  private PluginConstants.Format getFormatType() {
+    return getPluginType() == PluginConstants.PluginType.SOURCE
+        ? PluginConstants.Format.INPUT
+        : PluginConstants.Format.OUTPUT;
+  }
+
+  /** Gets a Hadoop type. */
+  private PluginConstants.Hadoop getHadoopType() {
+    return getPluginType() == PluginConstants.PluginType.SOURCE
+        ? PluginConstants.Hadoop.SOURCE
+        : PluginConstants.Hadoop.SINK;
+  }
+
+  /** Gets value of a plugin type. */
+  public static PluginConstants.PluginType initPluginType(Class<?> pluginClass)
+      throws IllegalArgumentException {
+    if (BatchSource.class.isAssignableFrom(pluginClass)) {
+      return PluginConstants.PluginType.SOURCE;
+    } else if (BatchSink.class.isAssignableFrom(pluginClass)) {
+      return PluginConstants.PluginType.SINK;
     }
 
-    /**
-     * Gets a plugin config.
-     */
-    public PluginConfig getPluginConfig() {
-        return pluginConfig;
-    }
+    throw new IllegalArgumentException("Provided class should be source or sink plugin");
+  }
 
-    /**
-     * Sets a plugin Hadoop configuration.
-     */
-    public Plugin withHadoopConfiguration(Class<?> formatKeyClass,
-                                          Class<?> formatValueClass) {
-        PluginConstants.Format formatType = getFormatType();
-        PluginConstants.Hadoop hadoopType = getHadoopType();
+  /** Creates a plugin instance. */
+  public static Plugin create(
+      Class<?> newPluginClass, Class<?> newFormatClass, Class<?> newFormatProviderClass) {
+    return builder()
+        .setPluginClass(newPluginClass)
+        .setFormatClass(newFormatClass)
+        .setFormatProviderClass(newFormatProviderClass)
+        .setPluginType(Plugin.initPluginType(newPluginClass))
+        .build();
+  }
 
-        this.hadoopConfiguration = new Configuration(false);
+  /** Creates a plugin builder instance. */
+  public static Builder builder() {
+    return new AutoValue_Plugin.Builder();
+  }
 
-        this.hadoopConfiguration.setClass(hadoopType.getFormatClass(), getFormatClass(), formatType.getFormatClass());
-        this.hadoopConfiguration.setClass(hadoopType.getKeyClass(), formatKeyClass, Object.class);
-        this.hadoopConfiguration.setClass(hadoopType.getValueClass(), formatValueClass, Object.class);
+  /** Builder class for a {@link Plugin}. */
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setPluginClass(Class<?> newPluginClass);
 
-        return this;
-    }
+    public abstract Builder setFormatClass(Class<?> newFormatClass);
 
-    /**
-     * Sets a plugin Hadoop configuration.
-     */
-    public Plugin withHadoopConfiguration(Configuration hadoopConfiguration) {
-        this.hadoopConfiguration = hadoopConfiguration;
+    public abstract Builder setFormatProviderClass(Class<?> newFormatProviderClass);
 
-        return this;
-    }
+    public abstract Builder setPluginType(PluginConstants.PluginType newPluginType);
 
-    /**
-     * Gets a plugin Hadoop configuration.
-     */
-    public Configuration getHadoopConfiguration() {
-        return hadoopConfiguration;
-    }
-
-    /**
-     * Gets a plugin type.
-     */
-    public abstract PluginConstants.PluginType getPluginType();
-
-    /**
-     * Gets a format type.
-     */
-    private PluginConstants.Format getFormatType() {
-        return getPluginType() == PluginConstants.PluginType.SOURCE
-                ? PluginConstants.Format.INPUT
-                : PluginConstants.Format.OUTPUT;
-    }
-
-    /**
-     * Gets a Hadoop type.
-     */
-    private PluginConstants.Hadoop getHadoopType() {
-        return getPluginType() == PluginConstants.PluginType.SOURCE
-                ? PluginConstants.Hadoop.SOURCE
-                : PluginConstants.Hadoop.SINK;
-    }
-
-    /**
-     * Gets value of a plugin type.
-     */
-    public static PluginConstants.PluginType initPluginType(Class<?> pluginClass) throws IllegalArgumentException {
-        if (BatchSource.class.isAssignableFrom(pluginClass)) {
-            return PluginConstants.PluginType.SOURCE;
-        } else if (BatchSink.class.isAssignableFrom(pluginClass)) {
-            return PluginConstants.PluginType.SINK;
-        } else {
-            throw new IllegalArgumentException("Provided class should be source or sink plugin");
-        }
-    }
-
-    /**
-     * Creates a plugin instance.
-     */
-    public static Plugin create(Class<?> newPluginClass, Class<?> newFormatClass, Class<?> newFormatProviderClass) {
-        return builder()
-                .setPluginClass(newPluginClass)
-                .setFormatClass(newFormatClass)
-                .setFormatProviderClass(newFormatProviderClass)
-                .setPluginType(Plugin.initPluginType(newPluginClass))
-                .build();
-    }
-
-    /**
-     * Creates a plugin builder instance.
-     */
-    public static Builder builder() {
-        return new AutoValue_Plugin.Builder();
-    }
-
-
-    /**
-     * Builder class for a {@link Plugin}.
-     */
-    @AutoValue.Builder
-    public abstract static class Builder {
-        public abstract Builder setPluginClass(Class<?> newPluginClass);
-
-        public abstract Builder setFormatClass(Class<?> newFormatClass);
-
-        public abstract Builder setFormatProviderClass(Class<?> newFormatProviderClass);
-
-        public abstract Builder setPluginType(PluginConstants.PluginType newPluginType);
-
-        public abstract Plugin build();
-    }
+    public abstract Plugin build();
+  }
 }

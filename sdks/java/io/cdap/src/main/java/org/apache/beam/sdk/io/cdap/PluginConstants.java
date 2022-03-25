@@ -22,99 +22,86 @@ import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.OutputFormat;
 
-/**
- * Class for CDAP plugin constants.
- */
+/** Class for CDAP plugin constants. */
 public final class PluginConstants {
-    /**
-     * Plugin types.
-     */
-    public enum PluginType {
-        SOURCE,
-        SINK
+  /** Plugin types. */
+  public enum PluginType {
+    SOURCE,
+    SINK
+  }
+
+  /** Format types. */
+  public enum Format {
+    INPUT(InputFormat.class, "InputFormat"),
+    OUTPUT(OutputFormat.class, "OutputFormat");
+
+    private final Class<?> formatClass;
+    private final String formatName;
+
+    Format(Class<?> formatClass, String formatName) {
+      this.formatClass = formatClass;
+      this.formatName = formatName;
     }
 
-    /**
-     * Format types.
-     */
-    public enum Format {
-        INPUT(InputFormat.class, "InputFormat"),
-        OUTPUT(OutputFormat.class, "OutputFormat");
-
-        private final Class<?> formatClass;
-        private final String formatName;
-
-        Format(Class<?> formatClass, String formatName) {
-            this.formatClass = formatClass;
-            this.formatName = formatName;
-        }
-
-        public Class<?> getFormatClass() {
-            return formatClass;
-        }
-
-        public String getFormatName() {
-            return formatName;
-        }
+    public Class<?> getFormatClass() {
+      return formatClass;
     }
 
-    /**
-     * Format provider types.
-     */
-    public enum FormatProvider {
-        INPUT(InputFormatProvider.class, "InputFormatProvider"),
-        OUTPUT(OutputFormatProvider.class, "OutputFormatProvider");
+    public String getFormatName() {
+      return formatName;
+    }
+  }
 
-        private final Class<?> formatProviderClass;
-        private final String formatProviderName;
+  /** Format provider types. */
+  public enum FormatProvider {
+    INPUT(InputFormatProvider.class, "InputFormatProvider"),
+    OUTPUT(OutputFormatProvider.class, "OutputFormatProvider");
 
-        FormatProvider(Class<?> formatProviderClass, String formatProviderName) {
-            this.formatProviderClass = formatProviderClass;
-            this.formatProviderName = formatProviderName;
-        }
+    private final Class<?> formatProviderClass;
+    private final String formatProviderName;
 
-        public Class<?> getFormatProviderClass() {
-            return formatProviderClass;
-        }
-
-        public String getFormatProviderName() {
-            return formatProviderName;
-        }
+    FormatProvider(Class<?> formatProviderClass, String formatProviderName) {
+      this.formatProviderClass = formatProviderClass;
+      this.formatProviderName = formatProviderName;
     }
 
-    /**
-     * Hadoop types.
-     */
-    public enum Hadoop {
-        SOURCE("mapreduce.job.inputformat.class",
-                "key.class",
-                "value.class"),
-        SINK("mapreduce.job.outputformat.class",
-                "mapreduce.job.output.key.class",
-                "mapreduce.job.output.value.class");
-
-
-        private final String formatClass;
-        private final String keyClass;
-        private final String valueClass;
-
-        Hadoop(String formatClassName, String keyClass, String valueClass) {
-            this.formatClass = formatClassName;
-            this.keyClass = keyClass;
-            this.valueClass = valueClass;
-        }
-
-        public String getFormatClass() {
-            return formatClass;
-        }
-
-        public String getKeyClass() {
-            return keyClass;
-        }
-
-        public String getValueClass() {
-            return valueClass;
-        }
+    public Class<?> getFormatProviderClass() {
+      return formatProviderClass;
     }
 
+    public String getFormatProviderName() {
+      return formatProviderName;
+    }
+  }
+
+  /** Hadoop types. */
+  public enum Hadoop {
+    SOURCE("mapreduce.job.inputformat.class", "key.class", "value.class"),
+    SINK(
+        "mapreduce.job.outputformat.class",
+        "mapreduce.job.output.key.class",
+        "mapreduce.job.output.value.class");
+
+    private final String formatClass;
+    private final String keyClass;
+    private final String valueClass;
+
+    Hadoop(String formatClassName, String keyClass, String valueClass) {
+      this.formatClass = formatClassName;
+      this.keyClass = keyClass;
+      this.valueClass = valueClass;
+    }
+
+    public String getFormatClass() {
+      return formatClass;
+    }
+
+    public String getKeyClass() {
+      return keyClass;
+    }
+
+    public String getValueClass() {
+      return valueClass;
+    }
+  }
 }
