@@ -34,6 +34,8 @@
     "long": "^4.0.0",
     "protobufjs": "^6.10.2",
     "serialize-closures": "^0.2.7",
+    "ts-closure-transform": "^0.1.7",
+    "ttypescript": "^1.5.13",
     "uuid": "^8.3.2"
   },
   "main": "./dist/apache_beam/index.js",
