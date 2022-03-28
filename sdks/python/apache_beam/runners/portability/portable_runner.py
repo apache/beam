@@ -532,7 +532,7 @@ class PipelineResult(runner.PipelineResult):
       try:
         return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
       except ValueError:
-        return beam_job_api_pb2.JobState.UNKNOWN
+        return beam_job_api_pb2.JobState.UNSPECIFIED
 
   def metrics(self):
     if not self._metrics:
