@@ -6,6 +6,17 @@
     "target": "es2021",
     "strictNullChecks": true,
     "moduleResolution": "node",
+    "plugins": [
+      {
+        "transform": "ts-closure-transform",
+        "import": "beforeTransform"
+      },
+      {
+        "transform": "ts-closure-transform",
+        "import": "afterTransform",
+        "after": true
+      }
+    ],
     "sourceMap": true,
     "outDir": "dist/",
     "baseUrl": ".",
