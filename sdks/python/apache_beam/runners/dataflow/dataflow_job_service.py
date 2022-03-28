@@ -18,30 +18,22 @@
 import argparse
 import logging
 import sys
-import time
-import traceback
 
 from apache_beam.options import pipeline_options
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import beam_fn_api_pb2_grpc
-from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_job_api_pb2_grpc
-from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.job import utils as job_utils
-from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
 from apache_beam.runners.portability import portable_runner
-from apache_beam.runners.portability.fn_api_runner import fn_runner
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class DataflowBeamJob(local_job_service.BeamJob):
+  """A representation of a single Beam job to be run on the Dataflow runner.
+  """
   def _invoke_runner(self):
+    """Actually calls Dataflow and waits for completion.
+    """
     runner = dataflow_runner.DataflowRunner()
     result = runner.run_pipeline(
         None, self.pipeline_options(), self._pipeline_proto)
@@ -70,7 +62,7 @@ class DataflowBeamJob(local_job_service.BeamJob):
         })
 
 
-def run(argv):
+def run(argv, beam_job_type=DataflowBeamJob):
   if argv[0] == __file__:
     argv = argv[1:]
   parser = argparse.ArgumentParser()
@@ -85,7 +77,7 @@ def run(argv):
   options = parser.parse_args(argv)
 
   job_servicer = local_job_service.LocalJobServicer(
-      options.staging_dir, beam_job_type=DataflowBeamJob)
+      options.staging_dir, beam_job_type=beam_job_type)
   port = job_servicer.start_grpc_server(options.port)
   try:
     local_job_service_main.serve(

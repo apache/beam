@@ -21,10 +21,17 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.dataflow import dataflow_job_service
 from apache_beam.runners.portability import local_job_service
-from apache_beam.runners.portability import local_job_service_main
-from apache_beam.runners.portability import portable_runner
+
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.runners.dataflow.internal import apiclient
+except ImportError:
+  apiclient = None  # type: ignore
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
+@unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class DirectPipelineResultTest(unittest.TestCase):
   def test_dry_run(self):
     # Not an integration test that actually runs on Dataflow,
@@ -43,6 +50,6 @@ class DirectPipelineResultTest(unittest.TestCase):
           dry_run=True,
       )
       with beam.Pipeline(options=options) as p:
-        p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
+        _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
     finally:
       job_servicer.stop()

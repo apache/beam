@@ -1211,6 +1211,7 @@ class PortableOptions(PipelineOptions):
             'artifact endpoint sent from the job server is used.'))
     parser.add_argument(
         '--job_server_timeout',
+        '--job-server-timeout',  # For backwards compatibility.
         default=60,
         type=int,
         help=(

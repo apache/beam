@@ -443,8 +443,8 @@ class DataflowRunner(PipelineRunner):
                   TypeOptions).allow_non_deterministic_key_coders))
 
       # Performing configured PTransform overrides.  Note that this is currently
-      # done before Runner API serialization, since the new proto needs to contain
-      # any added PTransforms.
+      # done before Runner API serialization, since the new proto needs to
+      # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
       from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
@@ -477,8 +477,8 @@ class DataflowRunner(PipelineRunner):
       self.proto_pipeline = pipeline_proto
 
     else:
-      # This has to be performed before pipeline proto is constructed to make sure
-      # that the changes are reflected in the portable job submission path.
+      # This has to be performed before pipeline proto is constructed to make
+      # sure that the changes are reflected in the portable job submission path.
       self._adjust_pipeline_for_dataflow_v2(pipeline)
 
       # Snapshot the pipeline in a portable proto.
