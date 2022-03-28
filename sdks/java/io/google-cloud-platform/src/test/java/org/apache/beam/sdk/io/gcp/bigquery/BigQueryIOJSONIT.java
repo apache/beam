@@ -20,18 +20,35 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.junit.Assert.assertEquals;
+
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.BeforeClass;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -44,6 +61,119 @@ public class BigQueryIOJSONIT {
 
   @Rule
   public final transient TestPipeline p = TestPipeline.create();
+
+  private BigQueryIOJSONOptions options;
+
+  private static String project;
+
+  private static final String DATASET_ID = "bq_jsontype_test_nodelete";
+
+  private static final String JSON_TYPE_TABLE_NAME = "json_data";
+
+  private static String JSON_TABLE_DESTINATION;
+
+  private static final List<KV<String, String>> JSON_TYPE_DATA = generateCountryData();
+
+  // Convert PCollection of TableRows to a PCollection of KV JSON string pairs
+  static class TableRowToJSONStringFn extends DoFn<TableRow, KV<String, String>> {
+    @ProcessElement
+    public void processElement(@Element TableRow row, OutputReceiver<KV<String, String>> out){
+      String country_code = row.get("country_code").toString();
+      String country = row.get("country").toString();
+
+      out.output(KV.of(country_code, country));
+    }
+  }
+
+  static class CompareJSON implements SerializableFunction<Iterable<KV<String, String>>, Void> {
+    Map<String, String> expected;
+    public CompareJSON(Map<String, String> expected){
+      this.expected = expected;
+    }
+
+    // Compare PCollection input with the expected results.
+    @Override
+    public Void apply(Iterable<KV<String, String>> input) throws RuntimeException {
+      LOG.info("Here in CompareJSON");
+      int counter = 0;
+
+      // Iterate through input list and convert each String to JsonElement and
+      // compare with expected result JsonElements
+      for(KV<String, String> entry: input){
+        String key = entry.getKey();
+
+        if(!expected.containsKey(key)){
+          throw new NoSuchElementException(String.format(
+              "Unexpected key '%s' found in input but does not exist in expected results.", key));
+        }
+        String jsonStringActual = entry.getValue();
+        JsonElement jsonActual = JsonParser.parseString(jsonStringActual);
+
+        String jsonStringExpected = expected.get(key);
+        JsonElement jsonExpected = JsonParser.parseString(jsonStringExpected);
+
+        System.out.println(key);
+        System.out.println(jsonActual.toString());
+        System.out.println(jsonExpected.toString());
+
+        assertEquals(jsonExpected, jsonActual);
+        counter += 1;
+      }
+      if(counter != expected.size()){
+        throw new RuntimeException(String.format(
+            "Expected %d elements but got %d elements.", expected.size(), counter));
+      }
+      return null;
+    }
+  }
+
+  // reads TableRows from BigQuery and checks their JSON objects against an expected result.
+  public void readAndValidateRows(BigQueryIOJSONOptions options, List<KV<String, String>> expectedResults){
+    TypedRead<TableRow> bigqueryIO =
+        BigQueryIO.readTableRows().withMethod(options.getReadMethod());
+
+    // read from input query or from a table
+    if(!options.getInputQuery().isEmpty()) {
+      bigqueryIO = bigqueryIO.fromQuery(options.getInputQuery());
+    } else {
+      bigqueryIO = bigqueryIO.from(options.getInput());
+    }
+
+    PCollection<KV<String, String>> jsonKVPairs = p
+        .apply("Read rows", bigqueryIO)
+        .apply("Convert to KV JSON Strings", ParDo.of(new TableRowToJSONStringFn()));
+
+    Map<String, String> expectedJsonResults = new HashMap<String, String>();
+    for(KV<String, String> m: expectedResults){
+      expectedJsonResults.put(m.getKey(), m.getValue());
+    }
+
+    PAssert.that(jsonKVPairs).satisfies(new CompareJSON(expectedJsonResults));
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testDirectRead() throws Exception {
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options.setReadMethod(TypedRead.Method.DIRECT_READ);
+    options.setInput(JSON_TABLE_DESTINATION);
+    // options.setRunner(DataflowRunner.class);
+
+    System.out.println("MY TABLE: " + JSON_TABLE_DESTINATION);
+
+    readAndValidateRows(options, JSON_TYPE_DATA);
+  }
+
+  @BeforeClass
+  public static void setupTestEnvironment() throws Exception {
+    PipelineOptionsFactory.register(BigQueryIOJSONOptions.class);
+    // project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    // project = "apache-beam-testing";
+    project = "google.com:clouddfe";
+
+    JSON_TABLE_DESTINATION = String.format("%s:%s.%s", project, DATASET_ID, JSON_TYPE_TABLE_NAME);
+  }
 
   public interface BigQueryIOJSONOptions extends TestPipelineOptions {
     @Description("Table to read from, specified as <project_id>:<dataset_id>.<table_id>")
