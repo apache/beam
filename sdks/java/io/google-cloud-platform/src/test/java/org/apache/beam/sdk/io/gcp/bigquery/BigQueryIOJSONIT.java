@@ -158,9 +158,15 @@ public class BigQueryIOJSONIT {
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
     options.setReadMethod(TypedRead.Method.DIRECT_READ);
     options.setInput(JSON_TABLE_DESTINATION);
-    // options.setRunner(DataflowRunner.class);
+    
+    readAndValidateRows(options, JSON_TYPE_DATA);
+  }
 
-    System.out.println("MY TABLE: " + JSON_TABLE_DESTINATION);
+  @Test
+  public void testExportRead() throws Exception {
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options.setReadMethod(TypedRead.Method.EXPORT);
+    options.setInput(JSON_TABLE_DESTINATION);
 
     readAndValidateRows(options, JSON_TYPE_DATA);
   }
