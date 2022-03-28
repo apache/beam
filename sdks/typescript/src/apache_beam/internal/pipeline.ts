@@ -19,17 +19,96 @@
 import equal from "fast-deep-equal";
 
 import * as runnerApi from "../proto/beam_runner_api";
+import * as fnApi from "../proto/beam_fn_api";
 import {
   PTransform,
   AsyncPTransform,
   extractName,
 } from "../transforms/transform";
 import { GlobalWindows } from "../transforms/windowings";
-import { PValue, PCollection, flattenPValue } from "../pvalue";
-import { PipelineContext } from "../base";
-import { WindowInto } from "../base";
+import * as pvalue from "../pvalue";
+import { WindowInto } from "../transforms/window";
 import * as environments from "./environments";
-import { Coder } from "../coders/coders";
+import { Coder, globalRegistry as globalCoderRegistry } from "../coders/coders";
+
+type Components = runnerApi.Components | fnApi.ProcessBundleDescriptor;
+
+// TODO: Cleanup. Where to put this.
+export class PipelineContext {
+  counter: number = 0;
+
+  private coders: { [key: string]: Coder<any> } = {};
+
+  constructor(public components: Components) {}
+
+  getCoder<T>(coderId: string): Coder<T> {
+    const this_ = this;
+    if (this.coders[coderId] == undefined) {
+      const coderProto = this.components.coders[coderId];
+      const coderConstructor = globalCoderRegistry().get(coderProto.spec!.urn);
+      const components = (coderProto.componentCoderIds || []).map(
+        this_.getCoder.bind(this_)
+      );
+      if (coderProto.spec!.payload && coderProto.spec!.payload.length) {
+        this.coders[coderId] = new coderConstructor(
+          coderProto.spec!.payload,
+          ...components
+        );
+      } else {
+        this.coders[coderId] = new coderConstructor(...components);
+      }
+    }
+    return this.coders[coderId];
+  }
+
+  getCoderId(coder: Coder<any>): string {
+    return this.getOrAssign(
+      this.components.coders,
+      coder.toProto(this),
+      "coder"
+    );
+  }
+
+  getPCollectionCoder<T>(pcoll: pvalue.PCollection<T>): Coder<T> {
+    return this.getCoder(this.getPCollectionCoderId(pcoll));
+  }
+
+  getPCollectionCoderId<T>(pcoll: pvalue.PCollection<T>): string {
+    const pcollId = typeof pcoll == "string" ? pcoll : pcoll.getId();
+    return this.components!.pcollections[pcollId].coderId;
+  }
+
+  getWindowingStrategy(id: string): runnerApi.WindowingStrategy {
+    return this.components.windowingStrategies[id];
+  }
+
+  getWindowingStrategyId(windowing: runnerApi.WindowingStrategy): string {
+    return this.getOrAssign(
+      this.components.windowingStrategies,
+      windowing,
+      "windowing"
+    );
+  }
+
+  private getOrAssign<T>(
+    existing: { [key: string]: T },
+    obj: T,
+    prefix: string
+  ) {
+    for (const [id, other] of Object.entries(existing)) {
+      if (equal(other, obj)) {
+        return id;
+      }
+    }
+    const newId = this.createUniqueName(prefix);
+    existing[newId] = obj;
+    return newId;
+  }
+
+  createUniqueName(prefix: string): string {
+    return prefix + "_" + this.counter++;
+  }
+}
 
 /**
  * A Pipeline holds the Beam DAG and auxiliary information needed to construct
@@ -56,10 +135,10 @@ export class Pipeline {
       WindowInto.createWindowingStrategy(this, new GlobalWindows());
   }
 
-  preApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
-    transform: AsyncPTransform<InputT, OutputT>,
-    input: InputT
-  ) {
+  preApplyTransform<
+    InputT extends pvalue.PValue<any>,
+    OutputT extends pvalue.PValue<any>
+  >(transform: AsyncPTransform<InputT, OutputT>, input: InputT) {
     const this_ = this;
     const transformId = this.context.createUniqueName("transform");
     let parent: runnerApi.PTransform | undefined = undefined;
@@ -76,7 +155,7 @@ export class Pipeline {
       uniqueName:
         (parent ? parent.uniqueName + "/" : "") + extractName(transform),
       subtransforms: [],
-      inputs: objectMap(flattenPValue(input), (pc) => pc.getId()),
+      inputs: objectMap(pvalue.flattenPValue(input), (pc) => pc.getId()),
       outputs: {},
       environmentId: this.defaultEnvironment,
       displayData: [],
@@ -86,10 +165,10 @@ export class Pipeline {
     return { id: transformId, proto: transformProto };
   }
 
-  applyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
-    transform: PTransform<InputT, OutputT>,
-    input: InputT
-  ) {
+  applyTransform<
+    InputT extends pvalue.PValue<any>,
+    OutputT extends pvalue.PValue<any>
+  >(transform: PTransform<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
       input
@@ -105,8 +184,8 @@ export class Pipeline {
   }
 
   async asyncApplyTransform<
-    InputT extends PValue<any>,
-    OutputT extends PValue<any>
+    InputT extends pvalue.PValue<any>,
+    OutputT extends pvalue.PValue<any>
   >(transform: AsyncPTransform<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
@@ -122,16 +201,19 @@ export class Pipeline {
     return this.postApplyTransform(transform, transformProto, result);
   }
 
-  postApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
+  postApplyTransform<
+    InputT extends pvalue.PValue<any>,
+    OutputT extends pvalue.PValue<any>
+  >(
     transform: AsyncPTransform<InputT, OutputT>,
     transformProto: runnerApi.PTransform,
     result: OutputT
   ) {
-    transformProto.outputs = objectMap(flattenPValue(result), (pc) =>
+    transformProto.outputs = objectMap(pvalue.flattenPValue(result), (pc) =>
       pc.getId()
     );
 
-    // Propagate any unset PCollection properties.
+    // Propagate any unset pvalue.PCollection properties.
     const this_ = this;
     const inputProtos = Object.values(transformProto.inputs).map(
       (id) => this_.proto.components!.pcollections[id]
@@ -176,8 +258,8 @@ export class Pipeline {
       | string
       | undefined = undefined,
     isBounded: runnerApi.IsBounded_Enum | undefined = undefined
-  ): PCollection<OutputT> {
-    return new PCollection<OutputT>(
+  ): pvalue.PCollection<OutputT> {
+    return new pvalue.PCollection<OutputT>(
       this,
       this.createPCollectionIdInternal(coder, windowingStrategy, isBounded)
     );

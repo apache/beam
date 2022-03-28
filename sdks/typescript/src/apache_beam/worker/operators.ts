@@ -25,11 +25,13 @@ import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data";
 import { StateProvider } from "./state";
 
-import * as base from "../base";
 import * as urns from "../internal/urns";
+import { PipelineContext } from "../internal/pipeline";
+import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
 import { Window, Instant, PaneInfo, WindowedValue } from "../values";
-import { DoFn, ParDoParam } from "../transforms/pardo";
+import { ParDo, DoFn, ParDoParam } from "../transforms/pardo";
+import { WindowFn } from "../transforms/window";
 
 import {
   ParamProviderImpl,
@@ -86,7 +88,7 @@ export class Receiver {
 }
 
 export class OperatorContext {
-  pipelineContext: base.PipelineContext;
+  pipelineContext: PipelineContext;
   constructor(
     public descriptor: ProcessBundleDescriptor,
     public getReceiver: (string) => Receiver,
@@ -94,7 +96,7 @@ export class OperatorContext {
     public getStateProvider: () => StateProvider,
     public getBundleId: () => string
   ) {
-    this.pipelineContext = new base.PipelineContext(descriptor);
+    this.pipelineContext = new PipelineContext(descriptor);
   }
 }
 
@@ -304,7 +306,7 @@ class FlattenOperator implements IOperator {
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
 
 class GenericParDoOperator implements IOperator {
-  private doFn: base.DoFn<unknown, unknown, unknown>;
+  private doFn: DoFn<unknown, unknown, unknown>;
   private getStateProvider: () => StateProvider;
   private sideInputInfo: Map<string, SideInputInfo> = new Map();
   private originalContext: object | undefined;
@@ -316,7 +318,7 @@ class GenericParDoOperator implements IOperator {
     private receiver: Receiver,
     private spec: runnerApi.ParDoPayload,
     private payload: {
-      doFn: base.DoFn<unknown, unknown, unknown>;
+      doFn: DoFn<unknown, unknown, unknown>;
       context: any;
     },
     transformProto: runnerApi.PTransform,
@@ -508,10 +510,7 @@ class Splitting2DoFnOperator implements IOperator {
 }
 
 class AssignWindowsParDoOperator implements IOperator {
-  constructor(
-    private receiver: Receiver,
-    private windowFn: base.WindowFn<Window>
-  ) {}
+  constructor(private receiver: Receiver, private windowFn: WindowFn<Window>) {}
 
   async startBundle() {}
 
@@ -558,7 +557,7 @@ class AssignTimestampsParDoOperator implements IOperator {
 }
 
 registerOperatorConstructor(
-  base.ParDo.urn,
+  ParDo.urn,
   (transformId: string, transform: PTransform, context: OperatorContext) => {
     const receiver = context.getReceiver(
       onlyElement(Object.values(transform.outputs))
@@ -570,7 +569,7 @@ registerOperatorConstructor(
         transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         spec,
-        base.fakeDeserialize(spec.doFn.payload!),
+        deserializeFn(spec.doFn.payload!),
         transform,
         context
       );
@@ -581,16 +580,16 @@ registerOperatorConstructor(
     } else if (spec.doFn?.urn == urns.JS_WINDOW_INTO_DOFN_URN) {
       return new AssignWindowsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
-        base.fakeDeserialize(spec.doFn.payload!).windowFn
+        deserializeFn(spec.doFn.payload!).windowFn
       );
     } else if (spec.doFn?.urn == urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
       return new AssignTimestampsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
-        base.fakeDeserialize(spec.doFn.payload!).func
+        deserializeFn(spec.doFn.payload!).func
       );
     } else if (spec.doFn?.urn == urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
-        base.fakeDeserialize(spec.doFn.payload!).splitter,
+        deserializeFn(spec.doFn.payload!).splitter,
         Object.fromEntries(
           Object.entries(transform.outputs).map(([tag, pcId]) => [
             tag,

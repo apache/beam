@@ -25,7 +25,7 @@ import { Window } from "../values";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { ParDo } from "./pardo";
-import { fakeSeralize } from "../base";
+import { serializeFn } from "../internal/serialize";
 
 export interface WindowFn<W extends Window> {
   assignWindows: (Instant) => W[];
@@ -91,7 +91,7 @@ export class WindowInto<T, W extends Window> extends PTransform<
         runnerApi.ParDoPayload.create({
           doFn: runnerApi.FunctionSpec.create({
             urn: urns.JS_WINDOW_INTO_DOFN_URN,
-            payload: fakeSeralize({ windowFn: this.windowFn }),
+            payload: serializeFn({ windowFn: this.windowFn }),
           }),
         })
       ),
@@ -129,7 +129,7 @@ export class AssignTimestamps<T> extends PTransform<
         runnerApi.ParDoPayload.create({
           doFn: runnerApi.FunctionSpec.create({
             urn: urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN,
-            payload: fakeSeralize({ func: this.func }),
+            payload: serializeFn({ func: this.func }),
           }),
         })
       ),

@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-import { Pipeline } from "./base";
+import { Pipeline } from "./internal/pipeline";
+
 import {
   PTransform,
   AsyncPTransform,
