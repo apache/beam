@@ -170,10 +170,8 @@ class InteractiveEnvironment(object):
     self._test_stream_service_controllers = {}
     self._cached_source_signature = {}
     self._tracked_user_pipelines = UserPipelineTracker()
-    # TODO(victorhc): remove the cluster instantiation after the
-    # interactive_beam.clusters class has been enabled.
-    from apache_beam.runners.interactive.interactive_beam import Clusters
-    self.clusters = Clusters()
+    from apache_beam.runners.interactive.interactive_beam import clusters
+    self.clusters = clusters
 
     # Tracks the computation completeness of PCollections. PCollections tracked
     # here don't need to be re-computed when data introspection is needed.
