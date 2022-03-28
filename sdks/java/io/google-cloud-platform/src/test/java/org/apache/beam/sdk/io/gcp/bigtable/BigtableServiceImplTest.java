@@ -202,7 +202,6 @@ public class BigtableServiceImplTest {
           Row.newBuilder().setKey(ByteString.copyFromUtf8("d" + i)).build());
     }
 
-
     ByteKey firstStart = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey sharedKeyEnd = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
     ByteKey secondEnd = ByteKey.copyFrom("e".getBytes(StandardCharsets.UTF_8));
