@@ -85,6 +85,7 @@ class RunInference(beam.PTransform):
   # reasons large batch sizes cannot be handled.
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     return (pcoll
+            # TODO(BEAM-14044): Hook into the batching DoFn APIs.
             | beam.BatchElements()
             | beam.ParDo(
                 RunInferenceDoFn(shared.Shared(), self._model_loader,
