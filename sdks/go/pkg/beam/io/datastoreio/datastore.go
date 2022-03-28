@@ -40,11 +40,8 @@ type clientType interface {
 	Close() error
 }
 
-// call to newClient returns an instance of datastore.Client
-// redirect this call for unit test usage
-var newClient = func(ctx context.Context, projectID string, opts ...option.ClientOption) (clientType, error) {
-	return datastore.NewClient(ctx, projectID, opts...)
-}
+// newClientFuncType is the signature of the function datastore.NewClient
+type newClientFuncType func(ctx context.Context, projectID string, opts ...option.ClientOption) (clientType, error)
 
 const (
 	scatterPropertyName = "__scatter__"
@@ -67,20 +64,25 @@ func init() {
 // datastoreio.Read(s, "project", "Item", 256, reflect.TypeOf(Item{}), itemKey)
 func Read(s beam.Scope, project, kind string, shards int, t reflect.Type, typeKey string) beam.PCollection {
 	s = s.Scope("datastore.Read")
-	return query(s, project, kind, shards, t, typeKey)
+	return query(s, project, kind, shards, t, typeKey, datastoreNewClient)
 }
 
-func query(s beam.Scope, project, kind string, shards int, t reflect.Type, typeKey string) beam.PCollection {
+func datastoreNewClient(ctx context.Context, projectID string, opts ...option.ClientOption) (clientType, error) {
+	return datastore.NewClient(ctx, projectID, opts...)
+}
+
+func query(s beam.Scope, project, kind string, shards int, t reflect.Type, typeKey string, newClient newClientFuncType) beam.PCollection {
 	imp := beam.Impulse(s)
-	ex := beam.ParDo(s, &splitQueryFn{Project: project, Kind: kind, Shards: shards}, imp)
+	ex := beam.ParDo(s, &splitQueryFn{Project: project, Kind: kind, Shards: shards, newClientFunc: newClient}, imp)
 	g := beam.GroupByKey(s, ex)
-	return beam.ParDo(s, &queryFn{Project: project, Kind: kind, Type: typeKey}, g, beam.TypeDefinition{Var: beam.XType, T: t})
+	return beam.ParDo(s, &queryFn{Project: project, Kind: kind, Type: typeKey, newClientFunc: newClient}, g, beam.TypeDefinition{Var: beam.XType, T: t})
 }
 
 type splitQueryFn struct {
-	Project string `json:"project"`
-	Kind    string `json:"kind"`
-	Shards  int    `json:"shards"`
+	Project       string `json:"project"`
+	Kind          string `json:"kind"`
+	Shards        int    `json:"shards"`
+	newClientFunc newClientFuncType
 }
 
 // BoundedQuery represents a datastore Query with a bounded key range between [Start, End)
@@ -101,7 +103,7 @@ func (s *splitQueryFn) ProcessElement(ctx context.Context, _ []byte, emit func(k
 		return nil
 	}
 
-	client, err := newClient(ctx, s.Project)
+	client, err := s.newClientFunc(ctx, s.Project)
 	if err != nil {
 		return err
 	}
@@ -198,11 +200,12 @@ type queryFn struct {
 	// Kind is the datastore kind
 	Kind string `json:"kind"`
 	// Type is the name of the global schema type
-	Type string `json:"type"`
+	Type          string `json:"type"`
+	newClientFunc newClientFuncType
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) bool, emit func(beam.X)) error {
-	client, err := newClient(ctx, f.Project)
+	client, err := f.newClientFunc(ctx, f.Project)
 	if err != nil {
 		return err
 	}

@@ -31,18 +31,18 @@ import (
 
 // fake client type implements datastoreio.clientType
 type fakeClient struct {
-	runFn   func()
-	closeFn func()
+	runCounter   int
+	closeCounter int
 }
 
 func (client *fakeClient) Run(context.Context, *datastore.Query) *datastore.Iterator {
-	client.runFn()
+	client.runCounter += 1
 	// return an empty iterator
 	return new(datastore.Iterator)
 }
 
 func (client *fakeClient) Close() error {
-	client.closeFn()
+	client.closeCounter += 1
 	return nil
 }
 
@@ -53,26 +53,7 @@ type Foo struct {
 type Bar struct {
 }
 
-func TestRead(t *testing.T) {
-	runCounter := 0
-	closeCounter := 0
-
-	// setup a fake newClient caller
-	originalClient := newClient
-	newClient = func(ctx context.Context,
-		projectID string,
-		opts ...option.ClientOption) (clientType, error) {
-		client := fakeClient{
-			runFn: func() {
-				runCounter += 1
-			},
-			closeFn: func() {
-				closeCounter += 1
-			},
-		}
-		return &client, nil
-	}
-
+func Test_query(t *testing.T) {
 	testCases := []struct {
 		v           interface{}
 		shard       int
@@ -85,93 +66,74 @@ func TestRead(t *testing.T) {
 		{Bar{}, 2, 2, 2},
 	}
 	for _, tc := range testCases {
+		// setup a fake newClient caller
+		client := fakeClient{}
+		newClient := func(ctx context.Context,
+			projectID string,
+			opts ...option.ClientOption) (clientType, error) {
+			return &client, nil
+		}
+
 		itemType := reflect.TypeOf(tc.v)
 		itemKey := runtime.RegisterType(itemType)
 
 		p, s := beam.NewPipelineWithRoot()
-		Read(s, "project", "Item", tc.shard, itemType, itemKey)
+		query(s, "project", "Item", tc.shard, itemType, itemKey, newClient)
 
 		ptest.RunAndValidate(t, p)
 
-		if runCounter != tc.expectRun {
+		if got, want := client.runCounter, tc.expectRun; got != want {
 			t.Errorf("got number of datastore.Client.Run call: %v, wanted %v",
-				runCounter, tc.expectRun)
+				got, want)
 		}
-		if runCounter != tc.expectRun {
-			t.Errorf("got number of datastore.Client.Run call: %v, wanted %v",
-				closeCounter, tc.expectClose)
+		if got, want := client.closeCounter, tc.expectClose; got != want {
+			t.Errorf("got number of datastore.Client.Close call: %v, wanted %v",
+				got, want)
 		}
-
-		// reset counter
-		runCounter = 0
-		closeCounter = 0
 	}
-
-	// tear down: recover original newClient caller
-	newClient = originalClient
 }
 
-func TestRead_Bad(t *testing.T) {
-	// setup a fake newClient caller
-	originalClient := newClient
-	newClient = func(ctx context.Context,
-		projectID string,
-		opts ...option.ClientOption) (clientType, error) {
-		client := fakeClient{
-			runFn:   func() {},
-			closeFn: func() {},
-		}
-		return &client, nil
-	}
-
+func Test_query_Bad(t *testing.T) {
 	testCases := []struct {
 		v            interface{}
 		itemType     reflect.Type
 		itemKey      string
 		expectErrStr string
+		newClientErr error
 	}{
 		// mismatch typeKey parameter
-		{Foo{}, reflect.TypeOf(Foo{}), "MismatchType", "No type registered MismatchType"},
+		{
+			Foo{},
+			reflect.TypeOf(Foo{}),
+			"MismatchType",
+			"No type registered MismatchType",
+			nil,
+		},
+		// newClient caller returns error
+		{
+			Foo{},
+			reflect.TypeOf(Foo{}),
+			runtime.RegisterType(reflect.TypeOf(Foo{})),
+			"fake client error",
+			errors.New("fake client error"),
+		},
 	}
 	for _, tc := range testCases {
+		client := fakeClient{}
+		newClient := func(ctx context.Context,
+			projectID string,
+			opts ...option.ClientOption) (clientType, error) {
+			return &client, tc.newClientErr
+		}
+
 		p, s := beam.NewPipelineWithRoot()
-		Read(s, "project", "Item", 1, tc.itemType, tc.itemKey)
+		query(s, "project", "Item", 1, tc.itemType, tc.itemKey, newClient)
 		err := ptest.Run(p)
 
 		if got, want := err.Error(), tc.expectErrStr; !strings.Contains(got, want) {
 			t.Errorf("got error: %v\nwanted error: %v", got, want)
 		}
 	}
-
-	// tear down: recover original newClient caller
-	newClient = originalClient
-}
-
-func TestRead_ClientError(t *testing.T) {
-	// setup a fake newClient caller that returns error
-	originalClient := newClient
-	expectErr := errors.New("fake client error")
-	newClient = func(ctx context.Context,
-		projectID string,
-		opts ...option.ClientOption) (clientType, error) {
-		client := fakeClient{
-			runFn:   func() {},
-			closeFn: func() {},
-		}
-		return &client, expectErr
-	}
-	itemType := reflect.TypeOf(Foo{})
-	itemKey := runtime.RegisterType(itemType)
-
-	p, s := beam.NewPipelineWithRoot()
-	Read(s, "project", "Item", 1, itemType, itemKey)
-	err := ptest.Run(p)
-	if got, want := err.Error(), expectErr.Error(); !strings.Contains(got, want) {
-		t.Errorf("got error: %v\nwanted error: %v", got, want)
-	}
-
-	// tear down: recover original newClient caller
-	newClient = originalClient
 }
 
 func Test_keyLessThan(t *testing.T) {
