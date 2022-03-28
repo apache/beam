@@ -427,7 +427,7 @@ public class RedisIO {
                         }
                       })
                   .withSideInputs(empty));
-      /* Redis Scan may return a given element multiple times so we use a Distinct transform to remove duplicates,
+      /* Redis Scan may return a given element multiple times, so we use the Latest.perKey() transform to remove duplicates,
       see "Scan guarantees" in https://redis.io/commands/scan */
       return materialized.apply(Latest.perKey());
     }
