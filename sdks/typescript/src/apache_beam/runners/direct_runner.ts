@@ -42,7 +42,7 @@ import {
 } from "../values";
 import { PaneInfoCoder } from "../coders/standard_coders";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { fakeSeralize, fakeDeserialize } from "../base";
+import { serializeFn, deserializeFn } from "../internal/serialize";
 
 export class DirectRunner extends Runner {
   // All the operators for a given pipeline should share the same state.
@@ -292,7 +292,7 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
         transforms[collectTransformId] = runnerApi.PTransform.create({
           spec: {
             urn: CollectSideOperator.urn,
-            payload: fakeSeralize({
+            payload: serializeFn({
               transformId: transformId,
               sideInputId: side,
               accessPattern: spec.sideInputs[side].accessPattern!.urn,
@@ -341,7 +341,7 @@ class CollectSideOperator implements operators.IOperator {
     this.receiver = context.getReceiver(
       onlyElement(Object.values(transform.outputs))
     );
-    const payload = fakeDeserialize(transform.spec!.payload!);
+    const payload = deserializeFn(transform.spec!.payload!);
     this.parDoTransformId = payload.transformId;
     this.accessPattern = payload.accessPattern;
     this.sideInputId = payload.sideInputId;

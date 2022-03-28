@@ -21,7 +21,8 @@ import * as urns from "../internal/urns";
 
 import { GeneralObjectCoder } from "../coders/js_coders";
 import { PCollection } from "../pvalue";
-import { Pipeline, fakeSeralize } from "../base";
+import { Pipeline } from "../internal/pipeline";
+import { serializeFn } from "../internal/serialize";
 import { PTransform, extractName } from "./transform";
 import { PaneInfo, Instant, Window, WindowedValue } from "../values";
 
@@ -56,11 +57,11 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
   // TODO: (Typescript) Can the arg be optional iff ContextT is undefined?
   constructor(
     doFn: DoFn<InputT, OutputT, ContextT>,
-    context: ContextT = undefined!
+    contextx: ContextT = undefined!
   ) {
     super(() => "ParDo(" + extractName(doFn) + ")");
     this.doFn = doFn;
-    this.context = context;
+    this.context = contextx;
   }
 
   expandInternal(
@@ -122,7 +123,7 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
         runnerApi.ParDoPayload.create({
           doFn: runnerApi.FunctionSpec.create({
             urn: urns.SERIALIZED_JS_DOFN_INFO,
-            payload: fakeSeralize({
+            payload: serializeFn({
               doFn: this.doFn,
               context: context,
             }),
@@ -172,7 +173,7 @@ export class Split<T> extends PTransform<
         runnerApi.ParDoPayload.create({
           doFn: runnerApi.FunctionSpec.create({
             urn: urns.SPLITTING_JS_DOFN_URN,
-            payload: fakeSeralize({ splitter: this.splitter }),
+            payload: serializeFn({ splitter: this.splitter }),
           }),
         })
       ),
