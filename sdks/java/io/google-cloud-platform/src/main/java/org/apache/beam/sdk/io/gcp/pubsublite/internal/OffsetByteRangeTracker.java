@@ -17,45 +17,28 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
-import org.joda.time.Duration;
 
 /**
  * OffsetByteRangeTracker is an unbounded restriction tracker for Pub/Sub lite partitions that
  * tracks offsets for checkpointing and bytes for progress.
- *
- * <p>Any valid instance of an OffsetByteRangeTracker tracks one of exactly two types of ranges: -
- * Unbounded ranges whose last offset is Long.MAX_VALUE - Completed ranges that are either empty
- * (From == To) or fully claimed (lastClaimed == To - 1)
- *
- * <p>Also prevents splitting until minTrackingTime has passed or minBytesReceived have been
- * received. IMPORTANT: minTrackingTime must be strictly smaller than the SDF read timeout when it
- * would return ProcessContinuation.resume().
  */
 class OffsetByteRangeTracker extends TrackerWithProgress {
   private final TopicBacklogReader unownedBacklogReader;
-  private final Duration minTrackingTime;
-  private final long minBytesReceived;
-  private final Stopwatch stopwatch;
-  private OffsetByteRange range;
+  private final OffsetRangeTracker rangeTracker;
+  private long bytes;
   private @Nullable Long lastClaimed;
 
-  public OffsetByteRangeTracker(
-      OffsetByteRange range,
-      TopicBacklogReader unownedBacklogReader,
-      Stopwatch stopwatch,
-      Duration minTrackingTime,
-      long minBytesReceived) {
+  public OffsetByteRangeTracker(OffsetByteRange range, TopicBacklogReader unownedBacklogReader) {
     checkArgument(
         range.getRange().getTo() == Long.MAX_VALUE,
         "May only construct OffsetByteRangeTracker with an unbounded range with no progress.");
@@ -63,10 +46,8 @@ class OffsetByteRangeTracker extends TrackerWithProgress {
         range.getByteCount() == 0L,
         "May only construct OffsetByteRangeTracker with an unbounded range with no progress.");
     this.unownedBacklogReader = unownedBacklogReader;
-    this.minTrackingTime = minTrackingTime;
-    this.minBytesReceived = minBytesReceived;
-    this.stopwatch = stopwatch.reset().start();
-    this.range = range;
+    this.rangeTracker = new OffsetRangeTracker(range.getRange());
+    this.bytes = range.getByteCount();
   }
 
   @Override
@@ -76,34 +57,17 @@ class OffsetByteRangeTracker extends TrackerWithProgress {
 
   @Override
   public boolean tryClaim(OffsetByteProgress position) {
-    long toClaim = position.lastOffset().value();
-    checkArgument(
-        lastClaimed == null || toClaim > lastClaimed,
-        "Trying to claim offset %s while last attempted was %s",
-        position.lastOffset().value(),
-        lastClaimed);
-    checkArgument(
-        toClaim >= range.getRange().getFrom(),
-        "Trying to claim offset %s before start of the range %s",
-        toClaim,
-        range);
-    // split() has already been called, truncating this range. No more offsets may be claimed.
-    if (range.getRange().getTo() != Long.MAX_VALUE) {
-      boolean isRangeEmpty = range.getRange().getTo() == range.getRange().getFrom();
-      boolean isValidClosedRange = nextOffset() == range.getRange().getTo();
-      checkState(
-          isRangeEmpty || isValidClosedRange,
-          "Violated class precondition: offset range improperly split. Please report a beam bug.");
+    if (!rangeTracker.tryClaim(position.lastOffset().value())) {
       return false;
     }
-    lastClaimed = toClaim;
-    range = OffsetByteRange.of(range.getRange(), range.getByteCount() + position.batchBytes());
+    lastClaimed = position.lastOffset().value();
+    bytes += position.batchBytes();
     return true;
   }
 
   @Override
   public OffsetByteRange currentRestriction() {
-    return range;
+    return OffsetByteRange.of(rangeTracker.currentRestriction(), bytes);
   }
 
   private long nextOffset() {
@@ -111,62 +75,30 @@ class OffsetByteRangeTracker extends TrackerWithProgress {
     return lastClaimed == null ? currentRestriction().getRange().getFrom() : lastClaimed + 1;
   }
 
-  /**
-   * Whether the tracker has received enough data/been running for enough time that it can
-   * checkpoint and be confident it can get sufficient throughput.
-   */
-  private boolean receivedEnough() {
-    Duration duration = Duration.millis(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-    if (duration.isLongerThan(minTrackingTime)) {
-      return true;
-    }
-    if (currentRestriction().getByteCount() >= minBytesReceived) {
-      return true;
-    }
-    return false;
-  }
-
   @Override
   public @Nullable SplitResult<OffsetByteRange> trySplit(double fractionOfRemainder) {
     // Cannot split a bounded range. This should already be completely claimed.
-    if (range.getRange().getTo() != Long.MAX_VALUE) {
+    if (rangeTracker.currentRestriction().getTo() != Long.MAX_VALUE) {
       return null;
     }
-    if (!receivedEnough()) {
+    @Nullable SplitResult<OffsetRange> ranges = rangeTracker.trySplit(fractionOfRemainder);
+    if (ranges == null) {
       return null;
     }
-    range =
-        OffsetByteRange.of(
-            new OffsetRange(currentRestriction().getRange().getFrom(), nextOffset()),
-            range.getByteCount());
+    checkArgument(rangeTracker.currentRestriction().equals(ranges.getPrimary()));
     return SplitResult.of(
-        this.range, OffsetByteRange.of(new OffsetRange(nextOffset(), Long.MAX_VALUE), 0));
+        currentRestriction(), OffsetByteRange.of(checkArgumentNotNull(ranges.getResidual())));
   }
 
   @Override
-  @SuppressWarnings("unboxing.of.nullable")
   public void checkDone() throws IllegalStateException {
-    if (range.getRange().getFrom() == range.getRange().getTo()) {
-      return;
-    }
-    checkState(
-        lastClaimed != null,
-        "Last attempted offset should not be null. No work was claimed in non-empty range %s.",
-        range);
-    long lastClaimedNotNull = checkNotNull(lastClaimed);
-    checkState(
-        lastClaimedNotNull >= range.getRange().getTo() - 1,
-        "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
-        lastClaimedNotNull,
-        range,
-        lastClaimedNotNull + 1,
-        range.getRange().getTo());
+    rangeTracker.checkDone();
   }
 
   @Override
   public Progress getProgress() {
     ComputeMessageStatsResponse stats =
         this.unownedBacklogReader.computeMessageStats(Offset.of(nextOffset()));
-    return Progress.from(range.getByteCount(), stats.getMessageBytes());
+    return Progress.from(bytes, stats.getMessageBytes());
   }
 }

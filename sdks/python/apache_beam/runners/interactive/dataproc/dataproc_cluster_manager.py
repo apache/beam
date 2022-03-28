@@ -158,8 +158,10 @@ class DataprocClusterManager:
         'cluster_name': self.cluster_metadata.cluster_name,
         'config': {
             'software_config': {
-                'image_version': ie.current_env().clusters.
-                DATAPROC_IMAGE_VERSION,
+                # TODO(BEAM-14142): Uncomment these lines when a Dataproc
+                # image is released with previously missing dependencies.
+                # 'image_version': ie.current_env().clusters.
+                # DATAPROC_IMAGE_VERSION,
                 'optional_components': ['DOCKER', 'FLINK']
             },
             'gce_cluster_config': {

@@ -68,6 +68,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -134,6 +135,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("BEAM-14152")
   public void testUnavailableExceptionRetries() throws InterruptedException {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
     options.setBlockOnRun(false);

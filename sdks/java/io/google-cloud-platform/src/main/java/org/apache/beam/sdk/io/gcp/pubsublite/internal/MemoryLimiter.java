@@ -15,6 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-/** Extensions for invoking Python transforms from the Beam Java SDK. */
-package org.apache.beam.sdk.extensions.python;
+/**
+ * A class which tracks blocks of memory which have been given out, and tries to limit total memory
+ * size.
+ */
+interface MemoryLimiter {
+  Block claim(long toAcquire);
+
+  long minBlockSize();
+
+  long maxBlockSize();
+
+  interface Block extends AutoCloseable {
+    long claimed();
+
+    @Override
+    void close();
+  }
+}

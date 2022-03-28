@@ -17,59 +17,63 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import com.google.api.core.ApiService;
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsublite.MessageMetadata;
-import com.google.cloud.pubsublite.internal.Publisher;
+import com.google.cloud.pubsublite.internal.wire.ApiServiceUtils;
 import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.util.HashMap;
-import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
+import java.util.function.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A map of working publishers by PublisherOptions. */
-class PublisherCache implements AutoCloseable {
-  private final Logger logger = LoggerFactory.getLogger(PublisherCache.class);
+/** A map of working ApiServices by identifying key. The key must be hashable. */
+class ServiceCache<K, V extends ApiService> implements AutoCloseable {
+  private final Logger logger = LoggerFactory.getLogger(ServiceCache.class);
 
   @GuardedBy("this")
-  private final HashMap<PublisherOptions, Publisher<MessageMetadata>> livePublishers =
-      new HashMap<>();
+  private final HashMap<K, V> liveMap = new HashMap<>();
 
-  private synchronized void evict(PublisherOptions options) {
-    livePublishers.remove(options);
+  private synchronized void evict(K key, V service) {
+    liveMap.remove(key, service);
   }
 
-  synchronized Publisher<MessageMetadata> get(PublisherOptions options) throws ApiException {
-    Publisher<MessageMetadata> publisher = livePublishers.get(options);
-    if (publisher != null) {
-      return publisher;
+  synchronized V get(K key, Supplier<V> factory) throws ApiException {
+    V service = liveMap.get(key);
+    if (service != null) {
+      return service;
     }
-    publisher = new PublisherAssembler(options).newPublisher();
-    livePublishers.put(options, publisher);
-    publisher.addListener(
+    V newService = factory.get();
+    liveMap.put(key, newService);
+    newService.addListener(
         new Listener() {
           @Override
           public void failed(State s, Throwable t) {
-            logger.warn("Publisher failed.", t);
-            evict(options);
+            logger.warn(newService.getClass().getSimpleName() + " failed.", t);
+            evict(key, newService);
+          }
+
+          @Override
+          public void terminated(State from) {
+            evict(key, newService);
           }
         },
         SystemExecutors.getFuturesExecutor());
-    publisher.startAsync().awaitRunning();
-    return publisher;
+    newService.startAsync().awaitRunning();
+    return newService;
   }
 
   @VisibleForTesting
-  synchronized void set(PublisherOptions options, Publisher<MessageMetadata> toCache) {
-    livePublishers.put(options, toCache);
+  synchronized void set(K key, V service) {
+    liveMap.put(key, service);
   }
 
   @Override
   public synchronized void close() {
-    livePublishers.forEach((options, publisher) -> publisher.stopAsync());
-    livePublishers.clear();
+    ApiServiceUtils.blockingShutdown(liveMap.values());
+    liveMap.clear();
   }
 }

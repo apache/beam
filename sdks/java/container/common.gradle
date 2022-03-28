@@ -74,6 +74,13 @@ task copyGolangLicenses(type: Copy) {
     dependsOn ':release:go-licenses:java:createLicenses'
 }
 
+task copyJdkOptions(type: Copy) {
+    if (imageJavaVersion == "17") {
+        from "option-jamm.json"
+        into "build/target/options"
+    }
+}
+
 task skipPullLicenses(type: Exec) {
     executable "sh"
     args "-c", "mkdir -p build/target/go-licenses build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
@@ -108,3 +115,4 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
 dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn ":sdks:java:container:downloadCloudProfilerAgent"
+dockerPrepare.dependsOn copyJdkOptions
