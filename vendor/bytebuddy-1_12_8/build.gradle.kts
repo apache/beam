@@ -16,19 +16,24 @@
  * limitations under the License.
  */
 
-def basePath = '..'
+plugins { id("org.apache.beam.vendor-java") }
 
-/* All properties required for loading the Flink build script */
-project.ext {
-  // Set the version of all Flink-related dependencies here.
-  flink_version = '1.14.3'
-  // Version specific code overrides.
-  main_source_overrides = ["${basePath}/1.12/src/main/java", "${basePath}/1.13/src/main/java", './src/main/java']
-  test_source_overrides = ["${basePath}/1.12/src/test/java", "${basePath}/1.13/src/test/java", './src/test/java']
-  main_resources_overrides = []
-  test_resources_overrides = []
-  archives_base_name = 'beam-runners-flink-1.14'
-}
+description = "Apache Beam :: Vendored Dependencies :: ByteBuddy :: 1.12.0"
 
-// Load the main build script which contains all build logic.
-apply from: "$basePath/flink_runner.gradle"
+group = "org.apache.beam"
+version = "0.1"
+
+val vendorJava = project.extensions.extraProperties.get("vendorJava") as groovy.lang.Closure<*>
+vendorJava(
+  mapOf(
+    "dependencies" to listOf("net.bytebuddy:byte-buddy:1.12.0"),
+    "relocations" to mapOf(
+            "net.bytebuddy" to "org.apache.beam.vendor.bytebuddy.v1_12_8.net.bytebuddy"),
+    "exclusions" to listOf(
+            "**/module-info.class"
+    ),
+    "groupId" to group,
+    "artifactId" to "beam-vendor-bytebuddy-1_12_8",
+    "version" to version
+  )
+)
