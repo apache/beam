@@ -134,6 +134,7 @@ dependencies {
 
   implementation "org.threeten:threetenbp:1.4.4"
   implementation "io.opencensus:opencensus-api:0.30.0"
+  implementation "com.google.cloud:google-cloud-bigtable:2.5.1"
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

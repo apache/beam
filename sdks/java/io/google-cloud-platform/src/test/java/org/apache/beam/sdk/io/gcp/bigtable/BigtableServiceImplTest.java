@@ -351,8 +351,9 @@ public class BigtableServiceImplTest {
 
     underTest.start();
     Assert.assertEquals(expectedRangeRows.get(0), underTest.getCurrentRow());
-    for (int i = 1; i < 3 * MINI_BATCH_ROW_LIMIT; i++) // Check this
-    underTest.advance();
+    for (int i = 1; i < 3 * MINI_BATCH_ROW_LIMIT; i++) {
+      underTest.advance();
+    }
     Assert.assertFalse(underTest.advance());
     underTest.close();
   }
