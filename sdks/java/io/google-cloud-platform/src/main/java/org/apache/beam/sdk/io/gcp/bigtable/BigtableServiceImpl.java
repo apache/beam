@@ -34,6 +34,7 @@ import com.google.cloud.bigtable.data.v2.internal.ByteStringComparator;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -61,7 +62,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Comparis
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -180,9 +180,7 @@ class BigtableServiceImpl implements BigtableService {
       serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
 
-      future =
-          (ListenableFuture<List<Row>>)
-              session.getDataClient().readRowsAsync(buildReadRowsRequest());
+      future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
       return advance();
     }
 
@@ -203,9 +201,7 @@ class BigtableServiceImpl implements BigtableService {
       if (!splitRowSet(lastRowInBuffer)) {
         return;
       }
-      future =
-          (ListenableFuture<List<Row>>)
-              session.getDataClient().readRowsAsync(buildReadRowsRequest());
+      future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
     }
 
     private boolean waitReadRowsFuture() throws IOException {
