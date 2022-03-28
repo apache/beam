@@ -225,6 +225,13 @@ public class UserScore {
     String getOutput();
 
     void setOutput(String value);
+
+    // Set to true if we want to write one file per window.
+    @Description("Set to true if we want to write one file per window.")
+    @Default.Boolean(true)
+    boolean getIsWindowed();
+
+    void setIsWindowed(boolean value);
   }
 
   /**
@@ -259,7 +266,8 @@ public class UserScore {
         // Extract and sum username/score pairs from the event data.
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         .apply(
-            "WriteUserScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), false));
+            "WriteUserScoreSums",
+            new WriteToText<>(options.getOutput(), configureOutput(), options.getIsWindowed()));
 
     pipeline.run().waitUntilFinish();
   }

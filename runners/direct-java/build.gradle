@@ -218,7 +218,7 @@ task examplesIntegrationTest(type: Test) {
       // TODO (BEAM-14019) Fix integration Tests to run with DirectRunner: Timeout error
       excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
-      // TODO Fix GameStats Example
+      // TODO Fix GameStats Example: WindowIntoFixedWindows step gets stuck when trying to determine the duration.
       excludeTestsMatching 'org.apache.beam.examples.complete.game.GameStatsIT'
     }
   }

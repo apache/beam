@@ -176,7 +176,8 @@ public class HourlyTeamScore extends UserScore {
         // Extract and sum teamname/score pairs from the event data.
         .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
         .apply(
-            "WriteTeamScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), false));
+            "WriteTeamScoreSums",
+            new WriteToText<>(options.getOutput(), configureOutput(), options.getIsWindowed()));
 
     pipeline.run().waitUntilFinish();
   }

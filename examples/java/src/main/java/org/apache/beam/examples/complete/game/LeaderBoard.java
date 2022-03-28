@@ -20,9 +20,7 @@ package org.apache.beam.examples.complete.game;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
-import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
@@ -96,11 +94,7 @@ public class LeaderBoard extends HourlyTeamScore {
 
   /** Options supported by {@link LeaderBoard}. */
   public interface Options
-      extends ExampleOptions,
-          ExampleBigQueryTableOptions,
-          StreamingOptions,
-          FlinkPipelineOptions,
-          GcpOptions {
+      extends ExampleOptions, StreamingOptions, FlinkPipelineOptions, GcpOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
@@ -137,16 +131,6 @@ public class LeaderBoard extends HourlyTeamScore {
     String getLeaderBoardTableName();
 
     void setLeaderBoardTableName(String value);
-
-    @Description("Path to the data file(s) containing game data.")
-    /* The default maps to a small Google Cloud Storage file (each ~8MB)
-
-    Note: You may want to use a small sample dataset to test it locally/quickly : gs://apache-beam-samples/game/small/gaming_data.csv
-    You can also download it via the command line gsutil cp gs://apache-beam-samples/game/small/gaming_data.csv ./destination_folder/gaming_data.csv */
-    @Default.String("gs://apache-beam-samples/game/small/gaming_data.csv")
-    String getInput();
-
-    void setInput(String value);
   }
 
   /**
@@ -224,10 +208,6 @@ public class LeaderBoard extends HourlyTeamScore {
   static void runLeaderBoard(Options options) throws IOException {
 
     Pipeline pipeline = Pipeline.create(options);
-
-    // Using ExampleUtils to set up BigQuery resource.
-    ExampleUtils exampleUtils = new ExampleUtils(options);
-    exampleUtils.setupBigQueryTable();
 
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
     // data elements, and parse the data.

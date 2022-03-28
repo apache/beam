@@ -27,7 +27,6 @@ import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.pubsub.v1.PushConfig;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
@@ -61,13 +60,14 @@ public class GameStatsIT {
   private static final String timestamp = Long.toString(System.currentTimeMillis());
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String GAME_STATS_TEAM_TABLE = "game_stats_team";
+  public static final String CLOUD_STORAGE_CSV_FILE =
+      "gs://apache-beam-samples/game/small/gaming_data.csv";
   private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
       "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
   private GameStatsOptions options =
       TestPipeline.testingPipelineOptions().as(GameStatsIT.GameStatsOptions.class);
   @Rule public final transient TestPipeline testPipeline = TestPipeline.fromOptions(options);
-  private static String pubsubEndpoint;
   private @Nullable TopicAdminClient topicAdmin = null;
   private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath eventsTopicPath = null;
@@ -77,8 +77,7 @@ public class GameStatsIT {
   private BigqueryClient bqClient;
   private static final String OUTPUT_DATASET = "game_stats_e2e_" + timestamp;
 
-  public interface GameStatsOptions
-      extends TestPipelineOptions, ExampleBigQueryTableOptions, GameStats.Options {};
+  public interface GameStatsOptions extends TestPipelineOptions, GameStats.Options {};
 
   @Before
   public void setupTestEnvironment() throws Exception {
@@ -126,13 +125,11 @@ public class GameStatsIT {
     options.setFixedWindowDuration(1);
     options.setUserActivityWindowDuration(1);
     options.setSessionGap(1);
-    options.setBigQueryDataset(OUTPUT_DATASET);
-    options.setBigQueryTable(GAME_STATS_TEAM_TABLE);
     options.setFasterCopy(true);
   }
 
   private void setupPubSub() throws IOException {
-    pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
+    String pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
 
     topicAdmin =
         TopicAdminClient.create(
@@ -180,7 +177,7 @@ public class GameStatsIT {
             .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
             .withIdAttribute(projectId);
 
-    testPipeline.apply(TextIO.read().from(options.getInput())).apply(write);
+    testPipeline.apply(TextIO.read().from(CLOUD_STORAGE_CSV_FILE)).apply(write);
     testPipeline.run();
   }
 

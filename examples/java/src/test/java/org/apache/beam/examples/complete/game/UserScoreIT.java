@@ -36,9 +36,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link UserScore}. */
 @RunWith(JUnit4.class)
 public class UserScoreIT {
-  public static final String GAMING_DATA_CSV =
-      "gs://apache-beam-samples/game/small/gaming_data.csv";
-  public static final String TEMP_STORAGE_DIR = "gs://temp-storage-for-end-to-end-tests";
+  public static final String GAMING_DATA_CSV = "gs://apache-beam-samples/game/gaming_data1.csv";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "1b22379fc106a1f745b8e15a6c283dfb22a2a340";
   private UserScoreOptions options =
       TestPipeline.testingPipelineOptions().as(UserScoreOptions.class);
@@ -69,13 +67,14 @@ public class UserScoreIT {
     options.setBlockOnRun(false);
     options.setInput(GAMING_DATA_CSV);
     options.setOutput(
-        FileSystems.matchNewResource(TEMP_STORAGE_DIR, true)
+        FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
-                String.format("userscore-it-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format("userscoreIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
                 ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)
             .toString());
     options.setFasterCopy(true);
+    options.setIsWindowed(false);
   }
 }

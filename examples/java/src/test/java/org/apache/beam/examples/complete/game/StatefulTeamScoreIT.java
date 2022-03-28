@@ -60,13 +60,14 @@ public class StatefulTeamScoreIT {
   private static final String timestamp = Long.toString(System.currentTimeMillis());
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String LEADERBOARD_TEAM_LEADER_TABLE = "leaderboard_team_leader";
+  public static final String CLOUD_STORAGE_CSV_FILE =
+      "gs://apache-beam-samples/game/small/gaming_data.csv";
   private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
   public static final String SELECT_TOTAL_SCORE_QUERY =
       "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
   private static final String TOPIC_PREFIX = "statefulteamscores-";
   private StatefulTeamScoreOptions options =
       TestPipeline.testingPipelineOptions().as(StatefulTeamScoreIT.StatefulTeamScoreOptions.class);
-  private static String pubsubEndpoint;
   private @Nullable TopicAdminClient topicAdmin = null;
   private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath eventsTopicPath = null;
@@ -121,13 +122,11 @@ public class StatefulTeamScoreIT {
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
-    options.setBigQueryDataset(OUTPUT_DATASET);
-    options.setBigQueryTable(LEADERBOARD_TEAM_LEADER_TABLE);
     options.setFasterCopy(true);
   }
 
   private void setupPubSub() throws IOException {
-    pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
+    String pubsubEndpoint = PubsubOptions.targetForRootUrl("https://pubsub.googleapis.com");
 
     topicAdmin =
         TopicAdminClient.create(
@@ -175,7 +174,7 @@ public class StatefulTeamScoreIT {
             .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
             .withIdAttribute(projectId);
 
-    testPipeline.apply(TextIO.read().from(options.getInput())).apply(write);
+    testPipeline.apply(TextIO.read().from(CLOUD_STORAGE_CSV_FILE)).apply(write);
     testPipeline.run();
   }
 
