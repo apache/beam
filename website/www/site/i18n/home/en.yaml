@@ -22,6 +22,8 @@
   translation: "Python Quickstart"
 - id: home-go-quickstart
   translation: "Go Quickstart"
+- id: home-playground
+  translation: "Try Playground"
 - id: home-hero-blog-title
   translation: "The latest from the blog"
 - id: home-cards-title

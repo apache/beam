@@ -140,7 +140,7 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	}
 }
 
-// findPipelineObjectName finds name of pipeline in JAVA code when pipeline is created
+// findPipelineObjectName finds name of pipeline in JAVA code when pipeline creates
 func findPipelineObjectName(filepath string) (string, error) {
 	reg := regexp.MustCompile(pipelineNamePattern)
 	b, err := ioutil.ReadFile(filepath)

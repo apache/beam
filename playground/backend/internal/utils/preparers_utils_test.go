@@ -16,10 +16,14 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"github.com/google/uuid"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -57,46 +61,326 @@ func TestSpacesToEqualsOption(t *testing.T) {
 	}
 }
 
-func Test_ChangeTestFileName(t *testing.T) {
-	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
-	path, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	path = filepath.Join(path, "temp.java")
-	err = ioutil.WriteFile(path, []byte(codeWithPublicClass), 0644)
-	if err != nil {
-		panic(err)
-	}
-	type args struct {
-		args []interface{}
-	}
+func TestInitVars(t *testing.T) {
 	tests := []struct {
-		name     string
-		args     args
-		wantErr  bool
-		wantName string
+		name string
+		want []interface{}
 	}{
 		{
-			// Test that file changes its name to the name of its public class
-			name:     "File with java unit test code to be renamed",
-			args:     args{[]interface{}{path, "public class (.*?) [{|implements(.*)]"}},
-			wantErr:  false,
-			wantName: "Class.java",
+			name: "Create empty variables",
+			want: []interface{}{EmptyLine, EmptyLine, errors.New(EmptyLine), false, RegularDefinition},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ChangeTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
-				t.Errorf("changeTestFileName() error = %v, wantErr %v", err, tt.wantErr)
+			got, got1, got2, got3, got4 := InitVars()
+			variables := append([]interface{}{}, got, got1, got2, got3, got4)
+			if !reflect.DeepEqual(variables, tt.want) {
+				t.Errorf("InitVars() variables = %v, want %v", variables, tt.want)
 			}
-			path, _ = os.Getwd()
-			files, err := filepath.Glob(fmt.Sprintf("%s/*java", path))
+		})
+	}
+}
+
+func TestAddGraphToEndOfFile(t *testing.T) {
+	txtFilePath := filepath.Join(sourceDir, fileName)
+	txtFile, err := os.OpenFile(txtFilePath, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		panic(err)
+	}
+	defer txtFile.Close()
+	incorrectFile, err := os.Open(txtFilePath)
+	if err != nil {
+		panic(err)
+	}
+	defer incorrectFile.Close()
+	type args struct {
+		spaces       string
+		err          error
+		tempFile     *os.File
+		pipelineName string
+	}
+	type fields struct {
+		fileContent string
+		filePath    string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "Add graph to the end of an existing file",
+			args: args{
+				spaces:       "",
+				err:          nil,
+				tempFile:     txtFile,
+				pipelineName: uuid.New().String(),
+			},
+			fields: fields{
+				fileContent: fileContent,
+				filePath:    txtFilePath,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error during write data to file",
+			args: args{
+				spaces:       "",
+				err:          nil,
+				tempFile:     incorrectFile,
+				pipelineName: uuid.New().String(),
+			},
+			fields: fields{
+				fileContent: fileContent,
+				filePath:    txtFilePath,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			AddGraphToEndOfFile(tt.args.spaces, tt.args.err, tt.args.tempFile, tt.args.pipelineName)
+			data, err := os.ReadFile(tt.fields.filePath)
 			if err != nil {
-				t.Errorf("changeTestFileName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddGraphToEndOfFile() error during reading from a file = %v", err)
 			}
-			if filepath.Base(files[0]) != "Class.java" {
-				t.Errorf("changeTestFileName() expected name = %v, got %v", tt.wantName, filepath.Base(files[0]))
+			graphCode := fmt.Sprintf(pythonGraphCodePattern, tt.args.pipelineName, GraphFileName)
+			graphCodeWithIndentation := strings.ReplaceAll(graphCode, indentationReplacement, tt.args.spaces)
+			fileContentWithGraph := fileContent + "\n" + graphCodeWithIndentation
+			if (string(data) != fileContentWithGraph) != tt.wantErr {
+				t.Error("AddGraphToEndOfFile() wrong graph addition")
+			}
+		})
+	}
+}
+
+func TestGetPublicClassName(t *testing.T) {
+	javaPublicClassNamePattern := "public class (.*?) [{|implements(.*)]"
+	type args struct {
+		filePath string
+		pattern  string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "Get public class name from existing java file",
+			args: args{
+				filePath: filepath.Join(sourceDir, javaFileName),
+				pattern:  javaPublicClassNamePattern,
+			},
+			want:    "MinimalWordCount",
+			wantErr: false,
+		},
+		{
+			name: "Get public class name from non-existent file",
+			args: args{
+				filePath: filepath.Join(sourceDir, "file1.java"),
+				pattern:  javaPublicClassNamePattern,
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetPublicClassName(tt.args.filePath, tt.args.pattern)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPublicClassName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetPublicClassName() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAddNewLine(t *testing.T) {
+	javaFile, err := os.OpenFile(filepath.Join(sourceDir, javaFileName), os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		panic(err)
+	}
+	defer javaFile.Close()
+	txtFile, err := os.Open(filepath.Join(sourceDir, fileName))
+	if err != nil {
+		panic(err)
+	}
+	defer txtFile.Close()
+	type args struct {
+		newLine bool
+		file    *os.File
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "No line added to file",
+			args: args{
+				newLine: false,
+				file:    nil,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Add a new line to an existing javaFile",
+			args: args{
+				newLine: true,
+				file:    javaFile,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error during write data to file",
+			args: args{
+				newLine: true,
+				file:    txtFile,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := AddNewLine(tt.args.newLine, tt.args.file); (err != nil) != tt.wantErr {
+				t.Errorf("AddNewLine() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestProcessLine(t *testing.T) {
+	pipelineName := uuid.New().String()
+	pythonExample, err := os.OpenFile(filepath.Join(sourceDir, pythonExampleName), os.O_RDWR, fullPermission)
+	if err != nil {
+		panic(err)
+	}
+	defer pythonExample.Close()
+	findPipelinePattern := `^(\s*)(.+) = beam.Pipeline`
+	findWithPipelinePattern := `(\s*)with.+Pipeline.+as (.+):`
+	emptyLine := EmptyLine
+
+	type args struct {
+		curLine      string
+		pipelineName *string
+		spaces       *string
+		regs         *[]*regexp.Regexp
+		tempFile     *os.File
+		err          error
+	}
+	tests := []struct {
+		name        string
+		args        args
+		want        bool
+		wantDefType PipelineDefinitionType
+		wantErr     bool
+	}{
+		{
+			name: "Empty current line",
+			args: args{
+				curLine:      "",
+				pipelineName: &pipelineName,
+				spaces:       &emptyLine,
+				regs: &[]*regexp.Regexp{
+					regexp.MustCompile(findPipelinePattern),
+					regexp.MustCompile(findWithPipelinePattern),
+				},
+				tempFile: pythonExample,
+				err:      errors.New(EmptyLine),
+			},
+			want:        false,
+			wantDefType: RegularDefinition,
+			wantErr:     false,
+		},
+		{
+			name: "With correct line",
+			args: args{
+				curLine:      "with beam.Pipeline(options=pipeline_options) as p:",
+				pipelineName: &pipelineName,
+				spaces:       &emptyLine,
+				regs: &[]*regexp.Regexp{
+					regexp.MustCompile(findPipelinePattern),
+					regexp.MustCompile(findWithPipelinePattern),
+				},
+				tempFile: pythonExample,
+				err:      errors.New(EmptyLine),
+			},
+			want:        true,
+			wantDefType: RegularDefinition,
+			wantErr:     false,
+		},
+		{
+			name: "With empty pipelineId",
+			args: args{
+				curLine:      "with beam.Pipeline(options=pipeline_options) as p:",
+				pipelineName: &emptyLine,
+				spaces:       &emptyLine,
+				regs: &[]*regexp.Regexp{
+					regexp.MustCompile(findPipelinePattern),
+					regexp.MustCompile(findWithPipelinePattern),
+				},
+				tempFile: pythonExample,
+				err:      errors.New(EmptyLine),
+			},
+			want:        false,
+			wantDefType: WithDefinition,
+			wantErr:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotDefType, err := ProcessLine(tt.args.curLine, tt.args.pipelineName, tt.args.spaces, tt.args.regs, tt.args.tempFile, tt.args.err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ProcessLine() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ProcessLine() got = %v, want %v", got, tt.want)
+			}
+			if gotDefType != tt.wantDefType {
+				t.Errorf("ProcessLine() gotDefType = %v, want %v", gotDefType, tt.wantDefType)
+			}
+		})
+	}
+}
+
+func TestRenameSourceCodeFile(t *testing.T) {
+	type args struct {
+		filePath  string
+		className string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Rename an existing file",
+			args: args{
+				filePath:  filepath.Join(sourceDir, fileName),
+				className: "MOCK_CLASS_NAME",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Rename non-existent file",
+			args: args{
+				filePath:  filepath.Join(sourceDir, "file1.txt"),
+				className: "MOCK_CLASS_NAME",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := RenameSourceCodeFile(tt.args.filePath, tt.args.className); (err != nil) != tt.wantErr {
+				t.Errorf("RenameSourceCodeFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

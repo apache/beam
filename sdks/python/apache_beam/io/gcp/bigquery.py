@@ -705,7 +705,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.flatten_results = flatten_results
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
-    self.split_result = None
+    self.export_result = None
     self.options = pipeline_options
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
@@ -789,19 +789,26 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
-  def _create_source(self, path, schema):
+  def _create_source(self, path, bq):
     if not self.use_json_exports:
       return create_avro_source(path)
     else:
+      if isinstance(self.table_reference, vp.ValueProvider):
+        table_ref = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), project=self.project)
+      else:
+        table_ref = self.table_reference
+      table = bq.get_table(
+          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return TextSource(
           path,
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=self.coder(schema))
+          coder=self.coder(table.schema))
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    if self.split_result is None:
+    if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
               self.temp_dataset.datasetId if self.temp_dataset else None))
@@ -813,16 +820,13 @@ class _CustomBigQuerySource(BoundedSource):
       if not self.table_reference.projectId:
         self.table_reference.projectId = self._get_project()
 
-      schema, metadata_list = self._export_files(bq)
-      # Sources to be created lazily within a generator as they're output.
-      self.split_result = (
-          self._create_source(metadata.path, schema)
-          for metadata in metadata_list)
+      self.export_result = self._export_files(bq)
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
-    for source in self.split_result:
+    for metadata in self.export_result:
+      source = self._create_source(metadata.path, bq)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
 
@@ -874,7 +878,7 @@ class _CustomBigQuerySource(BoundedSource):
     """Runs a BigQuery export job.
 
     Returns:
-      bigquery.TableSchema instance, a list of FileMetadata instances
+      a list of FileMetadata instances
     """
     job_labels = self._get_bq_metadata().add_additional_bq_job_labels(
         self.bigquery_job_labels)
@@ -904,17 +908,7 @@ class _CustomBigQuerySource(BoundedSource):
                                        job_labels=job_labels,
                                        use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
-    metadata_list = FileSystems.match([gcs_location])[0].metadata_list
-
-    if isinstance(self.table_reference, vp.ValueProvider):
-      table_ref = bigquery_tools.parse_table_reference(
-          self.table_reference.get(), project=self.project)
-    else:
-      table_ref = self.table_reference
-    table = bq.get_table(
-        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
-
-    return table.schema, metadata_list
+    return FileSystems.match([gcs_location])[0].metadata_list
 
 
 class _CustomBigQueryStorageSource(BoundedSource):
@@ -1796,6 +1790,7 @@ class _StreamToBigQuery(PTransform):
       retry_strategy,
       additional_bq_parameters,
       ignore_insert_ids,
+      ignore_unknown_columns,
       with_auto_sharding,
       test_client=None):
     self.table_reference = table_reference
@@ -1811,6 +1806,7 @@ class _StreamToBigQuery(PTransform):
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
     self.ignore_insert_ids = ignore_insert_ids
+    self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
 
   class InsertIdPrefixFn(DoFn):
@@ -1836,6 +1832,7 @@ class _StreamToBigQuery(PTransform):
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
+        ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding)
 
     def _add_random_shard(element):
@@ -2168,6 +2165,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           retry_strategy=self.insert_retry_strategy,
           additional_bq_parameters=self.additional_bq_parameters,
           ignore_insert_ids=self._ignore_insert_ids,
+          ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client)
 

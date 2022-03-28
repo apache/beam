@@ -18,6 +18,14 @@
 
 package org.apache.beam.learning.katas.windowing.addingtimestamp.withtimestamps;
 
+// beam-playground:
+//   name: WithTimestamps
+//   description: Task from katas to assign each element a timestamp using `WithTimestamps`.
+//   multifile: true
+//   context_line: 38
+//   categories:
+//     - Streaming
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

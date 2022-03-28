@@ -66,8 +66,6 @@ public class PartitionMetadata implements Serializable {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp startTimestamp;
 
-  @Nullable
-  @org.apache.avro.reflect.Nullable
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp endTimestamp;
 
@@ -102,7 +100,7 @@ public class PartitionMetadata implements Serializable {
       String partitionToken,
       HashSet<String> parentTokens,
       Timestamp startTimestamp,
-      @Nullable Timestamp endTimestamp,
+      Timestamp endTimestamp,
       long heartbeatMillis,
       State state,
       Timestamp watermark,
@@ -148,7 +146,7 @@ public class PartitionMetadata implements Serializable {
    * The end time for querying this given partition. It does not necessarily mean that the partition
    * exists until this time, but it will be the timestamp used on its change stream query.
    */
-  public @Nullable Timestamp getEndTimestamp() {
+  public Timestamp getEndTimestamp() {
     return endTimestamp;
   }
 
@@ -273,7 +271,7 @@ public class PartitionMetadata implements Serializable {
     private String partitionToken;
     private HashSet<String> parentTokens;
     private Timestamp startTimestamp;
-    @Nullable private Timestamp endTimestamp;
+    private Timestamp endTimestamp;
     private Long heartbeatMillis;
     private State state;
     private Timestamp watermark;
@@ -317,7 +315,7 @@ public class PartitionMetadata implements Serializable {
     }
 
     /** Sets the end time of the partition. */
-    public Builder setEndTimestamp(@Nullable Timestamp endTimestamp) {
+    public Builder setEndTimestamp(Timestamp endTimestamp) {
       this.endTimestamp = endTimestamp;
       return this;
     }
