@@ -133,7 +133,7 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
-   * uses a single range with MINI_BATCH_ROW_LIMIT+1 rows. Range: [a, b1, ... b199, c)
+   * uses a single range with MINI_BATCH_ROW_LIMIT*2+1 rows. Range: [a, b1, ... b199, c)
    *
    * @throws IOException
    */
@@ -166,8 +166,12 @@ public class BigtableServiceImplTest {
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows.get(0), underTest.getCurrentRow());
-    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) underTest.advance();
-    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) underTest.advance();
+    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+      underTest.advance();
+    }
+    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+      underTest.advance();
+    }
     Assert.assertEquals(
         expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1), underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
@@ -198,6 +202,7 @@ public class BigtableServiceImplTest {
           Row.newBuilder().setKey(ByteString.copyFromUtf8("d" + i)).build());
     }
 
+
     ByteKey firstStart = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey sharedKeyEnd = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
     ByteKey secondEnd = ByteKey.copyFrom("e".getBytes(StandardCharsets.UTF_8));
@@ -218,12 +223,15 @@ public class BigtableServiceImplTest {
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows.get(0), underTest.getCurrentRow());
-    for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) // Need to confirm this
-    underTest.advance();
+    for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) {
+      underTest.advance();
+    }
     Assert.assertEquals(
         expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1), underTest.getCurrentRow());
-    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) // Need to confirm this
-    underTest.advance();
+    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+      underTest.advance();
+    }
+
     Assert.assertEquals(
         expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1), underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
@@ -236,7 +244,7 @@ public class BigtableServiceImplTest {
    * This test ensures that all the rows are properly added to the buffer and read. This example
    * uses three overlapping ranges. The logic should remove all keys that were added to the buffer.
    * The following test follows this example: FirstRange: [a,b1,...,b99,b100) SecondRange:
-   * [b50,d1,...,d99,c) ThirdRange: [b70, b130)
+   * [b50,d1,...,d99,c) ThirdRange: [b70, c)
    *
    * @throws IOException
    */
@@ -291,10 +299,14 @@ public class BigtableServiceImplTest {
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows.get(0), underTest.getCurrentRow());
-    for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) underTest.advance();
+    for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) {
+      underTest.advance();
+    }
     Assert.assertEquals(
         expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1), underTest.getCurrentRow());
-    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) underTest.advance();
+    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+      underTest.advance();
+    }
     Assert.assertEquals(
         expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1), underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
