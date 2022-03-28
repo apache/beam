@@ -19,7 +19,7 @@
 import { KV } from "../values";
 import { PTransform } from "./transform";
 import { PCollection } from "../pvalue";
-import { GroupByKey, CombinePerKey } from "./internal";
+import * as internal from "./internal";
 import { CountFn } from "./combiners";
 
 // TODO: (API) Consider groupBy as a top-level method on PCollections.
@@ -72,7 +72,7 @@ export class GroupBy<T, K> extends PTransform<
     const keyFn = this.keyFn;
     return input
       .map((x) => ({ key: keyFn(x), value: x }))
-      .apply(new GroupByKey());
+      .apply(new internal.GroupByKey());
   }
 
   combining<I>(
@@ -167,7 +167,7 @@ class GroupByAndCombine<T, O> extends PTransform<
         };
       })
       .apply(
-        new CombinePerKey(
+        new internal.CombinePerKey(
           new MultiCombineFn(this_.combiners.map((c) => c.combineFn))
         )
       )

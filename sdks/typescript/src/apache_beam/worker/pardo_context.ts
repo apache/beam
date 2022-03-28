@@ -41,12 +41,7 @@ import {
   ParamProvider,
   SideInputParam,
 } from "../transforms/pardo";
-import {
-  NonPromise,
-  ProcessResult,
-  ProcessResultBuilder,
-  OperatorContext,
-} from "./operators";
+import * as operators from "./operators";
 
 /**
  * @fileoverview This is where we handle the magic of populating the context
@@ -58,7 +53,7 @@ import {
 
 export class ParamProviderImpl implements ParamProvider {
   wvalue: WindowedValue<unknown> | undefined = undefined;
-  prefetchCallbacks: ((window: Window) => ProcessResult)[];
+  prefetchCallbacks: ((window: Window) => operators.ProcessResult)[];
   sideInputValues: Map<string, unknown> = new Map();
 
   constructor(
@@ -99,7 +94,7 @@ export class ParamProviderImpl implements ParamProvider {
 
   prefetchSideInput(
     param: SideInputParam<unknown, unknown, unknown>
-  ): (window: Window) => ProcessResult {
+  ): (window: Window) => operators.ProcessResult {
     const this_ = this;
     const stateProvider = this.getStateProvider();
     const { windowCoder, elementCoder, windowMappingFn } =
@@ -117,7 +112,7 @@ export class ParamProviderImpl implements ParamProvider {
     };
     return (window: Window) => {
       if (isGlobal && this_.sideInputValues.has(param.sideInputId)) {
-        return NonPromise;
+        return operators.NonPromise;
       }
       const stateKey = createStateKey(
         this_.transformId,
@@ -129,7 +124,7 @@ export class ParamProviderImpl implements ParamProvider {
       const lookupResult = stateProvider.getState(stateKey, decode);
       if (lookupResult.type == "value") {
         this_.sideInputValues.set(param.sideInputId, lookupResult.value);
-        return NonPromise;
+        return operators.NonPromise;
       } else {
         return lookupResult.promise.then((value) => {
           this_.sideInputValues.set(param.sideInputId, value);
@@ -138,17 +133,17 @@ export class ParamProviderImpl implements ParamProvider {
     };
   }
 
-  update(wvalue: WindowedValue<unknown> | undefined): ProcessResult {
+  update(wvalue: WindowedValue<unknown> | undefined): operators.ProcessResult {
     this.wvalue = wvalue;
     if (wvalue == undefined) {
-      return NonPromise;
+      return operators.NonPromise;
     }
     // We have to prefetch all the side inputs.
     // TODO: (API) Let the user's process() await them.
     if (this.prefetchCallbacks.length == 0) {
-      return NonPromise;
+      return operators.NonPromise;
     } else {
-      const result = new ProcessResultBuilder();
+      const result = new operators.ProcessResultBuilder();
       for (const cb of this.prefetchCallbacks) {
         result.add(cb(wvalue!.windows[0]));
       }
@@ -192,7 +187,7 @@ export interface SideInputInfo {
 export function createSideInputInfo(
   transformProto: runnerApi.PTransform,
   spec: runnerApi.ParDoPayload,
-  operatorContext: OperatorContext
+  operatorContext: operators.OperatorContext
 ): Map<string, SideInputInfo> {
   const globalWindow = new GlobalWindow();
   const sideInputInfo: Map<string, SideInputInfo> = new Map();

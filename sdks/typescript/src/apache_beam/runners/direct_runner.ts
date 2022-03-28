@@ -176,11 +176,13 @@ class DirectGbkOperator implements operators.IOperator {
   }
 
   async finishBundle() {
-    const this_ = this;
     for (const [wkey, values] of this.groups) {
-      const [encodedWindow, encodedKey] = wkey.split(" ");
+      // const [encodedWindow, encodedKey] = wkey.split(" ");
+      const parts = wkey.split(" ");
+      const encodedWindow = parts[0];
+      const encodedKey = parts[1];
       const window = decodeFromBase64(encodedWindow, this.windowCoder);
-      const maybePromise = this_.receiver.receive({
+      const maybePromise = this.receiver.receive({
         value: {
           key: decodeFromBase64(encodedKey, this.keyCoder),
           value: values,
