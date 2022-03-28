@@ -44,7 +44,8 @@ public class IntegrationTestEnv extends ExternalResource {
   private static final int MAX_TABLE_NAME_LENGTH = 128;
   private static final int MAX_CHANGE_STREAM_NAME_LENGTH = 30;
   private static final int MAX_DATABASE_NAME_LENGTH = 30;
-  private static final String TABLE_NAME_PREFIX = "Singers";
+  private static final String METADATA_TABLE_NAME_PREFIX = "TestMetadata";
+  private static final String SINGERS_TABLE_NAME_PREFIX = "Singers";
   private static final String CHANGE_STREAM_NAME_PREFIX = "SingersStream";
   private List<String> changeStreams;
   private List<String> tables;
@@ -52,6 +53,7 @@ public class IntegrationTestEnv extends ExternalResource {
   private String projectId;
   private String instanceId;
   private String databaseId;
+  private String metadataTableName;
   private Spanner spanner;
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
@@ -66,6 +68,7 @@ public class IntegrationTestEnv extends ExternalResource {
             .orElseGet(() -> options.as(GcpOptions.class).getProject());
     instanceId = options.getInstanceId();
     databaseId = generateDatabaseName(options.getDatabaseId());
+    metadataTableName = generateTableName(METADATA_TABLE_NAME_PREFIX);
     spanner = SpannerOptions.newBuilder().setProjectId(projectId).build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
 
@@ -114,7 +117,7 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   String createSingersTable() throws InterruptedException, ExecutionException, TimeoutException {
-    final String tableName = generateTableName();
+    final String tableName = generateTableName(SINGERS_TABLE_NAME_PREFIX);
     LOG.info("Creating table " + tableName);
     databaseAdminClient
         .updateDatabaseDdl(
@@ -165,6 +168,10 @@ public class IntegrationTestEnv extends ExternalResource {
     return databaseId;
   }
 
+  String getMetadataTableName() {
+    return metadataTableName;
+  }
+
   DatabaseClient getDatabaseClient() {
     return databaseClient;
   }
@@ -180,11 +187,10 @@ public class IntegrationTestEnv extends ExternalResource {
         .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
   }
 
-  private String generateTableName() {
-    return TABLE_NAME_PREFIX
+  private String generateTableName(String prefix) {
+    return prefix
         + "_"
-        + RandomStringUtils.randomAlphanumeric(
-            MAX_TABLE_NAME_LENGTH - 1 - TABLE_NAME_PREFIX.length());
+        + RandomStringUtils.randomAlphanumeric(MAX_TABLE_NAME_LENGTH - 1 - prefix.length());
   }
 
   private String generateChangeStreamName() {
