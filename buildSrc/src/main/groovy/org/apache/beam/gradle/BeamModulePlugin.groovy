@@ -391,7 +391,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.38.0.4'
+    project.version = '2.38.0.5'
 
     if (isLinkedin(project)) {
       project.ext.mavenGroupId = 'com.linkedin.beam'
@@ -484,7 +484,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
-    def jackson_version = "2.13.0"
+    def jackson_version = "2.13.1"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
     def kafka_version = "2.4.1"
