@@ -816,9 +816,8 @@ class FnApiRunnerExecutionContext(object):
           else:
             # If this is not an IMPULSE input, then it is not part of the
             # initial inputs of a pipeline, and we'll ignore it.
-            data_input = {}
+            pass
         else:
-          assert transform.spec.urn == bundle_processor.DATA_OUTPUT_URN
           coder_id = self.data_channel_coders[only_element(
               transform.inputs.values())]
         # For every DATA_INPUT or DATA_OUTPUT operation, we need to replace the

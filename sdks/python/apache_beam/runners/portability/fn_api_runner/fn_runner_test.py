@@ -195,6 +195,8 @@ class FnApiRunnerTest(unittest.TestCase):
                 ExpectingSideInputsFn(f'Do{k}'),
                 *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
 
+  @unittest.skip('BEAM-13040')
+  @retry(stop=stop_after_attempt(3))
   def test_pardo_side_input_sparse_dependencies(self):
     with self.create_pipeline() as p:
       inputs = []

@@ -2014,7 +2014,6 @@ def add_impulse_to_dangling_transforms(stages, pipeline_context):
     for transform in stage.transforms:
       if len(transform.inputs
              ) == 0 and transform.spec.urn != bundle_processor.DATA_INPUT_URN:
-        print('transform! : ' + transform.spec.urn)
         # We look through the various stages in the DAG, and transforms. If we
         # see a transform that has no inputs whatsoever.
         impulse_pc = unique_name(
