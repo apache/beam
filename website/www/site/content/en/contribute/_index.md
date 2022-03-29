@@ -50,8 +50,7 @@ Apache Beam is a very welcoming and collaborative community, and there are lots 
    Cloud Dataflow, etc)
  - improve or add IO connectors
  - add new transform libraries (statistics, ML, image processing, etc)
- - work on the core programming model (what is a Beam pipeline and how does it
-   run?)
+ - work on the core programming model (read more about what a Beam pipeline is and how it runs here in [Documentation](https://beam.apache.org/documentation/basics/))
  - improve the developer experience (for example, Windows guides)
  - add answers to the [contribution FAQ](
  https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
@@ -270,7 +269,7 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:w
 ```
 <br>
 
-4. Familiarize yourself with gradle and the project structure. 
+4. Familiarize yourself with gradle and the project structure.
 
 &emsp;&emsp;At the root of the git repository, run:
  ```
