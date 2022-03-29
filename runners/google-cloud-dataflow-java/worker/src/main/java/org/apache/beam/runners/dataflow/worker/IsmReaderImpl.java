@@ -41,7 +41,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.Footer;
@@ -66,7 +65,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedMap;
@@ -299,6 +297,11 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
         FooterCoder.of()
             .decode(data.asInputStream(data.size() - Footer.FIXED_LENGTH, Footer.FIXED_LENGTH));
 
+    checkState(0 <= footer.getBloomFilterPosition()
+            && footer.getBloomFilterPosition() <= footer.getIndexPosition()
+            && footer.getIndexPosition() < this.length - Footer.FIXED_LENGTH,
+        "Invalid footer '%s' for resourceId '%s' with length %s",
+        footer, resourceId, length);
     checkState(
         startPosition < footer.getIndexPosition(),
         "Malformed file, expected to have been able to read entire shard index.");
@@ -387,6 +390,10 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     IsmShard currentShard = shardIterator.next();
     while (shardIterator.hasNext()) {
       IsmShard nextShard = shardIterator.next();
+      checkState(currentShard.getIndexOffset() <= nextShard.getBlockOffset(),
+          "Expected currentShard.indexOffset to be less than or equal to nextShard.blockOffset. "
+              + "But, currentShard is '%s' and nextShard is '%s' for resourceId '%s'",
+          currentShard, nextShard, resourceId);
       if (currentShard.getIndexOffset() == nextShard.getBlockOffset()) {
         indexPerShard.put(
             currentShard.getId(),
@@ -406,6 +413,10 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
 
     // Add an entry for the last shard if its index offset is equivalent to the
     // start of the Bloom filter, then we know that the index is empty.
+    checkState(currentShard.getIndexOffset() <= footer.getBloomFilterPosition(),
+        "Expected indexOffset of the last shard to be less than or equal to bloomfilter "
+            + "position. But, the last shard is '%s' and bloomfilter position is '%s' for resourceId '%s'",
+        currentShard, footer.getBloomFilterPosition(), resourceId);
     if (currentShard.getIndexOffset() == footer.getBloomFilterPosition()) {
       indexPerShard.put(
           currentShard.getId(),
@@ -509,6 +520,11 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
       startOfNextBlock = footer.getBloomFilterPosition();
     }
 
+    checkState(shardWithIndex.getIndexOffset() < startOfNextBlock,
+        "Expected the index start offset is less than the next block start offset. "
+        + "But, IsmShard is '%s' and the next block offset is %s for resourceId '%s'",
+        shardWithIndex, startOfNextBlock, resourceId);
+
     // Open the channel if needed and seek to the start of the index.
     SeekableByteChannel rawChannel = openIfNeeded(inChannel);
     rawChannel.position(shardWithIndex.getIndexOffset());
@@ -522,6 +538,11 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     readKey(inStream, currentKeyBytes);
     long currentOffset = VarInt.decodeLong(inStream);
 
+    checkState(shardWithIndex.getBlockOffset() < currentOffset
+            && currentOffset < shardWithIndex.getIndexOffset(),
+        "Expected the first index offset in the range of IsmShard. "
+            + "But, the first index offset is %s and IsmShard is '%s' for resourceId '%s'",
+        currentOffset, shardWithIndex, resourceId);
     // Insert the entry that happens at the beginning limiting the shard block by the
     // first keys block offset.
     builder.put(
@@ -534,11 +555,22 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
 
     // While another index entry exists, insert an index entry with the key, and offsets
     // that limit the range of the shard block.
-    while (rawChannel.position() < startOfNextBlock) {
+    long currentPosition;
+    while ((currentPosition = rawChannel.position()) < startOfNextBlock) {
       RandomAccessData nextKeyBytes = currentKeyBytes.copy();
       readKey(inStream, nextKeyBytes);
       long nextOffset = VarInt.decodeLong(inStream);
 
+      checkState(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+              currentKeyBytes, nextKeyBytes) < 0,
+          "Expected keys in index to be sorted. But, the key of the index at position %s is "
+              + "not larger than the previous key for IsmShard '%s' in resourceId '%s'",
+          currentPosition, shardWithIndex, resourceId);
+      checkState(currentOffset < nextOffset && nextOffset < shardWithIndex.getIndexOffset(),
+          "Expected an index offset to be between the previous index offset and the index start "
+              + "offset. But, the index offset of the key at position %s is %s and the previous "
+              + "offset is %s for IsmShard '%s' in resourceId '%s'",
+          currentPosition, nextOffset, currentOffset, shardWithIndex, resourceId);
       builder.put(
           currentKeyBytes,
           new IsmShardKey(
@@ -621,10 +653,11 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
       } else {
         return cache.get(key, new IsmCacheLoader(key)).getValue();
       }
-    } catch (ExecutionException e) {
-      // Try and re-throw the root cause if its an IOException
-      Throwables.propagateIfPossible(e.getCause(), IOException.class);
-      throw new IOException(e.getCause());
+    } catch (Exception e) {
+      // Throw with resource and key in error message for better debugging.
+      throw new IOException(
+          "Failed to fetch data block for resourceId: " + this.resourceId + ", startOffset: "
+              + key.startOffset + ", endOffset: " + key.endOffset, e);
     }
   }
 
@@ -958,8 +991,8 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     private final SeekableByteChannel rawChannel;
     private final InputStream inStream;
     private final SideInputReadCounter readCounter;
-    private long readLimit;
-    private RandomAccessData keyBytes;
+    private final long readLimit;
+    private final RandomAccessData keyBytes;
     private long position;
     private Optional<WindowedValue<IsmRecord<V>>> current;
 
@@ -972,8 +1005,10 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
         throws IOException {
       checkNotNull(rawChannel);
       checkNotNull(currentKeyBytes);
-      checkArgument(newLimit >= 0L);
-      checkArgument(newPosition <= newLimit);
+      checkArgument(newPosition >= 0L, "newPosition (%s) is negative.", newPosition);
+      checkArgument(newLimit >= 0L, "newLimit (%s) is negative.", newLimit);
+      checkArgument(newPosition <= newLimit, "newPosition (%s) is greater than newLimit (%s).",
+          newPosition, newLimit);
       this.rawChannel = rawChannel;
       this.inStream = Channels.newInputStream(rawChannel);
       this.keyBytes = currentKeyBytes.copy();
@@ -990,7 +1025,8 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
 
     @Override
     public boolean advance() throws IOException, NoSuchElementException {
-      checkState(position <= readLimit, "Read past end of stream");
+      checkState(position <= readLimit, "Read past end of stream. position: %s, readLimit:%s",
+          position, readLimit);
       if (position == readLimit) {
         current = Optional.absent();
         return false;
