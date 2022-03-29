@@ -20,7 +20,6 @@ import logging
 import sys
 
 from apache_beam.options import pipeline_options
-from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import local_job_service
