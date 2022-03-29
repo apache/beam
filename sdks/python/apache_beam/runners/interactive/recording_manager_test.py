@@ -18,6 +18,7 @@
 import time
 import unittest
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam import coders
@@ -530,6 +531,38 @@ class RecordingManagerTest(unittest.TestCase):
         rm.describe()['state'] == PipelineState.CANCELLED,
         'Test timed out waiting for pipeline to be cancelled. This indicates '
         'that the BackgroundCachingJob did not cache anything.')
+
+  @patch(
+      'apache_beam.runners.interactive.recording_manager.'
+      'RecordingManager._clear_pcolls',
+      return_value=None)
+  @patch(
+      'apache_beam.runners.interactive.pipeline_fragment.'
+      'PipelineFragment.run',
+      return_value=None)
+  def test_record_detects_remote_runner(
+      self, mock_pipeline_fragment, mock_clear_pcolls):
+    """Tests that a remote runner is detected, resulting in the
+    PipelineFragment instance to have blocking enabled."""
+
+    # Create the pipeline that will emit 0, 1, 2.
+    p = beam.Pipeline(InteractiveRunner())
+    numbers = p | 'numbers' >> beam.Create([0, 1, 2])
+
+    # Set the cache directory for Interactive Beam to be in a GCS bucket.
+    ib.options.cache_root = 'gs://test-bucket/'
+
+    # Create the recording objects. By calling `record` a new PipelineFragment
+    # is started to compute the given PCollections and cache to disk.
+    rm = RecordingManager(p)
+
+    # Run record() and check if the PipelineFragment.run had blocking set to
+    # True due to the GCS cache_root value.
+    rm.record([numbers], max_n=3, max_duration=500)
+    mock_pipeline_fragment.assert_called_with(blocking=True)
+
+    # Reset cache_root value.
+    ib.options.cache_root = None
 
 
 if __name__ == '__main__':

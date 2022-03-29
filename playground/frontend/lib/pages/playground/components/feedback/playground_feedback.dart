@@ -30,6 +30,7 @@ class PlaygroundFeedback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
     final isEnjoying = _getFeedbackState(context, true).isEnjoying;
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -39,12 +40,14 @@ class PlaygroundFeedback extends StatelessWidget {
           style: const TextStyle(fontWeight: kBoldWeight),
         ),
         FeedbackDropdownIconButton(
+          label: appLocale.enjoying,
           iconAsset: kThumbUpIconAsset,
           filledIconAsset: kThumbUpIconAssetFilled,
           onClick: _setEnjoying(context, true),
           isSelected: isEnjoying != null && isEnjoying,
         ),
         FeedbackDropdownIconButton(
+          label: appLocale.notEnjoying,
           iconAsset: kThumbDownIconAsset,
           filledIconAsset: kThumbDownIconAssetFilled,
           onClick: _setEnjoying(context, false),

@@ -19,6 +19,11 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_CHANGE_STREAM_NAME;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_END_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_INCLUSIVE_START_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_RPC_PRIORITY;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.NameGenerator.generatePartitionMetadataTableName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -30,6 +35,7 @@ import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
@@ -58,7 +64,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -68,9 +73,9 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.CleanUpReadChangeStreamDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.InitializeDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.PostProcessingMetricsDoFn;
@@ -80,6 +85,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -94,6 +100,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -358,6 +365,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SpannerIO {
+
   private static final Logger LOG = LoggerFactory.getLogger(SpannerIO.class);
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
@@ -434,14 +442,10 @@ public class SpannerIO {
   public static ReadChangeStream readChangeStream() {
     return new AutoValue_SpannerIO_ReadChangeStream.Builder()
         .setSpannerConfig(SpannerConfig.create())
-        .setChangeStreamName("")
-        .setInclusiveStartAt(Timestamp.MIN_VALUE)
-        // Sets the default change stream request priority as high
-        .setRpcPriority(RpcPriority.HIGH)
-        // Set a default value to the end timestamp. Do not delete this.
-        // Otherwise, we will get a null pointer exception when we try to access
-        // it later.
-        .setInclusiveEndAt(Timestamp.MAX_VALUE)
+        .setChangeStreamName(DEFAULT_CHANGE_STREAM_NAME)
+        .setRpcPriority(DEFAULT_RPC_PRIORITY)
+        .setInclusiveStartAt(DEFAULT_INCLUSIVE_START_AT)
+        .setInclusiveEndAt(DEFAULT_INCLUSIVE_END_AT)
         .build();
   }
 
@@ -460,6 +464,7 @@ public class SpannerIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
@@ -794,6 +799,7 @@ public class SpannerIO {
   }
 
   static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+
     Read read;
     Schema schema;
 
@@ -962,6 +968,8 @@ public class SpannerIO {
 
     abstract OptionalInt getGroupingFactor();
 
+    abstract @Nullable PCollectionView<Dialect> getDialectView();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -980,6 +988,8 @@ public class SpannerIO {
       abstract Builder setSchemaReadySignal(PCollection<?> schemaReadySignal);
 
       abstract Builder setGroupingFactor(int groupingFactor);
+
+      abstract Builder setDialectView(PCollectionView<Dialect> dialect);
 
       abstract Write build();
     }
@@ -1041,6 +1051,10 @@ public class SpannerIO {
 
     public Write withEmulatorHost(String emulatorHost) {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
+    public Write withDialectView(PCollectionView<Dialect> dialect) {
+      return toBuilder().setDialectView(dialect).build();
     }
 
     /**
@@ -1177,6 +1191,7 @@ public class SpannerIO {
   }
 
   static class WriteRows extends PTransform<PCollection<Row>, PDone> {
+
     private final Write write;
     private final Op operation;
     private final String table;
@@ -1205,6 +1220,7 @@ public class SpannerIO {
   /** Same as {@link Write} but supports grouped mutations. */
   public static class WriteGrouped
       extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
+
     private final Write spec;
     private static final TupleTag<MutationGroup> BATCHABLE_MUTATIONS_TAG =
         new TupleTag<MutationGroup>("batchableMutations") {};
@@ -1230,6 +1246,15 @@ public class SpannerIO {
     @Override
     public SpannerWriteResult expand(PCollection<MutationGroup> input) {
       PCollection<Iterable<MutationGroup>> batches;
+      PCollectionView<Dialect> dialectView = spec.getDialectView();
+
+      if (dialectView == null) {
+        dialectView =
+            input
+                .getPipeline()
+                .apply("CreateSingleton", Create.of(Dialect.GOOGLE_STANDARD_SQL))
+                .apply("As PCollectionView", View.asSingleton());
+      }
 
       if (spec.getBatchSizeBytes() <= 1
           || spec.getMaxNumMutations() <= 1
@@ -1251,7 +1276,8 @@ public class SpannerIO {
             schemaSeed
                 .apply(
                     "Read information schema",
-                    ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
+                    ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig(), dialectView))
+                        .withSideInputs(dialectView))
                 .apply("Schema View", View.asSingleton());
 
         // Split the mutations into batchable and unbatchable mutations.
@@ -1442,6 +1468,7 @@ public class SpannerIO {
       return toBuilder().setMetadataDatabase(metadataDatabase).build();
     }
 
+    /** Specifies the metadata table name. */
     public ReadChangeStream withMetadataTable(String metadataTable) {
       return toBuilder().setMetadataTable(metadataTable).build();
     }
@@ -1486,6 +1513,10 @@ public class SpannerIO {
       checkArgument(
           getInclusiveStartAt() != null,
           "SpannerIO.readChangeStream() requires the start time to be set.");
+      // Inclusive end at is defaulted to ChangeStreamsContants.MAX_INCLUSIVE_END_AT
+      checkArgument(
+          getInclusiveEndAt() != null,
+          "SpannerIO.readChangeStream() requires the end time to be set. If you'd like to process the stream without an end time, you can omit this parameter.");
       if (getMetadataInstance() != null) {
         checkArgument(
             getMetadataDatabase() != null,
@@ -1555,12 +1586,13 @@ public class SpannerIO {
                 .setDatabaseId(StaticValueProvider.of(partitionMetadataDatabaseId))
                 .build();
         final String changeStreamName = getChangeStreamName();
-        // FIXME: The backend only supports microsecond granularity. Remove when fixed.
-        final Timestamp startTimestamp = TimestampConverter.truncateNanos(getInclusiveStartAt());
+        final Timestamp startTimestamp = getInclusiveStartAt();
+        // Uses (Timestamp.MAX - 1ns) at max for end timestamp, because we add 1ns to transform the
+        // interval into a closed-open in the read change stream restriction (prevents overflow)
         final Timestamp endTimestamp =
-            Optional.ofNullable(getInclusiveEndAt())
-                .map(TimestampConverter::truncateNanos)
-                .orElse(null);
+            getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) > 0
+                ? MAX_INCLUSIVE_END_AT
+                : getInclusiveEndAt();
         final MapperFactory mapperFactory = new MapperFactory();
         final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
         final RpcPriority rpcPriority =
@@ -1585,18 +1617,44 @@ public class SpannerIO {
             new PostProcessingMetricsDoFn(metrics);
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
+        input
+            .getPipeline()
+            .getOptions()
+            .as(SpannerChangeStreamOptions.class)
+            .setMetadataTable(partitionMetadataTableName);
 
-        return input
-            .apply(Impulse.create())
-            .apply("Initialize the connector", ParDo.of(initializeDoFn))
-            .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
-            .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
-            .apply("Gather metrics", ParDo.of(postProcessingMetricsDoFn));
+        PCollection<byte[]> impulseOut = input.apply(Impulse.create());
+        PCollection<DataChangeRecord> results =
+            impulseOut
+                .apply("Initialize the connector", ParDo.of(initializeDoFn))
+                .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
+                .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
+                .apply("Gather metrics", ParDo.of(postProcessingMetricsDoFn));
+
+        impulseOut
+            .apply(WithTimestamps.of(e -> GlobalWindow.INSTANCE.maxTimestamp()))
+            .apply(Wait.on(results))
+            .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
+        return results;
       }
     }
   }
 
+  /**
+   * Interface to display the name of the metadata table on Dataflow UI. This is only used for
+   * internal purpose. This should not be used to pass the name of the metadata table.
+   */
+  public interface SpannerChangeStreamOptions extends StreamingOptions {
+
+    /** Returns the name of the metadata table. */
+    String getMetadataTable();
+
+    /** Specifies the name of the metadata table. */
+    void setMetadataTable(String table);
+  }
+
   private static class ToMutationGroupFn extends DoFn<Mutation, MutationGroup> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       Mutation value = c.element();
