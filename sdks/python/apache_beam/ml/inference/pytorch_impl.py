@@ -55,6 +55,7 @@ class PytorchModelLoader(ModelLoader):
   def __init__(
       self, input_dim: int, state_dict_path: str, model_class: nn.Module):
     """
+    input_dim: dimension (# of features) of the data
     state_dict_path: path to the saved dictionary of the model state.
     model_class: class of the Pytorch model that defines the model structure.
 

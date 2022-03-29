@@ -42,7 +42,7 @@ class PytorchLinearRegression(torch.nn.Module):
     return out
 
 
-class RunInferenceBaseTest(unittest.TestCase):
+class PytorchRunInferenceTest(unittest.TestCase):
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
 
