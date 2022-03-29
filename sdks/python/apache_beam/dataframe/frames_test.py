@@ -1378,7 +1378,7 @@ class DeferredFrameTest(_AbstractFrameTest):
 
   @unittest.skipIf(
       PD_VERSION < (1, 4),
-      "pandas=1.4 fixes error when concat() of boolean types results in object")
+      "Cannot set dtype of index to boolean for pandas<1.4")
   def test_unstack_bool(self):
     index = pd.MultiIndex.from_tuples([(True, 'a'), (True, 'b'), (False, 'a'),
                                        (False, 'b')])
