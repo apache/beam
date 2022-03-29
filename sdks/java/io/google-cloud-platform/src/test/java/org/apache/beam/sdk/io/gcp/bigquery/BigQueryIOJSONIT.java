@@ -72,7 +72,7 @@ public class BigQueryIOJSONIT {
 
   private static String JSON_TABLE_DESTINATION;
 
-  private static final List<KV<String, String>> JSON_TYPE_DATA = generateCountryData(false);
+  private static final Map<String, String> JSON_TYPE_DATA = generateCountryData(false);
 
   // Convert PCollection of TableRows to a PCollection of KV JSON string pairs
   static class TableRowToJSONStringFn extends DoFn<TableRow, KV<String, String>> {
@@ -85,36 +85,31 @@ public class BigQueryIOJSONIT {
     }
   }
 
+  // Compare PCollection input with expected results.
   static class CompareJSON implements SerializableFunction<Iterable<KV<String, String>>, Void> {
     Map<String, String> expected;
     public CompareJSON(Map<String, String> expected){
       this.expected = expected;
     }
 
-    // Compare PCollection input with the expected results.
     @Override
     public Void apply(Iterable<KV<String, String>> input) throws RuntimeException {
-      LOG.info("Here in CompareJSON");
       int counter = 0;
 
-      // Iterate through input list and convert each String to JsonElement and
-      // compare with expected result JsonElements
-      for(KV<String, String> entry: input){
-        String key = entry.getKey();
+      // Iterate through input list and convert each String to JsonElement
+      // Compare with expected result JsonElements
+      for(KV<String, String> actual: input){
+        String key = actual.getKey();
 
         if(!expected.containsKey(key)){
           throw new NoSuchElementException(String.format(
               "Unexpected key '%s' found in input but does not exist in expected results.", key));
         }
-        String jsonStringActual = entry.getValue();
+        String jsonStringActual = actual.getValue();
         JsonElement jsonActual = JsonParser.parseString(jsonStringActual);
 
         String jsonStringExpected = expected.get(key);
         JsonElement jsonExpected = JsonParser.parseString(jsonStringExpected);
-
-        System.out.println(key);
-        System.out.println(jsonActual.toString());
-        System.out.println(jsonExpected.toString());
 
         assertEquals(jsonExpected, jsonActual);
         counter += 1;
@@ -127,14 +122,15 @@ public class BigQueryIOJSONIT {
     }
   }
 
-  // reads TableRows from BigQuery and checks their JSON objects against an expected result.
-  public void readAndValidateRows(BigQueryIOJSONOptions options, List<KV<String, String>> expectedResults){
+  // reads TableRows from BigQuery and validates JSON Strings
+  // expectedJsonResults Strings must be in valid json format
+  public void readAndValidateRows(BigQueryIOJSONOptions options, Map<String, String> expectedResults){
     TypedRead<TableRow> bigqueryIO =
         BigQueryIO.readTableRows().withMethod(options.getReadMethod());
 
-    // read from input query or from a table
+    // read from input query or from table
     if(!options.getQuery().isEmpty()) {
-      bigqueryIO = bigqueryIO.fromQuery(options.getQuery());
+      bigqueryIO = bigqueryIO.fromQuery(options.getQuery()).usingStandardSql();
     } else {
       bigqueryIO = bigqueryIO.from(options.getInput());
     }
@@ -143,12 +139,7 @@ public class BigQueryIOJSONIT {
         .apply("Read rows", bigqueryIO)
         .apply("Convert to KV JSON Strings", ParDo.of(new TableRowToJSONStringFn()));
 
-    Map<String, String> expectedJsonResults = new HashMap<String, String>();
-    for(KV<String, String> m: expectedResults){
-      expectedJsonResults.put(m.getKey(), m.getValue());
-    }
-
-    PAssert.that(jsonKVPairs).satisfies(new CompareJSON(expectedJsonResults));
+    PAssert.that(jsonKVPairs).satisfies(new CompareJSON(expectedResults));
 
     p.run().waitUntilFinish();
   }
@@ -180,7 +171,7 @@ public class BigQueryIOJSONIT {
             + "`%s.%s.%s`", project, DATASET_ID, JSON_TYPE_TABLE_NAME));
 
     // get nested json objects from static data
-    List<KV<String, String>> expected = generateCountryData(true);
+    Map<String, String> expected = generateCountryData(true);
 
     readAndValidateRows(options, expected);
   }
@@ -188,9 +179,7 @@ public class BigQueryIOJSONIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(BigQueryIOJSONOptions.class);
-    // project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    // project = "apache-beam-testing";
-    project = "google.com:clouddfe";
+    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
 
     JSON_TABLE_DESTINATION = String.format("%s:%s.%s", project, DATASET_ID, JSON_TYPE_TABLE_NAME);
   }
@@ -242,7 +231,7 @@ public class BigQueryIOJSONIT {
     void setWriteMethod(BigQueryIO.Write.Method value);
   }
 
-  private static List<KV<String, String>> generateCountryData(boolean isQuery){
+  private static Map<String, String> generateCountryData(boolean isQuery){
     // Data from World Bank as of 2020
     JSONObject usa = new JSONObject();
 
@@ -282,12 +271,10 @@ public class BigQueryIOJSONIT {
     sydney.put("name", "Sydney");
     sydney.put("state", "New South Wales");
     sydney.put("population", 5367206);
-
     JSONObject melbourne = new JSONObject();
     melbourne.put("name", "Melbourne");
     melbourne.put("state", "Victoria");
     melbourne.put("population", 5159211);
-
     JSONObject brisbane = new JSONObject();
     brisbane.put("name", "Birsbane");
     brisbane.put("state", "Queensland");
@@ -312,18 +299,16 @@ public class BigQueryIOJSONIT {
 
     JSONObject special = new JSONObject();
 
-    JSONObject special_cities = new JSONObject();
-
     JSONObject ba_sing_se = new JSONObject();
     ba_sing_se.put("name", "Ba Sing Se");
     ba_sing_se.put("state", "The Earth Kingdom");
     ba_sing_se.put("population", 200000);
-
     JSONObject bikini_bottom = new JSONObject();
     bikini_bottom.put("name", "Bikini Bottom");
     ba_sing_se.put("state", "The Pacific Ocean");
     ba_sing_se.put("population", 50000);
 
+    JSONObject special_cities = new JSONObject();
     special_cities.put("basingse", ba_sing_se);
     special_cities.put("bikinibottom", bikini_bottom);
 
@@ -339,21 +324,20 @@ public class BigQueryIOJSONIT {
     special.put("past_leaders", special_arr);
     special.put("in_northern_hemisphere", true);
 
-    // return ImmutableList.of(
-    //     ImmutableMap.of("country_code", "usa", "country", usa.toString()),
-    //     ImmutableMap.of("country_code", "aus", "country", aus.toString()),
-    //     ImmutableMap.of("country_code", "special", "country", special.toString()));
-
     if(isQuery){
-      return ImmutableList.of(
-          KV.of("usa", us_cities.toString()),
-          KV.of("aus", aus_cities.toString()),
-          KV.of("special", special_cities.toString()));
+      Map<String, String> cities = new HashMap<>();
+      cities.put("usa", us_cities.toString());
+      cities.put("aus", aus_cities.toString());
+      cities.put("special", special_cities.toString());
+
+      return cities;
     }
 
-    return ImmutableList.of(
-        KV.of("usa", usa.toString()),
-        KV.of("aus", aus.toString()),
-        KV.of("special", special.toString()));
+    Map<String, String> countries = new HashMap<>();
+    countries.put("usa", usa.toString());
+    countries.put("aus", aus.toString());
+    countries.put("special", special.toString());
+
+    return countries;
   }
 }
