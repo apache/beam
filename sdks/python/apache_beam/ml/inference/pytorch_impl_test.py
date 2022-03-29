@@ -49,21 +49,28 @@ class RunInferenceBaseTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
-  def test_pytorch_run_inference_impl_simple_examples(self):
+  def test_simple_single_feature(self):
     with TestPipeline() as pipeline:
       examples = torch.from_numpy(np.array([1, 5, 3, 10]).reshape(-1, 1))
       expected = [example * 2.0 + 0.5 for example in examples]
 
       state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
-                                ('linear.bias', torch.tensor([0.5]))])
+                                ('linear.bias', torch.Tensor([0.5]))])
 
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
+      input_dim = 1
+      output_dim = 1
+
+      model_loader = PytorchModelLoader(
+          input_dim=input_dim,
+          state_dict_path=path,
+          model_class=PytorchLinearRegression(input_dim, output_dim))
+
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(
-          PytorchModelLoader(path, PytorchLinearRegression(1, 1)))
+      actual = pcoll | base.RunInference(model_loader)
       assert_that(actual, equal_to(expected))
 
-  def test(self):
+  def test_simple_multiple_features(self):
     pass

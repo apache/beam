@@ -28,12 +28,16 @@ class PytorchInferenceRunner(InferenceRunner):
   """
   Implements Pytorch inference method
   """
+  def __init__(self, input_dim: int):
+    self._input_dim = input_dim
+
   def run_inference(self, batch: List[torch.Tensor],
                     model: nn.Module) -> Iterable[torch.Tensor]:
     """
     Runs inferences on a batch of examples and returns an Iterable of
     Predictions."""
-    return model(torch.Tensor(batch))
+    batch = torch.reshape(torch.Tensor(batch), (-1, self._input_dim))
+    return model(batch)
 
   def get_num_bytes(self, batch: torch.Tensor) -> int:
     """Returns the number of bytes of data for a batch."""
@@ -48,7 +52,8 @@ class PytorchInferenceRunner(InferenceRunner):
 
 class PytorchModelLoader(ModelLoader):
   """Loads a Pytorch Model."""
-  def __init__(self, state_dict_path: str, model_class: nn.Module):
+  def __init__(
+      self, input_dim: int, state_dict_path: str, model_class: nn.Module):
     """
     state_dict_path: path to the saved dictionary of the model state.
     model_class: class of the Pytorch model that defines the model structure.
@@ -56,6 +61,7 @@ class PytorchModelLoader(ModelLoader):
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
     """
+    self._input_dim = input_dim
     self._state_dict_path = state_dict_path
     self._model_class = model_class
 
@@ -68,4 +74,4 @@ class PytorchModelLoader(ModelLoader):
 
   def get_inference_runner(self) -> InferenceRunner:
     """Returns a Pytorch implementation of InferenceRunner."""
-    return PytorchInferenceRunner()
+    return PytorchInferenceRunner(input_dim=self._input_dim)
