@@ -3731,11 +3731,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def pivot(self, index=None, columns=None, values=None, **kwargs):
     def verify_all_categorical(all_cols_are_categorical):
       if not all_cols_are_categorical:
+        message = "pivot() of non-categorical type is not supported because " \
+            "the type of the output column depends on the data. Please use " \
+            "pd.CategoricalDtype with explicit categories."
         raise frame_base.WontImplementError(
-            "pivot() of non-categorical type is not supported because "
-            "the type of the output column depends on the data. Please use "
-            "pd.CategoricalDtype with explicit categories.",
-            reason="non-deferred-columns")
+          message, reason="non-deferred-columns")
 
     # Construct column index
     if is_list_like(columns) and len(columns) <= 1:
@@ -3775,13 +3775,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       categories = [
         c.categories.astype('category') for c in selected_cols.dtypes
       ]
-      if is_list_like(columns) and len(columns) > 1:
-        col_index = pd.MultiIndex.from_product(categories, names=columns)
-      else:
-        col_index = pd.CategoricalIndex(
-            selected_cols.dtype.categories,
-            name=columns
-        )
+      col_index = pd.MultiIndex.from_product(categories, names=columns)
 
     # Construct row index
     if index:
@@ -3791,10 +3785,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           preserves_partition_by=partitionings.Singleton(),
           requires_partition_by=partitionings.Arbitrary()
       )
-      if is_list_like(index):
-        row_index = pd.MultiIndex.from_tuples([]*len(index), names=index)
-      else:
-        row_index = pd.Index([], name=index)
+      tmp = per_partition.proxy().pivot(
+        columns=columns, values=values, **kwargs)
+      row_index = tmp.index
     else:
       per_partition = self._expr
       row_index = self._expr.proxy().index
@@ -3804,30 +3797,25 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       value_dtype = selected_values.dtype
     else:
       # Set dtype to object if more than one value
-      # TODO: Get greatest common type
+      dtypes = [d for d in selected_values.dtypes]
       value_dtype = object
+      if np.int64 in dtypes:
+        value_dtype = np.int64
+      if np.float64 in dtypes:
+        value_dtype = np.float64
+      if object in dtypes:
+        value_dtype = object
 
     # Construct proxy
     proxy = pd.DataFrame(
       columns=col_index, dtype=value_dtype, index = row_index
     )
 
-    indices = []
-    for i in range(per_partition.proxy().index.nlevels):
-      level = per_partition.proxy().index.get_level_values(i)
-      idx_type = level.dtype.type
-      idx_name = level.name
-      idx = proxy.index.get_level_values(i).astype(idx_type)
-      idx.name = idx_name
-      indices.append(idx)
-    proxy.index = indices
-
     def pivot_helper(df):
       result = pd.concat(
         [proxy, df.pivot(columns=columns, values=values, **kwargs)]
       )
       result.columns = col_index
-      result = result.rename_axis(index=index, copy=False)
       return result
 
     return frame_base.DeferredFrame.wrap(

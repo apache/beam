@@ -1456,6 +1456,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         pd.CategoricalDtype(categories=['A', 'B', 'C']))
     self._run_test(
         lambda df: df.pivot(index='foo', columns='bar', values='baz'), df)
+    self._run_test(
+        lambda df: df.pivot(index=['foo'], columns='bar', values='baz'), df)
 
   def test_pivot_pandas_example3(self):
     # Multiple values
@@ -1469,6 +1471,10 @@ class DeferredFrameTest(_AbstractFrameTest):
         pd.CategoricalDtype(categories=['A', 'B', 'C']))
     self._run_test(
         lambda df: df.pivot(index='foo', columns='bar', values=['baz', 'zoo']),
+        df)
+    self._run_test(
+        lambda df: df.pivot(
+            index='foo', columns=['bar'], values=['baz', 'zoo']),
         df)
 
   def test_pivot_pandas_example4(self):
