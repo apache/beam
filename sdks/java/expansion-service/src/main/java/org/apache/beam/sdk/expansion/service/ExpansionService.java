@@ -576,6 +576,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .ifPresent(portableOptions::setDefaultEnvironmentType);
     Optional.ofNullable(specifiedOptions.getDefaultEnvironmentConfig())
         .ifPresent(portableOptions::setDefaultEnvironmentConfig);
+    List<String> filesToStage = specifiedOptions.getFilesToStage();
+    if (filesToStage != null) {
+      effectiveOpts.as(PortablePipelineOptions.class).setFilesToStage(filesToStage);
+    }
     effectiveOpts
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());

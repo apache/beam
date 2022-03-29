@@ -848,7 +848,11 @@ public class StreamingDataflowWorker {
           new TimerTask() {
             @Override
             public void run() {
-              refreshActiveWork();
+              try {
+                refreshActiveWork();
+              } catch (RuntimeException e) {
+                LOG.warn("Failed to refresh active work: ", e);
+              }
             }
           },
           options.getActiveWorkRefreshPeriodMillis(),
