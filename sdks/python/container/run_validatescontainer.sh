@@ -123,7 +123,6 @@ pytest -o junit_suite_name=$IMAGE_NAME \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
-    --prebuild_sdk_container_base_image=$CONTAINER:$TAG \
     --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

@@ -10,6 +10,7 @@
     "processNewPrs": "npm run build && node lib/processNewPrs.js",
     "processPrUpdate": "npm run build && node lib/processPrUpdate.js",
     "gatherMetrics": "npm run build && node lib/gatherMetrics.js",
+    "updateReviewers": "npm run build && node lib/updateReviewers.js",
     "findPrsNeedingAttention": "npm run build && node lib/findPrsNeedingAttention.js"
   },
   "dependencies": {

@@ -71,10 +71,10 @@ func (p ProvisionServiceServicer) GetProvisionInfo(ctx context.Context, req *fnp
 
 func setup(addr *string, wg *sync.WaitGroup) {
 	l, err := net.Listen("tcp", ":0")
-	defer l.Close()
 	if err != nil {
 		log.Fatalf("failed to find an open port: %v", err)
 	}
+	defer l.Close()
 	port := l.Addr().(*net.TCPAddr).Port
 	*addr = fmt.Sprintf(":%d", port)
 

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.previous;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
@@ -29,6 +28,7 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -78,6 +78,7 @@ public class QueryChangeStreamAction {
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
+  private final ChangeStreamMetrics metrics;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -91,6 +92,7 @@ public class QueryChangeStreamAction {
    * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
+   * @param metrics metrics gathering class
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -99,7 +101,8 @@ public class QueryChangeStreamAction {
       PartitionMetadataMapper partitionMetadataMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
-      ChildPartitionsRecordAction childPartitionsRecordAction) {
+      ChildPartitionsRecordAction childPartitionsRecordAction,
+      ChangeStreamMetrics metrics) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -107,6 +110,7 @@ public class QueryChangeStreamAction {
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
+    this.metrics = metrics;
   }
 
   /**
@@ -154,24 +158,8 @@ public class QueryChangeStreamAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
+    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
     final Timestamp endTimestamp = partition.getEndTimestamp();
-
-    /*
-     * FIXME(b/202802422): Workaround until the backend is fixed.
-     * The change stream API returns invalid argument if we try to use a child partition start
-     * timestamp for a previously returned query. If we split at that exact time, we won't be able
-     * to obtain the child partition on the residual restriction, since it will start at the child
-     * partition start time.
-     * To circumvent this, we always start querying one microsecond before the restriction start
-     * time, and ignore any records that are before the restriction start time. This way the child
-     * partition should be returned within the query.
-     */
-    final Timestamp restrictionStartTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp previousStartTimestamp = previous(restrictionStartTimestamp);
-    final boolean isFirstRun =
-        restrictionStartTimestamp.compareTo(partition.getStartTimestamp()) == 0;
-    final Timestamp startTimestamp =
-        isFirstRun ? restrictionStartTimestamp : previousStartTimestamp;
 
     try (Scope scope =
         TRACER.spanBuilder("QueryChangeStreamAction").setRecordEvents(true).startScopedSpan()) {
@@ -193,6 +181,7 @@ public class QueryChangeStreamAction {
           changeStreamDao.changeStreamQuery(
               token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
+        metrics.incQueryCounter();
         while (resultSet.next()) {
           final List<ChangeStreamRecord> records =
               changeStreamRecordMapper.toChangeStreamRecords(
@@ -200,10 +189,6 @@ public class QueryChangeStreamAction {
 
           Optional<ProcessContinuation> maybeContinuation;
           for (final ChangeStreamRecord record : records) {
-            if (record.getRecordTimestamp().compareTo(restrictionStartTimestamp) < 0) {
-              continue;
-            }
-
             if (record instanceof DataChangeRecord) {
               maybeContinuation =
                   dataChangeRecordAction.run(
@@ -267,6 +252,7 @@ public class QueryChangeStreamAction {
     if (tracker.tryClaim(endTimestamp)) {
       LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
+      metrics.decActivePartitionReadCounter();
       LOG.info("[" + token + "] Partition finished");
     }
     return ProcessContinuation.stop();

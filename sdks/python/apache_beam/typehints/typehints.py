@@ -37,7 +37,7 @@ Composite type-hints are reserved for hinting the types of container-like
 Python objects such as 'list'. Composite type-hints can be parameterized by an
 inner simple or composite type-hint, using the 'indexing' syntax. In order to
 avoid conflicting with the namespace of the built-in container types, when
-specifying this category of type-hints, the first letter should capitalized.
+specifying this category of type-hints, the first letter should be capitalized.
 The following composite type-hints are permitted. NOTE: 'T' can be any of the
 type-hints listed or a simple Python type:
 
