@@ -86,7 +86,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ul>
         <li>Follow the website <a href="https://beam.apache.org/contribute/get-started-contributing/">Contribution Guide</a> to make changes yourself.</li>
-        <li>Check our <a href="https://issues.apache.org/jira/browse/BEAM-13229?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20website%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Website Backlog</a> in Jira to find rooms for improvement areas, or propose one.</li>
+        <li>Check our <a href="https://issues.apache.org/jira/browse/BEAM-13229?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20website%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Website Backlog</a> in Jira to find rooms for improvement, or propose one.</li>
       </ul>
     </td>
   </tr>
@@ -157,7 +157,7 @@ Committers are community members that have write access to the project’s repos
 
 Even though there is no strict protocol to become a committer, the most important thing we look for is that you display the traits of an Apache Beam committer and that you have been consistently contributing to the project and community.
 
-Candidates for new committers are suggested by current committers or PMC members, and voted upon by the PMC team. So if you would like to become a committer, engage with the community and keep contributing to Apache Beam, you might also want to talk to other committers and ask for their advice and guidance.  Feel free to email any committer directly and ask for their advice!
+Candidates for new committers are suggested by current committers or PMC members, and voted upon by the PMC team. So if you would like to become a committer, engage with the community and keep contributing to Apache Beam. You might also want to talk to other committers and ask for their advice and guidance.  Feel free to email any committer directly and ask for their advice!
 
 ## The Traits of an Apache Beam Committer
 
@@ -171,7 +171,7 @@ PMC members are also responsible for ensuring their project follows certain core
 
 Since the PMC members are responsible for establishing the Apache Beam vision and leading our community to work in harmony to achieve it, we look for committed individuals who can perform the responsibilities of the PMC, as well as lead our community to fulfill its vision. This is why we strive to build a diverse PMC that complements skills and expertise sharing the same sets of values.
 
-Ideally, we find candidates among active community members that have shown initiative to shape the direction of Beam and have shown willingness to learn the official processes, such as how to create or verify for releases, how to ensure trademark compliance for events, among others. We also expect PMC candidates to be level-headed, constructive, supportive, and willing to “disagree and commit” at times.
+Ideally, we find candidates among active community members that have shown initiative to shape the direction of Beam and have shown willingness to learn the official processes, such as how to create or verify releases, how to ensure trademark compliance for events, among others. We also expect PMC candidates to be level-headed, constructive, supportive, and willing to “disagree and commit” at times.
 
 A PMC member is also a committer, so if they are not initiated already, they will automatically become committers when joining the PMC. Therefore, the traits of Apache Beam committers also apply to PMC members.
 
