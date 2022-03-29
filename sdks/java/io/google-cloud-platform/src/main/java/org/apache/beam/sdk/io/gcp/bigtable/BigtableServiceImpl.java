@@ -34,7 +34,6 @@ import com.google.cloud.bigtable.data.v2.internal.ByteStringComparator;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -49,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -123,7 +123,7 @@ class BigtableServiceImpl implements BigtableService {
     private Queue<Row> buffer;
     private RowSet rowSet;
     private ServiceCallMetric serviceCallMetric;
-    private ListenableFuture<List<Row>> future;
+    private Future<List<Row>> future;
     private ByteString lastRowInBuffer;
 
     private final String tableNameStr;
