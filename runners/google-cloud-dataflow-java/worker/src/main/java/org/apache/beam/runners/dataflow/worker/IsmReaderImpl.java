@@ -32,7 +32,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +42,7 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.Footer;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.FooterCoder;
@@ -370,7 +370,7 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     position(rawChannel, footer.getBloomFilterPosition());
     bloomFilter = ScalableBloomFilterCoder.of().decode(Channels.newInputStream(rawChannel));
 
-    indexPerShard = new HashMap<>();
+    indexPerShard = new ConcurrentHashMap<>();
     // If a shard is small, it may not contain an index and we can detect this and
     // prepopulate the shard index map with an empty entry if the start of the index
     // and start of the next block are equal
