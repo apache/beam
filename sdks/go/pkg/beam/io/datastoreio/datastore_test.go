@@ -142,12 +142,8 @@ func Test_splitQueryFn_Setup(t *testing.T) {
 	if nil != err {
 		t.Errorf("failed to call Setup, got error: %v", err)
 	}
-	rst, err := s.newClientFunc(context.Background(), "project")
-	if nil != err {
-		t.Errorf("failed to call newClientFunc, got error: %v", err)
-	}
-	if got, want := reflect.TypeOf(rst), reflect.TypeOf(&datastore.Client{}); got != want {
-		t.Errorf("got instance of type %v, wanted type: %v", got, want)
+	if nil == s.newClientFunc {
+		t.Error("failed to setup newClientFunc.")
 	}
 }
 
@@ -157,12 +153,8 @@ func Test_queryFn_Setup(t *testing.T) {
 	if nil != err {
 		t.Errorf("failed to call Setup, got error: %v", err)
 	}
-	rst, err := s.newClientFunc(context.Background(), "project")
-	if nil != err {
-		t.Errorf("failed to call newClientFunc, got error: %v", err)
-	}
-	if got, want := reflect.TypeOf(rst), reflect.TypeOf(&datastore.Client{}); got != want {
-		t.Errorf("got instance of type %v, wanted type: %v", got, want)
+	if nil == s.newClientFunc {
+		t.Error("failed to setup newClientFunc.")
 	}
 }
 
