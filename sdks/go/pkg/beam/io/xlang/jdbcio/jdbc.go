@@ -152,12 +152,12 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 		Config:   toRow(cfg.config),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguage(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil, cfg.classpath)
+	beam.CrossLanguageWithClasspath(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil, cfg.classpath)
 }
 
 type writeOption func(*jdbcConfig)
 
-func Classpath(classpath []string) writeOption {
+func WriteClasspath(classpath []string) writeOption {
 	return func(jc *jdbcConfig) {
 		jc.classpath = classpath
 	}
@@ -239,11 +239,17 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 	}
 
 	pl := beam.CrossLanguagePayload(jcs)
-	result := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)), xlangx.Classpath(cfg.classpath))
+	result := beam.CrossLanguageWithClasspath(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)), cfg.classpath)
 	return result[beam.UnnamedOutputTag()]
 }
 
 type readOption func(*jdbcConfig)
+
+func ReadClasspath(classpath []string) readOption {
+	return func(jc *jdbcConfig) {
+		jc.classpath = classpath
+	}
+}
 
 // ReadQuery overrides the default read query "SELECT * FROM tableName;"
 func ReadQuery(query string) readOption {

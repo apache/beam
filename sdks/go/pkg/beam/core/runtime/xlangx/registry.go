@@ -147,7 +147,7 @@ func (p *HandlerParams) Inputs() []PCol {
 }
 
 // HandlerFunc abstracts making an ExpansionService request.
-type HandlerFunc func(context.Context, *HandlerParams, interface{}) (*jobpb.ExpansionResponse, error)
+type HandlerFunc func(context.Context, *HandlerParams) (*jobpb.ExpansionResponse, error)
 
 type registry struct {
 	mu           sync.Mutex

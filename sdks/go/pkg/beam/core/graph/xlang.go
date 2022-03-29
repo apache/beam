@@ -66,6 +66,7 @@ type ExternalTransform struct {
 	Urn           string
 	Payload       []byte
 	ExpansionAddr string
+	Classpath     []string
 
 	InputsMap  map[string]int
 	OutputsMap map[string]int

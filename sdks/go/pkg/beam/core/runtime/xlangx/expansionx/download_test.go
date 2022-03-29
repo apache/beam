@@ -118,19 +118,6 @@ func TestGetURLForBeamJar(t *testing.T) {
 	}
 }
 
-func TestAddClasspathJars(t *testing.T) {
-	jarPath, err := GetBeamJar(":sdks:java:extensions:schemaio-expansion-service:runExpansionService", "2.37.0")
-	if err != nil {
-		t.Errorf("error in getting beam JAR: %v", err)
-	}
-	classpath := []string{"org.postgresql:postgresql:42.3.3"}
-	jarPath, err = AddClasspathJars(jarPath, classpath)
-	if err != nil {
-		t.Errorf("error while adding classpath: %v", err)
-	}
-	// t.Error(jarPath)
-}
-
 func TestDropEndOfGradleTarget(t *testing.T) {
 	target := ":sdks:java:fake:runFake"
 	expected := ":sdks:java:fake"

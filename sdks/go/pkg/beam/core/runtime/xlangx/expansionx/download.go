@@ -19,7 +19,6 @@ package expansionx
 
 import (
 	"archive/zip"
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -28,7 +27,6 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -94,7 +92,6 @@ func expandJar(jar string) string {
 }
 
 func getLocalJar(url string) (string, error) {
-
 	jarName := path.Base(url)
 	usr, _ := user.Current()
 	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
@@ -127,9 +124,110 @@ func getLocalJar(url string) (string, error) {
 	return jarPath, nil
 }
 
-func AddClasspathJars(mainJar string, classpath []string) (string, error) {
+func extractJar(source, dest string) error {
+	reader, err := zip.OpenReader(source)
+	if err != nil {
+		return fmt.Errorf("error extracting jar extractJar(%s,%s)= %v", source, dest, err)
+	}
+
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		return fmt.Errorf("error creating directory %s in extractJar(%s,%s)= %v", dest, source, dest, err)
+	}
+
+	for _, file := range reader.File {
+		fileName := filepath.Join(dest, file.Name)
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(fileName, 0700)
+			continue
+		}
+
+		f, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("error opening file %s: %v", file.Name, err)
+		}
+		defer f.Close()
+
+		tf, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+		if err != nil {
+			return fmt.Errorf("error opening file %s: %v", fileName, err)
+		}
+		defer tf.Close()
+
+		if _, err := io.Copy(tf, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func packJar(source, dest string) error {
+	jar, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("error creating jar packJar(%s,%s)=%v", source, dest, err)
+	}
+	defer jar.Close()
+
+	jarFile := zip.NewWriter(jar)
+	defer jarFile.Close()
+
+	fileInfo, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("source path %s doesn't exist: %v", source, err)
+	}
+
+	var sourceDir string
+	if fileInfo.IsDir() {
+		sourceDir = filepath.Base(source)
+	}
+
+	err = filepath.Walk(source, func(path string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("error accesing path %s: %v", path, err)
+		}
+		fileHeader, err := zip.FileInfoHeader(fileInfo)
+		if err != nil {
+			return fmt.Errorf("error getting FileInfoHeader: %v", err)
+		}
+
+		if sourceDir != "" {
+			fileHeader.Name = filepath.Join(sourceDir, strings.TrimPrefix(path, source))
+		}
+
+		if fileInfo.IsDir() {
+			fileHeader.Name += "/"
+		} else {
+			fileHeader.Method = zip.Deflate
+		}
+
+		writer, err := jarFile.CreateHeader(fileHeader)
+		if err != nil {
+			return fmt.Errorf("error creating jarFile header: %v", err)
+		}
+		if fileInfo.IsDir() {
+			return nil
+		}
+
+		f, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("error opening file %s: %v", path, err)
+		}
+		defer f.Close()
+
+		if _, err = io.Copy(writer, f); err != nil {
+			return fmt.Errorf("error copying file %s: %v", path, err)
+		}
+		return nil
+	})
+	return err
+}
+
+// MakeJar fetches additional classpath JARs and adds it to the classpath of
+// main JAR file and compiles a fresh JAR.
+func MakeJar(mainJar string, classpath []string) (string, error) {
 	usr, _ := user.Current()
 	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
+
+	// fetch jars required in classpath
 	classpathJars := []string{}
 	for _, jar := range classpath {
 		path := expandJar(jar)
@@ -140,71 +238,55 @@ func AddClasspathJars(mainJar string, classpath []string) (string, error) {
 		}
 	}
 
-	compositeJarDir := filepath.Join(cacheDir, "composite-jar")
-	err := os.MkdirAll(compositeJarDir, 0700)
-	if err != nil {
-		return "", err
-	}
+	// classpath jars should have relative path
 	relClasspath := []string{}
-
-	for _, pattern := range append([]string{mainJar}, classpathJars...) {
-		path, err := filepath.Abs(pattern)
-		if err != nil {
-			return "", err
-		}
-		relPath, err := filepath.Rel(compositeJarDir, path)
+	for _, path := range classpathJars {
+		relPath, err := filepath.Rel(cacheDir, path)
 		if err != nil {
 			return "", fmt.Errorf("error in creating relative path: %v", err)
 		}
 		relClasspath = append(relClasspath, relPath)
-		if _, err = os.Stat(filepath.Join(compositeJarDir, relPath)); errors.Is(err, os.ErrNotExist) {
-			os.Symlink(path, filepath.Join(compositeJarDir, relPath))
-		}
 	}
-	sort.Strings(relClasspath)
-	// compositeJar := filepath.Join(compositeJarDir, strings.Join(relClasspath, " "))
-	compositeJar := filepath.Join(compositeJarDir, "composite.jar")
-	if !jarExists(compositeJar) {
-		archive, err := zip.OpenReader(mainJar)
-		if err != nil {
-			return "", fmt.Errorf("error in OpenReader(): %v", err)
-		}
-		defer archive.Close()
-		manifest, err := archive.Open("META-INF/MANIFEST.MF")
-		if err != nil {
-			return "", err
-		}
-		defer manifest.Close()
 
-		scanner := bufio.NewScanner(manifest)
-		mainClass := ""
-		for scanner.Scan() {
-			if scan := scanner.Text(); strings.HasPrefix(scan, "Main-Class:") {
-				mainClass = scan
-				break
-			}
-		}
-		tmpJar := fmt.Sprintf("%s.tmp", compositeJar)
-		tmpArchive, err := os.Create(tmpJar)
-		if err != nil {
-			return "", err
-		}
-		defer tmpArchive.Close()
+	tmpDir := filepath.Join(cacheDir, "tmpDir")
 
-		zipf := zip.NewWriter(tmpArchive)
-		defer zipf.Close()
-		mfile, err := zipf.Create("META-INF/MANIFEST.MF")
-		if err != nil {
-			return "", err
-		}
-		writeBuf := []byte(fmt.Sprintf("Manifest-Version: 1.0\n%s\nClass-Path: %s\n", mainClass, strings.Join(relClasspath, " ")))
-		mfile.Write(writeBuf)
-		err = os.Rename(tmpJar, compositeJar)
-		if err != nil {
-			return "", nil
-		}
+	if err := extractJar(mainJar, tmpDir); err != nil {
+		return "", errors.New(fmt.Sprintf("error in extractJar(): %v", err))
 	}
-	return compositeJar, nil
+
+	b, err := os.ReadFile(tmpDir + "/META-INF/MANIFEST.MF")
+	if err != nil {
+		return "", fmt.Errorf("error readingf: %v", err)
+	}
+
+	// trim the empty lines present at the end of MANIFEST.MF file.
+	str := strings.Split(string(b), "\n")
+	str = str[:len(str)-2]
+
+	classpathString := fmt.Sprintf("%sClass-Path: %s\n", strings.Join(str, "\n"), strings.Join(relClasspath, " "))
+	if err = os.WriteFile(tmpDir+"/META-INF/MANIFEST.MF", []byte(classpathString), 0660); err != nil {
+		return "", fmt.Errorf("error writing: %v", err)
+	}
+
+	path, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("can't get current working directory: %v", err)
+	}
+
+	if err = os.Chdir(tmpDir); err != nil {
+		return "", fmt.Errorf("can't change to temp directory: %v", err)
+	}
+
+	tmpJar := filepath.Join(cacheDir, "tmp.jar")
+	if err = packJar(".", tmpJar); err != nil {
+		return "", errors.New(fmt.Sprintf("error in packJar(): %v", err))
+	}
+
+	if err = os.Chdir(path); err != nil {
+		return "", fmt.Errorf("can't change to old working directory: %v", err)
+	}
+
+	return tmpJar, nil
 }
 
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the

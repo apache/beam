@@ -63,7 +63,6 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 		},
 		Started: true,
 	}
-	// ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
 		t.Fatalf("failed to start container: %s", err)
@@ -98,56 +97,23 @@ func setupMySqlContainer(t *testing.T, ctx context.Context, dbname, username, pa
 	}
 
 	var port = "3306/tcp"
-	// dbURL := func(port nat.Port) string {
-	// 	return fmt.Sprintf("%s:%s@tcp(localhost:%s)/%s?sslmode=disable", username, password, port.Port(), dbname)
-	// }
-
 	req := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "mysql:latest",
 			ExposedPorts: []string{port},
 			Env:          env,
-			// WaitingFor:   wait.ForSQL(nat.Port(port), "mysql", dbURL).Timeout(time.Second * 5),
 		},
 		Started: true,
 	}
-	// ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
 		t.Fatalf("failed to start container: %s", err)
 	}
-	// host, err := container.Host(ctx)
-	// if err != nil {
-	// 	t.Fatalf("can't get host: %v", err)
-	// }
+
 	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
 	if err != nil {
 		t.Fatalf("failed to get container external port: %s", err)
 	}
-
-	// url := fmt.Sprintf("%s:%s@udp(localhost:%d)/%s", username, password, mappedPort.Int(), dbname)
-	// db, err := sql.Open("mysql", url)
-	// // db, err := sqlx.ConnectContext(ctx, "mysql", url)
-	// if err != nil {
-	// 	t.Fatalf("failed to establish database connection: %v", err)
-	// }
-
-	// db.SetMaxOpenConns(20)
-	// db.SetMaxIdleConns(20)
-	// db.SetConnMaxLifetime(time.Minute * 5)
-	// err = db.Ping()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	//
-	// // db.Se
-
-	// defer db.Close()
-
-	// _, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id int(11));")
-	// if err != nil {
-	// 	t.Fatalf("can't create table, %v", err)
-	// }
 	return container, mappedPort.Int()
 }
 
@@ -181,22 +147,21 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 			setup: func(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
 				return setupMySqlContainer(t, ctx, dbname, username, password)
 			},
-			driver: "com.mysql.jdbc.Driver",
+			driver: "com.mysql.cj.jdbc.Driver",
 		},
 	}
 
-	name := "postgres"
+	name := "mysql"
 	cont, port := db[name].setup(t, ctx, dbname, username, password)
 	defer cont.Terminate(ctx)
-	// defer cdb.Close()
 	tableName := "roles"
 	host := "127.0.0.1"
 	jdbcUrl := fmt.Sprintf("jdbc:%s://%s:%d/%s?user=%s&password=%s&maxReconnects=10&autoReconnect=true&useSSL=false&useUnicode=true&characterEncoding=UTF-8", db[name].name, host, port, dbname, username, password)
 
-	write := WritePipeline("", tableName, db[name].driver, jdbcUrl, username, password)
+	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline("", tableName, db[name].driver, jdbcUrl, username, password)
+	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 
