@@ -1417,7 +1417,14 @@ class BeamModulePlugin implements Plugin<Project> {
             // that ends up on the runtime classpath.
             args 'org.apache.beam'
           }
+          args '-i=3'
+          args '-wi=3'
+          args '-f=3'
+          args '-r=20s'
+          args '-gc=true'
+
           args '-foe=true'
+          args '-rf=json'
         }
 
         // Single shot of JMH benchmarks ensures that they can execute.
