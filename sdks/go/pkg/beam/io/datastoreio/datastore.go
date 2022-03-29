@@ -64,7 +64,9 @@ func init() {
 // datastoreio.Read(s, "project", "Item", 256, reflect.TypeOf(Item{}), itemKey)
 func Read(s beam.Scope, project, kind string, shards int, t reflect.Type, typeKey string) beam.PCollection {
 	s = s.Scope("datastore.Read")
-	return query(s, project, kind, shards, t, typeKey, datastoreNewClient)
+	// for portable runner consideration, set newClient to nil for now
+	// which will be initialized in DoFn's Setup() method
+	return query(s, project, kind, shards, t, typeKey, nil)
 }
 
 func datastoreNewClient(ctx context.Context, projectID string, opts ...option.ClientOption) (clientType, error) {
@@ -89,6 +91,14 @@ type splitQueryFn struct {
 type BoundedQuery struct {
 	Start *datastore.Key `json:"start"`
 	End   *datastore.Key `json:"end"`
+}
+
+func (s *splitQueryFn) Setup() error {
+	if nil == s.newClientFunc {
+		// setup default newClientFunc for DoFns
+		s.newClientFunc = datastoreNewClient
+	}
+	return nil
 }
 
 func (s *splitQueryFn) ProcessElement(ctx context.Context, _ []byte, emit func(k string, val string)) error {
@@ -202,6 +212,14 @@ type queryFn struct {
 	// Type is the name of the global schema type
 	Type          string `json:"type"`
 	newClientFunc newClientFuncType
+}
+
+func (s *queryFn) Setup() error {
+	if nil == s.newClientFunc {
+		// setup default newClientFunc for DoFns
+		s.newClientFunc = datastoreNewClient
+	}
+	return nil
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ string, v func(*string) bool, emit func(beam.X)) error {

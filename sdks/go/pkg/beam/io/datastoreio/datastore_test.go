@@ -136,6 +136,36 @@ func Test_query_Bad(t *testing.T) {
 	}
 }
 
+func Test_splitQueryFn_Setup(t *testing.T) {
+	s := splitQueryFn{"project", "kind", 1, nil}
+	err := s.Setup()
+	if nil != err {
+		t.Errorf("failed to call Setup, got error: %v", err)
+	}
+	rst, err := s.newClientFunc(context.Background(), "project")
+	if nil != err {
+		t.Errorf("failed to call newClientFunc, got error: %v", err)
+	}
+	if got, want := reflect.TypeOf(rst), reflect.TypeOf(&datastore.Client{}); got != want {
+		t.Errorf("got instance of type %v, wanted type: %v", got, want)
+	}
+}
+
+func Test_queryFn_Setup(t *testing.T) {
+	s := queryFn{"project", "kind", "type", nil}
+	err := s.Setup()
+	if nil != err {
+		t.Errorf("failed to call Setup, got error: %v", err)
+	}
+	rst, err := s.newClientFunc(context.Background(), "project")
+	if nil != err {
+		t.Errorf("failed to call newClientFunc, got error: %v", err)
+	}
+	if got, want := reflect.TypeOf(rst), reflect.TypeOf(&datastore.Client{}); got != want {
+		t.Errorf("got instance of type %v, wanted type: %v", got, want)
+	}
+}
+
 func Test_keyLessThan(t *testing.T) {
 	tsts := []struct {
 		a      *datastore.Key
