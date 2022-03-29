@@ -966,8 +966,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     if self._expr.proxy().index.nlevels == 1:
       if PD_VERSION < (1, 2):
         raise frame_base.WontImplementError(
-          "pandas==1.1.5 has an indexing error bug," \
-          " causing an error with unstack()")
+            "unstack() is not supported when using pandas < 1.2.0"
+            "Please upgrade to pandas 1.2.0 or higher to use this operation.")
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'unstack',
@@ -999,17 +999,22 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           col_idx = pd.MultiIndex.from_product(levels)
         else:
           if tmp.columns.dtype == 'boolean':
-            col_idx = pd.Index(tmp.columns)
+            col_idx = pd.Index([False, True], dtype='boolean')
           else:
             col_idx = pd.CategoricalIndex(tmp.columns.categories)
 
-        if isinstance(tmp.index, pd.MultiIndex):
-          levels = [[] for _ in range(tmp.index.nlevels)]
-          row_idx = pd.MultiIndex.from_product(levels, names=tmp.index.names)
+        if isinstance(self._expr.proxy(), pd.Series):
+          proxy_dtype = self._expr.proxy().dtypes
         else:
-          row_idx = pd.Index([], name=tmp.index.name, dtype=tmp.index.dtype)
+          dtypes = [d for d in self._expr.proxy().dtypes]
+          proxy_dtype = object
+          if np.int64 in dtypes:
+            proxy_dtype = np.int64
+          elif np.float64 in dtypes:
+            proxy_dtype = np.float64
 
-        proxy = pd.DataFrame(columns=col_idx, dtype=object, index=row_idx)
+        proxy = pd.DataFrame(
+            columns=col_idx, dtype=proxy_dtype, index=tmp.index)
 
         with expressions.allow_non_parallel_operations(True):
           return frame_base.DeferredFrame.wrap(

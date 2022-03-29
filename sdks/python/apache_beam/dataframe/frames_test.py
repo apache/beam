@@ -120,7 +120,7 @@ class _AbstractFrameTest(unittest.TestCase):
       distributed=True,
       nonparallel=False,
       check_proxy=True,
-      check_dtypes=True):
+      lenient_dtype_check=False):
     """Verify that func(*args) produces the same result in pandas and in Beam.
 
     Args:
@@ -138,10 +138,12 @@ class _AbstractFrameTest(unittest.TestCase):
             operations if at all possible. Instead make sure the new operation
             produces the correct proxy. This flag only exists as an escape hatch
             until existing failures can be addressed (BEAM-12379).
-        check_dtypes (bool): Whether or not to check the dtypes of the values.
-            The default is True. This option should be set to False for
-            non-deferred operations, where the dtype of the values in the proxy
-            are not known ahead of time.
+        lenient_dtype_check (bool): Whether or not to check that numeric columns
+            are still numeric between actual and proxy. i.e. verify that they
+            are at least int64 or float64, and not necessarily have the exact
+            same dtype. This may need to be set to True for some non-deferred
+            operations, where the dtype of the values in the proxy are not known
+            ahead of time, causing int64 to float64 coercion issues.
     """
     # Compute expected value
     expected = func(*args)
@@ -182,11 +184,9 @@ class _AbstractFrameTest(unittest.TestCase):
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
       if isinstance(expected, pd.Series):
-        pd.testing.assert_series_equal(
-            expected, actual, check_dtype=check_dtypes)
+        pd.testing.assert_series_equal(expected, actual)
       elif isinstance(expected, pd.DataFrame):
-        pd.testing.assert_frame_equal(
-            expected, actual, check_dtype=check_dtypes)
+        pd.testing.assert_frame_equal(expected, actual)
       else:
         raise ValueError(
             f"Expected value is a {type(expected)},"
@@ -215,11 +215,21 @@ class _AbstractFrameTest(unittest.TestCase):
 
       if isinstance(expected, pd.core.generic.NDFrame):
         if isinstance(expected, pd.Series):
-          if check_dtypes:
+          if lenient_dtype_check:
+            self.assertEqual(
+                pd.to_numeric(actual, errors='coerce').dtype,
+                pd.to_numeric(proxy, errors='coerce').dtype)
+          else:
             self.assertEqual(actual.dtype, proxy.dtype)
           self.assertEqual(actual.name, proxy.name)
         elif isinstance(expected, pd.DataFrame):
-          if check_dtypes:
+          if lenient_dtype_check:
+            pd.testing.assert_series_equal(
+                actual.apply(pd.to_numeric, downcast='float',
+                             errors='ignore').dtypes,
+                proxy.apply(pd.to_numeric, downcast='float',
+                            errors='ignore').dtypes)
+          else:
             pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
 
         else:
@@ -228,8 +238,15 @@ class _AbstractFrameTest(unittest.TestCase):
               "not a Series or DataFrame.")
 
         self.assertEqual(actual.index.names, proxy.index.names)
-        if check_dtypes:
-          for i in range(actual.index.nlevels):
+
+        for i in range(actual.index.nlevels):
+          if lenient_dtype_check:
+            self.assertEqual(
+                actual.apply(pd.to_numeric, downcast='float',
+                             errors='ignore').index.get_level_values(i).dtype,
+                proxy.apply(pd.to_numeric, downcast='float',
+                            errors='ignore').index.get_level_values(i).dtype)
+          else:
             self.assertEqual(
                 actual.index.get_level_values(i).dtype,
                 proxy.index.get_level_values(i).dtype)
@@ -1340,23 +1357,24 @@ class DeferredFrameTest(_AbstractFrameTest):
   def test_unstack_pandas_example1(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)
-    self._run_test(lambda s: s.unstack(level=-1), s, check_dtypes=False)
+    self._run_test(lambda s: s.unstack(level=-1), s)
 
   def test_unstack_pandas_example2(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)
-    self._run_test(lambda s: s.unstack(level=0), s, check_dtypes=False)
+    self._run_test(lambda s: s.unstack(level=0), s)
 
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)
     df = s.unstack(level=0)
     if PD_VERSION < (1, 2):
-      with self.assertRaisesRegex(frame_base.WontImplementError,
-                                  r"pandas==1.1.5 has an indexing error bug"):
-        self._run_test(lambda df: df.unstack(), df, check_dtypes=False)
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"unstack\(\) is not supported when using pandas < 1.2.0"):
+        self._run_test(lambda df: df.unstack(), df)
     else:
-      self._run_test(lambda df: df.unstack(), df, check_dtypes=False)
+      self._run_test(lambda df: df.unstack(), df)
 
   @unittest.skipIf(
       PD_VERSION < (1, 4),
@@ -1368,7 +1386,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     index = index.set_levels(
         index.levels[1].astype(pd.CategoricalDtype(['a', 'b'])), level=1)
     s = pd.Series(np.arange(1.0, 5.0), index=index)
-    self._run_test(lambda s: s.unstack(level=0), s, check_dtypes=False)
+    self._run_test(lambda s: s.unstack(level=0), s)
 
   def test_unstack_series_multiple_index_levels(self):
     tuples = list(
@@ -1387,10 +1405,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     index = index.set_levels(
         index.levels[2].astype(pd.CategoricalDtype(['A', 'B'])), level=2)
     df = pd.Series(np.random.randn(8), index=index)
-    self._run_test(
-        lambda df: df.unstack(level=['first', 'third']), df, check_dtypes=False)
-    # self.assert_frame_data_equivalent(
-    # result, df.unstack(level=['first', 'third']))
+    self._run_test(lambda df: df.unstack(level=['first', 'third']), df)
 
   def test_unstack_series_multiple_index_and_column_levels(self):
     columns = pd.MultiIndex.from_tuples(
@@ -1413,14 +1428,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         index.levels[2].astype(pd.CategoricalDtype(['bar', 'baz'])), level=2)
     df = pd.DataFrame(np.random.randn(8, 4), index=index, columns=columns)
     df = df.stack(level=["animal", "hair_length"])
-    self._run_test(
-        lambda df: df.unstack(level=['second', 'third']),
-        df,
-        check_dtypes=False)
-    self._run_test(
-        lambda df: df.unstack(level=['second']), df, check_dtypes=False)
-    # self.assert_frame_data_equivalent(
-    # result, df.unstack(level=['second', 'third']))
+    self._run_test(lambda df: df.unstack(level=['second', 'third']), df)
+    self._run_test(lambda df: df.unstack(level=['second']), df)
 
 
 # pandas doesn't support kurtosis on GroupBys:
