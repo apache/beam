@@ -122,7 +122,6 @@ public class StatefulTeamScoreIT {
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
-    options.setFasterCopy(true);
   }
 
   private void setupPubSub() throws IOException {

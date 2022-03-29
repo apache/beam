@@ -125,7 +125,6 @@ public class GameStatsIT {
     options.setFixedWindowDuration(1);
     options.setUserActivityWindowDuration(1);
     options.setSessionGap(1);
-    options.setFasterCopy(true);
   }
 
   private void setupPubSub() throws IOException {

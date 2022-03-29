@@ -212,7 +212,6 @@ public class LeaderBoardIT {
     options.setBlockOnRun(false);
     options.setTeamWindowDuration(1);
     options.setAllowedLateness(1);
-    options.setFasterCopy(true);
   }
 
   /**

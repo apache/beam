@@ -24,7 +24,6 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -93,8 +92,7 @@ public class LeaderBoard extends HourlyTeamScore {
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
   /** Options supported by {@link LeaderBoard}. */
-  public interface Options
-      extends ExampleOptions, StreamingOptions, FlinkPipelineOptions, GcpOptions {
+  public interface Options extends ExampleOptions, StreamingOptions, GcpOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
