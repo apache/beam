@@ -32,6 +32,7 @@ configurations {
 
 dependencies {
     implementation project(path: ":sdks:java:harness", configuration: "shadow")
+    implementation project(path: ":sdks:java:core", configuration: "shadowTest")
     implementation project(":runners:java-fn-execution")
     runtimeOnly library.java.slf4j_jdk14
     jammAgent library.java.jamm

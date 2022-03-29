@@ -53,10 +53,17 @@ public class RowWithGetters extends Row {
   private final Factory<List<FieldValueGetter>> fieldValueGetterFactory;
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;
+  private final boolean useCache;
 
-  private final Map<Integer, Collection> cachedCollections = Maps.newHashMap();
-  private final Map<Integer, Iterable> cachedIterables = Maps.newHashMap();
-  private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
+  private Map<Integer, Collection> cachedCollections = null;
+  private Map<Integer, Iterable> cachedIterables = null;
+  private Map<Integer, Map> cachedMaps = null;
+
+  private void initCache() {
+    cachedCollections = Maps.newHashMap();
+    cachedIterables = Maps.newHashMap();
+    cachedMaps = Maps.newHashMap();
+  }
 
   RowWithGetters(
       Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
@@ -64,18 +71,23 @@ public class RowWithGetters extends Row {
     this.fieldValueGetterFactory = getterFactory;
     this.getterTarget = getterTarget;
     this.getters = fieldValueGetterFactory.create(getterTarget.getClass(), schema);
+    this.useCache = schema.getOptions().hasOption("nocache") == false;
   }
 
   @Override
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   public <T> @Nullable T getValue(int fieldIdx) {
+    // lazy init cache on first getValue to include initialization costs into benchmark
+    if (cachedCollections == null) {
+      initCache();
+    }
     Field field = getSchema().getField(fieldIdx);
     FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);
     if (fieldValue == null && !field.getType().getNullable()) {
       throw new RuntimeException("Null value set on non-nullable field " + field);
     }
-    return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;
+    return fieldValue != null ? getValue(type, fieldValue, useCache ? fieldIdx : null) : null;
   }
 
   private Collection getCollectionValue(FieldType elementType, Object fieldValue) {
