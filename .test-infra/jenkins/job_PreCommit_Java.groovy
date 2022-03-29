@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleSwitches: [
       '-PdisableSpotlessCheck=true'
     ], // spotless checked in separate pre-commit
+    timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',

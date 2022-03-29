@@ -24,7 +24,7 @@ files:
 - name: src/org/apache/beam/learning/katas/triggers/windowaccummode/Task.java
   visible: true
   placeholders:
-  - offset: 1972
+  - offset: 2196
     length: 471
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/triggers/windowaccummode/TaskTest.java

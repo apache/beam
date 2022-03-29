@@ -163,7 +163,6 @@ func (w *wait) FinishBundle(ctx context.Context) error {
 	}
 	w.done = true
 	return w.next.FinishBundle(ctx)
-
 }
 
 func (w *wait) Down(ctx context.Context) error {
