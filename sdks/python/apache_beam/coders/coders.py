@@ -578,9 +578,15 @@ class NullableCoder(FastCoder):
 
   @classmethod
   def from_type_hint(cls, typehint, registry):
-    value_type = list(
-        filter(lambda t: t is not type(None), typehint._inner_types()))[0]
-    return cls(registry.get_coder(value_type))
+    if typehints.is_nullable(typehint):
+      return cls(
+          registry.get_coder(
+              typehints.get_concrete_type_from_nullable(typehint)))
+    else:
+      raise TypeError(
+          'Typehint is not of nullable type, '
+          'and cannot be converted to a NullableCoder',
+          typehint)
 
   def is_deterministic(self):
     # type: () -> bool
