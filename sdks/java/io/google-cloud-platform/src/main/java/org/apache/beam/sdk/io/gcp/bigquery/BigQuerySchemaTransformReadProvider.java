@@ -65,7 +65,7 @@ public class BigQuerySchemaTransformReadProvider
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
   protected SchemaTransform from(BigQuerySchemaTransformReadConfiguration configuration) {
-    return new BigQuerySchemaTransformRead(configuration);
+    return new BigQueryReadSchemaTransform(configuration);
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
@@ -96,17 +96,17 @@ public class BigQuerySchemaTransformReadProvider
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
    * BigQuerySchemaTransformReadConfiguration}.
    */
-  static class BigQuerySchemaTransformRead implements SchemaTransform {
+  static class BigQueryReadSchemaTransform implements SchemaTransform {
     private final BigQuerySchemaTransformReadConfiguration configuration;
 
-    BigQuerySchemaTransformRead(BigQuerySchemaTransformReadConfiguration configuration) {
+    BigQueryReadSchemaTransform(BigQuerySchemaTransformReadConfiguration configuration) {
       this.configuration = configuration;
     }
 
     /** Implements {@link SchemaTransform} buildTransform method. */
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQuerySchemaTransformReadTransform(configuration);
+      return new PCollectionRowTupleTransform(configuration);
     }
   }
 
@@ -114,12 +114,18 @@ public class BigQuerySchemaTransformReadProvider
    * An implementation of {@link PTransform} for BigQuery read jobs configured using {@link
    * BigQuerySchemaTransformReadConfiguration}.
    */
-  static class BigQuerySchemaTransformReadTransform
+  static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-    private final BigQuerySchemaTransformReadConfiguration configuration;
 
-    BigQuerySchemaTransformReadTransform(BigQuerySchemaTransformReadConfiguration configuration) {
+    private final BigQuerySchemaTransformReadConfiguration configuration;
+    private BigQueryServices testBigQueryServices = null;
+
+    PCollectionRowTupleTransform(BigQuerySchemaTransformReadConfiguration configuration) {
       this.configuration = configuration;
+    }
+
+    void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
+      this.testBigQueryServices = testBigQueryServices;
     }
 
     @Override
@@ -130,13 +136,19 @@ public class BigQuerySchemaTransformReadProvider
                 "%s %s input is expected to be empty",
                 input.getClass().getSimpleName(), getClass().getSimpleName()));
       }
-      PCollection<TableRow> tableRowPCollection = input.getPipeline().apply(toTypedRead());
+
+      BigQueryIO.TypedRead<TableRow> read = toTypedRead();
+      if (testBigQueryServices != null) {
+        read = read.withTestServices(testBigQueryServices).withoutValidation();
+      }
+
+      PCollection<TableRow> tableRowPCollection = input.getPipeline().apply(read);
       Schema schema = tableRowPCollection.getSchema();
       PCollection<Row> rowPCollection =
           tableRowPCollection.apply(
               MapElements.into(TypeDescriptor.of(Row.class))
                   .via((tableRow) -> BigQueryUtils.toBeamRow(schema, tableRow)));
-      return PCollectionRowTuple.of(OUTPUT_TAG, rowPCollection);
+      return PCollectionRowTuple.of(OUTPUT_TAG, rowPCollection.setRowSchema(schema));
     }
 
     BigQueryIO.TypedRead<TableRow> toTypedRead() {

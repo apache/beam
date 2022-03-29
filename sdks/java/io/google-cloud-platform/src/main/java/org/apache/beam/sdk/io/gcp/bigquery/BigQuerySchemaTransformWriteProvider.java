@@ -62,7 +62,7 @@ public class BigQuerySchemaTransformWriteProvider
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
   protected SchemaTransform from(BigQuerySchemaTransformWriteConfiguration configuration) {
-    return new BigQuerySchemaTransformWrite(configuration);
+    return new BigQueryWriteSchemaTransform(configuration);
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
@@ -93,10 +93,10 @@ public class BigQuerySchemaTransformWriteProvider
    * An implementation of {@link SchemaTransform} for BigQuery write jobs configured using {@link
    * BigQuerySchemaTransformWriteConfiguration}.
    */
-  static class BigQuerySchemaTransformWrite implements SchemaTransform {
+  static class BigQueryWriteSchemaTransform implements SchemaTransform {
     private final BigQuerySchemaTransformWriteConfiguration configuration;
 
-    BigQuerySchemaTransformWrite(BigQuerySchemaTransformWriteConfiguration configuration) {
+    BigQueryWriteSchemaTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
     }
 
