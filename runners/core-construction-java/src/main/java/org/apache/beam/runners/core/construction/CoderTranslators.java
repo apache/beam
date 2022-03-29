@@ -209,6 +209,8 @@ class CoderTranslators {
     return new SimpleStructuredCoderTranslator<NullableCoder<?>>() {
       @Override
       protected NullableCoder<?> fromComponents(List<Coder<?>> components) {
+        checkArgument(
+            components.size() == 1, "Expected one component component, but received: " + components);
         return NullableCoder.of(components.get(0));
       }
 
@@ -224,6 +226,7 @@ class CoderTranslators {
     @Override
     public final T fromComponents(
         List<Coder<?>> components, byte[] payload, TranslationContext context) {
+      checkArgument(components.size() == 1, "Expected one component, but received: "+ components);
       return fromComponents(components);
     }
 
