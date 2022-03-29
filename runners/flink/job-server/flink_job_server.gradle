@@ -204,7 +204,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
       // TODO(BEAM-13498)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
       // TODO(BEAM-13952)
-      exclueTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
     },
   )
 }
