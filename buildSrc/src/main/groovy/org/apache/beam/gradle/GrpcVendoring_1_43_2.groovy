@@ -22,7 +22,7 @@ package org.apache.beam.gradle
  * Utilities for working with our vendored version of gRPC.
  * 
  * To update:
- * 1. Determine the set of io.grpc libraries we want to include, most likely a superset of
+ * 1. Determine the set of io.grpc libraries we want to include, most likely a superset
  *    of the previous vendored gRPC version.
  * 2. Use mvn dependency:tree and https://search.maven.org/search?q=g:io.grpc
  *    to determine dependency tree. You may need to search for optional dependencies
@@ -46,8 +46,8 @@ class GrpcVendoring_1_43_2 {
   static def proto_google_common_protos_version = "2.0.1"
 
   // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-  static def netty_version = "4.1.63.Final"
-  static def netty_tcnative_version = "2.0.38.Final"
+  static def netty_version = "4.1.75.Final"
+  static def netty_tcnative_version = "2.0.51.Final"
 
   /** Returns the list of implementation time dependencies. */
   static List<String> dependencies() {
