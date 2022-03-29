@@ -16,27 +16,28 @@
 #
 
 from typing import Iterable
+from typing import List
 
 import torch
 from torch import nn
-from apache_beam.ml.inference.run_inference_base import InferenceRunner
-from apache_beam.ml.inference.run_inference_base import ModelLoader
+from apache_beam.ml.inference.base import InferenceRunner
+from apache_beam.ml.inference.base import ModelLoader
 
 
 class PytorchInferenceRunner(InferenceRunner):
   """
   Implements Pytorch inference method
   """
-  def run_inference(self, batch: torch.Tensor,
+  def run_inference(self, batch: List[torch.Tensor],
                     model: nn.Module) -> Iterable[torch.Tensor]:
     """
     Runs inferences on a batch of examples and returns an Iterable of
     Predictions."""
-    return model(batch)
+    return model(torch.Tensor(batch))
 
   def get_num_bytes(self, batch: torch.Tensor) -> int:
     """Returns the number of bytes of data for a batch."""
-    return batch.storage()
+    return sum(el.element_size() for el in batch)
 
   def get_metrics_namespace(self) -> str:
     """
