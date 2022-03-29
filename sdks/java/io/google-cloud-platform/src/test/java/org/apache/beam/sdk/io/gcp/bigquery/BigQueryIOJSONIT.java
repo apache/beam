@@ -72,7 +72,7 @@ public class BigQueryIOJSONIT {
 
   private static String JSON_TABLE_DESTINATION;
 
-  private static final List<KV<String, String>> JSON_TYPE_DATA = generateCountryData();
+  private static final List<KV<String, String>> JSON_TYPE_DATA = generateCountryData(false);
 
   // Convert PCollection of TableRows to a PCollection of KV JSON string pairs
   static class TableRowToJSONStringFn extends DoFn<TableRow, KV<String, String>> {
@@ -133,8 +133,8 @@ public class BigQueryIOJSONIT {
         BigQueryIO.readTableRows().withMethod(options.getReadMethod());
 
     // read from input query or from a table
-    if(!options.getInputQuery().isEmpty()) {
-      bigqueryIO = bigqueryIO.fromQuery(options.getInputQuery());
+    if(!options.getQuery().isEmpty()) {
+      bigqueryIO = bigqueryIO.fromQuery(options.getQuery());
     } else {
       bigqueryIO = bigqueryIO.from(options.getInput());
     }
@@ -158,7 +158,7 @@ public class BigQueryIOJSONIT {
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
     options.setReadMethod(TypedRead.Method.DIRECT_READ);
     options.setInput(JSON_TABLE_DESTINATION);
-    
+
     readAndValidateRows(options, JSON_TYPE_DATA);
   }
 
@@ -169,6 +169,20 @@ public class BigQueryIOJSONIT {
     options.setInput(JSON_TABLE_DESTINATION);
 
     readAndValidateRows(options, JSON_TYPE_DATA);
+  }
+
+  @Test
+  public void testQueryRead() throws Exception {
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options.setReadMethod(TypedRead.Method.DIRECT_READ);
+    options.setQuery(
+        String.format("SELECT country_code, country.cities AS country FROM "
+            + "`%s.%s.%s`", project, DATASET_ID, JSON_TYPE_TABLE_NAME));
+
+    // get nested json objects from static data
+    List<KV<String, String>> expected = generateCountryData(true);
+
+    readAndValidateRows(options, expected);
   }
 
   @BeforeClass
@@ -190,9 +204,9 @@ public class BigQueryIOJSONIT {
 
     @Description("Query used to read from BigQuery")
     @Default.String("")
-    String getInputQuery();
+    String getQuery();
 
-    void setInputQuery(String query);
+    void setQuery(String query);
 
     @Description("Read method used to read from BigQuery")
     @Default.Enum("DIRECT_READ")
@@ -228,7 +242,7 @@ public class BigQueryIOJSONIT {
     void setWriteMethod(BigQueryIO.Write.Method value);
   }
 
-  private static List<KV<String, String>> generateCountryData(){
+  private static List<KV<String, String>> generateCountryData(boolean isQuery){
     // Data from World Bank as of 2020
     JSONObject usa = new JSONObject();
 
@@ -298,17 +312,44 @@ public class BigQueryIOJSONIT {
 
     JSONObject special = new JSONObject();
 
+    JSONObject special_cities = new JSONObject();
+
+    JSONObject ba_sing_se = new JSONObject();
+    ba_sing_se.put("name", "Ba Sing Se");
+    ba_sing_se.put("state", "The Earth Kingdom");
+    ba_sing_se.put("population", 200000);
+
+    JSONObject bikini_bottom = new JSONObject();
+    bikini_bottom.put("name", "Bikini Bottom");
+    ba_sing_se.put("state", "The Pacific Ocean");
+    ba_sing_se.put("population", 50000);
+
+    special_cities.put("basingse", ba_sing_se);
+    special_cities.put("bikinibottom", bikini_bottom);
+
     JSONArray special_arr = new JSONArray();
 
     special_arr.put("1");
     special_arr.put("2");
     special_arr.put("!@#$%^&*()_+");
 
-    special.put("name", "newline\n, form\f, tab\t, \"quotes\", \\backslash\\, backspace\b, \u0000_hex_\uf000");
+    special.put("name", "newline\n, form\f, tab\t, \"quotes\", \\backslash\\, backspace\b, \u0000_hex_\u0f0f");
     special.put("population", -123456789);
-    special.put("cities", JSONObject.NULL);
+    special.put("cities", special_cities);
     special.put("past_leaders", special_arr);
     special.put("in_northern_hemisphere", true);
+
+    // return ImmutableList.of(
+    //     ImmutableMap.of("country_code", "usa", "country", usa.toString()),
+    //     ImmutableMap.of("country_code", "aus", "country", aus.toString()),
+    //     ImmutableMap.of("country_code", "special", "country", special.toString()));
+
+    if(isQuery){
+      return ImmutableList.of(
+          KV.of("usa", us_cities.toString()),
+          KV.of("aus", aus_cities.toString()),
+          KV.of("special", special_cities.toString()));
+    }
 
     return ImmutableList.of(
         KV.of("usa", usa.toString()),
