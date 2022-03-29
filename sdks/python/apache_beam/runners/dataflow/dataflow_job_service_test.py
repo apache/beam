@@ -53,3 +53,7 @@ class DirectPipelineResultTest(unittest.TestCase):
         _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
     finally:
       job_servicer.stop()
+
+
+if __name__ == '__main__':
+  unittest.main()
