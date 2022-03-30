@@ -751,6 +751,13 @@ class GoogleCloudOptions(PipelineOptions):
         help=
         'When true, artifacts will be cached across job submissions in the GCS '
         'staging bucket')
+    parser.add_argument(
+      '--enable_artifact_caching',
+      default=None,
+      help=
+      'When true, artifacts will be cached across job submissions in the GCS '
+      'staging bucket'
+    )
 
   def _create_default_gcs_bucket(self):
     try:
