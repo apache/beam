@@ -2395,7 +2395,7 @@ class ReadFromBigQuery(PTransform):
           'The method to read from BigQuery must be either EXPORT'
           'or DIRECT_READ.')
 
-  def _produce_pcoll_with_schema(self, project_id, dataset_id, table_id):
+  def produce_pcoll_with_schema(self, project_id, dataset_id, table_id):
     the_table_schema = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
     ).get_table(project_id, dataset_id, table_id)
     the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
@@ -2408,19 +2408,20 @@ class ReadFromBigQuery(PTransform):
       elif the_schema['fields'][i]['type'] == 'INTEGER':
         typ = np.int64
       elif the_schema['fields'][i]['type'] == 'FLOAT':
-        typ = np.float
+        typ = np.float64
       elif the_schema['fields'][i]['type'] == 'NUMERIC':
-        typ = str
+        typ = np.float128
       elif the_schema['fields'][i]['type'] == 'BIGNUMERIC':
-        typ = np.int64
+        typ = np.float128
       elif the_schema['fields'][i]['type'] == 'BOOL':
         typ = bool
       elif the_schema['fields'][i]['type'] == 'BYTES':
         typ = bytes
       elif the_schema['fields'][i]['type'] == 'TIMESTAMP':
-        typ = datetime.datetime
+        typ = beam.utils.timestamp.Timestamp
       else:
         raise ValueError(the_schema['fields'][i]['type'])
+      #TODO svetaksundhar@: Map remaining BQ types
       dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
       i += 1
       sample_schema = beam.typehints.schemas.named_fields_to_schema(
