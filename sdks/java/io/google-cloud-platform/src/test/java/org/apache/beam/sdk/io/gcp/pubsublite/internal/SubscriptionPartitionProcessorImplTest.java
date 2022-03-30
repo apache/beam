@@ -18,40 +18,37 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static com.google.cloud.pubsublite.internal.testing.UnitTestExamples.example;
-import static org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions.DEFAULT_FLOW_CONTROL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.api.core.ApiFutures;
 import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.testing.FakeApiService;
-import com.google.cloud.pubsublite.internal.wire.Subscriber;
-import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.Cursor;
-import com.google.cloud.pubsublite.proto.FlowControlRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.Optional;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -63,23 +60,22 @@ import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class SubscriptionPartitionProcessorImplTest {
+  private static final SubscriptionPartition PARTITION =
+      SubscriptionPartition.of(example(SubscriptionPath.class), example(Partition.class));
+
   @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
-  @Mock Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory;
+  @Mock Supplier<MemoryBufferedSubscriber> subscriberFactory;
 
   @Rule public Timeout globalTimeout = Timeout.seconds(30);
 
-  abstract static class FakeSubscriber extends FakeApiService implements Subscriber {}
+  abstract static class FakeSubscriber extends FakeApiService implements MemoryBufferedSubscriber {}
 
   @Spy FakeSubscriber subscriber;
-
-  Consumer<List<SequencedMessage>> leakedConsumer;
-  SubscriptionPartitionProcessor processor;
 
   private static SequencedMessage messageWithOffset(long offset) {
     return SequencedMessage.newBuilder()
@@ -96,134 +92,106 @@ public class SubscriptionPartitionProcessorImplTest {
   @Before
   public void setUp() {
     initMocks(this);
-    when(subscriberFactory.apply(any()))
-        .then(
-            args -> {
-              leakedConsumer = args.getArgument(0);
-              return subscriber;
-            });
-    processor =
-        new SubscriptionPartitionProcessorImpl(
-            tracker, receiver, subscriberFactory, DEFAULT_FLOW_CONTROL);
-    assertNotNull(leakedConsumer);
+    when(subscriberFactory.get()).thenReturn(subscriber);
+    when(tracker.currentRestriction()).thenReturn(initialRange());
+    doReturn(true).when(subscriber).isRunning();
+    doReturn(example(Offset.class)).when(subscriber).fetchOffset();
+    doReturn(SettableApiFuture.create()).when(subscriber).onData();
+  }
+
+  private SubscriptionPartitionProcessor newProcessor() {
+    return new SubscriptionPartitionProcessorImpl(PARTITION, tracker, receiver, subscriberFactory);
   }
 
   @Test
-  public void lifecycle() throws Exception {
-    when(tracker.currentRestriction()).thenReturn(initialRange());
+  public void lifecycle() {
+    SubscriptionPartitionProcessor processor = newProcessor();
     assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
-    InOrder order = inOrder(subscriber);
-    order.verify(subscriber).startAsync();
-    order.verify(subscriber).awaitRunning();
-    order
-        .verify(subscriber)
-        .allowFlow(
-            FlowControlRequest.newBuilder()
-                .setAllowedBytes(DEFAULT_FLOW_CONTROL.bytesOutstanding())
-                .setAllowedMessages(DEFAULT_FLOW_CONTROL.messagesOutstanding())
-                .build());
-    order.verify(subscriber).stopAsync();
-    order.verify(subscriber).awaitTerminated();
+    InOrder order = inOrder(subscriberFactory, subscriber);
+    order.verify(subscriberFactory).get();
+    order.verify(subscriber).fetchOffset();
+    order.verify(subscriber).rebuffer();
   }
 
   @Test
-  public void lifecycleFlowControlThrows() throws Exception {
-    when(tracker.currentRestriction()).thenReturn(initialRange());
-    doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
-    assertThrows(ApiException.class, () -> processor.runFor(Duration.ZERO));
+  public void lifecycleOffsetMismatch() {
+    MemoryBufferedSubscriber badSubscriber = spy(FakeSubscriber.class);
+    doReturn(Offset.of(example(Offset.class).value() + 1)).when(badSubscriber).fetchOffset();
+    doThrow(new RuntimeException("Ignored")).when(badSubscriber).awaitTerminated();
+    doReturn(badSubscriber, subscriber).when(subscriberFactory).get();
+    SubscriptionPartitionProcessor processor = newProcessor();
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
+    InOrder order = inOrder(subscriberFactory, badSubscriber, subscriber);
+    order.verify(subscriberFactory).get();
+    order.verify(badSubscriber).fetchOffset();
+    order.verify(badSubscriber).stopAsync();
+    order.verify(badSubscriber).awaitTerminated();
+    order.verify(subscriberFactory).get();
+    order.verify(subscriber).fetchOffset();
+    order.verify(subscriber).rebuffer();
   }
 
   @Test
-  public void subscriberFailureFails() throws Exception {
-    when(tracker.currentRestriction()).thenReturn(initialRange());
-    doAnswer(
-            (Answer<Void>)
-                args -> {
-                  subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
-                  return null;
-                })
-        .when(subscriber)
-        .awaitRunning();
-    ApiException e =
-        assertThrows(
-            // Longer wait is needed due to listener asynchrony, but should never wait this long.
-            ApiException.class, () -> processor.runFor(Duration.standardMinutes(2)));
-    assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
+  public void lifecycleRebufferThrows() throws Exception {
+    doThrow(new CheckedApiException(Code.OUT_OF_RANGE).underlying).when(subscriber).rebuffer();
+    assertThrows(ApiException.class, this::newProcessor);
   }
 
   @Test
-  public void allowFlowFailureFails() throws Exception {
-    when(tracker.currentRestriction()).thenReturn(initialRange());
-    when(tracker.tryClaim(any())).thenReturn(true);
-    doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
-    SystemExecutors.getFuturesExecutor()
-        .execute(() -> leakedConsumer.accept(ImmutableList.of(messageWithOffset(1))));
-    ApiException e =
-        assertThrows(ApiException.class, () -> processor.runFor(Duration.standardHours(10)));
-    assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
+  public void subscriberFailureReturnsResume() throws Exception {
+    SubscriptionPartitionProcessor processor = newProcessor();
+    doReturn(ApiFutures.immediateFuture(null)).when(subscriber).onData();
+    doReturn(false).when(subscriber).isRunning();
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.standardHours(1)));
   }
 
   @Test
   public void timeoutReturnsResume() {
+    SubscriptionPartitionProcessor processor = newProcessor();
     assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
     assertFalse(processor.lastClaimed().isPresent());
   }
 
   @Test
-  public void failedClaimCausesStop() throws Exception {
+  public void failedClaimCausesStop() {
+    SubscriptionPartitionProcessor processor = newProcessor();
+
     when(tracker.tryClaim(any())).thenReturn(false);
-    SettableApiFuture<Void> runDone = SettableApiFuture.create();
-    SystemExecutors.getFuturesExecutor()
-        .execute(
-            () -> {
-              assertEquals(
-                  ProcessContinuation.stop(), processor.runFor(Duration.standardHours(10)));
-              runDone.set(null);
-            });
-    leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
-    runDone.get();
+    doReturn(ApiFutures.immediateFuture(null)).when(subscriber).onData();
+    doReturn(Optional.of(messageWithOffset(1))).when(subscriber).peek();
+
+    assertEquals(ProcessContinuation.stop(), processor.runFor(Duration.standardHours(10)));
 
     verify(tracker, times(1)).tryClaim(any());
+    verify(subscriber, times(0)).pop();
     assertFalse(processor.lastClaimed().isPresent());
-    // Future calls to process don't try to claim.
-    leakedConsumer.accept(ImmutableList.of(messageWithOffset(2)));
-    verify(tracker, times(1)).tryClaim(any());
   }
 
   @Test
-  public void successfulClaimThenTimeout() throws Exception {
-    when(tracker.tryClaim(any())).thenReturn(true);
-    SettableApiFuture<Void> runDone = SettableApiFuture.create();
-    SystemExecutors.getFuturesExecutor()
-        .execute(
-            () -> {
-              assertEquals(
-                  ProcessContinuation.resume(), processor.runFor(Duration.standardSeconds(3)));
-              runDone.set(null);
-            });
+  public void successfulClaimThenTimeout() {
+    doReturn(true).when(tracker).tryClaim(any());
+    doReturn(ApiFutures.immediateFuture(null), SettableApiFuture.create())
+        .when(subscriber)
+        .onData();
 
     SequencedMessage message1 = messageWithOffset(1);
     SequencedMessage message3 = messageWithOffset(3);
-    leakedConsumer.accept(ImmutableList.of(message1, message3));
-    runDone.get();
-    InOrder order = inOrder(tracker, receiver, subscriber);
-    order
-        .verify(tracker)
-        .tryClaim(
-            OffsetByteProgress.of(Offset.of(3), message1.getSizeBytes() + message3.getSizeBytes()));
+    doReturn(Optional.of(message1), Optional.of(message3), Optional.empty())
+        .when(subscriber)
+        .peek();
+
+    SubscriptionPartitionProcessor processor = newProcessor();
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.standardSeconds(3)));
+
+    InOrder order = inOrder(tracker, receiver);
+    order.verify(tracker).tryClaim(OffsetByteProgress.of(Offset.of(1), message1.getSizeBytes()));
     order
         .verify(receiver)
         .outputWithTimestamp(message1, new Instant(Timestamps.toMillis(message1.getPublishTime())));
+    order.verify(tracker).tryClaim(OffsetByteProgress.of(Offset.of(3), message3.getSizeBytes()));
     order
         .verify(receiver)
         .outputWithTimestamp(message3, new Instant(Timestamps.toMillis(message3.getPublishTime())));
-    order
-        .verify(subscriber)
-        .allowFlow(
-            FlowControlRequest.newBuilder()
-                .setAllowedMessages(2)
-                .setAllowedBytes(message1.getSizeBytes() + message3.getSizeBytes())
-                .build());
     assertEquals(processor.lastClaimed().get(), Offset.of(3));
   }
 }

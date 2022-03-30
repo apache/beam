@@ -28,30 +28,54 @@ import (
 )
 
 const (
-	workingDir                = "workingDir"
-	sourceFolder              = "src"
-	executableFolder          = "bin"
-	javaSourceFileExtension   = ".java"
-	javaCompiledFileExtension = ".class"
-	pipelinesFolder           = "executable_files"
+	workingDir                  = "workingDir"
+	sourceFolder                = "src"
+	executableFolder            = "bin"
+	javaSourceFileExtension     = ".java"
+	javaCompiledFileExtension   = ".class"
+	goSourceFileExtension       = ".go"
+	goCompiledFileExtension     = ""
+	scioExecutableFileExtension = ".scala"
+	pipelinesFolder             = "executable_files"
+	incorrectWorkingDir         = "incorrectWorkingDir"
+	preparedModDir              = "preparedModDir"
+	scioShContent               = "yes | sbt new spotify/scio-template.g8"
 )
+
+func TestMain(m *testing.M) {
+	setup()
+	defer teardown()
+	m.Run()
+}
+
+func setup() {
+	err := os.MkdirAll(filepath.Join(workingDir, preparedModDir), fs.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	err = os.Mkdir(incorrectWorkingDir, fs.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func teardown() {
+	os.RemoveAll(workingDir)
+	os.RemoveAll(incorrectWorkingDir)
+}
 
 func TestSetup(t *testing.T) {
 	errorPipelineId := uuid.New()
 	successPipelineId := uuid.New()
+	absWorkingDir, _ := filepath.Abs(workingDir)
 	baseFileFolder, _ := filepath.Abs(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String()))
 	srcFileFolder := filepath.Join(baseFileFolder, sourceFolder)
 	execFileFolder := filepath.Join(baseFileFolder, executableFolder)
 
-	err := os.MkdirAll(workingDir, fs.ModePerm)
-	if err != nil {
-		panic(err)
-	}
-	_, err = os.Create(filepath.Join(workingDir, javaLogConfigFileName))
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(workingDir)
+	scalaFileName := fmt.Sprintf("%s%s", successPipelineId.String(), scioExecutableFileExtension)
+	sourceScalaFileFolder := filepath.Join(baseFileFolder, scioProjectPath)
+	absScalaFileFolderPath, _ := filepath.Abs(sourceScalaFileFolder)
+	absScalaFilePath, _ := filepath.Abs(filepath.Join(absScalaFileFolderPath, scalaFileName))
 	type args struct {
 		sdk             playground.Sdk
 		code            string
@@ -64,13 +88,14 @@ func TestSetup(t *testing.T) {
 		name    string
 		args    args
 		check   func() bool
+		prep    func() error
 		want    *fs_tool.LifeCycle
 		wantErr bool
 	}{
 		{
 			// Test case with calling Setup method with incorrect SDK.
 			// As a result, want to receive an error.
-			name: "incorrect sdk",
+			name: "Incorrect sdk",
 			args: args{
 				sdk:             playground.Sdk_SDK_UNSPECIFIED,
 				code:            "",
@@ -84,13 +109,16 @@ func TestSetup(t *testing.T) {
 				}
 				return false
 			},
+			prep: func() error {
+				return nil
+			},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			// Test case with calling Setup method with correct SDK.
 			// As a result, want to receive an expected life cycle.
-			name: "correct sdk",
+			name: "Successfully setup life cycle with java sdk",
 			args: args{
 				sdk:             playground.Sdk_SDK_JAVA,
 				code:            "",
@@ -114,6 +142,13 @@ func TestSetup(t *testing.T) {
 				}
 				return true
 			},
+			prep: func() error {
+				_, err := os.Create(filepath.Join(workingDir, javaLogConfigFileName))
+				if err != nil {
+					return err
+				}
+				return nil
+			},
 			want: &fs_tool.LifeCycle{
 				Paths: fs_tool.LifeCyclePaths{
 					SourceFileName:                   fmt.Sprintf("%s%s", successPipelineId.String(), javaSourceFileExtension),
@@ -129,9 +164,168 @@ func TestSetup(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Error during create necessary files for the Java sdk",
+			args: args{
+				sdk:             playground.Sdk_SDK_JAVA,
+				code:            "",
+				pipelineId:      errorPipelineId,
+				workingDir:      incorrectWorkingDir,
+				pipelinesFolder: pipelinesFolder,
+			},
+			prep: func() error {
+				return nil
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Error during copy go.mod for the Go sdk",
+			args: args{
+				sdk:             playground.Sdk_SDK_GO,
+				code:            "",
+				pipelineId:      errorPipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
+				preparedModDir:  "",
+			},
+			prep: func() error {
+				return nil
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Error during copy go.sum for the Go sdk",
+			args: args{
+				sdk:             playground.Sdk_SDK_GO,
+				code:            "",
+				pipelineId:      errorPipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
+				preparedModDir:  filepath.Join(workingDir, preparedModDir),
+			},
+			prep: func() error {
+				_, err := os.Create(filepath.Join(workingDir, preparedModDir, goModFileName))
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Successfully setup life cycle with Go sdk",
+			args: args{
+				sdk:             playground.Sdk_SDK_GO,
+				code:            "",
+				pipelineId:      successPipelineId,
+				workingDir:      workingDir,
+				preparedModDir:  filepath.Join(workingDir, preparedModDir),
+				pipelinesFolder: pipelinesFolder,
+			},
+			prep: func() error {
+				_, err := os.Create(filepath.Join(workingDir, preparedModDir, goSumFileName))
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			want: &fs_tool.LifeCycle{
+				Paths: fs_tool.LifeCyclePaths{
+					SourceFileName:                   fmt.Sprintf("%s%s", successPipelineId.String(), goSourceFileExtension),
+					AbsoluteSourceFileFolderPath:     srcFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", successPipelineId.String(), goSourceFileExtension)),
+					ExecutableFileName:               fmt.Sprintf("%s%s", successPipelineId.String(), goCompiledFileExtension),
+					AbsoluteExecutableFileFolderPath: execFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", successPipelineId.String(), goCompiledFileExtension)),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error during copy common constants for Scio sdk",
+			args: args{
+				sdk:             playground.Sdk_SDK_SCIO,
+				code:            "",
+				pipelineId:      errorPipelineId,
+				workingDir:      absWorkingDir,
+				pipelinesFolder: pipelinesFolder,
+				preparedModDir:  "",
+			},
+			prep: func() error {
+				scioSh, err := os.Create(filepath.Join(workingDir, scioProject))
+				if err != nil {
+					return err
+				}
+				_, err = scioSh.Write([]byte(scioShContent))
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Successfully setup life cycle with Scio sdk",
+			args: args{
+				sdk:             playground.Sdk_SDK_SCIO,
+				code:            "",
+				pipelineId:      successPipelineId,
+				workingDir:      absWorkingDir,
+				pipelinesFolder: pipelinesFolder,
+			},
+			prep: func() error {
+				_, err := os.Create(filepath.Join(workingDir, scioCommonConstants))
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			want: &fs_tool.LifeCycle{
+				Paths: fs_tool.LifeCyclePaths{
+					SourceFileName:                   scalaFileName,
+					AbsoluteSourceFileFolderPath:     absScalaFileFolderPath,
+					AbsoluteSourceFilePath:           absScalaFilePath,
+					ExecutableFileName:               scalaFileName,
+					AbsoluteExecutableFileFolderPath: absScalaFileFolderPath,
+					AbsoluteExecutableFilePath:       absScalaFilePath,
+					AbsoluteBaseFolderPath:           absScalaFileFolderPath,
+					AbsoluteLogFilePath:              filepath.Join(absScalaFileFolderPath, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(absScalaFileFolderPath, utils.GraphFileName),
+					ProjectDir:                       filepath.Join(pipelinesFolder, scioProjectName),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error during sh file missing for Scio sdk",
+			args: args{
+				sdk:             playground.Sdk_SDK_SCIO,
+				code:            "",
+				pipelineId:      errorPipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
+				preparedModDir:  "",
+			},
+			prep: func() error {
+				return nil
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := tt.prep()
+			if err != nil {
+				t.Errorf("Setup() error during test preparetion: %v", err)
+			}
 			got, err := Setup(tt.args.sdk, tt.args.code, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder, tt.args.preparedModDir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Setup() error = %v, wantErr %v", err, tt.wantErr)

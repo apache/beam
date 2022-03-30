@@ -705,7 +705,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.flatten_results = flatten_results
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
-    self.export_result = None
+    self.split_result = None
     self.options = pipeline_options
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
@@ -789,26 +789,19 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
-  def _create_source(self, path, bq):
+  def _create_source(self, path, schema):
     if not self.use_json_exports:
       return create_avro_source(path)
     else:
-      if isinstance(self.table_reference, vp.ValueProvider):
-        table_ref = bigquery_tools.parse_table_reference(
-            self.table_reference.get(), project=self.project)
-      else:
-        table_ref = self.table_reference
-      table = bq.get_table(
-          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return TextSource(
           path,
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=self.coder(table.schema))
+          coder=self.coder(schema))
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    if self.export_result is None:
+    if self.split_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
               self.temp_dataset.datasetId if self.temp_dataset else None))
@@ -820,13 +813,16 @@ class _CustomBigQuerySource(BoundedSource):
       if not self.table_reference.projectId:
         self.table_reference.projectId = self._get_project()
 
-      self.export_result = self._export_files(bq)
+      schema, metadata_list = self._export_files(bq)
+      # Sources to be created lazily within a generator as they're output.
+      self.split_result = (
+          self._create_source(metadata.path, schema)
+          for metadata in metadata_list)
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
-    for metadata in self.export_result:
-      source = self._create_source(metadata.path, bq)
+    for source in self.split_result:
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
 
@@ -878,7 +874,7 @@ class _CustomBigQuerySource(BoundedSource):
     """Runs a BigQuery export job.
 
     Returns:
-      a list of FileMetadata instances
+      bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_labels = self._get_bq_metadata().add_additional_bq_job_labels(
         self.bigquery_job_labels)
@@ -908,7 +904,17 @@ class _CustomBigQuerySource(BoundedSource):
                                        job_labels=job_labels,
                                        use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
-    return FileSystems.match([gcs_location])[0].metadata_list
+    metadata_list = FileSystems.match([gcs_location])[0].metadata_list
+
+    if isinstance(self.table_reference, vp.ValueProvider):
+      table_ref = bigquery_tools.parse_table_reference(
+          self.table_reference.get(), project=self.project)
+    else:
+      table_ref = self.table_reference
+    table = bq.get_table(
+        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+
+    return table.schema, metadata_list
 
 
 class _CustomBigQueryStorageSource(BoundedSource):
@@ -1075,7 +1081,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
         'use_legacy_sql': self.use_legacy_sql,
         'use_native_datetime': self.use_native_datetime,
         'selected_fields': str(self.selected_fields),
-        'row_restriction': str(self.row_restriction)
+        'row_restriction': str(self.row_restriction),
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
