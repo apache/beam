@@ -21,14 +21,14 @@ import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSource;
-import javax.annotation.Nullable;
+import java.lang.annotation.Annotation;
 import org.apache.hadoop.conf.Configuration;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
 public abstract class Plugin {
-  @Nullable protected PluginConfig pluginConfig;
-  @Nullable protected Configuration hadoopConfiguration;
+  protected PluginConfig pluginConfig;
+  protected Configuration hadoopConfiguration;
 
   /** Gets the main class of a plugin. */
   public abstract Class<?> getPluginClass();
@@ -46,7 +46,7 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin config. */
-  public @Nullable PluginConfig getPluginConfig() {
+  public PluginConfig getPluginConfig() {
     return pluginConfig;
   }
 
@@ -73,12 +73,15 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin Hadoop configuration. */
-  public @Nullable Configuration getHadoopConfiguration() {
+  public Configuration getHadoopConfiguration() {
     return hadoopConfiguration;
   }
 
   /** Gets a plugin type. */
   public abstract PluginConstants.PluginType getPluginType();
+
+  /** Gets if a plugin is unbounded. */
+  public abstract Boolean getIsUnbounded();
 
   /** Gets a format type. */
   private PluginConstants.Format getFormatType() {
@@ -101,9 +104,25 @@ public abstract class Plugin {
       return PluginConstants.PluginType.SOURCE;
     } else if (BatchSink.class.isAssignableFrom(pluginClass)) {
       return PluginConstants.PluginType.SINK;
+    } else {
+      throw new IllegalArgumentException("Provided class should be source or sink plugin");
     }
+  }
 
-    throw new IllegalArgumentException("Provided class should be source or sink plugin");
+  /** Gets value of a plugin type. */
+  public static Boolean isUnbounded(Class<?> pluginClass) {
+    Boolean isUnbounded = null;
+
+    for (Annotation annotation : pluginClass.getDeclaredAnnotations()) {
+      if (annotation.annotationType().equals(io.cdap.cdap.api.annotation.Plugin.class)) {
+        String pluginType = ((io.cdap.cdap.api.annotation.Plugin) annotation).type();
+        isUnbounded = pluginType != null && pluginType.startsWith("streaming");
+      }
+    }
+    if (isUnbounded == null) {
+      throw new IllegalArgumentException("CDAP plugin class must have Plugin annotation!");
+    }
+    return isUnbounded;
   }
 
   /** Creates a plugin instance. */
@@ -132,6 +151,8 @@ public abstract class Plugin {
     public abstract Builder setFormatProviderClass(Class<?> newFormatProviderClass);
 
     public abstract Builder setPluginType(PluginConstants.PluginType newPluginType);
+
+    public abstract Builder setIsUnbounded(Boolean isUnbounded);
 
     public abstract Plugin build();
   }
