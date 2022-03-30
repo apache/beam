@@ -65,7 +65,7 @@ detail.
 
 ### Connect with the Beam community
 
-1. Consider [subscribing to the dev@beam.apache.org]( https://beam.apache.org/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
+1. Consider [subscribing to the dev@beam.apache.org](https://beam.apache.org/community/contact-us/) mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.
 1. (Optionally) Join the [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/).
 1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
    (anyone can do this).
@@ -110,8 +110,7 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
 - A [GitHub](https://github.com/) account.
 - A Linux, macOS, or Microsoft Windows development environment.
 - Java JDK 8 installed.
-- [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
-  changes locally.
+- [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing changes to this website locally.
 - For SDK Development:
    - [Go](https://golang.org) 1.12 or later installed for Go SDK development.
    - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
@@ -124,11 +123,11 @@ Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apac
 ### Share Your Intent
 1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
    Tracking your work in an issue will avoid duplicated or conflicting work, and provide
-   a place for notes. Later, your pull request will be linked to the issue as well. You may find the [Jira beginner’s guide](https://cwiki.apache.org/confluence/display/BEAM/Beam+Jira+Beginner%27s+Guide) and some useful [Jira tips](https://cwiki.apache.org/confluence/display/BEAM/Jira+Tips) in our Wiki.
+   a place for notes. Later, your pull request will be linked to the issue as well. You can find the [Jira beginner’s guide](https://cwiki.apache.org/confluence/display/BEAM/Beam+Jira+Beginner%27s+Guide) and some useful [Jira tips](https://cwiki.apache.org/confluence/display/BEAM/Jira+Tips) in our Wiki.
 2. Assign the issue to yourself. To get the permission to do so, email
    the [dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
-   ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
+   ASF Jira Username. For example, see [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
 3. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@beam.apache.org mailing list](https://beam.apache.org/community/contact-us/).
 4. For large changes create a design doc
@@ -214,11 +213,13 @@ Execute:
 
 1. Check [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips) if you need help with git forking, cloning, branching, committing, pull requests, and squashing commits.
 
-2. Clone the git repository. You can download it anywhere you like.
+2. Make a fork of https://github.com/apache/beam repo.
+
+3. Clone the forked repository. You can download it anywhere you like.
 ```
-$ mkdir -p ~/go/src/github.com/apache
-$ cd ~/go/src/github.com/apache
-$ git clone https://github.com/apache/beam
+$ mkdir -p ~/path/to/your/folder
+$ cd ~/path/to/your/folder
+$ git clone https://github.com/forked/apache/beam
 $ cd beam
 ```
 
@@ -243,7 +244,7 @@ $ go get -u ./...
 ```
 <br>
 
-3. Check the environment was set up correctly.
+4. Check the environment was set up correctly.
 
 &emsp;&emsp;**Option 1**: validate the Go, Java, and Python environments:
 
@@ -269,7 +270,7 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:w
 ```
 <br>
 
-4. Familiarize yourself with gradle and the project structure.
+5. Familiarize yourself with gradle and the project structure.
 
 &emsp;&emsp;At the root of the git repository, run:
  ```
@@ -287,7 +288,7 @@ $ ./gradlew -p sdks/java/io/cassandra tasks
  ```
 $ ./gradlew tasks --all
  ```
-5. Make sure you can build and run tests.
+6. Make sure you can build and run tests.
 
    Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
  ```
@@ -295,7 +296,7 @@ $ ./gradlew -p sdks/go check
 $ ./gradlew -p sdks/java/io/cassandra check
 $ ./gradlew -p runners/flink check
  ```
-6. Now you may want to set up your preferred IDE and other aspects of your development
+7. Now you may want to set up your preferred IDE and other aspects of your development
    environment. See the Developers' wiki for tips, guides, and FAQs on:
    - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
    - [Java](https://cwiki.apache.org/confluence/display/BEAM/Java+Tips)
