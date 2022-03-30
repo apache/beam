@@ -76,6 +76,7 @@ import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
+import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
@@ -113,6 +114,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -1027,7 +1029,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
-
     if (useUnifiedWorker(options)) {
       List<String> experiments = options.getExperiments(); // non-null if useUnifiedWorker is true
       if (!experiments.contains("use_runner_v2")) {
@@ -1048,6 +1049,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     if (containsUnboundedPCollection(pipeline)) {
       options.setStreaming(true);
+    }
+
+    if (!options.isStreaming()
+        && !ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
+      ProjectionPushdownOptimizer.optimize(pipeline);
     }
 
     LOG.info(

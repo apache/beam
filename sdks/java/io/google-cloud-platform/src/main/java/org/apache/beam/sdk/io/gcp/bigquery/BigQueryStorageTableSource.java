@@ -45,6 +45,11 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageTableSource.class);
 
+  private final ValueProvider<TableReference> tableReferenceProvider;
+  private final boolean projectionPushdownApplied;
+
+  private transient AtomicReference<Table> cachedTable;
+
   public static <T> BigQueryStorageTableSource<T> create(
       ValueProvider<TableReference> tableRefProvider,
       DataFormat format,
@@ -52,9 +57,17 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      boolean projectionPushdownApplied) {
     return new BigQueryStorageTableSource<>(
-        tableRefProvider, format, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+        tableRefProvider,
+        format,
+        selectedFields,
+        rowRestriction,
+        parseFn,
+        outputCoder,
+        bqServices,
+        projectionPushdownApplied);
   }
 
   public static <T> BigQueryStorageTableSource<T> create(
@@ -65,12 +78,15 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageTableSource<>(
-        tableRefProvider, null, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
+        tableRefProvider,
+        null,
+        selectedFields,
+        rowRestriction,
+        parseFn,
+        outputCoder,
+        bqServices,
+        false);
   }
-
-  private final ValueProvider<TableReference> tableReferenceProvider;
-
-  private transient AtomicReference<Table> cachedTable;
 
   private BigQueryStorageTableSource(
       ValueProvider<TableReference> tableRefProvider,
@@ -79,9 +95,11 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
       @Nullable ValueProvider<String> rowRestriction,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      boolean projectionPushdownApplied) {
     super(format, selectedFields, rowRestriction, parseFn, outputCoder, bqServices);
     this.tableReferenceProvider = checkNotNull(tableRefProvider, "tableRefProvider");
+    this.projectionPushdownApplied = projectionPushdownApplied;
     cachedTable = new AtomicReference<>();
   }
 
@@ -93,9 +111,21 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.addIfNotNull(
-        DisplayData.item("table", BigQueryHelpers.displayTable(tableReferenceProvider))
-            .withLabel("Table"));
+    builder
+        .addIfNotNull(
+            DisplayData.item("table", BigQueryHelpers.displayTable(tableReferenceProvider))
+                .withLabel("Table"))
+        .addIfNotDefault(
+            DisplayData.item("projectionPushdownApplied", projectionPushdownApplied)
+                .withLabel("Projection Pushdown Applied"),
+            false);
+
+    if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+      builder.add(
+          DisplayData.item("selectedFields", String.join(", ", selectedFieldsProvider.get()))
+              .withLabel("Selected Fields"));
+    }
+
     // Note: This transform does not set launchesBigQueryJobs because it doesn't launch
     // BigQuery jobs, but instead uses the storage api to directly read the table.
   }

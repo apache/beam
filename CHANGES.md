@@ -44,11 +44,43 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fixed Java expansion service to allow specific files to stage ([BEAM-14160](https://issues.apache.org/jira/browse/BEAM-14160)).
 
 ## Known Issues
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
+# [2.39.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Breaking Changes
+
+* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Deprecations
+
+* Flink 1.11 is no longer supported ([BEAM-14139](https://issues.apache.org/jira/browse/BEAM-14139)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Known Issues
+
+* ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
 # [2.38.0] - Unreleased
 
 ## Highlights
@@ -57,6 +89,7 @@
 * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
 ## I/Os
+* Introduce projection pushdown optimizer to the Java SDK ([BEAM-12976](https://issues.apache.org/jira/browse/BEAM-12976)). The optimizer currently only works on the [BigQuery Storage API](https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api), but more I/Os will be added in future releases. If you encounter a bug with the optimizer, please file a JIRA and disable the optimizer using pipeline option `--experiments=disable_projection_pushdown`.
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * `amazon-web-services2` has reached feature parity and is finally recommended over the earlier `amazon-web-services` and `kinesis` modules (Java). These will be deprecated in one of the next releases ([BEAM-13174](https://issues.apache.org/jira/browse/BEAM-13174)).
@@ -87,6 +120,8 @@
 ## Bugfixes
 
 * Fix S3 copy for large objects (Java) ([BEAM-14011](https://issues.apache.org/jira/browse/BEAM-14011))
+* Fix quadratic behavior of pipeline canonicalization (Go) ([BEAM-14128](https://issues.apache.org/jira/browse/BEAM-14128))
+  * This caused unnecessarily long pre-processing times before job submission for large complex pipelines.
 
 ## Known Issues
 

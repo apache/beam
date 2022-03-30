@@ -53,7 +53,9 @@ public class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
     private final Publisher<MessageMetadata> publisher;
 
     RunState(PublisherOptions options) {
-      publisher = PerServerPublisherCache.PUBLISHER_CACHE.get(options);
+      publisher =
+          PerServerPublisherCache.PUBLISHER_CACHE.get(
+              options, () -> new PublisherAssembler(options).newPublisher());
     }
 
     void publish(PubSubMessage message) {

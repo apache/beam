@@ -116,9 +116,13 @@ class ElasticsearchIOTestCommon implements Serializable {
   private static final String OK_REQUEST =
       "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
           + "{ \"field1\" : 1 }\n";
+  private static final String OK_REQUEST_NO_TYPE =
+      "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }\n" + "{ \"field1\" : 1 }\n";
   private static final String BAD_REQUEST =
       "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
           + "{ \"field1\" : @ }\n";
+  private static final String BAD_REQUEST_NO_TYPE =
+      "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }\n" + "{ \"field1\" : @ }\n";
 
   static String getEsIndex() {
     return "beam" + Thread.currentThread().getId();
@@ -167,23 +171,15 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    BoundedElasticsearchSource initialSource =
-        new BoundedElasticsearchSource(read, null, null, null);
+    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null);
     List<? extends BoundedSource<String>> splits =
         initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
 
     int expectedNumSources;
-    if (desiredBundleSizeBytes == 0) {
-      // desiredBundleSize is ignored because in ES 2.x there is no way to split shards.
-      // 5 is the number of ES shards
-      // (By default, each index in Elasticsearch is allocated 5 primary shards)
-      expectedNumSources = 5;
-    } else {
-      float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
-      expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
-    }
+    float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
+    expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
     assertEquals("Wrong number of splits", expectedNumSources, splits.size());
 
     int emptySplits = 0;
@@ -204,8 +200,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    BoundedElasticsearchSource initialSource =
-        new BoundedElasticsearchSource(read, null, null, null);
+    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null);
     // can't use equal assert as Elasticsearch indexes never have same size
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
@@ -714,26 +709,30 @@ class ElasticsearchIOTestCommon implements Serializable {
     // interacting with the index named after a particular scientist
     String disambiguation = "testWriteWithFullAddressing".toLowerCase();
 
+    int backendVersion = getBackendVersion(restClient);
+
     List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
             numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    pipeline
-        .apply(Create.of(data))
-        .apply(
-            ElasticsearchIO.write()
-                .withConnectionConfiguration(connectionConfiguration)
-                .withIdFn(new ExtractValueFn("id"))
-                .withIndexFn(new ExtractValueFn("scientist", disambiguation))
-                .withTypeFn(new Modulo2ValueFn("scientist")));
+
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withIdFn(new ExtractValueFn("id"))
+            .withIndexFn(new ExtractValueFn("scientist", disambiguation));
+
+    if (backendVersion <= 7) {
+      write = write.withTypeFn(new Modulo2ValueFn("scientist"));
+    }
+
+    pipeline.apply(Create.of(data)).apply(write);
     pipeline.run();
 
     for (String scientist : FAMOUS_SCIENTISTS) {
       String index = scientist.toLowerCase() + disambiguation;
       for (int i = 0; i < 2; i++) {
-        String type = "TYPE_" + scientist.hashCode() % 2;
-        long count =
-            refreshIndexAndGetCurrentNumDocs(
-                restClient, index, type, getBackendVersion(connectionConfiguration));
+        String type = backendVersion <= 7 ? "TYPE_" + scientist.hashCode() % 2 : null;
+        long count = refreshIndexAndGetCurrentNumDocs(restClient, index, type, backendVersion);
         assertEquals("Incorrect count for " + index + "/" + type, numDocs / NUM_SCIENTISTS, count);
       }
     }
@@ -1059,15 +1058,22 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   /** Test that the default predicate correctly parses chosen error code. */
   void testDefaultRetryPredicate(RestClient restClient) throws IOException {
+    HttpEntity entity1, entity2;
 
-    HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
+    if (getBackendVersion(restClient) > 7) {
+      entity1 = new NStringEntity(BAD_REQUEST_NO_TYPE, ContentType.APPLICATION_JSON);
+      entity2 = new NStringEntity(OK_REQUEST_NO_TYPE, ContentType.APPLICATION_JSON);
+    } else {
+      entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
+      entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
+    }
+
     Request request = new Request("POST", "/_bulk");
     request.addParameters(Collections.emptyMap());
     request.setEntity(entity1);
     Response response1 = restClient.performRequest(request);
     assertTrue(CUSTOM_RETRY_PREDICATE.test(response1.getEntity()));
 
-    HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
     request.setEntity(entity2);
     Response response2 = restClient.performRequest(request);
     assertFalse(DEFAULT_RETRY_PREDICATE.test(response2.getEntity()));
