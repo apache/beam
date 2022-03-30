@@ -30,7 +30,13 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.UUID;
@@ -127,6 +133,20 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   /** Delay between logging the current memory state. */
   private static final int NORMAL_LOGGING_PERIOD_MILLIS = 5 * 60 * 1000; // 5 min.
 
+  /**
+   * A formatter to format a timestamp as yyyyMMddHHmmss, used to format the current time when
+   * generating a filename for heap and jfr dumps.
+   */
+  private static final DateTimeFormatter FILE_NAME_DATETIME_FORMATTER =
+      new DateTimeFormatterBuilder()
+          .appendValue(ChronoField.YEAR, 4)
+          .appendValue(ChronoField.MONTH_OF_YEAR, 2)
+          .appendValue(ChronoField.DAY_OF_MONTH, 2)
+          .appendValue(ChronoField.HOUR_OF_DAY, 2)
+          .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+          .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+          .toFormatter();
+
   /** Abstract interface for providing GC stats (for testing). */
   public interface GCStatsProvider {
     /** Return the total milliseconds spent in GC since JVM was started. */
@@ -212,6 +232,8 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
   private final @Nullable JfrInterop jfrInterop;
 
+  private final Clock clock;
+
   public static MemoryMonitor fromOptions(PipelineOptions options) {
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     DataflowWorkerHarnessOptions workerHarnessOptions =
@@ -223,6 +245,10 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
     Duration jfrProfileDuration;
     if (uploadToGCSPath != null && debugOptions.getRecordJfrOnGcThrashing()) {
+      if (Environments.getJavaVersion() == Environments.JavaVersion.java8) {
+        throw new IllegalArgumentException(
+            "recordJfrOnGcThrashing is only supported on java 9 and up.");
+      }
       jfrProfileDuration = Duration.ofSeconds(debugOptions.getJfrRecordingDurationSec());
     } else {
       jfrProfileDuration = null;
@@ -237,7 +263,8 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         uploadToGCSPath,
         getLoggingDir(),
         workerId,
-        jfrProfileDuration);
+        jfrProfileDuration,
+        Clock.systemUTC());
   }
 
   @VisibleForTesting
@@ -249,7 +276,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       double gcThrashingPercentagePerPeriod,
       @Nullable String uploadToGCSPath,
       File localDumpFolder,
-      @Nullable Duration jfrProfileDuration) {
+      String workerId,
+      @Nullable Duration jfrProfileDuration,
+      Clock clock) {
     return new MemoryMonitor(
         gcStatsProvider,
         sleepTimeMillis,
@@ -258,8 +287,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         gcThrashingPercentagePerPeriod,
         uploadToGCSPath,
         localDumpFolder,
-        "test-worker",
-        jfrProfileDuration);
+        workerId,
+        jfrProfileDuration,
+        clock);
   }
 
   private MemoryMonitor(
@@ -271,7 +301,8 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       @Nullable String uploadToGCSPath,
       File localDumpFolder,
       String workerId,
-      @Nullable Duration jfrProfileDuration) {
+      @Nullable Duration jfrProfileDuration,
+      Clock clock) {
     this.gcStatsProvider = gcStatsProvider;
     this.sleepTimeMillis = sleepTimeMillis;
     this.shutDownAfterNumGCThrashing = shutDownAfterNumGCThrashing;
@@ -281,6 +312,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     this.uploadToGCSPath = uploadToGCSPath;
     this.localDumpFolder = localDumpFolder;
     this.workerId = workerId;
+    this.clock = clock;
 
     if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
       LOG.info("Uploading JFR profiles when GC thrashing is detected");
@@ -334,6 +366,22 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     }
   }
 
+  private String getUploadFilename(String dumpType, String extension) {
+    Preconditions.checkNotNull(uploadToGCSPath, "uploadToGCSPath");
+
+    return uploadToGCSPath +
+        "/" +
+        FILE_NAME_DATETIME_FORMATTER.format(clock.instant().atOffset(ZoneOffset.UTC)) +
+        "-" +
+        dumpType +
+        "-" +
+        workerId +
+        "-" +
+        UUID.randomUUID() +
+        "." +
+        extension;
+  }
+
   private File getDefaultHeapDumpPath() {
     return new File(localDumpFolder, "heap_dump.hprof");
   }
@@ -349,9 +397,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     LOG.info("Looking for heap dump at {}", localSource);
     if (localSource.exists()) {
       LOG.warn("Heap dump {} detected, attempting to upload to GCS", localSource);
-      String remoteDest =
-          String.format(
-              "%s/heap_dump-%s-%s.hprof", uploadToGCSPath, this.workerId, UUID.randomUUID());
+      String remoteDest = getUploadFilename("heap_dump", "hprof");
       ResourceId resource = FileSystems.matchNewResource(remoteDest, false);
       try {
         uploadFileToGCS(localSource, resource);
@@ -679,9 +725,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   }
 
   private void uploadJfrProfile(InputStream data) {
-    String remoteDest =
-        String.format(
-            "%s/jfr_profile-%s-%s.jfr", uploadToGCSPath, this.workerId, UUID.randomUUID());
+    String remoteDest = getUploadFilename("jfr_profile", "jfr");
     ResourceId resource = FileSystems.matchNewResource(remoteDest, false);
 
     try {

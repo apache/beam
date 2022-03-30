@@ -18,13 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.status;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -38,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  */
 @SuppressFBWarnings("SE_BAD_FIELD") // not serializable
 public class JfrzServlet extends BaseStatusServlet {
+  private static final Duration DEFAULT_RECORDING_DURATION = Duration.ofMinutes(1);
 
   private final MemoryMonitor memoryMonitor;
 
@@ -51,32 +49,21 @@ public class JfrzServlet extends BaseStatusServlet {
     String durationStr = req.getParameter("duration");
     Duration duration;
     if (durationStr == null) {
-      duration = Duration.ofSeconds(60);
+      duration = DEFAULT_RECORDING_DURATION;
     } else {
       duration = Duration.parse(durationStr);
     }
 
     ServletOutputStream writer = resp.getOutputStream();
-    InputStream jfrStream;
-    try {
-      jfrStream = memoryMonitor.runJfrProfile(duration).get();
-    } catch (Exception e) {
-      resp.setContentType("text/html;charset=utf-8");
-      resp.setStatus(HttpServletResponse.SC_OK);
 
-      writer.println("<html>\nFailed to run JFR profile: <br>\n<pre>");
-      writer.println(e.toString());
-      PrintWriter pw =
-          new PrintWriter(
-              new BufferedWriter(new OutputStreamWriter(writer, StandardCharsets.UTF_8)));
-      e.printStackTrace(pw);
-      writer.println("</pre>\n</html>");
-      return;
+    try (InputStream jfrStream = memoryMonitor.runJfrProfile(duration).get()) {
+      resp.setContentType("application/octet-stream");
+      resp.setHeader("Content-Disposition", "attachment; filename=\"profile.jfr\"");
+      ByteStreams.copy(jfrStream, writer);
+    } catch (ExecutionException | InterruptedException e) {
+      throw new RuntimeException(e);
     }
 
-    resp.setContentType("application/octet-stream");
-    resp.setHeader("Content-Disposition", "attachment; filename=\"profile.jfr\"");
-    ByteStreams.copy(jfrStream, writer);
     resp.setStatus(HttpServletResponse.SC_OK);
   }
 }
