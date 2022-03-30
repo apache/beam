@@ -30,41 +30,42 @@ import (
 
 // workerStatusHandler stores the communication information of WorkerStatus API.
 type workerStatusHandler struct {
-	conn     *grpc.ClientConn
-	shutdown int32
+	conn           *grpc.ClientConn
+	shouldShutdown int32
+	wg             sync.WaitGroup
 }
 
 func newWorkerStatusHandler(ctx context.Context, endpoint string) (*workerStatusHandler, error) {
 	sconn, err := dial(ctx, endpoint, 60*time.Second)
 	if err != nil {
-		return &workerStatusHandler{}, errors.Wrapf(err, "failed to connect: %v\n", endpoint)
+		return nil, errors.Wrapf(err, "failed to connect: %v\n", endpoint)
 	}
-	return &workerStatusHandler{conn: sconn, shutdown: 0}, nil
+	return &workerStatusHandler{conn: sconn, shouldShutdown: 0}, nil
 }
 
 func (w *workerStatusHandler) isAlive() bool {
-	return atomic.LoadInt32(&w.shutdown) == 0
+	return atomic.LoadInt32(&w.shouldShutdown) == 0
 }
 
-func (w *workerStatusHandler) stop() {
-	atomic.StoreInt32(&w.shutdown, 1)
+func (w *workerStatusHandler) shutdown() {
+	atomic.StoreInt32(&w.shouldShutdown, 1)
 }
 
-// handleRequest manages the WorkerStatus API.
-func (w *workerStatusHandler) handleRequest(ctx context.Context, wg *sync.WaitGroup) {
+// start starts the reader to accept WorkerStatusRequest and send WorkerStatusResponse with WorkerStatus API.
+func (w *workerStatusHandler) start(ctx context.Context) {
 	statusClient := fnpb.NewBeamFnWorkerStatusClient(w.conn)
 	stub, err := statusClient.WorkerStatus(ctx)
 	if err != nil {
 		log.Errorf(ctx, "status client not established: %v", err)
 		return
 	}
-	go w.reader(ctx, stub, wg)
+	go w.reader(ctx, stub)
 }
 
 // reader reads the WorkerStatusRequest from the stream and sends a processed WorkerStatusResponse to
 // a response channel.
-func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorkerStatus_WorkerStatusClient) {
+	defer w.wg.Done()
 	buf := make([]byte, 1<<16)
 	for w.isAlive() {
 		req, err := stub.Recv()
@@ -81,10 +82,10 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 	}
 }
 
-// close stops the reader first, closes the response channel thereby stopping writer and finally closes the gRPC connection.
-func (w *workerStatusHandler) close(ctx context.Context, wg *sync.WaitGroup) {
-	w.stop()
-	wg.Wait()
+// stop stops the reader and closes worker status endpoint connection with the runner.
+func (w *workerStatusHandler) stop(ctx context.Context) {
+	w.shutdown()
+	w.wg.Wait()
 	if err := w.conn.Close(); err != nil {
 		log.Errorf(ctx, "error closing status endpoint connection: %v", err)
 	}

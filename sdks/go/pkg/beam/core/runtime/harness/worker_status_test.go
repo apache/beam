@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"sync"
 	"testing"
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -47,10 +46,8 @@ const buffsize = 1024 * 1024
 
 var lis *bufconn.Listener
 
-func setup(srv *BeamFnWorkerStatusServicer) {
-
+func setup(t *testing.T, srv *BeamFnWorkerStatusServicer) {
 	server := grpc.NewServer()
-
 	lis = bufconn.Listen(buffsize)
 	fnpb.RegisterBeamFnWorkerStatusServer(server, srv)
 	go func() {
@@ -58,6 +55,9 @@ func setup(srv *BeamFnWorkerStatusServicer) {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
+	t.Cleanup(func() {
+		server.Stop()
+	})
 }
 
 func dialer(context.Context, string) (net.Conn, error) {
@@ -67,17 +67,16 @@ func dialer(context.Context, string) (net.Conn, error) {
 func TestSendStatusResponse(t *testing.T) {
 	ctx := context.Background()
 	srv := &BeamFnWorkerStatusServicer{response: make(chan string)}
-	setup(srv)
+	setup(t, srv)
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("unable to start test server: %v", err)
 	}
 	statusHandler := workerStatusHandler{conn: conn}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	statusHandler.handleRequest(ctx, &wg)
+	statusHandler.wg.Add(1)
+	statusHandler.start(ctx)
 	t.Cleanup(func() {
-		statusHandler.close(ctx, &wg)
+		statusHandler.stop(ctx)
 	})
 	response := []string{}
 	response = append(response, <-srv.response)

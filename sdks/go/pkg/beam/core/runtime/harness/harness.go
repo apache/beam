@@ -53,7 +53,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		case StatusAddress:
 			statusEndpoint = string(option)
 		default:
-			return errors.Errorf("unkown type %T, value %v in error call", option, option)
+			return errors.Errorf("unknown type %T, value %v in error call", option, option)
 		}
 	}
 
@@ -115,12 +115,12 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 	if statusEndpoint != "" {
 		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint)
 		if err != nil {
-			log.Error(ctx, err)
+			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
+		} else {
+			statusHandler.wg.Add(1)
+			statusHandler.start(ctx)
+			defer statusHandler.stop(ctx)
 		}
-		var swg sync.WaitGroup
-		swg.Add(1)
-		statusHandler.handleRequest(ctx, &swg)
-		defer statusHandler.close(ctx, &swg)
 	}
 
 	sideCache := statecache.SideInputCache{}
