@@ -18,6 +18,7 @@ package graphx
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -222,6 +223,7 @@ func (m *marshaller) getRequirements() []string {
 			reqs = append(reqs, req)
 		}
 	}
+	sort.Strings(reqs)
 	return reqs
 }
 
