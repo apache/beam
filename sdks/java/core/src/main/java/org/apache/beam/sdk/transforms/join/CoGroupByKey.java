@@ -92,7 +92,7 @@ public class CoGroupByKey<K>
     // schema specified in the input.
     List<Coder<?>> codersList = new ArrayList<>();
     for (TaggedKeyedPCollection<K, ?> entry : input.getKeyedCollections()) {
-      codersList.add(getValueCoder(entry.pCollection));
+      codersList.add(JoinUtils.getValueCoder(entry.pCollection));
     }
     UnionCoder unionCoder = UnionCoder.of(codersList);
     Coder<K> keyCoder = input.getKeyCoder();
@@ -107,7 +107,7 @@ public class CoGroupByKey<K>
     for (TaggedKeyedPCollection<K, ?> entry : input.getKeyedCollections()) {
       index++;
       PCollection<KV<K, RawUnionValue>> unionTable =
-          makeUnionTable(index, entry.pCollection, kVCoder);
+          JoinUtils.makeUnionTable(index, entry.pCollection, kVCoder);
       unionTables = unionTables.and(unionTable);
     }
 
@@ -124,56 +124,6 @@ public class CoGroupByKey<K>
     result.setCoder(KvCoder.of(keyCoder, CoGbkResultCoder.of(tupleTags, unionCoder)));
 
     return result;
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * Returns the value coder for the given PCollection. Assumes that the value coder is an instance
-   * of {@code KvCoder<K, V>}.
-   */
-  private <V> Coder<V> getValueCoder(PCollection<KV<K, V>> pCollection) {
-    // Assumes that the PCollection uses a KvCoder.
-    Coder<?> entryCoder = pCollection.getCoder();
-    if (!(entryCoder instanceof KvCoder<?, ?>)) {
-      throw new IllegalArgumentException("PCollection does not use a KvCoder");
-    }
-    @SuppressWarnings("unchecked")
-    KvCoder<K, V> coder = (KvCoder<K, V>) entryCoder;
-    return coder.getValueCoder();
-  }
-
-  /**
-   * Returns a UnionTable for the given input PCollection, using the given union index and the given
-   * unionTableEncoder.
-   */
-  private <V> PCollection<KV<K, RawUnionValue>> makeUnionTable(
-      final int index,
-      PCollection<KV<K, V>> pCollection,
-      KvCoder<K, RawUnionValue> unionTableEncoder) {
-
-    return pCollection
-        .apply("MakeUnionTable" + index, ParDo.of(new ConstructUnionTableFn<>(index)))
-        .setCoder(unionTableEncoder);
-  }
-
-  /**
-   * A DoFn to construct a UnionTable (i.e., a {@code PCollection<KV<K, RawUnionValue>>} from a
-   * {@code PCollection<KV<K, V>>}.
-   */
-  private static class ConstructUnionTableFn<K, V> extends DoFn<KV<K, V>, KV<K, RawUnionValue>> {
-
-    private final int index;
-
-    public ConstructUnionTableFn(int index) {
-      this.index = index;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      KV<K, ?> e = c.element();
-      c.output(KV.of(e.getKey(), new RawUnionValue(index, e.getValue())));
-    }
   }
 
   /** A DoFn to construct a CoGbkResult from an input grouped union table. */
