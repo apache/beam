@@ -60,6 +60,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
@@ -108,13 +109,31 @@ class ConsumerSet(Receiver):
              ):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
-      return SingletonConsumerSet(
-          counter_factory,
-          step_name,
-          output_index,
-          consumers,
-          coder,
-          producer_type_hints)
+      consumer = consumers[0]
+
+      batch_preference = consumer.get_batching_preference()
+      input_batch_converter = consumer.get_input_batch_converter()
+      if not batch_preference.supports_batches:
+        return SingletonElementConsumerSet(
+            counter_factory,
+            step_name,
+            output_index,
+            consumer,
+            coder,
+            input_batch_converter,
+            producer_type_hints)
+      else:
+        # TODO: Do we need this optimization? Maybe just handle batched DoFns in
+        # the general case for simplicity. Overhead is amortized over the batch.
+        return SingletonBatchConsumerSet(
+            counter_factory,
+            step_name,
+            output_index,
+            consumer,
+            coder,
+            input_batch_converter,
+            producer_type_hints)
+
     else:
       return ConsumerSet(
           counter_factory,
@@ -132,7 +151,13 @@ class ConsumerSet(Receiver):
                coder,
                producer_type_hints
                ):
-    self.consumers = consumers
+    self.element_consumers = []
+    self.batch_consumers = []
+    for consumer in consumers:
+      if consumer.get_input_batch_converter() is not None:
+        self.batch_consumers.append(consumer)
+      else:
+        self.element_consumers.append(consumer)
 
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
@@ -148,9 +173,21 @@ class ConsumerSet(Receiver):
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
     self.update_counters_start(windowed_value)
-    for consumer in self.consumers:
+    for consumer in self.element_consumers:
       cython.cast(Operation, consumer).process(windowed_value)
+
+    if self.batch_consumers:
+      raise NotImplementedError(
+          "TODO: non-singleton batch consumers are not yet supported.")
+
     self.update_counters_finish()
+
+  def receive_batch(self):
+    raise NotImplementedError("TODO: implement this and flush")
+
+  def flush(self):
+    # TODO: Flush batched elements to batch consumers
+    pass
 
   def try_split(self, fraction_of_remainder):
     # type: (...) -> Optional[Any]
@@ -190,30 +227,94 @@ class ConsumerSet(Receiver):
         len(self.consumers))
 
 
-class SingletonConsumerSet(ConsumerSet):
+class SingletonElementConsumerSet(ConsumerSet):
+  """ConsumerSet representing a single consumer that can only process elements
+  (not batches)."""
   def __init__(self,
                counter_factory,
                step_name,
                output_index,
-               consumers,  # type: List[Operation]
+               consumer,  # type: Operation
                coder,
+               input_batch_converter,
                producer_type_hints
                ):
-    assert len(consumers) == 1
-    super(SingletonConsumerSet, self).__init__(
+    super().__init__(
         counter_factory,
         step_name,
-        output_index,
-        consumers,
+        output_index, [consumer],
         coder,
         producer_type_hints)
-    self.consumer = consumers[0]
+    self.consumer = consumer
+    self._batch_converter = input_batch_converter
 
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
     self.update_counters_start(windowed_value)
     self.consumer.process(windowed_value)
     self.update_counters_finish()
+
+  def receive_batch(self, windowed_batch):
+    for wv in windowed_batch.as_windowed_values(
+        self._batch_converter.explode_batch):
+      self.receive(wv)
+
+  def try_split(self, fraction_of_remainder):
+    # type: (...) -> Optional[Any]
+    return self.consumer.try_split(fraction_of_remainder)
+
+  def current_element_progress(self):
+    return self.consumer.current_element_progress()
+
+
+class SingletonBatchConsumerSet(ConsumerSet):
+  """ConsumerSet representing a single consumer that will process batches."""
+  def __init__(self,
+               counter_factory,
+               step_name,
+               output_index,
+               consumer,  # type: Operation
+               coder,
+               input_batch_converter,
+               producer_type_hints
+               ):
+    super().__init__(
+        counter_factory,
+        step_name,
+        output_index, [consumer],
+        coder,
+        producer_type_hints)
+    self.consumer = consumer
+    self._batched_elements = []
+    self._batch_converter = input_batch_converter
+
+  def receive(self, windowed_value):
+    # type: (WindowedValue) -> None
+    #self.update_counters_start(windowed_value)
+    self._batched_elements.append(windowed_value)
+    #self.update_counters_finish()
+
+  def flush(self):
+    if not self._batched_elements:
+      return
+
+    # Convert batch of elements to the batched type, wrap in windowed batch,
+    # erase the buffer.
+    windowed_batch = WindowedBatch(
+        self._batch_converter.produce_batch([
+            wv.value for wv in self._batched_elements
+        ]), [wv.timestamp for wv in self._batched_elements],
+        [wv.windows for wv in self._batched_elements],
+        [wv.pane_info for wv in self._batched_elements])
+    self._batched_elements = []
+
+    # Send batched type downstream
+    cython.cast(Operation, self.consumer).process_batch(windowed_batch)
+
+  def receive_batch(self, windowed_batch: WindowedBatch) -> None:
+    #self.update_counters_start(windowed_value)
+    self.consumer.process_batch(windowed_batch)
+    #self.update_counters_finish()
 
   def try_split(self, fraction_of_remainder):
     # type: (...) -> Optional[Any]
@@ -305,10 +406,22 @@ class Operation(object):
       # For legacy workers.
       self.setup()
 
+  def get_batching_preference(self):
+    # By default operations don't support batching, require Receiver to unbatch
+    return common.BatchingConfiguration.elementwise()
+
+  def get_input_batch_converter(self) -> Optional[None]:
+    """Returns a batch type if this operation can accept a batch, otherwise
+    None."""
+    return None
+
   def process(self, o):
     # type: (WindowedValue) -> None
 
     """Process element in operation."""
+    pass
+
+  def process_batch(self, batch: WindowedBatch):
     pass
 
   def finalize_bundle(self):
@@ -329,7 +442,9 @@ class Operation(object):
     # type: () -> None
 
     """Finish operation."""
-    pass
+    # TODO: Do we need an output_index here
+    for receiver in self.receivers:
+      cython.cast(Receiver, receiver).flush()
 
   def teardown(self):
     # type: () -> None
@@ -702,6 +817,14 @@ class DoOperation(Operation):
       super(DoOperation, self).start()
       self.dofn_runner.start()
 
+  def get_batching_preference(self):
+    return self.dofn_runner.batching_configuration
+
+  def get_input_batch_converter(self) -> Optional[None]:
+    """Returns a batch type if this operation can accept a batch, otherwise
+    None."""
+    return self.dofn_runner.input_batch_converter
+
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -711,6 +834,9 @@ class DoOperation(Operation):
         for delayed_application in delayed_applications:
           self.execution_context.delayed_applications.append(
               (self, delayed_application))
+
+  def process_batch(self, windowed_batch: WindowedBatch):
+    self.dofn_runner.process_batch(windowed_batch)
 
   def finalize_bundle(self):
     # type: () -> None
@@ -735,6 +861,7 @@ class DoOperation(Operation):
 
   def finish(self):
     # type: () -> None
+    super().finish()
     with self.scoped_finish_state:
       self.dofn_runner.finish()
       if self.user_state_context:
@@ -921,6 +1048,7 @@ class CombineOperation(Operation):
   def finish(self):
     # type: () -> None
     _LOGGER.debug('Finishing %s', self)
+    super().finish()
 
   def teardown(self):
     # type: () -> None
@@ -966,6 +1094,7 @@ class PGBKOperation(Operation):
   def finish(self):
     # type: () -> None
     self.flush(0)
+    super().finish()
 
   def flush(self, target):
     # type: (int) -> None

@@ -35,6 +35,7 @@ from typing import Dict
 from typing import Tuple
 
 import hamcrest  # pylint: disable=ungrouped-imports
+import numpy as np
 import pytest
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
@@ -120,6 +121,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda e: e * 2)
           | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
+
+  def test_batch_pardo(self):
+    class MultiplyDoFn(beam.DoFn):
+      def process_batch(self, batch: np.ndarray) -> np.ndarray:
+        assert isinstance(batch, np.ndarray)
+        yield batch * 2
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(MultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 18]))
 
   @retry(stop=stop_after_attempt(3))
   def test_pardo_side_outputs(self):
