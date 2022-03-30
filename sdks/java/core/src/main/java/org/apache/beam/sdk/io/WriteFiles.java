@@ -22,10 +22,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
@@ -90,6 +93,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Monitor.Guard;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -902,25 +907,100 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class WriteShardsIntoTempFilesFn
       extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
-    private transient @Nullable List<CompletionStage<Void>> closeFutures = null;
-    private transient @Nullable List<KV<Instant, FileResult<DestinationT>>> deferredOutput = null;
+    private class DestinationWriter implements AutoCloseable {
+      final Instant timestamp;
+      final FileResult<DestinationT> result;
+      private final Writer<DestinationT, OutputT> writer;
+      private final CompletionStage<Void> worker;
+
+      private final Monitor monitor = new Monitor();
+      private final Monitor.Guard newElementsOrClosed =
+          new Guard(monitor) {
+            @Override
+            public boolean isSatisfied() {
+              return closed || !elements.isEmpty();
+            }
+          };
+      private final Queue<UserT> elements = new ArrayDeque<>();
+      private boolean closed = false;
+
+      DestinationWriter(
+          Instant timestamp,
+          FileResult<DestinationT> result,
+          Writer<DestinationT, OutputT> writer) {
+        this.timestamp = timestamp;
+        this.result = result;
+        this.writer = writer;
+        this.worker = MoreFutures.runAsync(this::runWorker);
+      }
+
+      void write(UserT toWrite) {
+        monitor.enter();
+        elements.add(toWrite);
+        monitor.leave();
+      }
+
+      private void runWorker() throws Exception {
+        monitor.enter();
+        try {
+          while (!closed) {
+            monitor.waitForUninterruptibly(newElementsOrClosed);
+            // No new elements will ever be added after close() is called, but we should process
+            // the remaining elements in the queue.
+            for (UserT element = elements.poll(); element != null; element = elements.poll()) {
+              writer.write(getDynamicDestinations().formatRecord(element));
+            }
+          }
+        } finally {
+          monitor.leave();
+        }
+      }
+
+      @Override
+      public void close() throws Exception {
+        monitor.enter();
+        closed = true;
+        monitor.leave();
+        Exception failure = null;
+        try {
+          worker.toCompletableFuture().get();
+        } catch (Exception e) {
+          failure = e;
+        }
+        try {
+          writer.close();
+        } catch (Exception e) {
+          if (failure == null) {
+            failure = e;
+          } else {
+            failure.addSuppressed(e);
+          }
+        }
+        if (failure == null) return;
+        // If anything goes wrong, try to delete the temporary file.
+        try {
+          writer.cleanup();
+        } catch (Exception e) {
+          failure.addSuppressed(e);
+        }
+        throw failure;
+      }
+    }
+
+    private transient @Nullable ArrayList<DestinationWriter> deferredWriters = null;
 
     @StartBundle
     public void startBundle() {
-      closeFutures = new ArrayList<>();
-      deferredOutput = new ArrayList<>();
+      deferredWriters = new ArrayList<>();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
-      // Since we key by a 32-bit hash of the destination, there might be multiple destinations
-      // in this iterable. The number of destinations is generally very small (1000s or less), so
-      // there will rarely be hash collisions.
-      Map<DestinationT, Writer<DestinationT, OutputT>> writers = Maps.newHashMap();
+      Map<DestinationT, DestinationWriter> writers = new HashMap<>();
       for (UserT input : c.element().getValue()) {
         DestinationT destination = getDynamicDestinations().getDestination(input);
-        Writer<DestinationT, OutputT> writer = writers.get(destination);
+        DestinationWriter writer = writers.get(destination);
         if (writer == null) {
           String uuid = UUID.randomUUID().toString();
           LOG.info(
@@ -929,58 +1009,49 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               window,
               c.pane(),
               destination);
-          writer = writeOperation.createWriter();
-          writer.setDestination(destination);
-          writer.open(uuid);
+          Writer<DestinationT, OutputT> underlying = writeOperation.createWriter();
+          underlying.setDestination(destination);
+          underlying.open(uuid);
+          writer =
+              new DestinationWriter(
+                  c.timestamp(),
+                  new FileResult<>(
+                      underlying.getOutputFile(),
+                      c.element().getKey().getShardNumber(),
+                      window,
+                      c.pane(),
+                      destination),
+                  underlying);
           writers.put(destination, writer);
         }
-        writeOrClose(writer, getDynamicDestinations().formatRecord(input));
+        writer.write(input);
       }
-
-      // Close all writers.
-      for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
-        int shard = c.element().getKey().getShardNumber();
-        checkArgument(
-            shard != UNKNOWN_SHARDNUM,
-            "Shard should have been set, but is unset for element %s",
-            c.element());
-        Writer<DestinationT, OutputT> writer = entry.getValue();
-        deferredOutput.add(
-            KV.of(
-                c.timestamp(),
-                new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
-        closeWriterInBackground(writer);
-      }
-    }
-
-    private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
-      // Close in parallel so flushing of buffered writes to files for many windows happens in
-      // parallel.
-      closeFutures.add(
-          MoreFutures.runAsync(
-              () -> {
-                try {
-                  // Close the writer; if this throws let the error propagate.
-                  writer.close();
-                } catch (Exception e) {
-                  // If anything goes wrong, make sure to delete the temporary file.
-                  writer.cleanup();
-                  throw e;
-                }
-              }));
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
       try {
-        MoreFutures.get(MoreFutures.allAsList(closeFutures));
+        Exception failure = null;
+        for (DestinationWriter writer : deferredWriters) {
+          try {
+            writer.close();
+          } catch (Exception e) {
+            if (failure == null) {
+              failure = e;
+            } else {
+              failure.addSuppressed(e);
+            }
+          }
+        }
+        if (failure != null) {
+          throw failure;
+        }
         // If all writers were closed without exception, output the results to the next stage.
-        for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
-          c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
+        for (DestinationWriter writer : deferredWriters) {
+          c.output(writer.result, writer.timestamp, writer.result.getWindow());
         }
       } finally {
-        deferredOutput = null;
-        closeFutures = null;
+        deferredWriters = null;
       }
     }
   }
