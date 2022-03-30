@@ -657,8 +657,8 @@ class Pipeline(object):
     if label:
       # Fix self.label as it is inspected by some PTransform operations
       # (e.g. to produce error messages for type hint violations).
+      old_label, transform.label = transform.label, label
       try:
-        old_label, transform.label = transform.label, label
         return self.apply(transform, pvalueish)
       finally:
         transform.label = old_label

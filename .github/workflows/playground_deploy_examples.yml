@@ -21,17 +21,48 @@ on:
     branches: ['master', 'release-*']
   pull_request:
   workflow_dispatch:
-
+env:
+  BEAM_ROOT_DIR: ../../
+  BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
+  BEAM_VERSION: 2.33.0
+  K8S_NAMESPACE: playground-backend
+  HELM_APP_NAME: playground-backend
 jobs:
+  check_examples:
+    name: Check examples
+    runs-on: ubuntu-latest
+    outputs:
+      example_has_changed: ${{ steps.check_has_example.outputs.example_has_changed }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: install deps
+        run: pip install -r requirements.txt
+        working-directory: playground/infrastructure
+      - shell: pwsh
+        name: get Difference
+        id: check_file_changed
+        run: |
+          $diff = git diff --name-only master
+          Write-Host "::set-output name=example_diff::$diff"
+      - name: has Examples
+        run: |
+          output=$(python3 checker.py ${{ steps.check_file_changed.outputs.example_diff }})
+          echo "::set-output name=example_has_changed::$output"
+        id: check_has_example
+        working-directory: playground/infrastructure
+      - name: Print has_example
+        run: echo "${{ steps.check_has_example.outputs.example_has_changed }}"
   deploy_examples:
     name: Deploy examples
     runs-on: ubuntu-latest
-    env:
-      BEAM_ROOT_DIR: ../../
-      BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
-      BEAM_VERSION: 2.33.0
-      K8S_NAMESPACE: playground-backend
-      HELM_APP_NAME: playground-backend
+    needs: [ check_examples ]
+    if: needs.check_examples.outputs.example_has_changed == 'True'
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
