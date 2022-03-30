@@ -33,6 +33,7 @@ import 'package:playground/modules/examples/repositories/models/get_list_of_exam
     as _i7;
 import 'package:playground/modules/sdk/models/sdk.dart' as _i5;
 
+// ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
 // ignore_for_file: avoid_setters_without_getters
 // ignore_for_file: comment_references
@@ -83,5 +84,10 @@ class MockExampleRepository extends _i1.Mock implements _i3.ExampleRepository {
       (super.noSuchMethod(Invocation.method(#getExampleGraph, [request]),
           returnValue: Future<String>.value('')) as _i4.Future<String>);
   @override
-  String toString() => super.toString();
+  _i4.Future<_i2.ExampleModel> getExample(
+          _i8.GetExampleRequestWrapper? request) =>
+      (super.noSuchMethod(Invocation.method(#getExample, [request]),
+              returnValue:
+                  Future<_i2.ExampleModel>.value(_FakeExampleModel_0()))
+          as _i4.Future<_i2.ExampleModel>);
 }
