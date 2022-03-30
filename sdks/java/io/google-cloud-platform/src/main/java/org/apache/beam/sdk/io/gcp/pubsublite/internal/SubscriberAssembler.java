@@ -114,6 +114,7 @@ class SubscriberAssembler {
             .setMessageConsumer(consumer)
             .setSubscriptionPath(options.subscriptionPath())
             .setPartition(partition)
+            .setRetryStreamRaces(false)
             .setStreamFactory(
                 responseStream -> {
                   ApiCallContext context =

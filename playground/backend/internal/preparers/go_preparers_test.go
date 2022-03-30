@@ -41,7 +41,7 @@ func TestGetGoPreparers(t *testing.T) {
 	}{
 		{
 			// getting the expected preparer
-			name: "get expected preparer",
+			name: "Get expected preparer",
 			args: args{filePath: ""},
 			want: &[]Preparer{{Prepare: formatCode, Args: nil}, {Prepare: changeGoTestFileName, Args: nil}},
 		},
@@ -70,13 +70,13 @@ func Test_formatCode(t *testing.T) {
 	}{
 		{
 			// formatting code that does not contain errors
-			name:    "file without errors",
+			name:    "File without errors",
 			args:    args{preparedArgs1},
 			wantErr: false,
 		},
 		{
 			// formatting code that contain errors
-			name:    "file with errors",
+			name:    "File with errors",
 			args:    args{preparedArgs2},
 			wantErr: true,
 		},

@@ -663,6 +663,9 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected final void send(RequestT request) {
       lastSendTimeMs.set(Instant.now().getMillis());
       synchronized (this) {
+        if (clientClosed.get()) {
+          throw new IllegalStateException("Send called on a client closed stream.");
+        }
         requestObserver.onNext(request);
       }
     }
