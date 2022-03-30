@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Tests for apache_beam.ml.base."""
 
 import pickle
@@ -30,13 +31,11 @@ import apache_beam.ml.inference.base as base
 
 
 class FakeModel:
-
   def predict(self, example: int) -> int:
     return example + 1
 
 
 class FakeInferenceRunner(base.InferenceRunner):
-
   def __init__(self, clock=None):
     self._mock_clock = clock
 
@@ -48,7 +47,6 @@ class FakeInferenceRunner(base.InferenceRunner):
 
 
 class FakeModelLoader(base.ModelLoader):
-
   def __init__(self, clock=None):
     self._mock_clock = clock
 
@@ -62,7 +60,6 @@ class FakeModelLoader(base.ModelLoader):
 
 
 class MockClock(base.Clock):
-
   def __init__(self):
     self.current_time = 10000
 
@@ -71,13 +68,11 @@ class MockClock(base.Clock):
 
 
 class ExtractInferences(beam.DoFn):
-
   def process(self, prediction_result):
     yield prediction_result.inference
 
 
 class RunInferenceBaseTest(unittest.TestCase):
-
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
