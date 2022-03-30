@@ -23,4 +23,14 @@ class GetExampleRequestWrapper {
   final SDK sdk;
 
   GetExampleRequestWrapper(this.path, this.sdk);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GetExampleRequestWrapper &&
+          path == other.path &&
+          sdk == other.sdk;
+
+  @override
+  int get hashCode => path.hashCode ^ sdk.hashCode;
 }

@@ -41,6 +41,14 @@ void main() {
     expect(state.isCodeRunning, false);
   });
 
+  test('Initial value of pipelineOptions should be empty string', () {
+    expect(state.pipelineOptions, '');
+  });
+
+  test('Initial value of source should be empty string', () {
+    expect(state.source, '');
+  });
+
   group('isExampleChanged Tests', () {
     test(
       'If example source is changed, value of isExampleChanged should be true',
@@ -99,4 +107,22 @@ void main() {
     });
     state.reset();
   });
+
+  test(
+    'If Playground state result is empty, then resetError should break the execution',
+    () {
+      state.resetError();
+      expect(state.result, null);
+    },
+  );
+
+  test(
+    'Playground state should notify all listeners about pipeline options change',
+    () {
+      state.addListener(() {
+        expect(state.pipelineOptions, 'test options');
+      });
+      state.setPipelineOptions('test options');
+    },
+  );
 }

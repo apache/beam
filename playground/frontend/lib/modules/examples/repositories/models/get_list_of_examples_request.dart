@@ -23,4 +23,14 @@ class GetListOfExamplesRequestWrapper {
   final String? category;
 
   GetListOfExamplesRequestWrapper({required this.sdk, required this.category});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is GetListOfExamplesRequestWrapper &&
+              category == other.category &&
+              sdk == other.sdk;
+
+  @override
+  int get hashCode => category.hashCode ^ sdk.hashCode;
 }
