@@ -21,6 +21,7 @@ from apache_beam.runners.common cimport DoFnRunner
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
+from apache_beam.utils.windowed_value cimport WindowedBatch
 #from libcpp.string cimport string
 
 cdef WindowedValue _globally_windowed_value
@@ -38,10 +39,11 @@ cdef class ConsumerSet(Receiver):
   cpdef update_counters_start(self, WindowedValue windowed_value)
   cpdef update_counters_finish(self)
 
-
-cdef class SingletonConsumerSet(ConsumerSet):
+cdef class SingletonElementConsumerSet(ConsumerSet):
   cdef Operation consumer
 
+cdef class SingletonBatchConsumerSet(ConsumerSet):
+  cdef Operation consumer
 
 cdef class Operation(object):
   cdef readonly name_context

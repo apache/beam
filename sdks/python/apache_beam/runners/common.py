@@ -23,15 +23,18 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+
 import sys
 import threading
 import traceback
+from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Mapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 
@@ -54,9 +57,11 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import typehints
+from apache_beam.typehints.batch import BatchConverter
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
@@ -108,6 +113,13 @@ class Receiver(object):
   """
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
+    raise NotImplementedError
+
+  def receive_batch(self, windowed_batch):
+    # type: (WindowedBatch) -> None
+    raise NotImplementedError
+
+  def flush(self):
     raise NotImplementedError
 
 
@@ -214,6 +226,44 @@ class MethodWrapper(object):
       return self.method_value()
 
 
+class BatchingPreference(Enum):
+  DO_NOT_CARE = 1  # This operation can operate on batches or element-at-a-time
+  # TODO: Should we also store batching parameters here? (time/size preferences)
+  BATCH_REQUIRED = 2  # This operation can only operate on batches
+  BATCH_FORBIDDEN = 3  # This operation can only work element-at-a-time
+  # Other possibilities: BATCH_PREFERRED (with min batch size specified)
+
+
+class BatchingConfiguration(NamedTuple):
+  preference: BatchingPreference
+  batch_converter: Optional[BatchConverter] = None
+
+  @staticmethod
+  def batch_required(
+      batch_converter: BatchConverter) -> 'BatchingConfiguration':
+    return BatchingConfiguration(
+        BatchingPreference.BATCH_REQUIRED, batch_converter)
+
+  @staticmethod
+  def batch_supported(
+      batch_converter: BatchConverter) -> 'BatchingConfiguration':
+    return BatchingConfiguration(
+        BatchingPreference.DO_NOT_CARE, batch_converter)
+
+  @staticmethod
+  def elementwise() -> 'BatchingConfiguration':
+    return BatchingConfiguration(BatchingPreference.BATCH_FORBIDDEN)
+
+  @property
+  def supports_batches(self) -> bool:
+    return self.preference in (
+        BatchingPreference.BATCH_REQUIRED, BatchingPreference.DO_NOT_CARE)
+
+  @property
+  def requires_batches(self) -> bool:
+    return self.preference == BatchingPreference.BATCH_REQUIRED
+
+
 class DoFnSignature(object):
   """Represents the signature of a given ``DoFn`` object.
 
@@ -233,10 +283,19 @@ class DoFnSignature(object):
     self.do_fn = do_fn
 
     self.process_method = MethodWrapper(do_fn, 'process')
+    self.process_batch_method = MethodWrapper(do_fn, 'process_batch')
     self.start_bundle_method = MethodWrapper(do_fn, 'start_bundle')
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
     self.setup_lifecycle_method = MethodWrapper(do_fn, 'setup')
     self.teardown_lifecycle_method = MethodWrapper(do_fn, 'teardown')
+
+    self.output_batch_utilities = None
+
+    if self.do_fn.process_batch_defined:
+      if not self.do_fn.process_defined:
+        self.batching_configuration = BatchingConfiguration.batch_required(None)
+      else:
+        raise NotImplementedError("BatchingConfiguration for either")
 
     restriction_provider = self.get_restriction_provider()
     watermark_estimator_provider = self.get_watermark_estimator_provider()
@@ -264,6 +323,16 @@ class DoFnSignature(object):
       for timer_spec in all_timer_specs:
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
+
+  @property
+  def input_batch_converter(self) -> Optional[BatchConverter]:
+    return self.do_fn.input_batch_converter if hasattr(
+        self.do_fn, 'input_batch_converter') else None
+
+  @property
+  def output_batch_converter(self) -> Optional[BatchConverter]:
+    return self.do_fn.output_batch_converter if hasattr(
+        self.do_fn, 'output_batch_converter') else None
 
   def get_restriction_provider(self):
     # type: () -> RestrictionProvider
@@ -376,7 +445,7 @@ class DoFnInvoker(object):
   @staticmethod
   def create_invoker(
       signature,  # type: DoFnSignature
-      output_processor,  # type: _OutputProcessor
+      output_processor,  # type: OutputProcessor
       context=None,  # type: Optional[DoFnContext]
       side_inputs=None,   # type: Optional[List[sideinputs.SideInputMap]]
       input_args=None, input_kwargs=None,
@@ -457,6 +526,26 @@ class DoFnInvoker(object):
     """
     raise NotImplementedError
 
+  def invoke_process_batch(self,
+                     windowed_batch,  # type: WindowedBatch
+                     additional_args=None,
+                     additional_kwargs=None
+                    ):
+    # type: (...) -> Iterable[SplitResultResidual]
+
+    """Invokes the DoFn.process() function.
+
+    Args:
+      windowed_batch: a WindowedBatch object that gives a batch of elements for
+                      which process() method should be invoked, along with the
+                      window each element belongs to.
+      additional_args: additional arguments to be passed to the current
+                      `DoFn.process()` invocation, usually as side inputs.
+      additional_kwargs: additional keyword arguments to be passed to the
+                         current `DoFn.process()` invocation.
+    """
+    raise NotImplementedError
+
   def invoke_setup(self):
     # type: () -> None
 
@@ -524,6 +613,7 @@ class SimpleInvoker(DoFnInvoker):
     # type: (...) -> None
     super().__init__(output_processor, signature)
     self.process_method = signature.process_method.method_value
+    self.process_batch_method = signature.process_batch_method.method_value
 
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
@@ -537,12 +627,24 @@ class SimpleInvoker(DoFnInvoker):
         windowed_value, self.process_method(windowed_value.value))
     return []
 
+  def invoke_process_batch(self,
+                     windowed_batch,  # type: WindowedBatch
+                     restriction=None,
+                     watermark_estimator_state=None,
+                     additional_args=None,
+                     additional_kwargs=None
+                    ):
+    # type: (...) -> Iterable[SplitResultResidual]
+    self.output_processor.process_batch_outputs(
+        windowed_batch, self.process_batch_method(windowed_batch.values))
+    return []
+
 
 class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
   def __init__(self,
-               output_processor,  # type: _OutputProcessor
+               output_processor,  # type: OutputProcessor
                signature,  # type: DoFnSignature
                context,  # type: DoFnContext
                side_inputs,  # type: Iterable[sideinputs.SideInputMap]
@@ -1170,11 +1272,21 @@ class DoFnRunner:
     else:
       per_element_output_counter = None
 
+    self.batching_configuration = BatchingConfiguration.batch_required(
+        do_fn_signature.input_batch_converter
+    ) if fn.process_batch_defined else BatchingConfiguration.elementwise()
+    self.output_batch_utilities = do_fn_signature.output_batch_utilities
+
+    # TODO: output processor assumes DoFns are batch-to-batch or
+    # element-to-element, @yields_batches and @yields_elements will break this
+    # assumption.
     output_processor = _OutputProcessor(
         windowing.windowfn,
         main_receivers,
         tagged_receivers,
         per_element_output_counter)
+
+    self.input_batch_converter = getattr(fn, 'input_batch_converter', None)
 
     if do_fn_signature.is_stateful_dofn() and not user_state_context:
       raise Exception(
@@ -1196,6 +1308,13 @@ class DoFnRunner:
     # type: (WindowedValue) -> Iterable[SplitResultResidual]
     try:
       return self.do_fn_invoker.invoke_process(windowed_value)
+    except BaseException as exn:
+      self._reraise_augmented(exn)
+      return []
+
+  def process_batch(self, windowed_batch):
+    try:
+      return self.do_fn_invoker.invoke_process_batch(windowed_batch)
     except BaseException as exn:
       self._reraise_augmented(exn)
       return []
@@ -1287,6 +1406,11 @@ class OutputProcessor(object):
     # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     raise NotImplementedError
 
+  def process_batch_outputs(
+      self, windowed_input_element, results, watermark_estimator=None):
+    # type: (WindowedBatch, Iterable[Any], Optional[WatermarkEstimator]) -> None
+    raise NotImplementedError
+
 
 class _OutputProcessor(OutputProcessor):
   """Processes output produced by DoFn method invocations."""
@@ -1308,7 +1432,11 @@ class _OutputProcessor(OutputProcessor):
     self.window_fn = window_fn
     self.main_receivers = main_receivers
     self.tagged_receivers = tagged_receivers
-    self.per_element_output_counter = per_element_output_counter
+    if (per_element_output_counter is not None and
+        per_element_output_counter.is_cythonized):
+      self.per_element_output_counter = per_element_output_counter
+    else:
+      self.per_element_output_counter = None
 
   def process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
@@ -1322,8 +1450,7 @@ class _OutputProcessor(OutputProcessor):
     if results is None:
       # TODO(BEAM-3937): Remove if block after output counter released.
       # Only enable per_element_output_counter when counter cythonized.
-      if (self.per_element_output_counter is not None and
-          self.per_element_output_counter.is_cythonized):
+      if self.per_element_output_counter is not None:
         self.per_element_output_counter.add_input(0)
       return
 
@@ -1361,10 +1488,78 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
+
     # TODO(BEAM-3937): Remove if block after output counter released.
     # Only enable per_element_output_counter when counter cythonized
-    if (self.per_element_output_counter is not None and
-        self.per_element_output_counter.is_cythonized):
+    if self.per_element_output_counter is not None:
+      self.per_element_output_counter.add_input(output_element_count)
+
+  def process_batch_outputs(
+      self, windowed_input_batch, results, watermark_estimator=None):
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
+
+    """Dispatch the result of process computation to the appropriate receivers.
+
+    A value wrapped in a TaggedOutput object will be unwrapped and
+    then dispatched to the appropriate indexed output.
+    """
+    if results is None:
+      # TODO(BEAM-3937): Remove if block after output counter released.
+      # Only enable per_element_output_counter when counter cythonized.
+      if self.per_element_output_counter is not None:
+        self.per_element_output_counter.add_input(0)
+      return
+
+    # TODO(BEAM-10782): Verify that the results object is a valid iterable type
+    #  if performance_runtime_type_check is active, without harming performance
+
+    output_element_count = 0
+    for result in results:
+      # results here may be a generator, which cannot call len on it.
+      output_element_count += 1
+      tag = None
+      if isinstance(result, TaggedOutput):
+        tag = result.tag
+        if not isinstance(tag, str):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+      if isinstance(result, (WindowedValue, TimestampedValue)):
+        # TODO: Helpful message
+        raise RuntimeError
+      if isinstance(result, WindowedBatch):
+        windowed_batch = result
+        # TODO: Should we do this in batches?
+        #       Would need to require one batch per window
+        #if (windowed_input_element is not None and
+        #    len(windowed_input_element.windows) != 1):
+        #  windowed_value.windows *= len(windowed_input_element.windows)
+      # TODO: TimestampedBatch
+      #elif isinstance(result, TimestampedValue):
+      #  assign_context = WindowFn.AssignContext(result.timestamp, result.value)
+      #  windowed_value = WindowedValue(
+      #      result.value,
+      #      result.timestamp,
+      #      self.window_fn.assign(assign_context))
+      #  if len(windowed_input_element.windows) != 1:
+      #    windowed_value.windows *= len(windowed_input_element.windows)
+      else:
+        # TODO: This should error unless the DoFn was defined with
+        # @DoFn.yields_batches(output_aligned_with_input=True)
+        # We should consider also validating that the length is the same as
+        # windowed_input_batch
+        windowed_batch = windowed_input_batch.with_values(result)
+
+      if watermark_estimator is not None:
+        for timestamp in windowed_batch.timestamps:
+          watermark_estimator.observe_timestamp(timestamp)
+      if tag is None:
+        self.main_receivers.receive_batch(windowed_batch)
+      else:
+        self.tagged_receivers[tag].receive_batch(windowed_batch)
+
+    # TODO(BEAM-3937): Remove if block after output counter released.
+    # Only enable per_element_output_counter when counter cythonized
+    if self.per_element_output_counter is not None:
       self.per_element_output_counter.add_input(output_element_count)
 
   def start_bundle_outputs(self, results):
