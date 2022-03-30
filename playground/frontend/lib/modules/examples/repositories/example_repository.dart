@@ -45,7 +45,7 @@ class ExampleRepository {
   }
 
   Future<String> getExampleSource(GetExampleRequestWrapper request) async {
-    final result = await _client.getExample(request);
+    final result = await _client.getExampleSource(request);
     return result.code;
   }
 
@@ -68,5 +68,12 @@ class ExampleRepository {
   ) async {
     final result = await _client.getExampleGraph(request);
     return result.output;
+  }
+
+  Future<ExampleModel> getExample(
+    GetExampleRequestWrapper request,
+  ) async {
+    final result = await _client.getExample(request);
+    return result.example;
   }
 }

@@ -43,7 +43,7 @@ class ExampleModel with Comparable<ExampleModel> {
   final String name;
   final String path;
   final String description;
-  final int contextLine;
+  int contextLine;
   bool isMultiFile;
   String? link;
   String? source;
@@ -81,6 +81,10 @@ class ExampleModel with Comparable<ExampleModel> {
 
   setGraph(String graph) {
     this.graph = graph;
+  }
+
+  setContextLine(int contextLine) {
+    this.contextLine = contextLine;
   }
 
   bool isInfoFetched() {
