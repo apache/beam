@@ -125,10 +125,11 @@ public class BigtableServiceImplTest {
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
-    Assert.assertFalse(underTest.advance());
+    underTest.advance();
+    Assert.assertEquals(expectedRow, underTest.getCurrentRow());
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRowsAsync", "ok", 1);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
   }
 
   /**
@@ -177,7 +178,7 @@ public class BigtableServiceImplTest {
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRowsAsync", "ok", 2); // Check why yhis is 3
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
   }
 
   /**
@@ -236,7 +237,7 @@ public class BigtableServiceImplTest {
     Assert.assertFalse(underTest.advance());
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRowsAsync", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
   }
 
   /**
@@ -311,7 +312,7 @@ public class BigtableServiceImplTest {
     Assert.assertFalse(underTest.advance());
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRowsAsync", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
   }
 
   /**
@@ -425,7 +426,7 @@ public class BigtableServiceImplTest {
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRowsAsync", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
   }
 
   /**
