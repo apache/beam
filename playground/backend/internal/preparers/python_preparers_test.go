@@ -34,7 +34,7 @@ func TestGetPythonPreparers(t *testing.T) {
 		want int
 	}{
 		{
-			name: "get number of python preparers",
+			name: "Get number of python preparers",
 			args: args{"MOCK_FILEPATH"},
 			want: 2,
 		},
@@ -65,14 +65,14 @@ func Test_addCodeToFile(t *testing.T) {
 		{
 			// Call addCodeToFile method if the file doesn't exist.
 			// As a result, want to receive error
-			name:    "file doesn't exist",
+			name:    "File doesn't exist",
 			args:    args{[]interface{}{incorrectPyFile, saveLogs}},
 			wantErr: true,
 		},
 		{
 			// Call addCodeToFile method when file exists.
 			// As a result, want to receive an updated code
-			name:     "original file exists",
+			name:     "Original file exists",
 			args:     args{[]interface{}{correctPyFile, saveLogs}},
 			wantCode: wantCode,
 			wantErr:  false,
