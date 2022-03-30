@@ -41,7 +41,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -104,9 +106,7 @@ public class TableRowToStorageApiProto {
    * using the BigQuery Storage API.
    */
   public static DynamicMessage messageFromTableRow(
-      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
-      Descriptor descriptor,
-      TableRow tableRow) {
+      BqSchema bqSchema, Descriptor descriptor, TableRow tableRow) {
     @Nullable List<TableCell> cells = tableRow.getF();
     if (cells != null) {
       DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
@@ -116,7 +116,7 @@ public class TableRowToStorageApiProto {
       for (int i = 0; i < cells.size(); ++i) {
         TableCell cell = cells.get(i);
         FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
-        StorageApiDynamicDestinationsTableRow.BqSchema subBqSchema = bqSchema.getSubFieldByIndex(i);
+        BqSchema subBqSchema = bqSchema.getSubFieldByIndex(i);
         @Nullable
         Object value = messageValueFromFieldValue(subBqSchema, fieldDescriptor, cell.getV());
         if (value != null) {
@@ -181,9 +181,7 @@ public class TableRowToStorageApiProto {
   }
 
   private static DynamicMessage messageFromMap(
-      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
-      Descriptor descriptor,
-      AbstractMap<String, Object> map) {
+      BqSchema bqSchema, Descriptor descriptor, AbstractMap<String, Object> map) {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Map.Entry<String, Object> entry : map.entrySet()) {
 
@@ -193,8 +191,7 @@ public class TableRowToStorageApiProto {
         throw new RuntimeException(
             "TableRow contained unexpected field with name " + entry.getKey());
       }
-      StorageApiDynamicDestinationsTableRow.BqSchema subBqSchema =
-          bqSchema.getSubFieldByName(entry.getKey());
+      BqSchema subBqSchema = bqSchema.getSubFieldByName(entry.getKey());
       @Nullable
       Object value = messageValueFromFieldValue(subBqSchema, fieldDescriptor, entry.getValue());
       if (value != null) {
@@ -206,9 +203,7 @@ public class TableRowToStorageApiProto {
 
   @Nullable
   private static Object messageValueFromFieldValue(
-      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
-      FieldDescriptor fieldDescriptor,
-      Object bqValue) {
+      BqSchema bqSchema, FieldDescriptor fieldDescriptor, Object bqValue) {
     // handle null
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
@@ -236,9 +231,7 @@ public class TableRowToStorageApiProto {
 
   @VisibleForTesting
   static Object scalarToProtoValue(
-      StorageApiDynamicDestinationsTableRow.BqSchema bqSchema,
-      FieldDescriptor fieldDescriptor,
-      Object value) {
+      BqSchema bqSchema, FieldDescriptor fieldDescriptor, Object value) {
     switch (bqSchema.getBqType()) {
       case "INT64":
       case "INTEGER":
@@ -371,6 +364,50 @@ public class TableRowToStorageApiProto {
         throw new RuntimeException("Enumerations not supported");
       default:
         return fieldValue.toString();
+    }
+  }
+
+  static class BqSchema {
+    private final TableFieldSchema tableFieldSchema;
+    private final ArrayList<BqSchema> subFields;
+    private final HashMap<String, BqSchema> subFieldsByName;
+
+    private BqSchema(TableFieldSchema tableFieldSchema) {
+      this.tableFieldSchema = tableFieldSchema;
+      this.subFields = new ArrayList<>();
+      this.subFieldsByName = new HashMap<>();
+      if (tableFieldSchema.getFields() != null) {
+        for (TableFieldSchema field : tableFieldSchema.getFields()) {
+          BqSchema bqSchema = new BqSchema(field);
+          subFields.add(bqSchema);
+          subFieldsByName.put(field.getName(), bqSchema);
+        }
+      }
+    }
+
+    public String getName() {
+      return tableFieldSchema.getName();
+    }
+
+    public String getBqType() {
+      return tableFieldSchema.getType();
+    }
+
+    public BqSchema getSubFieldByName(String name) {
+      return subFieldsByName.get(name);
+    }
+
+    public BqSchema getSubFieldByIndex(int i) {
+      return subFields.get(i);
+    }
+
+    static BqSchema fromTableSchema(TableSchema tableSchema) {
+      TableFieldSchema rootSchema =
+          new TableFieldSchema()
+              .setName("__root__")
+              .setType("RECORD")
+              .setFields(tableSchema.getFields());
+      return new BqSchema(rootSchema);
     }
   }
 }

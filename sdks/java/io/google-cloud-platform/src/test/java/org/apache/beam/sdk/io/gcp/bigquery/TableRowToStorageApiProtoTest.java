@@ -514,7 +514,7 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            StorageApiDynamicDestinationsTableRow.BqSchema.fromTableSchema(NESTED_TABLE_SCHEMA),
+            TableRowToStorageApiProto.BqSchema.fromTableSchema(NESTED_TABLE_SCHEMA),
             descriptor,
             tableRow);
     assertEquals(4, msg.getAllFields().size());
@@ -534,7 +534,7 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            StorageApiDynamicDestinationsTableRow.BqSchema.fromTableSchema(BASE_TABLE_SCHEMA),
+            TableRowToStorageApiProto.BqSchema.fromTableSchema(BASE_TABLE_SCHEMA),
             descriptor,
             BASE_TABLE_ROW);
     assertBaseRecord(msg, true);
@@ -577,7 +577,7 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            StorageApiDynamicDestinationsTableRow.BqSchema.fromTableSchema(REPEATED_MESSAGE_SCHEMA),
+            TableRowToStorageApiProto.BqSchema.fromTableSchema(REPEATED_MESSAGE_SCHEMA),
             descriptor,
             repeatedRow);
     assertEquals(4, msg.getAllFields().size());
@@ -622,7 +622,7 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            StorageApiDynamicDestinationsTableRow.BqSchema.fromTableSchema(REPEATED_MESSAGE_SCHEMA),
+            TableRowToStorageApiProto.BqSchema.fromTableSchema(REPEATED_MESSAGE_SCHEMA),
             descriptor,
             repeatedRow);
 

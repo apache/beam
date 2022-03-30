@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -26,8 +25,6 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -56,7 +53,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
 
   private class MessageConverterWithTableFieldSchema implements MessageConverter<T> {
 
-    private final BqSchema bqFieldByName;
+    private final TableRowToStorageApiProto.BqSchema bqFieldByName;
     private final Descriptor descriptor;
 
     public MessageConverterWithTableFieldSchema(
@@ -87,7 +84,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
         tableSchema = table.getSchema();
       }
 
-      bqFieldByName = BqSchema.fromTableSchema(tableSchema);
+      bqFieldByName = TableRowToStorageApiProto.BqSchema.fromTableSchema(tableSchema);
       descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
     }
 
@@ -100,50 +97,6 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
     public Message toMessage(T element) {
       return TableRowToStorageApiProto.messageFromTableRow(
           bqFieldByName, descriptor, formatFunction.apply(element));
-    }
-  }
-
-  static class BqSchema {
-    private final TableFieldSchema tableFieldSchema;
-    private final ArrayList<BqSchema> subFields;
-    private final HashMap<String, BqSchema> subFieldsByName;
-
-    private BqSchema(TableFieldSchema tableFieldSchema) {
-      this.tableFieldSchema = tableFieldSchema;
-      this.subFields = new ArrayList<>();
-      this.subFieldsByName = new HashMap<>();
-      if (tableFieldSchema.getFields() != null) {
-        for (TableFieldSchema field : tableFieldSchema.getFields()) {
-          BqSchema bqSchema = new BqSchema(field);
-          subFields.add(bqSchema);
-          subFieldsByName.put(field.getName(), bqSchema);
-        }
-      }
-    }
-
-    public String getName() {
-      return tableFieldSchema.getName();
-    }
-
-    public String getBqType() {
-      return tableFieldSchema.getType();
-    }
-
-    public BqSchema getSubFieldByName(String name) {
-      return subFieldsByName.get(name);
-    }
-
-    public BqSchema getSubFieldByIndex(int i) {
-      return subFields.get(i);
-    }
-
-    static BqSchema fromTableSchema(TableSchema tableSchema) {
-      TableFieldSchema rootSchema =
-          new TableFieldSchema()
-              .setName("__root__")
-              .setType("RECORD")
-              .setFields(tableSchema.getFields());
-      return new BqSchema(rootSchema);
     }
   }
 }
