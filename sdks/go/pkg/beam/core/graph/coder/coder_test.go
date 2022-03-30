@@ -532,11 +532,12 @@ func TestNewNullable(t *testing.T) {
 		component   *Coder
 		shouldpanic bool
 		want        *Coder
-	}{{
-		name:        "nil",
-		component:   nil,
-		shouldpanic: true,
-	},
+	}{
+		{
+			name:        "nil",
+			component:   nil,
+			shouldpanic: true,
+		},
 		{
 			name:        "empty",
 			component:   &Coder{},
