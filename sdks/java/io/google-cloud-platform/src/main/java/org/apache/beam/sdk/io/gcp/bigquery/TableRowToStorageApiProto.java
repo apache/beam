@@ -394,11 +394,19 @@ public class TableRowToStorageApiProto {
     }
 
     public BqSchema getSubFieldByName(String name) {
-      return subFieldsByName.get(name);
+      BqSchema bqSchema = subFieldsByName.get(name);
+      if (bqSchema == null) {
+        throw new RuntimeException("Schema field not found: " + name);
+      }
+      return bqSchema;
     }
 
     public BqSchema getSubFieldByIndex(int i) {
-      return subFields.get(i);
+      BqSchema bqSchema = subFields.get(i);
+      if (bqSchema == null) {
+        throw new RuntimeException("Schema field not found: " + i);
+      }
+      return bqSchema;
     }
 
     static BqSchema fromTableSchema(TableSchema tableSchema) {
