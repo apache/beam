@@ -32,7 +32,6 @@ import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -369,17 +368,17 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   private String getUploadFilename(String dumpType, String extension) {
     Preconditions.checkNotNull(uploadToGCSPath, "uploadToGCSPath");
 
-    return uploadToGCSPath +
-        "/" +
-        FILE_NAME_DATETIME_FORMATTER.format(clock.instant().atOffset(ZoneOffset.UTC)) +
-        "-" +
-        dumpType +
-        "-" +
-        workerId +
-        "-" +
-        UUID.randomUUID() +
-        "." +
-        extension;
+    return uploadToGCSPath
+        + "/"
+        + FILE_NAME_DATETIME_FORMATTER.format(clock.instant().atOffset(ZoneOffset.UTC))
+        + "-"
+        + dumpType
+        + "-"
+        + workerId
+        + "-"
+        + UUID.randomUUID()
+        + "."
+        + extension;
   }
 
   private File getDefaultHeapDumpPath() {
@@ -692,7 +691,8 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
    */
   public CompletableFuture<InputStream> runJfrProfile(Duration duration) {
     if (jfrInterop == null) {
-      throw new IllegalStateException("Unable to run JFR profile because JFR was not enabled. You must use Java 9+ to enable JFR.");
+      throw new IllegalStateException(
+          "Unable to run JFR profile because JFR was not enabled. You must use Java 9+ to enable JFR.");
     }
     return jfrInterop.runProfile(duration);
   }

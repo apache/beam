@@ -36,7 +36,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.construction.Environments;
 import org.hamcrest.Matchers;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -78,7 +77,18 @@ public class MemoryMonitorTest {
     provider = new FakeGCStatsProvider();
     localDumpFolder = tempFolder.newFolder();
     // Update every 10ms, never shutdown VM.
-    monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder, "test-worker",null, Clock.systemUTC());
+    monitor =
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            false,
+            50.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
     thread = new Thread(monitor);
     thread.start();
   }
@@ -133,7 +143,16 @@ public class MemoryMonitorTest {
     File remoteFolder = tempFolder.newFolder();
     monitor =
         MemoryMonitor.forTest(
-            provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder, "test-worker", null, Clock.systemUTC());
+            provider,
+            10,
+            0,
+            true,
+            50.0,
+            remoteFolder.getPath(),
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -175,7 +194,18 @@ public class MemoryMonitorTest {
 
   @Test
   public void uploadToGcsDisabled() throws Exception {
-    monitor = MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder, "test-worker",null, Clock.systemUTC());
+    monitor =
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            true,
+            50.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -187,7 +217,17 @@ public class MemoryMonitorTest {
   @Test
   public void disableMemoryMonitor() throws Exception {
     MemoryMonitor disabledMonitor =
-        MemoryMonitor.forTest(provider, 10, 0, true, 100.0, null, localDumpFolder, "test-worker", null, Clock.systemUTC());
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            true,
+            100.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
     Thread disabledMonitorThread = new Thread(disabledMonitor);
     disabledMonitorThread.start();
 
