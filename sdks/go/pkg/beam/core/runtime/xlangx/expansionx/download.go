@@ -63,7 +63,7 @@ func GetDefaultRepositoryURL() string {
 // validates that it has been passed a URL and returns an error if not.
 //
 // When changing the target repository, make sure that the value is the prefix
-// up to "org/apache/beam" and that the organization of the repository matchest
+// up to "org/apache/beam" and that the organization of the repository matches
 // that of the default from that point on to ensure that the conversion of the
 // Gradle target to the JAR name is correct.
 func SetDefaultRepositoryURL(repoURL string) error {

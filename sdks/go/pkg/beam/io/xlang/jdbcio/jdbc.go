@@ -89,8 +89,6 @@ type config struct {
 	OutputParallelization *bool     `beam:"outputParallelization"`
 }
 
-// type classpath []string
-
 // jdbcConfig stores the expansion service and configuration for JDBC IO.
 type jdbcConfig struct {
 	classpath     []string

@@ -90,7 +90,7 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 // TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
 func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
-	// checkFlags(t)
+	checkFlags(t)
 
 	ctx := context.Background()
 	dbname := "postjdbc"
@@ -113,7 +113,7 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 // TestJDBCIO_PostgresReadWrite tests basic read and write transform from JDBC with postgres.
 func TestJDBCIO_PostgresReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
-	// checkFlags(t)
+	checkFlags(t)
 
 	dbname := "postjdbc"
 	username := "newuser"

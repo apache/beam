@@ -19,6 +19,7 @@ package xlangx
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -158,11 +159,11 @@ func startAutomatedJavaExpansionService(gradleTarget string, classpath []string)
 
 	serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
 	if err != nil {
-		return nil, "", errors.Errorf("error in new expansion service: %v", err)
+		return nil, "", fmt.Errorf("error in new expansion service: %v", err)
 	}
 	err = serviceRunner.StartService()
 	if err != nil {
-		return nil, "", errors.Errorf("error in start: %v", err)
+		return nil, "", fmt.Errorf("error in start: %v", err)
 	}
 	stopFunc = serviceRunner.StopService
 	address = serviceRunner.Endpoint()
@@ -177,7 +178,7 @@ func startAutomatedJavaExpansionService(gradleTarget string, classpath []string)
 // The address to be queried is determined by the Config field of the HandlerParams after
 // the prefix tag indicating the automated service is in use.
 func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.ExpansionResponse, error) {
-	// Strip auto: tag to get Gradle targetd
+	// Strip auto: tag to get Gradle target
 	tag, target := parseAddr(p.Config)
 	classpath := p.ext.Classpath
 
