@@ -18,16 +18,16 @@
 """Tests for apache_beam.ml.base."""
 
 import pickle
+import unittest
 from typing import Any
 from typing import Iterable
-import unittest
 
 import apache_beam as beam
+import apache_beam.ml.inference.base as base
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-import apache_beam.ml.inference.base as base
 
 
 class FakeModel:

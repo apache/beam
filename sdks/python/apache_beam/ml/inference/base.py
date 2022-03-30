@@ -23,7 +23,9 @@ import pickle
 import platform
 import sys
 import time
-from typing import Any, Iterable, Tuple
+from typing import Any
+from typing import Iterable
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.utils import shared
