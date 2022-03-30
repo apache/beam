@@ -87,93 +87,40 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 	return container, mappedPort.Int()
 }
 
-func setupMySqlContainer(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
-	t.Helper()
-
-	var env = map[string]string{
-		"MYSQL_USER":     username,
-		"MYSQL_PASSWORD": password,
-		"MYSQL_DATABASE": dbname,
-	}
-
-	var port = "3306/tcp"
-	req := testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "mysql:latest",
-			ExposedPorts: []string{port},
-			Env:          env,
-		},
-		Started: true,
-	}
-	container, err := testcontainers.GenericContainer(ctx, req)
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
-	}
-
-	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
-	if err != nil {
-		t.Fatalf("failed to get container external port: %s", err)
-	}
-	return container, mappedPort.Int()
-}
-
-type setupContainerFn func(*testing.T, string, string, string) int
-
-type DB struct {
-	name   string
-	setup  func(*testing.T, context.Context, string, string, string) (testcontainers.Container, int)
-	driver string
-}
-
 // TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
 func TestJDBCIO_BasicReadWrite(t *testing.T) {
-	// integration.CheckFilters(t)
+	integration.CheckFilters(t)
 	// checkFlags(t)
 
 	ctx := context.Background()
 	dbname := "postjdbc"
-	username := "user"
+	username := "newuser"
 	password := "password"
-	db := map[string]DB{
-		"postgres": {
-			name: "postgresql",
-			setup: func(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
-				return setupTestContainer(t, ctx, dbname, username, password)
-			},
-			driver: "org.postgresql.Driver",
-		},
-		"mysql": {
-			name: "mysql",
-			setup: func(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
-				return setupMySqlContainer(t, ctx, dbname, username, password)
-			},
-			driver: "com.mysql.cj.jdbc.Driver",
-		},
-	}
 
-	name := "mysql"
-	cont, port := db[name].setup(t, ctx, dbname, username, password)
+	cont, port := setupTestContainer(t, ctx, dbname, username, password)
 	defer cont.Terminate(ctx)
 	tableName := "roles"
-	host := "127.0.0.1"
-	jdbcUrl := fmt.Sprintf("jdbc:%s://%s:%d/%s?user=%s&password=%s&maxReconnects=10&autoReconnect=true&useSSL=false&useUnicode=true&characterEncoding=UTF-8", db[name].name, host, port, dbname, username, password)
+	host := "localhost"
+	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
 
-	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
+	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, db[name].driver, jdbcUrl, username, password)
+	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 
 // TestJDBCIO_PostgresReadWrite tests basic read and write transform from JDBC with postgres.
 func TestJDBCIO_PostgresReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
-	checkFlags(t)
+	// checkFlags(t)
 
 	dbname := "postjdbc"
 	username := "newuser"
 	password := "password"
-	port := setupTestContainer(t, dbname, username, password)
+	ctx := context.Background()
+	cont, port := setupTestContainer(t, ctx, dbname, username, password)
+	defer cont.Terminate(ctx)
 	tableName := "roles"
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)

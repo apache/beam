@@ -20,6 +20,7 @@ package xlangx
 import (
 	"context"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
@@ -143,7 +144,7 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 }
 
 func startAutomatedJavaExpansionService(gradleTarget string, classpath []string) (stopFunc func() error, address string, err error) {
-	jarPath, err := expansionx.GetBeamJar(gradleTarget, "2.37.0")
+	jarPath, err := expansionx.GetBeamJar(gradleTarget, core.SdkVersion)
 	if err != nil {
 		return nil, "", err
 	}
