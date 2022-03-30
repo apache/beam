@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents the current position of the running SDF within PartitionRestriction. */
 public class PartitionPosition implements Serializable {
@@ -66,7 +67,7 @@ public class PartitionPosition implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

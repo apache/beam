@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +53,7 @@ public class PartitionRestrictionClaimer {
 
   public boolean tryClaim(
       PartitionRestriction restriction,
-      PartitionPosition lastClaimedPosition,
+      @Nullable PartitionPosition lastClaimedPosition,
       PartitionPosition position) {
     final PartitionMode fromMode =
         Optional.ofNullable(lastClaimedPosition)
@@ -62,7 +63,7 @@ public class PartitionRestrictionClaimer {
     final String token =
         Optional.ofNullable(restriction.getMetadata())
             .map(PartitionRestrictionMetadata::getPartitionToken)
-            .orElse(null);
+            .orElse("");
 
     if (fromMode == STOP) {
       LOG.debug(

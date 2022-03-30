@@ -26,8 +26,10 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Parti
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents the restriction for PartitionRestrictionTracker. */
+@SuppressWarnings("initialization.fields.uninitialized")
 public class PartitionRestriction implements Serializable {
 
   private static final long serialVersionUID = -7009236776208644264L;
@@ -35,7 +37,7 @@ public class PartitionRestriction implements Serializable {
   private final Timestamp startTimestamp;
   private final Timestamp endTimestamp;
   private final PartitionMode mode;
-  private final PartitionMode stoppedMode;
+  private final @Nullable PartitionMode stoppedMode;
   private PartitionRestrictionMetadata metadata;
 
   public static PartitionRestriction updateState(Timestamp startTimestamp, Timestamp endTimestamp) {
@@ -69,7 +71,7 @@ public class PartitionRestriction implements Serializable {
       Timestamp startTimestamp,
       Timestamp endTimestamp,
       PartitionMode mode,
-      PartitionMode stoppedMode) {
+      @Nullable PartitionMode stoppedMode) {
     this.startTimestamp = startTimestamp;
     this.endTimestamp = endTimestamp;
     this.mode = mode;
@@ -93,7 +95,7 @@ public class PartitionRestriction implements Serializable {
     return mode;
   }
 
-  public PartitionMode getStoppedMode() {
+  public @Nullable PartitionMode getStoppedMode() {
     return stoppedMode;
   }
 
@@ -102,7 +104,7 @@ public class PartitionRestriction implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

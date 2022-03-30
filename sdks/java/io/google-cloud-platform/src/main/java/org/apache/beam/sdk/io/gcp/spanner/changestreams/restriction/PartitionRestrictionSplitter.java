@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,9 +35,9 @@ public class PartitionRestrictionSplitter {
 
   private static final Logger LOG = LoggerFactory.getLogger(PartitionRestrictionSplitter.class);
 
-  public SplitResult<PartitionRestriction> trySplit(
+  public @Nullable SplitResult<PartitionRestriction> trySplit(
       double fractionOfRemainder,
-      PartitionPosition lastClaimedPosition,
+      @Nullable PartitionPosition lastClaimedPosition,
       PartitionRestriction restriction) {
     if (lastClaimedPosition == null) {
       return null;
@@ -45,7 +46,7 @@ public class PartitionRestrictionSplitter {
     final String token =
         Optional.ofNullable(restriction.getMetadata())
             .map(PartitionRestrictionMetadata::getPartitionToken)
-            .orElse(null);
+            .orElse("");
     final PartitionMode positionMode = lastClaimedPosition.getMode();
     final Timestamp startTimestamp = restriction.getStartTimestamp();
     final Timestamp endTimestamp = restriction.getEndTimestamp();

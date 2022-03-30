@@ -21,6 +21,7 @@ import com.google.cloud.Timestamp;
 import java.io.Serializable;
 
 /** The PartitionRestrictionMetadata class. */
+@SuppressWarnings("initialization.fields.uninitialized")
 public class PartitionRestrictionMetadata implements Serializable {
 
   private static final long serialVersionUID = 4744539370804123350L;

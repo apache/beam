@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PartitionRestrictionProgressChecker {
 
@@ -54,7 +55,7 @@ public class PartitionRestrictionProgressChecker {
   }
 
   public Progress getProgress(
-      PartitionRestriction restriction, PartitionPosition lastClaimedPosition) {
+      PartitionRestriction restriction, @Nullable PartitionPosition lastClaimedPosition) {
     final PartitionMode currentMode =
         Optional.ofNullable(lastClaimedPosition)
             .map(PartitionPosition::getMode)

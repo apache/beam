@@ -40,7 +40,7 @@ public class PartitionRestrictionTracker
   private final PartitionRestrictionClaimer claimer;
   private final PartitionRestrictionProgressChecker progressChecker;
   protected PartitionRestriction restriction;
-  private PartitionPosition lastClaimedPosition;
+  private @Nullable PartitionPosition lastClaimedPosition;
 
   public PartitionRestrictionTracker(PartitionRestriction restriction) {
     this(
@@ -66,7 +66,7 @@ public class PartitionRestrictionTracker
     final String token =
         Optional.ofNullable(restriction.getMetadata())
             .map(PartitionRestrictionMetadata::getPartitionToken)
-            .orElse(null);
+            .orElse("");
     final SplitResult<PartitionRestriction> splitResult =
         splitter.trySplit(fractionOfRemainder, lastClaimedPosition, restriction);
     LOG.debug(
@@ -79,7 +79,9 @@ public class PartitionRestrictionTracker
             + ": "
             + splitResult);
     if (splitResult != null) {
-      this.restriction = splitResult.getPrimary();
+      PartitionRestriction restrictionFromSplit =
+          Optional.ofNullable(splitResult.getPrimary()).orElse(this.restriction);
+      this.restriction = restrictionFromSplit;
     }
     return splitResult;
   }
@@ -122,10 +124,14 @@ public class PartitionRestrictionTracker
         "restriction is non-empty %s and no keys have been attempted.",
         restriction.toString());
 
-    final PartitionMode currentMode = lastClaimedPosition.getMode();
-
-    checkState(
-        currentMode == DONE, "Restriction %s does not have mode DONE", restriction.toString());
+    if (lastClaimedPosition != null) {
+      final PartitionMode currentMode = lastClaimedPosition.getMode();
+      checkState(
+          currentMode == DONE, "Restriction %s does not have mode DONE", restriction.toString());
+    } else {
+      throw new IllegalStateException(
+          "Last claimed position is null in restriction: " + restriction.toString());
+    }
   }
 
   @Override
@@ -139,6 +145,7 @@ public class PartitionRestrictionTracker
   }
 
   @VisibleForTesting
+  @Nullable
   PartitionPosition getLastClaimedPosition() {
     return lastClaimedPosition;
   }
