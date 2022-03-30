@@ -18,6 +18,10 @@
       {{ end }}
     </div>
     <h5 class="quote-text">{{ .text | markdownify }}</h5>
-    <img src="{{ .logoUrl }}" alt="Quote Logo" />
+    <div class="quote-img-container">
+      <div class="quote-img">
+        <img src="{{ .logoUrl }}" alt="Quote Logo" />
+      </div>
+    </div>
   </div>
 </div>

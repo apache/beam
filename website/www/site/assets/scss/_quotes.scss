@@ -17,6 +17,26 @@
 
 @import "media";
 
+.quote-img-container {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.quote-img {
+  //width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  img {
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
 .wrap-slide {
   padding: 20px;
   width: 100%;
@@ -56,8 +76,8 @@
     width: 100%;
     overflow: hidden;
     //max-width: 381px;
-    height: 474px;
-    margin: 86px 0 20px 0;
+    height: 524px;
+    margin: 76px 0 20px 0;
     padding: 55px 20px 24px 20px;
     border-radius: 16px;
     background-color: $color-white;
@@ -67,12 +87,13 @@
     .quote-text {
       @extend .component-quote;
 
-      margin: 108px 0 20px 0;
+      min-height: 200px;
+      height: 200px;
+      margin: 88px 0 20px 0;
     }
 
     img {
       display: block;
-      width: 100%;
       max-height: 118px;
       max-width: 320px;
     }
