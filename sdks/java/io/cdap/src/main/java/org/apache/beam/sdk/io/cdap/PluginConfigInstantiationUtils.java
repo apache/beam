@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class for getting any filled {@link PluginConfig} configuration object. */
-@SuppressWarnings({"assignment.type.incompatible", "UnstableApiUsage"})
+@SuppressWarnings({"assignment.type.incompatible", "UnstableApiUsage", "return.type.incompatible"})
 public class PluginConfigInstantiationUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginConfigInstantiationUtils.class);
