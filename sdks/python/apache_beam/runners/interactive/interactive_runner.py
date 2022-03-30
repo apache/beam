@@ -145,7 +145,10 @@ class InteractiveRunner(runners.PipelineRunner):
       master_url = self._get_dataproc_cluster_master_url_if_applicable(
           user_pipeline)
       if master_url:
-        options.view_as(FlinkRunnerOptions).flink_master = master_url
+        flink_options = options.view_as(FlinkRunnerOptions)
+        flink_options.flink_master = master_url
+        flink_options.flink_version = ie.current_env(
+        ).clusters.DATAPROC_FLINK_VERSION
     pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
