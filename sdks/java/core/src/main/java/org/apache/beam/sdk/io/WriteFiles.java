@@ -1023,6 +1023,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                       destination),
                   underlying);
           writers.put(destination, writer);
+          deferredWriters.add(writer);
         }
         writer.write(input);
       }
