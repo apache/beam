@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
  * Exposes methods to interop with JFR. This is only supported on java 9 and up, java 8 does not
  * include JFR and will throw an exception when instantiated.
  *
- * <p>Note, since beam needs to compile against java 8 still, we can't directly bind to JFR classes
+ * <p>Note, since Apache Beam needs to compile against Java 8, we can't directly bind to JFR classes.
  * at compile time. Instead, we need to use reflection to create/invoke JFR methods.
  */
 class JfrInterop {

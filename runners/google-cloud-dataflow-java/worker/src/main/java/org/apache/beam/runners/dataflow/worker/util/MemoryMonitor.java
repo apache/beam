@@ -646,7 +646,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
    */
   public CompletableFuture<InputStream> runJfrProfile(Duration duration) {
     if (jfrInterop == null) {
-      throw new IllegalStateException("unable to run JFR profile because JFR was not enabled");
+      throw new IllegalStateException("Unable to run JFR profile because JFR was not enabled. You must use Java 9+ to enable JFR.");
     }
     return jfrInterop.runProfile(duration);
   }

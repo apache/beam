@@ -32,7 +32,7 @@ import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /**
- * Respond to /jfrz with a page allowing downloading of the heap dumps.
+ * Respond to /jfrz with a page allowing downloading of the JFR profiles.
  *
  * <p><b>Not actually serializable</b>. Its superclass is serializable but this subclass is not.
  */
@@ -64,7 +64,7 @@ public class JfrzServlet extends BaseStatusServlet {
       resp.setContentType("text/html;charset=utf-8");
       resp.setStatus(HttpServletResponse.SC_OK);
 
-      writer.println("<html>\nFailed run JFR profile: <br>\n<pre>");
+      writer.println("<html>\nFailed to run JFR profile: <br>\n<pre>");
       writer.println(e.toString());
       PrintWriter pw =
           new PrintWriter(
