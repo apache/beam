@@ -1006,12 +1006,15 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         if isinstance(self._expr.proxy(), pd.Series):
           proxy_dtype = self._expr.proxy().dtypes
         else:
+          # Set dtype to object if more than one value
           dtypes = [d for d in self._expr.proxy().dtypes]
           proxy_dtype = object
           if np.int64 in dtypes:
             proxy_dtype = np.int64
-          elif np.float64 in dtypes:
+          if np.float64 in dtypes:
             proxy_dtype = np.float64
+          if object in dtypes:
+            proxy_dtype = object
 
         proxy = pd.DataFrame(
             columns=col_idx, dtype=proxy_dtype, index=tmp.index)
