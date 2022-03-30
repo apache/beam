@@ -177,7 +177,7 @@ tasks.register("directRunnerIT") {
   }
 }
 
-tasks.register("hdfsIntegrationTest ") {
+tasks.register("hdfsIntegrationTest") {
   doLast {
     exec {
       executable 'sh'

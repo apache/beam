@@ -112,6 +112,8 @@ message Type {
         COGBK = 13;
         WINDOWEDVALUE = 14;
 
+        BUNDLEFINALIZATION = 23;
+
         T = 15;
         U = 16;
         V = 17;

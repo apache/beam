@@ -43,7 +43,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -203,7 +202,9 @@ import org.slf4j.LoggerFactory;
 })
 public class ElasticsearchIO {
 
-  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(2, 5, 6, 7);
+  private static final List<Integer> VALID_CLUSTER_VERSIONS = Arrays.asList(5, 6, 7, 8);
+  private static final Set<Integer> DEPRECATED_CLUSTER_VERSIONS =
+      new HashSet<>(Arrays.asList(5, 6));
   private static final List<String> VERSION_TYPES =
       Arrays.asList("internal", "external", "external_gt", "external_gte");
   private static final String VERSION_CONFLICT_ERROR = "version_conflict_engine_exception";
@@ -329,7 +330,7 @@ public class ElasticsearchIO {
 
     public abstract String getIndex();
 
-    public abstract String getType();
+    public abstract @Nullable String getType();
 
     public abstract @Nullable Integer getSocketTimeout();
 
@@ -426,7 +427,7 @@ public class ElasticsearchIO {
     }
 
     /**
-     * Generates the bulk API endpoint based on the set values.
+     * Generates the API endpoint prefix based on the set values.
      *
      * <p>Based on ConnectionConfiguration constructors, we know that one of the following is true:
      *
@@ -436,7 +437,7 @@ public class ElasticsearchIO {
      *   <li>index and type are empty string
      * </ul>
      *
-     * <p>Valid endpoints therefore include:
+     * <p>Example valid endpoints therefore include:
      *
      * <ul>
      *   <li>/_bulk
@@ -444,7 +445,7 @@ public class ElasticsearchIO {
      *   <li>/index_name/type_name/_bulk
      * </ul>
      */
-    public String getBulkEndPoint() {
+    public String getApiPrefix() {
       StringBuilder sb = new StringBuilder();
       if (!Strings.isNullOrEmpty(getIndex())) {
         sb.append("/").append(getIndex());
@@ -452,8 +453,23 @@ public class ElasticsearchIO {
       if (!Strings.isNullOrEmpty(getType())) {
         sb.append("/").append(getType());
       }
-      sb.append("/").append("_bulk");
       return sb.toString();
+    }
+
+    public String getPrefixedEndpoint(String endpoint) {
+      return getApiPrefix() + "/" + endpoint;
+    }
+
+    public String getBulkEndPoint() {
+      return getPrefixedEndpoint("_bulk");
+    }
+
+    public String getSearchEndPoint() {
+      return getPrefixedEndpoint("_search");
+    }
+
+    public String getCountEndPoint() {
+      return getPrefixedEndpoint("_count");
     }
 
     /**
@@ -575,7 +591,7 @@ public class ElasticsearchIO {
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("address", getAddresses().toString()));
       builder.add(DisplayData.item("index", getIndex()));
-      builder.add(DisplayData.item("type", getType()));
+      builder.addIfNotNull(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
       builder.addIfNotNull(DisplayData.item("socketTimeout", getSocketTimeout()));
@@ -695,7 +711,7 @@ public class ElasticsearchIO {
      * Provide a query used while reading from Elasticsearch.
      *
      * @param query the query. See <a
-     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
+     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/7.17/query-dsl.html">Query
      *     DSL</a>
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
@@ -710,7 +726,7 @@ public class ElasticsearchIO {
      * Elasticsearch. This is useful for cases when the query must be dynamic.
      *
      * @param query the query. See <a
-     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
+     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/7.17/query-dsl.html">Query
      *     DSL</a>
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
@@ -730,7 +746,7 @@ public class ElasticsearchIO {
 
     /**
      * Provide a scroll keepalive. See <a
-     * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">scroll
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/7.17/search-request-scroll.html">scroll
      * API</a> Default is "5m". Change this only if you get "No search context found" errors.
      *
      * @param scrollKeepalive keepalive duration of the scroll
@@ -744,7 +760,7 @@ public class ElasticsearchIO {
 
     /**
      * Provide a size for the scroll read. See <a
-     * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/7.17/search-request-scroll.html">
      * scroll API</a> Default is 100. Maximum is 10 000. If documents are small, increasing batch
      * size might improve read performance. If documents are big, you might need to decrease
      * batchSize
@@ -766,7 +782,7 @@ public class ElasticsearchIO {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
       return input.apply(
-          org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null, null, null)));
+          org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null, null)));
     }
 
     @Override
@@ -787,8 +803,6 @@ public class ElasticsearchIO {
     private int backendVersion;
 
     private final Read spec;
-    // shardPreference is the shard id where the source will read the documents
-    private final @Nullable String shardPreference;
     private final @Nullable Integer numSlices;
     private final @Nullable Integer sliceId;
     private @Nullable Long estimatedByteSize;
@@ -796,27 +810,20 @@ public class ElasticsearchIO {
     // constructor used in split() when we know the backend version
     private BoundedElasticsearchSource(
         Read spec,
-        @Nullable String shardPreference,
         @Nullable Integer numSlices,
         @Nullable Integer sliceId,
         @Nullable Long estimatedByteSize,
         int backendVersion) {
       this.backendVersion = backendVersion;
       this.spec = spec;
-      this.shardPreference = shardPreference;
       this.numSlices = numSlices;
       this.estimatedByteSize = estimatedByteSize;
       this.sliceId = sliceId;
     }
 
     @VisibleForTesting
-    BoundedElasticsearchSource(
-        Read spec,
-        @Nullable String shardPreference,
-        @Nullable Integer numSlices,
-        @Nullable Integer sliceId) {
+    BoundedElasticsearchSource(Read spec, @Nullable Integer numSlices, @Nullable Integer sliceId) {
       this.spec = spec;
-      this.shardPreference = shardPreference;
       this.numSlices = numSlices;
       this.sliceId = sliceId;
     }
@@ -827,46 +834,23 @@ public class ElasticsearchIO {
       ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
       this.backendVersion = getBackendVersion(connectionConfiguration);
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
-      if (backendVersion == 2) {
-        // 1. We split per shard :
-        // unfortunately, Elasticsearch 2.x doesn't provide a way to do parallel reads on a single
-        // shard.So we do not use desiredBundleSize because we cannot split shards.
-        // With the slice API in ES 5.x+ we will be able to use desiredBundleSize.
-        // Basically we will just ask the slice API to return data
-        // in nbBundles = estimatedSize / desiredBundleSize chuncks.
-        // So each beam source will read around desiredBundleSize volume of data.
-
-        JsonNode statsJson = BoundedElasticsearchSource.getStats(connectionConfiguration, true);
-        JsonNode shardsJson =
-            statsJson.path("indices").path(connectionConfiguration.getIndex()).path("shards");
-
-        Iterator<Map.Entry<String, JsonNode>> shards = shardsJson.fields();
-        while (shards.hasNext()) {
-          Map.Entry<String, JsonNode> shardJson = shards.next();
-          String shardId = shardJson.getKey();
-          sources.add(
-              new BoundedElasticsearchSource(spec, shardId, null, null, null, backendVersion));
-        }
-        checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion >= 5) {
-        long indexSize = getEstimatedSizeBytes(options);
-        float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
-        int nbBundles = (int) Math.ceil(nbBundlesFloat);
-        // ES slice api imposes that the number of slices is <= 1024 even if it can be overloaded
-        if (nbBundles > 1024) {
-          nbBundles = 1024;
-        }
-        // split the index into nbBundles chunks of desiredBundleSizeBytes by creating
-        // nbBundles sources each reading a slice of the index
-        // (see https://goo.gl/MhtSWz)
-        // the slice API allows to split the ES shards
-        // to have bundles closer to desiredBundleSizeBytes
-        for (int i = 0; i < nbBundles; i++) {
-          long estimatedByteSizeForBundle = getEstimatedSizeBytes(options) / nbBundles;
-          sources.add(
-              new BoundedElasticsearchSource(
-                  spec, null, nbBundles, i, estimatedByteSizeForBundle, backendVersion));
-        }
+      long indexSize = getEstimatedSizeBytes(options);
+      float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
+      int nbBundles = (int) Math.ceil(nbBundlesFloat);
+      // ES slice api imposes that the number of slices is <= 1024 even if it can be overloaded
+      if (nbBundles > 1024) {
+        nbBundles = 1024;
+      }
+      // split the index into nbBundles chunks of desiredBundleSizeBytes by creating
+      // nbBundles sources each reading a slice of the index
+      // (see https://goo.gl/MhtSWz)
+      // the slice API allows to split the ES shards
+      // to have bundles closer to desiredBundleSizeBytes
+      for (int i = 0; i < nbBundles; i++) {
+        long estimatedByteSizeForBundle = getEstimatedSizeBytes(options) / nbBundles;
+        sources.add(
+            new BoundedElasticsearchSource(
+                spec, nbBundles, i, estimatedByteSizeForBundle, backendVersion));
       }
       return sources;
     }
@@ -896,10 +880,7 @@ public class ElasticsearchIO {
         return estimatedByteSize;
       }
 
-      String endPoint =
-          String.format(
-              "/%s/%s/_count",
-              connectionConfiguration.getIndex(), connectionConfiguration.getType());
+      String endPoint = connectionConfiguration.getCountEndPoint();
       try (RestClient restClient = connectionConfiguration.createClient()) {
         long count = queryCount(restClient, endPoint, query);
         LOG.debug("estimate source byte size: query document count {}", count);
@@ -927,7 +908,7 @@ public class ElasticsearchIO {
     static long estimateIndexSize(ConnectionConfiguration connectionConfiguration)
         throws IOException {
       // we use indices stats API to estimate size and list the shards
-      // (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/indices-stats.html)
+      // (https://www.elastic.co/guide/en/elasticsearch/reference/7.17/indices-stats.html)
       // as Elasticsearch 2.x doesn't not support any way to do parallel read inside a shard
       // the estimated size bytes is not really used in the split into bundles.
       // However, we implement this method anyway as the runners can use it.
@@ -944,7 +925,6 @@ public class ElasticsearchIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       spec.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("shard", shardPreference));
       builder.addIfNotNull(DisplayData.item("numSlices", numSlices));
       builder.addIfNotNull(DisplayData.item("sliceId", sliceId));
     }
@@ -1006,19 +986,9 @@ public class ElasticsearchIO {
             String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
         query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
       }
-      String endPoint =
-          String.format(
-              "/%s/%s/_search",
-              source.spec.getConnectionConfiguration().getIndex(),
-              source.spec.getConnectionConfiguration().getType());
+      String endPoint = source.spec.getConnectionConfiguration().getSearchEndPoint();
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
-      if (source.backendVersion == 2) {
-        params.put("size", String.valueOf(source.spec.getBatchSize()));
-        if (source.shardPreference != null) {
-          params.put("preference", "_shards:" + source.shardPreference);
-        }
-      }
       HttpEntity queryEntity = new NStringEntity(query, ContentType.APPLICATION_JSON);
       Request request = new Request("GET", endPoint);
       request.addParameters(params);
@@ -1463,6 +1433,7 @@ public class ElasticsearchIO {
           VALID_CLUSTER_VERSIONS.contains(backendVersion),
           "Backend version may only be one of " + "%s",
           String.join(", ", VERSION_TYPES));
+      maybeLogVersionDeprecationWarning(backendVersion);
       return builder().setBackendVersion(backendVersion).build();
     }
 
@@ -2047,8 +2018,8 @@ public class ElasticsearchIO {
 
     /**
      * Provide a maximum size in number of documents for the batch see bulk API
-     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 1000
-     * docs (like Elasticsearch bulk size advice). See
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/7.17/docs-bulk.html). Default is
+     * 1000 docs (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
      * need to have smaller ElasticSearch bulks.
@@ -2063,7 +2034,7 @@ public class ElasticsearchIO {
 
     /**
      * Provide a maximum size in bytes for the batch see bulk API
-     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 5MB
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/7.17/docs-bulk.html). Default is 5MB
      * (like Elasticsearch bulk size advice). See
      * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
      * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
@@ -2574,8 +2545,17 @@ public class ElasticsearchIO {
     }
   }
 
-  static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
-    try (RestClient restClient = connectionConfiguration.createClient()) {
+  private static void maybeLogVersionDeprecationWarning(int clusterVersion) {
+    if (DEPRECATED_CLUSTER_VERSIONS.contains(clusterVersion)) {
+      LOG.warn(
+          "Support for Elasticsearch cluster version {} will be dropped in a future release of "
+              + "the Apache Beam SDK",
+          clusterVersion);
+    }
+  }
+
+  static int getBackendVersion(RestClient restClient) {
+    try {
       Request request = new Request("GET", "");
       Response response = restClient.performRequest(request);
       JsonNode jsonNode = parseResponse(response.getEntity());
@@ -2585,10 +2565,20 @@ public class ElasticsearchIO {
           VALID_CLUSTER_VERSIONS.contains(backendVersion),
           "The Elasticsearch version to connect to is %s.x. "
               + "This version of the ElasticsearchIO is only compatible with "
-              + "Elasticsearch v7.x, v6.x, v5.x and v2.x",
+              + "Elasticsearch "
+              + VALID_CLUSTER_VERSIONS,
           backendVersion);
+      maybeLogVersionDeprecationWarning(backendVersion);
       return backendVersion;
 
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Cannot get Elasticsearch version", e);
+    }
+  }
+
+  static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
+    try (RestClient restClient = connectionConfiguration.createClient()) {
+      return getBackendVersion(restClient);
     } catch (IOException e) {
       throw new IllegalArgumentException("Cannot get Elasticsearch version", e);
     }

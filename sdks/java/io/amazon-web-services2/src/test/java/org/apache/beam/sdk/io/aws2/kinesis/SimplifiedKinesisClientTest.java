@@ -22,20 +22,22 @@ import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Supplier;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
@@ -80,8 +82,17 @@ public class SimplifiedKinesisClientTest {
 
   @Mock private KinesisClient kinesis;
   @Mock private CloudWatchClient cloudWatch;
-  @Mock private Supplier<Instant> currentInstantSupplier;
-  @InjectMocks private SimplifiedKinesisClient underTest;
+  private SimplifiedKinesisClient underTest;
+
+  @Before
+  public void init() {
+    underTest = new SimplifiedKinesisClient(() -> kinesis, () -> cloudWatch, null);
+  }
+
+  @After
+  public void afterEach() {
+    DateTimeUtils.setCurrentMillisSystem();
+  }
 
   @Test
   public void shouldReturnIteratorStartingWithSequenceNumber() throws Exception {
@@ -99,6 +110,9 @@ public class SimplifiedKinesisClientTest {
             STREAM, SHARD_1, ShardIteratorType.AT_SEQUENCE_NUMBER, SEQUENCE_NUMBER, null);
 
     assertThat(stream).isEqualTo(SHARD_ITERATOR);
+
+    underTest.close();
+    verify(kinesis).close(); // cloudWatch not initialized / used
   }
 
   @Test
@@ -118,6 +132,9 @@ public class SimplifiedKinesisClientTest {
             STREAM, SHARD_1, ShardIteratorType.AT_SEQUENCE_NUMBER, null, timestamp);
 
     assertThat(stream).isEqualTo(SHARD_ITERATOR);
+
+    underTest.close();
+    verify(kinesis).close(); // cloudWatch not initialized / used
   }
 
   @Test
@@ -197,6 +214,9 @@ public class SimplifiedKinesisClientTest {
             STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
+
+    underTest.close();
+    verify(kinesis).close(); // cloudWatch not initialized / used
   }
 
   @Test
@@ -248,8 +268,7 @@ public class SimplifiedKinesisClientTest {
         CURRENT_TIMESTAMP.minus(Duration.standardHours(retentionPeriodHours));
     Instant startingPointTimestamp =
         streamCreationTimestamp.plus(Duration.standardHours(hoursDifference));
-
-    when(currentInstantSupplier.get()).thenReturn(CURRENT_TIMESTAMP);
+    DateTimeUtils.setCurrentMillisFixed(CURRENT_TIMESTAMP.getMillis());
 
     when(kinesis.describeStreamSummary(
             DescribeStreamSummaryRequest.builder().streamName(STREAM).build()))
@@ -298,8 +317,7 @@ public class SimplifiedKinesisClientTest {
     Instant startingPointTimestamp =
         streamCreationTimestamp.plus(Duration.standardHours(hoursDifference));
 
-    when(currentInstantSupplier.get()).thenReturn(CURRENT_TIMESTAMP);
-
+    DateTimeUtils.setCurrentMillisFixed(CURRENT_TIMESTAMP.getMillis());
     when(kinesis.describeStreamSummary(
             DescribeStreamSummaryRequest.builder().streamName(STREAM).build()))
         .thenThrow(
@@ -349,8 +367,7 @@ public class SimplifiedKinesisClientTest {
         CURRENT_TIMESTAMP.minus(Duration.standardHours(hoursSinceStreamCreation));
     Instant startingPointTimestampAfterStreamRetentionTimestamp =
         CURRENT_TIMESTAMP.minus(Duration.standardHours(startingPointHours));
-
-    when(currentInstantSupplier.get()).thenReturn(CURRENT_TIMESTAMP);
+    DateTimeUtils.setCurrentMillisFixed(CURRENT_TIMESTAMP.getMillis());
 
     DescribeStreamSummaryRequest describeStreamRequest =
         DescribeStreamSummaryRequest.builder().streamName(STREAM).build();
@@ -531,6 +548,9 @@ public class SimplifiedKinesisClientTest {
     long backlogBytes = underTest.getBacklogBytes(STREAM, countSince, countTo);
 
     assertThat(backlogBytes).isEqualTo(1L);
+
+    underTest.close();
+    verify(cloudWatch).close(); // kinesis not initialized / used
   }
 
   @Test
@@ -563,7 +583,7 @@ public class SimplifiedKinesisClientTest {
     long backlogBytes = underTest.getBacklogBytes(STREAM, countSince, countTo);
 
     assertThat(backlogBytes).isEqualTo(0L);
-    verifyZeroInteractions(cloudWatch);
+    verifyNoInteractions(cloudWatch);
   }
 
   @Test
@@ -633,6 +653,9 @@ public class SimplifiedKinesisClientTest {
 
     GetKinesisRecordsResult result = underTest.getRecords(SHARD_ITERATOR, STREAM, SHARD_1, limit);
     assertThat(result.getRecords().size()).isEqualTo(limit);
+
+    underTest.close();
+    verify(kinesis).close(); // cloudWatch not initialized / used
   }
 
   private List<Record> generateRecords(int num) {
