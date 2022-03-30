@@ -20,8 +20,11 @@
 # pytype: skip-file
 
 import copy
+import itertools
 import pickle
 import unittest
+from parameterized import parameterized
+from parameterized import parameterized_class
 
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
@@ -70,6 +73,80 @@ class WindowedValueTest(unittest.TestCase):
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
     wv = windowed_value.WindowedValue(1, 3, (), pane_info)
     self.assertTrue(pickle.loads(pickle.dumps(wv)) == wv)
+
+
+WINDOWED_BATCH_INSTANCES = [
+    windowed_value.WindowedBatch(None, [3, 4, 5], [(), (), ()]),
+    windowed_value.WindowedBatch(
+        None, [6, 7, 8], [(), (), ()],
+        [
+            windowed_value.PaneInfo(
+                True, False, windowed_value.PaneInfoTiming.ON_TIME, 0, 0),
+            windowed_value.PaneInfo(
+                False, False, windowed_value.PaneInfoTiming.ON_TIME, 0, 0),
+            windowed_value.PaneInfo(
+                False, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+        ]),
+]
+
+
+class WindowedBatchTest(unittest.TestCase):
+  def test_timestamps(self):
+    wb = windowed_value.WindowedBatch(
+        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
+    self.assertEqual(
+        wb.timestamps,
+        [
+            Timestamp.of(3),
+            Timestamp.of(4),
+            Timestamp.of(5),
+            Timestamp.of(6),
+            Timestamp.of(-2.5)
+        ])
+    self.assertTrue(wb.timestamps is wb.timestamps)
+
+  def test_with_values(self):
+    pane_info = windowed_value.PaneInfo(
+        True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+    wb = windowed_value.WindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
+                                      pane_info)
+    self.assertEqual(
+        wb.with_values(['baz', 'foo']),
+        windowed_value.WindowedBatch(['baz', 'foo'], [3, 6], [(), ()],
+                                     pane_info))
+
+  @parameterized.expand(itertools.combinations(WINDOWED_BATCH_INSTANCES, 2))
+  def test_inequality(self, left_wb, right_wb):
+    self.assertNotEqual(left_wb, right_wb)
+
+  def test_equals_different_type(self):
+    wb = windowed_value.WindowedBatch(
+        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
+    self.assertNotEqual(wb, object())
+
+  def test_as_windowed_values(self):
+    pane_info = windowed_value.PaneInfo(
+        True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+    wb = windowed_value.WindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
+                                      pane_info)
+
+    self.assertEqual(
+        list(wb.as_windowed_values(explode_fn=iter)),
+        [
+            windowed_value.WindowedValue('foo', 3, (), pane_info),
+            windowed_value.WindowedValue('bar', 6, (), pane_info)
+        ])
+
+
+@parameterized_class(('wb', ), [(wb, ) for wb in WINDOWED_BATCH_INSTANCES])
+class WindowedBatchUtilitiesTest(unittest.TestCase):
+  def test_hash(self):
+    wb_copy = copy.copy(self.wb)
+    self.assertFalse(self.wb is wb_copy)
+    self.assertEqual({self.wb: 100}.get(wb_copy), 100)
+
+  def test_pickle(self):
+    self.assertTrue(pickle.loads(pickle.dumps(self.wb)) == self.wb)
 
 
 if __name__ == '__main__':
