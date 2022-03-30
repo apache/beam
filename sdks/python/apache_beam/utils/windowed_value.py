@@ -30,11 +30,16 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import itertools
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
+from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -146,10 +151,14 @@ class PaneInfo(object):
   def __eq__(self, other):
     if self is other:
       return True
-    return (
-        self.is_first == other.is_first and self.is_last == other.is_last and
-        self.timing == other.timing and self.index == other.index and
-        self.nonspeculative_index == other.nonspeculative_index)
+
+    if isinstance(other, PaneInfo):
+      return (
+          self.is_first == other.is_first and self.is_last == other.is_last and
+          self.timing == other.timing and self.index == other.index and
+          self.nonspeculative_index == other.nonspeculative_index)
+
+    return NotImplemented
 
   def __hash__(self):
     return hash((
@@ -203,13 +212,13 @@ class WindowedValue(object):
       the pane that contained this value.  If None, will be set to
       PANE_INFO_UNKNOWN.
   """
-
-  def __init__(self,
-               value,
-               timestamp,  # type: TimestampTypes
-               windows,  # type: Tuple[BoundedWindow, ...]
-               pane_info=PANE_INFO_UNKNOWN  # type: PaneInfo
-              ):
+  def __init__(
+      self,
+      value,
+      timestamp,  # type: TimestampTypes
+      windows,  # type: Tuple[BoundedWindow, ...]
+      pane_info=PANE_INFO_UNKNOWN  # type: PaneInfo
+  ):
     # type: (...) -> None
     # For performance reasons, only timestamp_micros is stored by default
     # (as a C int). The Timestamp object is created on demand below.
@@ -242,11 +251,13 @@ class WindowedValue(object):
         self.pane_info)
 
   def __eq__(self, other):
-    return (
-        type(self) == type(other) and
-        self.timestamp_micros == other.timestamp_micros and
-        self.value == other.value and self.windows == other.windows and
-        self.pane_info == other.pane_info)
+    if isinstance(other, WindowedValue):
+      return (
+          type(self) == type(other) and
+          self.timestamp_micros == other.timestamp_micros and
+          self.value == other.value and self.windows == other.windows and
+          self.pane_info == other.pane_info)
+    return NotImplemented
 
   def __hash__(self):
     return ((hash(self.value) & 0xFFFFFFFFFFFFFFF) + 3 *
@@ -270,6 +281,8 @@ class WindowedValue(object):
 
 
 # TODO(robertwb): Move this to a static method.
+
+
 def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
   wv = WindowedValue.__new__(WindowedValue)
   wv.value = value
@@ -277,6 +290,121 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
   wv.windows = windows
   wv.pane_info = pane_info
   return wv
+
+
+class WindowedBatch(object):
+  """A batch of N windowed values, each having a value, a timestamp and set of
+  windows.
+
+  Attributes:
+    values: The underlying values of the windowed batch.
+    timestamp: An iterable of timestamps associated with the value as seconds
+      since Unix epoch.
+    windows: An iterable with a set (iterable) of window objects for each value.
+      The window objects are descendants of the BoundedWindow class.
+    pane_info: An iterable of PaneInfo descriptors describing the triggering
+      information for the pane that contained each value. Alternatively, a
+      single PaneInfo may be specified to use for every value. If None, will be
+      set to PANE_INFO_UNKNOWN.
+  """
+  def __init__(
+      self,
+      values,
+      timestamps,  # type: Sequence[TimestampTypes]
+      windows,  # type: Iterable[Tuple[BoundedWindow, ...]]
+      pane_infos=PANE_INFO_UNKNOWN  # type: Union[Iterable[PaneInfo],PaneInfo]
+  ):
+    self.values = values
+
+    def convert_timestamp(timestamp: TimestampTypes) -> int:
+      if isinstance(timestamp, int):
+        return timestamp * 1000000
+      else:
+        # TODO: Cache Timestamp object as in WindowedValue?
+        timestamp_object = (
+            timestamp
+            if isinstance(timestamp, Timestamp) else Timestamp.of(timestamp))
+        return timestamp_object.micros
+
+    self.timestamp_objects: Optional[List[Timestamp]] = None
+    self.timestamps_micros = [convert_timestamp(t) for t in timestamps]
+    self.windows = windows
+    #TODO: Should we store length?
+    #self.length = length
+    self.pane_infos = pane_infos
+
+  @property
+  def timestamps(self) -> Sequence[Timestamp]:
+    if self.timestamp_objects is None:
+      self.timestamp_objects = [
+          Timestamp(0, micros) for micros in self.timestamps_micros
+      ]
+
+    return self.timestamp_objects
+
+  def with_values(self, new_values):
+    # type: (Any) -> WindowedBatch
+
+    """Creates a new WindowedBatch with the same timestamps and windows as this.
+
+    This is the fasted way to create a new WindowedValue.
+    """
+    return create_batch(
+        new_values, self.timestamps_micros, self.windows, self.pane_infos)
+
+  def as_windowed_values(self, explode_fn: Callable) -> Iterable[WindowedValue]:
+    for value, timestamp, windows, pane_info in zip(explode_fn(self.values),
+                                                    self.timestamps_micros,
+                                                    self.windows,
+                                                    self._pane_infos_iter()):
+      yield create(value, timestamp, windows, pane_info)
+
+  @staticmethod
+  def from_windowed_values(
+      windowed_values: Sequence[WindowedValue], *,
+      produce_fn: Callable) -> 'WindowedBatch':
+    # TODO: Combine equivalent pane/windows?
+    return WindowedBatch(
+        produce_fn([wv.value for wv in windowed_values]),
+        [wv.timestamp
+         for wv in windowed_values], [wv.windows for wv in windowed_values],
+        [wv.pane_info for wv in windowed_values])
+
+  def _pane_infos_iter(self):
+    if isinstance(self.pane_infos, PaneInfo):
+      return itertools.repeat(self.pane_infos, len(self.timestamps_micros))
+    else:
+      return self.pane_infos
+
+  def __eq__(self, other):
+    if isinstance(other, WindowedBatch):
+      return (
+          type(self) == type(other) and
+          self.timestamps_micros == other.timestamps_micros and
+          self.values == other.values and self.windows == other.windows and
+          self.pane_infos == other.pane_infos)
+    return NotImplemented
+
+  def __hash__(self):
+    if isinstance(self.pane_infos, PaneInfo):
+      pane_infos_hash = hash(self.pane_infos)
+    else:
+      pane_infos_hash = sum(hash(p) for p in self.pane_infos)
+
+    return ((hash(self.values) & 0xFFFFFFFFFFFFFFF) + 3 *
+            (sum(self.timestamps_micros) & 0xFFFFFFFFFFFFFF) + 7 *
+            (sum(hash(w) for w in self.windows) & 0xFFFFFFFFFFFFF) + 11 *
+            (pane_infos_hash & 0xFFFFFFFFFFFFF))
+
+
+def create_batch(
+    values, timestamps_micros, windows, pane_infos=PANE_INFO_UNKNOWN):
+  wb = WindowedBatch.__new__(WindowedBatch)
+  wb.values = values
+  wb.timestamps_micros = timestamps_micros
+  wb.windows = windows
+  wb.pane_infos = pane_infos
+  return wb
 
 
 try:
