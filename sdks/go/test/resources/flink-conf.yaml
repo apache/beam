@@ -18,3 +18,4 @@
 
 taskmanager.memory.network.fraction: 0.2
 taskmanager.memory.network.max: 2gb
+taskmanager.memory.network.min: 1gb
