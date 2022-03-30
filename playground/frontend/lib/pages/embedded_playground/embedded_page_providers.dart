@@ -103,10 +103,11 @@ class EmbeddedPageProviders extends StatelessWidget {
       newPlayground.setExample(example);
     } else {
       exampleState
-          .loadExampleInfo(
-            example,
-            playground.sdk,
-          )
+          .getExample(example.path, playground.sdk)
+          .then((example) => exampleState.loadExampleInfo(
+                example,
+                playground.sdk,
+              ))
           .then((exampleWithInfo) => newPlayground.setExample(exampleWithInfo));
     }
   }

@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -79,7 +80,7 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
     this.prefix = prefix;
     this.suffix =
         StateFetchingIterators.readAllAndDecodeStartingFrom(
-            cache, beamFnStateClient, request, elemCoder);
+            Caches.subCache(cache, stateKey), beamFnStateClient, request, elemCoder);
   }
 
   @Override
