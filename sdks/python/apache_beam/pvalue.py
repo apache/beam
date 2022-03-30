@@ -84,6 +84,7 @@ class PValue(object):
                pipeline,  # type: Pipeline
                tag=None,  # type: Optional[str]
                element_type=None,  # type: Optional[Union[type,typehints.TypeConstraint]]
+               batch_type=None,  # type: Optional[Union[type,typehints.TypeConstraint]]
                windowing=None,  # type: Optional[Windowing]
                is_bounded=True,
               ):
@@ -97,6 +98,7 @@ class PValue(object):
     self.pipeline = pipeline
     self.tag = tag
     self.element_type = element_type
+    self.batch_type = batch_type
     # The AppliedPTransform instance for the application of the PTransform
     # generating this PValue. The field gets initialized when a transform
     # gets applied.

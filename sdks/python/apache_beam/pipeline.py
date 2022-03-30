@@ -772,6 +772,8 @@ class Pipeline(object):
       input_element_type = (
           input_element_types_tuple[0] if len(input_element_types_tuple) == 1
           else typehints.Union[input_element_types_tuple])
+
+      # All defined batch_types should be equivalent
       type_hints = transform.get_type_hints()
       declared_output_type = type_hints.simple_output_type(transform.label)
       if declared_output_type:

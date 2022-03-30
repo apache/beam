@@ -56,6 +56,7 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
@@ -623,6 +624,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     raise NotImplementedError
 
+  def process_batch(self, batch, *args, **kwargs):
+    raise NotImplementedError
+
   def setup(self):
     """Called to prepare an instance for processing bundles of elements.
 
@@ -684,6 +688,40 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return trivial_inference.element_type(
         self._strip_output_annotations(
             trivial_inference.infer_return_type(self.process, [input_type])))
+
+  def infer_process_batch_output_type(self, input_type, input_type_converter):
+    return self._strip_output_annotations(
+        trivial_inference.infer_return_type(
+            self.process_batch, [input_type_converter.batch_type]))
+
+  @property
+  def process_defined(self) -> bool:
+    return (
+        self.process.__func__
+        if hasattr(self.process, '__self__') else self.process) != DoFn.process
+
+  @property
+  def process_batch_defined(self) -> bool:
+    return (
+        self.process_batch.__func__ if hasattr(self.process_batch, '__self__')
+        else self.process_batch) != DoFn.process_batch
+
+  def get_input_batch_type(self) -> typing.Optional[type]:
+    input_type = list(
+        inspect.signature(self.process_batch).parameters.values())[0].annotation
+    if input_type == inspect._empty:
+      return None
+    return input_type
+
+  def get_output_batch_type(self):
+    output_type = inspect.signature(self.process_batch).return_annotation
+    if output_type != inspect._empty:
+      return output_type
+
+    # output type not annotated, try to infer it
+    return self._strip_output_annotations(
+        trivial_inference.infer_return_type(
+            self.process_batch, [self.get_output_batch_type()]))
 
   def _strip_output_annotations(self, type_hint):
     annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
@@ -1302,6 +1340,39 @@ class ParDo(PTransformWithSideInputs):
   def infer_output_type(self, input_type):
     return self.fn.infer_output_type(input_type)
 
+  def infer_input_batch_converter(self, input_element_type, input_batch_type):
+    # TODO: confirm output batch_type is compatible with input batch type
+    if self.fn.process_batch_defined:
+      batch_type = self.fn.get_input_batch_type()
+
+      if batch_type is None:
+        raise TypeError("process_batch method must have a type annoation")
+
+      if input_batch_type is not None:
+        # TODO: We could resolve a way to convert between these batch types
+        # instead
+        assert input_batch_type == batch_type
+
+      # Generate a batch converter to convert between the input type and the
+      # (batch) input type of process_batch
+      self.fn.input_batch_converter = BatchConverter.from_typehints(
+          element_type=input_element_type, batch_type=batch_type)
+
+    elif self.fn.process_defined:
+      if input_batch_type is not None:
+        # Input might give us a batch, resolve a way to convert the batch type
+        # to the element type.
+        self.fn.input_batch_converter = BatchConverter.from_typehints(
+            element_type=input_element_type, batch_type=input_batch_type)
+
+  def infer_output_batch_type(self):
+    # TODO: Handle process() with @yields_batch
+    if not self.fn.process_batch_defined:
+      return
+
+    batch_type = self.fn.get_output_batch_type()
+    return batch_type
+
   def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
       return fn
@@ -1339,7 +1410,14 @@ class ParDo(PTransformWithSideInputs):
             key_coder,
             self)
 
-    return pvalue.PCollection.from_(pcoll)
+    result = pvalue.PCollection.from_(pcoll)
+
+    if self.dofn.process_batch_defined or pcoll.batch_type is not None:
+      input_batch_type = pcoll.batch_type
+      self.infer_input_batch_converter(pcoll.element_type, input_batch_type)
+      result.batch_type = self.infer_output_batch_type()
+
+    return result
 
   def with_outputs(self, *tags, main=None, allow_unknown_tags=None):
     """Returns a tagged tuple allowing access to the outputs of a
