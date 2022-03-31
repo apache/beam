@@ -976,7 +976,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
             failure.addSuppressed(e);
           }
         }
-        if (failure == null) return;
+        if (failure == null) {
+          return;
+        }
         // If anything goes wrong, try to delete the temporary file.
         try {
           writer.cleanup();
