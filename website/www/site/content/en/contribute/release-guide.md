@@ -344,11 +344,15 @@ There are 2 ways to perform this verification, either running automation script(
      ```
      cd beam/release/src/main/scripts && ./verify_release_build.sh
      ```
-  1. Trigger `beam_Release_Gradle_Build` and all PostCommit Jenkins jobs from PR (which is created by previous step).
+  1. Trigger `beam_Release_Gradle_Build` and all Jenkins PostCommit jobs from the PR created by the previous step.
      You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
      Or manually add one trigger phrase per PR comment.
      See `COMMENTS_TO_ADD` in [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
-     for full list of phrases.
+     for full list of phrases. Please note that this list of phrases can get
+     out of date, it's your responsibility to run _all_ PostCommits, not just
+     the ones listed there.
+     [BEAM-13951](https://issues.apache.org/jira/browse/BEAM-13951) has
+     directions for updating this list using the Jenkins API.
 
 * **Tasks included in the script**
   1. Installs ```hub``` with your agreement and setup local git repo;
