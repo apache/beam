@@ -38,7 +38,6 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ExternalPythonTransformTest implements Serializable {
-  @Ignore("BEAM-14148")
   @Test
   public void trivialPythonTransform() {
     Pipeline p = Pipeline.create();
