@@ -943,14 +943,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       private void runWorker() throws Exception {
         monitor.enter();
         try {
-          while (!closed) {
+          do {
             monitor.waitForUninterruptibly(newElementsOrClosed);
             // No new elements will ever be added after close() is called, but we should process
-            // the remaining elements in the queue.
+            // the remaining elements in the queue. Use a do-while loop to run at least once.
             for (UserT element = elements.poll(); element != null; element = elements.poll()) {
               writer.write(getDynamicDestinations().formatRecord(element));
             }
-          }
+          } while (!closed);
         } finally {
           monitor.leave();
         }
