@@ -27,14 +27,12 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ExternalPythonTransformTest implements Serializable {
-  @Ignore("BEAM-14148")
   @Test
   public void trivialPythonTransform() {
     Pipeline p = Pipeline.create();
