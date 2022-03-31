@@ -1,0 +1,34 @@
+IMAGE_NAME = beam_java11_sdk
+TAG = $(IMAGE_NAME):2.35.0.dev3
+LOCAL_IMAGE_TAG = apache_beam/$(TAG)
+REPO_IMAGE_TAG_PARTIAL = 963188529772.dkr.ecr.us-west-2.amazonaws.com/apache_beam/$(TAG)
+TMP_BUILD_DIR = tmpbuild
+
+FLINK_RUNNER_JAR = beam-runners-flink-1.13-job-server-2.35.0-SNAPSHOT.jar
+SCHEMA_IO_JAR = beam-sdks-java-extensions-schemaio-expansion-service-2.35.0-SNAPSHOT.jar
+PRIMER_DOCKERFILE = Dockerfile.primer
+CONTAINER_BOOT_PROGRAM = sdks/java/container/boot.go
+
+.DEFAULT_GOAL = java-sdk-harness-image
+
+# We include a couple of additional jars in Beam's Java SDK harness container image
+# Flink Runner (for Kafka I/O) and SchemaIO (for JDBC)
+# We build containers but dev is responsible to verify and push it up
+java-sdk-harness-image:
+	grep -q $(FLINK_RUNNER_JAR) $(PRIMER_DOCKERFILE) || exit 1
+	grep -q $(FLINK_RUNNER_JAR) $(CONTAINER_BOOT_PROGRAM) || exit 1
+	grep -q $(SCHEMA_IO_JAR) $(PRIMER_DOCKERFILE) || exit 1
+	grep -q $(SCHEMA_IO_JAR) $(CONTAINER_BOOT_PROGRAM) || exit 1
+	mkdir -p $(TMP_BUILD_DIR)
+	cp $(PRIMER_DOCKERFILE) $(TMP_BUILD_DIR)
+	./gradlew :sdks:java:extensions:schemaio-expansion-service:shadowJar
+	cp ./sdks/java/extensions/schemaio-expansion-service/build/libs/$(SCHEMA_IO_JAR) $(TMP_BUILD_DIR)
+	./gradlew -p runners/flink/1.13/job-server shadowJar
+	cp ./runners/flink/1.13/job-server/build/libs/$(FLINK_RUNNER_JAR) $(TMP_BUILD_DIR)
+	./gradlew -p sdks/java/container/java11 docker
+	docker build -f $(PRIMER_DOCKERFILE) -t $(LOCAL_IMAGE_TAG) $(TMP_BUILD_DIR)
+	export COMMIT=`git rev-parse --short HEAD` && \
+	docker tag $(LOCAL_IMAGE_TAG) $(REPO_IMAGE_TAG_PARTIAL)-$$COMMIT && \
+	echo "Now you can run docker push $(REPO_IMAGE_TAG_PARTIAL)-$$COMMIT"
+	rm -rf $(TMP_BUILD_DIR)
+

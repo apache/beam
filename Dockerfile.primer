@@ -1,0 +1,6 @@
+# Dockerfile for Primer's customizations on Beam Java SDK container
+
+FROM apache/beam_java11_sdk:2.35.0.dev2
+COPY beam-runners-flink-1.13-job-server-2.35.0-SNAPSHOT.jar /opt/apache/beam/jars
+COPY beam-sdks-java-extensions-schemaio-expansion-service-2.35.0-SNAPSHOT.jar /opt/apache/beam/jars
+
