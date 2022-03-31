@@ -87,8 +87,6 @@ public class PartitionRestrictionTrackerTest {
       @From(PartitionPositionGenerator.class) PartitionPosition position) {
     assumeThat(from, lessThan(to));
     assumeThat(position.getMode(), equalTo(UPDATE_STATE));
-    assumeThat(position.getTimestamp().get(), greaterThanOrEqualTo(from));
-    assumeThat(position.getTimestamp().get(), lessThan(to));
 
     final PartitionRestriction restriction =
         PartitionRestriction.updateState(from, to)
@@ -303,11 +301,12 @@ public class PartitionRestrictionTrackerTest {
   public void testTryClaimPositionLessThanPreviousPosition(
       @From(TimestampGenerator.class) Timestamp from,
       @From(TimestampGenerator.class) Timestamp to,
-      @From(TimestampGenerator.class) Timestamp curTimestamp,
-      @From(TimestampGenerator.class) Timestamp nextTimestamp) {
+      @From(TimestampGenerator.class) Timestamp prevTimestamp,
+      @From(TimestampGenerator.class) Timestamp curTimestamp) {
     assumeThat(from, lessThan(to));
+    assumeThat(prevTimestamp, greaterThanOrEqualTo(from));
+    assumeThat(prevTimestamp, lessThan(curTimestamp));
     assumeThat(curTimestamp, greaterThanOrEqualTo(from));
-    assumeThat(nextTimestamp, lessThan(curTimestamp));
     assumeThat(curTimestamp, lessThan(to));
 
     final PartitionRestriction restriction =
@@ -319,13 +318,13 @@ public class PartitionRestrictionTrackerTest {
     final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
     final PartitionPosition position =
         new PartitionPosition(Optional.of(curTimestamp), QUERY_CHANGE_STREAM);
-    final PartitionPosition nextPosition =
-        new PartitionPosition(Optional.of(nextTimestamp), QUERY_CHANGE_STREAM);
+    final PartitionPosition prevPosition =
+        new PartitionPosition(Optional.of(prevTimestamp), QUERY_CHANGE_STREAM);
 
     assertTrue(tracker.tryClaim(position));
     assertEquals(position, tracker.getLastClaimedPosition());
 
-    assertThrows(IllegalArgumentException.class, () -> tracker.tryClaim(nextPosition));
+    assertThrows(IllegalArgumentException.class, () -> tracker.tryClaim(prevPosition));
   }
 
   @Property
@@ -346,8 +345,6 @@ public class PartitionRestrictionTrackerTest {
 
     assertTrue(tracker.tryClaim(position));
     assertEquals(position, tracker.getLastClaimedPosition());
-
-    assertThrows(IllegalArgumentException.class, () -> tracker.tryClaim(position));
   }
 
   // Test that tryClaim succeeds if it transitions to WAIT_FOR_CHILD_PARTITIONS.
