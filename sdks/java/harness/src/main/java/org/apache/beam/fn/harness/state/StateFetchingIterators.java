@@ -35,7 +35,6 @@ import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable.Blocks;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
@@ -71,7 +70,8 @@ public class StateFetchingIterators {
    * mutations will have been persisted to the runner such that future reads will reflect those
    * changes.
    *
-   * @param cache A cache instance used to store pages of elements and any pending requests.
+   * @param cache A cache instance used to store pages of elements and any pending requests. The
+   *     cache should be namespaced for this object to prevent collisions.
    * @param beamFnStateClient A client for handling state requests.
    * @param stateRequestForFirstChunk A fully populated state request for the first (and possibly
    *     only) chunk of a state stream. This state request will be populated with a continuation
@@ -84,11 +84,26 @@ public class StateFetchingIterators {
       StateRequest stateRequestForFirstChunk,
       Coder<T> valueCoder) {
     return new CachingStateIterable<>(
-        (Cache<StateKey, Blocks<T>>) cache,
+        (Cache<IterableCacheKey, Blocks<T>>) cache,
         beamFnStateClient,
         stateRequestForFirstChunk,
         valueCoder);
   }
+
+  @VisibleForTesting
+  static class IterableCacheKey implements Weighted {
+    private IterableCacheKey() {}
+
+    static final IterableCacheKey INSTANCE = new IterableCacheKey();
+
+    @Override
+    public long getWeight() {
+      // Ignore the actual size of this singleton because it is trivial and because
+      // the weight reported here will be counted many times as it is present in
+      // many different state subcaches.
+      return 0;
+    }
+  };
 
   /** A mutable iterable that supports prefetch and is backed by a cache. */
   static class CachingStateIterable<T> extends PrefetchableIterables.Default<T> {
@@ -188,13 +203,13 @@ public class StateFetchingIterators {
       public abstract long getWeight();
     }
 
-    private final Cache<StateKey, Blocks<T>> cache;
+    private final Cache<IterableCacheKey, Blocks<T>> cache;
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
     private final Coder<T> valueCoder;
 
     public CachingStateIterable(
-        Cache<StateKey, Blocks<T>> cache,
+        Cache<IterableCacheKey, Blocks<T>> cache,
         BeamFnStateClient beamFnStateClient,
         StateRequest stateRequestForFirstChunk,
         Coder<T> valueCoder) {
@@ -217,14 +232,14 @@ public class StateFetchingIterators {
       if (toRemoveStructuralValues.isEmpty()) {
         return;
       }
-      Blocks<T> existing = cache.peek(stateRequestForFirstChunk.getStateKey());
+      Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
       if (existing == null) {
         return;
       }
       // Check to see if we have cached the whole iterable, if not then we must remove it to prevent
       // returning invalid results as part of a future request.
       if (existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken() != null) {
-        cache.remove(stateRequestForFirstChunk.getStateKey());
+        cache.remove(IterableCacheKey.INSTANCE);
       }
 
       // Combine all the individual blocks into one block containing all the values since
@@ -257,12 +272,12 @@ public class StateFetchingIterators {
       }
 
       cache.put(
-          stateRequestForFirstChunk.getStateKey(),
+          IterableCacheKey.INSTANCE,
           new MutatedBlocks<>(Block.mutatedBlock(allValues, totalWeight)));
     }
 
     /**
-     * Clears the cached iterable and appends the set of values.
+     * Clears the cached iterable and appends the set of values, taking ownership of the list.
      *
      * <p>Mutations over the Beam Fn State API must have been performed before any future lookups.
      *
@@ -271,8 +286,8 @@ public class StateFetchingIterators {
      */
     public void clearAndAppend(List<T> values) {
       cache.put(
-          stateRequestForFirstChunk.getStateKey(),
-          new MutatedBlocks<>(Block.mutatedBlock(new ArrayList<>(values), Caches.weigh(values))));
+          IterableCacheKey.INSTANCE,
+          new MutatedBlocks<>(Block.mutatedBlock(values, Caches.weigh(values))));
     }
 
     @Override
@@ -292,14 +307,14 @@ public class StateFetchingIterators {
       if (values.isEmpty()) {
         return;
       }
-      Blocks<T> existing = cache.peek(stateRequestForFirstChunk.getStateKey());
+      Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
       if (existing == null) {
         return;
       }
       // Check to see if we have cached the whole iterable, if not then we must remove it to prevent
       // returning invalid results as part of a future request.
       if (existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken() != null) {
-        cache.remove(stateRequestForFirstChunk.getStateKey());
+        cache.remove(IterableCacheKey.INSTANCE);
       }
 
       // Combine all the individual blocks into one block containing all the values since
@@ -318,7 +333,7 @@ public class StateFetchingIterators {
       allValues.addAll(values);
 
       cache.put(
-          stateRequestForFirstChunk.getStateKey(),
+          IterableCacheKey.INSTANCE,
           new MutatedBlocks<>(Block.mutatedBlock(allValues, totalWeight)));
     }
 
@@ -349,7 +364,7 @@ public class StateFetchingIterators {
           if (currentBlock.getNextToken() == null) {
             return true;
           }
-          Blocks<T> existing = cache.peek(stateRequestForFirstChunk.getStateKey());
+          Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
           boolean isFirstBlock = ByteString.EMPTY.equals(currentBlock.getNextToken());
           if (existing == null) {
             // If there is nothing cached and we are on the first block then we are not ready.
@@ -398,13 +413,13 @@ public class StateFetchingIterators {
           if (currentBlock.getNextToken() == null) {
             return false;
           }
-          Blocks<T> existing = cache.peek(stateRequestForFirstChunk.getStateKey());
+          Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
           boolean isFirstBlock = ByteString.EMPTY.equals(currentBlock.getNextToken());
           if (existing == null) {
             currentBlock = loadNextBlock(currentBlock.getNextToken());
             if (isFirstBlock) {
               cache.put(
-                  stateRequestForFirstChunk.getStateKey(),
+                  IterableCacheKey.INSTANCE,
                   new BlocksPrefix<>(Collections.singletonList(currentBlock)));
             }
           } else {
@@ -437,7 +452,7 @@ public class StateFetchingIterators {
                   List<Block<T>> newBlocks = new ArrayList<>(currentBlockIndex + 1);
                   newBlocks.addAll(blocks);
                   newBlocks.add(currentBlock);
-                  cache.put(stateRequestForFirstChunk.getStateKey(), new BlocksPrefix<>(newBlocks));
+                  cache.put(IterableCacheKey.INSTANCE, new BlocksPrefix<>(newBlocks));
                 }
               }
             }

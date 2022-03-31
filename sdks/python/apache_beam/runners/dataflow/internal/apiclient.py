@@ -302,7 +302,7 @@ class Environment(object):
         container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
         container_image.useSingleCorePerContainer = (
-            common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING in
+            common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING not in
             environment.capabilities)
         container_image.environmentId = id
         for capability in environment.capabilities:

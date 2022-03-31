@@ -24,7 +24,7 @@ import 'package:playground/modules/editor/repository/code_repository/code_client
 import 'package:playground/modules/examples/models/category_model.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
-import 'package:playground/modules/examples/repositories/models/get_default_example_response.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_code_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
@@ -56,26 +56,40 @@ class GrpcExampleClient implements ExampleClient {
   }
 
   @override
-  Future<GetDefaultExampleResponse> getDefaultExample(
+  Future<GetExampleResponse> getDefaultExample(
     GetExampleRequestWrapper request,
   ) {
     return _runSafely(
       () => _defaultClient
           .getDefaultPrecompiledObject(
               _getDefaultExampleRequestToGrpcRequest(request))
-          .then((response) => GetDefaultExampleResponse(
-              _toExampleModel(response.precompiledObject))),
+          .then((response) =>
+              GetExampleResponse(_toExampleModel(response.precompiledObject))),
     );
   }
 
   @override
-  Future<GetExampleResponse> getExample(GetExampleRequestWrapper request) {
+  Future<GetExampleResponse> getExample(
+    GetExampleRequestWrapper request,
+  ) {
+    return _runSafely(
+      () => _defaultClient
+          .getPrecompiledObject(
+              grpc.GetPrecompiledObjectRequest()..cloudPath = request.path)
+          .then((response) =>
+              GetExampleResponse(_toExampleModel(response.precompiledObject))),
+    );
+  }
+
+  @override
+  Future<GetExampleCodeResponse> getExampleSource(
+      GetExampleRequestWrapper request) {
     return _runSafely(
       () => _defaultClient
           .getPrecompiledObjectCode(
               _getExampleCodeRequestToGrpcRequest(request))
           .then((response) =>
-              GetExampleResponse(replaceIncorrectSymbols(response.code))),
+              GetExampleCodeResponse(replaceIncorrectSymbols(response.code))),
     );
   }
 

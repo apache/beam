@@ -86,7 +86,7 @@ public class TypedSchemaTransformProviderTest {
     public Optional<List<String>> dependencies(
         Configuration configuration, PipelineOptions options) {
       return Optional.of(
-          Arrays.asList(configuration.getField1(), configuration.getField2().toString()));
+          Arrays.asList(configuration.getField1(), String.valueOf(configuration.getField2())));
     }
   }
 
@@ -108,7 +108,10 @@ public class TypedSchemaTransformProviderTest {
   public void testFrom() {
     SchemaTransformProvider provider = new FakeTypedSchemaIOProvider();
     Row inputConfig =
-        Row.withSchema(provider.configurationSchema()).addValues("field1", 13).build();
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue("field1", "field1")
+            .withFieldValue("field2", Integer.valueOf(13))
+            .build();
 
     Configuration outputConfig = ((FakeSchemaTransform) provider.from(inputConfig)).config;
     assertEquals("field1", outputConfig.getField1());
@@ -119,7 +122,10 @@ public class TypedSchemaTransformProviderTest {
   public void testDependencies() {
     SchemaTransformProvider provider = new FakeTypedSchemaIOProvider();
     Row inputConfig =
-        Row.withSchema(provider.configurationSchema()).addValues("field1", 13).build();
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue("field1", "field1")
+            .withFieldValue("field2", Integer.valueOf(13))
+            .build();
 
     assertEquals(Arrays.asList("field1", "13"), provider.dependencies(inputConfig, null).get());
   }

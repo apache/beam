@@ -202,6 +202,10 @@ type EventTime = typex.EventTime
 // be a part of multiple windows, based on the element's event time.
 type Window = typex.Window
 
+// BundleFinalization represents the parameter used to register callbacks to
+// be run once the runner has durably persisted output for a bundle.
+type BundleFinalization = typex.BundleFinalization
+
 // These are the reflect.Type instances of the universal types, which are used
 // when binding actual types to "generic" DoFns that use Universal Types.
 var (
@@ -219,3 +223,6 @@ var EventTimeType = typex.EventTimeType
 
 // MetricResult represents a single metric value, for use in writing predicate functions to query PipelineResults.
 type MetricResult = metrics.SingleResult
+
+// PaneInfo represents a PaneInfo that provides information about current firing when triggers are used.
+type PaneInfo = typex.PaneInfo
