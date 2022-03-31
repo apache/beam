@@ -81,8 +81,8 @@ class RunInference(beam.PTransform):
     self._model_loader = model_loader
     self._clock = clock
 
-  # TODO: Add batch_size back off in the case there are functional
-  # reasons large batch sizes cannot be handled.
+  # TODO(BEAM-14208): Add batch_size back off in the case there
+  # are functional reasons large batch sizes cannot be handled.
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     return (
         pcoll
@@ -169,7 +169,7 @@ class RunInferenceDoFn(beam.DoFn):
           memory_after - memory_before)
       return model
 
-    # TODO: Investigate releasing model.
+    # TODO(BEAM-14207): Investigate releasing model.
     return self._shared_model_handle.acquire(load)
 
   def setup(self):
