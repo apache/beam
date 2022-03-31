@@ -11,6 +11,7 @@
 // the License.
 
 import {
+  ReactWidget,
   SessionContext,
   ISessionContext,
   sessionContextDialogs
@@ -19,11 +20,6 @@ import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ServiceManager } from '@jupyterlab/services';
 import { Message } from '@lumino/messaging';
 import { BoxPanel } from '@lumino/widgets';
-
-// prettier-ignore
-import {
-  InteractiveInspectorWidget
-} from './inspector/InteractiveInspectorWidget';
 
 /**
  * The side panel: main user interface of the extension.
@@ -35,25 +31,21 @@ import {
 export class SidePanel extends BoxPanel {
   constructor(
     manager: ServiceManager.IManager,
-    rendermime: IRenderMimeRegistry
+    rendermime: IRenderMimeRegistry,
+    sessionContext: SessionContext,
+    title: string,
+    widget: ReactWidget
   ) {
     super({
       direction: 'top-to-bottom',
       alignment: 'end'
     });
     this.id = 'apache-beam-jupyterlab-sidepanel';
-    this.title.label = 'Interactive Beam Inspector';
+    this.title.label = title;
     this.title.closable = true;
-
-    this._sessionContext = new SessionContext({
-      sessionManager: manager.sessions,
-      specsManager: manager.kernelspecs,
-      name: 'Interactive Beam Inspector Session'
-    });
-
-    this._inspector = new InteractiveInspectorWidget(this._sessionContext);
-    this.addWidget(this._inspector);
-
+    this._sessionContext = sessionContext;
+    this._widget = widget;
+    this.addWidget(this._widget);
     this.initializeSession(manager);
   }
 
@@ -119,6 +111,6 @@ export class SidePanel extends BoxPanel {
     this.dispose();
   }
 
-  private _inspector: InteractiveInspectorWidget;
+  private _widget: ReactWidget;
   private _sessionContext: SessionContext;
 }

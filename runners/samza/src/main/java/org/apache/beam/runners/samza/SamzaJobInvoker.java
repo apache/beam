@@ -45,7 +45,11 @@ public class SamzaJobInvoker extends JobInvoker {
   }
 
   private SamzaJobInvoker() {
-    super("samza-runner-job-invoker-%d");
+    this("samza-runner-job-invoker-%d");
+  }
+
+  protected SamzaJobInvoker(String name) {
+    super(name);
   }
 
   @Override

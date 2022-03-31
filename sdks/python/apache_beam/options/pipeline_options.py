@@ -1176,6 +1176,10 @@ class SetupOptions(PipelineOptions):
             'can also subclass SdkContainerImageBuilder and use that to build '
             'in other environments.'))
     parser.add_argument(
+        '--prebuild_sdk_container_base_image',
+        default=None,
+        help=('Deprecated. Use --sdk_container_image instead.'))
+    parser.add_argument(
         '--cloud_build_machine_type',
         default=None,
         help=(
@@ -1187,6 +1191,11 @@ class SetupOptions(PipelineOptions):
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_container_prebuilding_options(self))
+    return errors
 
 
 class PortableOptions(PipelineOptions):
@@ -1210,7 +1219,8 @@ class PortableOptions(PipelineOptions):
             'and port, e.g. localhost:8098. If none is specified, the '
             'artifact endpoint sent from the job server is used.'))
     parser.add_argument(
-        '--job-server-timeout',
+        '--job_server_timeout',
+        '--job-server-timeout',  # For backwards compatibility.
         default=60,
         type=int,
         help=(
@@ -1340,7 +1350,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.10', '1.11', '1.12', '1.13', '1.14']
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14']
 
   @classmethod
   def _add_argparse_args(cls, parser):

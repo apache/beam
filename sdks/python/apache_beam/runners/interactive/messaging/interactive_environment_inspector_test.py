@@ -28,6 +28,7 @@ import apache_beam.runners.interactive.messaging.interactive_environment_inspect
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.runners.interactive.utils import obfuscate
 
@@ -187,6 +188,31 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
         counts, include_window_info=True).to_json(orient='table')
     self.assertEqual(
         actual_counts_with_window_info, expected_counts_with_window_info)
+
+  def test_list_clusters(self):
+    master_url = 'test-url'
+    cluster_name = 'test-cluster'
+    project = 'test-project'
+    region = 'test-region'
+    pipelines = ['pid']
+    dashboard = 'test-dashboard'
+    ie.current_env().clusters.master_urls[master_url] = MasterURLIdentifier(
+        project, region, cluster_name)
+    ie.current_env().clusters.master_urls_to_pipelines[master_url] = pipelines
+    ie.current_env().clusters.master_urls_to_dashboards[master_url] = dashboard
+    ins = inspector.InteractiveEnvironmentInspector()
+    cluster_id = obfuscate(project, region, cluster_name)
+    self.assertEqual({
+        cluster_id: {
+            'cluster_name': cluster_name,
+            'project': project,
+            'region': region,
+            'master_url': master_url,
+            'dashboard': dashboard,
+            'pipelines': pipelines
+        }
+    },
+                     json.loads(ins.list_clusters()))
 
 
 if __name__ == '__main__':

@@ -20,12 +20,12 @@
 import logging
 import re
 import time
-from dataclasses import dataclass
 from typing import Optional
 from typing import Tuple
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.utils import progress_indicated
 
 try:
@@ -39,26 +39,6 @@ except ImportError:
   dataproc_v1 = UnimportedDataproc()
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class MasterURLIdentifier:
-  project_id: Optional[str] = None
-  region: Optional[str] = None
-  cluster_name: Optional[str] = None
-
-  def __key(self):
-    return (self.project_id, self.region, self.cluster_name)
-
-  def __hash__(self):
-    return hash(self.__key())
-
-  def __eq__(self, other):
-    if isinstance(other, MasterURLIdentifier):
-      return self.__key() == other.__key()
-    raise NotImplementedError(
-        'Comparisons are only supported between '
-        'instances of MasterURLIdentifier.')
 
 
 class DataprocClusterManager:
