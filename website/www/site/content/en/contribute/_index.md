@@ -203,7 +203,7 @@ Execute:
 
 2. Make a fork of https://github.com/apache/beam repo.
 
-3. Clone the forked repository. You can download it anywhere you like. 
+3. Clone the forked repository. You can download it anywhere you like.
     ```
     $ mkdir -p ~/path/to/your/folder
     $ cd ~/path/to/your/folder
@@ -211,9 +211,9 @@ Execute:
     $ cd beam
     ```
    For **Go development**:
-   
-   We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems). 
-   
+
+   We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems).
+
    Clone the repo, and update your branch as normal:
     ```
     $ git clone https://github.com/apache/beam.git
@@ -228,9 +228,9 @@ Execute:
     ```
 
 4. Check the environment was set up correctly.
-   
+
    **Option 1**: validate the Go, Java, and Python environments:
-   
+
    **Important**: Make sure you have activated Python development.
     ```
     ./gradlew :checkSetup
@@ -249,8 +249,8 @@ Execute:
        ./gradlew :examples:java:wordCount
       ```
 
-5. Familiarize yourself with gradle and the project structure. 
-   
+5. Familiarize yourself with gradle and the project structure.
+
    At the root of the git repository, run:
     ```
     $ ./gradlew projects
