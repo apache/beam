@@ -420,6 +420,8 @@ class FnApiRunner(runner.PipelineRunner):
             monitoring_infos_by_stage[consuming_stage_name] = \
               bundle_results.process_bundle.monitoring_infos
 
+          # Within monitoring_infos_by_stage we also keep monitoring information
+          # for the whole pipeline, which we key under ''.
           if '' not in monitoring_infos_by_stage:
             monitoring_infos_by_stage[''] = list(
                 pipeline_metrics.to_runner_api_monitoring_infos('').values())

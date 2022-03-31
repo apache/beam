@@ -223,6 +223,9 @@ class GroupingBuffer(object):
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
 
   def copy(self) -> 'GroupingBuffer':
+    # This is a silly temporary optimization. This class must be removed once
+    # full support for streaming is added (i.e. once we use trigger_manager for
+    # data grouping instead of GroupingBuffer).
     return self
 
   def append(self, elements_data):
