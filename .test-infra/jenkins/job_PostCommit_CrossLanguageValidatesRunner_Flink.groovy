@@ -30,6 +30,11 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+      // TODO
+      flinkConfigDir = getClass().protectionDomain.codeSource.location.path + "/../../sdks/go/test/resources"
+      shell("echo \"TEST ${flinkConfigDir}\"")
+      context.properties.setProperty("flinkConfDir", flinkConfigDir)
+
       // Publish all test results to Jenkins
       publishers {
         archiveJunit('**/build/test-results/**/*.xml')
