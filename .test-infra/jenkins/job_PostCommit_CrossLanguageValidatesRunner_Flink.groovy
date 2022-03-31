@@ -30,7 +30,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-      flinkConfigDir = getClass().protectionDomain.codeSource.location.path + "/../../sdks/go/test/resources"
+      flinkConfigDir = getClass().protectionDomain.codeSource.location.path + "/../../runners/flink/src/test/resources"
 
       // Publish all test results to Jenkins
       publishers {
@@ -40,13 +40,13 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
       // Gradle goals for this job.
       steps {
         CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-          shell("echo \"*** RUN CROSS-LANGUAGE FLINK USING PYTHON VERSION ${pythonVersion} ***\"")
-          shell("echo \"Flink config dir ${flinkConfigDir}\"")
+          shell("echo \"*** RUN CROSS-LANGUAGE FLINK USING PYTHON ${pythonVersion} ***\"")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesCrossLanguageRunner -PflinkConfDir=${flinkConfigDir}")
+            tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesCrossLanguageRunner")
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
+            switches("-PflinkConfDir=${flinkConfigDir}")
           }
         }
       }
