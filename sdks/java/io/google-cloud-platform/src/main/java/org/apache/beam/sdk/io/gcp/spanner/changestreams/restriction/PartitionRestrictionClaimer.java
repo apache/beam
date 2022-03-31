@@ -98,7 +98,7 @@ public class PartitionRestrictionClaimer {
 
         checkArgument(
             lastClaimedPosition == null
-                || lastClaimedPosition.getTimestamp().isEmpty()
+                || lastClaimedPosition.getTimestamp().empty()
                 || attemptedTimestamp.compareTo(lastClaimedPosition.getTimestamp().get()) >= 0,
             "Trying to claim offset %s while last attempted was %s",
             position,
