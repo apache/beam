@@ -23,10 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableUtils;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -75,11 +73,6 @@ public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
         return Arrays.asList(Row.withSchema(getSchema()).addValues(2, "SITE1").build());
       }
       return Arrays.asList(Row.nullRow(getSchema()));
-    }
-
-    @Override
-    public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-      return BeamTableStatistics.BOUNDED_UNKNOWN;
     }
   }
 
