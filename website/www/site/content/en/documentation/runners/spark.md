@@ -240,6 +240,82 @@ See [here](/roadmap/portability/#sdk-harness-config) for details.{{< /paragraph 
 See [here](/roadmap/portability/#sdk-harness-config) for details.)
 {{< /paragraph >}}
 
+###  Running on Dataproc cluster (YARN backed)
+
+To run Beam jobs written in Python, Go, and other supported languages, you can use the `SparkRunner` and `PortableRunner` as described on the Beam's [Spark Runner](https://beam.apache.org/documentation/runners/spark/) page (also see [Portability Framework Roadmap](https://beam.apache.org/roadmap/portability/)).
+
+The following example runs a portable Beam job in Python from the Dataproc cluster's master node with Yarn backed.
+
+> Note: This example executes successfully with Dataproc 2.0, Spark 2.4.8 and 3.1.2 and Beam 2.37.0.
+
+1. Create a Dataproc cluster with [Docker](https://cloud.google.com/dataproc/docs/concepts/components/docker) component enabled.
+
+<pre>
+gcloud dataproc clusters create <b><i>CLUSTER_NAME</i></b> \
+    --optional-components=DOCKER \
+    --image-version=<b><i>DATAPROC_IMAGE_VERSION</i></b> \
+    --region=<b><i>REGION</i></b> \
+    --enable-component-gateway \
+    --scopes=https://www.googleapis.com/auth/cloud-platform \
+    --properties spark:spark.master.rest.enabled=true
+</pre>
+
+- `--optional-components`: Docker.
+- `--image-version`: the [cluster's image version](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions#supported_cloud_dataproc_versions), which determines the Spark version installed on the cluster (for example, see the Apache Spark component versions listed for the latest and previous four [2.0.x image release versions](https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0)).
+- `--region`: a supported Dataproc [region](https://cloud.google.com/dataproc/docs/concepts/regional-endpoints#regional_endpoint_semantics).
+- `--enable-component-gateway`: enable access to [web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways).
+- `--scopes`: enable API access to GCP services in the same project.
+- `--properties`: add specific configuration for some component, here spark.master.rest is enabled to use job submit to the cluster.
+
+2. Create a Cloud Storage bucket.
+
+<pre>
+gsutil mb <b><i>BUCKET_NAME</i></b>
+</pre>
+
+3. Install the necessary Python libraries for the job in your local environment.
+
+<pre>
+python -m pip install apache-beam[gcp]==<b><i>BEAM_VERSION</i></b>
+</pre>
+
+4. Bundle the word count example pipeline along with all dependencies, artifacts, etc. required to run the pipeline into a jar that can be executed later
+
+<pre>
+python -m apache_beam.examples.wordcount \
+    --runner=SparkRunner \
+    --output_executable_path=<b><i>OUTPUT_JAR_PATH</b></i> \
+    --output=gs://<b><i>BUCKET_NAME</i></b>/python-wordcount-out \
+    --spark_version=3
+</pre>
+
+- `--runner`(required): `SparkRunner`.
+- `--output_executable_path`(required): path for the bundle jar to be created.
+- `--output`(required): where output shall be written.
+- `--spark_version`(optional): select spark version 2 (default) or 3.
+
+5. Submit spark job to Dataproc cluster's master node.
+
+<pre>
+gcloud dataproc jobs submit spark \
+        --cluster=<b><i>CLUSTER_NAME</i></b> \
+        --region=<b><i>REGION</i></b> \
+        --class=org.apache.beam.runners.spark.SparkPipelineRunner \
+        --jars=<b><i>OUTPUT_JAR_PATH</b></i>
+</pre>
+
+- `--cluster`: name of created Dataproc cluster.
+- `--region`: a supported Dataproc [region](https://cloud.google.com/dataproc/docs/concepts/regional-endpoints#regional_endpoint_semantics).
+- `--class`: the entry point for your application.
+- `--jars`: path to the bundled jar including your application and all dependencies.
+
+6. Check that the results were written to your bucket.
+
+<pre>
+gsutil cat gs://<b><i>BUCKET_NAME</b></i>/python-wordcount-out-<b><i>SHARD_ID</b></i>
+</pre>
+
+
 ## Pipeline options for the Spark Runner
 
 When executing your pipeline with the Spark Runner, you should consider the following pipeline options.
