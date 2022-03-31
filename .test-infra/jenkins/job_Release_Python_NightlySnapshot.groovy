@@ -31,7 +31,7 @@ job('beam_Release_Python_NightlySnapshot') {
   // This is a post-commit job that runs once per day, not for every push.
   commonJobProperties.setAutoJob(
       delegate,
-      '0 7 * * *',
+      '@daily',
       'builds@beam.apache.org')
 
   // Allows triggering this build against pull requests.
