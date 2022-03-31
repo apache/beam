@@ -1,5 +1,0 @@
-# Dockerfile to add Beam job server uber jar in Java SDK
-
-FROM apache/beam_java11_sdk:2.35.0.dev2
-COPY job-server-container/build/beam-runners-flink-job-server.jar /opt/apache/beam/jars
-
