@@ -136,6 +136,8 @@ func main() {
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
 		filepath.Join(jarsDir, "beam-sdks-java-io-kafka.jar"),
 		filepath.Join(jarsDir, "kafka-clients.jar"),
+		filepath.Join(jarsDir, "beam-runners-flink-1.13-job-server-2.35.0-SNAPSHOT.jar"),
+		filepath.Join(jarsDir, "beam-sdks-java-extensions-schemaio-expansion-service-2.35.0-SNAPSHOT.jar"),
 	}
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")

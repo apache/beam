@@ -399,6 +399,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     default List<String> getDependencies(RunnerApi.FunctionSpec spec, PipelineOptions options) {
       List<String> filesToStage = options.as(PortablePipelineOptions.class).getFilesToStage();
       if (filesToStage == null || filesToStage.isEmpty()) {
+        if (filesToStage == null)
+          LOG.info("Files to stage is null");
+	else if (filesToStage.isEmpty())
+          LOG.info("Files to stage is empty");
         ClassLoader classLoader = Environments.class.getClassLoader();
         if (classLoader == null) {
           throw new RuntimeException(
@@ -409,7 +413,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           throw new IllegalArgumentException("No classpath elements found.");
         }
       }
-      LOG.debug("Staging to files from the classpath: {}", filesToStage.size());
+      LOG.info("Staging to files from the classpath: {}, {}", filesToStage.size(), filesToStage);
       return filesToStage;
     }
   }
@@ -576,6 +580,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .ifPresent(portableOptions::setDefaultEnvironmentType);
     Optional.ofNullable(specifiedOptions.getDefaultEnvironmentConfig())
         .ifPresent(portableOptions::setDefaultEnvironmentConfig);
+    List<String> filesToStage = specifiedOptions.getFilesToStage();
+    if (filesToStage != null) {
+      LOG.info("Found filesToStage argument");
+      effectiveOpts.as(PortablePipelineOptions.class).setFilesToStage(filesToStage);
+    }
     effectiveOpts
         .as(ExperimentalOptions.class)
         .setExperiments(pipelineOptions.as(ExperimentalOptions.class).getExperiments());
