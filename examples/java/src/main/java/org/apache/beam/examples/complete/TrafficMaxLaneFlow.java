@@ -396,7 +396,6 @@ public class TrafficMaxLaneFlow {
   public static void main(String[] args) throws IOException {
     TrafficMaxLaneFlowOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficMaxLaneFlowOptions.class);
-    options.setBigQuerySchema(FormatMaxesFn.getSchema());
 
     runTrafficMaxLaneFlow(options);
   }

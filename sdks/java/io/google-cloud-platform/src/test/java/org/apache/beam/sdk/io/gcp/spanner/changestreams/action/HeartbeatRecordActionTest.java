@@ -29,7 +29,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -41,7 +41,7 @@ public class HeartbeatRecordActionTest {
 
   private HeartbeatRecordAction action;
   private PartitionMetadata partition;
-  private RestrictionTracker<OffsetRange, Long> tracker;
+  private RestrictionTracker<TimestampRange, Timestamp> tracker;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
 
   @Before
@@ -58,7 +58,7 @@ public class HeartbeatRecordActionTest {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
 
-    when(tracker.tryClaim(10L)).thenReturn(true);
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =
@@ -73,7 +73,7 @@ public class HeartbeatRecordActionTest {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
 
-    when(tracker.tryClaim(10L)).thenReturn(false);
+    when(tracker.tryClaim(timestamp)).thenReturn(false);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
 
     final Optional<ProcessContinuation> maybeContinuation =

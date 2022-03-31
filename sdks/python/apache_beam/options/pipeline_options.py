@@ -1178,18 +1178,24 @@ class SetupOptions(PipelineOptions):
     parser.add_argument(
         '--prebuild_sdk_container_base_image',
         default=None,
+        help=('Deprecated. Use --sdk_container_image instead.'))
+    parser.add_argument(
+        '--cloud_build_machine_type',
+        default=None,
         help=(
-            'The base image to use when pre-building the sdk container image '
-            'with dependencies, if not specified, by default the released '
-            'public apache beam python sdk container image corresponding to '
-            'the sdk version will be used, if a dev sdk is used the base '
-            'image will default to the latest released sdk image.'))
+            'If specified, use the machine type explicitly when prebuilding'
+            'SDK container image on Google Cloud Build.'))
     parser.add_argument(
         '--docker_registry_push_url',
         default=None,
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_container_prebuilding_options(self))
+    return errors
 
 
 class PortableOptions(PipelineOptions):
@@ -1343,7 +1349,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.10', '1.11', '1.12', '1.13', '1.14']
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14']
 
   @classmethod
   def _add_argparse_args(cls, parser):

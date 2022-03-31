@@ -33,7 +33,10 @@ public class DirtyStateTest {
 
   @Test
   public void basicPath() {
-    assertThat("Should start dirty", dirty.beforeCommit(), is(true));
+    assertThat("Should start clean", dirty.beforeCommit(), is(false));
+    dirty.afterModification();
+
+    assertThat("Should be dirty after change ", dirty.beforeCommit(), is(true));
     dirty.afterCommit();
     assertThat("Should be clean after commit", dirty.beforeCommit(), is(false));
 
@@ -45,7 +48,6 @@ public class DirtyStateTest {
 
   @Test
   public void changeAfterBeforeCommit() {
-    assertThat("Should start dirty", dirty.beforeCommit(), is(true));
     dirty.afterModification();
     dirty.afterCommit();
     assertThat(
@@ -69,7 +71,7 @@ public class DirtyStateTest {
     Assert.assertNotEquals(dirtyState, new Object());
 
     DirtyState differentState = new DirtyState();
-    differentState.beforeCommit();
+    differentState.afterModification();
     Assert.assertNotEquals(dirtyState, differentState);
     Assert.assertNotEquals(dirtyState.hashCode(), differentState.hashCode());
   }
