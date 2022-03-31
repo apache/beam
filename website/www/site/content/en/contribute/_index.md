@@ -97,13 +97,7 @@ Discussion about contributing code to Beam happens on the [dev@beam.apache.org m
 
 Questions can be asked on the [#beam channel of the ASF Slack](https://beam.apache.org/community/contact-us/). Introduce yourself!
 
-<a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
-
-{{< figure src="/images/arrow-icon_list.svg">}}
-
 ## Before You Begin
-
-</a>
 
 ### Prerequisites
 
@@ -151,34 +145,28 @@ You have two options for configuring your development environment:
 
 To install these in a Debian-based distribution:
 1. Execute:
-
-```
-sudo apt-get install \
-   openjdk-8-jdk \
-   python-setuptools \
-   python-pip \
-   virtualenv \
-   tox \
-   docker-ce
-```
-
+    ```
+    sudo apt-get install \
+       openjdk-8-jdk \
+       python-setuptools \
+       python-pip \
+       virtualenv \
+       tox \
+       docker-ce
+    ```
 2. On some systems, like Ubuntu 20.04, install these:
-
-```
-pip3 install grpcio-tools mypy-protobuf
-```
-
-3. If you you develop in GO:
+    ```
+    pip3 install grpcio-tools mypy-protobuf
+    ```
+3. If you develop in GO:
    1. Install [Go](https://golang.org/doc/install).
-   1. Check BEAM repo is in: `$GOPATH/src/github.com/apache/`
-   1. At the end, it should look like this: `$GOPATH/src/github.com/apache/beam`
+   2. Check BEAM repo is in: `$GOPATH/src/github.com/apache/`
+   3. At the end, it should look like this: `$GOPATH/src/github.com/apache/beam`
 4. Once Go is installed, install goavro:
-
-```
-$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-$ go get github.com/linkedin/goavro
-```
-
+    ```
+    $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+    $ go get github.com/linkedin/goavro
+    ```
 **Important**: gLinux users should configure their machines for sudoless Docker.
 
 ###### Automated script for Linux and macOS
@@ -215,87 +203,80 @@ Execute:
 
 2. Make a fork of https://github.com/apache/beam repo.
 
-3. Clone the forked repository. You can download it anywhere you like.
-```
-$ mkdir -p ~/path/to/your/folder
-$ cd ~/path/to/your/folder
-$ git clone https://github.com/forked/apache/beam
-$ cd beam
-```
+3. Clone the forked repository. You can download it anywhere you like. 
+    ```
+    $ mkdir -p ~/path/to/your/folder
+    $ cd ~/path/to/your/folder
+    $ git clone https://github.com/forked/apache/beam
+    $ cd beam
+    ```
+   For **Go development**:
+   
+   We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems). 
+   
+   Clone the repo, and update your branch as normal:
+    ```
+    $ git clone https://github.com/apache/beam.git
+    $ cd beam
+    $ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
+    $ git fetch --all
+    ```
 
-
-&emsp;&emsp;For **Go development**:
-
-&emsp;&emsp;We recommend putting it in your `$GOPATH` (`$HOME/go` by default on Unix systems).
-
-&emsp;&emsp;Clone the repo, and update your branch as normal:
-
-
-```
-$ git clone https://github.com/apache/beam.git
-$ cd beam
-$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
-$ git fetch --all
-```
-
-&emsp;&emsp;Get or Update all the Go SDK dependencies:
- ```
-$ go get -u ./...
-```
-<br>
+    Get or Update all the Go SDK dependencies:
+    ```
+    $ go get -u ./...
+    ```
 
 4. Check the environment was set up correctly.
+   
+   **Option 1**: validate the Go, Java, and Python environments:
+   
+   **Important**: Make sure you have activated Python development.
+    ```
+    ./gradlew :checkSetup
+    ```
+   **Option 2**: Run independent checks:
+   - For **Go development**:
+       ```
+       export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:wordCount
+       ```
+   - For **Python development**:
+       ```
+       ./gradlew :sdks:python:wordCount
+       ```
+   - For **Java development**:
+       ```
+       ./gradlew :examples:java:wordCount
+      ```
 
-&emsp;&emsp;**Option 1**: validate the Go, Java, and Python environments:
+5. Familiarize yourself with gradle and the project structure. 
+   
+   At the root of the git repository, run:
+    ```
+    $ ./gradlew projects
+    ```
+    Examine the available tasks in a project. For the default set of tasks, use:
+    ```
+    $ ./gradlew tasks
+    ```
+    For a given module, use:
+    ```
+    $ ./gradlew -p sdks/java/io/cassandra tasks
+    ```
+    For an exhaustive list of tasks, use:
+    ```
+    $ ./gradlew tasks --all
+    ```
 
-&emsp;&emsp;**Important**: Make sure you have activated Python development.
-```
-./gradlew :checkSetup
-```
-
-
-&emsp;&emsp;**Option 2**: Run independent checks:
-
-&emsp;&emsp;&emsp;&emsp;For **Go development**:
-```
-export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore./gradlew :sdks:go:examples:wordCount
-```
-&emsp;&emsp;&emsp;&emsp;For **Python development**:
-```
-./gradlew :sdks:python:wordCount
-```
-&emsp;&emsp;&emsp;&emsp;For **Java development**:
-```
-./gradlew :examples:java:wordCount
-```
-<br>
-
-5. Familiarize yourself with gradle and the project structure.
-
-&emsp;&emsp;At the root of the git repository, run:
- ```
-$ ./gradlew projects
- ```
-&emsp;&emsp;Examine the available tasks in a project. For the default set of tasks, use:
- ```
-$ ./gradlew tasks
- ```
-&emsp;&emsp;For a given module, use:
- ```
-$ ./gradlew -p sdks/java/io/cassandra tasks
- ```
-&emsp;&emsp;For an exhaustive list of tasks, use:
- ```
-$ ./gradlew tasks --all
- ```
 6. Make sure you can build and run tests.
 
    Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
- ```
-$ ./gradlew -p sdks/go check
-$ ./gradlew -p sdks/java/io/cassandra check
-$ ./gradlew -p runners/flink check
- ```
+    ```
+    $ ./gradlew -p sdks/go check
+    $ ./gradlew -p sdks/java/io/cassandra check
+    $ ./gradlew -p runners/flink check
+    ```
+
 7. Now you may want to set up your preferred IDE and other aspects of your development
    environment. See the Developers' wiki for tips, guides, and FAQs on:
    - [IntelliJ](https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE)
@@ -307,7 +288,6 @@ $ ./gradlew -p runners/flink check
    - [Jenkins](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips)
    - [FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
 
-
 ## Contribute Code
 
 <div class="collapse dont-collapse-sm" id="collapseContributing">
@@ -317,25 +297,25 @@ $ ./gradlew -p runners/flink check
 1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
 
-1. Add unit tests for your change.
+2. Add unit tests for your change.
 
-1. Use descriptive commit messages that make it easy to identify changes and provide a clear history.
+3. Use descriptive commit messages that make it easy to identify changes and provide a clear history.
 
-1. When your change is ready to be reviewed and merged, create a pull request.
+4. When your change is ready to be reviewed and merged, create a pull request.
 
-1. Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
+5. Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
    where you replace BEAM-XXX with the appropriate JIRA issue.
    This will automatically link the pull request to the issue.
 
-1. The pull request and any changes pushed to it will trigger [pre-commit
+6. The pull request and any changes pushed to it will trigger [pre-commit
    jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
    PR:
-```
-retest this please
-```
-   Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
-   that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
+    ```
+    retest this please
+    ```
+Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
+that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
 
 ### Review Process and Releases
 
@@ -349,22 +329,22 @@ retest this please
 
    Use `R: @username` in the pull request to notify a reviewer.
 
-1. If you don't get any response in 3 business days, email the [dev@beam.apache.org mailing list](/community/contact-us) to ask for someone to look at your pull request.
+2. If you don't get any response in 3 business days, email the [dev@beam.apache.org mailing list](/community/contact-us) to ask for someone to look at your pull request.
 
 #### Make the Reviewer’s Job Easier
 
 1. Provide context for your changes in the associated JIRA issue and/or PR description.
 
-1. Avoid huge mega-changes.
+2. Avoid huge mega-changes.
 
-1. Review feedback typically leads to follow-up changes. It is easier to review follow-up changes when they are added as additional "fixup" commits to the
+3. Review feedback typically leads to follow-up changes. It is easier to review follow-up changes when they are added as additional "fixup" commits to the
    existing PR/branch. This allows reviewer(s) to track the incremental progress and focus on new changes,
    and keeps comment threads attached to the code.
    Please refrain from squashing new commits into reviewed commits before review is completed.
    Because squashing reviewed and unreviewed commits often makes it harder to
    see the difference between the review iterations, reviewers may ask you to unsquash new changes.
 
-1. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
+4. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
    Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
    then the PR author should help squashing fixup commits to maintain a clean commit history.
