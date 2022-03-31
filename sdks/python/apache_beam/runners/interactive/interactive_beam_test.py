@@ -33,8 +33,9 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
+from apache_beam.runners.interactive.utils import obfuscate
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_stream import TestStream
 
@@ -296,6 +297,9 @@ class InteractiveBeamTest(unittest.TestCase):
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class InteractiveBeamClustersTest(unittest.TestCase):
+  def setUp(self):
+    ie.new_env()
+
   def test_clusters_describe(self):
     clusters = ib.Clusters()
     project = 'test-project'
@@ -400,6 +404,65 @@ class InteractiveBeamClustersTest(unittest.TestCase):
         id(p))] = DataprocClusterManager(cluster_metadata)
     clusters.dataproc_cluster_managers[str(id(p))].master_url = 'test_url'
     clusters.cleanup(p)
+
+  def test_delete_cluster(self):
+    clusters = ie.current_env().clusters
+
+    class MockClusterManager:
+      master_url = 'test-url'
+
+      def cleanup(self):
+        pass
+
+    master_url = 'test-url'
+    cluster_name = 'test-cluster'
+    project = 'test-project'
+    region = 'test-region'
+    metadata = MasterURLIdentifier(project, region, cluster_name)
+
+    p = beam.Pipeline(ir.InteractiveRunner())
+    ie.current_env()._tracked_user_pipelines.add_user_pipeline(p)
+    clusters.master_urls[master_url] = metadata
+    clusters.master_urls_to_dashboards[master_url] = 'test-dashboard'
+    clusters.dataproc_cluster_managers[str(id(p))] = MockClusterManager()
+    clusters.master_urls_to_pipelines[master_url] = [str(id(p))]
+
+    cluster_id = obfuscate(project, region, cluster_name)
+    ie.current_env().inspector._clusters[cluster_id] = {
+        'master_url': master_url, 'pipelines': [str(id(p))]
+    }
+    clusters.delete_cluster(
+        ie.current_env().inspector.get_cluster_master_url(cluster_id))
+    self.assertEqual(clusters.master_urls, {})
+    self.assertEqual(clusters.master_urls_to_pipelines, {})
+
+  def test_set_default_cluster(self):
+    clusters = ie.current_env().clusters
+    master_url = 'test-url'
+    cluster_name = 'test-cluster'
+    project = 'test-project'
+    region = 'test-region'
+    pipelines = ['pid']
+    dashboard = 'test-dashboard'
+
+    cluster_id = obfuscate(project, region, cluster_name)
+    ie.current_env().inspector._clusters = {
+        cluster_id: {
+            'cluster_name': cluster_name,
+            'project': project,
+            'region': region,
+            'master_url': master_url,
+            'dashboard': dashboard,
+            'pipelines': pipelines
+        }
+    }
+    clusters.master_urls[master_url] = MasterURLIdentifier(
+        project, region, cluster_name)
+    clusters.set_default_cluster(
+        ie.current_env().inspector.get_cluster_master_url(cluster_id))
+    self.assertEqual(
+        MasterURLIdentifier(project, region, cluster_name),
+        clusters.default_cluster_metadata)
 
 
 if __name__ == '__main__':
