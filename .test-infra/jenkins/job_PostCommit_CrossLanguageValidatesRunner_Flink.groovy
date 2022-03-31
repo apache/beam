@@ -30,8 +30,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-      flinkConfigDir = getClass().protectionDomain.codeSource.location.path + "/../../runners/flink/src/test/resources"
-
       // Publish all test results to Jenkins
       publishers {
         archiveJunit('**/build/test-results/**/*.xml')
@@ -46,7 +44,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
             tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesCrossLanguageRunner")
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
-            switches("-PflinkConfDir=${flinkConfigDir}")
+            switches("-PflinkConfDir=$WORKSPACE/src/runners/flink/src/test/resources")
           }
         }
       }
