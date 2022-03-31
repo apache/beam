@@ -44,6 +44,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
             tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesCrossLanguageRunner")
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
+            switches("-PflinkConfDir=$WORKSPACE/src/runners/flink/src/test/resources")
           }
         }
       }
