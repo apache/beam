@@ -37,14 +37,14 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-/** Tests for {@link ElasticsearchIO} version 6. */
+/** Tests for {@link ElasticsearchIO} version 8. */
 public class ElasticsearchIOTest implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
   private ConnectionConfiguration connectionConfiguration;
   private static ElasticsearchContainer container;
   private static RestClient client;
-  static final String IMAGE_TAG = "6.4.0";
+  static final String IMAGE_TAG = "8.0.0";
 
   @BeforeClass
   public static void beforeClass() throws IOException {
@@ -66,9 +66,10 @@ public class ElasticsearchIOTest implements Serializable {
   @Before
   public void setup() throws IOException {
     if (connectionConfiguration == null) {
-      connectionConfiguration = createConnectionConfig(client);
+      connectionConfiguration = createConnectionConfig(client).builder().setType(null).build();
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, client, false);
+
       deleteIndex(client, getEsIndex());
     }
   }
@@ -98,7 +99,7 @@ public class ElasticsearchIOTest implements Serializable {
     // for the indexSettings() to be run
     createIndex(elasticsearchIOTestCommon.restClient, getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQueryString();
+    elasticsearchIOTestCommon.testRead();
   }
 
   @Test

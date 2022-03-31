@@ -1183,6 +1183,10 @@ class SetupOptions(PipelineOptions):
             'can also subclass SdkContainerImageBuilder and use that to build '
             'in other environments.'))
     parser.add_argument(
+        '--prebuild_sdk_container_base_image',
+        default=None,
+        help=('Deprecated. Use --sdk_container_image instead.'))
+    parser.add_argument(
         '--cloud_build_machine_type',
         default=None,
         help=(
@@ -1194,6 +1198,11 @@ class SetupOptions(PipelineOptions):
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_container_prebuilding_options(self))
+    return errors
 
 
 class PortableOptions(PipelineOptions):
