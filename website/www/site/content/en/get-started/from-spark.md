@@ -220,7 +220,7 @@ min_value = values.reduce(min)
 max_value = values.reduce(max)
 
 # We can simply use `min_value` and `max_value` since it's already a Python `int` value from `reduce`.
-scaled_values = values.map(lambda x: (x - min_value) / (x - max_value))
+scaled_values = values.map(lambda x: (x - min_value) / (max_value - min_value))
 
 # But to access `scaled_values`, we need to call `collect`.
 print(scaled_values.collect())
@@ -249,7 +249,7 @@ with beam.Pipeline() as pipeline:
 
     # To access `total`, we need to pass it as a side input.
     scaled_values = values | beam.Map(
-        lambda x, min_value, max_value: x / lambda x: (x - min_value) / (x - max_value),
+        lambda x, min_value, max_value: x / lambda x: (x - min_value) / (max_value - min_value),
         min_value =beam.pvalue.AsSingleton(min_value),
         max_value =beam.pvalue.AsSingleton(max_value))
 
