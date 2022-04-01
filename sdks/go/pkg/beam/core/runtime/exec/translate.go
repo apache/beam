@@ -600,7 +600,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			fmt.Printf("ReshuffleInputCoder: preservedID %v, input %v, preserved %v, equal? %v\n", preservedCoderID, c, pc, typex.IsEqual(c.T, pc.T))
 
-			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(pc, w), Out: out[0]}
 
 		case graphx.URNReshuffleOutput:
 			var pid string
@@ -621,7 +621,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			fmt.Printf("ReshuffleOutputCoder: preservedID %v, input %v, preserved %v, equal? %v\n", preservedCoderID, c, pc, typex.IsEqual(c.T, pc.T))
 
-			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(pc, w), Out: out[0]}
 
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", &tp)
