@@ -105,5 +105,6 @@ dependencies {
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
   shadowTest library.java.jamm
+  shadowTest library.java.xz_java
   testRuntimeOnly library.java.slf4j_jdk14
 }

@@ -110,14 +110,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the start offset of the block is greater than or equal to the start offset of the source and less
  * than the end offset of the source.
  *
- * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.8.jar},
- * which has been marked as optional in the Maven {@code sdk/pom.xml}.
+ * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.9.jar},
+ * which has been marked as optional in the Maven {@code org.apache.avro:avro} dependency.
  *
  * <pre>{@code
  * <dependency>
  *   <groupId>org.tukaani</groupId>
  *   <artifactId>xz</artifactId>
- *   <version>1.8</version>
+ *   <version>1.9</version>
  * </dependency>
  * }</pre>
  *

@@ -51,7 +51,7 @@ paranamer:
   '2.8':
     license: "https://raw.githubusercontent.com/paul-hammant/paranamer/master/LICENSE.txt"
 xz:
-  '1.5': # The original repo is down. This license is taken from https://tukaani.org/xz/java.html.
+  '1.9': # The original repo is down. This license is taken from https://tukaani.org/xz/java.html.
     license: "file://{}/xz/COPYING"
 jackson-bom:
   '2.13.0':

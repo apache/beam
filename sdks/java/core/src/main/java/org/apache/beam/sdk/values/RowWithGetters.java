@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -128,6 +129,14 @@ public class RowWithGetters extends Row {
               cachedMaps.computeIfAbsent(
                   cacheKey, i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), map))
           : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), map);
+    } else if (type.getTypeName().equals(TypeName.DATETIME)) {
+      if (fieldValue instanceof java.time.LocalDate) {
+        Instant instant = java.time.Instant.parse(fieldValue + "T00:00:00.00Z");
+        return (T) org.joda.time.Instant.ofEpochMilli(instant.toEpochMilli());
+      } else if (fieldValue instanceof java.time.Instant) {
+        return (T) org.joda.time.Instant.ofEpochMilli(((Instant) fieldValue).toEpochMilli());
+      }
+      return (T) fieldValue;
     } else {
       if (type.isLogicalType(OneOfType.IDENTIFIER)) {
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);

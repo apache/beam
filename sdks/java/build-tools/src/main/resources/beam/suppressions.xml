@@ -31,6 +31,7 @@
   <suppress checks=".*" files=".+[\\\/]generated-src[\\\/].+\.java" />
   <suppress checks=".*" files=".+[\\\/]generated-sources[\\\/].+\.java" />
   <suppress checks=".*" files=".+[\\\/]generated-test-sources[\\\/].+\.java" />
+  <suppress checks=".*" files=".+[\\\/]generated-test-avro-java[\\\/].+\.java" />
 
   <!-- Suppression on JavadocMethod violations.
 

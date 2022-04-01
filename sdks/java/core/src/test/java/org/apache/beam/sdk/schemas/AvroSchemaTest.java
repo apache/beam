@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -312,8 +314,8 @@ public class AvroSchemaTest {
           "mystring",
           ByteBuffer.wrap(BYTE_ARRAY),
           new fixed4(BYTE_ARRAY),
-          DATE,
-          DATE_TIME,
+          java.time.LocalDate.of(DATE.getYear(), DATE.getMonthOfYear(), DATE.getDayOfMonth()),
+          java.time.Instant.ofEpochMilli(DATE_TIME.getMillis()),
           TestEnum.abc,
           AVRO_NESTED_SPECIFIC_RECORD,
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
@@ -376,14 +378,16 @@ public class AvroSchemaTest {
 
   @Test
   public void testPojoSchema() {
-    assertEquals(POJO_SCHEMA, new AvroRecordSchema().schemaFor(TypeDescriptor.of(AvroPojo.class)));
+    assertTrue(
+        POJO_SCHEMA.equivalent(
+            new AvroRecordSchema().schemaFor(TypeDescriptor.of(AvroPojo.class))));
   }
 
   @Test
   public void testSpecificRecordToRow() {
     SerializableFunction<TestAvro, Row> toRow =
         new AvroRecordSchema().toRowFunction(TypeDescriptor.of(TestAvro.class));
-    assertEquals(ROW, toRow.apply(AVRO_SPECIFIC_RECORD));
+    assertTrue(equivalent(ROW, toRow.apply(AVRO_SPECIFIC_RECORD)));
   }
 
   @Test
@@ -448,7 +452,70 @@ public class AvroSchemaTest {
   public void testPojoRecordToRow() {
     SerializableFunction<AvroPojo, Row> toRow =
         new AvroRecordSchema().toRowFunction(TypeDescriptor.of(AvroPojo.class));
-    assertEquals(ROW_FOR_POJO, toRow.apply(AVRO_POJO));
+    assertTrue(equivalent(ROW_FOR_POJO, toRow.apply(AVRO_POJO)));
+  }
+
+  private boolean equivalent(Row expected, Row actual) {
+    if (!expected.getSchema().equivalent(actual.getSchema())) {
+      return false;
+    }
+
+    List<Schema.Field> fields = expected.getSchema().getFields();
+    for (Schema.Field field : fields) {
+      Schema.TypeName typeName = field.getType().getTypeName();
+      if (typeName.equals(Schema.TypeName.ROW)) {
+        if (!equivalent(expected.getValue(field.getName()), actual.getValue(field.getName()))) {
+          return false;
+        }
+      } else if (typeName.equals(Schema.TypeName.ARRAY)
+          || typeName.equals(Schema.TypeName.ITERABLE)) {
+        Iterable<?> expectedIterable = expected.getValue(field.getName());
+        Iterable<?> actualIterable = actual.getValue(field.getName());
+
+        Iterator<?> expectedIterator = expectedIterable.iterator();
+        Iterator<?> actualIterator = actualIterable.iterator();
+
+        while (expectedIterator.hasNext() || actualIterator.hasNext()) {
+          Object expectedNext = expectedIterator.next();
+          Object actualNext = actualIterator.next();
+          if (field
+              .getType()
+              .getCollectionElementType()
+              .getTypeName()
+              .equals(Schema.TypeName.ROW)) {
+            if (!equivalent((Row) expectedNext, (Row) actualNext)) {
+              return false;
+            }
+          } else {
+            if (!expectedNext.equals(actualNext)) {
+              return false;
+            }
+          }
+        }
+      } else if (typeName.equals(Schema.TypeName.MAP)) {
+        Map<?, ?> actualValue = actual.getValue(field.getName());
+        Map<?, ?> expectedValue = expected.getValue(field.getName());
+
+        for (Map.Entry<?, ?> entry : expectedValue.entrySet()) {
+          if (field.getType().getMapValueType().getTypeName().equals(Schema.TypeName.ROW)) {
+            if (!equivalent((Row) entry.getValue(), (Row) actualValue.get(entry.getKey()))) {
+              return false;
+            }
+          } else {
+            if (!expectedValue.equals(actualValue)) {
+              return false;
+            }
+          }
+        }
+      } else {
+        Object expectedValue = expected.getValue(field.getName());
+        Object actualValue = actual.getValue(field.getName());
+        if (!expectedValue.equals(actualValue)) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   @Test

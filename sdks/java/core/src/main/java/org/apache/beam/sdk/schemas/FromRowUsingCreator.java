@@ -40,6 +40,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 @Experimental(Kind.SCHEMAS)
@@ -119,6 +121,8 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       return (ValueT)
           fromIterableValue(
               type.getCollectionElementType(), (Iterable) value, elementType, typeFactory);
+    } else if (TypeName.DATETIME.equals(type.getTypeName())) {
+      return fromDatetimeValue(value, fieldType);
     }
     if (TypeName.MAP.equals(type.getTypeName())) {
       return (ValueT)
@@ -164,6 +168,19 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
     } else {
       return Collections2.transform(collection, function);
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private <ValueT> ValueT fromDatetimeValue(ValueT value, Type fieldType) {
+    if (fieldType.getTypeName().equals("java.time.LocalDate")) {
+      DateTime dateTime = new DateTime(value);
+      return (ValueT)
+          java.time.LocalDate.of(
+              dateTime.getYear(), dateTime.getMonthOfYear(), dateTime.getDayOfMonth());
+    } else if (fieldType.getTypeName().equals("java.time.Instant")) {
+      return (ValueT) java.time.Instant.ofEpochMilli(((Instant) value).getMillis());
+    }
+    return value;
   }
 
   @SuppressWarnings("unchecked")
