@@ -226,7 +226,6 @@ class CoderTranslators {
     @Override
     public final T fromComponents(
         List<Coder<?>> components, byte[] payload, TranslationContext context) {
-      checkArgument(components.size() == 1, "Expected one component, but received: "+ components);
       return fromComponents(components);
     }
 
