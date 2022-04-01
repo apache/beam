@@ -92,6 +92,7 @@ func TestClassOf(t *testing.T) {
 
 		{EventTimeType, Invalid},                                     // special
 		{WindowType, Invalid},                                        // special
+		{BundleFinalizationType, Invalid},                            // special
 		{reflectx.Context, Invalid},                                  // special
 		{reflectx.Error, Invalid},                                    // special
 		{reflect.TypeOf((*ConcreteTestWindow)(nil)).Elem(), Invalid}, // special
@@ -160,6 +161,7 @@ func TestIsConcrete(t *testing.T) {
 		{reflect.TypeOf([][][]uint16{}), true},
 		{reflect.TypeOf([]Y{}), false},
 		{reflect.TypeOf([][][]Z{}), false},
+		{BundleFinalizationType, false},
 	}
 
 	for _, test := range tests {

@@ -46,6 +46,7 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Properly check output timestamps on elements output from DoFns, timers, and onWindowExpiration in Java [BEAM-12931](https://issues.apache.org/jira/browse/BEAM-12931).
 * Fixed a bug with DeferredDataFrame.xs when used with a non-tuple key
   ([BEAM-13421](https://issues.apache.org/jira/browse/BEAM-13421])).
+* Beam Python now requires `google-cloud-pubsub>=2.1.0`. The API surface for `apache_beam.io.gcp.pubsub` has not changed, but code that uses the PubSub client directly may need to be updated.
 
 ## Known Issues
 

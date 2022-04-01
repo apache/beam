@@ -354,6 +354,8 @@ class PipelineState(object):
   PENDING = 'PENDING'  # the job has been created but is not yet running.
   CANCELLING = 'CANCELLING'  # job has been explicitly cancelled and is
   # in the process of stopping
+  RESOURCE_CLEANING_UP = 'RESOURCE_CLEANING_UP'  # job's resources are being
+  # cleaned up
   UNRECOGNIZED = 'UNRECOGNIZED'  # the job state reported by a runner cannot be
   # interpreted by the SDK.
 
