@@ -29,7 +29,7 @@ option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "StandardWindowFns";
 
-import "beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
