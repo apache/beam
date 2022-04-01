@@ -19,7 +19,6 @@ package expansionx
 
 import (
 	"archive/zip"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -113,12 +112,12 @@ func getLocalJar(url string) (string, error) {
 
 	file, err := os.Create(jarPath)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("error in create: %v", err))
+		return "", fmt.Errorf("error in creating jar %s: %w", jarPath, err)
 	}
 
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("error in copy: %v", err))
+		return "", fmt.Errorf("error in coping file %s inside jar %s: %w", file.Name(), jarPath, err)
 	}
 
 	return jarPath, nil
@@ -127,11 +126,11 @@ func getLocalJar(url string) (string, error) {
 func extractJar(source, dest string) error {
 	reader, err := zip.OpenReader(source)
 	if err != nil {
-		return fmt.Errorf("error extracting jar extractJar(%s,%s)= %v", source, dest, err)
+		return fmt.Errorf("error opening jar for extractJar(%s,%s): %w", source, dest, err)
 	}
 
 	if err := os.MkdirAll(dest, 0700); err != nil {
-		return fmt.Errorf("error creating directory %s in extractJar(%s,%s)= %v", dest, source, dest, err)
+		return fmt.Errorf("error creating directory %s in extractJar(%s,%s): %w", dest, source, dest, err)
 	}
 
 	for _, file := range reader.File {
@@ -141,19 +140,19 @@ func extractJar(source, dest string) error {
 			continue
 		}
 
-		f, err := file.Open()
+		sf, err := file.Open()
 		if err != nil {
-			return fmt.Errorf("error opening file %s: %v", file.Name, err)
+			return fmt.Errorf("error opening source file %s: %w", file.Name, err)
 		}
-		defer f.Close()
+		defer sf.Close()
 
-		tf, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+		df, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
 		if err != nil {
-			return fmt.Errorf("error opening file %s: %v", fileName, err)
+			return fmt.Errorf("error opening destination file %s: %w", fileName, err)
 		}
-		defer tf.Close()
+		defer df.Close()
 
-		if _, err := io.Copy(tf, f); err != nil {
+		if _, err := io.Copy(df, sf); err != nil {
 			return err
 		}
 	}
@@ -163,7 +162,7 @@ func extractJar(source, dest string) error {
 func packJar(source, dest string) error {
 	jar, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("error creating jar packJar(%s,%s)=%v", source, dest, err)
+		return fmt.Errorf("error creating jar packJar(%s,%s)=%w", source, dest, err)
 	}
 	defer jar.Close()
 
@@ -172,7 +171,7 @@ func packJar(source, dest string) error {
 
 	fileInfo, err := os.Stat(source)
 	if err != nil {
-		return fmt.Errorf("source path %s doesn't exist: %v", source, err)
+		return fmt.Errorf("source path %s doesn't exist: %w", source, err)
 	}
 
 	var sourceDir string
@@ -182,11 +181,11 @@ func packJar(source, dest string) error {
 
 	err = filepath.Walk(source, func(path string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("error accesing path %s: %v", path, err)
+			return fmt.Errorf("error accesing path %s: %w", path, err)
 		}
 		fileHeader, err := zip.FileInfoHeader(fileInfo)
 		if err != nil {
-			return fmt.Errorf("error getting FileInfoHeader: %v", err)
+			return fmt.Errorf("error getting FileInfoHeader: %w", err)
 		}
 
 		if sourceDir != "" {
@@ -201,7 +200,7 @@ func packJar(source, dest string) error {
 
 		writer, err := jarFile.CreateHeader(fileHeader)
 		if err != nil {
-			return fmt.Errorf("error creating jarFile header: %v", err)
+			return fmt.Errorf("error creating jarFile header: %w", err)
 		}
 		if fileInfo.IsDir() {
 			return nil
@@ -209,12 +208,12 @@ func packJar(source, dest string) error {
 
 		f, err := os.Open(path)
 		if err != nil {
-			return fmt.Errorf("error opening file %s: %v", path, err)
+			return fmt.Errorf("error opening file %s: %w", path, err)
 		}
 		defer f.Close()
 
 		if _, err = io.Copy(writer, f); err != nil {
-			return fmt.Errorf("error copying file %s: %v", path, err)
+			return fmt.Errorf("error copying file %s: %w", path, err)
 		}
 		return nil
 	})
@@ -223,18 +222,19 @@ func packJar(source, dest string) error {
 
 // MakeJar fetches additional classpath JARs and adds it to the classpath of
 // main JAR file and compiles a fresh JAR.
-func MakeJar(mainJar string, classpath []string) (string, error) {
+func MakeJar(mainJar string, classpath string) (string, error) {
 	usr, _ := user.Current()
 	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
 
 	// fetch jars required in classpath
+	classpaths := strings.Split(classpath, " ")
 	classpathJars := []string{}
-	for _, jar := range classpath {
+	for _, jar := range classpaths {
 		path := expandJar(jar)
 		if j, err := getLocalJar(path); err == nil {
 			classpathJars = append(classpathJars, j)
 		} else {
-			return "", errors.New(fmt.Sprintf("error in getLocal(): %v", err))
+			return "", fmt.Errorf("error in getLocal(): %w", err)
 		}
 	}
 
@@ -243,7 +243,7 @@ func MakeJar(mainJar string, classpath []string) (string, error) {
 	for _, path := range classpathJars {
 		relPath, err := filepath.Rel(cacheDir, path)
 		if err != nil {
-			return "", fmt.Errorf("error in creating relative path: %v", err)
+			return "", fmt.Errorf("error in creating relative path: %w", err)
 		}
 		relClasspath = append(relClasspath, relPath)
 	}
@@ -251,39 +251,39 @@ func MakeJar(mainJar string, classpath []string) (string, error) {
 	tmpDir := filepath.Join(cacheDir, "tmpDir")
 
 	if err := extractJar(mainJar, tmpDir); err != nil {
-		return "", errors.New(fmt.Sprintf("error in extractJar(): %v", err))
+		return "", fmt.Errorf("error in extractJar(): %w", err)
 	}
 
-	b, err := os.ReadFile(tmpDir + "/META-INF/MANIFEST.MF")
+	manifest, err := os.ReadFile(tmpDir + "/META-INF/MANIFEST.MF")
 	if err != nil {
-		return "", fmt.Errorf("error readingf: %v", err)
+		return "", fmt.Errorf("error readingf: %w", err)
 	}
 
 	// trim the empty lines present at the end of MANIFEST.MF file.
-	str := strings.Split(string(b), "\n")
-	str = str[:len(str)-2]
+	manifestLines := strings.Split(string(manifest), "\n")
+	manifestLines = manifestLines[:len(manifestLines)-2]
 
-	classpathString := fmt.Sprintf("%sClass-Path: %s\n", strings.Join(str, "\n"), strings.Join(relClasspath, " "))
+	classpathString := fmt.Sprintf("%sClass-Path: %s\n", strings.Join(manifestLines, "\n"), strings.Join(relClasspath, " "))
 	if err = os.WriteFile(tmpDir+"/META-INF/MANIFEST.MF", []byte(classpathString), 0660); err != nil {
-		return "", fmt.Errorf("error writing: %v", err)
+		return "", fmt.Errorf("error writing ta manifest file: %w", err)
 	}
 
 	path, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("can't get current working directory: %v", err)
+		return "", fmt.Errorf("can't get current working directory: %w", err)
 	}
 
 	if err = os.Chdir(tmpDir); err != nil {
-		return "", fmt.Errorf("can't change to temp directory: %v", err)
+		return "", fmt.Errorf("can't change to temp directory %s for creating JAR: %w", tmpDir, err)
 	}
 
 	tmpJar := filepath.Join(cacheDir, "tmp.jar")
 	if err = packJar(".", tmpJar); err != nil {
-		return "", errors.New(fmt.Sprintf("error in packJar(): %v", err))
+		return "", fmt.Errorf("error in packJar(): %w", err)
 	}
 
 	if err = os.Chdir(path); err != nil {
-		return "", fmt.Errorf("can't change to old working directory: %v", err)
+		return "", fmt.Errorf("can't change to old working directory %s: %w", path, err)
 	}
 
 	return tmpJar, nil

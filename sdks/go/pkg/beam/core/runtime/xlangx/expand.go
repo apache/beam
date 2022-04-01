@@ -144,7 +144,7 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	return res, nil
 }
 
-func startAutomatedJavaExpansionService(gradleTarget string, classpath []string) (stopFunc func() error, address string, err error) {
+func startAutomatedJavaExpansionService(gradleTarget string, classpath string) (stopFunc func() error, address string, err error) {
 	jarPath, err := expansionx.GetBeamJar(gradleTarget, core.SdkVersion)
 	if err != nil {
 		return nil, "", err
@@ -159,11 +159,11 @@ func startAutomatedJavaExpansionService(gradleTarget string, classpath []string)
 
 	serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
 	if err != nil {
-		return nil, "", fmt.Errorf("error in new expansion service: %v", err)
+		return nil, "", fmt.Errorf("error in  startAutomatedJavaExpansionService(%s,%s): %w", gradleTarget, classpath, err)
 	}
 	err = serviceRunner.StartService()
 	if err != nil {
-		return nil, "", fmt.Errorf("error in start: %v", err)
+		return nil, "", fmt.Errorf("error in starting expansion service, StartService(): %w", err)
 	}
 	stopFunc = serviceRunner.StopService
 	address = serviceRunner.Endpoint()
@@ -180,7 +180,8 @@ func startAutomatedJavaExpansionService(gradleTarget string, classpath []string)
 func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.ExpansionResponse, error) {
 	// Strip auto: tag to get Gradle target
 	tag, target := parseAddr(p.Config)
-	classpath := p.ext.Classpath
+	// parse classpath namespace if present
+	target, classpath := parseClasspath(target)
 
 	stopFunc, address, err := startAutomatedJavaExpansionService(target, classpath)
 	if err != nil {

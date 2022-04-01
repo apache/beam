@@ -249,7 +249,9 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 
 const (
 	// Separator is the canonical separator between a namespace and optional configuration.
-	Separator             = ":"
+	Separator = ":"
+	// ClasspathSeparator is the canonical separator between a classpath namespace config string from other namespace-configuration string.
+	ClasspathSeparator    = ";"
 	hardOverrideNamespace = "hardoverride"
 	autoJavaNamespace     = "autojava"
 )
@@ -276,6 +278,16 @@ func UseAutomatedJavaExpansionService(gradleTarget string) string {
 	return autoJavaNamespace + Separator + gradleTarget
 }
 
+// AddClasspaths takes an expansion address string and creates a tagged string
+// suffixed with classpath separator and classpaths provided. This indicates that
+// the classpaths should be added to expansion service JAR before auto start-up.
+//
+// Intended for use by cross language wrappers to add classpaths to the manifest of
+// an expansion service in case of automated start-up of JAVA expansion service.
+func AddClasspaths(expansionAddr string, classpaths []string) string {
+	return expansionAddr + ClasspathSeparator + strings.Join(classpaths, " ")
+}
+
 // restricted namespaces to prevent some awkward edge cases.
 var restricted = map[string]struct{}{
 	hardOverrideNamespace: {}, // Special handler for overriding.
@@ -291,6 +303,14 @@ var restricted = map[string]struct{}{
 // and config string if any.
 func parseAddr(expansionAddr string) (ns, config string) {
 	split := strings.SplitN(expansionAddr, Separator, 2)
+	if len(split) == 1 {
+		return expansionAddr, ""
+	}
+	return split[0], split[1]
+}
+
+func parseClasspath(expansionAddr string) (string, string) {
+	split := strings.SplitN(expansionAddr, ClasspathSeparator, 2)
 	if len(split) == 1 {
 		return expansionAddr, ""
 	}

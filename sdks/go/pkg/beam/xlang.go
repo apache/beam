@@ -68,45 +68,6 @@ func CrossLanguagePayload(pl interface{}) []byte {
 	return bytes
 }
 
-// CrossLanguageWithClasspath is a low-level transform for executing cross-language transforms written in other
-// SDKs. Because this is low-level, it is recommended to use one of the higher-level IO-specific
-// wrappers where available. These can be found in the pkg/beam/io/xlang subdirectory.
-// CrossLanguage is useful for executing cross-language transforms which do not have any existing
-// IO wrappers. The functions beam.CrossLanguage() and beam.CrossLanguageWithClasspath() are similar except for
-// additional classpath dependencies that the later one accepts.
-//
-// Note: This should be specifically used when using an automated expansion service where you want to add additional
-// custom dependencies in the form of classpath to the expansion service.
-//
-// Usage requires an address for an expansion service accessible during pipeline construction, a
-// URN identifying the desired transform, an optional payload with configuration information,
-// input and output names, and classpath dependencies as an array of string. It outputs a map of named output PCollections.
-//
-// Example
-//
-// This example shows using CrossLanguageWithClasspath to execute the JDBC cross-language transform.
-//
-//    pl := beam.CrossLanguagePayload(JdbcConfigSchema)
-//    expansionAddr := xlang.UseAutomatedJavaExpansionService(gradleTargetOfExpansionService)
-//    readURN := ""
-//    classpath := []string{"org.postgresql:postgresql:42.3.3"}
-// 	  result := beam.CrossLanguageWithClasspath(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)), classpath)
-func CrossLanguageWithClasspath(
-	s Scope,
-	urn string,
-	payload []byte,
-	expansionAddr string,
-	namedInputs map[string]PCollection,
-	namedOutputTypes map[string]FullType,
-	classpath []string,
-) map[string]PCollection {
-	namedOutputs, err := TryCrossLanguage(s, urn, payload, expansionAddr, namedInputs, namedOutputTypes, classpath)
-	if err != nil {
-		panic(errors.WithContextf(err, "tried cross-language-with-classpath for %v against %v and failed", urn, expansionAddr))
-	}
-	return namedOutputs
-}
-
 // CrossLanguage is a low-level transform for executing cross-language transforms written in other
 // SDKs. Because this is low-level, it is recommended to use one of the higher-level IO-specific
 // wrappers where available. These can be found in the pkg/beam/io/xlang subdirectory.
@@ -196,7 +157,7 @@ func CrossLanguage(
 	namedInputs map[string]PCollection,
 	namedOutputTypes map[string]FullType,
 ) map[string]PCollection {
-	namedOutputs, err := TryCrossLanguage(s, urn, payload, expansionAddr, namedInputs, namedOutputTypes, nil)
+	namedOutputs, err := TryCrossLanguage(s, urn, payload, expansionAddr, namedInputs, namedOutputTypes)
 	if err != nil {
 		panic(errors.WithContextf(err, "tried cross-language for %v against %v and failed", urn, expansionAddr))
 	}
@@ -211,9 +172,7 @@ func TryCrossLanguage(
 	payload []byte,
 	expansionAddr string,
 	namedInputs map[string]PCollection,
-	namedOutputTypes map[string]FullType,
-	classpath []string,
-) (map[string]PCollection, error) {
+	namedOutputTypes map[string]FullType) (map[string]PCollection, error) {
 	if !s.IsValid() {
 		panic(errors.New("invalid scope"))
 	}
@@ -231,7 +190,6 @@ func TryCrossLanguage(
 		Urn:           urn,
 		Payload:       payload,
 		ExpansionAddr: expansionAddr,
-		Classpath:     classpath,
 	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
 
 	// Adding an edge in the graph corresponding to the ExternalTransform

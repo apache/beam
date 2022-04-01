@@ -34,24 +34,20 @@ require (
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.5.7
-	github.com/google/martian/v3 v3.2.1 // indirect
 	github.com/google/uuid v1.3.0
-	github.com/jmoiron/sqlx v1.3.4
-	github.com/jstemmer/go-junit-report v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.4
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
+	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cobra v1.4.0
-	github.com/spf13/viper v1.8.1 // indirect
 	github.com/testcontainers/testcontainers-go v0.12.0
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5
 	golang.org/x/text v0.3.7
-	golang.org/x/tools v0.1.9 // indirect
 	google.golang.org/api v0.71.0
 	google.golang.org/genproto v0.0.0-20220310185008-1973136f34c6
 	google.golang.org/grpc v1.45.0
@@ -59,4 +55,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

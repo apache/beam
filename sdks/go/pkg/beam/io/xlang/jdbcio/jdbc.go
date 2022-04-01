@@ -144,13 +144,16 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 	if expansionAddr == "" {
 		expansionAddr = autoStartupAddress
 	}
+	if len(cfg.classpath) > 0 {
+		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpath)
+	}
 
 	jcs := jdbcConfigSchema{
 		Location: tableName,
 		Config:   toRow(cfg.config),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguageWithClasspath(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil, cfg.classpath)
+	beam.CrossLanguage(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil)
 }
 
 type writeOption func(*jdbcConfig)
@@ -250,14 +253,16 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 	if expansionAddr == "" {
 		expansionAddr = autoStartupAddress
 	}
+	if len(cfg.classpath) > 0 {
+		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpath)
+	}
 
 	jcs := jdbcConfigSchema{
 		Location: tableName,
 		Config:   toRow(cfg.config),
 	}
-
 	pl := beam.CrossLanguagePayload(jcs)
-	result := beam.CrossLanguageWithClasspath(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)), cfg.classpath)
+	result := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)))
 	return result[beam.UnnamedOutputTag()]
 }
 
