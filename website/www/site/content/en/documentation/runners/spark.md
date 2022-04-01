@@ -279,7 +279,7 @@ gsutil mb <b><i>BUCKET_NAME</i></b>
 python -m pip install apache-beam[gcp]==<b><i>BEAM_VERSION</i></b>
 </pre>
 
-4. Bundle the word count example pipeline along with all dependencies, artifacts, etc. required to run the pipeline into a jar that can be executed later
+4. Bundle the word count example pipeline along with all dependencies, artifacts, etc. required to run the pipeline into a jar that can be executed later.
 
 <pre>
 python -m apache_beam.examples.wordcount \
