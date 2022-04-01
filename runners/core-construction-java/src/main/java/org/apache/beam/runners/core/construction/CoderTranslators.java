@@ -210,7 +210,7 @@ class CoderTranslators {
       @Override
       protected NullableCoder<?> fromComponents(List<Coder<?>> components) {
         checkArgument(
-            components.size() == 1, "Expected one component component, but received: " + components);
+            components.size() == 1, "Expected one component, but received: " + components);
         return NullableCoder.of(components.get(0));
       }
 
