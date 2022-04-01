@@ -46,6 +46,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -102,6 +103,7 @@ public class BeamFnStateGrpcClientCacheTest {
   }
 
   @Test
+  @Ignore("(BEAM-13519) Java precommit timing out")
   public void testCachingOfClient() throws Exception {
     Endpoints.ApiServiceDescriptor otherApiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
