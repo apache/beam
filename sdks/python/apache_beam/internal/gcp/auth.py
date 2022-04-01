@@ -176,7 +176,7 @@ class _Credentials(object):
   @classmethod
   def _add_impersonation_credentials(cls):
     if not cls._impersonation_parameters_set:
-      raise Excpetion('Impersonation credentials set to late in workflow.')
+      raise Exception('Impersonation credentials not yet set.')
     """Adds impersonation credentials if the client species them."""
     if cls.target_principal:
       credentials = google.auth.impersonated_credentials.Credentials(
