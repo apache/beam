@@ -515,6 +515,8 @@ func tryEncodeSpecial(t reflect.Type) (v1pb.Type_Special, bool) {
 		return v1pb.Type_EVENTTIME, true
 	case typex.WindowType:
 		return v1pb.Type_WINDOW, true
+	case typex.BundleFinalizationType:
+		return v1pb.Type_BUNDLEFINALIZATION, true
 	case typex.KVType:
 		return v1pb.Type_KV, true
 	case typex.CoGBKType:
@@ -677,6 +679,8 @@ func decodeSpecial(s v1pb.Type_Special) (reflect.Type, error) {
 		return typex.EventTimeType, nil
 	case v1pb.Type_WINDOW:
 		return typex.WindowType, nil
+	case v1pb.Type_BUNDLEFINALIZATION:
+		return typex.BundleFinalizationType, nil
 	case v1pb.Type_KV:
 		return typex.KVType, nil
 	case v1pb.Type_COGBK:
