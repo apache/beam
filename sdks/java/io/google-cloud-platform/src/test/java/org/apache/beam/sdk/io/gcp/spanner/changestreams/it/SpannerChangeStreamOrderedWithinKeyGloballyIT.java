@@ -53,6 +53,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -87,6 +88,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
+  @Ignore
   @Test
   public void testOrderedWithinKey() {
     final SpannerConfig spannerConfig =

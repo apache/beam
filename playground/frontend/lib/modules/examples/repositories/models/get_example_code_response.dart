@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_model.dart';
+class GetExampleCodeResponse {
+  final String code;
 
-class GetDefaultExampleResponse {
-  final ExampleModel example;
-
-  GetDefaultExampleResponse(this.example);
+  GetExampleCodeResponse(this.code);
 }

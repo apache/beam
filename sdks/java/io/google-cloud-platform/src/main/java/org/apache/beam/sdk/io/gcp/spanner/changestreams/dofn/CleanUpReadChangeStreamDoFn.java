@@ -15,20 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.elasticsearch.bootstrap;
+package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-/**
- * We need a real Elasticsearch instance to properly test the IO (split, slice API, scroll API,
- * ...). Starting at ES 5, to have Elasticsearch embedded, we are forced to use Elasticsearch test
- * framework. But this framework checks for class duplicates in classpath and it cannot be
- * deactivated. When the class duplication come from a dependency, then it cannot be avoided.
- * Elasticsearch community does not provide a way of deactivating the jar hell test, so skip it by
- * making this hack. In this case duplicate class is class:
- * org.apache.maven.surefire.report.SafeThrowable jar1: surefire-api-2.20.jar jar2:
- * surefire-junit47-2.20.jar
- */
-class JarHell {
+import java.io.Serializable;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
+import org.apache.beam.sdk.transforms.DoFn;
 
-  @SuppressWarnings("EmptyMethod")
-  public static void checkJarHell() {}
+public class CleanUpReadChangeStreamDoFn extends DoFn<byte[], Void> implements Serializable {
+
+  private static final long serialVersionUID = -2016761780280479411L;
+
+  private final DaoFactory daoFactory;
+
+  public CleanUpReadChangeStreamDoFn(DaoFactory daoFactory) {
+    this.daoFactory = daoFactory;
+  }
+
+  @ProcessElement
+  public void processElement(OutputReceiver<Void> receiver) {
+    daoFactory.getPartitionMetadataAdminDao().deletePartitionMetadataTable();
+  }
 }

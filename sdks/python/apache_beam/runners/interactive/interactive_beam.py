@@ -38,12 +38,15 @@ from typing import DefaultDict
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Union
 
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
@@ -375,6 +378,10 @@ class Clusters:
     # self.master_urls_to_dashboards map string master_urls to the
     # corresponding Apache Flink dashboards.
     self.master_urls_to_dashboards: Dict[str, str] = {}
+    # self.default_cluster_metadata for creating a DataprocClusterManager when
+    # a pipeline has its cluster deleted from the clusters Jupyterlab
+    # extension.
+    self.default_cluster_metadata = None
 
   def describe(self, pipeline: Optional[beam.Pipeline] = None) -> dict:
     """Returns a description of the cluster associated to the given pipeline.
@@ -442,6 +449,36 @@ class Clusters:
       self.master_urls.clear()
       self.master_urls_to_pipelines.clear()
       self.master_urls_to_dashboards.clear()
+
+  def delete_cluster(self, master: Union[str, MasterURLIdentifier]) -> None:
+    """Deletes the cluster with the given obfuscated identifier from the
+    Interactive Environment, as well as from Dataproc. Additionally, unassigns
+    the 'flink_master' pipeline option for all impacted pipelines.
+    """
+    if isinstance(master, MasterURLIdentifier):
+      master_url = self.master_urls.inverse[master]
+    else:
+      master_url = master
+
+    pipelines = [
+        ie.current_env().pipeline_id_to_pipeline(pid)
+        for pid in self.master_urls_to_pipelines[master_url]
+    ]
+    for p in pipelines:
+      ie.current_env().clusters.cleanup(p)
+      p.options.view_as(FlinkRunnerOptions).flink_master = '[auto]'
+
+  def set_default_cluster(
+      self, master: Union[str, MasterURLIdentifier]) -> None:
+    """Given an obfuscated identifier for a cluster, set the
+    default_cluster_metadata to be the MasterURLIdentifier that represents the
+    cluster."""
+    if isinstance(master, MasterURLIdentifier):
+      master_url = self.master_urls.inverse[master]
+    else:
+      master_url = master
+
+    self.default_cluster_metadata = self.master_urls[master_url]
 
 
 # Users can set options to guide how Interactive Beam works.

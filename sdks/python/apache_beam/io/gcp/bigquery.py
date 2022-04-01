@@ -1081,7 +1081,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
         'use_legacy_sql': self.use_legacy_sql,
         'use_native_datetime': self.use_native_datetime,
         'selected_fields': str(self.selected_fields),
-        'row_restriction': str(self.row_restriction)
+        'row_restriction': str(self.row_restriction),
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
