@@ -614,7 +614,7 @@ def is_nullable(typehint):
 def get_concrete_type_from_nullable(typehint):
   if is_nullable(typehint):
     for inner_type in typehint.inner_types():
-      if not type(None).isInstance(inner_type):
+      if not type(None) == inner_type:
         return inner_type
   else:
     raise TypeError('Typehint is not of nullable type', typehint)
