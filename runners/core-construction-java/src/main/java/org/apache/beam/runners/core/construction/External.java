@@ -54,6 +54,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -91,7 +92,17 @@ public class External {
           String urn, byte[] payload, String endpoint) {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
-    return new SingleOutputExpandableTransform<>(urn, payload, apiDesc, getFreshNamespaceIndex());
+    return new SingleOutputExpandableTransform<>(
+        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex());
+  }
+
+  @VisibleForTesting
+  static <InputT extends PInput, OutputT> SingleOutputExpandableTransform<InputT, OutputT> of(
+      String urn, byte[] payload, String endpoint, ExpansionServiceClientFactory clientFactory) {
+    Endpoints.ApiServiceDescriptor apiDesc =
+        Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
+    return new SingleOutputExpandableTransform<>(
+        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex());
   }
 
   /** Expandable transform for output type of PCollection. */
@@ -101,8 +112,9 @@ public class External {
         String urn,
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
+        ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex) {
-      super(urn, payload, endpoint, namespaceIndex);
+      super(urn, payload, endpoint, clientFactory, namespaceIndex);
     }
 
     @Override
@@ -113,12 +125,12 @@ public class External {
 
     public MultiOutputExpandableTransform<InputT> withMultiOutputs() {
       return new MultiOutputExpandableTransform<>(
-          getUrn(), getPayload(), getEndpoint(), getNamespaceIndex());
+          getUrn(), getPayload(), getEndpoint(), getClientFactory(), getNamespaceIndex());
     }
 
     public <T> SingleOutputExpandableTransform<InputT, T> withOutputType() {
       return new SingleOutputExpandableTransform<>(
-          getUrn(), getPayload(), getEndpoint(), getNamespaceIndex());
+          getUrn(), getPayload(), getEndpoint(), getClientFactory(), getNamespaceIndex());
     }
   }
 
@@ -129,8 +141,9 @@ public class External {
         String urn,
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
+        ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex) {
-      super(urn, payload, endpoint, namespaceIndex);
+      super(urn, payload, endpoint, clientFactory, namespaceIndex);
     }
 
     @Override
@@ -151,10 +164,12 @@ public class External {
     private final String urn;
     private final byte[] payload;
     private final Endpoints.ApiServiceDescriptor endpoint;
+    private final ExpansionServiceClientFactory clientFactory;
     private final Integer namespaceIndex;
 
     private transient RunnerApi.@Nullable Components expandedComponents;
     private transient RunnerApi.@Nullable PTransform expandedTransform;
+    private transient @Nullable List<String> expandedRequirements;
     private transient @Nullable Map<PCollection, String> externalPCollectionIdMap;
     private transient @Nullable Map<Coder, String> externalCoderIdMap;
 
@@ -162,10 +177,12 @@ public class External {
         String urn,
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
+        ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex) {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
+      this.clientFactory = clientFactory;
       this.namespaceIndex = namespaceIndex;
     }
 
@@ -215,7 +232,7 @@ public class External {
               .build();
 
       ExpansionApi.ExpansionResponse response =
-          DEFAULT.getExpansionServiceClient(endpoint).expand(request);
+          clientFactory.getExpansionServiceClient(endpoint).expand(request);
 
       if (!Strings.isNullOrEmpty(response.getError())) {
         throw new RuntimeException(
@@ -224,6 +241,7 @@ public class External {
 
       expandedComponents = resolveArtifacts(response.getComponents());
       expandedTransform = response.getTransform();
+      expandedRequirements = response.getRequirementsList();
 
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(expandedComponents).withPipeline(p);
@@ -369,6 +387,10 @@ public class External {
       return expandedComponents;
     }
 
+    List<String> getExpandedRequirements() {
+      return expandedRequirements;
+    }
+
     Map<PCollection, String> getExternalPCollectionIdMap() {
       return externalPCollectionIdMap;
     }
@@ -387,6 +409,10 @@ public class External {
 
     Endpoints.ApiServiceDescriptor getEndpoint() {
       return endpoint;
+    }
+
+    ExpansionServiceClientFactory getClientFactory() {
+      return clientFactory;
     }
 
     Integer getNamespaceIndex() {
