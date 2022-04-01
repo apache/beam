@@ -689,11 +689,15 @@ You only need to enable &amp;ldquo;repo&amp;rdquo; permissions to this token.&lt
 &lt;li>Then run
 &lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./verify_release_build.sh
 &lt;/code>&lt;/pre>&lt;/li>
-&lt;li>Trigger &lt;code>beam_Release_Gradle_Build&lt;/code> and all PostCommit Jenkins jobs from PR (which is created by previous step).
+&lt;li>Trigger &lt;code>beam_Release_Gradle_Build&lt;/code> and all Jenkins PostCommit jobs from the PR created by the previous step.
 You can run &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py&lt;/a> to do that.
 Or manually add one trigger phrase per PR comment.
 See &lt;code>COMMENTS_TO_ADD&lt;/code> in &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py&lt;/a>
-for full list of phrases.&lt;/li>
+for full list of phrases. Please note that this list of phrases can get
+out of date, it&amp;rsquo;s your responsibility to run &lt;em>all&lt;/em> PostCommits, not just
+the ones listed there.
+&lt;a href="https://issues.apache.org/jira/browse/BEAM-13951">BEAM-13951&lt;/a> has
+directions for updating this list using the Jenkins API.&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;li>
