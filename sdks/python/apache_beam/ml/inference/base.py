@@ -97,7 +97,7 @@ class RunInference(beam.PTransform):
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
         | beam.ParDo(
-            RunInferenceDoFn(shared.Shared(), self._model_loader, self._clock))
+            RunInferenceDoFn(self._model_loader, shared.Shared(), self._clock))
         | beam.FlatMap(_unbatch))
 
 
@@ -154,8 +154,8 @@ class RunInferenceDoFn(beam.DoFn):
   """A DoFn implementation generic to frameworks."""
   def __init__(
       self,
-      shared_handle: shared.Shared,
       model_loader: ModelLoader,
+      shared_handle: shared.Shared,
       clock=None):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
