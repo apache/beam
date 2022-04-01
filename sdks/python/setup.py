@@ -253,7 +253,7 @@ def generate_protos_first(original_cmd):
     return original_cmd
 
 
-python_requires = '>=3.6'
+python_requires = '>=3.7'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 10:
   warnings.warn(
