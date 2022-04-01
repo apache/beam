@@ -23,6 +23,8 @@ import logging
 import socket
 import threading
 
+import traceback # DO_NOT_SUBMIT
+
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
   import google.auth
@@ -72,7 +74,7 @@ def set_impersonation_accounts(target_principal = None, delegate_to = None):
   _Credentials.set_impersonation_accounts(target_principal, delegate_to)
 
 
-def get_service_credentials(target_principal = None, delegate_to = None):
+def get_service_credentials():
   """For internal use only; no backwards-compatibility guarantees.
 
   Get credentials to access Google services.
@@ -139,13 +141,13 @@ class _Credentials(object):
           "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
       cls._credentials = cls._get_service_credentials()
-      cls._add_impersonation_credentials()
+      cls._credentials = cls._add_impersonation_credentials()
       cls._credentials_init = True
 
     return cls._credentials
 
   @staticmethod
-  def _get_service_credentials(cls):
+  def _get_service_credentials():
     if not _GOOGLE_AUTH_AVAILABLE:
       _LOGGER.warning(
           'Unable to find default credentials because the google-auth library '
@@ -176,12 +178,14 @@ class _Credentials(object):
   @classmethod
   def _add_impersonation_credentials(cls):
     if not cls._impersonation_parameters_set:
-      raise Exception('Impersonation credentials not yet set.')
+      traceback_str = traceback.format_stack()
+      raise Exception('Impersonation credentials not yet set. \n' + str(traceback_str))
     """Adds impersonation credentials if the client species them."""
-    if cls.target_principal:
+    credentials = cls._credentials
+    if cls._target_principal:
       credentials = google.auth.impersonated_credentials.Credentials(
-        source_credentials=cls._credentials,
-        target_principal=cls.target_principal,
+        source_credentials=credentials,
+        target_principal=cls._target_principal,
         delegates=cls._delegate_accounts,
         target_scopes=CLIENT_SCOPES,
       )
