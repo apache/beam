@@ -89,6 +89,8 @@ public class ManagedChannelFactory {
             // Set the message size to max value here. The actual size is governed by the
             // buffer size in the layers above.
             .maxInboundMessageSize(Integer.MAX_VALUE)
+            // Disable automatic retries as it introduces overhead and the harness is local.
+            .disableRetry()
             .intercept(interceptors);
     if (directExecutor) {
       channelBuilder = channelBuilder.directExecutor();
