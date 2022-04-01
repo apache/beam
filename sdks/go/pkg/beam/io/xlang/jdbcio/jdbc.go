@@ -91,7 +91,7 @@ type config struct {
 
 // jdbcConfig stores the expansion service and configuration for JDBC IO.
 type jdbcConfig struct {
-	classpath     []string
+	classpaths    []string
 	expansionAddr string
 	config        *config
 }
@@ -144,8 +144,8 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 	if expansionAddr == "" {
 		expansionAddr = autoStartupAddress
 	}
-	if len(cfg.classpath) > 0 {
-		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpath)
+	if len(cfg.classpaths) > 0 {
+		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpaths)
 	}
 
 	jcs := jdbcConfigSchema{
@@ -158,9 +158,9 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 
 type writeOption func(*jdbcConfig)
 
-func WriteClasspath(classpath []string) writeOption {
+func WriteClasspaths(classpaths []string) writeOption {
 	return func(jc *jdbcConfig) {
-		jc.classpath = classpath
+		jc.classpaths = classpaths
 	}
 }
 
@@ -253,8 +253,8 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 	if expansionAddr == "" {
 		expansionAddr = autoStartupAddress
 	}
-	if len(cfg.classpath) > 0 {
-		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpath)
+	if len(cfg.classpaths) > 0 {
+		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpaths)
 	}
 
 	jcs := jdbcConfigSchema{
@@ -268,9 +268,9 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 
 type readOption func(*jdbcConfig)
 
-func ReadClasspath(classpath []string) readOption {
+func ReadClasspaths(classpaths []string) readOption {
 	return func(jc *jdbcConfig) {
-		jc.classpath = classpath
+		jc.classpaths = classpaths
 	}
 }
 
