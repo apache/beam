@@ -777,7 +777,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	// We need to preserve the old windowing/triggering here
 	// for re-instatement after the GBK.
 	preservedWSId := m.pcollections[origInput].GetWindowingStrategyId()
-	preservedCoderId := m.pcollections[origInput].GetCoderId()
+	preservedCoderId, coderPayloads := m.marshalReshuffleCodersForPCollection(origInput)
 
 	// Get the windowing strategy from before:
 	postReify := fmt.Sprintf("%v_%v_reifyts", nodeID(in.From), id)
@@ -836,7 +836,8 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleInput,
 				Reshuffle: &v1pb.ReshufflePayload{
-					CoderPayload: []byte(preservedCoderId),
+					CoderId:       preservedCoderId,
+					CoderPayloads: coderPayloads,
 				},
 			})),
 		},
@@ -888,7 +889,8 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleOutput,
 				Reshuffle: &v1pb.ReshufflePayload{
-					CoderPayload: []byte(preservedCoderId),
+					CoderId:       preservedCoderId,
+					CoderPayloads: coderPayloads,
 				},
 			})),
 		},
@@ -917,6 +919,28 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		EnvironmentId: m.addDefaultEnv(),
 	}
 	return reshuffleID, nil
+}
+
+func (m *marshaller) marshalReshuffleCodersForPCollection(pcolID string) (string, map[string][]byte) {
+	preservedCoderId := m.pcollections[pcolID].GetCoderId()
+
+	cps := map[string][]byte{}
+	cs := []string{preservedCoderId}
+	for cs != nil {
+		var next []string
+		for _, cid := range cs {
+			c := m.coders.coders[cid]
+			cps[cid] = protox.MustEncode(c)
+			for _, newCid := range c.GetComponentCoderIds() {
+				if _, ok := cps[newCid]; !ok {
+					next = append(next, c.GetComponentCoderIds()...)
+				}
+			}
+		}
+		cs = next
+	}
+
+	return preservedCoderId, cps
 }
 
 func (m *marshaller) addNode(n *graph.Node) (string, error) {

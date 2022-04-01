@@ -238,7 +238,10 @@ message InjectPayload {
 
 // ReshufflePayload is the payload for the built-in reshuffle function.
 message ReshufflePayload {
-    bytes coder_payload = 1;
+    // the root coder id for the reshuffle element
+    string coder_id = 1;
+    // local coder ids to their serialized pipeline_v1.Coder messages.
+    map<string, bytes> coder_payloads = 2;
 }
 
 // TransformPayload represents the full payload for transforms, both
