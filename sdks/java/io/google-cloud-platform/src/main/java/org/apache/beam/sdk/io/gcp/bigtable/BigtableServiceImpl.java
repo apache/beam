@@ -33,6 +33,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.util.ByteStringComparator;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
@@ -55,6 +56,7 @@ import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
@@ -119,21 +121,125 @@ class BigtableServiceImpl implements BigtableService {
   static class BigtableReaderImpl implements Reader {
     private BigtableSession session;
     private final BigtableSource source;
+    private ResultScanner<Row> results;
+    private Row currentRow;
+
+    @VisibleForTesting
+    BigtableReaderImpl(BigtableSession session, BigtableSource source) {
+      this.session = session;
+      this.source = source;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      RowSet.Builder rowSetBuilder = RowSet.newBuilder();
+      for (ByteKeyRange sourceRange : source.getRanges()) {
+        rowSetBuilder =
+            rowSetBuilder.addRowRanges(
+                RowRange.newBuilder()
+                    .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
+                    .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
+      }
+      RowSet rowSet = rowSetBuilder.build();
+
+      String tableNameSr =
+          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
+
+      HashMap<String, String> baseLabels = new HashMap<>();
+      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.ReadRows");
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.bigtableResource(
+              session.getOptions().getProjectId(),
+              session.getOptions().getInstanceId(),
+              source.getTableId().get()));
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.TABLE_ID,
+          GcpResourceIdentifiers.bigtableTableID(
+              session.getOptions().getProjectId(),
+              session.getOptions().getInstanceId(),
+              source.getTableId().get()));
+      ServiceCallMetric serviceCallMetric =
+          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+      ReadRowsRequest.Builder requestB =
+          ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
+      if (source.getRowFilter() != null) {
+        requestB.setFilter(source.getRowFilter());
+      }
+      try {
+        results = session.getDataClient().readRows(requestB.build());
+        serviceCallMetric.call("ok");
+      } catch (StatusRuntimeException e) {
+        serviceCallMetric.call(e.getStatus().getCode().value());
+        throw e;
+      }
+      return advance();
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      currentRow = results.next();
+      return currentRow != null;
+    }
+
+    @Override
+    public void close() throws IOException {
+      // Goal: by the end of this function, both results and session are null and closed,
+      // independent of what errors they throw or prior state.
+
+      if (session == null) {
+        // Only possible when previously closed, so we know that results is also null.
+        return;
+      }
+
+      // Session does not implement Closeable -- it's AutoCloseable. So we can't register it with
+      // the Closer, but we can use the Closer to simplify the error handling.
+      try (Closer closer = Closer.create()) {
+        if (results != null) {
+          closer.register(results);
+          results = null;
+        }
+
+        session.close();
+      } finally {
+        session = null;
+      }
+    }
+
+    @Override
+    public Row getCurrentRow() throws NoSuchElementException {
+      if (currentRow == null) {
+        throw new NoSuchElementException();
+      }
+      return currentRow;
+    }
+  }
+
+  @VisibleForTesting
+  static class BigtableMiniBatchReaderImpl implements Reader {
+    private BigtableSession session;
+    private final BigtableSource source;
     private Row currentRow;
     private Queue<Row> buffer;
     private RowSet rowSet;
     private ServiceCallMetric serviceCallMetric;
     private Future<List<Row>> future;
     private ByteString lastFetchedRow;
+    private boolean lastFillComplete;
 
     // TODO: Consider making this user configurable
     private final int miniBatchLimit = DEFAULT_MINI_BATCH_SIZE;
     private final int miniBatchWaterMark = miniBatchLimit / 10;
     private final String tableName;
 
-
     @VisibleForTesting
-    BigtableReaderImpl(BigtableSession session, BigtableSource source) {
+    BigtableMiniBatchReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
       tableName =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
@@ -143,6 +249,7 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public boolean start() throws IOException {
       buffer = new ArrayDeque<>();
+      lastFillComplete = false;
       RowRange[] rowRanges = new RowRange[source.getRanges().size()];
       for (int i = 0; i < source.getRanges().size(); i++) {
         rowRanges[i] =
@@ -189,12 +296,21 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
-      if (buffer.isEmpty()) {
+      /*if (buffer.isEmpty()) {
         if (future == null || !waitReadRowsFuture()) {
           return false;
         }
       } else if (future == null && buffer.size() < miniBatchWaterMark) {
         startNextSegmentRead();
+      }
+       */
+      if (buffer.size() <= miniBatchWaterMark && future == null && !lastFillComplete) {
+        startNextSegmentRead();
+      }
+      if (buffer.isEmpty()) {
+        if (future == null || lastFillComplete)
+          return false;
+        waitReadRowsFuture();
       }
       currentRow = buffer.remove();
       return currentRow != null;
@@ -219,12 +335,12 @@ class BigtableServiceImpl implements BigtableService {
       future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
     }
 
-    private boolean waitReadRowsFuture() throws IOException {
+    private void waitReadRowsFuture() throws IOException {
       try {
         List<Row> results = future.get();
         future = null;
         serviceCallMetric.call("ok");
-        return fillReadRowsBuffer(results);
+        fillReadRowsBuffer(results);
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().value());
         throw e;
@@ -237,14 +353,17 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
-    private boolean fillReadRowsBuffer(List<Row> results) {
+    private void fillReadRowsBuffer(List<Row> results) {
       if (results.size() == 0) {
-        return false;
+        lastFillComplete = true;
+        return;
       } else {
+        if (results.size() < miniBatchLimit) {
+          lastFillComplete = true;
+        }
         buffer.addAll(results.subList(0, results.size()));
       }
       lastFetchedRow = results.get(results.size() - 1).getKey();
-      return true;
     }
 
     private boolean splitRowSet(ByteString splitPoint) {
@@ -411,6 +530,11 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public Reader createReader(BigtableSource source) throws IOException {
+    BigtableSession session = new BigtableSession(options);
+    return new BigtableReaderImpl(session, source);
+  }
+
+  public Reader createMiniBatchReader(BigtableSource source) throws IOException {
     BigtableSession session = new BigtableSession(options);
     return new BigtableReaderImpl(session, source);
   }

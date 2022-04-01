@@ -37,6 +37,7 @@ import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
@@ -65,6 +66,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests of BigtableServiceImpl. */
@@ -105,6 +107,36 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
+   * as expected.
+   *
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  @Test
+  public void testRead() throws IOException {
+    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+    @SuppressWarnings("unchecked")
+    ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
+    Row expectedRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
+    when(mockResultScanner.next()).thenReturn(expectedRow).thenReturn(null);
+    when(mockBigtableDataClient.readRows(any(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+
+    underTest.start();
+    Assert.assertEquals(expectedRow, underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
+    underTest.close();
+
+    verify(mockResultScanner, times(1)).close();
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
+  }
+
+  /**
+   * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
    * as expected. This test checks that a single row is returned from the future.
    *
    * @throws IOException
@@ -121,12 +153,11 @@ public class BigtableServiceImplTest {
         .thenReturn(Futures.immediateFuture(Arrays.asList(expectedRow)));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
-    underTest.advance();
-    Assert.assertEquals(expectedRow, underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
     underTest.close();
 
     verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
@@ -163,7 +194,7 @@ public class BigtableServiceImplTest {
         .thenReturn(null);
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows.get(0), underTest.getCurrentRow());
@@ -219,7 +250,7 @@ public class BigtableServiceImplTest {
         .thenReturn(null);
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows.get(0), underTest.getCurrentRow());
@@ -295,7 +326,7 @@ public class BigtableServiceImplTest {
         .thenReturn(null);
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(expectedFirstRangeRows.get(0), underTest.getCurrentRow());
@@ -348,7 +379,7 @@ public class BigtableServiceImplTest {
         .thenReturn(null);
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(expectedRangeRows.get(0), underTest.getCurrentRow());
@@ -408,7 +439,7 @@ public class BigtableServiceImplTest {
         .thenReturn(null);
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
     verify(mockBigtableDataClient, times(1)).readRowsAsync(requestCaptor.capture());
