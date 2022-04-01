@@ -782,8 +782,8 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	}
 	// We need to preserve the old windowing/triggering here
 	// for re-instatement after the GBK.
-	preservedWSId := m.pcollections[origInput].GetWindowingStrategyId()
-	preservedCoderId, coderPayloads := m.marshalReshuffleCodersForPCollection(origInput)
+	preservedWSID := m.pcollections[origInput].GetWindowingStrategyId()
+	preservedCoderID, coderPayloads := m.marshalReshuffleCodersForPCollection(origInput)
 
 	// Get the windowing strategy from before:
 	postReify := fmt.Sprintf("%v_%v_reifyts", nodeID(in.From), id)
@@ -842,7 +842,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleInput,
 				Reshuffle: &v1pb.ReshufflePayload{
-					CoderId:       preservedCoderId,
+					CoderId:       preservedCoderID,
 					CoderPayloads: coderPayloads,
 				},
 			})),
@@ -886,7 +886,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	if err != nil {
 		return handleErr(err)
 	}
-	m.pcollections[outPCol].WindowingStrategyId = preservedWSId
+	m.pcollections[outPCol].WindowingStrategyId = preservedWSID
 
 	outputID := fmt.Sprintf("%v_unreify", id)
 	outputPayload := &pipepb.ParDoPayload{
@@ -895,7 +895,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleOutput,
 				Reshuffle: &v1pb.ReshufflePayload{
-					CoderId:       preservedCoderId,
+					CoderId:       preservedCoderID,
 					CoderPayloads: coderPayloads,
 				},
 			})),
