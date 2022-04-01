@@ -108,7 +108,8 @@ tasks.rat {
 
     // test p8 file for SnowflakeIO
     "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",
-    "sdks/java/io/snowflake/src/test/resources/valid_test_rsa_key.p8",
+    "sdks/java/io/snowflake/src/test/resources/valid_encrypted_test_rsa_key.p8",
+    "sdks/java/io/snowflake/src/test/resources/valid_unencrypted_test_rsa_key.p8",
 
     // Mockito extensions
     "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",

@@ -1089,6 +1089,7 @@ message StandardCoders {
     //     values.
     //   - For present values the null indicator is followed by the value
     //     encoded with it's corresponding coder.
+    // Components: single coder for the value
     NULLABLE = 17 [(beam_urn) = "beam:coder:nullable:v1"];
   }
 }

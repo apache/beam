@@ -16,8 +16,6 @@
 name: pr-bot-pr-updates
 
 on:
-  pull_request_review:
-  pull_request_review_comment:
   pull_request_target:
     types: ["synchronize"] # Synchronize is the action that runs after pushes to the user branch
   issue_comment:

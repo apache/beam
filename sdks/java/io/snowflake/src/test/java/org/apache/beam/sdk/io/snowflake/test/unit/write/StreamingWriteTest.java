@@ -192,7 +192,7 @@ public class StreamingWriteTest {
         SnowflakeIO.DataSourceConfiguration.create()
             .withKeyPairPathAuth(
                 options.getUsername(),
-                TestUtils.getValidPrivateKeyPath(getClass()),
+                TestUtils.getValidEncryptedPrivateKeyPath(getClass()),
                 TestUtils.getPrivateKeyPassphrase())
             .withServerName(options.getServerName())
             .withSchema("PUBLIC")
@@ -251,7 +251,7 @@ public class StreamingWriteTest {
         SnowflakeIO.DataSourceConfiguration.create()
             .withKeyPairPathAuth(
                 options.getUsername(),
-                TestUtils.getValidPrivateKeyPath(getClass()),
+                TestUtils.getValidEncryptedPrivateKeyPath(getClass()),
                 TestUtils.getPrivateKeyPassphrase())
             .withServerName(options.getServerName())
             .withSchema("PUBLIC")

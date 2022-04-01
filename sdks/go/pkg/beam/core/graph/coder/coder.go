@@ -396,13 +396,12 @@ func NewKV(components []*Coder) *Coder {
 }
 
 func NewN(component *Coder) *Coder {
-	coders := make([]*Coder, 1)
-	coders[0] = component
+	coders := []*Coder{component}
 	checkCodersNotNil(coders)
 	return &Coder{
 		Kind:       Nullable,
 		T:          typex.New(typex.NullableType, component.T),
-		Components: []*Coder{component},
+		Components: coders,
 	}
 }
 

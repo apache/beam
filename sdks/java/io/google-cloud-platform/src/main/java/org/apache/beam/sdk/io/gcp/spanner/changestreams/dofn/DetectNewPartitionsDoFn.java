@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -109,9 +110,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   public TimestampRange initialRestriction(@Element PartitionMetadata partition) {
     final com.google.cloud.Timestamp createdAt = partition.getCreatedAt();
     return TimestampRange.of(
-        com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
-            createdAt.getSeconds(), createdAt.getNanos() - 1),
-        com.google.cloud.Timestamp.MAX_VALUE);
+        TimestampUtils.previous(createdAt), com.google.cloud.Timestamp.MAX_VALUE);
   }
 
   @NewTracker

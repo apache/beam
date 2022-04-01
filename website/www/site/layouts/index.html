@@ -16,7 +16,7 @@
       <h3>{{ T "home-hero-title" }}</h3>
       <h1>{{ T "home-hero-heading" }}</h1>
       <h2>{{ T "home-hero-subheading" }}</h2>
-      <a href={{ "/get-started/downloads/" | relLangURL }}>
+      <a href={{ "https://github.com/apache/beam" | relLangURL }}>
         <button>
             {{ with resources.Get "icons/install-button-icon.svg" }}
               {{ .Content | safeHTML }}
@@ -61,13 +61,16 @@
 {{ end }}
 
 {{ define "playground-section" }}
-<div class="body__contained body__section-nav">
+<div class="body__contained body__section-nav playground-section">
   <h1>Try Beam Playground</h1>
   <p>Beam Playground is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
-    You can try an Apache Beam examples at <a href="https://play.beam.apache.org/">Beam Playground (Beta)</a>.
+    You can try the Apache Beam examples at <a href="https://play.beam.apache.org/">Beam Playground (Beta)</a>.
   </p>
   <br>
   <br>
+  <a class="playground__mobile" href="https://play.beam.apache.org/">
+    <img src="images/playground.png" alt="beam playground">
+  </a>
   <iframe
           src="https://play.beam.apache.org/embedded?enabled=true&example=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount&code="
           width="100%"
@@ -109,6 +112,7 @@
           <div class="logos-row">
             <img class="first_logo" src="/images/logos/runners/flink.png"/>
             <img src="/images/logos/runners/spark.png"/>
+            <img id="last_logo" src="/images/logos/runners/amazon_kinesis.png"/>
           </div>
           <p class="more">{{ T "home-graphic-more" }}</p>
           <div>

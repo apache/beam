@@ -141,8 +141,6 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 		}
 		return "", errors.New(fmt.Sprintf("No artifact named '%v' found", worker))
 	}
-
-	return name, nil
 }
 
 func ensureEndpointsSet(info *fnpb.ProvisionInfo) error {

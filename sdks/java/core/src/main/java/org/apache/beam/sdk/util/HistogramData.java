@@ -20,8 +20,11 @@ package org.apache.beam.sdk.util;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.RoundingMode;
+import java.util.Arrays;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -274,5 +277,30 @@ public class HistogramData implements Serializable {
     }
 
     // Note: equals() and hashCode() are implemented by the AutoValue.
+  }
+
+  @Override
+  public synchronized boolean equals(@Nullable Object object) {
+    if (object instanceof HistogramData) {
+      HistogramData other = (HistogramData) object;
+      synchronized (other) {
+        return Objects.equals(bucketType, other.bucketType)
+            && numBoundedBucketRecords == other.numBoundedBucketRecords
+            && numTopRecords == other.numTopRecords
+            && numBottomRecords == other.numBottomRecords
+            && Arrays.equals(buckets, other.buckets);
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public synchronized int hashCode() {
+    return Objects.hash(
+        bucketType,
+        numBoundedBucketRecords,
+        numBottomRecords,
+        numTopRecords,
+        Arrays.hashCode(buckets));
   }
 }

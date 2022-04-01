@@ -15,9 +15,7 @@
 
 package preparers
 
-import (
-	"beam.apache.org/playground/backend/internal/utils"
-)
+import "beam.apache.org/playground/backend/internal/utils"
 
 const (
 	scioPublicClassNamePattern = "object (.*?) [{]"
@@ -39,8 +37,8 @@ func (builder *PreparersBuilder) ScioPreparers() *ScioPreparersBuilder {
 //WithFileNameChanger adds preparer to change source code file name
 func (builder *ScioPreparersBuilder) WithFileNameChanger() *ScioPreparersBuilder {
 	changeNamePreparer := Preparer{
-		Prepare: changeScioFileName,
-		Args:    []interface{}{builder.filePath},
+		Prepare: utils.ChangeTestFileName,
+		Args:    []interface{}{builder.filePath, scioPublicClassNamePattern},
 	}
 	builder.AddPreparer(changeNamePreparer)
 	return builder
@@ -72,17 +70,4 @@ func GetScioPreparers(builder *PreparersBuilder) {
 		WithPackageRemover().
 		WithImportRemover().
 		WithFileNameChanger()
-}
-
-func changeScioFileName(args ...interface{}) error {
-	filePath := args[0].(string)
-	className, err := utils.GetPublicClassName(filePath, scioPublicClassNamePattern)
-	if err != nil {
-		return err
-	}
-	err = utils.RenameSourceCodeFile(filePath, className)
-	if err != nil {
-		return err
-	}
-	return nil
 }

@@ -56,7 +56,6 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
 public class AwsModuleTest {
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new AwsModule());
 
   @Test
   public void testObjectMapperIsAbleToFindModule() {
@@ -64,13 +63,12 @@ public class AwsModuleTest {
     MatcherAssert.assertThat(modules, hasItem(instanceOf(AwsModule.class)));
   }
 
-  private <T> T serializeAndDeserialize(T obj) throws Exception {
-    String serialized = objectMapper.writeValueAsString(obj);
-    return (T) objectMapper.readValue(serialized, obj.getClass());
+  private <T> T serializeAndDeserialize(T obj) {
+    return SerializationTestUtil.serializeDeserialize((Class<T>) obj.getClass(), obj);
   }
 
   @Test
-  public void testStaticCredentialsProviderSerializationDeserialization() throws Exception {
+  public void testStaticCredentialsProviderSerializationDeserialization() {
     AwsCredentialsProvider provider =
         StaticCredentialsProvider.create(AwsBasicCredentials.create("key", "secret"));
 
@@ -86,7 +84,7 @@ public class AwsModuleTest {
   }
 
   @Test
-  public void testAwsCredentialsProviderSerializationDeserialization() throws Exception {
+  public void testAwsCredentialsProviderSerializationDeserialization() {
     AwsCredentialsProvider provider = DefaultCredentialsProvider.create();
     AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
     assertEquals(provider.getClass(), deserializedProvider.getClass());
@@ -134,7 +132,7 @@ public class AwsModuleTest {
   }
 
   @Test
-  public void testProxyConfigurationSerializationDeserialization() throws Exception {
+  public void testProxyConfigurationSerializationDeserialization() {
     ProxyConfiguration proxyConfiguration =
         ProxyConfiguration.builder()
             .endpoint(URI.create("http://localhost:8080"))

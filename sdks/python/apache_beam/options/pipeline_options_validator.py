@@ -255,6 +255,18 @@ class PipelineOptionsValidator(object):
 
     return errors
 
+  def validate_container_prebuilding_options(self, view):
+    errors = []
+    custom_image = self.options.view_as(WorkerOptions).sdk_container_image
+    if (view.prebuild_sdk_container_base_image is not None and
+        custom_image != view.prebuild_sdk_container_base_image):
+      errors.extend(
+          self._validate_error(
+              'Don\'t use the deprecated option '
+              '--prebuild_sdk_container_base_image. Use --sdk_container_image '
+              'instead.'))
+    return errors
+
   def validate_num_workers(self, view):
     """Validates that Dataflow worker number is valid."""
     errors = self.validate_optional_argument_positive(view, 'num_workers')

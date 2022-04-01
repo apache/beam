@@ -1410,9 +1410,6 @@ public class SnowflakeIO {
     public abstract PrivateKey getPrivateKey();
 
     @Nullable
-    public abstract String getPrivateKeyPath();
-
-    @Nullable
     public abstract ValueProvider<String> getRawPrivateKey();
 
     @Nullable
@@ -1462,8 +1459,6 @@ public class SnowflakeIO {
       abstract Builder setPassword(ValueProvider<String> password);
 
       abstract Builder setPrivateKey(PrivateKey privateKey);
-
-      abstract Builder setPrivateKeyPath(String privateKeyPath);
 
       abstract Builder setRawPrivateKey(ValueProvider<String> rawPrivateKey);
 
@@ -1589,6 +1584,21 @@ public class SnowflakeIO {
      *
      * @param username - Snowflake username.
      * @param privateKeyPath - Private key path.
+     */
+    public DataSourceConfiguration withKeyPairPathAuth(
+        ValueProvider<String> username, String privateKeyPath) {
+      String privateKey = KeyPairUtils.readPrivateKeyFile(privateKeyPath);
+      return builder()
+          .setUsername(username)
+          .setRawPrivateKey(ValueProvider.StaticValueProvider.of(privateKey))
+          .build();
+    }
+
+    /**
+     * Sets key pair authentication.
+     *
+     * @param username - Snowflake username.
+     * @param privateKeyPath - Private key path.
      * @param privateKeyPassphrase - Passphrase for provided private key.
      */
     public DataSourceConfiguration withKeyPairPathAuth(
@@ -1599,6 +1609,21 @@ public class SnowflakeIO {
           .setUsername(ValueProvider.StaticValueProvider.of(username))
           .setRawPrivateKey(ValueProvider.StaticValueProvider.of(privateKey))
           .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of(privateKeyPassphrase))
+          .build();
+    }
+
+    /**
+     * Sets key pair authentication.
+     *
+     * @param username - Snowflake username.
+     * @param privateKeyPath - Private key path.
+     */
+    public DataSourceConfiguration withKeyPairPathAuth(String username, String privateKeyPath) {
+      String privateKey = KeyPairUtils.readPrivateKeyFile(privateKeyPath);
+
+      return builder()
+          .setUsername(ValueProvider.StaticValueProvider.of(username))
+          .setRawPrivateKey(ValueProvider.StaticValueProvider.of(privateKey))
           .build();
     }
 
@@ -1625,6 +1650,17 @@ public class SnowflakeIO {
      *
      * @param username - Snowflake username.
      * @param rawPrivateKey - Raw private key.
+     */
+    public DataSourceConfiguration withKeyPairRawAuth(
+        ValueProvider<String> username, ValueProvider<String> rawPrivateKey) {
+      return builder().setUsername(username).setRawPrivateKey(rawPrivateKey).build();
+    }
+
+    /**
+     * Sets key pair authentication.
+     *
+     * @param username - Snowflake username.
+     * @param rawPrivateKey - Raw private key.
      * @param privateKeyPassphrase - Passphrase for provided private key.
      */
     public DataSourceConfiguration withKeyPairRawAuth(
@@ -1633,6 +1669,19 @@ public class SnowflakeIO {
           .setUsername(ValueProvider.StaticValueProvider.of(username))
           .setRawPrivateKey(ValueProvider.StaticValueProvider.of(rawPrivateKey))
           .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of(privateKeyPassphrase))
+          .build();
+    }
+
+    /**
+     * Sets key pair authentication.
+     *
+     * @param username - Snowflake username.
+     * @param rawPrivateKey - Raw private key.
+     */
+    public DataSourceConfiguration withKeyPairRawAuth(String username, String rawPrivateKey) {
+      return builder()
+          .setUsername(ValueProvider.StaticValueProvider.of(username))
+          .setRawPrivateKey(ValueProvider.StaticValueProvider.of(rawPrivateKey))
           .build();
     }
 
@@ -1782,15 +1831,12 @@ public class SnowflakeIO {
         } else if (isNotEmpty(getUsername()) && getPrivateKey() != null) {
           basicDataSource.setUser(getUsername().get());
           basicDataSource.setPrivateKey(getPrivateKey());
-        } else if (isNotEmpty(getUsername())
-            && isNotEmpty(getPrivateKeyPassphrase())
-            && isNotEmpty(getRawPrivateKey())) {
+        } else if (isNotEmpty(getUsername()) && isNotEmpty(getRawPrivateKey())) {
           PrivateKey privateKey =
               KeyPairUtils.preparePrivateKey(
-                  getRawPrivateKey().get(), getPrivateKeyPassphrase().get());
+                  getRawPrivateKey().get(), getValueOrNull(getPrivateKeyPassphrase()));
           basicDataSource.setPrivateKey(privateKey);
           basicDataSource.setUser(getUsername().get());
-
         } else if (isNotEmpty(getUsername()) && isNotEmpty(getPassword())) {
           basicDataSource.setUser(getUsername().get());
           basicDataSource.setPassword(getPassword().get());

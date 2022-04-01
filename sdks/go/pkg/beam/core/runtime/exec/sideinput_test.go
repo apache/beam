@@ -149,9 +149,9 @@ func (t *testFaultyWindowMapper) MapWindow(w typex.Window) (typex.Window, error)
 
 func TestNewIterable(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testWindowMapper{})
 
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err != nil {
@@ -161,9 +161,9 @@ func TestNewIterable(t *testing.T) {
 
 func TestNewIterable_BadMapper(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testFaultyWindowMapper{})
 
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err == nil {
@@ -173,9 +173,9 @@ func TestNewIterable_BadMapper(t *testing.T) {
 
 func TestNewKeyedIterable_BadMapper(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedKVCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testFaultyWindowMapper{})
 
 	_, err := adapter.NewKeyedIterable(context.Background(), &testStateReader{}, window.GlobalWindow{}, "")
 	if err == nil {
@@ -185,9 +185,9 @@ func TestNewKeyedIterable_BadMapper(t *testing.T) {
 
 func TestNewIterable_KVType(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedKVCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testWindowMapper{})
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err != nil {
 		t.Fatalf("NewIterable() failed when it should have succeeded, got %v", err)

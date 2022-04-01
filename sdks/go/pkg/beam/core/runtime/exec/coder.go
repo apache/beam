@@ -626,7 +626,7 @@ type nullableEncoder struct {
 	be    boolEncoder
 }
 
-func (n nullableEncoder) Encode(value *FullValue, writer io.Writer) error {
+func (n *nullableEncoder) Encode(value *FullValue, writer io.Writer) error {
 	if value.Elm == nil {
 		if err := n.be.Encode(&FullValue{Elm: false}, writer); err != nil {
 			return err
@@ -647,7 +647,7 @@ type nullableDecoder struct {
 	bd    boolDecoder
 }
 
-func (n nullableDecoder) Decode(reader io.Reader) (*FullValue, error) {
+func (n *nullableDecoder) Decode(reader io.Reader) (*FullValue, error) {
 	hasValue, err := n.bd.Decode(reader)
 	if err != nil {
 		return nil, err
@@ -662,7 +662,7 @@ func (n nullableDecoder) Decode(reader io.Reader) (*FullValue, error) {
 	return val, nil
 }
 
-func (n nullableDecoder) DecodeTo(reader io.Reader, value *FullValue) error {
+func (n *nullableDecoder) DecodeTo(reader io.Reader, value *FullValue) error {
 	val, err := n.Decode(reader)
 	if err != nil {
 		return err

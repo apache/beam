@@ -200,6 +200,15 @@ func TestFilterPrecompiledObjects(t *testing.T) {
 			},
 			want: catalogWithSpecificCategory[:1],
 		},
+		{
+			name: "Category not in catalog",
+			args: args{
+				catalog:      catalog,
+				sdk:          pb.Sdk_SDK_JAVA,
+				categoryName: "Category1",
+			},
+			want: catalog[:1],
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

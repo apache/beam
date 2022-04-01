@@ -30,13 +30,21 @@ from grpc_client import GRPCClient
 from helper import Example, get_statuses
 
 
+class VerifyException(Exception):
+  def __init__(self, error: str):
+    super().__init__()
+    self.msg = error
+
+  def __str__(self):
+    return self.msg
+
+
 class CIHelper:
   """
   Helper for CI step.
 
   It is used to find and verify correctness if beam examples/katas/tests.
   """
-
   async def verify_examples(self, examples: List[Example]):
     """
     Verify correctness of beam examples.
@@ -106,7 +114,7 @@ class CIHelper:
 
     if len(default_examples) == 0:
       logging.error("Default example not found")
-      raise Exception(
+      raise VerifyException(
           "CI step failed due to finding an incorrect number "
           "of default examples. Default example not found")
     if len(default_examples) > 1:
@@ -114,9 +122,9 @@ class CIHelper:
       logging.error("Examples where the default_example field is true:")
       for example in default_examples:
         logging.error(example.filepath)
-      raise Exception(
+      raise VerifyException(
           "CI step failed due to finding an incorrect number "
           "of default examples. Many default examples found")
 
     if verify_status_failed:
-      raise Exception("CI step failed due to errors in the examples")
+      raise VerifyException("CI step failed due to errors in the examples")

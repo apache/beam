@@ -31,8 +31,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
  */
 public class ChangeStreamDao {
 
-  private static final String REQUEST_TAG = "change_stream";
-
   private final String changeStreamName;
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
@@ -62,10 +60,10 @@ public class ChangeStreamDao {
   /**
    * Performs a change stream query. If the partition token given is the initial partition null will
    * be used in the query instead. The change stream query will be tagged as following: {@code
-   * "action=<REQUEST_TAG>, job=<jobName>"}. The result will be given as a {@link
-   * ChangeStreamResultSet} which can be consumed as a stream, yielding records until no more are
-   * available for the query made. Note that one needs to call {@link ChangeStreamResultSet#next()}
-   * to initiate the change stream query.
+   * "job=<jobName>"}. The result will be given as a {@link ChangeStreamResultSet} which can be
+   * consumed as a stream, yielding records until no more are available for the query made. Note
+   * that one needs to call {@link ChangeStreamResultSet#next()} to initiate the change stream
+   * query.
    *
    * @param partitionToken the unique partition token to be queried. If {@link
    *     InitialPartition#PARTITION_TOKEN} is given, null will be used in the change stream query
@@ -111,7 +109,7 @@ public class ChangeStreamDao {
                     .to(heartbeatMillis)
                     .build(),
                 Options.priority(rpcPriority),
-                Options.tag("action=" + REQUEST_TAG + ",job=" + jobName));
+                Options.tag("job=" + jobName));
 
     return new ChangeStreamResultSet(resultSet);
   }
