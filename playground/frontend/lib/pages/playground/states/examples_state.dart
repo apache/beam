@@ -58,6 +58,12 @@ class ExampleState with ChangeNotifier {
     );
   }
 
+  Future<ExampleModel> getExample(String path, SDK sdk) async {
+    return await _exampleRepository.getExample(
+      GetExampleRequestWrapper(path, sdk),
+    );
+  }
+
   Future<String> getExampleLogs(String id, SDK sdk) async {
     return await _exampleRepository.getExampleLogs(
       GetExampleRequestWrapper(id, sdk),

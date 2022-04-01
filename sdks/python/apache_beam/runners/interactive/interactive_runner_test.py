@@ -38,7 +38,7 @@ from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import GlobalWindow
