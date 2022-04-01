@@ -59,9 +59,7 @@ public class SamzaPortablePipelineTranslator {
   private SamzaPortablePipelineTranslator() {}
 
   public static void translate(RunnerApi.Pipeline pipeline, PortableTranslationContext ctx) {
-    QueryablePipeline queryablePipeline =
-        QueryablePipeline.forTransforms(
-            pipeline.getRootTransformIdsList(), pipeline.getComponents());
+    QueryablePipeline queryablePipeline = QueryablePipeline.forPipeline(pipeline);
 
     for (PipelineNode.PTransformNode transform :
         queryablePipeline.getTopologicallyOrderedTransforms()) {
@@ -78,9 +76,7 @@ public class SamzaPortablePipelineTranslator {
 
   public static void createConfig(
       RunnerApi.Pipeline pipeline, ConfigBuilder configBuilder, SamzaPipelineOptions options) {
-    QueryablePipeline queryablePipeline =
-        QueryablePipeline.forTransforms(
-            pipeline.getRootTransformIdsList(), pipeline.getComponents());
+    QueryablePipeline queryablePipeline = QueryablePipeline.forPipeline(pipeline);
     for (PipelineNode.PTransformNode transform :
         queryablePipeline.getTopologicallyOrderedTransforms()) {
       TransformTranslator<?> translator =

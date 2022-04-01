@@ -510,7 +510,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             coder.withValueCoder(IterableCoder.of(coder.getValueCoder())),
             ctx.getTransformId(),
             getSideInputUniqueId(sideInputId),
-            ctx.getSamzaPipelineOptions());
+            ctx.getPipelineOptions());
 
     return broadcastSideInput;
   }
