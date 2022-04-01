@@ -272,7 +272,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
                       CoderUtils.encodeToByteArray(RowCoder.of(payloadSchema), payloadRow)))
               .build();
       try (AutoCloseable p = service.start()) {
-        PythonService.waitForPort("localhost", port, 25000);
+        PythonService.waitForPort("localhost", port, 30000);
         PTransform<PInput, PCollectionTuple> transform =
             External.<PInput, Object>of(
                     "beam:transforms:python:fully_qualified_named",

@@ -138,6 +138,6 @@ public class PythonService {
     throw new TimeoutException(
         "Timeout waiting for Python service startup after "
             + (System.currentTimeMillis() - start)
-            + " seconds.");
+            + " milliseconds.");
   }
 }
