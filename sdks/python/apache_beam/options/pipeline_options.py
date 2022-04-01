@@ -1219,7 +1219,8 @@ class PortableOptions(PipelineOptions):
             'and port, e.g. localhost:8098. If none is specified, the '
             'artifact endpoint sent from the job server is used.'))
     parser.add_argument(
-        '--job-server-timeout',
+        '--job_server_timeout',
+        '--job-server-timeout',  # For backwards compatibility.
         default=60,
         type=int,
         help=(
