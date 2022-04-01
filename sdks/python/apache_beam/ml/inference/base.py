@@ -15,7 +15,15 @@
 # limitations under the License.
 #
 
-"""An extensible run inference transform."""
+"""An extensible run inference transform.
+
+Users of this module can extend the ModelLoader class for any MLframework. Then
+pass their extended ModelLoader object into RunInference to create a
+RunInference Beam transform for that framework.
+
+The transform will handle standard inference functionality like metric
+collection, sharing model between threads and batching elements.
+"""
 
 import logging
 import os
@@ -36,9 +44,9 @@ try:
 except ImportError:
   resource = None
 
-_MILLISECOND_TO_MICROSECOND = 1000
-_MICROSECOND_TO_NANOSECOND = 1000
-_SECOND_TO_MICROSECOND = 1000000
+_MICROSECOND_TO_MILLISECOND = 1000
+_NANOSECOND_TO_MICROSECOND = 1000
+_SECOND_TO_MICROSECOND = 1_000_000
 
 
 class InferenceRunner():
@@ -115,8 +123,8 @@ class MetricsCollector:
         namespace, 'load_model_latency_milli_secs')
 
     # Metrics cache
-    self.load_model_latency_milli_secs_cache = None
-    self.model_byte_size_cache = None
+    self._load_model_latency_milli_secs_cache = None
+    self._model_byte_size_cache = None
 
   def update_metrics_with_cache(self):
     if self.load_model_latency_milli_secs_cache is not None:
@@ -126,6 +134,10 @@ class MetricsCollector:
     if self.model_byte_size_cache is not None:
       self._model_byte_size.update(self.model_byte_size_cache)
       self.model_byte_size_cache = None
+
+  def cache_load_model_metrics(self, load_model_latency_ms, model_byte_size):
+    self._load_model_latency_milli_secs_cache = load_model_latency_ms
+    self._model_byte_size_cache = model_byte_size
 
   def update(
       self,
@@ -163,10 +175,11 @@ class RunInferenceDoFn(beam.DoFn):
       model = self._model_loader.load_model()
       end_time = self._clock.get_current_time_in_microseconds()
       memory_after = _get_current_process_memory_in_bytes()
-      self._metrics_collector.load_model_latency_milli_secs_cache = (
-          (end_time - start_time) / _MILLISECOND_TO_MICROSECOND)
-      self._metrics_collector.model_byte_size_cache = (
-          memory_after - memory_before)
+      load_model_latency_ms = ((end_time - start_time) /
+                               _MICROSECOND_TO_MILLISECOND)
+      model_byte_size = memory_after - memory_before
+      self._metrics_collector.cache_load_model_metrics(
+          load_model_latency_ms, model_byte_size)
       return model
 
     # TODO(BEAM-14207): Investigate releasing model.
@@ -201,6 +214,7 @@ class RunInferenceDoFn(beam.DoFn):
     yield keys, predictions
 
   def finish_bundle(self):
+    # TODO(BEAM-13970): Figure out why there is a cache.
     self._metrics_collector.update_metrics_with_cache()
 
 
@@ -240,7 +254,7 @@ class _FineGrainedClock(Clock):
   def get_current_time_in_microseconds(self) -> int:
     return int(
         time.clock_gettime_ns(time.CLOCK_REALTIME) /  # pytype: disable=module-attr
-        _MICROSECOND_TO_NANOSECOND)
+        _NANOSECOND_TO_MICROSECOND)
 
 
 class _ClockFactory(object):
