@@ -18,7 +18,6 @@ package graphx
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -66,8 +65,7 @@ const (
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 
-	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
-	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
+	URNRequiresSplittableDoFn = "beam:requirement:pardo:splittable_dofn:v1"
 
 	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
 	URNArtifactGoWorker = "beam:artifact:type:go_worker_binary:v1"
@@ -223,7 +221,6 @@ func (m *marshaller) getRequirements() []string {
 			reqs = append(reqs, req)
 		}
 	}
-	sort.Strings(reqs)
 	return reqs
 }
 
@@ -447,9 +444,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			}
 			payload.RestrictionCoderId = coderId
 			m.requirements[URNRequiresSplittableDoFn] = true
-		}
-		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
-			m.requirements[URNRequiresBundleFinalization] = true
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
@@ -783,6 +777,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	// We need to preserve the old windowing/triggering here
 	// for re-instatement after the GBK.
 	preservedWSId := m.pcollections[origInput].GetWindowingStrategyId()
+	preservedCoderId := m.pcollections[origInput].GetCoderId()
 
 	// Get the windowing strategy from before:
 	postReify := fmt.Sprintf("%v_%v_reifyts", nodeID(in.From), id)
@@ -840,6 +835,9 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Urn: URNReshuffleInput,
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleInput,
+				Reshuffle: &v1pb.ReshufflePayload{
+					CoderPayload: []byte(preservedCoderId),
+				},
 			})),
 		},
 	}
@@ -889,6 +887,9 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Urn: URNReshuffleOutput,
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleOutput,
+				Reshuffle: &v1pb.ReshufflePayload{
+					CoderPayload: []byte(preservedCoderId),
+				},
 			})),
 		},
 	}

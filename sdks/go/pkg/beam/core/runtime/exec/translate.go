@@ -563,7 +563,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				// strip unexpected length prefix coder.
 				valCoder = valCoder.Components[0]
 			}
-			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.GetInject().GetN()), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
 
 		case graphx.URNExpand:
 			var pid string
@@ -593,6 +593,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
+			preservedCoderID := string(tp.GetReshuffle().GetCoderPayload())
+			pc, err := b.coders.Coder(preservedCoderID)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("ReshuffleInputCoder: preservedID %v, input %v, preserved %v, equal? %v\n", preservedCoderID, c, pc, typex.IsEqual(c.T, pc.T))
+
 			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
 
 		case graphx.URNReshuffleOutput:
@@ -606,6 +613,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			preservedCoderID := string(tp.GetReshuffle().GetCoderPayload())
+			pc, err := b.coders.Coder(preservedCoderID)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("ReshuffleOutputCoder: preservedID %v, input %v, preserved %v, equal? %v\n", preservedCoderID, c, pc, typex.IsEqual(c.T, pc.T))
+
 			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
 
 		default:

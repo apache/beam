@@ -236,6 +236,11 @@ message InjectPayload {
     int32 n = 1;
 }
 
+// ReshufflePayload is the payload for the built-in reshuffle function.
+message ReshufflePayload {
+    bytes coder_payload = 1;
+}
+
 // TransformPayload represents the full payload for transforms, both
 // user defined and built-in.
 message TransformPayload {
@@ -245,4 +250,5 @@ message TransformPayload {
 
     MultiEdge edge = 2;
     InjectPayload inject = 3;
+    ReshufflePayload reshuffle = 4;
 }
