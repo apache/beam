@@ -236,6 +236,18 @@ public class BigQueryIOJSONIT {
     runTestWrite(options);
   }
 
+  @Test
+  public void testLegacyStreamingWrite() throws Exception{
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options.setWriteMethod(Write.Method.STREAMING_INSERTS);
+
+    String streaming_destination = String.format("%s:%s.%s", project, DATASET_ID, STREAMING_TEST_TABLE);
+    options.setOutput(streaming_destination);
+    options.setInput(streaming_destination);
+
+    runTestWrite(options);
+  }
+
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(BigQueryIOJSONOptions.class);
