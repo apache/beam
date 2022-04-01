@@ -101,7 +101,7 @@ class RunInference(beam.PTransform):
         | beam.FlatMap(_unbatch))
 
 
-class MetricsCollector:
+class _MetricsCollector:
   """A metrics collector that tracks ML related performance and memory usage."""
   def __init__(self, namespace: str):
     # Metrics
@@ -160,7 +160,7 @@ class RunInferenceDoFn(beam.DoFn):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
     self._shared_model_handle = shared_handle
-    self._metrics_collector = MetricsCollector(
+    self._metrics_collector = _MetricsCollector(
         self._inference_runner.get_metrics_namespace())
     self._clock = clock
     if not clock:
@@ -245,12 +245,12 @@ def _is_cygwin() -> bool:
   return platform.system().startswith('CYGWIN_NT')
 
 
-class Clock(object):
+class _Clock(object):
   def get_current_time_in_microseconds(self) -> int:
     return int(time.time() * _SECOND_TO_MICROSECOND)
 
 
-class _FineGrainedClock(Clock):
+class _FineGrainedClock(_Clock):
   def get_current_time_in_microseconds(self) -> int:
     return int(
         time.clock_gettime_ns(time.CLOCK_REALTIME) /  # pytype: disable=module-attr
@@ -259,8 +259,8 @@ class _FineGrainedClock(Clock):
 
 class _ClockFactory(object):
   @staticmethod
-  def make_clock() -> Clock:
+  def make_clock() -> _Clock:
     if (hasattr(time, 'clock_gettime_ns') and not _is_windows() and
         not _is_cygwin()):
       return _FineGrainedClock()
-    return Clock()
+    return _Clock()

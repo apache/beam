@@ -59,7 +59,7 @@ class FakeModelLoader(base.ModelLoader):
     return FakeInferenceRunner(self._mock_clock)
 
 
-class MockClock(base.Clock):
+class MockClock(base._Clock):
   def __init__(self):
     self.current_time = 10000
 
