@@ -27,7 +27,9 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.gcp import gcsio
-
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.internal.gcp import auth
 __all__ = ['GCSFileSystem']
 
 
@@ -37,6 +39,17 @@ class GCSFileSystem(FileSystem):
 
   CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
   GCS_PREFIX = 'gs://'
+
+  def __init__(self, pipeline_options):
+    super().__init__(pipeline_options)
+    if isinstance(pipeline_options, PipelineOptions):
+      gcs_options = pipeline_options.view_as(GoogleCloudOptions)
+      target_principal = gcs_options.target_principal
+      delegate_accounts = gcs_options.delegate_accounts
+    else:
+      target_principal = pipeline_options.get('target_principal')
+      delegate_accounts = pipeline_options.get('delegate_accounts')
+    auth.set_impersonation_accounts(target_principal, delegate_accounts)
 
   @classmethod
   def scheme(cls):
