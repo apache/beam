@@ -889,7 +889,8 @@ class FnApiRunnerTest(unittest.TestCase):
       with self.create_pipeline() as p:
 
         def raise_error(x):
-          raise RuntimeError('x')
+          raise RuntimeError(
+              'This error is expected and does not indicate a test failure.')
 
         # pylint: disable=expression-not-assigned
         (
@@ -912,7 +913,8 @@ class FnApiRunnerTest(unittest.TestCase):
       return third(x)
 
     def third(x):
-      raise ValueError('x')
+      raise ValueError(
+          'This error is expected and does not indicate a test failure.')
 
     try:
       with self.create_pipeline() as p:
