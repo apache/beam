@@ -120,8 +120,9 @@ class _Credentials(object):
   _credentials_init = False
   _credentials = None
 
-  _delegate_to = None
+  _delegate_accounts = None
   _target_principal = None
+  _impersonation_parameters_set = False
 
   @classmethod
   def get_service_credentials(cls):
@@ -169,16 +170,19 @@ class _Credentials(object):
   @classmethod
   def set_impersonation_accounts(cls, target_principal, delegate_to):
     cls._target_principal = target_principal
-    cls._delegate_to = delegate_to
+    cls._delegate_accounts = delegate_to
+    cls._impersonation_parameters_set = True
 
   @classmethod
   def _add_impersonation_credentials(cls):
+    if not cls._impersonation_parameters_set:
+      raise Excpetion('Impersonation credentials set to late in workflow.')
     """Adds impersonation credentials if the client species them."""
     if cls.target_principal:
       credentials = google.auth.impersonated_credentials.Credentials(
         source_credentials=cls._credentials,
         target_principal=cls.target_principal,
-        delegates=cls._delegate_to,
+        delegates=cls._delegate_accounts,
         target_scopes=CLIENT_SCOPES,
       )
     return credentials
