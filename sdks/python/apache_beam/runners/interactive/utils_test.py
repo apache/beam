@@ -31,7 +31,7 @@ import pytest
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
@@ -160,14 +160,14 @@ class ToElementListTest(unittest.TestCase):
 
     def reader():
       element_payload = [
-          TestStreamPayload.TimestampedElement(
+          beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
               encoded_element=coder.encode(
                   WindowedValueHolder(WindowedValue(e, 0, []))),
               timestamp=Timestamp.of(0).micros) for e in range(10)
       ]
 
-      event = TestStreamPayload.Event(
-          element_event=TestStreamPayload.Event.AddElements(
+      event = beam_runner_api_pb2.TestStreamPayload.Event(
+          element_event=beam_runner_api_pb2.TestStreamPayload.Event.AddElements(
               elements=element_payload))
       yield event
 
