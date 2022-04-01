@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -12,25 +13,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-import mock
-import pytest
+# pytype: skip-file
 
-from ci_cd import _ci_step, _cd_step, _check_envs
-
-
-@mock.patch("ci_helper.CIHelper.verify_examples")
-def test_ci_step(mock_verify_examples):
-  _ci_step([])
-  mock_verify_examples.assert_called_once_with([])
+from dataclasses import dataclass
+from typing import Optional
 
 
-@mock.patch("cd_helper.CDHelper.store_examples")
-def test_cd_step(mock_store_examples):
-  _cd_step([])
-  mock_store_examples.assert_called_once_with([])
+@dataclass
+class MasterURLIdentifier:
+  project_id: Optional[str] = None
+  region: Optional[str] = None
+  cluster_name: Optional[str] = None
 
+  def __key(self):
+    return (self.project_id, self.region, self.cluster_name)
 
-def test__check_envs():
-  with pytest.raises(KeyError):
-    _check_envs()
+  def __hash__(self):
+    return hash(self.__key())
+
+  def __eq__(self, other):
+    if isinstance(other, MasterURLIdentifier):
+      return self.__key() == other.__key()
+    raise NotImplementedError(
+        'Comparisons are only supported between '
+        'instances of MasterURLIdentifier.')
