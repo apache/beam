@@ -387,6 +387,8 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		n.splitIdx = s
 		return SplitResult{PI: s - 1, RI: s}, nil
 	}
+	// Get the output watermark before splitting to avoid accidentally overestimating
+	ow := su.GetOutputWatermark()
 	// Otherwise, perform a sub-element split.
 	ps, rs, err := su.Split(fr)
 	if err != nil {
@@ -431,6 +433,7 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		RS:   rsEnc,
 		TId:  su.GetTransformId(),
 		InId: su.GetInputId(),
+		OW:   ow,
 	}
 	return res, nil
 }

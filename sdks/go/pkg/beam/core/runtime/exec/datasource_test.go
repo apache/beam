@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestDataSource_PerElement(t *testing.T) {
@@ -619,6 +620,12 @@ func (n *TestSplittableUnit) GetTransformId() string {
 // GetInputId returns a constant input ID that can be tested for.
 func (n *TestSplittableUnit) GetInputId() string {
 	return testInputId
+}
+
+// GetOutputWatermark gets the current output watermark of the splittable unit
+// if one is defined, or returns nil otherwise
+func (n *TestSplittableUnit) GetOutputWatermark() map[string]*timestamppb.Timestamp {
+	return nil
 }
 
 func floatEquals(a, b, epsilon float64) bool {

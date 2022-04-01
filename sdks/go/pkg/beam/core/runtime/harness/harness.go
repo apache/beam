@@ -504,9 +504,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			for i, r := range sr.RS {
 				rRoots[i] = &fnpb.DelayedBundleApplication{
 					Application: &fnpb.BundleApplication{
-						TransformId: sr.TId,
-						InputId:     sr.InId,
-						Element:     r,
+						TransformId:      sr.TId,
+						InputId:          sr.InId,
+						Element:          r,
+						OutputWatermarks: sr.OW,
 					},
 				}
 			}

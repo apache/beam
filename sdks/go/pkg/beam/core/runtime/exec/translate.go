@@ -495,7 +495,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 					u = n
 					if urn == urnProcessSizedElementsAndRestrictions {
-						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to}
+						outputs := make([]string, len(transform.GetOutputs()))
+						i := 0
+						for out := range transform.GetOutputs() {
+							outputs[i] = out
+							i++
+						}
+						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to, outputs: outputs}
 					} else if dofn.IsSplittable() {
 						u = &SdfFallback{PDo: n}
 					}

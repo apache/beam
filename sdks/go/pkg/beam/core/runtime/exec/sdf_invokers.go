@@ -16,11 +16,12 @@
 package exec
 
 import (
+	"reflect"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"reflect"
 )
 
 // This file contains invokers for SDF methods. These invokers are based off
@@ -295,6 +296,57 @@ func (n *ctInvoker) Invoke(rest interface{}) sdf.RTracker {
 // Reset zeroes argument entries in the cached slice to allow values to be
 // garbage collected after the bundle ends.
 func (n *ctInvoker) Reset() {
+	for i := range n.args {
+		n.args[i] = nil
+	}
+}
+
+// gweInvoker is an invoker for GetWatermarkEstimator.
+type gweInvoker struct {
+	fn   *funcx.Fn
+	args []interface{} // Cache to avoid allocating new slices per-element.
+	call func() sdf.WatermarkEstimator
+}
+
+func newGetWatermarkEstimatorInvoker(fn *funcx.Fn) (*gweInvoker, error) {
+	n := &gweInvoker{
+		fn:   fn,
+		args: make([]interface{}, len(fn.Param)),
+	}
+	if err := n.initCallFn(); err != nil {
+		return nil, errors.WithContext(err, "sdf GetWatermarkEstimator invoker")
+	}
+	return n, nil
+}
+
+func (n *gweInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// () sdf.WatermarkEstimator
+	switch fnT := n.fn.Fn.(type) {
+	case reflectx.Func0x1:
+		n.call = func() sdf.WatermarkEstimator {
+			return fnT.Call0x1().(sdf.WatermarkEstimator)
+		}
+	default:
+		if len(n.fn.Param) != 0 {
+			return errors.Errorf("GetWatermarkEstimator fn %v has unexpected number of parameters: %v",
+				n.fn.Fn.Name(), len(n.fn.Param))
+		}
+		n.call = func() sdf.WatermarkEstimator {
+			return n.fn.Fn.Call(n.args)[0].(sdf.WatermarkEstimator)
+		}
+	}
+	return nil
+}
+
+// Invoke calls CreateTracker given a restriction and returns an sdf.RTracker.
+func (n *gweInvoker) Invoke() sdf.WatermarkEstimator {
+	return n.call()
+}
+
+// Reset zeroes argument entries in the cached slice to allow values to be
+// garbage collected after the bundle ends.
+func (n *gweInvoker) Reset() {
 	for i := range n.args {
 		n.args[i] = nil
 	}
