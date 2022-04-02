@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -87,12 +88,21 @@ public class PythonService {
     command.add(module);
     command.addAll(args);
     LOG.info("Starting python service with arguments " + command);
+    final File stdOut = File.createTempFile("stdout", ".txt");
+    final File stdErr = File.createTempFile("stderr", ".txt");
     Process p =
         new ProcessBuilder(command)
-            .redirectError(ProcessBuilder.Redirect.INHERIT)
-            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+                .redirectError(ProcessBuilder.Redirect.from(stdErr))
+                .redirectOutput(ProcessBuilder.Redirect.from(stdOut))
+//                .redirectError(ProcessBuilder.Redirect.INHERIT)
+//                .redirectOutput(ProcessBuilder.Redirect.INHERIT)
             .start();
-    return p::destroy;
+//    return p::destroy;
+    return () -> {
+      System.out.println(Files.readAllLines(stdOut.toPath()));
+      System.out.println(Files.readAllLines(stdErr.toPath()));
+      p.destroy();
+    };
   }
 
   private String whichPython() {
