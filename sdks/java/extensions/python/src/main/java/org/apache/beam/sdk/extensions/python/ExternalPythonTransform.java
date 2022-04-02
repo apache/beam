@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper for invoking external Python transforms. */
@@ -60,13 +61,13 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
   // matter when applying kwargs at the Python side.
   private SortedMap<String, Object> kwargsMap;
 
-  private Object[] argsArray;
-  private Row providedKwargsRow = null;
+  private @Nullable Object @NonNull [] argsArray;
+  private @Nullable Row providedKwargsRow;
 
   private ExternalPythonTransform(String fullyQualifiedName) {
     this.fullyQualifiedName = fullyQualifiedName;
     this.kwargsMap = new TreeMap<>();
-    this.argsArray = new Object[] {};
+    argsArray = new Object[] {};
   }
 
   /**
@@ -89,8 +90,9 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param args list of arguments.
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withArgs(Object... args) {
-    Object[] result = Arrays.copyOf(this.argsArray, this.argsArray.length + args.length);
+  public ExternalPythonTransform<InputT, OutputT> withArgs(@NonNull Object... args) {
+    @Nullable
+    Object @NonNull [] result = Arrays.copyOf(this.argsArray, this.argsArray.length + args.length);
     System.arraycopy(args, 0, result, this.argsArray.length, args.length);
     this.argsArray = result;
     return this;
@@ -186,11 +188,15 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
     return toRowFunc.apply(value);
   }
 
-  private Object[] convertComplexTypesToRows(Object[] values) {
+  private Object[] convertComplexTypesToRows(@Nullable Object @NonNull [] values) {
     Object[] converted = new Object[values.length];
     for (int i = 0; i < values.length; i++) {
       Object value = values[i];
-      converted[i] = isCustomType(value.getClass()) ? convertCustomValue(value) : value;
+      if (value != null) {
+        converted[i] = isCustomType(value.getClass()) ? convertCustomValue(value) : value;
+      } else {
+        throw new RuntimeException("Null values are not supported");
+      }
     }
     return converted;
   }
@@ -202,10 +208,14 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
     return Row.withSchema(schema).addValues(convertedValues).build();
   }
 
-  private Schema generateSchemaDirectly(Object[] fieldValues, @Nullable String[] fieldNames) {
+  private Schema generateSchemaDirectly(
+      @Nullable Object @NonNull [] fieldValues, @NonNull String @Nullable [] fieldNames) {
     Schema.Builder builder = Schema.builder();
     int counter = 0;
     for (Object field : fieldValues) {
+      if (field == null) {
+        throw new RuntimeException("Null field values are not supported");
+      }
       String fieldName = (fieldNames != null) ? fieldNames[counter] : "field" + counter;
       if (field instanceof Row) {
         // Rows are used as is but other types are converted to proper field types.
@@ -228,7 +238,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
   // We generate the Schema from the provided field names and values. If field names are
   // not provided, we generate them.
   private Schema generateSchemaFromFieldValues(
-      Object[] fieldValues, @Nullable String[] fieldNames) {
+      @Nullable Object @NonNull [] fieldValues, @NonNull String @Nullable [] fieldNames) {
     return generateSchemaDirectly(fieldValues, fieldNames);
   }
 
