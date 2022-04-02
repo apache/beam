@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
-import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformReadProvider.PCollectionRowTupleTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformWriteProvider.PCollectionRowTupleTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -36,10 +36,9 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -48,16 +47,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-/** Test for {@link BigQuerySchemaTransformReadProvider}. */
-@RunWith(JUnit4.class)
-public class BigQuerySchemaTransformReadProviderTest {
+public class BigQuerySchemaTransformWriteProviderTest {
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQuerySchemaTransformReadConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(BigQuerySchemaTransformReadConfiguration.class);
-  private static final SerializableFunction<BigQuerySchemaTransformReadConfiguration, Row>
+  private static final TypeDescriptor<BigQuerySchemaTransformWriteConfiguration> TYPE_DESCRIPTOR =
+      TypeDescriptor.of(BigQuerySchemaTransformWriteConfiguration.class);
+  private static final SerializableFunction<BigQuerySchemaTransformWriteConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   private static final String PROJECT = "fakeproject";
@@ -67,16 +62,8 @@ public class BigQuerySchemaTransformReadProviderTest {
   private static final TableReference TABLE_REFERENCE =
       new TableReference().setProjectId(PROJECT).setDatasetId(DATASET).setTableId(TABLE_ID);
 
-  private static final String TABLE_SPEC = BigQueryHelpers.toTableSpec(TABLE_REFERENCE);
-
   private static final Schema SCHEMA =
       Schema.of(Field.of("name", FieldType.STRING), Field.of("number", FieldType.INT64));
-
-  private static final List<TableRow> RECORDS =
-      Arrays.asList(
-          new TableRow().set("name", "a").set("number", 1L),
-          new TableRow().set("name", "b").set("number", 2L),
-          new TableRow().set("name", "c").set("number", 3L));
 
   private static final List<Row> ROWS =
       Arrays.asList(
@@ -84,12 +71,10 @@ public class BigQuerySchemaTransformReadProviderTest {
           Row.withSchema(SCHEMA).withFieldValue("name", "b").withFieldValue("number", 2L).build(),
           Row.withSchema(SCHEMA).withFieldValue("name", "c").withFieldValue("number", 3L).build());
 
-  private static final TableSchema TABLE_SCHEMA = BigQueryUtils.toTableSchema(SCHEMA);
   private static final BigQueryOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
   private final FakeDatasetService fakeDatasetService = new FakeDatasetService();
   private final FakeJobService fakeJobService = new FakeJobService();
-  private final Table fakeTable = new Table();
   private final TemporaryFolder temporaryFolder = new TemporaryFolder();
   private final FakeBigQueryServices fakeBigQueryServices =
       new FakeBigQueryServices()
@@ -99,14 +84,7 @@ public class BigQuerySchemaTransformReadProviderTest {
   @Before
   public void setUp() throws IOException, InterruptedException {
     FakeDatasetService.setUp();
-    FakeJobService.setUp();
-    BigQueryIO.clearCreatedTables();
-    fakeTable.setSchema(TABLE_SCHEMA);
-    fakeTable.setTableReference(TABLE_REFERENCE);
-    fakeTable.setNumBytes(1024L * 1024L);
     fakeDatasetService.createDataset(PROJECT, DATASET, "", "", null);
-    fakeDatasetService.createTable(fakeTable);
-    fakeDatasetService.insertAll(fakeTable.getTableReference(), RECORDS, null);
     temporaryFolder.create();
     OPTIONS.setProject(PROJECT);
     OPTIONS.setTempLocation(temporaryFolder.getRoot().getAbsolutePath());
@@ -120,23 +98,25 @@ public class BigQuerySchemaTransformReadProviderTest {
   @Rule public transient TestPipeline p = TestPipeline.fromOptions(OPTIONS);
 
   @Test
-  public void testFromExtractConfiguration() {
-    SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
-    BigQuerySchemaTransformReadConfiguration configuration =
-        BigQuerySchemaTransformReadConfiguration.createExtractBuilder(TABLE_SPEC).build();
+  public void testFrom() throws IOException, InterruptedException {
+    SchemaTransformProvider provider = new BigQuerySchemaTransformWriteProvider();
+    BigQuerySchemaTransformWriteConfiguration configuration =
+        BigQuerySchemaTransformWriteConfiguration.createLoadBuilder(
+                TABLE_REFERENCE, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND)
+            .build();
     Row configurationRow = ROW_SERIALIZABLE_FUNCTION.apply(configuration);
     SchemaTransform schemaTransform = provider.from(configurationRow);
     PCollectionRowTupleTransform pCollectionRowTupleTransform =
         (PCollectionRowTupleTransform) schemaTransform.buildTransform();
-
     pCollectionRowTupleTransform.setTestBigQueryServices(fakeBigQueryServices);
-    PCollectionRowTuple input = PCollectionRowTuple.empty(p);
-    String tag = provider.outputCollectionNames().get(0);
-    PCollectionRowTuple output = input.apply(pCollectionRowTupleTransform);
-    assertTrue(output.has(tag));
-    PCollection<Row> got = output.get(tag);
-    PAssert.that(got).containsInAnyOrder(ROWS);
+    String tag = provider.inputCollectionNames().get(0);
+    PCollectionRowTuple input =
+        PCollectionRowTuple.of(tag, p.apply(Create.of(ROWS).withRowSchema(SCHEMA)));
+    input.apply(pCollectionRowTupleTransform);
 
     p.run();
+
+    assertNotNull(fakeDatasetService.getTable(TABLE_REFERENCE));
+    assertEquals(ROWS.size(), fakeDatasetService.getAllRows(PROJECT, DATASET, TABLE_ID).size());
   }
 }

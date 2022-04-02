@@ -38,26 +38,27 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 public abstract class BigQuerySchemaTransformWriteConfiguration {
 
   /**
-   * Instantiates a {@link BigQuerySchemaTransformWriteConfiguration} to support BigQuery load jobs.
-   * See {@link BigQueryIO.Write#to(String)}} for toTableSpec expected format.
+   * Instantiates a {@link BigQuerySchemaTransformWriteConfiguration.Builder} to support BigQuery
+   * load jobs. See {@link BigQueryIO.Write#to(String)}} for toTableSpec expected format.
    */
-  public static BigQuerySchemaTransformWriteConfiguration createLoad(
+  public static Builder createLoadBuilder(
       String toTableSpec, CreateDisposition createDisposition, WriteDisposition writeDisposition) {
     return new AutoValue_BigQuerySchemaTransformWriteConfiguration.Builder()
         .setTableSpec(toTableSpec)
         .setCreateDisposition(createDisposition.name())
-        .setWriteDisposition(writeDisposition.name())
-        .build();
+        .setWriteDisposition(writeDisposition.name());
   }
 
   /**
-   * Instantiates a {@link BigQuerySchemaTransformWriteConfiguration} to support BigQuery load jobs.
+   * Instantiates a {@link BigQuerySchemaTransformWriteConfiguration.Builder} to support BigQuery
+   * load jobs.
    */
-  public static BigQuerySchemaTransformWriteConfiguration createLoad(
+  public static Builder createLoadBuilder(
       TableReference toTable,
       CreateDisposition createDisposition,
       WriteDisposition writeDisposition) {
-    return createLoad(BigQueryHelpers.toTableSpec(toTable), createDisposition, writeDisposition);
+    return createLoadBuilder(
+        BigQueryHelpers.toTableSpec(toTable), createDisposition, writeDisposition);
   }
 
   /**

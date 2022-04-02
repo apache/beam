@@ -102,7 +102,7 @@ public class BigQuerySchemaTransformWriteProvider
 
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQuerySchemaTransformWriteTransform(configuration);
+      return new PCollectionRowTupleTransform(configuration);
     }
   }
 
@@ -110,12 +110,17 @@ public class BigQuerySchemaTransformWriteProvider
    * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
    * BigQuerySchemaTransformWriteConfiguration}.
    */
-  static class BigQuerySchemaTransformWriteTransform
+  static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQuerySchemaTransformWriteConfiguration configuration;
+    private BigQueryServices testBigQueryServices = null;
 
-    BigQuerySchemaTransformWriteTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
+    PCollectionRowTupleTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
+    }
+
+    void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
+      this.testBigQueryServices = testBigQueryServices;
     }
 
     @Override
@@ -128,10 +133,15 @@ public class BigQuerySchemaTransformWriteProvider
       }
       PCollection<Row> rowPCollection = input.get(INPUT_TAG);
       Schema schema = rowPCollection.getSchema();
+      BigQueryIO.Write<TableRow> write = toWrite(schema);
+      if (testBigQueryServices != null) {
+        write = write.withTestServices(testBigQueryServices);
+      }
+
       PCollection<TableRow> tableRowPCollection =
           rowPCollection.apply(
               MapElements.into(TypeDescriptor.of(TableRow.class)).via(BigQueryUtils::toTableRow));
-      tableRowPCollection.apply(toWrite(schema));
+      tableRowPCollection.apply(write);
       return PCollectionRowTuple.empty(input.getPipeline());
     }
 
