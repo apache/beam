@@ -120,7 +120,7 @@ public class BigQuerySchemaTransformReadProviderTest {
   @Rule public transient TestPipeline p = TestPipeline.fromOptions(OPTIONS);
 
   @Test
-  public void testFromExtractConfiguration() {
+  public void testExtract() {
     SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
     BigQuerySchemaTransformReadConfiguration configuration =
         BigQuerySchemaTransformReadConfiguration.createExtractBuilder(TABLE_SPEC).build();

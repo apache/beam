@@ -61,6 +61,16 @@ public abstract class BigQuerySchemaTransformWriteConfiguration {
         BigQueryHelpers.toTableSpec(toTable), createDisposition, writeDisposition);
   }
 
+  /** Returns the {@link #getTableSpec()} as a {@link TableReference}. */
+  TableReference getTableReference() {
+    return BigQueryHelpers.parseTableSpec(getTableSpec());
+  }
+
+  /** Returns the {@link #getCreateDisposition()} as a {@link CreateDisposition}. */
+  CreateDisposition getCreateDispositionEnum() {
+    return CreateDisposition.valueOf(getCreateDisposition());
+  }
+
   /**
    * Writes to the given table specification. See {@link BigQueryIO.Write#to(String)}} for the
    * expected format.
