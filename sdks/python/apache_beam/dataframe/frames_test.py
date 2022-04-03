@@ -184,9 +184,17 @@ class _AbstractFrameTest(unittest.TestCase):
           expected = expected.sort_values(list(expected.columns))
           actual = actual.sort_values(list(actual.columns))
       if isinstance(expected, pd.Series):
-        pd.testing.assert_series_equal(expected, actual)
+        if lenient_dtype_check:
+          pd.testing.assert_series_equal(
+              expected.astype('Float64'), actual.astype('Float64'))
+        else:
+          pd.testing.assert_series_equal(expected, actual)
       elif isinstance(expected, pd.DataFrame):
-        pd.testing.assert_frame_equal(expected, actual)
+        if lenient_dtype_check:
+          pd.testing.assert_frame_equal(
+              expected.astype('Float64'), actual.astype('Float64'))
+        else:
+          pd.testing.assert_frame_equal(expected, actual)
       else:
         raise ValueError(
             f"Expected value is a {type(expected)},"
@@ -217,18 +225,14 @@ class _AbstractFrameTest(unittest.TestCase):
         if isinstance(expected, pd.Series):
           if lenient_dtype_check:
             self.assertEqual(
-                pd.to_numeric(actual, errors='coerce').dtype,
-                pd.to_numeric(proxy, errors='coerce').dtype)
+                actual.astype('Float64').dtype, proxy.astype('Float64').dtype)
           else:
             self.assertEqual(actual.dtype, proxy.dtype)
           self.assertEqual(actual.name, proxy.name)
         elif isinstance(expected, pd.DataFrame):
           if lenient_dtype_check:
             pd.testing.assert_series_equal(
-                actual.apply(pd.to_numeric, downcast='float',
-                             errors='ignore').dtypes,
-                proxy.apply(pd.to_numeric, downcast='float',
-                            errors='ignore').dtypes)
+                actual.astype('Float64').dtypes, proxy.astype('Float64').dtypes)
           else:
             pd.testing.assert_series_equal(actual.dtypes, proxy.dtypes)
 
@@ -242,10 +246,8 @@ class _AbstractFrameTest(unittest.TestCase):
         for i in range(actual.index.nlevels):
           if lenient_dtype_check:
             self.assertEqual(
-                actual.apply(pd.to_numeric, downcast='float',
-                             errors='ignore').index.get_level_values(i).dtype,
-                proxy.apply(pd.to_numeric, downcast='float',
-                            errors='ignore').index.get_level_values(i).dtype)
+                actual.astype('Float64').index.get_level_values(i).dtype,
+                proxy.astype('Float64').index.get_level_values(i).dtype)
           else:
             self.assertEqual(
                 actual.index.get_level_values(i).dtype,
@@ -1494,8 +1496,6 @@ class DeferredFrameTest(_AbstractFrameTest):
             index="lev1", columns=["lev2", "lev3"], values="values"),
         df)
 
-  @unittest.skipIf(
-      PD_VERSION < (1, 4), "Bug in DF.pivot with MultiIndex for pandas < 1.4")
   def test_pivot_pandas_example5(self):
     # Multiple index
     df = pd.DataFrame({
@@ -1509,10 +1509,19 @@ class DeferredFrameTest(_AbstractFrameTest):
     # Cast to nullable Int64 because Beam doesn't do the correct conversion to
     # float64
     df['values'] = df['values'].astype('Int64')
-    self._run_test(
-        lambda df: df.pivot(
-            index=["lev1", "lev2"], columns=["lev3"], values="values"),
-        df)
+    if PD_VERSION < (1, 4):
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"pivot\(\) is not supported when pandas<1.4 and index is a Multi"):
+        self._run_test(
+            lambda df: df.pivot(
+                index=["lev1", "lev2"], columns=["lev3"], values="values"),
+            df)
+    else:
+      self._run_test(
+          lambda df: df.pivot(
+              index=["lev1", "lev2"], columns=["lev3"], values="values"),
+          df)
 
   def test_pivot_pandas_example6(self):
     # Value error when there are duplicates
@@ -1523,15 +1532,13 @@ class DeferredFrameTest(_AbstractFrameTest):
     })
     df['bar'] = df['bar'].astype(
         pd.CategoricalDtype(categories=['A', 'B', 'C']))
-    # with self.assertRaisesRegex(ValueError,
-    # r"Index contains duplicate entries"):
     self._run_error_test(
         lambda df: df.pivot(index='foo', columns='bar', values='baz'),
         df,
         construction_time=False)
 
-  def test_pivot_no_index_provided(self):
-    # Multiple columns, no index
+  def test_pivot_no_index_provided_on_single_level_index(self):
+    # Multiple columns, no index value provided
     df = pd.DataFrame({
         "lev1": [1, 1, 1, 2, 2, 2],
         "lev2": [1, 1, 2, 1, 1, 2],
@@ -1544,6 +1551,46 @@ class DeferredFrameTest(_AbstractFrameTest):
     df['values'] = df['values'].astype('Int64')
     self._run_test(
         lambda df: df.pivot(columns=["lev2", "lev3"], values="values"), df)
+
+  def test_pivot_no_index_provided_on_multiindex(self):
+    # Multiple columns, no index value provided
+    tuples = list(
+        zip(
+            *[
+                ["bar", "bar", "bar", "baz", "baz", "baz"],
+                [
+                    "one",
+                    "two",
+                    "three",
+                    "one",
+                    "two",
+                    "three",
+                ],
+            ]))
+    index = pd.MultiIndex.from_tuples(tuples, names=["first", "second"])
+    df = pd.DataFrame({
+        "lev1": [1, 1, 1, 2, 2, 2],
+        "lev2": [1, 1, 2, 1, 1, 2],
+        "lev3": [1, 2, 1, 2, 1, 2],
+        "lev4": [1, 2, 3, 4, 5, 6],
+        "values": [0, 1, 2, 3, 4, 5]
+    },
+                      index=index)
+    df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
+    df['values'] = df['values'].astype('Float64')
+    df['lev1'] = df['lev1'].astype('Int64')
+    df['lev4'] = df['lev4'].astype('Int64')
+    if PD_VERSION < (1, 4):
+      with self.assertRaisesRegex(
+          frame_base.WontImplementError,
+          r"pivot\(\) is not supported when pandas<1.4 and index is a Multi"):
+        self._run_test(lambda df: df.pivot(columns=["lev2", "lev3"]), df)
+    else:
+      self._run_test(
+          lambda df: df.pivot(columns=["lev2", "lev3"]),
+          df,
+          lenient_dtype_check=True)
 
 
 # pandas doesn't support kurtosis on GroupBys:

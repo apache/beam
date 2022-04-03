@@ -44,6 +44,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from pandas._libs import lib
+from pandas.api.types import is_float_dtype
+from pandas.api.types import is_int64_dtype
 from pandas.api.types import is_list_like
 from pandas.core.groupby.generic import DataFrameGroupBy
 
@@ -3737,6 +3739,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         raise frame_base.WontImplementError(
           message, reason="non-deferred-columns")
 
+    # If values not provided, take all remaining columns of dataframe
+    if not values:
+      tmp = self._expr.proxy()
+      if index:
+        tmp = tmp.drop(index, axis=1)
+      if columns:
+        tmp = tmp.drop(columns, axis=1)
+      values = tmp.columns.values
+
     # Construct column index
     if is_list_like(columns) and len(columns) <= 1:
       columns = columns[0]
@@ -3747,13 +3758,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       )
       verify_all_categorical(all_cols_are_categorical)
 
-      # If values not provided, take all remaining columns of dataframe
-      if not values:
-        values = self._expr.proxy() \
-          .drop(index, axis=1).drop(columns, axis=1).columns.values
-
-      # Take the provided values
       if is_list_like(values) and len(values) > 1:
+        # If more than one value provided, don't create a None level
         values_in_col_index = values
         names = [None, columns]
         col_index = pd.MultiIndex.from_product(
@@ -3772,13 +3778,33 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       )
       verify_all_categorical(all_cols_are_categorical)
 
-      categories = [
-        c.categories.astype('category') for c in selected_cols.dtypes
-      ]
-      col_index = pd.MultiIndex.from_product(categories, names=columns)
+      if is_list_like(values) and len(values) > 1:
+        # If more than one value provided, don't create a None level
+        values_in_col_index = values
+        names = [None, *columns]
+        categories = [
+          c.categories.astype('category') for c in selected_cols.dtypes
+        ]
+        col_index = pd.MultiIndex.from_product(
+          [values_in_col_index, *categories],
+          names=names
+        )
+      else:
+        # If one value provided, don't create a None level
+        names = columns
+        categories = [
+          c.categories.astype('category') for c in selected_cols.dtypes
+        ]
+        col_index = pd.MultiIndex.from_product(
+          categories,
+          names=names
+        )
 
     # Construct row index
     if index:
+      if PD_VERSION < (1, 4) and is_list_like(index) and len(index) > 1:
+        raise frame_base.WontImplementError(
+          "pivot() is not supported when pandas<1.4 and index is a MultiIndex")
       per_partition = expressions.ComputedExpression(
           'pivot-per-partition',
           lambda df: df.set_index(keys=index), [self._expr],
@@ -3791,6 +3817,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     else:
       per_partition = self._expr
       row_index = self._expr.proxy().index
+    if PD_VERSION < (1, 4) and isinstance(row_index, pd.MultiIndex):
+      raise frame_base.WontImplementError(
+        "pivot() is not supported when pandas<1.4 and index is a MultiIndex")
 
     selected_values = self._expr.proxy()[values]
     if isinstance(selected_values, pd.Series):
@@ -3799,16 +3828,16 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       # Set dtype to object if more than one value
       dtypes = [d for d in selected_values.dtypes]
       value_dtype = object
-      if np.int64 in dtypes:
+      if any((is_int64_dtype(x) for x in dtypes)):
         value_dtype = np.int64
-      if np.float64 in dtypes:
+      if any((is_float_dtype(x) for x in dtypes)):
         value_dtype = np.float64
       if object in dtypes:
         value_dtype = object
 
     # Construct proxy
     proxy = pd.DataFrame(
-      columns=col_index, dtype=value_dtype, index = row_index
+      columns=col_index, dtype=value_dtype, index=row_index
     )
 
     def pivot_helper(df):
@@ -3816,6 +3845,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         [proxy, df.pivot(columns=columns, values=values, **kwargs)]
       )
       result.columns = col_index
+      result = result.astype(value_dtype)
       return result
 
     return frame_base.DeferredFrame.wrap(

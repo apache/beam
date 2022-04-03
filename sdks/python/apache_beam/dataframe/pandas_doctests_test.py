@@ -362,7 +362,15 @@ class DoctestTest(unittest.TestCase):
             # actually raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
             # Expected to raise a ValueError, but we raise NotImplementedError
-            'pandas.core.frame.DataFrame.pivot': ["*"],
+            'pandas.core.frame.DataFrame.pivot': [
+                "df.pivot(index='foo', columns='bar', values='baz')",
+                "df.pivot(index='foo', columns='bar')['baz']",
+                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
+                # pylint: disable=line-too-long
+                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
+                # pylint: disable=line-too-long
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
+            ],
             'pandas.core.frame.DataFrame.append': [
                 'df',
                 # pylint: disable=line-too-long
@@ -838,6 +846,7 @@ class DoctestTest(unittest.TestCase):
         },
         wont_implement_ok={
             'factorize': ['*'],
+            'pivot': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'melt': [
@@ -869,7 +878,15 @@ class DoctestTest(unittest.TestCase):
                 'merge_ordered(df1, df2, fill_method="ffill", left_by="group")'
             ],
             # Expected error.
-            'pivot': ["*"],
+            'pivot': [
+                "df.pivot(index='foo', columns='bar', values='baz')",
+                "df.pivot(index='foo', columns='bar')['baz']",
+                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
+                # pylint: disable=line-too-long
+                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
+                # pylint: disable=line-too-long
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
+            ],
             # Never written.
             'to_pickle': ['os.remove("./dummy.pkl")'],
             **skip_reads
