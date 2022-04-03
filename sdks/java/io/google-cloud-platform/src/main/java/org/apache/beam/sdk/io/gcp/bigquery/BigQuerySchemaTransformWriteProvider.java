@@ -18,17 +18,14 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.annotation.Nonnull;
 import jdk.internal.joptsimple.internal.Strings;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -48,23 +45,22 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
- * using {@link BigQuerySchemaTransformWriteConfiguration}.
+ * using {@link BigQuerySchemaTransformConfiguration.Write}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 @Internal
 @Experimental(Kind.SCHEMAS)
 public class BigQuerySchemaTransformWriteProvider
-    extends TypedSchemaTransformProvider<BigQuerySchemaTransformWriteConfiguration> {
+    extends TypedSchemaTransformProvider<BigQuerySchemaTransformConfiguration.Write> {
 
   private static final String API = "bigquery";
   private static final String VERSION = "v2";
@@ -72,13 +68,13 @@ public class BigQuerySchemaTransformWriteProvider
 
   /** Returns the expected class of the configuration. */
   @Override
-  protected Class<BigQuerySchemaTransformWriteConfiguration> configurationClass() {
-    return BigQuerySchemaTransformWriteConfiguration.class;
+  protected Class<BigQuerySchemaTransformConfiguration.Write> configurationClass() {
+    return BigQuerySchemaTransformConfiguration.Write.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQuerySchemaTransformWriteConfiguration configuration) {
+  protected SchemaTransform from(BigQuerySchemaTransformConfiguration.Write configuration) {
     return new BigQueryWriteSchemaTransform(configuration);
   }
 
@@ -107,13 +103,13 @@ public class BigQuerySchemaTransformWriteProvider
   }
 
   /**
-   * An implementation of {@link SchemaTransform} for BigQuery write jobs configured using {@link
-   * BigQuerySchemaTransformWriteConfiguration}.
+   * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
+   * BigQuerySchemaTransformConfiguration.Write}.
    */
   static class BigQueryWriteSchemaTransform implements SchemaTransform {
-    private final BigQuerySchemaTransformWriteConfiguration configuration;
+    private final BigQuerySchemaTransformConfiguration.Write configuration;
 
-    BigQueryWriteSchemaTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
+    BigQueryWriteSchemaTransform(BigQuerySchemaTransformConfiguration.Write configuration) {
       this.configuration = configuration;
     }
 
@@ -125,17 +121,17 @@ public class BigQuerySchemaTransformWriteProvider
 
   /**
    * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
-   * BigQuerySchemaTransformWriteConfiguration}.
+   * BigQuerySchemaTransformConfiguration.Write}.
    */
   static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
 
-    private final BigQuerySchemaTransformWriteConfiguration configuration;
+    private final BigQuerySchemaTransformConfiguration.Write configuration;
 
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
+    PCollectionRowTupleTransform(BigQuerySchemaTransformConfiguration.Write configuration) {
       this.configuration = configuration;
     }
 
@@ -147,11 +143,10 @@ public class BigQuerySchemaTransformWriteProvider
       if (destinationSchema == null) {
         // We only care if the create disposition implies an existing table i.e. create never.
         if (createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
-          throw new InvalidConfigurationException(String.format(
-              "configuration create disposition: %s for table: %s for a null destination schema",
-              createDisposition,
-              configuration.getTableSpec()
-          ));
+          throw new InvalidConfigurationException(
+              String.format(
+                  "configuration create disposition: %s for table: %s for a null destination schema",
+                  createDisposition, configuration.getTableSpec()));
         }
       }
     }
@@ -199,10 +194,7 @@ public class BigQuerySchemaTransformWriteProvider
         throw new IllegalArgumentException(
             String.format(
                 "%s %s is missing expected tag: %s",
-                getClass().getSimpleName(),
-                input.getClass().getSimpleName(),
-                INPUT_TAG)
-        );
+                getClass().getSimpleName(), input.getClass().getSimpleName(), INPUT_TAG));
       }
 
       validate(input.get(INPUT_TAG));
@@ -213,12 +205,7 @@ public class BigQuerySchemaTransformWriteProvider
       Schema sourceSchema = input.getSchema();
       if (sourceSchema == null) {
         throw new IllegalArgumentException(
-            String.format(
-                "%s is null for input of tag: %s",
-                Schema.class,
-                INPUT_TAG
-            )
-        );
+            String.format("%s is null for input of tag: %s", Schema.class, INPUT_TAG));
       }
 
       Schema destinationSchema = getDestinationRowSchema(input.getPipeline().getOptions());
@@ -235,7 +222,7 @@ public class BigQuerySchemaTransformWriteProvider
       List<String> mismatchedFieldNames = new ArrayList<>();
       fieldNames.addAll(sourceSchema.getFieldNames());
       fieldNames.addAll(destinationSchema.getFieldNames());
-      for (String name: fieldNames) {
+      for (String name : fieldNames) {
         Field gotField = null;
         Field wantField = null;
         if (sourceSchema.hasField(name)) {
@@ -250,11 +237,10 @@ public class BigQuerySchemaTransformWriteProvider
       }
 
       if (!mismatchedFieldNames.isEmpty()) {
-        throw new IllegalArgumentException(String.format(
-            "source and destination schema mismatch for table: %s with fields: %s",
-            configuration.getTableSpec(),
-            Strings.join(mismatchedFieldNames, " | ")
-        ));
+        throw new IllegalArgumentException(
+            String.format(
+                "source and destination schema mismatch for table: %s with fields: %s",
+                configuration.getTableSpec(), Strings.join(mismatchedFieldNames, " | ")));
       }
     }
 
@@ -290,15 +276,13 @@ public class BigQuerySchemaTransformWriteProvider
       DatasetService datasetService = getDatasetService(options);
       try {
         destinationTable = datasetService.getTable(configuration.getTableReference());
-      } catch(IOException | InterruptedException e) {
+      } catch (IOException | InterruptedException e) {
         // We only care if the create disposition implies an existing table i.e. create never.
         if (createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
-          throw new InvalidConfigurationException(String.format(
-              "error querying destination schema for create disposition: %s for table: %s, error: %s",
-              createDisposition,
-              configuration.getTableSpec(),
-              e.getMessage()
-          ));
+          throw new InvalidConfigurationException(
+              String.format(
+                  "error querying destination schema for create disposition: %s for table: %s, error: %s",
+                  createDisposition, configuration.getTableSpec(), e.getMessage()));
         }
       }
       return destinationTable;

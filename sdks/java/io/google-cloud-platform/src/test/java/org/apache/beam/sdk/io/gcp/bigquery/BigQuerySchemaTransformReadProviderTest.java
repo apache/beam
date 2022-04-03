@@ -55,9 +55,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQuerySchemaTransformReadProviderTest {
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQuerySchemaTransformReadConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(BigQuerySchemaTransformReadConfiguration.class);
-  private static final SerializableFunction<BigQuerySchemaTransformReadConfiguration, Row>
+  private static final TypeDescriptor<BigQuerySchemaTransformConfiguration.Read> TYPE_DESCRIPTOR =
+      TypeDescriptor.of(BigQuerySchemaTransformConfiguration.Read.class);
+  private static final SerializableFunction<BigQuerySchemaTransformConfiguration.Read, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   private static final String PROJECT = "fakeproject";
@@ -122,8 +122,8 @@ public class BigQuerySchemaTransformReadProviderTest {
   @Test
   public void testExtract() {
     SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
-    BigQuerySchemaTransformReadConfiguration configuration =
-        BigQuerySchemaTransformReadConfiguration.createExtractBuilder(TABLE_SPEC).build();
+    BigQuerySchemaTransformConfiguration.Read configuration =
+        BigQuerySchemaTransformConfiguration.createExtractBuilder(TABLE_SPEC).build();
     Row configurationRow = ROW_SERIALIZABLE_FUNCTION.apply(configuration);
     SchemaTransform schemaTransform = provider.from(configurationRow);
     PCollectionRowTupleTransform pCollectionRowTupleTransform =

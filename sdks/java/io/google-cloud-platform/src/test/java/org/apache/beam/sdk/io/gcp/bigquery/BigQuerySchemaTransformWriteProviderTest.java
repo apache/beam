@@ -48,11 +48,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+/** Test for {@link BigQuerySchemaTransformWriteProvider}. */
 public class BigQuerySchemaTransformWriteProviderTest {
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQuerySchemaTransformWriteConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(BigQuerySchemaTransformWriteConfiguration.class);
-  private static final SerializableFunction<BigQuerySchemaTransformWriteConfiguration, Row>
+  private static final TypeDescriptor<BigQuerySchemaTransformConfiguration.Write> TYPE_DESCRIPTOR =
+      TypeDescriptor.of(BigQuerySchemaTransformConfiguration.Write.class);
+  private static final SerializableFunction<BigQuerySchemaTransformConfiguration.Write, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   private static final String PROJECT = "fakeproject";
@@ -100,8 +101,8 @@ public class BigQuerySchemaTransformWriteProviderTest {
   @Test
   public void testFrom() throws IOException, InterruptedException {
     SchemaTransformProvider provider = new BigQuerySchemaTransformWriteProvider();
-    BigQuerySchemaTransformWriteConfiguration configuration =
-        BigQuerySchemaTransformWriteConfiguration.createLoadBuilder(
+    BigQuerySchemaTransformConfiguration.Write configuration =
+        BigQuerySchemaTransformConfiguration.createLoadBuilder(
                 TABLE_REFERENCE, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND)
             .build();
     Row configurationRow = ROW_SERIALIZABLE_FUNCTION.apply(configuration);

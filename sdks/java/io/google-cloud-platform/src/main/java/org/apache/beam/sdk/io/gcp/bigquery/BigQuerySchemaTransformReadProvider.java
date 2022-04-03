@@ -24,7 +24,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformReadConfiguration.JobType;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformConfiguration.JobType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery read jobs configured using
- * {@link BigQuerySchemaTransformReadConfiguration}.
+ * {@link BigQuerySchemaTransformConfiguration.Read}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Internal
 @Experimental(Kind.SCHEMAS)
 public class BigQuerySchemaTransformReadProvider
-    extends TypedSchemaTransformProvider<BigQuerySchemaTransformReadConfiguration> {
+    extends TypedSchemaTransformProvider<BigQuerySchemaTransformConfiguration.Read> {
 
   private static final String API = "bigquery";
   private static final String VERSION = "v2";
@@ -58,13 +58,13 @@ public class BigQuerySchemaTransformReadProvider
 
   /** Returns the expected class of the configuration. */
   @Override
-  protected Class<BigQuerySchemaTransformReadConfiguration> configurationClass() {
-    return BigQuerySchemaTransformReadConfiguration.class;
+  protected Class<BigQuerySchemaTransformConfiguration.Read> configurationClass() {
+    return BigQuerySchemaTransformConfiguration.Read.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQuerySchemaTransformReadConfiguration configuration) {
+  protected SchemaTransform from(BigQuerySchemaTransformConfiguration.Read configuration) {
     return new BigQueryReadSchemaTransform(configuration);
   }
 
@@ -94,12 +94,12 @@ public class BigQuerySchemaTransformReadProvider
 
   /**
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
-   * BigQuerySchemaTransformReadConfiguration}.
+   * BigQuerySchemaTransformConfiguration.Read}.
    */
   static class BigQueryReadSchemaTransform implements SchemaTransform {
-    private final BigQuerySchemaTransformReadConfiguration configuration;
+    private final BigQuerySchemaTransformConfiguration.Read configuration;
 
-    BigQueryReadSchemaTransform(BigQuerySchemaTransformReadConfiguration configuration) {
+    BigQueryReadSchemaTransform(BigQuerySchemaTransformConfiguration.Read configuration) {
       this.configuration = configuration;
     }
 
@@ -112,15 +112,17 @@ public class BigQuerySchemaTransformReadProvider
 
   /**
    * An implementation of {@link PTransform} for BigQuery read jobs configured using {@link
-   * BigQuerySchemaTransformReadConfiguration}.
+   * BigQuerySchemaTransformConfiguration.Read}.
    */
   static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
 
-    private final BigQuerySchemaTransformReadConfiguration configuration;
+    private final BigQuerySchemaTransformConfiguration.Read configuration;
+
+    /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQuerySchemaTransformReadConfiguration configuration) {
+    PCollectionRowTupleTransform(BigQuerySchemaTransformConfiguration.Read configuration) {
       this.configuration = configuration;
     }
 
