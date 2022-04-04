@@ -25,9 +25,12 @@ import 'package:playground/modules/graph/graph_builder/painters/edge_painter.dar
 import 'package:playground/modules/graph/graph_builder/painters/node_painter.dart';
 import 'package:playground/modules/graph/models/graph.dart';
 
+enum GraphDirection { vertical, horizontal }
+
 class GraphPainter {
   final List<NodeElementPainter> elementsPainter;
   final List<EdgePainter> edges;
+  final GraphDirection direction;
   final Map<String, NodeElementPainter> elementsMap = {};
   final Map<int, double> rowSizes = {};
   final Map<int, double> columnSizes = {};
@@ -43,7 +46,11 @@ class GraphPainter {
     return Size(width, height);
   }
 
-  GraphPainter({required this.elementsPainter, required this.edges}) {
+  GraphPainter({
+    required this.elementsPainter,
+    required this.edges,
+    required this.direction,
+  }) {
     for (var element in elementsPainter) {
       elementsMap[element.element.name] = element;
     }
@@ -80,7 +87,14 @@ class GraphPainter {
     });
     for (var element in edges) {
       element.paint(
-          drawer, elementsMap, rowStarts, columnStarts, rowSizes, columnSizes);
+        drawer,
+        elementsMap,
+        rowStarts,
+        columnStarts,
+        rowSizes,
+        columnSizes,
+        direction,
+      );
     }
   }
 }

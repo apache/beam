@@ -322,11 +322,11 @@ class OptionalHintTestCase(TypeHintTestCase):
 
   def test_is_optional(self):
     hint1 = typehints.Optional[int]
-    self.assertTrue(typehints.is_optional(hint1))
+    self.assertTrue(typehints.is_nullable(hint1))
     hint2 = typehints.UnionConstraint({int, bytes})
-    self.assertFalse(typehints.is_optional(hint2))
+    self.assertFalse(typehints.is_nullable(hint2))
     hint3 = typehints.UnionConstraint({int, bytes, type(None)})
-    self.assertFalse(typehints.is_optional(hint3))
+    self.assertFalse(typehints.is_nullable(hint3))
 
 
 class TupleHintTestCase(TypeHintTestCase):

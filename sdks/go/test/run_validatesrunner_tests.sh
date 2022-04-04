@@ -73,6 +73,9 @@ set -e
 trap '! [[ "$BASH_COMMAND" =~ ^(echo|read|if|ARGS|shift|SOCKET_SCRIPT|\[\[) ]] && \
 cmd=`eval echo "$BASH_COMMAND" 2>/dev/null` && echo "\$ $cmd"' DEBUG
 
+# Resolve current directory
+CURRENT_DIRECTORY=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 # Default test targets.
 TESTS="./test/integration/... ./test/regression"
 
@@ -271,6 +274,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
       java \
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
+          --flink-conf-dir $CURRENT_DIRECTORY/../../../runners/flink/src/test/resources \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &

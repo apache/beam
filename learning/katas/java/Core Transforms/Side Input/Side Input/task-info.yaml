@@ -22,10 +22,10 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/sideinput/Task.java
   visible: true
   placeholders:
-  - offset: 2716
+  - offset: 2953
     length: 37
     placeholder_text: TODO()
-  - offset: 2914
+  - offset: 3151
     length: 500
     placeholder_text: TODO()
 - name: src/org/apache/beam/learning/katas/coretransforms/sideinput/Person.java

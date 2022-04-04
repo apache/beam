@@ -113,4 +113,21 @@ public class LogicalTypesTest {
     assertEquals(uuid, row.getLogicalTypeValue(0, UUID.class));
     assertEquals(uuidAsRow, row.getBaseValue(0, Row.class));
   }
+
+  @Test
+  public void testSchema() {
+    Schema schemaValue =
+        Schema.of(
+            Field.of("fieldOne", FieldType.BOOLEAN),
+            Field.of("nested", FieldType.logicalType(new SchemaLogicalType())));
+
+    Schema schema = Schema.builder().addLogicalTypeField("schema", new SchemaLogicalType()).build();
+    Row row = Row.withSchema(schema).addValues(schemaValue).build();
+    assertEquals(schemaValue, row.getLogicalTypeValue(0, Schema.class));
+
+    // Check base type conversion.
+    assertEquals(
+        schemaValue,
+        new SchemaLogicalType().toInputType(new SchemaLogicalType().toBaseType(schemaValue)));
+  }
 }

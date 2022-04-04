@@ -49,6 +49,10 @@ public class GcpApiSurfaceTest {
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
+            // Quick check packages, exposed only in testing
+            .pruningPattern("com[.]pholser[.]junit[.]quickcheck[.].*")
+            .pruningPattern("org[.]javaruntype[.]type[.].*")
+            // ------
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
 

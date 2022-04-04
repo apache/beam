@@ -49,8 +49,8 @@ public class CounterCell implements Counter, MetricCell<Long> {
 
   @Override
   public void reset() {
-    dirty.afterModification();
     value.set(0L);
+    dirty.reset();
   }
 
   /**

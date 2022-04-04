@@ -269,7 +269,6 @@ class DoctestTest(unittest.TestCase):
                 # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
                 "df.groupby('Date')['Data'].transform('sum')",
             ],
-            'pandas.core.frame.DataFrame.swaplevel': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
             'pandas.core.frame.DataFrame.round': [
@@ -511,7 +510,6 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
             ],
-            'pandas.core.series.Series.swaplevel' :['*']
         },
         skip={
             # Relies on setting values with iloc
@@ -586,8 +584,6 @@ class DoctestTest(unittest.TestCase):
             f'{module_name}.StringMethods.get_dummies': ['*'],
             f'{module_name}.str_get_dummies': ['*'],
             f'{module_name}.StringMethods': ['s.str.split("_")'],
-            f'{module_name}.StringMethods.rsplit': ['*'],
-            f'{module_name}.StringMethods.split': ['*'],
         },
         skip={
             # count() on Series with a NaN produces mismatched type if we
@@ -604,7 +600,32 @@ class DoctestTest(unittest.TestCase):
             ],
 
             # output has incorrect formatting in 1.2.x
-            f'{module_name}.StringMethods.extractall': ['*']
+            f'{module_name}.StringMethods.extractall': ['*'],
+
+            # For split and rsplit, if expand=True, then the series
+            # must be of CategoricalDtype, which pandas doesn't convert to
+            f'{module_name}.StringMethods.rsplit': [
+                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+                's.str.split(r"and|plus", expand=True)',
+                's.str.split(r".", expand=True)',
+                's.str.split(r"\\.jpg", expand=True)',
+                's.str.split(r"\\.jpg", regex=True, expand=True)',
+                's.str.split(re.compile(r"\\.jpg"), expand=True)',
+                's.str.split(r"\\.jpg", regex=False, expand=True)'
+            ],
+            f'{module_name}.StringMethods.split': [
+                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+                's.str.split(r"and|plus", expand=True)',
+                's.str.split(r".", expand=True)',
+                's.str.split(r"\\.jpg", expand=True)',
+                's.str.split(r"\\.jpg", regex=True, expand=True)',
+                's.str.split(re.compile(r"\\.jpg"), expand=True)',
+                's.str.split(r"\\.jpg", regex=False, expand=True)'
+            ]
         })
     self.assertEqual(result.failed, 0)
 

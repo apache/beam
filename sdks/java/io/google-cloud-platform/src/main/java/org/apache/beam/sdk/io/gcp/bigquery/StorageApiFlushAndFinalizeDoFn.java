@@ -172,6 +172,9 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                 // TODO: Storage API should provide a more-specific way of identifying this failure.
                 return RetryType.DONT_RETRY;
               }
+              if (statusCode.equals(Code.NOT_FOUND)) {
+                return RetryType.DONT_RETRY;
+              }
             }
             return RetryType.RETRY_ALL_OPERATIONS;
           },
@@ -207,6 +210,13 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                     + " failed with "
                     + Iterables.getFirst(contexts, null).getError());
             finalizeOperationsFailed.inc();
+            Throwable error = Iterables.getFirst(contexts, null).getError();
+            if (error instanceof ApiException) {
+              Code statusCode = ((ApiException) error).getStatusCode().getCode();
+              if (statusCode.equals(Code.NOT_FOUND)) {
+                return RetryType.DONT_RETRY;
+              }
+            }
             return RetryType.RETRY_ALL_OPERATIONS;
           },
           r -> {

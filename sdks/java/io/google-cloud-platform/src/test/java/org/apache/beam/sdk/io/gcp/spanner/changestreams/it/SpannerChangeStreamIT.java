@@ -17,10 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.it;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.Statement;
 import com.google.gson.Gson;
 import java.util.Collections;
 import java.util.Map;
@@ -54,7 +62,8 @@ public class SpannerChangeStreamIT {
   private static String instanceId;
   private static String projectId;
   private static String databaseId;
-  private static String tableName;
+  private static String metadataTableName;
+  private static String changeStreamTableName;
   private static String changeStreamName;
   private static DatabaseClient databaseClient;
 
@@ -63,8 +72,9 @@ public class SpannerChangeStreamIT {
     projectId = ENV.getProjectId();
     instanceId = ENV.getInstanceId();
     databaseId = ENV.getDatabaseId();
-    tableName = ENV.createSingersTable();
-    changeStreamName = ENV.createChangeStreamFor(tableName);
+    metadataTableName = ENV.getMetadataTableName();
+    changeStreamTableName = ENV.createSingersTable();
+    changeStreamName = ENV.createChangeStreamFor(changeStreamTableName);
     databaseClient = ENV.getDatabaseClient();
   }
 
@@ -102,6 +112,7 @@ public class SpannerChangeStreamIT {
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
                     .withMetadataDatabase(databaseId)
+                    .withMetadataTable(metadataTableName)
                     .withInclusiveStartAt(startAt)
                     .withInclusiveEndAt(endAt))
             .apply(ParDo.of(new ModsToString()));
@@ -126,6 +137,26 @@ public class SpannerChangeStreamIT {
             "DELETE,4,Updated First Name 4,Updated Last Name 4,null,null",
             "DELETE,5,Updated First Name 5,Updated Last Name 5,null,null");
     pipeline.run().waitUntilFinish();
+
+    assertMetadataTableHasBeenDropped();
+  }
+
+  private static void assertMetadataTableHasBeenDropped() {
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(Statement.of("SELECT * FROM " + metadataTableName))) {
+      resultSet.next();
+      fail(
+          "The metadata table "
+              + metadataTableName
+              + " should had been dropped, but it still exists");
+    } catch (SpannerException e) {
+      assertEquals(ErrorCode.INVALID_ARGUMENT, e.getErrorCode());
+      assertTrue(
+          "Error message must contain \"Table not found\"",
+          e.getMessage().contains("Table not found"));
+    }
   }
 
   private static Pair<Timestamp, Timestamp> insertRows(int n) {
@@ -158,7 +189,7 @@ public class SpannerChangeStreamIT {
   private static Timestamp insertRow(int singerId) {
     return databaseClient.write(
         Collections.singletonList(
-            Mutation.newInsertBuilder(tableName)
+            Mutation.newInsertBuilder(changeStreamTableName)
                 .set("SingerId")
                 .to(singerId)
                 .set("FirstName")
@@ -171,7 +202,7 @@ public class SpannerChangeStreamIT {
   private static Timestamp updateRow(int singerId) {
     return databaseClient.write(
         Collections.singletonList(
-            Mutation.newUpdateBuilder(tableName)
+            Mutation.newUpdateBuilder(changeStreamTableName)
                 .set("SingerId")
                 .to(singerId)
                 .set("FirstName")
@@ -183,10 +214,11 @@ public class SpannerChangeStreamIT {
 
   private static Timestamp deleteRow(int singerId) {
     return databaseClient.write(
-        Collections.singletonList(Mutation.delete(tableName, Key.of(singerId))));
+        Collections.singletonList(Mutation.delete(changeStreamTableName, Key.of(singerId))));
   }
 
   private static class ModsToString extends DoFn<DataChangeRecord, String> {
+
     private transient Gson gson;
 
     @Setup

@@ -22,7 +22,7 @@ String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate,'H */6 * * *')
+  common.setAutoJob(delegate,'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java InfluxDbIO Performance Test',

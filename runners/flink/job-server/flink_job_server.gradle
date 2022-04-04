@@ -212,7 +212,7 @@ project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", 
 project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, false)
 project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true, false)
 
-task validatesPortableRunner() {
+tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
@@ -265,7 +265,8 @@ createCrossLanguageValidatesRunnerTask(
 )
 
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.
-task miniCluster(type: Jar, dependsOn: shadowJar) {
+tasks.register("miniCluster", Jar) {
+  dependsOn shadowJar
   archiveBaseName = "${project.archivesBaseName}-mini-cluster"
   dependencies {
     runtimeOnly project(path: flinkRunnerProject, configuration: "miniCluster")

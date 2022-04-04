@@ -231,6 +231,16 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
+  def swaplevel(self, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'swaplevel',
+            lambda df: df.swaplevel(**kwargs), [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def fillna(self, value, method, axis, limit, **kwargs):
@@ -946,6 +956,77 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             truncate, [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def unstack(self, **kwargs):
+    level = kwargs.get('level', -1)
+
+    if self._expr.proxy().index.nlevels == 1:
+      if PD_VERSION < (1, 2):
+        raise frame_base.WontImplementError(
+            "unstack() is not supported when using pandas < 1.2.0"
+            "Please upgrade to pandas 1.2.0 or higher to use this operation.")
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'unstack',
+              lambda s: s.unstack(**kwargs), [self._expr],
+              requires_partition_by=partitionings.Index()))
+    else:
+      # Unstacking MultiIndex objects
+      idx = self._expr.proxy().index
+
+      # Converting level (int, str, or combination) to a list of number levels
+      level_list = level if isinstance(level, list) else [level]
+      level_number_list = [idx._get_level_number(l) for l in level_list]
+
+      # Checking if levels provided are of CategoricalDtype
+      if not all(isinstance(idx.levels[l].dtype, (pd.CategoricalDtype,
+                                                  pd.BooleanDtype))
+                 for l in level_number_list):
+        raise frame_base.WontImplementError(
+            "unstack() is only supported on DataFrames if unstacked level "
+            "is a categorical or boolean column",
+            reason="non-deferred-columns")
+      else:
+        tmp = self._expr.proxy().unstack(**kwargs)
+        if isinstance(tmp.columns, pd.MultiIndex):
+          levels = []
+          for i in range(tmp.columns.nlevels):
+            level = tmp.columns.levels[i]
+            levels.append(level)
+          col_idx = pd.MultiIndex.from_product(levels)
+        else:
+          if tmp.columns.dtype == 'boolean':
+            col_idx = pd.Index([False, True], dtype='boolean')
+          else:
+            col_idx = pd.CategoricalIndex(tmp.columns.categories)
+
+        if isinstance(self._expr.proxy(), pd.Series):
+          proxy_dtype = self._expr.proxy().dtypes
+        else:
+          # Set dtype to object if more than one value
+          dtypes = [d for d in self._expr.proxy().dtypes]
+          proxy_dtype = object
+          if np.int64 in dtypes:
+            proxy_dtype = np.int64
+          if np.float64 in dtypes:
+            proxy_dtype = np.float64
+          if object in dtypes:
+            proxy_dtype = object
+
+        proxy = pd.DataFrame(
+            columns=col_idx, dtype=proxy_dtype, index=tmp.index)
+
+        with expressions.allow_non_parallel_operations(True):
+          return frame_base.DeferredFrame.wrap(
+              expressions.ComputedExpression(
+                  'unstack',
+                  lambda s: pd.concat([proxy, s.unstack(**kwargs)]),
+                  [self._expr],
+                  proxy=proxy,
+                  requires_partition_by=partitionings.Singleton()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -2175,9 +2256,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         other: df.update(other) or df, [self._expr, other._expr],
         preserves_partition_by=partitionings.Arbitrary(),
         requires_partition_by=partitionings.Index())
-
-  unstack = frame_base.wont_implement_method(
-      pd.Series, 'unstack', reason='non-deferred-columns')
 
   @frame_base.with_docs_from(pd.Series)
   def value_counts(
@@ -3678,25 +3756,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   T = property(frame_base.wont_implement_method(
       pd.DataFrame, 'T', reason='non-deferred-columns'))
 
-
-  @frame_base.with_docs_from(pd.DataFrame)
-  def unstack(self, *args, **kwargs):
-    """unstack cannot be used on :class:`DeferredDataFrame` instances with
-    multiple index levels, because the columns in the output depend on the
-    data."""
-    if self._expr.proxy().index.nlevels == 1:
-      return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'unstack',
-            lambda df: df.unstack(*args, **kwargs),
-            [self._expr],
-            requires_partition_by=partitionings.Index()))
-    else:
-      raise frame_base.WontImplementError(
-          "unstack() is not supported on DataFrames with a multiple indexes, "
-          "because the columns in the output depend on the input data.",
-          reason="non-deferred-columns")
-
   update = frame_base._proxy_method(
       'update',
       inplace=True,
@@ -4755,13 +4814,72 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
 
-  split = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'split',
-      reason='non-deferred-columns')
+  def _split_helper(self, rsplit=False, **kwargs):
+    expand = kwargs.get('expand', False)
 
-  rsplit = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'rsplit',
-      reason='non-deferred-columns')
+    if not expand:
+      # Not creating separate columns
+      proxy = self._expr.proxy()
+      if not rsplit:
+        func = lambda s: pd.concat([proxy, s.str.split(**kwargs)])
+      else:
+        func = lambda s: pd.concat([proxy, s.str.rsplit(**kwargs)])
+    else:
+      # Creating separate columns, so must be more strict on dtype
+      dtype = self._expr.proxy().dtype
+      if not isinstance(dtype, pd.CategoricalDtype):
+        method_name = 'rsplit' if rsplit else 'split'
+        raise frame_base.WontImplementError(
+            f"{method_name}() of non-categorical type is not supported because "
+            "the type of the output column depends on the data. Please use "
+            "pd.CategoricalDtype with explicit categories.",
+            reason="non-deferred-columns")
+
+      # Split the categories
+      split_cats = dtype.categories.str.split(**kwargs)
+
+      # Count the number of new columns to create for proxy
+      max_splits = len(max(split_cats, key=len))
+      proxy = pd.DataFrame(columns=range(max_splits))
+
+      def func(s):
+        if not rsplit:
+          result = s.str.split(**kwargs)
+        else:
+          result = s.str.rsplit(**kwargs)
+        result[~result.isna()].replace(np.nan, value=None)
+        return result
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'split',
+            func,
+            [self._expr],
+            proxy=proxy,
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def split(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=False, **kwargs)
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def rsplit(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=True, **kwargs)
 
 
 ELEMENTWISE_STRING_METHODS = [

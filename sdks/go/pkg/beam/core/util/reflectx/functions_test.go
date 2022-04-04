@@ -17,11 +17,18 @@ package reflectx
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
 func testFunction() int64 {
 	return 42
+}
+
+func TestFunctionName(t *testing.T) {
+	if got, want := FunctionName(testFunction), "reflectx.testFunction"; !strings.Contains(got, want) {
+		t.Fatalf("FunctionName(testFunction)=%v, should contain %v", got, want)
+	}
 }
 
 func TestLoadFunction(t *testing.T) {

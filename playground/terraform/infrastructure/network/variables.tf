@@ -27,12 +27,12 @@ variable "region" {
 
 variable "network_name" {
   description = "Name of VPC to be created"
-  default     = "playground-vpc"
+  default     = "playground-network"
 }
 
 variable "subnetwork_name" {
   description = "Name of VPC to be created"
-  default     = "playground-vpc"
+  default     = "playground-subnetwork"
 }
 
 variable "subnetwork_cidr_range" {

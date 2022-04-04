@@ -20,6 +20,13 @@ package org.apache.beam.sdk.io.aws2.common;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.joda.time.Duration.ZERO;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.util.StdConverter;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
@@ -36,31 +43,51 @@ import software.amazon.awssdk.core.retry.backoff.EqualJitterBackoffStrategy;
  * SdkDefaultRetrySetting} for further details.
  */
 @AutoValue
+@JsonInclude(value = JsonInclude.Include.NON_EMPTY)
+@JsonDeserialize(builder = RetryConfiguration.Builder.class)
 public abstract class RetryConfiguration implements Serializable {
   private static final java.time.Duration BASE_BACKOFF = java.time.Duration.ofMillis(100);
   private static final java.time.Duration THROTTLED_BASE_BACKOFF = java.time.Duration.ofSeconds(1);
   private static final java.time.Duration MAX_BACKOFF = java.time.Duration.ofSeconds(20);
 
+  @JsonProperty
   public abstract @Pure int numRetries();
 
+  @JsonProperty
+  @JsonSerialize(converter = DurationToMillis.class)
   public abstract @Nullable @Pure Duration baseBackoff();
 
+  @JsonProperty
+  @JsonSerialize(converter = DurationToMillis.class)
   public abstract @Nullable @Pure Duration throttledBaseBackoff();
 
+  @JsonProperty
+  @JsonSerialize(converter = DurationToMillis.class)
   public abstract @Nullable @Pure Duration maxBackoff();
 
+  public abstract RetryConfiguration.Builder toBuilder();
+
   public static Builder builder() {
-    return new AutoValue_RetryConfiguration.Builder();
+    return Builder.builder();
   }
 
   @AutoValue.Builder
+  @JsonPOJOBuilder(withPrefix = "")
   public abstract static class Builder {
+    @JsonCreator
+    static Builder builder() {
+      return new AutoValue_RetryConfiguration.Builder();
+    }
+
     public abstract Builder numRetries(int numRetries);
 
+    @JsonDeserialize(converter = MillisToDuration.class)
     public abstract Builder baseBackoff(Duration baseBackoff);
 
+    @JsonDeserialize(converter = MillisToDuration.class)
     public abstract Builder throttledBaseBackoff(Duration baseBackoff);
 
+    @JsonDeserialize(converter = MillisToDuration.class)
     public abstract Builder maxBackoff(Duration maxBackoff);
 
     abstract RetryConfiguration autoBuild();
@@ -114,5 +141,19 @@ public abstract class RetryConfiguration implements Serializable {
 
   private @Nullable static java.time.Duration toJava(@Nullable Duration duration) {
     return duration == null ? null : java.time.Duration.ofMillis(duration.getMillis());
+  }
+
+  static class DurationToMillis extends StdConverter<Duration, Long> {
+    @Override
+    public Long convert(Duration duration) {
+      return duration.getMillis();
+    }
+  }
+
+  static class MillisToDuration extends StdConverter<Long, Duration> {
+    @Override
+    public Duration convert(Long millis) {
+      return Duration.millis(millis);
+    }
   }
 }

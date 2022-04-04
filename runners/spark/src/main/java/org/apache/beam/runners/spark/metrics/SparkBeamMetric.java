@@ -61,16 +61,6 @@ public class SparkBeamMetric implements Metric {
     return metrics;
   }
 
-  public static Map<String, String> renderAllToString(MetricResults metricResults) {
-    Map<String, String> metricsString = new HashMap<>();
-    for (Map.Entry<String, ?> entry : renderAll(metricResults).entrySet()) {
-      String key = entry.getKey();
-      String value = String.valueOf(entry.getValue());
-      metricsString.put(key, value);
-    }
-    return metricsString;
-  }
-
   Map<String, ?> renderAll() {
     MetricResults metricResults =
         asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());

@@ -46,6 +46,26 @@ func makeValues(vs ...interface{}) []FullValue {
 	return ret
 }
 
+func makeWindowedInput(ws []typex.Window, vs ...interface{}) []MainInput {
+	var ret []MainInput
+	for _, v := range makeWindowedValues(ws, vs...) {
+		ret = append(ret, MainInput{Key: v})
+	}
+	return ret
+}
+
+func makeWindowedValues(ws []typex.Window, vs ...interface{}) []FullValue {
+	var ret []FullValue
+	for _, v := range vs {
+		ret = append(ret, FullValue{
+			Windows:   ws,
+			Timestamp: mtime.ZeroTimestamp,
+			Elm:       v,
+		})
+	}
+	return ret
+}
+
 func makeValuesNoWindowOrTime(vs ...interface{}) []FullValue {
 	var ret []FullValue
 	for _, v := range vs {
