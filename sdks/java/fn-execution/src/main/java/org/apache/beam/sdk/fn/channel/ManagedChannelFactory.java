@@ -89,8 +89,8 @@ public class ManagedChannelFactory {
             // Set the message size to max value here. The actual size is governed by the
             // buffer size in the layers above.
             .maxInboundMessageSize(Integer.MAX_VALUE)
-            // Disable automatic retries as it introduces complexity and we send long-lived 
-            // rpcs which will exceed the per-rpc retry request buffer and not be retried 
+            // Disable automatic retries as it introduces complexity and we send long-lived
+            // rpcs which will exceed the per-rpc retry request buffer and not be retried
             // anyway. See
             // https://github.com/grpc/proposal/blob/master/A6-client-retries.md#when-retries-are-valid
             .disableRetry()
