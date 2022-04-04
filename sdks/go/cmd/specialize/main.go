@@ -29,6 +29,9 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -184,13 +187,13 @@ func expand(subst map[string][]string, list string) []string {
 // makeName creates a capitalized identifier from a type.
 func makeName(t string) string {
 	if strings.HasPrefix(t, "[]") {
-		return makeName(t[2:] + "Slice")
+		return makeName(t[2:]) + "Slice"
 	}
 
 	t = strings.Replace(t, ".", "_", -1)
 	t = strings.Replace(t, "[", "_", -1)
 	t = strings.Replace(t, "]", "_", -1)
-	return strings.Title(t)
+	return cases.Title(language.English).String(t)
 }
 
 // Useful template functions
