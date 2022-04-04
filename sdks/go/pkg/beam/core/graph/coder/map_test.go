@@ -38,8 +38,8 @@ func TestEncodeDecodeMap(t *testing.T) {
 		v.Set(reflect.New(reflectx.Uint8))
 		return byteDec(v.Elem(), r)
 	}
-	byteCtnrPtrEnc := containerNilEncoder(bytePtrEnc)
-	byteCtnrPtrDec := containerNilDecoder(bytePtrDec)
+	byteCtnrPtrEnc := NullableEncoder(bytePtrEnc)
+	byteCtnrPtrDec := NullableDecoder(bytePtrDec)
 
 	ptrByte := byte(42)
 
