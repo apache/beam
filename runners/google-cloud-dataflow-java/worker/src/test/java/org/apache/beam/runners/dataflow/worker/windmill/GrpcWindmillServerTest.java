@@ -712,8 +712,8 @@ public class GrpcWindmillServerTest {
       Thread.sleep(100);
       int tmpErrorsAfterClose = errorsAfterClose.get();
       int tmpErrorsBeforeClose = errorsBeforeClose.get();
-      // wait for at least 2 errors before and after
-      if (tmpErrorsAfterClose > 1 && tmpErrorsBeforeClose > 1) {
+      // wait for at least 1 errors before and after
+      if (tmpErrorsAfterClose > 0 && tmpErrorsBeforeClose > 0) {
         break;
       }
       if (System.currentTimeMillis() > deadline) {
