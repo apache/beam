@@ -1032,12 +1032,12 @@ public class SnowflakeIO {
                           AfterProcessingTime.pastFirstElementInPane()
                               .plusDelayOf(getFlushTimeLimit())))
                   .discardingFiredPanes());
-      PCollection<List<String>> files_concatenated =
+      PCollection<List<String>> filesConcatenated =
           files.apply(
               "Create list of files for loading via SnowPipe",
               Combine.globally(new Concatenate()).withoutDefaults());
 
-      return files_concatenated.apply(
+      return filesConcatenated.apply(
           "Stream files to table", streamToTable(snowflakeServices, stagingBucketDir));
     }
 
@@ -1050,10 +1050,10 @@ public class SnowflakeIO {
 
       // Combining PCollection of files as a side input into one list of files
       ListCoder<String> coder = ListCoder.of(StringUtf8Coder.of());
-      PCollection<List<String>> reified_files =
+      PCollection<List<String>> reifiedFiles =
           files.getPipeline().apply(Reify.viewInGlobalWindow(files.apply(View.asList()), coder));
 
-      return reified_files.apply(
+      return reifiedFiles.apply(
           "Copy files to table", copyToTable(snowflakeServices, stagingBucketDir));
     }
 
