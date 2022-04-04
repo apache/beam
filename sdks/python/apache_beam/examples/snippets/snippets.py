@@ -148,22 +148,22 @@ def model_pipelines():
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input-file',
+      '--input',
       default='gs://dataflow-samples/shakespeare/kinglear.txt',
       help='The file path for the input text to process.')
   parser.add_argument(
-      '--output-path', required=True, help='The path prefix for output files.')
+      '--output', required=True, help='The path prefix for output files.')
   args, beam_args = parser.parse_known_args()
 
   beam_options = PipelineOptions(beam_args)
   with beam.Pipeline(options=beam_options) as pipeline:
     (
         pipeline
-        | beam.io.ReadFromText(args.input_file)
+        | beam.io.ReadFromText(args.input)
         | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
         | beam.Map(lambda x: (x, 1))
         | beam.combiners.Count.PerKey()
-        | beam.io.WriteToText(args.output_path))
+        | beam.io.WriteToText(args.output))
   # [END model_pipelines]
 
 
@@ -201,8 +201,8 @@ def pipeline_options_remote():
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
-      parser.add_argument('--input-file')
-      parser.add_argument('--output-path')
+      parser.add_argument('--input')
+      parser.add_argument('--output')
 
   # [END pipeline_options_define_custom]
 
@@ -244,8 +244,8 @@ def pipeline_options_remote():
   args = beam_options.view_as(MyOptions)
 
   with TestPipeline() as pipeline:  # Use TestPipeline for testing.
-    lines = pipeline | beam.io.ReadFromText(args.input_file)
-    lines | beam.io.WriteToText(args.output_path)
+    lines = pipeline | beam.io.ReadFromText(args.input)
+    lines | beam.io.WriteToText(args.output)
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
@@ -259,11 +259,11 @@ def pipeline_options_local():
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument(
-          '--input-file',
+          '--input',
           default='gs://dataflow-samples/shakespeare/kinglear.txt',
           help='The file path for the input text to process.')
       parser.add_argument(
-          '--output-path',
+          '--output',
           required=True,
           help='The path prefix for output files.')
 
@@ -286,8 +286,8 @@ def pipeline_options_local():
   with beam.Pipeline(options=beam_options) as pipeline:
     lines = (
         pipeline
-        | beam.io.ReadFromText(args.input_file)
-        | beam.io.WriteToText(args.output_path))
+        | beam.io.ReadFromText(args.input)
+        | beam.io.WriteToText(args.output))
   # [END pipeline_options_local]
 
 
@@ -306,11 +306,11 @@ def pipeline_options_command_line():
   #   https://docs.python.org/3/library/argparse.html
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input-file',
+      '--input',
       default='gs://dataflow-samples/shakespeare/kinglear.txt',
       help='The file path for the input text to process.')
   parser.add_argument(
-      '--output-path', required=True, help='The path prefix for output files.')
+      '--output', required=True, help='The path prefix for output files.')
   args, beam_args = parser.parse_known_args()
 
   # Create the Pipeline with remaining arguments.
@@ -318,8 +318,8 @@ def pipeline_options_command_line():
   with beam.Pipeline(options=beam_options) as pipeline:
     lines = (
         pipeline
-        | 'Read files' >> beam.io.ReadFromText(args.input_file)
-        | 'Write files' >> beam.io.WriteToText(args.output_path))
+        | 'Read files' >> beam.io.ReadFromText(args.input)
+        | 'Write files' >> beam.io.WriteToText(args.output))
   # [END pipeline_options_command_line]
 
 
@@ -389,11 +389,11 @@ def pipeline_monitoring():
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input-file',
+      '--input',
       default='gs://dataflow-samples/shakespeare/kinglear.txt',
       help='The file path for the input text to process.')
   parser.add_argument(
-      '--output-path', required=True, help='The path prefix for output files.')
+      '--output', required=True, help='The path prefix for output files.')
   args, _ = parser.parse_known_args()
 
   with TestPipeline() as pipeline:  # Use TestPipeline for testing.
@@ -402,11 +402,11 @@ def pipeline_monitoring():
     (
         pipeline
         # Read the lines of the input text.
-        | 'ReadLines' >> beam.io.ReadFromText(args.input_file)
+        | 'ReadLines' >> beam.io.ReadFromText(args.input)
         # Count the words.
         | CountWords()
         # Write the formatted word counts to output.
-        | 'WriteCounts' >> beam.io.WriteToText(args.output_path))
+        | 'WriteCounts' >> beam.io.WriteToText(args.output))
     # [END pipeline_monitoring_execution]
 
 
@@ -434,12 +434,12 @@ def examples_wordcount_minimal():
   import argparse
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input-file')
-  parser.add_argument('--output-path')
+  parser.add_argument('--input')
+  parser.add_argument('--output')
   args, beam_args = parser.parse_known_args()
 
-  input_file = args.input_file
-  output_path = args.output_path
+  input_file = args.input
+  output_path = args.output
 
   beam_options = PipelineOptions(beam_args)
 
@@ -488,16 +488,16 @@ def examples_wordcount_wordcount():
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input-file',
+      '--input',
       default='gs://dataflow-samples/shakespeare/kinglear.txt',
       help='The file path for the input text to process.')
   parser.add_argument(
-      '--output-path', required=True, help='The path prefix for output files.')
+      '--output', required=True, help='The path prefix for output files.')
   args, beam_args = parser.parse_known_args()
 
   beam_options = PipelineOptions(beam_args)
   with beam.Pipeline(options=beam_options) as pipeline:
-    lines = pipeline | beam.io.ReadFromText(args.input_file)
+    lines = pipeline | beam.io.ReadFromText(args.input)
 
     # [END examples_wordcount_wordcount_options]
 
@@ -526,7 +526,7 @@ def examples_wordcount_wordcount():
     formatted = counts | beam.ParDo(FormatAsTextFn())
     # [END examples_wordcount_wordcount_dofn]
 
-    formatted | beam.io.WriteToText(args.output_path)
+    formatted | beam.io.WriteToText(args.output)
 
 
 def examples_wordcount_templated():
@@ -545,11 +545,11 @@ def examples_wordcount_templated():
       # Use add_value_provider_argument for arguments to be templatable
       # Use add_argument as usual for non-templatable arguments
       parser.add_value_provider_argument(
-          '--input-file',
+          '--input',
           default='gs://dataflow-samples/shakespeare/kinglear.txt',
           help='The file path for the input text to process.')
       parser.add_argument(
-          '--output-path',
+          '--output',
           required=True,
           help='The path prefix for output files.')
 
@@ -557,7 +557,7 @@ def examples_wordcount_templated():
   args = beam_options.view_as(WordcountTemplatedOptions)
 
   with beam.Pipeline(options=beam_options) as pipeline:
-    lines = pipeline | 'Read' >> ReadFromText(args.input_file.get())
+    lines = pipeline | 'Read' >> ReadFromText(args.input.get())
 
     # [END example_wordcount_templated]
 
@@ -574,7 +574,7 @@ def examples_wordcount_templated():
         |
         'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
         | 'Format' >> beam.Map(format_result)
-        | 'Write' >> WriteToText(args.output_path))
+        | 'Write' >> WriteToText(args.output))
 
 
 def examples_wordcount_debugging(renames):
