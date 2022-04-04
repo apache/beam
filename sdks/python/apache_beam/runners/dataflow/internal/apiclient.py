@@ -50,6 +50,7 @@ from apitools.base.py import exceptions
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
+from apache_beam.internal.gcp.auth import set_impersonation_accounts
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
@@ -557,6 +558,8 @@ class DataflowApplicationClient(object):
     if self.google_cloud_options.no_auth:
       credentials = None
     else:
+      set_impersonation_accounts(self._google_cloud_options.target_principal,
+                                 self._google_cloud_options.delegate_accounts)
       credentials = get_service_credentials()
 
     http_client = get_new_http()
