@@ -737,7 +737,7 @@ public class JmsIO {
      * JmsIO.Write} acts as a publisher on the topic.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String) and
-     *{@link JmsIO.Write#withTopic(String)}. The user has to specify a Serializable function
+     * {@link JmsIO.Write#withTopic(String)}. The user has to specify a {@link SerializableFunction}
      * that takes the Event Object as parameter, and returns the topîc name depending of the content
      * of the event object.
      *
