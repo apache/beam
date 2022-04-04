@@ -63,8 +63,8 @@ import org.slf4j.LoggerFactory;
 
 
 @RunWith(JUnit4.class)
-public class BigQueryIOJSONIT {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOJSONIT.class);
+public class BigQueryIOJsonTest {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOJsonTest.class);
 
   @Rule
   public final transient TestPipeline p = TestPipeline.create();
@@ -72,12 +72,10 @@ public class BigQueryIOJSONIT {
   @Rule
   public transient TestPipeline p_write = TestPipeline.create();
 
-  private BigQueryIOJSONOptions options;
+  private BigQueryIOJsonOptions options;
 
-  private static String project;
-
+  private static final String project = "apache-beam-testing";
   private static final String DATASET_ID = "bq_jsontype_test_nodelete";
-
   private static final String JSON_TYPE_TABLE_NAME = "json_data";
 
   private static String JSON_TABLE_DESTINATION;
@@ -90,6 +88,9 @@ public class BigQueryIOJSONIT {
           ));
 
   public static final String STORAGE_WRITE_TEST_TABLE = "storagewrite_test"
+      + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+
+  public static final String STREAMING_TEST_TABLE = "streaming_test"
       + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
   private static final Map<String, String> JSON_TYPE_DATA = generateCountryData(false);
@@ -142,7 +143,7 @@ public class BigQueryIOJSONIT {
     }
   }
 
-  public void runTestWrite(BigQueryIOJSONOptions options){
+  public void runTestWrite(BigQueryIOJsonOptions options){
     List<TableRow> rowsToWrite = new ArrayList<>();
     for(Map.Entry<String, String> element: JSON_TYPE_DATA.entrySet()){
       rowsToWrite.add(new TableRow()
@@ -166,7 +167,7 @@ public class BigQueryIOJSONIT {
 
   // reads TableRows from BigQuery and validates JSON Strings
   // expectedJsonResults Strings must be in valid json format
-  public void readAndValidateRows(BigQueryIOJSONOptions options, Map<String, String> expectedResults){
+  public void readAndValidateRows(BigQueryIOJsonOptions options, Map<String, String> expectedResults){
     TypedRead<TableRow> bigqueryIO =
         BigQueryIO.readTableRows().withMethod(options.getReadMethod());
 
@@ -189,7 +190,7 @@ public class BigQueryIOJSONIT {
   @Test
   public void testDirectRead() throws Exception {
     LOG.info("Testing DIRECT_READ read method with JSON data");
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setReadMethod(TypedRead.Method.DIRECT_READ);
     options.setInput(JSON_TABLE_DESTINATION);
 
@@ -199,7 +200,7 @@ public class BigQueryIOJSONIT {
   @Test
   public void testExportRead() throws Exception {
     LOG.info("Testing EXPORT read method with JSON data");
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setReadMethod(TypedRead.Method.EXPORT);
     options.setInput(JSON_TABLE_DESTINATION);
 
@@ -210,7 +211,7 @@ public class BigQueryIOJSONIT {
   public void testQueryRead() throws Exception {
     LOG.info("Testing querying JSON data with DIRECT_READ read method");
 
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setReadMethod(TypedRead.Method.DIRECT_READ);
     options.setQuery(
         String.format("SELECT country_code, country.cities AS country FROM "
@@ -226,7 +227,7 @@ public class BigQueryIOJSONIT {
   public void testStorageWrite() throws Exception{
     LOG.info("Testing writing JSON data with Storage API");
 
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setWriteMethod(Write.Method.STORAGE_WRITE_API);
 
     String storage_destination = String.format("%s:%s.%s", project, DATASET_ID, STORAGE_WRITE_TEST_TABLE);
@@ -238,7 +239,7 @@ public class BigQueryIOJSONIT {
 
   @Test
   public void testLegacyStreamingWrite() throws Exception{
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJSONOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setWriteMethod(Write.Method.STREAMING_INSERTS);
 
     String streaming_destination = String.format("%s:%s.%s", project, DATASET_ID, STREAMING_TEST_TABLE);
@@ -250,13 +251,12 @@ public class BigQueryIOJSONIT {
 
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
-    PipelineOptionsFactory.register(BigQueryIOJSONOptions.class);
-    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    PipelineOptionsFactory.register(BigQueryIOJsonOptions.class);
 
     JSON_TABLE_DESTINATION = String.format("%s:%s.%s", project, DATASET_ID, JSON_TYPE_TABLE_NAME);
   }
 
-  public interface BigQueryIOJSONOptions extends TestPipelineOptions {
+  public interface BigQueryIOJsonOptions extends TestPipelineOptions {
     @Description("Table to read from, specified as <project_id>:<dataset_id>.<table_id>")
     @Validation.Required
     String getInput();
