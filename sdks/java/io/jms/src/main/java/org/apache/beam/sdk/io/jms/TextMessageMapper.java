@@ -23,7 +23,7 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 
 /**
- * Default TextMessageMapper Takes a {@link String} value, a {@link javax.jms.Session} and returns a
+ * The TextMessageMapper takes a {@link String} value, a {@link javax.jms.Session} and returns a
  * {@link javax.jms.TextMessage}.
  */
 public class TextMessageMapper implements SerializableMessageMapper<String> {
