@@ -92,7 +92,7 @@ func (f *fakeDataClient) Send(*fnpb.Elements) error {
 	// We skip errors on the first call to test that  errors can be returned
 	// on the sentinel value send in dataWriter.Close
 	// Otherwise, we return an io.EOF similar to semantics documented
-	// in https://godoc.org/google.golang.org/grpc#ClientConn.NewStream
+	// in https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
 	if f.skipFirstError && f.err != nil {
 		f.skipFirstError = false
 		return nil

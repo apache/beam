@@ -1052,6 +1052,10 @@ message StandardCoders {
     //   - A timestamp without a timezone where seconds + micros represents the
     //     amount of time since the epoch.
     //
+    //   beam:logical_type:schema:v1
+    //   - Representation type: BYTES
+    //   - A Beam Schema stored as a serialized proto.
+    //
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
@@ -1085,6 +1089,7 @@ message StandardCoders {
     //     values.
     //   - For present values the null indicator is followed by the value
     //     encoded with it's corresponding coder.
+    // Components: single coder for the value
     NULLABLE = 17 [(beam_urn) = "beam:coder:nullable:v1"];
   }
 }

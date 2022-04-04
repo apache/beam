@@ -62,6 +62,9 @@ const (
 
 	// ExamplesCatalog is catalog of examples available in Playground
 	ExamplesCatalog string = "EXAMPLES_CATALOG"
+
+	// DefaultPrecompiledExamples is used to keep default examples
+	DefaultPrecompiledExamples string = "DEFAULT_PRECOMPILED_OBJECTS"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground
@@ -86,6 +89,12 @@ type Cache interface {
 	// SetCatalog adds the given catalog to cache by ExamplesCatalog key.
 	SetCatalog(ctx context.Context, catalog []*pb.Categories) error
 
-	// GetCatalog return catalog from cache by ExamplesCatalog key.
+	// GetCatalog returns catalog from cache by ExamplesCatalog key.
 	GetCatalog(ctx context.Context) ([]*pb.Categories, error)
+
+	// SetDefaultPrecompiledObject adds default precompiled object for SDK into cache.
+	SetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, precompiledObject *pb.PrecompiledObject) error
+
+	// GetDefaultPrecompiledObject returns default precompiled object for SDK from cache.
+	GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*pb.PrecompiledObject, error)
 }

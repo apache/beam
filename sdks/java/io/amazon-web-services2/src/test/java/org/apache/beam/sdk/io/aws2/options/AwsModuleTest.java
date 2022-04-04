@@ -33,8 +33,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
-import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
-import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.MatcherAssert;
@@ -58,7 +56,6 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
 public class AwsModuleTest {
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new AwsModule());
 
   @Test
   public void testObjectMapperIsAbleToFindModule() {
@@ -66,13 +63,12 @@ public class AwsModuleTest {
     MatcherAssert.assertThat(modules, hasItem(instanceOf(AwsModule.class)));
   }
 
-  private <T> T serializeAndDeserialize(T obj) throws Exception {
-    String serialized = objectMapper.writeValueAsString(obj);
-    return (T) objectMapper.readValue(serialized, obj.getClass());
+  private <T> T serializeAndDeserialize(T obj) {
+    return SerializationTestUtil.serializeDeserialize((Class<T>) obj.getClass(), obj);
   }
 
   @Test
-  public void testStaticCredentialsProviderSerializationDeserialization() throws Exception {
+  public void testStaticCredentialsProviderSerializationDeserialization() {
     AwsCredentialsProvider provider =
         StaticCredentialsProvider.create(AwsBasicCredentials.create("key", "secret"));
 
@@ -88,7 +84,7 @@ public class AwsModuleTest {
   }
 
   @Test
-  public void testAwsCredentialsProviderSerializationDeserialization() throws Exception {
+  public void testAwsCredentialsProviderSerializationDeserialization() {
     AwsCredentialsProvider provider = DefaultCredentialsProvider.create();
     AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
     assertEquals(provider.getClass(), deserializedProvider.getClass());
@@ -136,7 +132,7 @@ public class AwsModuleTest {
   }
 
   @Test
-  public void testProxyConfigurationSerializationDeserialization() throws Exception {
+  public void testProxyConfigurationSerializationDeserialization() {
     ProxyConfiguration proxyConfiguration =
         ProxyConfiguration.builder()
             .endpoint(URI.create("http://localhost:8080"))
@@ -149,33 +145,6 @@ public class AwsModuleTest {
     assertEquals(8080, deserializedProxyConfiguration.port());
     assertEquals("username", deserializedProxyConfiguration.username());
     assertEquals("password", deserializedProxyConfiguration.password());
-  }
-
-  @Test
-  public void testHttpClientConfigurationSerializationDeserialization() throws Exception {
-    HttpClientConfiguration expected =
-        HttpClientConfiguration.builder()
-            .connectionAcquisitionTimeout(100)
-            .connectionMaxIdleTime(200)
-            .connectionTimeout(300)
-            .connectionTimeToLive(400)
-            .socketTimeout(500)
-            .readTimeout(600)
-            .writeTimeout(700)
-            .maxConnections(10)
-            .build();
-
-    assertThat(serializeAndDeserialize(expected)).isEqualTo(expected);
-  }
-
-  @Test
-  public void testSSECustomerKeySerializationDeserialization() throws Exception {
-    // default key created by S3Options.SSECustomerKeyFactory
-    SSECustomerKey emptyKey = SSECustomerKey.builder().build();
-    assertThat(serializeAndDeserialize(emptyKey)).isEqualToComparingFieldByField(emptyKey);
-
-    SSECustomerKey key = SSECustomerKey.builder().key("key").algorithm("algo").md5("md5").build();
-    assertThat(serializeAndDeserialize(key)).isEqualToComparingFieldByField(key);
   }
 
   private <T> T withSystemPropertyOverrides(Properties overrides, ThrowingSupplier<T> fun)

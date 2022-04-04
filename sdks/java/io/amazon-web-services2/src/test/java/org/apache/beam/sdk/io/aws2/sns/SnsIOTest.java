@@ -39,7 +39,6 @@ import org.apache.beam.sdk.io.aws2.StaticSupplier;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.sns.SnsIO.Write;
-import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -69,9 +68,6 @@ public class SnsIOTest implements Serializable {
 
   @Rule public TestPipeline p = TestPipeline.create();
   @Mock public SnsClient sns;
-
-  @Rule
-  public final transient ExpectedLogs snsWriterFnLogs = ExpectedLogs.none(Write.SnsWriterFn.class);
 
   @Before
   public void configureClientBuilderFactory() {

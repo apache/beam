@@ -17,6 +17,7 @@
  */
 
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_code_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
@@ -27,7 +28,15 @@ abstract class ExampleClient {
     GetListOfExamplesRequestWrapper request,
   );
 
-  Future<GetExampleResponse> getExample(GetExampleRequestWrapper request);
+  Future<GetExampleCodeResponse> getExampleSource(GetExampleRequestWrapper request);
+
+  Future<GetExampleResponse> getDefaultExample(
+    GetExampleRequestWrapper request,
+  );
+
+  Future<GetExampleResponse> getExample(
+    GetExampleRequestWrapper request,
+  );
 
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request);
 

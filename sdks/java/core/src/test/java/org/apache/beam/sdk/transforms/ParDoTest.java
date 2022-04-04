@@ -4528,6 +4528,54 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    public void testEventTimeTimerSetWithinAllowedLateness() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Long>, KV<Long, Instant>> fn =
+          new DoFn<KV<String, Long>, KV<Long, Instant>>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<Long, Instant>> r) {
+              timer.set(timestamp.plus(Duration.standardSeconds(10)));
+              r.output(KV.of(3L, timestamp));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<KV<Long, Instant>> r) {
+              r.output(KV.of(42L, timestamp));
+            }
+          };
+
+      TestStream<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(5)))
+              .addElements(KV.of("hello", 37L))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
+              .advanceWatermarkToInfinity();
+
+      PCollection<KV<Long, Instant>> output =
+          pipeline
+              .apply(stream)
+              .apply(
+                  Window.<KV<String, Long>>into(FixedWindows.of(Duration.standardSeconds(10)))
+                      .discardingFiredPanes()
+                      .withAllowedLateness(Duration.standardSeconds(10)))
+              .apply(ParDo.of(fn));
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of(3L, new Instant(0).plus(Duration.standardSeconds(5))),
+              KV.of(42L, new Instant(0).plus(Duration.standardSeconds(15))));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testEventTimeTimerAlignAfterGcTimeUnbounded() throws Exception {
       final String timerId = "foo";
 

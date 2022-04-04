@@ -104,12 +104,21 @@ class CanvasDrawer {
     canvas.drawCircle(Offset(x1, y1), radius, linePaint);
   }
 
-  drawArrow(double x1, double y1) {
+  drawRightArrow(double x1, double y1) {
     final path = Path();
     path.moveTo(x1 - kArrowSize, y1 - kArrowSize);
     path.lineTo(x1 + kArrowSize, y1);
     path.lineTo(x1 - kArrowSize, y1 + kArrowSize);
     path.lineTo(x1 - kArrowSize, y1 - kArrowSize);
+    canvas.drawPath(path, linePaint);
+  }
+
+  drawBottomArrow(double x1, double y1) {
+    final path = Path();
+    path.moveTo(x1 - kArrowSize, y1);
+    path.lineTo(x1, y1 + kArrowSize);
+    path.lineTo(x1 + kArrowSize, y1);
+    path.lineTo(x1 - kArrowSize, y1);
     canvas.drawPath(path, linePaint);
   }
 

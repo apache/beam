@@ -28,11 +28,9 @@ from apache_beam.runners import runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
-from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlNode
-from apache_beam.runners.portability.flink_runner import FlinkRunner
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
@@ -358,24 +356,6 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     cache_root = 'gs://'
     with self.assertRaises(ValueError):
       env._get_gcs_cache_dir(p, cache_root)
-
-  def test_detect_pipeline_underlying_runner(self):
-    env = ie.InteractiveEnvironment()
-    p = beam.Pipeline(InteractiveRunner(underlying_runner=FlinkRunner()))
-    pipeline_runner = env._detect_pipeline_runner(p)
-    self.assertTrue(isinstance(pipeline_runner, FlinkRunner))
-
-  def test_detect_pipeline_no_underlying_runner(self):
-    env = ie.InteractiveEnvironment()
-    p = beam.Pipeline(InteractiveRunner())
-    pipeline_runner = env._detect_pipeline_runner(p)
-    from apache_beam.runners.direct.direct_runner import DirectRunner
-    self.assertTrue(isinstance(pipeline_runner, DirectRunner))
-
-  def test_detect_pipeline_no_runner(self):
-    env = ie.InteractiveEnvironment()
-    pipeline_runner = env._detect_pipeline_runner(None)
-    self.assertEqual(pipeline_runner, None)
 
   @unittest.skipIf(
       not ie.current_env().is_interactive_ready,

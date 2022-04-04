@@ -141,11 +141,17 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 *   **[Snippets](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/cookbook)** - Commonly-used data analysis patterns such as how to use [BigQuery](https://cloud.google.com/bigquery), [Datastore](https://cloud.google.com/datastore/), coders, combiners, filters, custom PTransforms, etc.
 *   **[Complete Examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete)** - End-to-end example pipelines such as an auto complete, getting mobile gaming statistics, calculating the [Julia set](https://en.wikipedia.org/wiki/Julia_set), solving distributing optimization tasks, estimating PI, calculating the Term Frequency-Inverse Document Frequency ([TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)), getting the top Wikipedia sessions, etc.
 
+### Beam Playground
+
+* [Beam Playground](https://play.beam.apache.org) is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
+    You can try the available Apache Beam examples at [Beam Playground](https://play.beam.apache.org).
+* Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog [here](https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples).
+
 ## API Reference {#api-reference}
 
 *   **[Java API Reference](https://beam.apache.org/documentation/sdks/javadoc/)** - Official API Reference for the Java SDK.
 *   **[Python API Reference](https://beam.apache.org/documentation/sdks/pydoc/)** - Official API Reference for the Python SDK.
-*   **[Go API Reference](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam)** - Official API Reference for the Go SDK.
+*   **[Go API Reference](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam)** - Official API Reference for the Go SDK.
 
 ## Feedback and Suggestions {#feedback-and-suggestions}
 

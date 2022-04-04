@@ -26,6 +26,8 @@ import tempfile
 import typing
 import unittest
 
+import mock
+
 import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
@@ -47,6 +49,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
+from apache_beam.utils.subprocess_server import JavaJarServer
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -570,7 +573,54 @@ class JavaJarExpansionServiceTest(unittest.TestCase):
       finally:
         os.chdir(oldwd)
 
-  def test_maven_central_classpath(self):
+  @mock.patch.object(JavaJarServer, 'local_jar')
+  def test_classpath_with_url(self, local_jar):
+    def _side_effect_fn(path):
+      return path[path.rindex('/') + 1:]
+
+    local_jar.side_effect = _side_effect_fn
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+
+        service = JavaJarExpansionService(
+            'main.jar', classpath=['https://dummy_path/dummyjar.jar'])
+
+        self.assertEqual(
+            service._default_args(),
+            ['{{PORT}}', '--filesToStage=main.jar,dummyjar.jar'])
+      finally:
+        os.chdir(oldwd)
+
+  @mock.patch.object(JavaJarServer, 'local_jar')
+  def test_classpath_with_gradle_artifact(self, local_jar):
+    def _side_effect_fn(path):
+      return path[path.rindex('/') + 1:]
+
+    local_jar.side_effect = _side_effect_fn
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+
+        service = JavaJarExpansionService(
+            'main.jar', classpath=['dummy_group:dummy_artifact:dummy_version'])
+
+        self.assertEqual(
+            service._default_args(),
+            [
+                '{{PORT}}',
+                '--filesToStage=main.jar,dummy_artifact-dummy_version.jar'
+            ])
+      finally:
+        os.chdir(oldwd)
+
+  def test_classpath_with_glob(self):
     with tempfile.TemporaryDirectory() as temp_dir:
       try:
         # Avoid having to prefix everything in our test strings.
@@ -581,16 +631,10 @@ class JavaJarExpansionServiceTest(unittest.TestCase):
           pass
 
         service = JavaJarExpansionService(
-            'main.jar',
-            classpath=['a*.jar', 'b.jar', 'org.postgresql:postgresql:42.2.16'])
+            'main.jar', classpath=['a*.jar', 'b.jar'])
         self.assertEqual(
             service._default_args(),
-            [
-                '{{PORT}}',
-                '--filesToStage=main.jar,a1.jar,b.jar,'
-                'https://repo.maven.apache.org/maven2/org/'
-                'postgresql/postgresql/42.2.16/postgresql-42.2.16.jar'
-            ])
+            ['{{PORT}}', '--filesToStage=main.jar,a1.jar,b.jar'])
 
       finally:
         os.chdir(oldwd)

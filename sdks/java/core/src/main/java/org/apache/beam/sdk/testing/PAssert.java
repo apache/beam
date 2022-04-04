@@ -235,6 +235,19 @@ public class PAssert {
 
     /**
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on the provided window.
+     *
+     * <p>The assertion will expect outputs to be produced to the provided window exactly once. If
+     * the upstream {@link Trigger} may produce output multiple times, consider instead using {@link
+     * #inFinalPane(BoundedWindow)} or {@link #inOnTimePane(BoundedWindow)}.
+     *
+     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
+     *     specified window.
+     */
+    IterableAssert<T> inOnlyPane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
      * run on the provided window, running the checker only on the final pane for each key.
      *
      * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
@@ -340,6 +353,20 @@ public class PAssert {
 
   /** Builder interface for assertions applicable to a single value. */
   public interface SingletonAssert<T> {
+    /**
+     * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
+     * only run on the provided window.
+     *
+     * <p>The assertion will concatenate all panes present in the provided window if the {@link
+     * Trigger} produces multiple panes. If the windowing strategy accumulates fired panes and
+     * triggers fire multple times, consider using instead {@link #inFinalPane(BoundedWindow)} or
+     * {@link #inOnTimePane(BoundedWindow)}.
+     *
+     * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
+     *     the specified window.
+     */
+    SingletonAssert<T> inWindow(BoundedWindow window);
+
     /**
      * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
      * only run on the provided window.
@@ -632,6 +659,11 @@ public class PAssert {
     }
 
     @Override
+    public PCollectionContentsAssert<T> inOnlyPane(BoundedWindow window) {
+      return withPane(window, PaneExtractors.onlyPane(site));
+    }
+
+    @Override
     public PCollectionContentsAssert<T> inFinalPane(BoundedWindow window) {
       return withPane(window, PaneExtractors.finalPane());
     }
@@ -823,6 +855,11 @@ public class PAssert {
     }
 
     @Override
+    public PCollectionSingletonIterableAssert<T> inOnlyPane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.onlyPane(site));
+    }
+
+    @Override
     public PCollectionSingletonIterableAssert<T> inFinalPane(BoundedWindow window) {
       return withPanes(window, PaneExtractors.finalPane());
     }
@@ -941,6 +978,11 @@ public class PAssert {
       this.rewindowingStrategy = rewindowingStrategy;
       this.paneExtractor = paneExtractor;
       this.site = site;
+    }
+
+    @Override
+    public PCollectionSingletonAssert<T> inWindow(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.allPanes());
     }
 
     @Override
@@ -1069,6 +1111,11 @@ public class PAssert {
       this.paneExtractor = paneExtractor;
       this.coder = coder;
       this.site = site;
+    }
+
+    @Override
+    public PCollectionViewAssert<ElemT, ViewT> inWindow(BoundedWindow window) {
+      return inPane(window, PaneExtractors.allPanes());
     }
 
     @Override

@@ -454,8 +454,12 @@ class RecordingManager:
           'options is deprecated since First stable release. References to '
           '<pipeline>.options will not be supported',
           category=DeprecationWarning)
-      pf.PipelineFragment(list(uncomputed_pcolls),
-                          self.user_pipeline.options).run()
+      cache_path = ie.current_env().options.cache_root
+      is_remote_run = cache_path and ie.current_env(
+      ).options.cache_root.startswith('gs://')
+      pf.PipelineFragment(
+          list(uncomputed_pcolls),
+          self.user_pipeline.options).run(blocking=is_remote_run)
       result = ie.current_env().pipeline_result(self.user_pipeline)
     else:
       result = None

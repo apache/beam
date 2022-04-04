@@ -23,6 +23,9 @@ import (
 
 // HasTaggedField returns true iff the given struct has a field with any of the
 // given tag values.
+//
+// Deprecated: this function is unused within the code base and will be removed
+// in a future Beam release.
 func HasTaggedField(t reflect.Type, values ...string) bool {
 	_, ok := FindTaggedField(t, values...)
 	return ok
@@ -30,6 +33,9 @@ func HasTaggedField(t reflect.Type, values ...string) bool {
 
 // FindTaggedField returns the field tagged with any of the given tag values, if
 // any. The tags are all under the "beam" StructTag key.
+//
+// Deprecated: this function is unused within the code base and will be removed
+// in a future Beam release.
 func FindTaggedField(t reflect.Type, values ...string) (reflect.StructField, bool) {
 	if t == nil || t.Kind() != reflect.Struct {
 		return reflect.StructField{}, false
@@ -46,6 +52,9 @@ func FindTaggedField(t reflect.Type, values ...string) (reflect.StructField, boo
 
 // HasTag returns true iff the given field contains one of the given tags
 // under the "beam" key.
+//
+// Deprecated: this function is unused within the code base and will be removed
+// in a future Beam release.
 func HasTag(f reflect.StructField, values ...string) bool {
 	list := strings.Split(f.Tag.Get("beam"), ",")
 	for _, elm := range list {
@@ -60,6 +69,9 @@ func HasTag(f reflect.StructField, values ...string) bool {
 
 // SetTaggedFieldValue sets s.f = value, where f has the tag "beam:tag". Panics
 // if not valid.
+//
+// Deprecated: this function is unused within the code base and will be removed
+// in a future Beam release.
 func SetTaggedFieldValue(v reflect.Value, tag string, value reflect.Value) {
 	f, ok := FindTaggedField(v.Type(), tag)
 	if !ok {
@@ -69,6 +81,9 @@ func SetTaggedFieldValue(v reflect.Value, tag string, value reflect.Value) {
 }
 
 // SetFieldValue sets s.f = value. Panics if not valid.
+//
+// Deprecated: this function is unused within the code base and will be removed
+// in a future Beam release.
 func SetFieldValue(s reflect.Value, f reflect.StructField, value reflect.Value) {
 	s.FieldByIndex(f.Index).Set(value)
 }

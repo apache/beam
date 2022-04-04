@@ -32,12 +32,14 @@ class RunButton extends StatelessWidget {
   final bool isRunning;
   final VoidCallback runCode;
   final VoidCallback cancelRun;
+  final bool disabled;
 
   const RunButton({
     Key? key,
     required this.isRunning,
     required this.runCode,
     required this.cancelRun,
+    this.disabled = false,
   }) : super(key: key);
 
   @override
@@ -71,9 +73,16 @@ class RunButton extends StatelessWidget {
                 }
                 return Text(buttonText);
               }),
-          onPressed: !isRunning ? runCode : cancelRun,
+          onPressed: onPressHandler(),
         ),
       ),
     );
+  }
+
+  onPressHandler() {
+    if (disabled) {
+      return null;
+    }
+    return !isRunning ? runCode : cancelRun;
   }
 }

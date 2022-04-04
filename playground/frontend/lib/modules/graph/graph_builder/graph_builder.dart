@@ -60,7 +60,7 @@ abstract class GraphBuilder {
 
   void parseNextLine(String line);
 
-  GraphPainter getPainter() {
+  GraphPainter getPainter(GraphDirection direction) {
     final List<Node> nodeElements = elements
         .where((element) => element.type == NodeType.node)
         .toList()
@@ -80,14 +80,21 @@ abstract class GraphBuilder {
     );
 
     return GraphPainter(
+      direction: direction,
       elementsPainter: elements
           .where((element) => element.type == NodeType.node)
-          .map<NodeElementPainter>((element) => NodeElementPainter(
-                element: element as Node,
-                row: nodeToCellMap[element.name]!.row,
-                column: nodeToCellMap[element.name]!.column,
-              ))
-          .toList(),
+          .map<NodeElementPainter>((element) {
+        final cell = nodeToCellMap[element.name]!;
+        final row =
+            direction == GraphDirection.horizontal ? cell.row : cell.column;
+        final column =
+            direction == GraphDirection.horizontal ? cell.column : cell.row;
+        return NodeElementPainter(
+          element: element as Node,
+          row: row,
+          column: column,
+        );
+      }).toList(),
       edges: edges.map((e) => EdgePainter(e)).toList(),
     );
   }
@@ -237,8 +244,8 @@ class PythonGraphBuilder extends GraphBuilder {
     if (elementsMap[name] != null) {
       return;
     }
-    final label =
-        name.replaceFirst(kPythonDefaultCollectionLabel, kPythonCollectionLabel);
+    final label = name.replaceFirst(
+        kPythonDefaultCollectionLabel, kPythonCollectionLabel);
     Node node = Node(label: label, depth: 1, name: name);
     elementsMap[name] = node;
     elements.add(node);

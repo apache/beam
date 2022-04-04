@@ -17,6 +17,7 @@ package typex
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
@@ -37,10 +38,11 @@ var (
 	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
 	PaneInfoType  = reflect.TypeOf((*PaneInfo)(nil)).Elem()
 
-	KVType            = reflect.TypeOf((*KV)(nil)).Elem()
-	NullableType      = reflect.TypeOf((*Nullable)(nil)).Elem()
-	CoGBKType         = reflect.TypeOf((*CoGBK)(nil)).Elem()
-	WindowedValueType = reflect.TypeOf((*WindowedValue)(nil)).Elem()
+	KVType                 = reflect.TypeOf((*KV)(nil)).Elem()
+	NullableType           = reflect.TypeOf((*Nullable)(nil)).Elem()
+	CoGBKType              = reflect.TypeOf((*CoGBK)(nil)).Elem()
+	WindowedValueType      = reflect.TypeOf((*WindowedValue)(nil)).Elem()
+	BundleFinalizationType = reflect.TypeOf((*BundleFinalization)(nil)).Elem()
 )
 
 // T, U, V, W, X, Y, Z are universal types. They play the role of generic
@@ -64,6 +66,11 @@ type Window interface {
 
 	// Equals returns true iff the windows are identical.
 	Equals(o Window) bool
+}
+
+// BundleFinalization allows registering callbacks to be performed after the runner durably persists bundle results.
+type BundleFinalization interface {
+	RegisterCallback(time.Duration, func() error)
 }
 
 type PaneTiming byte

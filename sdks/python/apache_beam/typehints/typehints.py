@@ -37,7 +37,7 @@ Composite type-hints are reserved for hinting the types of container-like
 Python objects such as 'list'. Composite type-hints can be parameterized by an
 inner simple or composite type-hint, using the 'indexing' syntax. In order to
 avoid conflicting with the namespace of the built-in container types, when
-specifying this category of type-hints, the first letter should capitalized.
+specifying this category of type-hints, the first letter should be capitalized.
 The following composite type-hints are permitted. NOTE: 'T' can be any of the
 type-hints listed or a simple Python type:
 
@@ -503,7 +503,7 @@ class UnionHint(CompositeTypeHint):
       return 'Union[%s]' % (
           ', '.join(sorted(_unified_repr(t) for t in self.union_types)))
 
-    def _inner_types(self):
+    def inner_types(self):
       for t in self.union_types:
         yield t
 
@@ -604,11 +604,20 @@ class OptionalHint(UnionHint):
     return Union[py_type, type(None)]
 
 
-def is_optional(typehint):
+def is_nullable(typehint):
   return (
       isinstance(typehint, UnionConstraint) and
       typehint.contains_type(type(None)) and
-      len(list(typehint._inner_types())) == 2)
+      len(list(typehint.inner_types())) == 2)
+
+
+def get_concrete_type_from_nullable(typehint):
+  if is_nullable(typehint):
+    for inner_type in typehint.inner_types():
+      if not type(None) == inner_type:
+        return inner_type
+  else:
+    raise TypeError('Typehint is not of nullable type', typehint)
 
 
 class TupleHint(CompositeTypeHint):

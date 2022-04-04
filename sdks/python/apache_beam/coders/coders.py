@@ -549,6 +549,11 @@ class MapCoder(FastCoder):
     # Map ordering is non-deterministic
     return False
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return DeterministicMapCoder(
+        self._key_coder.as_deterministic_coder(step_label, error_message),
+        self._value_coder.as_deterministic_coder(step_label, error_message))
+
   def __eq__(self, other):
     return (
         type(self) == type(other) and self._key_coder == other._key_coder and
@@ -559,6 +564,36 @@ class MapCoder(FastCoder):
 
   def __repr__(self):
     return 'MapCoder[%s, %s]' % (self._key_coder, self._value_coder)
+
+
+# This is a separate class from MapCoder as the former is a standard coder with
+# no way to carry the is_deterministic bit.
+class DeterministicMapCoder(FastCoder):
+  def __init__(self, key_coder, value_coder):
+    # type: (Coder, Coder) -> None
+    assert key_coder.is_deterministic()
+    assert value_coder.is_deterministic()
+    self._key_coder = key_coder
+    self._value_coder = value_coder
+
+  def _create_impl(self):
+    return coder_impl.MapCoderImpl(
+        self._key_coder.get_impl(), self._value_coder.get_impl(), True)
+
+  def is_deterministic(self):
+    return True
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._key_coder == other._key_coder and
+        self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._key_coder) + hash(self._value_coder)
+
+  def __repr__(self):
+    return 'DeterministicMapCoder[%s, %s]' % (
+        self._key_coder, self._value_coder)
 
 
 class NullableCoder(FastCoder):
@@ -578,9 +613,15 @@ class NullableCoder(FastCoder):
 
   @classmethod
   def from_type_hint(cls, typehint, registry):
-    value_type = list(
-        filter(lambda t: t is not type(None), typehint._inner_types()))[0]
-    return cls(registry.get_coder(value_type))
+    if typehints.is_nullable(typehint):
+      return cls(
+          registry.get_coder(
+              typehints.get_concrete_type_from_nullable(typehint)))
+    else:
+      raise TypeError(
+          'Typehint is not of nullable type, '
+          'and cannot be converted to a NullableCoder',
+          typehint)
 
   def is_deterministic(self):
     # type: () -> bool
