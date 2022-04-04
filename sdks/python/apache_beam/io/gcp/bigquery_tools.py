@@ -1360,6 +1360,13 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           source.pipeline_options.view_as(GoogleCloudOptions).project)
     else:
       self.executing_project = None
+    if hasattr(source, 'pipeline_options'):
+      gcs_options = source.pipeline_options.view_as(GoogleCloudOptions)
+      target_principal = gcs_options.target_principal
+      delegate_accounts = gcs_options.delegate_accounts
+      auth.set_impersonation_accounts(target_principal, delegate_accounts)
+    else:
+      auth.set_impersonation_accounts(None, None)
 
     # TODO(silviuc): Try to automatically get it from gcloud config info.
     if not self.executing_project and test_bigquery_client is None:
@@ -1477,6 +1484,13 @@ class BigQueryWriter(dataflow_io.NativeSinkWriter):
     if self.project_id is None and hasattr(sink, 'pipeline_options'):
       self.project_id = (
           sink.pipeline_options.view_as(GoogleCloudOptions).project)
+    if hasattr(sink, 'pipeline_options'):
+      gcs_options = sink.pipeline_options.view_as(GoogleCloudOptions)
+      target_principal = gcs_options.target_principal
+      delegate_accounts = gcs_options.delegate_accounts
+      auth.set_impersonation_accounts(target_principal, delegate_accounts)
+    else:
+      auth.set_impersonation_accounts(None, None)
 
     assert self.project_id is not None
 
