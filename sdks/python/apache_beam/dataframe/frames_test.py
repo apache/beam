@@ -1578,9 +1578,9 @@ class DeferredFrameTest(_AbstractFrameTest):
                       index=index)
     df['lev2'] = df['lev2'].astype(pd.CategoricalDtype(categories=[1, 2]))
     df['lev3'] = df['lev3'].astype(pd.CategoricalDtype(categories=[1, 2]))
-    df['values'] = df['values'].astype('Float64')
-    df['lev1'] = df['lev1'].astype('Int64')
-    df['lev4'] = df['lev4'].astype('Int64')
+    df['values'] = df['values'].astype('float64')
+    df['lev1'] = df['lev1'].astype('int64')
+    df['lev4'] = df['lev4'].astype('int64')
     if PD_VERSION < (1, 4):
       with self.assertRaisesRegex(
           frame_base.WontImplementError,
