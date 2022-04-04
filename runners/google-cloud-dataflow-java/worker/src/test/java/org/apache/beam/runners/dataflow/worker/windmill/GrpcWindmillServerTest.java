@@ -717,9 +717,11 @@ public class GrpcWindmillServerTest {
         break;
       }
       if (System.currentTimeMillis() > deadline) {
+        // Control should not reach here if the test is working as expected
         fail(
             String.format(
-                "Expected errors not sent by server errorsAfterClose: %s errorsBeforeClose: %s",
+                "Expected errors not sent by server errorsAfterClose: %s errorsBeforeClose: %s"
+                    + " \n Should not reach here if the test is working as expected.",
                 tmpErrorsAfterClose, tmpErrorsBeforeClose));
       }
     }
