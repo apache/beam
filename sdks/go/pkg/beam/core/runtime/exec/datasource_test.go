@@ -21,6 +21,7 @@ import (
 	"io"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -508,6 +509,9 @@ func TestDataSource_Split(t *testing.T) {
 							if got, want := splitRes.InId, testInputId; got != want {
 								t.Errorf("error in Split: got incorrect Input Id = %v, want %v", got, want)
 							}
+							if _, ok := splitRes.OW["output1"]; !ok {
+								t.Errorf("error in Split: no output watermark for output1")
+							}
 						}
 
 						// Check that split indices are correct, for both sub-element and channel splits.
@@ -625,7 +629,9 @@ func (n *TestSplittableUnit) GetInputId() string {
 // GetOutputWatermark gets the current output watermark of the splittable unit
 // if one is defined, or returns nil otherwise
 func (n *TestSplittableUnit) GetOutputWatermark() map[string]*timestamppb.Timestamp {
-	return nil
+	ow := make(map[string]*timestamppb.Timestamp)
+	ow["output1"] = timestamppb.New(time.Date(2022, time.January, 1, 1, 0, 0, 0, time.UTC))
+	return ow
 }
 
 func floatEquals(a, b, epsilon float64) bool {
