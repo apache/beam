@@ -61,7 +61,7 @@ public class GameStatsIT {
   private static final String EVENTS_TOPIC_NAME = "events";
   public static final String GAME_STATS_TEAM_TABLE = "game_stats_team";
   public static final String CLOUD_STORAGE_CSV_FILE =
-      "gs://apache-beam-samples/game/small/gaming_data.csv";
+      "gs://apache-beam-samples/game/gaming_data1.csv";
   private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 120;
   public static final String SELECT_COUNT_AS_TOTAL_QUERY =
       "SELECT total_score FROM `%s.%s.%s` where team like(\"AmaranthKoala\")";
