@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import net.sf.cglib.proxy.Enhancer;
@@ -93,7 +94,8 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
    * @return Proxy for given {@param receiver} that doesn't use Spark environment and uses Apache
    *     Beam mechanisms instead.
    */
-  public T build() throws Exception {
+  public T build()
+      throws InvocationTargetException, InstantiationException, IllegalAccessException {
 
     if (currentConstructor == null || constructorArgs == null || storeConsumer == null) {
       throw new IllegalStateException(

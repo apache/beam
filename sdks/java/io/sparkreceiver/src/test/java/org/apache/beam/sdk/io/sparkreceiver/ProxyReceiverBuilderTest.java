@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.io.cdap.ConfigWrapper;
 import org.apache.spark.streaming.receiver.ReceiverSupervisor;
@@ -65,21 +66,16 @@ public class ProxyReceiverBuilderTest {
               .build();
       assertNotNull(config);
 
-      ProxyReceiverBuilder<String, SalesforceReceiver> builder =
-          new ProxyReceiverBuilder<>(SalesforceReceiver.class);
       AtomicBoolean customStoreConsumerWasUsed = new AtomicBoolean(false);
+      Optional<SalesforceReceiver> proxyReciever =
+          CdapPluginMappingUtils.getProxyReceiverForSalesforce(
+              config, args -> customStoreConsumerWasUsed.set(true));
 
-      SalesforceReceiver proxyReciever =
-          builder
-              .withConstructorArgs(config.getAuthenticatorCredentials(), config.getPushTopicName())
-              .withCustomStoreConsumer(args -> customStoreConsumerWasUsed.set(true))
-              .build();
-      proxyReciever.onStart();
+      assertTrue(proxyReciever.isPresent());
+      proxyReciever.get().onStart();
+      assertTrue(proxyReciever.get().supervisor() instanceof WrappedSupervisor);
 
-      ReceiverSupervisor supervisor = proxyReciever.supervisor();
-      assertTrue(supervisor instanceof WrappedSupervisor);
-
-      proxyReciever.store(TEST_MESSAGE);
+      proxyReciever.get().store(TEST_MESSAGE);
       assertTrue(customStoreConsumerWasUsed.get());
     } catch (Exception e) {
       LOG.error("Can not get proxy", e);
