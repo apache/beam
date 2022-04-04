@@ -29,7 +29,7 @@ This has implications for how Go SDK pipelines execute on [workers](/documentati
 When starting your in development pipeline against a remote runner, you can use `go run` from your development environment.
 Tthe Go SDK will cross-compile your pipeline for `linux-amd64`, and use that as the pipeline's worker binary.
 
-Alternatively, some local runners support Loopback execution. 
+Alternatively, some local runners support Loopback execution.
 Setting the flag `--environment_type=LOOPBACK` can cause the runner to connect back to the local binary to serve as a worker.
 This can simplify development and debugging.
 
@@ -67,7 +67,7 @@ $ ./output/launcher --worker_binary=output/worker --runner=flink --endpoint=... 
 Apache Beam releases [SDK specific containers](documentation/runtime/environments/) for runners to use to launch workers.
 These containers provision and initialize the worker binary as appropriate for the SDK.
 
-At present, Go SDK worker containers are only built for the `linux-amd64` platform. 
+At present, Go SDK worker containers are only built for the `linux-amd64` platform.
 See [BEAM-11704](https://issues.apache.org/jira/browse/BEAM-11704) for the current state of ARM64 container support.
 
 Because Go is statically compiled, there are no runtime dependencies on a specific Go version for a container.
