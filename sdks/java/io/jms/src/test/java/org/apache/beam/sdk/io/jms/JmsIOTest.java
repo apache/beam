@@ -339,10 +339,11 @@ public class JmsIOTest {
     }
     assertEquals(100, count);
 
+    count = 0;
     while (consumerTwo.receive(1000) != null) {
       count++;
     }
-    assertEquals(200, count);
+    assertEquals(100, count);
   }
 
   @Test
