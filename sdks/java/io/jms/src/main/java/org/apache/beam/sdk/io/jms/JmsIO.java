@@ -763,7 +763,7 @@ public class JmsIO {
     }
 
     /**
-     * Map the Event object with a {@link javax.jms.Message}.
+     * Map the {@code EventT} object to a {@link javax.jms.Message}.
      *
      * <p>For instance:
      *
