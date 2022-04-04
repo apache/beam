@@ -28,11 +28,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
@@ -491,11 +493,96 @@ public class GrpcWindmillServerTest {
         .build();
   }
 
+  // This server receives WorkItemCommitRequests, and verifies they are equal to the above
+  // commitRequest.
+  private StreamObserver<StreamingCommitWorkRequest> getTestCommitStreamObserver(
+      StreamObserver<StreamingCommitResponse> responseObserver,
+      Map<Long, WorkItemCommitRequest> commitRequests) {
+    return new StreamObserver<StreamingCommitWorkRequest>() {
+      boolean sawHeader = false;
+      InputStream buffer = null;
+      long remainingBytes = 0;
+      ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
+
+      @Override
+      public void onNext(StreamingCommitWorkRequest request) {
+        maybeInjectError(responseObserver);
+
+        if (!sawHeader) {
+          errorCollector.checkThat(
+              request.getHeader(),
+              Matchers.equalTo(
+                  JobHeader.newBuilder()
+                      .setJobId("job")
+                      .setProjectId("project")
+                      .setWorkerId("worker")
+                      .build()));
+          sawHeader = true;
+          LOG.info("Received header");
+        } else {
+          boolean first = true;
+          LOG.info("Received request with {} chunks", request.getCommitChunkCount());
+          for (StreamingCommitRequestChunk chunk : request.getCommitChunkList()) {
+            assertTrue(chunk.getSerializedWorkItemCommit().size() <= STREAM_CHUNK_SIZE);
+            if (first || chunk.hasComputationId()) {
+              errorCollector.checkThat(chunk.getComputationId(), Matchers.equalTo("computation"));
+            }
+
+            if (remainingBytes != 0) {
+              errorCollector.checkThat(buffer, Matchers.notNullValue());
+              errorCollector.checkThat(
+                  remainingBytes,
+                  Matchers.is(
+                      chunk.getSerializedWorkItemCommit().size()
+                          + chunk.getRemainingBytesForWorkItem()));
+              buffer =
+                  new SequenceInputStream(buffer, chunk.getSerializedWorkItemCommit().newInput());
+            } else {
+              errorCollector.checkThat(buffer, Matchers.nullValue());
+              buffer = chunk.getSerializedWorkItemCommit().newInput();
+            }
+            remainingBytes = chunk.getRemainingBytesForWorkItem();
+            if (remainingBytes == 0) {
+              try {
+                WorkItemCommitRequest received = WorkItemCommitRequest.parseFrom(buffer);
+                errorCollector.checkThat(
+                    received, Matchers.equalTo(commitRequests.get(received.getWorkToken())));
+                try {
+                  responseObserver.onNext(
+                      StreamingCommitResponse.newBuilder()
+                          .addRequestId(chunk.getRequestId())
+                          .build());
+                } catch (IllegalStateException e) {
+                  // Stream is closed.
+                }
+              } catch (Exception e) {
+                errorCollector.addError(e);
+              }
+              buffer = null;
+            } else {
+              errorCollector.checkThat(first, Matchers.is(true));
+            }
+            first = false;
+          }
+        }
+      }
+
+      @Override
+      public void onError(Throwable throwable) {}
+
+      @Override
+      public void onCompleted() {
+        injector.cancel();
+        responseObserver.onCompleted();
+      }
+    };
+  }
+
   @Test
   public void testStreamingCommit() throws Exception {
     List<WorkItemCommitRequest> commitRequestList = new ArrayList<>();
     List<CountDownLatch> latches = new ArrayList<>();
-    Map<Long, WorkItemCommitRequest> commitRequests = new HashMap<>();
+    Map<Long, WorkItemCommitRequest> commitRequests = new ConcurrentHashMap<>();
     for (int i = 0; i < 500; ++i) {
       // Build some requests of varying size with a few big ones.
       WorkItemCommitRequest request = makeCommitRequest(i, i * (i < 480 ? 8 : 128));
@@ -505,92 +592,86 @@ public class GrpcWindmillServerTest {
     }
     Collections.shuffle(commitRequestList);
 
-    // This server receives WorkItemCommitRequests, and verifies they are equal to the above
-    // commitRequest.
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
           @Override
           public StreamObserver<StreamingCommitWorkRequest> commitWorkStream(
               StreamObserver<StreamingCommitResponse> responseObserver) {
-            return new StreamObserver<StreamingCommitWorkRequest>() {
-              boolean sawHeader = false;
-              InputStream buffer = null;
-              long remainingBytes = 0;
-              ResponseErrorInjector injector = new ResponseErrorInjector(responseObserver);
+            return getTestCommitStreamObserver(responseObserver, commitRequests);
+          }
+        });
 
+    // Make the commit requests, waiting for each of them to be verified and acknowledged.
+    CommitWorkStream stream = client.commitWorkStream();
+    for (int i = 0; i < commitRequestList.size(); ) {
+      final CountDownLatch latch = latches.get(i);
+      if (stream.commitWorkItem(
+          "computation",
+          commitRequestList.get(i),
+          (CommitStatus status) -> {
+            assertEquals(status, CommitStatus.OK);
+            latch.countDown();
+          })) {
+        i++;
+      } else {
+        stream.flush();
+      }
+    }
+    stream.flush();
+    stream.close();
+    for (CountDownLatch latch : latches) {
+      assertTrue(latch.await(1, TimeUnit.MINUTES));
+    }
+    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
+  }
+
+  @Test
+  // Tests stream retries on server errors before and after `close()`
+  public void testStreamingCommitClosedStream() throws Exception {
+    List<WorkItemCommitRequest> commitRequestList = new ArrayList<>();
+    List<CountDownLatch> latches = new ArrayList<>();
+    Map<Long, WorkItemCommitRequest> commitRequests = new ConcurrentHashMap<>();
+    AtomicBoolean shouldServerReturnError = new AtomicBoolean(true);
+    for (int i = 0; i < 500; ++i) {
+      // Build some requests of varying size with a few big ones.
+      WorkItemCommitRequest request = makeCommitRequest(i, i * (i < 480 ? 8 : 128));
+      commitRequestList.add(request);
+      commitRequests.put((long) i, request);
+      latches.add(new CountDownLatch(1));
+    }
+    Collections.shuffle(commitRequestList);
+
+    // This server returns errors if shouldServerReturnError is true, else returns valid responses.
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingCommitWorkRequest> commitWorkStream(
+              StreamObserver<StreamingCommitResponse> responseObserver) {
+            StreamObserver<StreamingCommitWorkRequest> testCommitStreamObserver =
+                getTestCommitStreamObserver(responseObserver, commitRequests);
+            return new StreamObserver<StreamingCommitWorkRequest>() {
               @Override
               public void onNext(StreamingCommitWorkRequest request) {
-                maybeInjectError(responseObserver);
-
-                if (!sawHeader) {
-                  errorCollector.checkThat(
-                      request.getHeader(),
-                      Matchers.equalTo(
-                          JobHeader.newBuilder()
-                              .setJobId("job")
-                              .setProjectId("project")
-                              .setWorkerId("worker")
-                              .build()));
-                  sawHeader = true;
-                  LOG.info("Received header");
-                } else {
-                  boolean first = true;
-                  LOG.info("Received request with {} chunks", request.getCommitChunkCount());
-                  for (StreamingCommitRequestChunk chunk : request.getCommitChunkList()) {
-                    assertTrue(chunk.getSerializedWorkItemCommit().size() <= STREAM_CHUNK_SIZE);
-                    if (first || chunk.hasComputationId()) {
-                      errorCollector.checkThat(
-                          chunk.getComputationId(), Matchers.equalTo("computation"));
-                    }
-
-                    if (remainingBytes != 0) {
-                      errorCollector.checkThat(buffer, Matchers.notNullValue());
-                      errorCollector.checkThat(
-                          remainingBytes,
-                          Matchers.is(
-                              chunk.getSerializedWorkItemCommit().size()
-                                  + chunk.getRemainingBytesForWorkItem()));
-                      buffer =
-                          new SequenceInputStream(
-                              buffer, chunk.getSerializedWorkItemCommit().newInput());
-                    } else {
-                      errorCollector.checkThat(buffer, Matchers.nullValue());
-                      buffer = chunk.getSerializedWorkItemCommit().newInput();
-                    }
-                    remainingBytes = chunk.getRemainingBytesForWorkItem();
-                    if (remainingBytes == 0) {
-                      try {
-                        WorkItemCommitRequest received = WorkItemCommitRequest.parseFrom(buffer);
-                        errorCollector.checkThat(
-                            received,
-                            Matchers.equalTo(commitRequests.get(received.getWorkToken())));
-                        try {
-                          responseObserver.onNext(
-                              StreamingCommitResponse.newBuilder()
-                                  .addRequestId(chunk.getRequestId())
-                                  .build());
-                        } catch (IllegalStateException e) {
-                          // Stream is closed.
-                        }
-                      } catch (Exception e) {
-                        errorCollector.addError(e);
-                      }
-                      buffer = null;
-                    } else {
-                      errorCollector.checkThat(first, Matchers.is(true));
-                    }
-                    first = false;
+                if (shouldServerReturnError.get()) {
+                  try {
+                    responseObserver.onError(
+                        new RuntimeException("shouldServerReturnError = true"));
+                  } catch (IllegalStateException e) {
+                    // The stream is already closed.
                   }
+                } else {
+                  testCommitStreamObserver.onNext(request);
                 }
               }
 
               @Override
-              public void onError(Throwable throwable) {}
+              public void onError(Throwable throwable) {
+                testCommitStreamObserver.onError(throwable);
+              }
 
               @Override
               public void onCompleted() {
-                injector.cancel();
-                responseObserver.onCompleted();
+                testCommitStreamObserver.onCompleted();
               }
             };
           }
@@ -613,11 +694,14 @@ public class GrpcWindmillServerTest {
       }
     }
     stream.flush();
+    stream.close();
+
+    Thread.sleep(100);
+    shouldServerReturnError.set(false);
+
     for (CountDownLatch latch : latches) {
       assertTrue(latch.await(1, TimeUnit.MINUTES));
     }
-
-    stream.close();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
