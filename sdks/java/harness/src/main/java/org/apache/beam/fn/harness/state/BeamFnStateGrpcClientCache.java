@@ -101,6 +101,7 @@ public class BeamFnStateGrpcClientCache {
       this.apiServiceDescriptor = apiServiceDescriptor;
       this.outstandingRequests = new HashMap<>();
       this.channel = channelFactory.forDescriptor(apiServiceDescriptor);
+      this.errorDuringConstruction = false;
       this.outboundObserver =
           outboundObserverFactory.outboundObserverFor(
               BeamFnStateGrpc.newStub(channel)::state, new InboundObserver());
