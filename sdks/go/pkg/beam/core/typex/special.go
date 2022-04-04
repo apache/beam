@@ -38,10 +38,10 @@ var (
 	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
 	PaneInfoType  = reflect.TypeOf((*PaneInfo)(nil)).Elem()
 
-	KVType            = reflect.TypeOf((*KV)(nil)).Elem()
-	NullableType      = reflect.TypeOf((*Nullable)(nil)).Elem()
-	CoGBKType         = reflect.TypeOf((*CoGBK)(nil)).Elem()
-	WindowedValueType = reflect.TypeOf((*WindowedValue)(nil)).Elem()
+	KVType                 = reflect.TypeOf((*KV)(nil)).Elem()
+	NullableType           = reflect.TypeOf((*Nullable)(nil)).Elem()
+	CoGBKType              = reflect.TypeOf((*CoGBK)(nil)).Elem()
+	WindowedValueType      = reflect.TypeOf((*WindowedValue)(nil)).Elem()
 	BundleFinalizationType = reflect.TypeOf((*BundleFinalization)(nil)).Elem()
 )
 
