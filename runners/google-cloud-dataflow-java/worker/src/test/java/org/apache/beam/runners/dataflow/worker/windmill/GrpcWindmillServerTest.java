@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.InputStream;
 import java.io.SequenceInputStream;
@@ -35,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
@@ -493,7 +495,7 @@ public class GrpcWindmillServerTest {
         .build();
   }
 
-  // This server receives WorkItemCommitRequests, and verifies they are equal to the above
+  // This server receives WorkItemCommitRequests, and verifies they are equal to the provided
   // commitRequest.
   private StreamObserver<StreamingCommitWorkRequest> getTestCommitStreamObserver(
       StreamObserver<StreamingCommitResponse> responseObserver,
@@ -632,6 +634,9 @@ public class GrpcWindmillServerTest {
     List<CountDownLatch> latches = new ArrayList<>();
     Map<Long, WorkItemCommitRequest> commitRequests = new ConcurrentHashMap<>();
     AtomicBoolean shouldServerReturnError = new AtomicBoolean(true);
+    AtomicBoolean isClientClosed = new AtomicBoolean(false);
+    AtomicInteger errorsBeforeClose = new AtomicInteger();
+    AtomicInteger errorsAfterClose = new AtomicInteger();
     for (int i = 0; i < 500; ++i) {
       // Build some requests of varying size with a few big ones.
       WorkItemCommitRequest request = makeCommitRequest(i, i * (i < 480 ? 8 : 128));
@@ -656,6 +661,11 @@ public class GrpcWindmillServerTest {
                   try {
                     responseObserver.onError(
                         new RuntimeException("shouldServerReturnError = true"));
+                    if (isClientClosed.get()) {
+                      errorsAfterClose.incrementAndGet();
+                    } else {
+                      errorsBeforeClose.incrementAndGet();
+                    }
                   } catch (IllegalStateException e) {
                     // The stream is already closed.
                   }
@@ -695,8 +705,24 @@ public class GrpcWindmillServerTest {
     }
     stream.flush();
     stream.close();
+    isClientClosed.set(true);
 
-    Thread.sleep(100);
+    long deadline = System.currentTimeMillis() + 60_000; // 1 min
+    while (true) {
+      Thread.sleep(100);
+      int tmpErrorsAfterClose = errorsAfterClose.get();
+      int tmpErrorsBeforeClose = errorsBeforeClose.get();
+      // wait for at least 2 errors before and after
+      if (tmpErrorsAfterClose > 1 && tmpErrorsBeforeClose > 1) {
+        break;
+      }
+      if (System.currentTimeMillis() > deadline) {
+        fail(
+            String.format(
+                "Expected errors not sent by server errorsAfterClose: %s errorsBeforeClose: %s",
+                tmpErrorsAfterClose, tmpErrorsBeforeClose));
+      }
+    }
     shouldServerReturnError.set(false);
 
     for (CountDownLatch latch : latches) {
