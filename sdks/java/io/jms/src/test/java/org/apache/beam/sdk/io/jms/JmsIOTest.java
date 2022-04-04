@@ -261,7 +261,6 @@ public class JmsIOTest {
 
   @Test
   public void testWriteMessageWithError() throws Exception {
-
     ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       data.add("Message " + i);
