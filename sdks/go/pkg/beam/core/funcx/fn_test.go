@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -111,6 +112,12 @@ func TestNew(t *testing.T) {
 			Fn:    func(context.Context, typex.EventTime, reflect.Type, func(int)) error { return nil },
 			Param: []FnParamKind{FnContext, FnEventTime, FnType, FnEmit},
 			Ret:   []ReturnKind{RetError},
+		},
+		{
+			Name:  "sdf",
+			Fn:    func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
+			Param: []FnParamKind{FnRTracker, FnEmit},
+			Ret:   []ReturnKind{RetProcessContinuation, RetError},
 		},
 		{
 			Name: "errContextParam: after input",
