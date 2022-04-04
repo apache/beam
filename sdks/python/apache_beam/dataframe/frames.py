@@ -3731,6 +3731,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def pivot(self, index=None, columns=None, values=None, **kwargs):
+    """Because pivot is a non-deferred method, any columns specified in
+    ``columns`` must be CategoricalDType so we can determine the output column
+    names."""
+
     def verify_all_categorical(all_cols_are_categorical):
       if not all_cols_are_categorical:
         message = "pivot() of non-categorical type is not supported because " \
