@@ -42,7 +42,7 @@ In production settings, it's common to only have access to compiled artifacts.
 For Go SDK pipelines, you may need to have two: one for the launching platform, and one for the worker platform.
 
 In order to run a Go program on a specific platform, that program must be built targeting that platform's operating system, and architecture.
-The Go compiler able to cross compile to a target architecture by setting the [`$GOOS` and `$GOARCH` environment variables](https://go.dev/doc/install/source#environment) for your build.
+The Go compiler is able to cross compile to a target architecture by setting the [`$GOOS` and `$GOARCH` environment variables](https://go.dev/doc/install/source#environment) for your build.
 
 For example, you may be launching a pipeline from an M1 Macbook, but running the jobs on a Flink cluster executing on linux VMs with amd64 processors.
 In this situation, you would need to compile your pipeline binary for both `darwin-arm64` for the launching, and `linux-amd64`.
