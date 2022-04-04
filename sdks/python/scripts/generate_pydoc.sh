@@ -179,6 +179,7 @@ ignore_identifiers = [
   'apache_beam.pvalue.DoOutputsTuple',
   'apache_beam.pvalue.PValue',
   'apache_beam.runners.direct.executor.CallableTask',
+  'apache_beam.runners.portability.local_job_service.BeamJob',
   'apache_beam.testing.synthetic_pipeline._Random',
   'apache_beam.transforms.combiners.CombinerWithoutDefaults',
   'apache_beam.transforms.core.CallableWrapperCombineFn',

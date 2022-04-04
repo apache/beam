@@ -64,7 +64,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 
 // Run this job every 6 hours on a random minute.
-CronJobBuilder.cronJob('beam_Python_LoadTests_FnApiRunner_Microbenchmark', 'H */6 * * *', this) {
+CronJobBuilder.cronJob('beam_Python_LoadTests_FnApiRunner_Microbenchmark', 'H H/6 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
