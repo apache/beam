@@ -168,7 +168,7 @@ const (
 	restrictionSizeName          = "RestrictionSize"
 	createTrackerName            = "CreateTracker"
 
-	getWatermarkEstimatorName = "GetWatermarkEstimator"
+	createWatermarkEstimatorName = "CreateWatermarkEstimator"
 
 	createAccumulatorName = "CreateAccumulator"
 	addInputName          = "AddInput"
@@ -189,7 +189,7 @@ var doFnNames = []string{
 	splitRestrictionName,
 	restrictionSizeName,
 	createTrackerName,
-	getWatermarkEstimatorName,
+	createWatermarkEstimatorName,
 }
 
 var requiredSdfNames = []string{
@@ -200,7 +200,7 @@ var requiredSdfNames = []string{
 }
 
 var watermarkEstimationNames = []string{
-	getWatermarkEstimatorName,
+	createWatermarkEstimatorName,
 }
 
 var combineFnNames = []string{
@@ -312,18 +312,18 @@ func (f *SplittableDoFn) RestrictionT() reflect.Type {
 func (f *SplittableDoFn) IsWatermarkEstimating() bool {
 	// Validation already passed, so if one SDF method is present they should
 	// all be present.
-	_, ok := f.methods[getWatermarkEstimatorName]
+	_, ok := f.methods[createWatermarkEstimatorName]
 	return ok
 }
 
-// GetWatermarkEstimatorFn returns the "GetWatermarkEstimator" function, if present
-func (f *SplittableDoFn) GetWatermarkEstimatorFn() *funcx.Fn {
-	return f.methods[getWatermarkEstimatorName]
+// createWatermarkEstimatorFn returns the "createWatermarkEstimator" function, if present
+func (f *SplittableDoFn) CreateWatermarkEstimatorFn() *funcx.Fn {
+	return f.methods[createWatermarkEstimatorName]
 }
 
 // WatermarkEstimatorT returns the type of the watermark estimator from the SDF
 func (f *SplittableDoFn) WatermarkEstimatorT() reflect.Type {
-	return f.GetWatermarkEstimatorFn().Ret[0].T
+	return f.CreateWatermarkEstimatorFn().Ret[0].T
 }
 
 // TODO(herohde) 5/19/2017: we can sometimes detect whether the main input must be
@@ -955,12 +955,12 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int) error {
 // support watermark estimation
 func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
 	var isWatermarkEstimating bool
-	if _, ok := fn.methods[getWatermarkEstimatorName]; ok {
+	if _, ok := fn.methods[createWatermarkEstimatorName]; ok {
 		isWatermarkEstimating = true
 	}
 	if !isSdf && isWatermarkEstimating {
 		return false, errors.Errorf("Watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
-			"estimation is only valid on splittable DoFns", getWatermarkEstimatorName)
+			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
 	}
 	return isWatermarkEstimating, nil
 }
@@ -968,7 +968,7 @@ func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
 // validateWatermarkSig validates that all watermark related functions are valid
 func validateWatermarkSig(fn *Fn) error {
 	paramRange := map[string][]int{
-		getWatermarkEstimatorName: []int{0, 0},
+		createWatermarkEstimatorName: []int{0, 0},
 	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
@@ -993,13 +993,13 @@ func validateWatermarkSig(fn *Fn) error {
 			}
 
 			switch name {
-			case getWatermarkEstimatorName:
+			case createWatermarkEstimatorName:
 				if method.Ret[0].T.Implements(watermarkEstimatorT) == false {
 					err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.WatermarkEstimator",
-						getWatermarkEstimatorName, 0, method.Ret[0].T)
+						createWatermarkEstimatorName, 0, method.Ret[0].T)
 					return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
 						"return value at index %v (type: %v). Output of method %v must implement sdf.WatermarkEstimator.",
-						getWatermarkEstimatorName, 0, method.Ret[0].T, getWatermarkEstimatorName)
+						createWatermarkEstimatorName, 0, method.Ret[0].T, createWatermarkEstimatorName)
 				}
 			}
 		}

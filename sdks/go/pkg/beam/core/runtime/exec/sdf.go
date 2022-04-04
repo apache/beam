@@ -222,7 +222,7 @@ type ProcessSizedElementsAndRestrictions struct {
 	TfId    string // Transform ID. Needed for splitting.
 	ctInv   *ctInvoker
 	sizeInv *rsInvoker
-	gweInv  *gweInvoker
+	cweInv  *cweInvoker
 
 	// SU is a buffered channel for indicating when this unit is splittable.
 	// When this unit is processing an element, it sends a SplittableUnit
@@ -269,8 +269,8 @@ func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 		return errors.WithContextf(err, "%v", n)
 	}
 	if (*graph.SplittableDoFn)(n.PDo.Fn).IsWatermarkEstimating() {
-		fn = (*graph.SplittableDoFn)(n.PDo.Fn).GetWatermarkEstimatorFn()
-		if n.gweInv, err = newGetWatermarkEstimatorInvoker(fn); err != nil {
+		fn = (*graph.SplittableDoFn)(n.PDo.Fn).CreateWatermarkEstimatorFn()
+		if n.cweInv, err = newCreateWatermarkEstimatorInvoker(fn); err != nil {
 			return errors.WithContextf(err, "%v", n)
 		}
 	}
@@ -338,8 +338,8 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		}
 	}
 
-	if n.gweInv != nil {
-		n.PDo.we = n.gweInv.Invoke()
+	if n.cweInv != nil {
+		n.PDo.we = n.cweInv.Invoke()
 	}
 
 	// Begin processing elements, exploding windows if necessary.
@@ -391,8 +391,8 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) error {
 	n.ctInv.Reset()
 	n.sizeInv.Reset()
-	if n.gweInv != nil {
-		n.gweInv.Reset()
+	if n.cweInv != nil {
+		n.cweInv.Reset()
 	}
 	return n.PDo.FinishBundle(ctx)
 }
