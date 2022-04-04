@@ -632,7 +632,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     // The following should be protected by synchronizing on this, except for
     // the atomics which may be read atomically for status pages.
     private StreamObserver<RequestT> requestObserver;
-    // Indicates if the current stream in requestObserver is client closed
+    // Indicates if the current stream in requestObserver is closed by calling close() method
     private final AtomicBoolean streamClosed = new AtomicBoolean();
     private final AtomicLong startTimeMs = new AtomicLong();
     private final AtomicLong lastSendTimeMs = new AtomicLong();
@@ -749,7 +749,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
           debugDuration(nowMs, startTimeMs.get()),
           debugDuration(nowMs, lastSendTimeMs.get()),
           debugDuration(nowMs, lastResponseTimeMs.get()),
-          streamClosed.get() ? "true" : "false");
+          streamClosed.get());
     }
 
     // Don't require synchronization on stream, see the appendSummaryHtml comment.
