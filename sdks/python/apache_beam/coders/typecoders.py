@@ -65,7 +65,6 @@ See apache_beam.typehints.decorators module for more details.
 """
 
 # pytype: skip-file
-
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -138,6 +137,8 @@ class CoderRegistry(object):
         return coders.IterableCoder.from_type_hint(typehint, self)
       elif isinstance(typehint, typehints.ListConstraint):
         return coders.ListCoder.from_type_hint(typehint, self)
+      elif typehints.is_nullable(typehint):
+        return coders.NullableCoder.from_type_hint(typehint, self)
       elif typehint is None:
         # In some old code, None is used for Any.
         # TODO(robertwb): Clean this up.
