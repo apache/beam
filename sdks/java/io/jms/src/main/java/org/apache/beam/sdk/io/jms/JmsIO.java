@@ -738,7 +738,7 @@ public class JmsIO {
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String) and
      * {@link JmsIO.Write#withTopic(String)}. The user has to specify a {@link SerializableFunction}
-     * that takes the Event Object as parameter, and returns the topîc name depending of the content
+     * that takes {@code EventT} object as a parameter, and returns the topic name depending of the content
      * of the event object.
      *
      * <p>For instance:
