@@ -284,8 +284,8 @@ public class EnvironmentsTest implements Serializable {
     assertEquals("java17", JavaVersion.java17.legacyName());
   }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void testJavaVersionInvalid() {
-    assertEquals(JavaVersion.java8, JavaVersion.forSpecification("invalid"));
+  @Test
+  public void testNonLtsJavaVersion() {
+    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("15"));
   }
 }
