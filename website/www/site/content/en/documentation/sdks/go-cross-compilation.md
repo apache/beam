@@ -18,7 +18,7 @@ limitations under the License.
 
 # Overview
 
-This page contains technical details for users starting Go SDK pipelines on machines that are not using a `linux` operating system, or not an `amd64` compilation processor.
+This page contains technical details for users starting Go SDK pipelines on machines that are not using a `linux` operating system, nor an `amd64` architecture.
 
 Go is a statically compiled language.
 To execute a Go binary on a machine, it must be compiled for the matching operating system and processor architecture.
@@ -31,7 +31,7 @@ Tthe Go SDK will cross-compile your pipeline for `linux-amd64`, and use that as 
 
 Alternatively, some local runners support Loopback execution.
 Setting the flag `--environment_type=LOOPBACK` can cause the runner to connect back to the local binary to serve as a worker.
-This can simplify development and debugging.
+This can simplify development and debugging, by avoiding hiding log output in a container.
 
 # Production: overriding the worker binary
 
@@ -45,13 +45,14 @@ In order to run a Go program on a specific platform, that program must be built 
 The Go compiler is quick, and able to cross compile to many target architures, by setting the [`$GOOS` and `$GOARCH` environment variables](https://go.dev/doc/install/source#environment) for your build.
 
 For example, you may be launching a pipeline from an M1 Macbook, but running the jobs on a Flink cluster executing on linux VMs with amd64 processors.
-In this situation, you would need to compile your pipeline binary for both `darwin-arm64`, and `linux-amd64`.
+In this situation, you would need to compile your pipeline binary for both `darwin-arm64` for the launching, and `linux-amd64`.
 
 ```
-# Build binary for the launching platform
+# Build binary for the launching platform.
+# This uses the defaults for your machine, so no new environment variables are needed.
 $ go build path/to/my/pipeline -o output/launcher
 
-# Build binary for the worker platform
+# Build binary for the worker platform, linux-amd64
 $ GOOS=linux GOARCH=amd64 go build path/to/my/pipeline -o output/worker
 ```
 
@@ -71,4 +72,5 @@ At present, Go SDK worker containers are only built for the `linux-amd64` platfo
 See [BEAM-11704](https://issues.apache.org/jira/browse/BEAM-11704) for the current state of ARM64 container support.
 
 Because Go is statically compiled, there are no runtime dependencies on a specific Go version for a container.
-The Go version you use to compile your binary will be what your workers execute with.
+The Go release used to compile your binary will be what your workers execute.
+Be sure to update to a recent [Go release](https://go.dev/doc/devel/release) for best performance.
