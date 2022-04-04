@@ -209,7 +209,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         break;
       case PROCESSING_TIME:
       case SYNCHRONIZED_PROCESSING_TIME:
-        effectiveTimestamp = stepContext.timerInternals().currentInputWatermarkTime();
+        Instant outputWatermark = stepContext.timerInternals().currentOutputWatermarkTime();
+        Instant inputWatermark = stepContext.timerInternals().currentInputWatermarkTime();
+        effectiveTimestamp =
+            outputTimestamp != null
+                ? outputTimestamp
+                : outputWatermark != null ? outputWatermark : inputWatermark;
         break;
 
       default:
