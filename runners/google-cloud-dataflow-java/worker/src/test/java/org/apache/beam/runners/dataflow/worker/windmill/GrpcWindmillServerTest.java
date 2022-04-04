@@ -704,29 +704,47 @@ public class GrpcWindmillServerTest {
       }
     }
     stream.flush();
-    stream.close();
-    isClientClosed.set(true);
 
     long deadline = System.currentTimeMillis() + 60_000; // 1 min
     while (true) {
       Thread.sleep(100);
-      int tmpErrorsAfterClose = errorsAfterClose.get();
       int tmpErrorsBeforeClose = errorsBeforeClose.get();
-      // wait for at least 1 errors before and after
-      if (tmpErrorsAfterClose > 0 && tmpErrorsBeforeClose > 0) {
+      // wait for at least 1 errors before close
+      if (tmpErrorsBeforeClose > 0) {
         break;
       }
       if (System.currentTimeMillis() > deadline) {
         // Control should not reach here if the test is working as expected
         fail(
             String.format(
-                "Expected errors not sent by server errorsAfterClose: %s errorsBeforeClose: %s"
+                "Expected errors not sent by server errorsBeforeClose: %s"
                     + " \n Should not reach here if the test is working as expected.",
-                tmpErrorsAfterClose, tmpErrorsBeforeClose));
+                tmpErrorsBeforeClose));
       }
     }
-    shouldServerReturnError.set(false);
 
+    stream.close();
+    isClientClosed.set(true);
+
+    deadline = System.currentTimeMillis() + 60_000; // 1 min
+    while (true) {
+      Thread.sleep(100);
+      int tmpErrorsAfterClose = errorsAfterClose.get();
+      // wait for at least 1 errors after close
+      if (tmpErrorsAfterClose > 0) {
+        break;
+      }
+      if (System.currentTimeMillis() > deadline) {
+        // Control should not reach here if the test is working as expected
+        fail(
+            String.format(
+                "Expected errors not sent by server errorsAfterClose: %s"
+                    + " \n Should not reach here if the test is working as expected.",
+                tmpErrorsAfterClose));
+      }
+    }
+
+    shouldServerReturnError.set(false);
     for (CountDownLatch latch : latches) {
       assertTrue(latch.await(1, TimeUnit.MINUTES));
     }
