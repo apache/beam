@@ -117,9 +117,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options 
 		if err != nil {
 			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
 		} else {
-			statusHandler.wg.Add(1)
-			statusHandler.start(ctx)
-			defer statusHandler.stop(ctx)
+			if err := statusHandler.start(ctx); err == nil {
+				defer statusHandler.stop(ctx)
+			}
 		}
 	}
 

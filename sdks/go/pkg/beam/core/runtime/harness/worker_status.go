@@ -52,14 +52,16 @@ func (w *workerStatusHandler) shutdown() {
 }
 
 // start starts the reader to accept WorkerStatusRequest and send WorkerStatusResponse with WorkerStatus API.
-func (w *workerStatusHandler) start(ctx context.Context) {
+func (w *workerStatusHandler) start(ctx context.Context) error {
 	statusClient := fnpb.NewBeamFnWorkerStatusClient(w.conn)
 	stub, err := statusClient.WorkerStatus(ctx)
 	if err != nil {
 		log.Errorf(ctx, "status client not established: %v", err)
-		return
+		return errors.WithContext(err, "status endpoint client not established")
 	}
+	w.wg.Add(1)
 	go w.reader(ctx, stub)
+	return nil
 }
 
 // reader reads the WorkerStatusRequest from the stream and sends a processed WorkerStatusResponse to
@@ -69,7 +71,7 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 	buf := make([]byte, 1<<16)
 	for w.isAlive() {
 		req, err := stub.Recv()
-		if err != nil {
+		if err != nil && err != io.EOF {
 			log.Debugf(ctx, "exiting workerStatusHandler.Reader(): %v", err)
 			return
 		}
@@ -83,10 +85,12 @@ func (w *workerStatusHandler) reader(ctx context.Context, stub fnpb.BeamFnWorker
 }
 
 // stop stops the reader and closes worker status endpoint connection with the runner.
-func (w *workerStatusHandler) stop(ctx context.Context) {
+func (w *workerStatusHandler) stop(ctx context.Context) error {
 	w.shutdown()
 	w.wg.Wait()
 	if err := w.conn.Close(); err != nil {
 		log.Errorf(ctx, "error closing status endpoint connection: %v", err)
+		return errors.WithContext(err, "error closing status endpoint connection")
 	}
+	return nil
 }

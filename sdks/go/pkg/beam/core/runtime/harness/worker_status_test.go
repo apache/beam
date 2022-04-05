@@ -42,17 +42,17 @@ func (w *BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_Work
 	return nil
 }
 
-const buffsize = 1024 * 1024
-
 var lis *bufconn.Listener
 
 func setup(t *testing.T, srv *BeamFnWorkerStatusServicer) {
+	const buffsize = 1024 * 1024
 	server := grpc.NewServer()
 	lis = bufconn.Listen(buffsize)
 	fnpb.RegisterBeamFnWorkerStatusServer(server, srv)
 	go func() {
 		if err := server.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
+			panic(err)
 		}
 	}()
 	t.Cleanup(func() {
@@ -68,19 +68,24 @@ func TestSendStatusResponse(t *testing.T) {
 	ctx := context.Background()
 	srv := &BeamFnWorkerStatusServicer{response: make(chan string)}
 	setup(t, srv)
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(dialer), grpc.WithInsecure())
+
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithInsecure(), grpc.WithContextDialer(dialer))
 	if err != nil {
 		t.Fatalf("unable to start test server: %v", err)
 	}
+
 	statusHandler := workerStatusHandler{conn: conn}
-	statusHandler.wg.Add(1)
-	statusHandler.start(ctx)
-	t.Cleanup(func() {
-		statusHandler.stop(ctx)
-	})
+	if err := statusHandler.start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
 	response := []string{}
 	response = append(response, <-srv.response)
 	if len(response) == 0 {
-		t.Errorf("error in response: %v", response)
+		t.Errorf("no response received: %v", response)
+	}
+
+	if err := statusHandler.stop(ctx); err != nil {
+		t.Error(err)
 	}
 }
