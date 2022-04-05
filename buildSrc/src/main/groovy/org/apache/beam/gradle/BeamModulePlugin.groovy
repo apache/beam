@@ -538,7 +538,11 @@ class BeamModulePlugin implements Plugin<Project> {
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
+        cdap_api_commons                            : "io.cdap.cdap:cdap-api-common:$cdap_version",
         cdap_etl_api                                : "io.cdap.cdap:cdap-etl-api:$cdap_version",
+        cdap_etl_api_spark                          : "io.cdap.cdap:cdap-etl-api-spark:$cdap_version",
+        cdap_formats                                : "io.cdap.cdap:cdap-formats:$cdap_version",
+        cdap_hydrator_common                        : "io.cdap.plugin:hydrator-common:2.4.0",
         cglib                                       : "org.sonatype.sisu.inject:cglib:2.2.1-v20090111",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
@@ -549,12 +553,14 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_lang2_6                             : "commons-lang:commons-lang:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
+        commons_validator                           : "commons-validator:commons-validator:1.7",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         gax_grpc_test                               : "com.google.api:gax-grpc:$gax_version:testlib", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
+        github_rholder                              : "com.github.rholder:guava-retrying:2.0.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
@@ -591,7 +597,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // This version should be in line with the one in com.google.cloud:libraries-bom.
         google_http_client                          : "com.google.http-client:google-http-client", // google_cloud_platform_libraries_bom sets version
         google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2", // google_cloud_platform_libraries_bom sets version
-        google_http_client_gson                     : "com.google.http-client:google-http-client-gson", // google_cloud_platform_libraries_bom sets version
+        google_http_client_gson                     : "com.google.http-client:google-http-client-gson:1.32.1",
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
         google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2", // google_cloud_platform_libraries_bom sets version
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf", // google_cloud_platform_libraries_bom sets version
@@ -617,6 +623,7 @@ class BeamModulePlugin implements Plugin<Project> {
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
         hadoop_client                               : "org.apache.hadoop:hadoop-client:$hadoop_version",
         hadoop_common                               : "org.apache.hadoop:hadoop-common:$hadoop_version",
+        hadoop_mapred                               : "org.apache.hadoop:hadoop-mapred:0.22.0",
         hadoop_mapreduce_client_core                : "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_version",
         hadoop_minicluster                          : "org.apache.hadoop:hadoop-minicluster:$hadoop_version",
         hadoop_hdfs                                 : "org.apache.hadoop:hadoop-hdfs:$hadoop_version",
@@ -688,6 +695,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark3_sql                                  : "org.apache.spark:spark-sql_2.12:$spark3_version",
         spark3_streaming                            : "org.apache.spark:spark-streaming_2.12:$spark3_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
+        tephra                                      : "org.apache.tephra:tephra-api:0.15.0-incubating",
         testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
