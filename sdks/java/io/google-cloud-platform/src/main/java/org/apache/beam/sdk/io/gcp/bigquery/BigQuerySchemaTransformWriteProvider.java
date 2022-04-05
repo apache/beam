@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import jdk.internal.joptsimple.internal.Strings;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -240,7 +239,7 @@ public class BigQuerySchemaTransformWriteProvider
         throw new IllegalArgumentException(
             String.format(
                 "source and destination schema mismatch for table: %s with fields: %s",
-                configuration.getTableSpec(), Strings.join(mismatchedFieldNames, " | ")));
+                configuration.getTableSpec(), String.join(" | ", mismatchedFieldNames)));
       }
     }
 

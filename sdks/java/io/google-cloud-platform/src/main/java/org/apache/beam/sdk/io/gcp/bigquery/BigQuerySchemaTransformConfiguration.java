@@ -24,9 +24,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Configurations for reading from or writing to BigQuery. */
 public class BigQuerySchemaTransformConfiguration {
+  private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
 
   /**
    * Instantiates a {@link Read.Builder} from the SQL query.
@@ -91,11 +95,19 @@ public class BigQuerySchemaTransformConfiguration {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class Read {
+    private static final TypeDescriptor<Read> TYPE_DESCRIPTOR = TypeDescriptor.of(Read.class);
+    private static final SerializableFunction<Read, Row> ROW_SERIALIZABLE_FUNCTION =
+        AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
     private static final boolean DEFAULT_USE_STANDARD_SQL = true;
 
     /** Configures the BigQuery job type. */
     abstract JobType getJobType();
+
+    /** Serializes configuration to a {@link Row}. */
+    Row toBeamRow() {
+      return ROW_SERIALIZABLE_FUNCTION.apply(this);
+    }
 
     /** Configures the BigQuery read job with the SQL query. */
     @Nullable
@@ -154,6 +166,10 @@ public class BigQuerySchemaTransformConfiguration {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class Write {
+    private static final TypeDescriptor<BigQuerySchemaTransformConfiguration.Write>
+        TYPE_DESCRIPTOR = TypeDescriptor.of(BigQuerySchemaTransformConfiguration.Write.class);
+    private static final SerializableFunction<BigQuerySchemaTransformConfiguration.Write, Row>
+        ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
     /**
      * Writes to the given table specification. See {@link BigQueryIO.Write#to(String)}} for the
@@ -175,6 +191,11 @@ public class BigQuerySchemaTransformConfiguration {
     /** Returns the {@link #getCreateDisposition()} as a {@link CreateDisposition}. */
     CreateDisposition getCreateDispositionEnum() {
       return CreateDisposition.valueOf(getCreateDisposition());
+    }
+
+    /** Serializes configuration to a {@link Row}. */
+    Row toBeamRow() {
+      return ROW_SERIALIZABLE_FUNCTION.apply(this);
     }
 
     @AutoValue.Builder
