@@ -120,7 +120,7 @@ class CommonJobProperties {
 
   static void setDefaultBranch(def context,
       String defaultBranch) {
-    configure { project->
+    context.configure { project->
       project / 'properties' / 'hudson.model.ParametersDefinitionProperty' / parameterDefinitions << 'hudson.model.StringParameterDefinition' {
         name 'sha1'
         defaultValue defaultBranch
