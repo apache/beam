@@ -267,10 +267,8 @@ public class SpannerReadIT {
                     .withSpannerConfig(pgSpannerConfig)
                     .withBatching(false)
                     .withQuery(
-                        String.format(
-                            "SELECT t.table_name FROM information_schema.tables AS t WHERE t"
-                                + ".table_catalog = '%s' AND t.table_schema = 'public'",
-                            pgSpannerConfig.getDatabaseId())))
+                        "SELECT t.table_name FROM information_schema.tables AS t WHERE t"
+                            + ".table_schema = 'public'"))
             .apply(
                 "Build PG query",
                 MapElements.into(TypeDescriptor.of(ReadOperation.class))
