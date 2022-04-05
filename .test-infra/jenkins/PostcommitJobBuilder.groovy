@@ -51,6 +51,7 @@ class PostcommitJobBuilder {
       jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
+    jb.definePrereleaseJob(nameBase + "_prerelease" + commonJobProperties.RELEASE_STRING)
     if (triggerPhrase) {
       jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
     }
@@ -59,6 +60,20 @@ class PostcommitJobBuilder {
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
       commonJobProperties.setAutoJob delegate, 'H H/6 * * *', 'builds@beam.apache.org', true, true
+    }
+
+    autoBuilds.with(jobDefinition)
+  }
+
+  void definePrereleaseJob(name) {
+    def autoBuilds = scope.job(name) {
+      commonJobProperties.setAutoJob delegate, '@daily'
+      delegate.parameters {
+        stringParam(
+            'sha1',
+            commonJobProperties.RELEASE_BRANCH,
+            'Commit id or refname (eg: origin/pr/9/head) you want to build.')
+      }
     }
 
     autoBuilds.with(jobDefinition)

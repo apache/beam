@@ -31,6 +31,9 @@ class CommonJobProperties {
   final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
   final static String JAVA_17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
   final static String PYTHON = pythonTestProperties.DEFAULT_INTERPRETER
+  final static String RELEASE_VERSION = "2.38.0"
+  final static String RELEASE_BRANCH = "release-" + RELEASE_VERSION
+  final static String RELEASE_STRING = RELEASE_VERSION.replace(".", "")
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
