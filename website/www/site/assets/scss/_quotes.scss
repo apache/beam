@@ -40,6 +40,9 @@
 .wrap-slide {
   padding: 20px;
   width: 100%;
+  max-width: 33.33%;
+  display: flex;
+  justify-content: center;
 }
 
 .quotes-inner {
