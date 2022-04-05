@@ -124,6 +124,7 @@
 * Fix S3 copy for large objects (Java) ([BEAM-14011](https://issues.apache.org/jira/browse/BEAM-14011))
 * Fix quadratic behavior of pipeline canonicalization (Go) ([BEAM-14128](https://issues.apache.org/jira/browse/BEAM-14128))
   * This caused unnecessarily long pre-processing times before job submission for large complex pipelines.
+* Fix `pyarrow` version parsing (Python)([BEAM-14235](https://issues.apache.org/jira/browse/BEAM-14235))
 
 ## Known Issues
 
