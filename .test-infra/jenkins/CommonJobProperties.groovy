@@ -79,7 +79,14 @@ class CommonJobProperties {
       }
     }
 
-    setDefaultBranch(context, defaultBranch)
+    context.parameters {
+      // This is a recommended setup if you want to run the job manually. The
+      // ${sha1} parameter needs to be provided, and defaults to the main branch.
+      stringParam(
+          'sha1',
+          defaultBranch,
+          'Commit id or refname (eg: origin/pr/9/head) you want to build.')
+    }
 
     context.wrappers {
       // Abort the build if it's stuck for more minutes than specified.
@@ -113,13 +120,11 @@ class CommonJobProperties {
 
   static void setDefaultBranch(def context,
       String defaultBranch) {
-    context.parameters {
-      // This is a recommended setup if you want to run the job manually. The
-      // ${sha1} parameter needs to be provided, and defaults to the main branch.
-      stringParam(
-          'sha1',
-          defaultBranch,
-          'Commit id or refname (eg: origin/pr/9/head) you want to build.')
+    configure { project->
+      project / 'properties' / 'hudson.model.ParametersDefinitionProperty' / parameterDefinitions << 'hudson.model.StringParameterDefinition' {
+        name 'sha1'
+        defaultValue defaultBranch
+      }
     }
   }
 
