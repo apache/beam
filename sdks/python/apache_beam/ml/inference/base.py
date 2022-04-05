@@ -96,8 +96,7 @@ class RunInference(beam.PTransform):
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
-        | beam.ParDo(
-            _RunInferenceDoFn(self._model_loader, self._clock))
+        | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock))
         | beam.FlatMap(_unbatch))
 
 
@@ -152,10 +151,7 @@ class _MetricsCollector:
 
 class _RunInferenceDoFn(beam.DoFn):
   """A DoFn implementation generic to frameworks."""
-  def __init__(
-      self,
-      model_loader: ModelLoader,
-      clock=None):
+  def __init__(self, model_loader: ModelLoader, clock=None):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
     self._shared_model_handle = shared.Shared()
@@ -256,6 +252,7 @@ class _FineGrainedClock(_Clock):
         _NANOSECOND_TO_MICROSECOND)
 
 
+#TODO(BEAM-14255): Research simplifying the internal clock and just using time.
 class _ClockFactory(object):
   @staticmethod
   def make_clock() -> _Clock:
