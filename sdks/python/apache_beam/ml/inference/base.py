@@ -97,7 +97,7 @@ class RunInference(beam.PTransform):
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
         | beam.ParDo(
-            _RunInferenceDoFn(self._model_loader, shared.Shared(), self._clock))
+            _RunInferenceDoFn(self._model_loader, self._clock))
         | beam.FlatMap(_unbatch))
 
 
@@ -155,11 +155,10 @@ class _RunInferenceDoFn(beam.DoFn):
   def __init__(
       self,
       model_loader: ModelLoader,
-      shared_handle: shared.Shared,
       clock=None):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
-    self._shared_model_handle = shared_handle
+    self._shared_model_handle = shared.Shared()
     self._metrics_collector = _MetricsCollector(
         self._inference_runner.get_metrics_namespace())
     self._clock = clock
