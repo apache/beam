@@ -156,6 +156,12 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 			enc: enc,
 		}
 
+	case coder.Nullable:
+		return &nullableEncoder{
+			inner: MakeElementEncoder(c.Components[0]),
+			be:    boolEncoder{},
+		}
+
 	default:
 		panic(fmt.Sprintf("Unexpected coder: %v", c))
 	}
@@ -265,6 +271,12 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 		}
 		return &rowDecoder{
 			dec: dec,
+		}
+
+	case coder.Nullable:
+		return &nullableDecoder{
+			inner: MakeElementDecoder(c.Components[0]),
+			bd:    boolDecoder{},
 		}
 
 	default:
@@ -607,6 +619,56 @@ func convertIfNeeded(v interface{}, allocated *FullValue) *FullValue {
 	}
 	*allocated = FullValue{Elm: v}
 	return allocated
+}
+
+type nullableEncoder struct {
+	inner ElementEncoder
+	be    boolEncoder
+}
+
+func (n *nullableEncoder) Encode(value *FullValue, writer io.Writer) error {
+	if value.Elm == nil {
+		if err := n.be.Encode(&FullValue{Elm: false}, writer); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := n.be.Encode(&FullValue{Elm: true}, writer); err != nil {
+		return err
+	}
+	if err := n.inner.Encode(value, writer); err != nil {
+		return err
+	}
+	return nil
+}
+
+type nullableDecoder struct {
+	inner ElementDecoder
+	bd    boolDecoder
+}
+
+func (n *nullableDecoder) Decode(reader io.Reader) (*FullValue, error) {
+	hasValue, err := n.bd.Decode(reader)
+	if err != nil {
+		return nil, err
+	}
+	if !hasValue.Elm.(bool) {
+		return &FullValue{}, nil
+	}
+	val, err := n.inner.Decode(reader)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func (n *nullableDecoder) DecodeTo(reader io.Reader, value *FullValue) error {
+	val, err := n.Decode(reader)
+	if err != nil {
+		return err
+	}
+	value.Elm = val.Elm
+	return nil
 }
 
 type iterableEncoder struct {

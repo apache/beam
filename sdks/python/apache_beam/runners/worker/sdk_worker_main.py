@@ -29,7 +29,6 @@ import traceback
 
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
-import apache_beam.internal.gcp.auth
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
 from apache_beam.options.pipeline_options import DebugOptions
@@ -99,9 +98,6 @@ def create_harness(environment, dry_run=False):
   filesystems.FileSystems.set_options(sdk_pipeline_options)
   pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
   pickler.set_library(pickle_library)
-  gcp_options = sdk_pipeline_options.view_as(GoogleCloudOptions)
-  apache_beam.internal.gcp.auth.set_impersonation_accounts(gcp_options.target_principal,
-                                                           gcp_options.delegate_accounts)
 
   if 'SEMI_PERSISTENT_DIRECTORY' in environment:
     semi_persistent_directory = environment['SEMI_PERSISTENT_DIRECTORY']
