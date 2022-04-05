@@ -124,7 +124,7 @@ class CoderRegistry(object):
 
   def get_coder(self, typehint):
     # type: (Any) -> coders.Coder
-    if typehint.__module__ == '__main__':
+    if typehint and typehint.__module__ == '__main__':
       # See https://issues.apache.org/jira/browse/BEAM-14250
       # TODO(robertwb): Remove once all runners are portable.
       typehint = str(typehint)
