@@ -31,6 +31,7 @@ Parquet file.
 # pytype: skip-file
 
 from functools import partial
+
 from pkg_resources import parse_version
 
 from apache_beam.io import filebasedsink
