@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformWriteProvider.INPUT_TAG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Identifier;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.lang3.tuple.Pair;
@@ -129,26 +131,40 @@ public class BigQuerySchemaTransformWriteProviderTest {
 
   @Test
   public void testValidatePipelineOptions() {
-    List<Write.Builder> invalidCases =
+    List<Pair<Write.Builder, Class<? extends Exception>>> cases =
         Arrays.asList(
-            BigQuerySchemaTransformConfiguration.createLoadBuilder(
-                "project.doesnot.exist",
-                CreateDisposition.CREATE_NEVER,
-                WriteDisposition.WRITE_APPEND),
-            BigQuerySchemaTransformConfiguration.createLoadBuilder(
-                new TableReference()
-                    .setProjectId(PROJECT)
-                    .setDatasetId(DATASET)
-                    .setTableId("doesnotexist"),
-                CreateDisposition.CREATE_NEVER,
-                WriteDisposition.WRITE_APPEND));
-    for (Write.Builder caze : invalidCases) {
-      SchemaTransformProvider provider = new BigQuerySchemaTransformWriteProvider();
-      assertThrows(
-          InvalidConfigurationException.class,
-          () -> {
-            provider.from(caze.build().toBeamRow()).buildTransform().validate(p.getOptions());
-          });
+            Pair.of(
+                BigQuerySchemaTransformConfiguration.createLoadBuilder(
+                    "project.doesnot.exist",
+                    CreateDisposition.CREATE_NEVER,
+                    WriteDisposition.WRITE_APPEND),
+                InvalidConfigurationException.class),
+            Pair.of(
+                BigQuerySchemaTransformConfiguration.createLoadBuilder(
+                    new TableReference()
+                        .setProjectId(PROJECT)
+                        .setDatasetId(DATASET)
+                        .setTableId("doesnotexist"),
+                    CreateDisposition.CREATE_NEVER,
+                    WriteDisposition.WRITE_APPEND),
+                InvalidConfigurationException.class),
+            Pair.of(
+                BigQuerySchemaTransformConfiguration.createLoadBuilder(
+                    "project.doesnot.exist",
+                    CreateDisposition.CREATE_IF_NEEDED,
+                    WriteDisposition.WRITE_APPEND),
+                null));
+    for (Pair<Write.Builder, Class<? extends Exception>> caze : cases) {
+      PCollectionRowTupleTransform transform = transformFrom(caze.getLeft().build());
+      if (caze.getRight() != null) {
+        assertThrows(
+            caze.getRight(),
+            () -> {
+              transform.validate(p.getOptions());
+            });
+      } else {
+        transform.validate(p.getOptions());
+      }
     }
   }
 
@@ -175,10 +191,7 @@ public class BigQuerySchemaTransformWriteProviderTest {
                     .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
                     .withSchema(TABLE_SCHEMA)));
     for (Pair<Write.Builder, BigQueryIO.Write<TableRow>> caze : cases) {
-      SchemaTransformProvider provider = new BigQuerySchemaTransformWriteProvider();
-      Row rowConfiguration = caze.getLeft().build().toBeamRow();
-      PCollectionRowTupleTransform transform =
-          (PCollectionRowTupleTransform) provider.from(rowConfiguration).buildTransform();
+      PCollectionRowTupleTransform transform = transformFrom(caze.getLeft().build());
       Map<Identifier, Item> gotDisplayData = DisplayData.from(transform.toWrite(SCHEMA)).asMap();
       Map<Identifier, Item> wantDisplayData = DisplayData.from(caze.getRight()).asMap();
       Set<Identifier> keys = new HashSet<>();
@@ -196,5 +209,75 @@ public class BigQuerySchemaTransformWriteProviderTest {
         assertEquals(want, got);
       }
     }
+  }
+
+  @Test
+  public void validatePCollectionRowTupleInput() {
+    PCollectionRowTuple empty = PCollectionRowTuple.empty(p);
+    PCollectionRowTuple valid =
+        PCollectionRowTuple.of(INPUT_TAG, p.apply(Create.of(ROWS)).setRowSchema(SCHEMA));
+
+    PCollectionRowTupleTransform transform =
+        transformFrom(
+            BigQuerySchemaTransformConfiguration.createLoadBuilder(
+                    TABLE_REFERENCE,
+                    CreateDisposition.CREATE_IF_NEEDED,
+                    WriteDisposition.WRITE_APPEND)
+                .build());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          transform.validate(empty);
+        });
+
+    transform.validate(valid);
+
+    p.run();
+  }
+
+  @Test
+  public void validatePCollectionRow() {
+    PCollection<Row> missingSchema = p.apply("Create Missing Schema", Create.of(ROWS));
+    PCollection<Row> invalidSchema =
+        p.apply(
+            "Create Invalid Schema",
+            Create.of(
+                Row.nullRow(Schema.builder().addNullableField("name", FieldType.STRING).build())));
+
+    PCollection<Row> valid = p.apply("Create Valid Schema", Create.of(ROWS)).setRowSchema(SCHEMA);
+
+    PCollectionRowTupleTransform transform =
+        transformFrom(
+            BigQuerySchemaTransformConfiguration.createLoadBuilder(
+                    TABLE_REFERENCE,
+                    CreateDisposition.CREATE_IF_NEEDED,
+                    WriteDisposition.WRITE_APPEND)
+                .build());
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> {
+          transform.validate(missingSchema);
+        });
+    assertThrows(
+        IllegalStateException.class,
+        () -> {
+          transform.validate(invalidSchema);
+        });
+
+    transform.validate(valid);
+
+    p.run();
+  }
+
+  private PCollectionRowTupleTransform transformFrom(Write configuration) {
+    SchemaTransformProvider provider = new BigQuerySchemaTransformWriteProvider();
+    PCollectionRowTupleTransform transform =
+        (PCollectionRowTupleTransform) provider.from(configuration.toBeamRow()).buildTransform();
+
+    transform.setTestBigQueryServices(fakeBigQueryServices);
+
+    return transform;
   }
 }

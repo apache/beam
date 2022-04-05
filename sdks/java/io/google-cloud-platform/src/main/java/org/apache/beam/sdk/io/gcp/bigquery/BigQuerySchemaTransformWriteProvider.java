@@ -63,7 +63,7 @@ public class BigQuerySchemaTransformWriteProvider
 
   private static final String API = "bigquery";
   private static final String VERSION = "v2";
-  private static final String INPUT_TAG = "INPUT";
+  static final String INPUT_TAG = "INPUT";
 
   /** Returns the expected class of the configuration. */
   @Override
