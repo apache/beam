@@ -68,12 +68,7 @@ class PostcommitJobBuilder {
   void definePrereleaseJob(name) {
     def autoBuilds = scope.job(name) {
       commonJobProperties.setAutoJob delegate, '@daily'
-      delegate.parameters {
-        stringParam(
-            'sha1',
-            commonJobProperties.RELEASE_BRANCH,
-            'Commit id or refname (eg: origin/pr/9/head) you want to build.')
-      }
+      commonJobProperties.setDefaultBranch delegate, commonJobProperties.RELEASE_BRANCH
     }
 
     autoBuilds.with(jobDefinition)

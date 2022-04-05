@@ -79,14 +79,7 @@ class CommonJobProperties {
       }
     }
 
-    context.parameters {
-      // This is a recommended setup if you want to run the job manually. The
-      // ${sha1} parameter needs to be provided, and defaults to the main branch.
-      stringParam(
-          'sha1',
-          defaultBranch,
-          'Commit id or refname (eg: origin/pr/9/head) you want to build.')
-    }
+    setDefaultBranch(context, defaultBranch)
 
     context.wrappers {
       // Abort the build if it's stuck for more minutes than specified.
@@ -115,6 +108,18 @@ class CommonJobProperties {
         // Clean after job completes.
         wsCleanup()
       }
+    }
+  }
+
+  static void setDefaultBranch(def context,
+      String defaultBranch) {
+    context.parameters {
+      // This is a recommended setup if you want to run the job manually. The
+      // ${sha1} parameter needs to be provided, and defaults to the main branch.
+      stringParam(
+          'sha1',
+          defaultBranch,
+          'Commit id or refname (eg: origin/pr/9/head) you want to build.')
     }
   }
 
