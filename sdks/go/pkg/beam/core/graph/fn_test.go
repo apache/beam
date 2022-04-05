@@ -235,6 +235,9 @@ func TestNewDoFnWatermarkEstimating(t *testing.T) {
 			main mainInputs
 		}{
 			{dfn: &GoodWatermarkEstimating{}, main: MainSingle},
+			{dfn: &GoodWatermarkEstimatingKv{}, main: MainKv},
+			{dfn: &GoodStatefulWatermarkEstimating{}, main: MainSingle},
+			{dfn: &GoodStatefulWatermarkEstimatingKv{}, main: MainKv},
 		}
 
 		for _, test := range tests {
@@ -255,6 +258,17 @@ func TestNewDoFnWatermarkEstimating(t *testing.T) {
 		}{
 			{dfn: &BadWatermarkEstimatingNonSdf{}},
 			{dfn: &BadWatermarkEstimatingCreateWatermarkEstimatorReturnType{}},
+			{dfn: &BadStatefulWatermarkEstimatingInconsistentState{}},
+			{dfn: &BadStatefulWatermarkEstimatingInconsistentEstimator{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateParams{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateNoParams{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateReturns{}},
+			{dfn: &BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateNoReturns{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongPositionalParameter0{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongPositionalParameter1{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongPositionalParameter2{}},
+			{dfn: &BadStatefulKvWatermarkEstimatingWrongPositionalParameter2{}},
+			{dfn: &BadStatefulWatermarkEstimatingWrongReturn{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -693,6 +707,27 @@ func (rt *RTrackerT) GetRestriction() interface{} {
 	return nil
 }
 
+type RTracker2T struct{}
+
+func (rt *RTracker2T) TryClaim(interface{}) bool {
+	return false
+}
+func (rt *RTracker2T) GetError() error {
+	return nil
+}
+func (rt *RTracker2T) TrySplit(fraction float64) (interface{}, interface{}, error) {
+	return nil, nil, nil
+}
+func (rt *RTracker2T) GetProgress() (float64, float64) {
+	return 0, 0
+}
+func (rt *RTracker2T) IsDone() bool {
+	return true
+}
+func (rt *RTracker2T) GetRestriction() interface{} {
+	return nil
+}
+
 type GoodSdf struct {
 	*GoodDoFn
 }
@@ -747,32 +782,62 @@ func (e WatermarkEstimatorT) CurrentWatermark() time.Time {
 	return time.Now()
 }
 
+type WatermarkEstimator2T struct{}
+
+func (e WatermarkEstimator2T) CurrentWatermark() time.Time {
+	return time.Now()
+}
+
+func (e WatermarkEstimator2T) CurrentWatermark2() time.Time {
+	return time.Now()
+}
+
 type GoodWatermarkEstimating struct {
-	*GoodDoFn
-}
-
-func (fn *GoodWatermarkEstimating) CreateInitialRestriction(int) RestT {
-	return RestT{}
-}
-
-func (fn *GoodWatermarkEstimating) SplitRestriction(int, RestT) []RestT {
-	return []RestT{}
-}
-
-func (fn *GoodWatermarkEstimating) RestrictionSize(int, RestT) float64 {
-	return 0
-}
-
-func (fn *GoodWatermarkEstimating) CreateTracker(RestT) *RTrackerT {
-	return &RTrackerT{}
-}
-
-func (fn *GoodWatermarkEstimating) ProcessElement(*RTrackerT, int) int {
-	return 0
+	*GoodSdf
 }
 
 func (fn *GoodWatermarkEstimating) CreateWatermarkEstimator() WatermarkEstimatorT {
 	return WatermarkEstimatorT{}
+}
+
+type GoodWatermarkEstimatingKv struct {
+	*GoodSdfKv
+}
+
+func (fn *GoodWatermarkEstimatingKv) CreateWatermarkEstimator() WatermarkEstimatorT {
+	return WatermarkEstimatorT{}
+}
+
+type GoodStatefulWatermarkEstimating struct {
+	*GoodSdf
+}
+
+func (fn *GoodStatefulWatermarkEstimating) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) int {
+	return 0
+}
+
+func (fn *GoodStatefulWatermarkEstimating) CreateWatermarkEstimator(state int) WatermarkEstimatorT {
+	return WatermarkEstimatorT{}
+}
+
+func (fn *GoodStatefulWatermarkEstimating) GetWatermarkEstimatorState(estimator WatermarkEstimatorT) int {
+	return 0
+}
+
+type GoodStatefulWatermarkEstimatingKv struct {
+	*GoodSdfKv
+}
+
+func (fn *GoodStatefulWatermarkEstimatingKv) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, k int, v int) int {
+	return 0
+}
+
+func (fn *GoodStatefulWatermarkEstimatingKv) CreateWatermarkEstimator(state int) WatermarkEstimatorT {
+	return WatermarkEstimatorT{}
+}
+
+func (fn *GoodStatefulWatermarkEstimatingKv) GetWatermarkEstimatorState(estimator WatermarkEstimatorT) int {
+	return 0
 }
 
 // Examples of incorrect SDF signatures.
@@ -970,6 +1035,93 @@ type BadWatermarkEstimatingCreateWatermarkEstimatorReturnType struct {
 
 func (fn *BadWatermarkEstimatingCreateWatermarkEstimatorReturnType) CreateWatermarkEstimator() int {
 	return 5
+}
+
+type BadStatefulWatermarkEstimatingInconsistentState struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingInconsistentState) GetWatermarkEstimatorState(estimator WatermarkEstimatorT) string {
+	return ""
+}
+
+type BadStatefulWatermarkEstimatingInconsistentEstimator struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingInconsistentEstimator) GetWatermarkEstimatorState(estimator WatermarkEstimator2T) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateParams struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateParams) GetWatermarkEstimatorState(estimator WatermarkEstimatorT, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateNoParams struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateNoParams) GetWatermarkEstimatorState() int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateReturns struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateReturns) GetWatermarkEstimatorState(estimator WatermarkEstimatorT) (int, error) {
+	return 0, nil
+}
+
+type BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateNoReturns struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingExtraGetWatermarkEstimatorStateNoReturns) GetWatermarkEstimatorState(estimator WatermarkEstimatorT) {
+}
+
+type BadStatefulWatermarkEstimatingWrongPositionalParameter0 struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter0) GetInitialWatermarkEstimatorState(a int, rt *RTrackerT, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingWrongPositionalParameter1 struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter1) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTracker2T, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingWrongPositionalParameter2 struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter2) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element string) int {
+	return 0
+}
+
+type BadStatefulKvWatermarkEstimatingWrongPositionalParameter2 struct {
+	*GoodStatefulWatermarkEstimatingKv
+}
+
+func (fn *BadStatefulKvWatermarkEstimatingWrongPositionalParameter2) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) int {
+	return 0
+}
+
+type BadStatefulWatermarkEstimatingWrongReturn struct {
+	*GoodStatefulWatermarkEstimating
+}
+
+func (fn *BadStatefulWatermarkEstimatingWrongReturn) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) string {
+	return ""
 }
 
 // Examples of correct CombineFn signatures

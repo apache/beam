@@ -117,6 +117,12 @@ func handleDoFn(fn *graph.DoFn, c cache) {
 	}
 	c.pullMethod(sdf.CreateWatermarkEstimatorFn())
 	c.regType(sdf.WatermarkEstimatorT())
+	if !sdf.IsStatefulWatermarkEstimating() {
+		return
+	}
+	c.pullMethod(sdf.GetInitialWatermarkEstimatorStateFn())
+	c.pullMethod(sdf.GetWatermarkEstimatorStateFn())
+	c.regType(sdf.WatermarkEstimatorStateT())
 }
 
 func handleCombineFn(fn *graph.CombineFn, c cache) {
