@@ -17,18 +17,6 @@ function calcBodyWidth() {
     document.documentElement.clientWidth ||
     document.getElementsByTagName('body')[0].clientWidth;
 }
-function alignSliderWithEmptySlides({CountOfSlidesOnDesktop, currentSliderDOM, actualCountOfSlides, Classes}) {
-  var countOfEmptySlides = CountOfSlidesOnDesktop - (actualCountOfSlides % CountOfSlidesOnDesktop);
-
-  for (let i = 0; i < countOfEmptySlides; i += 1) {
-    var emptySlideDOM = document.createElement('div');
-    emptySlideDOM.classList.add(Classes.oneSlide, Classes.emptySlide);
-    currentSliderDOM.append(emptySlideDOM);
-  }
-  actualCountOfSlides = actualCountOfSlides + countOfEmptySlides;
-
-  return actualCountOfSlides;
-}
 
 (function () {
 
@@ -43,12 +31,9 @@ function alignSliderWithEmptySlides({CountOfSlidesOnDesktop, currentSliderDOM, a
     oneSlide: '.keen-slider__slide',
   }
 
-  var Classes = {
-    visible: 'visible',
-    emptySlide: 'keen-slider__slide--empty',
-    oneSlide: 'keen-slider__slide',
-  }
-
+  var classOneSlideExtra = 'wrap-slide';
+  var classOneSlide = 'keen-slider__slide';
+  var classVisible = 'visible';
 
   var tabletWidth = 1024;
   var bodyWidth = calcBodyWidth();
@@ -56,62 +41,57 @@ function alignSliderWithEmptySlides({CountOfSlidesOnDesktop, currentSliderDOM, a
 
   var currentSliderSelector = isDesktopWidth ? Selectors.desktopSlider : Selectors.mobileSlider;
   var currentSliderDOM = document.querySelector(currentSliderSelector);
-  currentSliderDOM.classList.add(Classes.visible);
+  currentSliderDOM.classList.add(classVisible);
 
-  var renderedCountOfSlides = isDesktopWidth ? CountOfSlides.renderedOnDesktop : CountOfSlides.min;
+  var slidesDOM = currentSliderDOM.querySelectorAll(".keen-slider__slide");
   var actualCountOfSlides = currentSliderDOM.querySelectorAll(Selectors.oneSlide).length;
 
   if (isDesktopWidth) {
-    actualCountOfSlides = alignSliderWithEmptySlides({
-      CountOfSlidesOnDesktop: CountOfSlides.renderedOnDesktop,
-      currentSliderDOM: currentSliderDOM,
-      actualCountOfSlides: actualCountOfSlides,
-      Classes: Classes,
+    var numOfExtraGroupWrappers = Math.ceil(actualCountOfSlides / CountOfSlides.renderedOnDesktop);
+    var extraGroupWrappers = new Array(numOfExtraGroupWrappers).fill(null).map(() => {
+      var extraGroupWrapperDOM = document.createElement('div');
+      extraGroupWrapperDOM.classList.add(classOneSlide, classOneSlideExtra);
+      return extraGroupWrapperDOM;
+    });
+    slidesDOM.forEach((oneSlideDOM, idx) => {
+      oneSlideDOM.classList.remove(classOneSlide);
+      extraGroupWrappers[Math.floor(idx / CountOfSlides.renderedOnDesktop)].append(oneSlideDOM);
+    });
+    extraGroupWrappers.forEach((oneExtraGroupWrapper) => {
+      currentSliderDOM.append(oneExtraGroupWrapper);
     });
   }
 
   var isNeedLoop = true;
-  if (isDesktopWidth) {
+  if (isDesktopWidth && actualCountOfSlides <= CountOfSlides.renderedOnDesktop) {
     isNeedLoop = false;
   }
   if (!isDesktopWidth && actualCountOfSlides === CountOfSlides.min) {
     isNeedLoop = false;
   }
 
-  var numOfSlidesToScroll = isDesktopWidth ? CountOfSlides.renderedOnDesktop : CountOfSlides.min;
-
   var slider = new KeenSlider(currentSliderSelector, {
-    slidesPerView: renderedCountOfSlides,
+    slidesPerView: CountOfSlides.min,
     loop: isNeedLoop,
     created: function (instance) {
-      // if (!isNeedLoop) {
-      //   return;
-      // }
+      if (!isNeedLoop) {
+        return;
+      }
       var dots_wrapper = document.getElementById("dots");
       var slides = currentSliderDOM.querySelectorAll(".keen-slider__slide");
-
-
-      var slidesFiltered =
-        [...slides].filter((slide, index) => {
-          slide.index = index;
-          return index % numOfSlidesToScroll === 0
-        });
-
-
-      slidesFiltered.forEach(function (filteredSlide, idx) {
+      slides.forEach(function (t, idx) {
         var dot = document.createElement("button");
         dot.classList.add("dot");
         dots_wrapper.appendChild(dot);
         dot.addEventListener("click", function () {
-          instance.moveToSlide(filteredSlide.index);
+          instance.moveToSlide(idx);
         });
       });
       updateClasses(instance);
     },
     slideChanged(instance) {
-
       updateClasses(instance);
-    },
+    }
   });
 
   function updateClasses(instance) {
@@ -119,7 +99,7 @@ function alignSliderWithEmptySlides({CountOfSlidesOnDesktop, currentSliderDOM, a
 
     var dots = document.querySelectorAll(".dot");
     dots.forEach(function (dot, idx) {
-      idx * numOfSlidesToScroll === slide
+      idx === slide
         ? dot.classList.add("dot--active")
         : dot.classList.remove("dot--active");
     });
