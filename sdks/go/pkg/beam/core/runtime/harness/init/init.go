@@ -107,7 +107,7 @@ func hook() {
 	// does, and establish the background context here.
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
-	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
+	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint, harness.StatusAddress(*statusEndpoint)); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)
 		switch ShutdownMode {
 		case Terminate:
