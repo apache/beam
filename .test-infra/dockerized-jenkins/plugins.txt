@@ -22,7 +22,6 @@ throttle-concurrents
 JiraTestResultReporter
 
 active-directory
-analysis-core
 apache-httpcomponents-client-4-api
 aws-java-sdk
 blueocean
@@ -116,7 +115,6 @@ timestamper
 token-macro
 translation
 urltrigger
-warnings
 workflow-api
 workflow-basic-steps
 workflow-cps
