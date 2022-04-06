@@ -439,7 +439,7 @@ def create_var_in_main(name: str,
   return name, value
 
 
-def assert_bucket_exists(bucket_name, pipeline_options = None):
+def assert_bucket_exists(bucket_name, pipeline_options=None):
   # type: (str) -> None
 
   """Asserts whether the specified GCS bucket with the name
