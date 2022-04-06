@@ -88,7 +88,7 @@ type PaneInfo struct {
 	Index, NonSpeculativeIndex int64
 }
 
-// KV, CoGBK, WindowedValue represent composite generic types. They are not used
+// KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used
 // directly in user code signatures, but only in FullTypes.
 
 type KV struct{}
