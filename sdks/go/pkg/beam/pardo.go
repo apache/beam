@@ -17,6 +17,7 @@ package beam
 
 import (
 	"fmt"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -66,9 +67,18 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	var rc *coder.Coder
 	if fn.IsSplittable() {
 		sdf := (*graph.SplittableDoFn)(fn)
-		rc, err = inferCoder(typex.New(sdf.RestrictionT()))
-		if err != nil {
-			return nil, addParDoCtx(err, s)
+		restT := typex.New(sdf.RestrictionT())
+		if sdf.IsStatefulWatermarkEstimating() {
+			weT := typex.New(sdf.WatermarkEstimatorStateT())
+			rc, err = inferCoder(typex.New(typex.KVType, restT, weT))
+			if err != nil {
+				return nil, addParDoCtx(err, s)
+			}
+		} else {
+			rc, err = inferCoder(typex.New(sdf.RestrictionT()))
+			if err != nil {
+				return nil, addParDoCtx(err, s)
+			}
 		}
 	}
 
