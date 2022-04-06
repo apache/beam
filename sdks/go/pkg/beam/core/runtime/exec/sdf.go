@@ -90,8 +90,11 @@ func (n *PairWithRestriction) StartBundle(ctx context.Context, id string, data D
 func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	rest := n.inv.Invoke(elm)
 	var wes interface{}
+	// If no watermark estimator state, use boolean as a placeholder
 	if n.giwesInv != nil {
 		wes = n.giwesInv.Invoke(rest, elm)
+	} else {
+		wes = false
 	}
 	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: wes}, Timestamp: elm.Timestamp, Windows: elm.Windows}
 
@@ -490,6 +493,9 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 	var weState interface{}
 	if n.gwesInv != nil {
 		weState = n.gwesInv.Invoke(n.PDo.we)
+	} else {
+		// If no watermark estimator state, use boolean as a placeholder
+		weState = false
 	}
 	addContext := func(err error) error {
 		return errors.WithContext(err, "Attempting split in ProcessSizedElementsAndRestrictions")

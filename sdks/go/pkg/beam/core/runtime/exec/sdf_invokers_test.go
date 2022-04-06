@@ -237,7 +237,7 @@ func TestInvokes(t *testing.T) {
 			t.Fatalf("newCreateWatermarkEstimatorInvoker failed: %v", err)
 		}
 		got := invoker.Invoke(nil)
-		want := VetWatermarkEstimator{}
+		want := VetWatermarkEstimator{State: -1}
 		if !cmp.Equal(got, want) {
 			t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
 		}
@@ -288,7 +288,9 @@ func (rt *VetRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
 	return nil, nil, nil
 }
 
-type VetWatermarkEstimator struct{}
+type VetWatermarkEstimator struct {
+	State int
+}
 
 func (e VetWatermarkEstimator) CurrentWatermark() time.Time {
 	return time.Date(2022, time.January, 1, 1, 0, 0, 0, time.UTC)
@@ -340,7 +342,7 @@ func (fn *VetSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
 
 // CreateWatermarkEstimator creates a watermark estimator to be used by the Sdf
 func (fn *VetSdf) CreateWatermarkEstimator() VetWatermarkEstimator {
-	return VetWatermarkEstimator{}
+	return VetWatermarkEstimator{State: -1}
 }
 
 // ProcessElement emits the restriction from the restriction tracker it
