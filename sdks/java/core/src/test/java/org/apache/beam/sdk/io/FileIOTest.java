@@ -216,7 +216,8 @@ public class FileIOTest implements Serializable {
     final Path watchPath = tmpFolder.getRoot().toPath().resolve("watch");
     watchPath.toFile().mkdir();
     PCollection<MatchResult.Metadata> matchMetadata =
-        p.apply("match filename through match",
+        p.apply(
+            "match filename through match",
             FileIO.match()
                 .filepattern(watchPath.resolve("*").toString())
                 .continuously(
@@ -224,13 +225,15 @@ public class FileIOTest implements Serializable {
                     Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply("create for matchAll new files", Create.of(watchPath.resolve("*").toString()))
-            .apply("match filename through matchAll",
+            .apply(
+                "match filename through matchAll",
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchUpdatedMetadata =
-        p.apply("match updated",
+        p.apply(
+            "match updated",
             FileIO.match()
                 .filepattern(watchPath.resolve("first").toString())
                 .continuously(
@@ -239,7 +242,8 @@ public class FileIOTest implements Serializable {
                     true));
     PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
         p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
-            .apply("matchAll updated",
+            .apply(
+                "matchAll updated",
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
@@ -265,7 +269,8 @@ public class FileIOTest implements Serializable {
                 Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), copyOptions);
                 Thread.sleep(300);
                 Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updateOptions);
-                Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), updateOptions);
+                Files.copy(
+                    sourcePath.resolve("second"), watchPath.resolve("second"), updateOptions);
                 Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), copyOptions);
               } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
@@ -287,16 +292,20 @@ public class FileIOTest implements Serializable {
     PAssert.that(matchAllMetadata).containsInAnyOrder(expectedMatchNew);
 
     List<String> expectedMatchUpdated = Arrays.asList("first", "first", "first");
-    PCollection<String> matchUpdatedCount = matchUpdatedMetadata
-        .apply("pick up match file name", MapElements.into(TypeDescriptors.strings())
-            .via((metadata) -> metadata.resourceId().getFilename()));
+    PCollection<String> matchUpdatedCount =
+        matchUpdatedMetadata.apply(
+            "pick up match file name",
+            MapElements.into(TypeDescriptors.strings())
+                .via((metadata) -> metadata.resourceId().getFilename()));
     PAssert.that(matchUpdatedCount).containsInAnyOrder(expectedMatchUpdated);
 
-    List<String> expectedMatchAllUpdated = Arrays.asList(
-        "first", "first", "first", "second", "second", "third");
-    PCollection<String> matchAllUpdatedCount = matchAllUpdatedMetadata
-        .apply("pick up matchAll file names", MapElements.into(TypeDescriptors.strings())
-            .via((metadata) -> metadata.resourceId().getFilename()));
+    List<String> expectedMatchAllUpdated =
+        Arrays.asList("first", "first", "first", "second", "second", "third");
+    PCollection<String> matchAllUpdatedCount =
+        matchAllUpdatedMetadata.apply(
+            "pick up matchAll file names",
+            MapElements.into(TypeDescriptors.strings())
+                .via((metadata) -> metadata.resourceId().getFilename()));
     PAssert.that(matchAllUpdatedCount).containsInAnyOrder(expectedMatchAllUpdated);
 
     p.run();

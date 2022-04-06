@@ -358,13 +358,14 @@ public class TextIO {
         Duration pollInterval,
         TerminationCondition<String, ?> terminationCondition,
         boolean matchUpdatedFiles) {
-      return withMatchConfiguration(getMatchConfiguration()
-          .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
     }
 
     /**
-     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}
-     * with {@code matchUpdatedFiles=false}.
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
      */
     public Read watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {

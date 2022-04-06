@@ -508,8 +508,8 @@ public class FileIO {
 
     /**
      * Continuously watches for new files at the given interval until the given termination
-     * condition is reached, where the input to the condition is the filepattern.
-     * If {@code matchUpdatedFiles} is set, also watches for files with timestamp change.
+     * condition is reached, where the input to the condition is the filepattern. If {@code
+     * matchUpdatedFiles} is set, also watches for files with timestamp change.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
@@ -522,8 +522,8 @@ public class FileIO {
 
     /**
      * Continuously watches for new files at the given interval until the given termination
-     * condition is reached, where the input to the condition is the filepattern.
-     * To watch also for updated files, please set {@code matchUpdatedFiles} as {@code true}.
+     * condition is reached, where the input to the condition is the filepattern. To watch also for
+     * updated files, please set {@code matchUpdatedFiles} as {@code true}.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition) {
@@ -685,8 +685,7 @@ public class FileIO {
                               getConfiguration().getWatchTerminationCondition()))
                   .apply(Values.create())
                   .setCoder(MetadataCoderV2.of());
-        }
-        else {
+        } else {
           res =
               input
                   .apply(

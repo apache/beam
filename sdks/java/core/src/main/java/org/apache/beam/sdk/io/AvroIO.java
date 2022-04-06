@@ -649,8 +649,8 @@ public class AvroIO {
     /**
      * Continuously watches for new files matching the filepattern, polling it at the given
      * interval, until the given termination condition is reached. The returned {@link PCollection}
-     * is unbounded.
-     * If {@code matchUpdatedFiles} is set, also watches for files with timestamp change.
+     * is unbounded. If {@code matchUpdatedFiles} is set, also watches for files with timestamp
+     * change.
      *
      * <p>This works only in runners supporting splittable {@link
      * org.apache.beam.sdk.transforms.DoFn}.
@@ -665,8 +665,8 @@ public class AvroIO {
     }
 
     /**
-     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}
-     * with {@code matchUpdatedFiles=false}.
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
      */
     public Read<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
