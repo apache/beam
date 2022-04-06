@@ -20,8 +20,20 @@ package org.apache.beam.sdk.io.snowflake.services;
 import java.io.Serializable;
 
 /** Interface which defines common methods for interacting with Snowflake. */
-public interface SnowflakeService<T extends ServiceConfig> extends Serializable {
-  String read(T config) throws Exception;
+public interface SnowflakeServices extends Serializable {
+  BatchService getBatchService();
 
-  void write(T config) throws Exception;
+  StreamingService getStreamingService();
+
+  interface BatchService {
+    String read(SnowflakeBatchServiceConfig config) throws Exception;
+
+    void write(SnowflakeBatchServiceConfig config) throws Exception;
+  }
+
+  interface StreamingService {
+    String read(SnowflakeStreamingServiceConfig config) throws Exception;
+
+    void write(SnowflakeStreamingServiceConfig config) throws Exception;
+  }
 }
