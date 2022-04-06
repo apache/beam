@@ -225,6 +225,8 @@ async function processPull(
         return;
       }
     }
+    // If none of the approvers were assigned to the pr, no-op.
+    return;
   }
 
   let checkState = await getChecksStatus(REPO_OWNER, REPO, pull.head.sha);
