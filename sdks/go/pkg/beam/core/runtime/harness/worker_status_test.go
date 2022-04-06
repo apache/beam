@@ -23,6 +23,7 @@ import (
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -69,7 +70,7 @@ func TestSendStatusResponse(t *testing.T) {
 	srv := &BeamFnWorkerStatusServicer{response: make(chan string)}
 	setup(t, srv)
 
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithInsecure(), grpc.WithContextDialer(dialer))
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialer))
 	if err != nil {
 		t.Fatalf("unable to start test server: %v", err)
 	}
