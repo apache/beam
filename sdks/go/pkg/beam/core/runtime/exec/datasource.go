@@ -62,7 +62,7 @@ func (n *DataSource) InitSplittable() {
 	if n.Out == nil {
 		return
 	}
-	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok == true {
+	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok {
 		n.su = u.SU
 	}
 }
