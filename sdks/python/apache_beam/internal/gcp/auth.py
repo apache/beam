@@ -172,7 +172,7 @@ class _Credentials(object):
   @classmethod
   def set_impersonation_accounts(cls, target_principal, delegate_to):
     cls._target_principal = target_principal
-    cls._delegate_accounts = delegate_to
+    cls._delegate_to = delegate_to
     cls._impersonation_parameters_set = True
 
   @classmethod
@@ -187,7 +187,7 @@ class _Credentials(object):
       credentials = google.auth.impersonated_credentials.Credentials(
           source_credentials=credentials,
           target_principal=cls._target_principal,
-          delegates=cls._delegate_accounts,
+          delegates=cls._delegate_to,
           target_scopes=CLIENT_SCOPES,
       )
     return credentials
