@@ -1,0 +1,115 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""Tools used tool work with Schema types in the context of BigQuery.
+Classes, constants and functions in this file are experimental and have no
+backwards compatibility guarantees.
+NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
+"""
+import apache_beam as beam
+import numpy as np
+from typing import Optional
+from typing import Sequence
+
+# BigQuery types as listed in
+# https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
+# with aliases (RECORD, BOOLEAN, FLOAT, INTEGER) as defined in
+# https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#setType-java.lang.String-
+BIG_QUERY_TO_PYTHON_TYPES = {
+    "STRING": "str",
+    "INTEGER": "np.int64",
+    "FLOAT64": "np.float64",
+    "BOOLEAN": "bool",
+    "BYTES": "bytes",
+    "TIMESTAMP": "apache_beam.utils.timestamp.Timestamp",
+    #TODO svetaksundhar@: Finish mappings for all BQ types
+}
+
+
+def produce_pcoll_with_schema(self, the_table_schema):
+  #type: [TableSchema] -> [UserType]
+
+  """Convert a schema of type TableSchema into a pcollection element.
+      Args:
+        the_table_schema: A BQ schema of type TableSchema
+      Returns:
+        usertype: type that can be used to work with pCollections.
+      """
+
+  the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
+      the_table_schema)
+  if the_schema == {}:
+    raise ValueError("The schema is empty")
+  i = 0
+  dict_of_tuples = []
+  for x in the_schema['fields']:
+    if the_schema['fields'][i]['type'] == 'STRING':
+      if the_schema['fields'][i]['mode'] == 'NULLABLE':
+          typ = Optional[str]
+      elif the_schema['fields'][i]['mode'] == 'REPEATED':
+          typ = Sequence[str]
+      else:
+          typ = str
+    elif the_schema['fields'][i]['type'] == 'INTEGER':
+      if the_schema['fields'][i]['mode'] == 'NULLABLE':
+          typ = Optional[np.int64]
+      elif the_schema['fields'][i]['mode'] == 'REPEATED':
+          typ = Sequence[np.int64]
+      else:
+          typ = np.int64
+    elif the_schema['fields'][i]['type'] == 'FLOAT':
+      if the_schema['fields'][i]['mode'] == 'NULLABLE':
+          typ = Optional[np.float64]
+      elif the_schema['fields'][i]['mode'] == 'REPEATED':
+          typ = Sequence[np.float64]
+      else:
+          typ = np.float64
+    elif the_schema['fields'][i]['type'] == 'BOOL':
+      if the_schema['fields'][i]['mode'] == 'NULLABLE':
+          typ = Optional[bool]
+      elif the_schema['fields'][i]['mode'] == 'REPEATED':
+          typ = Sequence[bool]
+      else:
+          typ = bool
+    elif the_schema['fields'][i]['type'] == 'BYTES':
+      if the_schema['fields'][i]['mode'] == 'NULLABLE':
+          typ = Optional[bytes]
+      elif the_schema['fields'][i]['mode'] == 'REPEATED':
+          typ = Sequence[bytes]
+      else:
+          typ = bytes
+    elif the_schema['fields'][i]['type'] == 'TIMESTAMP':
+      if the_schema['fields'][i]['mode'] == 'NULLABLE':
+          typ = Optional[beam.utils.timestamp.Timestamp]
+      elif the_schema['fields'][i]['mode'] == 'REPEATED':
+          typ = Sequence[beam.utils.timestamp.Timestamp]
+      else:
+          typ = beam.utils.timestamp.Timestamp
+    else:
+      raise ValueError(the_schema['fields'][i]['type'])
+    # TODO svetaksundhar@: Map remaining BQ types
+    dict_of_tuples.append((the_schema['fields'][i]['name'], typ))
+    i += 1
+  sample_schema = beam.typehints.schemas.named_fields_to_schema(dict_of_tuples)
+  usertype = beam.typehints.schemas.named_tuple_from_schema(sample_schema)
+  return usertype
+
+
+def produce_pcoll_using_bqio(self, project_id, dataset_id, table_id):
+  the_table_schema = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
+  ).get_table(project_id, dataset_id, table_id)
+  beam.io.gcp.bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema)
