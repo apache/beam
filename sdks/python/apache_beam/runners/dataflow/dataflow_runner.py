@@ -544,12 +544,9 @@ class DataflowRunner(PipelineRunner):
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
 
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    beam.internal.gcp.auth.set_impersonation_accounts(
-        google_cloud_options.target_principal,
-        google_cloud_options.delegate_accounts)
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.
+    google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.enable_streaming_engine:
       debug_options.add_experiment("enable_windmill_service")
       debug_options.add_experiment("enable_streaming_engine")
