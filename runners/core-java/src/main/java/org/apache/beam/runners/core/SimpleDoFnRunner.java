@@ -58,6 +58,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -197,33 +198,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-
-    // The effective timestamp is when derived elements will have their timestamp set, if not
-    // otherwise specified. If this is an event time timer, then they have the timer's output
-    // timestamp. Otherwise, they are set to the input timestamp, which is by definition
-    // non-late.
-    Instant effectiveTimestamp;
-    switch (timeDomain) {
-      case EVENT_TIME:
-        effectiveTimestamp = outputTimestamp;
-        break;
-      case PROCESSING_TIME:
-      case SYNCHRONIZED_PROCESSING_TIME:
-        Instant outputWatermark = stepContext.timerInternals().currentOutputWatermarkTime();
-        Instant inputWatermark = stepContext.timerInternals().currentInputWatermarkTime();
-        effectiveTimestamp =
-            outputTimestamp != null
-                ? outputTimestamp
-                : outputWatermark != null ? outputWatermark : inputWatermark;
-        break;
-
-      default:
-        throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
-    }
+    Preconditions.checkNotNull(outputTimestamp, "outputTimestamp");
 
     OnTimerArgumentProvider<KeyT> argumentProvider =
-        new OnTimerArgumentProvider<>(
-            timerId, key, window, timestamp, effectiveTimestamp, timeDomain);
+        new OnTimerArgumentProvider<>(timerId, key, window, timestamp, outputTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
