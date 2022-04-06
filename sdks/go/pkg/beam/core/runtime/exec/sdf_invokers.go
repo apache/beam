@@ -305,7 +305,7 @@ func (n *ctInvoker) Reset() {
 type cweInvoker struct {
 	fn   *funcx.Fn
 	args []interface{} // Cache to avoid allocating new slices per-element.
-	call func() sdf.WatermarkEstimator
+	call func(rest interface{}) sdf.WatermarkEstimator
 }
 
 func newCreateWatermarkEstimatorInvoker(fn *funcx.Fn) (*cweInvoker, error) {
@@ -321,32 +321,165 @@ func newCreateWatermarkEstimatorInvoker(fn *funcx.Fn) (*cweInvoker, error) {
 
 func (n *cweInvoker) initCallFn() error {
 	// Expects a signature of the form:
-	// () sdf.WatermarkEstimator
+	// (watermarkState?) sdf.WatermarkEstimator
 	switch fnT := n.fn.Fn.(type) {
 	case reflectx.Func0x1:
-		n.call = func() sdf.WatermarkEstimator {
+		n.call = func(rest interface{}) sdf.WatermarkEstimator {
 			return fnT.Call0x1().(sdf.WatermarkEstimator)
 		}
+	case reflectx.Func1x1:
+		n.call = func(rest interface{}) sdf.WatermarkEstimator {
+			return fnT.Call1x1(rest).(sdf.WatermarkEstimator)
+		}
 	default:
-		if len(n.fn.Param) != 0 {
+		switch len(n.fn.Param) {
+		case 0:
+			n.call = func(rest interface{}) sdf.WatermarkEstimator {
+				return n.fn.Fn.Call(n.args)[0].(sdf.WatermarkEstimator)
+			}
+		case 1:
+			n.call = func(rest interface{}) sdf.WatermarkEstimator {
+				n.args[0] = rest
+				return n.fn.Fn.Call(n.args)[0].(sdf.WatermarkEstimator)
+			}
+		default:
 			return errors.Errorf("CreateWatermarkEstimator fn %v has unexpected number of parameters: %v",
 				n.fn.Fn.Name(), len(n.fn.Param))
-		}
-		n.call = func() sdf.WatermarkEstimator {
-			return n.fn.Fn.Call(n.args)[0].(sdf.WatermarkEstimator)
 		}
 	}
 	return nil
 }
 
-// Invoke calls CreateTracker given a restriction and returns an sdf.RTracker.
-func (n *cweInvoker) Invoke() sdf.WatermarkEstimator {
-	return n.call()
+// Invoke calls CreateWatermarkEstimator given a restriction and returns an sdf.RTracker.
+func (n *cweInvoker) Invoke(rest interface{}) sdf.WatermarkEstimator {
+	return n.call(rest)
 }
 
 // Reset zeroes argument entries in the cached slice to allow values to be
 // garbage collected after the bundle ends.
 func (n *cweInvoker) Reset() {
+	for i := range n.args {
+		n.args[i] = nil
+	}
+}
+
+// giweInvoker is an invoker for GetInitialWatermarkEstimatorState.
+type giweInvoker struct {
+	fn   *funcx.Fn
+	args []interface{} // Cache to avoid allocating new slices per-element.
+	call func(rest interface{}, elms *FullValue) interface{}
+}
+
+func newGetInitialWatermarkEstimatorStateInvoker(fn *funcx.Fn) (*giweInvoker, error) {
+	n := &giweInvoker{
+		fn:   fn,
+		args: make([]interface{}, len(fn.Param)),
+	}
+	if err := n.initCallFn(); err != nil {
+		return nil, errors.WithContext(err, "sdf GetInitialWatermarkEstimatorState invoker")
+	}
+	return n, nil
+}
+
+func (n *giweInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (typex.EventTime, restrictionTracker, key?, value) interface{}
+	switch fnT := n.fn.Fn.(type) {
+	case reflectx.Func3x1:
+		n.call = func(rest interface{}, elms *FullValue) interface{} {
+			return fnT.Call3x1(elms.Timestamp, rest, elms.Elm)
+		}
+	case reflectx.Func4x1:
+		n.call = func(rest interface{}, elms *FullValue) interface{} {
+			return fnT.Call4x1(elms.Timestamp, rest, elms.Elm, elms.Elm2)
+		}
+	default:
+		switch len(n.fn.Param) {
+		case 3:
+			n.call = func(rest interface{}, elms *FullValue) interface{} {
+				n.args[0] = elms.Timestamp
+				n.args[1] = rest
+				n.args[2] = elms.Elm
+				return n.fn.Fn.Call(n.args)[0]
+			}
+		case 4:
+			n.call = func(rest interface{}, elms *FullValue) interface{} {
+				n.args[0] = elms.Timestamp
+				n.args[1] = rest
+				n.args[2] = elms.Elm
+				n.args[3] = elms.Elm2
+				return n.fn.Fn.Call(n.args)[0]
+			}
+		default:
+			return errors.Errorf("GetInitialWatermarkEstimatorState fn %v has unexpected number of parameters: %v",
+				n.fn.Fn.Name(), len(n.fn.Param))
+		}
+	}
+	return nil
+}
+
+// Invoke calls GetInitialWatermarkEstimatorState given a restriction and returns an sdf.RTracker.
+func (n *giweInvoker) Invoke(rest interface{}, elms *FullValue) interface{} {
+	return n.call(rest, elms)
+}
+
+// Reset zeroes argument entries in the cached slice to allow values to be
+// garbage collected after the bundle ends.
+func (n *giweInvoker) Reset() {
+	for i := range n.args {
+		n.args[i] = nil
+	}
+}
+
+// gweInvoker is an invoker for GetWatermarkEstimatorState.
+type gweInvoker struct {
+	fn   *funcx.Fn
+	args []interface{} // Cache to avoid allocating new slices per-element.
+	call func(state interface{}) sdf.WatermarkEstimator
+}
+
+func newGetWatermarkEstimatorStateInvoker(fn *funcx.Fn) (*gweInvoker, error) {
+	n := &gweInvoker{
+		fn:   fn,
+		args: make([]interface{}, len(fn.Param)),
+	}
+	if err := n.initCallFn(); err != nil {
+		return nil, errors.WithContext(err, "sdf GetWatermarkEstimatorState invoker")
+	}
+	return n, nil
+}
+
+func (n *gweInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (state) sdf.WatermarkEstimator
+	switch fnT := n.fn.Fn.(type) {
+	case reflectx.Func1x1:
+		n.call = func(rest interface{}) sdf.WatermarkEstimator {
+			return fnT.Call1x1(rest).(sdf.WatermarkEstimator)
+		}
+	default:
+		switch len(n.fn.Param) {
+		case 1:
+			n.call = func(rest interface{}) sdf.WatermarkEstimator {
+				n.args[0] = rest
+				return n.fn.Fn.Call(n.args)[0].(sdf.WatermarkEstimator)
+			}
+		default:
+			return errors.Errorf("GetWatermarkEstimatorState fn %v has unexpected number of parameters: %v",
+				n.fn.Fn.Name(), len(n.fn.Param))
+		}
+	}
+	return nil
+}
+
+// Invoke calls GetWatermarkEstimatorState given a restriction and returns an sdf.RTracker.
+func (n *gweInvoker) Invoke(state interface{}) sdf.WatermarkEstimator {
+	return n.call(state)
+}
+
+// Reset zeroes argument entries in the cached slice to allow values to be
+// garbage collected after the bundle ends.
+func (n *gweInvoker) Reset() {
 	for i := range n.args {
 		n.args[i] = nil
 	}

@@ -236,7 +236,7 @@ func TestInvokes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newCreateWatermarkEstimatorInvoker failed: %v", err)
 		}
-		got := invoker.Invoke()
+		got := invoker.Invoke(nil)
 		want := VetWatermarkEstimator{}
 		if !cmp.Equal(got, want) {
 			t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)

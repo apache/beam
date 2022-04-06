@@ -90,7 +90,10 @@ func TestSdfNodes(t *testing.T) {
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      &VetRestriction{ID: "Sdf", CreateRest: true, Val: 1},
+					Elm2: &FullValue{
+						Elm:  &VetRestriction{ID: "Sdf", CreateRest: true, Val: 1},
+						Elm2: nil, // TODO - damccorm
+					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -111,7 +114,10 @@ func TestSdfNodes(t *testing.T) {
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      &VetRestriction{ID: "KvSdf", CreateRest: true, Key: 1, Val: 2},
+					Elm2: &FullValue{
+						Elm:  &VetRestriction{ID: "KvSdf", CreateRest: true, Key: 1, Val: 2},
+						Elm2: nil, // TODO - damccorm
+					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -154,7 +160,10 @@ func TestSdfNodes(t *testing.T) {
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      &VetRestriction{ID: "Sdf"},
+					Elm2: &FullValue{
+						Elm:  &VetRestriction{ID: "Sdf"},
+						Elm2: nil, // TODO - damccorm
+					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -167,7 +176,10 @@ func TestSdfNodes(t *testing.T) {
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: &VetRestriction{ID: "Sdf.1", SplitRest: true, RestSize: true, Val: 1},
+							Elm2: &FullValue{
+								Elm:  &VetRestriction{ID: "Sdf.1", SplitRest: true, RestSize: true, Val: 1},
+								Elm2: nil, // TODO - damccorm
+							},
 						},
 						Elm2:      1.0,
 						Timestamp: testTimestamp,
@@ -181,7 +193,10 @@ func TestSdfNodes(t *testing.T) {
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: &VetRestriction{ID: "Sdf.2", SplitRest: true, RestSize: true, Val: 1},
+							Elm2: &FullValue{
+								Elm:  &VetRestriction{ID: "Sdf.2", SplitRest: true, RestSize: true, Val: 1},
+								Elm2: nil, // TODO - damccorm
+							},
 						},
 						Elm2:      1.0,
 						Timestamp: testTimestamp,
@@ -199,7 +214,10 @@ func TestSdfNodes(t *testing.T) {
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      &VetRestriction{ID: "KvSdf"},
+					Elm2: &FullValue{
+						Elm:  &VetRestriction{ID: "KvSdf"},
+						Elm2: nil, // TODO - damccorm
+					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -212,7 +230,10 @@ func TestSdfNodes(t *testing.T) {
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: &VetRestriction{ID: "KvSdf.1", SplitRest: true, RestSize: true, Key: 1, Val: 2},
+							Elm2: &FullValue{
+								Elm:  &VetRestriction{ID: "KvSdf.1", SplitRest: true, RestSize: true, Key: 1, Val: 2},
+								Elm2: nil, // TODO - damccorm
+							},
 						},
 						Elm2:      3.0,
 						Timestamp: testTimestamp,
@@ -226,7 +247,10 @@ func TestSdfNodes(t *testing.T) {
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: &VetRestriction{ID: "KvSdf.2", SplitRest: true, RestSize: true, Key: 1, Val: 2},
+							Elm2: &FullValue{
+								Elm:  &VetRestriction{ID: "KvSdf.2", SplitRest: true, RestSize: true, Key: 1, Val: 2},
+								Elm2: nil, // TODO - damccorm
+							},
 						},
 						Elm2:      3.0,
 						Timestamp: testTimestamp,
@@ -244,7 +268,10 @@ func TestSdfNodes(t *testing.T) {
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      &VetRestriction{ID: "Sdf"},
+					Elm2: &FullValue{
+						Elm:  &VetRestriction{ID: "Sdf"},
+						Elm2: nil, // TODO - damccorm
+					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -296,7 +323,10 @@ func TestSdfNodes(t *testing.T) {
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      offsetrange.Restriction{Start: 0, End: 4},
+					Elm2: &FullValue{
+						Elm:  offsetrange.Restriction{Start: 0, End: 4},
+						Elm2: nil, // TODO - damccorm
+					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -338,8 +368,11 @@ func TestSdfNodes(t *testing.T) {
 				fn:   dfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -363,7 +396,10 @@ func TestSdfNodes(t *testing.T) {
 							Timestamp: testTimestamp,
 							Windows:   testWindows,
 						},
-						Elm2: &VetRestriction{ID: "KvSdf"},
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "KvSdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      3.0,
 					Timestamp: testTimestamp,
@@ -537,8 +573,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				// but the element is still built to be valid.
 				elm := FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -549,7 +588,7 @@ func TestAsSplittableUnit(t *testing.T) {
 				n := &ParDo{UID: 1, Fn: dfn, Out: []Node{}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
 				node.rt = &SplittableUnitRTracker{
-					VetRTracker: VetRTracker{Rest: elm.Elm.(*FullValue).Elm2.(*VetRestriction)},
+					VetRTracker: VetRTracker{Rest: elm.Elm.(*FullValue).Elm2.(*FullValue).Elm.(*VetRestriction)},
 					Done:        test.doneWork,
 					Remaining:   test.remainingWork,
 					ThisIsDone:  false,
@@ -589,8 +628,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				frac: 0.5,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -598,8 +640,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				},
 				wantPrimaries: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -607,8 +652,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				}},
 				wantResiduals: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -625,7 +673,10 @@ func TestAsSplittableUnit(t *testing.T) {
 							Elm:  1,
 							Elm2: 2,
 						},
-						Elm2: &VetRestriction{ID: "KvSdf"},
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "KvSdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      3.0,
 					Timestamp: testTimestamp,
@@ -637,7 +688,10 @@ func TestAsSplittableUnit(t *testing.T) {
 							Elm:  1,
 							Elm2: 2,
 						},
-						Elm2: &VetRestriction{ID: "KvSdf.1", RestSize: true, Key: 1, Val: 2},
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "KvSdf.1", RestSize: true, Key: 1, Val: 2},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      3.0,
 					Timestamp: testTimestamp,
@@ -649,7 +703,10 @@ func TestAsSplittableUnit(t *testing.T) {
 							Elm:  1,
 							Elm2: 2,
 						},
-						Elm2: &VetRestriction{ID: "KvSdf.2", RestSize: true, Key: 1, Val: 2},
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "KvSdf.2", RestSize: true, Key: 1, Val: 2},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      3.0,
 					Timestamp: testTimestamp,
@@ -663,8 +720,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				frac:   0.5,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -681,8 +741,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				frac: 0.125, // Should be in the middle of the first (current) window.
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -690,8 +753,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				},
 				wantPrimaries: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -699,16 +765,22 @@ func TestAsSplittableUnit(t *testing.T) {
 				}},
 				wantResiduals: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
 					Windows:   testMultiWindows[0:1],
 				}, {
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -723,8 +795,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				frac: 0.55,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -732,8 +807,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				},
 				wantPrimaries: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -741,8 +819,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				}},
 				wantResiduals: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -758,8 +839,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				doneRt: true,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -767,8 +851,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				},
 				wantPrimaries: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -776,8 +863,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				}},
 				wantResiduals: []*FullValue{{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -792,8 +882,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				frac: 0.95, // Should round to end of element and cause a no-op.
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -810,7 +903,7 @@ func TestAsSplittableUnit(t *testing.T) {
 				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
 				node.rt = &SplittableUnitRTracker{
-					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*VetRestriction)},
+					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*FullValue).Elm.(*VetRestriction)},
 					Done:        0,
 					Remaining:   1.0,
 					ThisIsDone:  test.doneRt,
@@ -850,8 +943,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				fn:   pdfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &offsetrange.Restriction{Start: 0, End: 4},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &offsetrange.Restriction{Start: 0, End: 4},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -863,8 +959,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				fn:   rdfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &offsetrange.Restriction{Start: 0, End: 4},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &offsetrange.Restriction{Start: 0, End: 4},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -878,7 +977,7 @@ func TestAsSplittableUnit(t *testing.T) {
 				// Setup, create transforms, inputs, and desired outputs.
 				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
-				node.rt = sdf.RTracker(offsetrange.NewTracker(*test.in.Elm.(*FullValue).Elm2.(*offsetrange.Restriction)))
+				node.rt = sdf.RTracker(offsetrange.NewTracker(*test.in.Elm.(*FullValue).Elm2.(*FullValue).Elm.(*offsetrange.Restriction)))
 				node.elm = &test.in
 				node.numW = len(test.in.Windows)
 				node.currW = 0
@@ -911,8 +1010,11 @@ func TestAsSplittableUnit(t *testing.T) {
 				fn:   dfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  1,
-						Elm2: &VetRestriction{ID: "Sdf"},
+						Elm: 1,
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil, // TODO - damccorm
+						},
 					},
 					Elm2:      1.0,
 					Timestamp: testTimestamp,
@@ -981,8 +1083,11 @@ func TestMultiWindowProcessing(t *testing.T) {
 	// Create a plan with a single valid element as input to ProcessElement.
 	in := FullValue{
 		Elm: &FullValue{
-			Elm:  1,
-			Elm2: offsetrange.Restriction{Start: 0, End: 4},
+			Elm: 1,
+			Elm2: &FullValue{
+				Elm:  offsetrange.Restriction{Start: 0, End: 4},
+				Elm2: nil, // TODO - damccorm
+			},
 		},
 		Elm2:      4.0,
 		Timestamp: testTimestamp,

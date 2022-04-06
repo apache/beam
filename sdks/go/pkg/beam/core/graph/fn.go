@@ -1053,7 +1053,7 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 		return err
 	}
 
-	rTrackerT := fn.methods[createTrackerName].Ret[0].T
+	restT := fn.methods[createInitialRestrictionName].Ret[0].T
 	watermarkStateT := fn.methods[createWatermarkEstimatorName].Param[0].T
 	watermarkEstimatorT := fn.methods[createWatermarkEstimatorName].Ret[0].T
 
@@ -1087,13 +1087,13 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 					"parameter at index %v. Got: %v, Want: %v.",
 					getInitialWatermarkEstimatorStateName, 0, method.Param[0].T, typex.EventTimeType)
 			}
-			if method.Param[1].T != rTrackerT {
-				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
-					getInitialWatermarkEstimatorStateName, 1, method.Param[0].T, rTrackerT)
+			if method.Param[1].T != restT {
+				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
+					getInitialWatermarkEstimatorStateName, 1, method.Param[1].T, restT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					getInitialWatermarkEstimatorStateName, 1, method.Param[0].T, rTrackerT, createTrackerName)
+					getInitialWatermarkEstimatorStateName, 1, method.Param[1].T, restT, createTrackerName)
 			}
 			if err := validateSdfElementT(fn, restrictionSizeName, method, numMainIn, 2); err != nil {
 				return err
