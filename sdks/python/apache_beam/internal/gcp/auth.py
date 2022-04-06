@@ -22,8 +22,7 @@
 import logging
 import socket
 import threading
-
-import traceback # DO_NOT_SUBMIT
+import traceback
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
@@ -43,13 +42,13 @@ executing_project = None
 _LOGGER = logging.getLogger(__name__)
 
 CLIENT_SCOPES = [
-  'https://www.googleapis.com/auth/bigquery',
-  'https://www.googleapis.com/auth/cloud-platform',
-  'https://www.googleapis.com/auth/devstorage.full_control',
-  'https://www.googleapis.com/auth/userinfo.email',
-  'https://www.googleapis.com/auth/datastore',
-  'https://www.googleapis.com/auth/spanner.admin',
-  'https://www.googleapis.com/auth/spanner.data'
+    'https://www.googleapis.com/auth/bigquery',
+    'https://www.googleapis.com/auth/cloud-platform',
+    'https://www.googleapis.com/auth/devstorage.full_control',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/datastore',
+    'https://www.googleapis.com/auth/spanner.admin',
+    'https://www.googleapis.com/auth/spanner.data'
 ]
 
 
@@ -70,7 +69,8 @@ def set_running_in_gce(worker_executing_project):
   is_running_in_gce = True
   executing_project = worker_executing_project
 
-def set_impersonation_accounts(target_principal = None, delegate_to = None):
+
+def set_impersonation_accounts(target_principal=None, delegate_to=None):
   _Credentials.set_impersonation_accounts(target_principal, delegate_to)
 
 
@@ -179,14 +179,15 @@ class _Credentials(object):
   def _add_impersonation_credentials(cls):
     if not cls._impersonation_parameters_set:
       traceback_str = traceback.format_stack()
-      raise Exception('Impersonation credentials not yet set. \n' + str(traceback_str))
+      raise Exception(
+          'Impersonation credentials not yet set. \n' + str(traceback_str))
     """Adds impersonation credentials if the client species them."""
     credentials = cls._credentials
     if cls._target_principal:
       credentials = google.auth.impersonated_credentials.Credentials(
-        source_credentials=credentials,
-        target_principal=cls._target_principal,
-        delegates=cls._delegate_accounts,
-        target_scopes=CLIENT_SCOPES,
+          source_credentials=credentials,
+          target_principal=cls._target_principal,
+          delegates=cls._delegate_accounts,
+          target_scopes=CLIENT_SCOPES,
       )
     return credentials
