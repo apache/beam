@@ -117,7 +117,7 @@ export class PersistentState {
       );
       await exec.exec("git checkout -b pr-bot-state");
       // Ensure that if we've created or just checked out the branch that we can also push to it
-      await exec.exec("git push origin pr-bot-state")
+      await exec.exec("git push origin pr-bot-state");
     }
     this.switchedBranch = true;
   }
