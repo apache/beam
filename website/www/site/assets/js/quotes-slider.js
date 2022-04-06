@@ -46,6 +46,7 @@ function calcBodyWidth() {
   var slidesDOM = currentSliderDOM.querySelectorAll(".keen-slider__slide");
   var actualCountOfSlides = currentSliderDOM.querySelectorAll(Selectors.oneSlide).length;
 
+  // create and add additional div wrappers over group of 3 cards
   if (isDesktopWidth) {
     var numOfExtraGroupWrappers = Math.ceil(actualCountOfSlides / CountOfSlides.renderedOnDesktop);
     var extraGroupWrappers = new Array(numOfExtraGroupWrappers).fill(null).map(() => {
