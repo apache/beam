@@ -246,7 +246,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 
 		n.cache = &cacheElm{
 			key:   w,
-			extra: make([]interface{}, sideCount+emitCount, sideCount+emitCount),
+			extra: make([]interface{}, sideCount+emitCount),
 		}
 		for i, emit := range n.emitters {
 			n.cache.extra[i+sideCount] = emit.Value()
