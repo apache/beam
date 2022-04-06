@@ -114,10 +114,10 @@ func TestNew(t *testing.T) {
 			Ret:   []ReturnKind{RetError},
 		},
 		{
-			Name:  "sdf",
-			Fn:    func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
-			Param: []FnParamKind{FnRTracker, FnEmit},
-			Ret:   []ReturnKind{RetProcessContinuation, RetError},
+			// TODO(BEAM-11104): Replace with a functioning test case once E2E support is finished.
+			Name: "sdf",
+			Fn:   func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
+			Err:  errContinuationSupport,
 		},
 		{
 			Name: "errContextParam: after input",

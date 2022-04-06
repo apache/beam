@@ -616,6 +616,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 var (
 	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
 	errErrorPrecedence        = errors.New("error must be the final return parameter")
+	// TODO(BEAM-11104): Enable process continuations as a valid return value.
+	errContinuationSupport = errors.New("process continuations are not yet supported")
 )
 
 type retState int
@@ -648,7 +650,7 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 	case RetValue, RetRTracker:
 		return rsOutput, nil
 	case RetProcessContinuation:
-		return rsProcessContinuation, nil
+		return -1, errContinuationSupport
 	case RetError:
 		return rsError, nil
 	default:
