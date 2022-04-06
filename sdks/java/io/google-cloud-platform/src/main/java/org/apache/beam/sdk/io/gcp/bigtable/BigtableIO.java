@@ -403,6 +403,32 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
+     * using the given row filter.
+     *
+     * <p>Does not modify this object.
+     *
+     * When we have a builder, we initialize the value. When they call the method then we override the value
+     */
+    public Read withMaxBufferElementCount(ValueProvider<Integer> maxBufferElementCount) {
+      checkArgument(maxBufferElementCount != null, "maxBufferElementCount can not be null");
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(bigtableReadOptions.toBuilder().setMaxBufferElementCount(maxBufferElementCount).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
+     * using the given row filter.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withMaxBufferElementCount(int maxBufferElementCount) {
+      return withMaxBufferElementCount(StaticValueProvider.of(maxBufferElementCount));
+    }
+
+    /**
      * Returns a new {@link BigtableIO.Read} that will read only rows in the specified range.
      *
      * <p>Does not modify this object.
@@ -1260,6 +1286,11 @@ public class BigtableIO {
     public @Nullable RowFilter getRowFilter() {
       ValueProvider<RowFilter> rowFilter = readOptions.getRowFilter();
       return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
+    }
+
+    public @Nullable Integer getMaxBufferElementCount() {
+      ValueProvider<Integer> bufferLimit = readOptions.getMaxBufferElementCount();
+      return bufferLimit != null && bufferLimit.isAccessible() ? bufferLimit.get() : null;
     }
 
     public ValueProvider<String> getTableId() {

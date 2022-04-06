@@ -232,15 +232,16 @@ class BigtableServiceImpl implements BigtableService {
     private Future<List<Row>> future;
     private ByteString lastFetchedRow;
     private boolean lastFillComplete;
-
-    // TODO: Consider making this user configurable
-    private final int miniBatchLimit = DEFAULT_MINI_BATCH_SIZE;
-    private final int miniBatchWaterMark = miniBatchLimit / 10;
+    
+    private int miniBatchLimit;
+    private int miniBatchWaterMark;
     private final String tableName;
 
     @VisibleForTesting
     BigtableMiniBatchReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
+      this.miniBatchLimit = source.getMaxBufferElementCount();
+      this.miniBatchWaterMark = miniBatchLimit / 10;
       tableName =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
       this.source = source;
@@ -296,14 +297,6 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
-      /*if (buffer.isEmpty()) {
-        if (future == null || !waitReadRowsFuture()) {
-          return false;
-        }
-      } else if (future == null && buffer.size() < miniBatchWaterMark) {
-        startNextSegmentRead();
-      }
-       */
       if (buffer.size() <= miniBatchWaterMark && future == null && !lastFillComplete) {
         startNextSegmentRead();
       }
@@ -531,7 +524,11 @@ class BigtableServiceImpl implements BigtableService {
   @Override
   public Reader createReader(BigtableSource source) throws IOException {
     BigtableSession session = new BigtableSession(options);
-    return new BigtableReaderImpl(session, source);
+    if (source.getMaxBufferElementCount() != null) {
+      return new BigtableMiniBatchReaderImpl(session, source);
+    } else {
+      return new BigtableReaderImpl(session, source);
+    }
   }
 
   public Reader createMiniBatchReader(BigtableSource source) throws IOException {
