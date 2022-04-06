@@ -931,12 +931,10 @@ func TestAsSplittableUnit(t *testing.T) {
 				units := []Unit{root, node, capt}
 				constructAndExecutePlan(t, units)
 
-				if node.PDo.we == nil {
-					t.Fatalf("AHHH")
-				}
-
 				ow := node.GetOutputWatermark()
-				if got, want := len(ow), 2; got != want {
+				if ow == nil {
+					t.Errorf("ProcessSizedElementsAndRestrictions(%v), got: nil, want: output watermarks", test.in)
+				} else if got, want := len(ow), 2; got != want {
 					t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect number of watermarks, got: %v, want: %v",
 						test.in, len(ow), 2)
 				} else {

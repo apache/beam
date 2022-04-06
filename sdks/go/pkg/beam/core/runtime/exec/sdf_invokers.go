@@ -339,7 +339,7 @@ func (n *cweInvoker) initCallFn() error {
 	return nil
 }
 
-// Invoke calls CreateTracker given a restriction and returns an sdf.RTracker.
+// Invoke calls CreateWatermarkEstimator given a restriction and returns an sdf.WatermarkEstimator.
 func (n *cweInvoker) Invoke() sdf.WatermarkEstimator {
 	return n.call()
 }
