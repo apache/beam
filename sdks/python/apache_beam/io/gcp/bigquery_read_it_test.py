@@ -37,6 +37,8 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.runners.interactive import interactive_beam
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -671,6 +673,16 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
       assert_that(
           result,
           equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
+
+
+class ReadInteractiveRunnerTests(BigQueryReadIntegrationTests):
+  @skip(['PortableRunner', 'FlinkRunner'])
+  @pytest.mark.it_postcommit
+  def test_read_in_interactive_runner(self):
+    p = beam.Pipeline(InteractiveRunner(), argv=self.args)
+    pcoll = p | beam.io.ReadFromBigQuery(query="SELECT 1")
+    result = interactive_beam.collect(pcoll)
+    assert result.iloc[0, 0] == 1
 
 
 if __name__ == '__main__':

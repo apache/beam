@@ -277,6 +277,7 @@ import logging
 import random
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -657,6 +658,12 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+@dataclass
+class _BigQueryExportResult:
+  coder: beam.coders.Coder
+  paths: List[str]
+
+
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
@@ -705,7 +712,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.flatten_results = flatten_results
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
-    self.split_result = None
+    self.export_result = None
     self.options = pipeline_options
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
@@ -789,7 +796,7 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
-  def _create_source(self, path, schema):
+  def _create_source(self, path, coder):
     if not self.use_json_exports:
       return create_avro_source(path)
     else:
@@ -798,10 +805,10 @@ class _CustomBigQuerySource(BoundedSource):
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=self.coder(schema))
+          coder=coder)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    if self.split_result is None:
+    if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
               self.temp_dataset.datasetId if self.temp_dataset else None))
@@ -814,15 +821,15 @@ class _CustomBigQuerySource(BoundedSource):
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
-      # Sources to be created lazily within a generator as they're output.
-      self.split_result = (
-          self._create_source(metadata.path, schema)
-          for metadata in metadata_list)
+      self.export_result = _BigQueryExportResult(
+          coder=self.coder(schema),
+          paths=[metadata.path for metadata in metadata_list])
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
-    for source in self.split_result:
+    for path in self.export_result.paths:
+      source = self._create_source(path, self.export_result.coder)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
 
