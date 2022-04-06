@@ -3634,6 +3634,19 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testAnalyticOver7() {
+    String sql = "select sum(Key) over (ROWS BETWEEN 2 PRECEDING AND 3 FOLLOWING) From KeyValue";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+  @Test
+  public void testAnalyticOver8() {
+    String sql = "select sum(Key) over (RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) From KeyValue";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
   public void testSubstr() {
     String sql = "SELECT substr(@p0, @p1, @p2)";
     ImmutableMap<String, Value> params =

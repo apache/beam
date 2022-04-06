@@ -17,14 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
-import com.google.zetasql.resolvedast.ResolvedNode;
-import com.google.zetasql.resolvedast.ResolvedNodes;
+import com.google.zetasql.resolvedast.*;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedExpr;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedWindowFrameExpr;
+import com.google.zetasql.resolvedast.ResolvedWindowFrameExprEnums.BoundaryType;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAnalyticFunctionCall;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAnalyticScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAnalyticFunctionGroup;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumn;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
+import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.asm.Advice;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
@@ -67,15 +71,22 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
            windowGroups.add(windowGroup);
         }
 
-        return new LogicalWindow(
-                getCluster(),
+////        return new LogicalWindow(
+//                getCluster(),
+//                input.getTraitSet(),
+//                input,
+//                ImmutableList.of(),
+//                input.getRowType(),
+//                windowGroups
+//        );
+
+        return LogicalWindow.create(
                 input.getTraitSet(),
                 input,
                 ImmutableList.of(),
-                inputs.get(0).getRowType(),
+                input.getRowType(),
                 windowGroups
         );
-
     }
 
     private LogicalProject convert(ResolvedAnalyticScan zetaNode, RelNode input){
@@ -83,10 +94,11 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         List<String> fieldNames = new ArrayList<>();
 
 
+
         for(ResolvedAnalyticFunctionGroup analyticFunctionGroup: zetaNode.getFunctionGroupList()) {
             for(ResolvedComputedColumn resolvedComputedColumn: analyticFunctionGroup.getAnalyticFunctionList()){
                 ResolvedAnalyticFunctionCall resolvedAnalyticFunctionCall = (ResolvedAnalyticFunctionCall) resolvedComputedColumn.getExpr();
-                ResolvedNodes.ResolvedExpr resolvedExpr = resolvedAnalyticFunctionCall.getArgumentList().get(0);
+                ResolvedExpr resolvedExpr = resolvedAnalyticFunctionCall.getArgumentList().get(0);
 
                 projects.add(
                         getExpressionConverter()
@@ -113,14 +125,12 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         RexWindowBound lowerBound = null;
         int ordinal = 0;
 
-       //Iterates over AnalyticFunctionList
        for(ResolvedComputedColumn resolvedComputedColumn: functionGroup.getAnalyticFunctionList()) {
            ResolvedAnalyticFunctionCall analyticFunctionCall = (ResolvedAnalyticFunctionCall) resolvedComputedColumn.getExpr();
 
-           // Gets window bounds from an analytic function in the list
            if(upperBound == null && lowerBound == null) {
-               lowerBound = RexWindowBounds.UNBOUNDED_PRECEDING;
-               upperBound = RexWindowBounds.UNBOUNDED_FOLLOWING;
+               lowerBound = convert(analyticFunctionCall.getWindowFrame().getStartExpr());
+               upperBound = convert(analyticFunctionCall.getWindowFrame().getEndExpr());
            }
 
            //Transforms aggregate call to RexAggWinCalls
@@ -139,13 +149,14 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
            Window.RexWinAggCall rexWinAggCall = new Window.RexWinAggCall(
                    sqlAggFunction,
                    type,
-                   ImmutableList.of(),
+                   ImmutableList.of(), //Add operands (columns used in the function)
                    ordinal++,
                    false,
                     false
            );
 
            aggCalls.add(rexWinAggCall);
+           ordinal++;
        }
 
         return new Window.Group(
@@ -159,9 +170,33 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
 
     }
 
-//    private RexWindowBound getWindowBound() {
-//        return null;
-//    }
+    private RexWindowBound convert(ResolvedWindowFrameExpr frameExpr) {
+        BoundaryType boundaryType = frameExpr.getBoundaryType();
+
+        if(boundaryType == BoundaryType.UNBOUNDED_PRECEDING) {
+           return RexWindowBounds.UNBOUNDED_PRECEDING;
+        }
+        else if(boundaryType == BoundaryType.UNBOUNDED_FOLLOWING) {
+            return RexWindowBounds.UNBOUNDED_FOLLOWING;
+        }
+        else if(boundaryType == BoundaryType.CURRENT_ROW) {
+            return RexWindowBounds.CURRENT_ROW;
+        }
+        else if(boundaryType == BoundaryType.OFFSET_FOLLOWING) {
+            RexNode offset = getExpressionConverter().convertResolvedLiteral((ResolvedLiteral) frameExpr.getExpression());
+            return RexWindowBounds.following(offset);
+        }
+        else if(boundaryType == BoundaryType.OFFSET_PRECEDING) {
+            RexNode offset = getExpressionConverter().convertResolvedLiteral((ResolvedLiteral) frameExpr.getExpression());
+            return RexWindowBounds.preceding(offset);
+        }
+        else{
+            throw new UnsupportedOperationException(
+                    String.format("Conversion of %s is not supported", boundaryType)
+            );
+        }
+
+    }
 
 
 }
