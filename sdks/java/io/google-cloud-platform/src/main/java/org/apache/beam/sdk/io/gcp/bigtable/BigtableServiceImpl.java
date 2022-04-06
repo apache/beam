@@ -232,15 +232,16 @@ class BigtableServiceImpl implements BigtableService {
     private Future<List<Row>> future;
     private ByteString lastFetchedRow;
     private boolean lastFillComplete;
-    
-    private int miniBatchLimit;
+
+    private int miniBatchLimit = DEFAULT_MINI_BATCH_SIZE;
     private int miniBatchWaterMark;
     private final String tableName;
 
     @VisibleForTesting
     BigtableMiniBatchReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
-      this.miniBatchLimit = source.getMaxBufferElementCount();
+      if (source.getMaxBufferElementCount() != null && source.getMaxBufferElementCount() != 0)
+        this.miniBatchLimit = source.getMaxBufferElementCount();
       this.miniBatchWaterMark = miniBatchLimit / 10;
       tableName =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
