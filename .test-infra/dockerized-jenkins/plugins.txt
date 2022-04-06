@@ -15,6 +15,7 @@
 
 ace-editor
 analysis-model-api
+ansicolor
 ant
 antisamy-markup-formatter
 apache-httpcomponents-client-4-api
@@ -113,3 +114,4 @@ workflow-multibranch
 workflow-scm-step
 workflow-step-api
 workflow-support
+ws-cleanup
