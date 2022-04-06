@@ -1184,11 +1184,11 @@ def _use_unified_worker(pipeline_options):
       GoogleCloudOptions).dataflow_service_options or []
   if ((debug_options.lookup_experiment(enable_prime_flag) or
        enable_prime_flag in dataflow_service_options) and
-      not debug_options.lookup_experiment('disable_prime_runner_v2')):
-    if not debug_options.lookup_experiment(use_runner_v2_flag):
-      debug_options.add_experiment(use_runner_v2_flag)
-    if not debug_options.lookup_experiment(use_unified_worker_flag):
-      debug_options.add_experiment(use_unified_worker_flag)
+      not any([debug_options.lookup_experiment('disable_prime_runner_v2'),
+               debug_options.lookup_experiment('disable_runner_v2')])):
+    debug_options.add_experiment(use_runner_v2_flag)
+    debug_options.add_experiment(use_unified_worker_flag)
+    debug_options.add_experiment(enable_prime_flag)
 
   return debug_options.lookup_experiment(use_unified_worker_flag)
 
