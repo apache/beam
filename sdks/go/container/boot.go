@@ -120,7 +120,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 
 	switch len(artifacts) {
 	case 0:
-		return "", errors.New(fmt.Sprintf("No artifacts staged"))
+		return "", errors.New("no artifacts staged")
 	case 1:
 		name, _ = artifact.MustExtractFilePayload(artifacts[0])
 		return name, nil
@@ -139,7 +139,7 @@ func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, e
 				return n, nil
 			}
 		}
-		return "", errors.New(fmt.Sprintf("No artifact named '%v' found", worker))
+		return "", fmt.Errorf("no artifact named '%v' found", worker)
 	}
 }
 
@@ -156,13 +156,13 @@ func ensureEndpointsSet(info *fnpb.ProvisionInfo) error {
 	}
 
 	if *loggingEndpoint == "" {
-		return errors.New("No logging endpoint provided.")
+		return errors.New("no logging endpoint provided")
 	}
 	if *artifactEndpoint == "" {
-		return errors.New("No artifact endpoint provided.")
+		return errors.New("no artifact endpoint provided")
 	}
 	if *controlEndpoint == "" {
-		return errors.New("No control endpoint provided.")
+		return errors.New("no control endpoint provided")
 	}
 
 	return nil

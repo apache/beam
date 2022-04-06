@@ -149,7 +149,9 @@ async function approvedBy(pull: any): Promise<string[]> {
     pull_number: pull.number,
   });
 
-  return reviews.data.map((review) => review.user.login);
+  return reviews.data
+    .filter((review) => review.state == "APPROVED")
+    .map((review) => review.user.login);
 }
 
 /*

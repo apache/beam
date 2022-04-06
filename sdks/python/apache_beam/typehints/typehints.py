@@ -503,9 +503,12 @@ class UnionHint(CompositeTypeHint):
       return 'Union[%s]' % (
           ', '.join(sorted(_unified_repr(t) for t in self.union_types)))
 
-    def _inner_types(self):
+    def inner_types(self):
       for t in self.union_types:
         yield t
+
+    def contains_type(self, maybe_type):
+      return maybe_type in self.union_types
 
     def _consistent_with_check_(self, sub):
       if isinstance(sub, UnionConstraint):
@@ -599,6 +602,22 @@ class OptionalHint(UnionHint):
           'parameter.')
 
     return Union[py_type, type(None)]
+
+
+def is_nullable(typehint):
+  return (
+      isinstance(typehint, UnionConstraint) and
+      typehint.contains_type(type(None)) and
+      len(list(typehint.inner_types())) == 2)
+
+
+def get_concrete_type_from_nullable(typehint):
+  if is_nullable(typehint):
+    for inner_type in typehint.inner_types():
+      if not type(None) == inner_type:
+        return inner_type
+  else:
+    raise TypeError('Typehint is not of nullable type', typehint)
 
 
 class TupleHint(CompositeTypeHint):

@@ -569,7 +569,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				// strip unexpected length prefix coder.
 				valCoder = valCoder.Components[0]
 			}
-			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.GetInject().GetN()), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
 
 		case graphx.URNExpand:
 			var pid string
@@ -595,11 +595,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 
 		case graphx.URNReshuffleInput:
-			c, w, err := b.makeCoderForPCollection(from)
+			_, w, err := b.makeCoderForPCollection(from)
 			if err != nil {
 				return nil, err
 			}
-			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+			preservedCoderID := tp.GetReshuffle().GetCoderId()
+			pc, err := unmarshalReshuffleCoders(preservedCoderID, tp.GetReshuffle().GetCoderPayloads())
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(pc, w), Out: out[0]}
 
 		case graphx.URNReshuffleOutput:
 			var pid string
@@ -608,11 +613,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, id := range transform.GetOutputs() {
 				pid = id
 			}
-			c, w, err := b.makeCoderForPCollection(pid)
+			_, w, err := b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}
-			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
+			preservedCoderID := tp.GetReshuffle().GetCoderId()
+			pc, err := unmarshalReshuffleCoders(preservedCoderID, tp.GetReshuffle().GetCoderPayloads())
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(pc, w), Out: out[0]}
 
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", &tp)
@@ -661,6 +671,19 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 	b.links[id] = u
 	b.units = append(b.units, u)
 	return u, nil
+}
+
+func unmarshalReshuffleCoders(mainID string, payloads map[string][]byte) (*coder.Coder, error) {
+	m := map[string]*pipepb.Coder{}
+	for id, v := range payloads {
+		pc := &pipepb.Coder{}
+		if err := proto.Unmarshal(v, pc); err != nil {
+			return nil, err
+		}
+		m[id] = pc
+	}
+	um := graphx.NewCoderUnmarshaller(m)
+	return um.Coder(mainID)
 }
 
 // unmarshalKeyedValues converts a map {"i1": "b", ""i0": "a"} into an ordered list of
