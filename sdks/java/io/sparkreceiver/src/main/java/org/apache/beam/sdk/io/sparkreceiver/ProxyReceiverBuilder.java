@@ -112,14 +112,14 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
           String methodName = method.getName();
           switch (methodName) {
             case "supervisor":
-            case "_supervisor":
+//            case "_supervisor":
               return getWrappedSupervisor();
             case "onStart":
               LOG.info("Custom Receiver was started");
-              return null;
+              break;
             case "stop":
               LOG.info("Custom Receiver was stopped. Message = {}", args[0]);
-              return null;
+              break;
             case "store":
               storeConsumer.accept(args);
               return null;
@@ -131,6 +131,7 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
     enhancer.setSuperclass(sparkReceiverClass);
     enhancer.setCallback(handler);
     this.proxy = (T) enhancer.create(currentConstructor.getParameterTypes(), constructorArgs);
+    getWrappedSupervisor();
     return this.proxy;
   }
 
@@ -144,7 +145,7 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
         throw new IllegalStateException(
             "Can not create WrappedSupervisor, because proxy Receiver was not built yet");
       }
-      this.wrappedSupervisor = new WrappedSupervisor(this.proxy, new SparkConf());
+      this.wrappedSupervisor = new WrappedSupervisor(this.proxy, new SparkConf(), storeConsumer);
     }
     return this.wrappedSupervisor;
   }

@@ -17,33 +17,67 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import org.apache.beam.sdk.io.cdap.hubspot.source.streaming.HubspotReceiver;
+import org.apache.beam.sdk.io.cdap.hubspot.source.streaming.HubspotStreamingSourceConfig;
+import org.apache.spark.streaming.receiver.Receiver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@SuppressWarnings("rawtypes")
 public class CdapPluginMappingUtils {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CdapPluginMappingUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CdapPluginMappingUtils.class);
 
-  public static Optional<SalesforceReceiver> getProxyReceiverForSalesforce(
+  public static Receiver getProxyReceiver(PluginConfig config,
+                                                       Consumer<Object[]> consumer) {
+    if (config instanceof SalesforceStreamingSourceConfig) {
+      return getProxyReceiverForSalesforce((SalesforceStreamingSourceConfig) config, consumer);
+    } else if (config instanceof HubspotStreamingSourceConfig) {
+      return getProxyReceiverForHubspot((HubspotStreamingSourceConfig) config, consumer);
+    } else {
+      return null;
+    }
+  }
+
+  public static SalesforceReceiver getProxyReceiverForSalesforce(
       SalesforceStreamingSourceConfig config, Consumer<Object[]> consumer) {
     ProxyReceiverBuilder<String, SalesforceReceiver> builder =
         new ProxyReceiverBuilder<>(SalesforceReceiver.class);
 
     try {
-      return Optional.of(
+      return
           builder
               .withConstructorArgs(config.getAuthenticatorCredentials(), config.getPushTopicName())
               .withCustomStoreConsumer(consumer)
-              .build());
+              .build();
     } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       LOG.error("Can not build proxy Spark Receiver", e);
     }
-    return Optional.empty();
+    return null;
+  }
+
+  public static HubspotReceiver getProxyReceiverForHubspot(
+          HubspotStreamingSourceConfig config, Consumer<Object[]> consumer) {
+    ProxyReceiverBuilder<String, HubspotReceiver> builder =
+            new ProxyReceiverBuilder<>(HubspotReceiver.class);
+
+    try {
+      return
+              builder
+                      .withConstructorArgs(config)
+                      .withCustomStoreConsumer(consumer)
+                      .build();
+    } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+      LOG.error("Can not build proxy Spark Receiver", e);
+    }
+    return null;
   }
 }

@@ -130,8 +130,8 @@ public class SparkReceiverIO {
               sparkReceiverRead
                   .toBuilder()
                   .setValueCoder(valueCoder)
-                  .setPluginConfig(read().getPluginConfig())
-                  .setSparkReceiverClass(read().getSparkReceiverClass())
+                  .setPluginConfig(sparkReceiverRead.getPluginConfig())
+                  .setSparkReceiverClass(sparkReceiverRead.getSparkReceiverClass())
                   .build()
                   .makeSource());
 

@@ -26,8 +26,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.streaming.receiver.Receiver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An {@link UnboundedSource} to read from SparkReceiver, used by {@link Read} transform in
@@ -73,7 +71,7 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
 
   /////////////////////////////////////////////////////////////////////////////////////////////
 
-//  private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUnboundedSource.class);
+  //  private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUnboundedSource.class);
 
   private final Read<V> spec; // Contains all the relevant configuratiton of the source.
   private final int id; // split id, mainly for debugging

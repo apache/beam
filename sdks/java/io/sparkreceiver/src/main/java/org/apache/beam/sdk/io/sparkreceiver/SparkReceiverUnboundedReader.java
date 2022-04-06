@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.io.IOException;
@@ -45,22 +46,22 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
   public boolean start() throws IOException {
     // TODO:
     try {
-      SalesforceStreamingSourceConfig config =
-          (SalesforceStreamingSourceConfig) source.getPluginConfig();
-      Optional<SalesforceReceiver> receiver =
-          CdapPluginMappingUtils.getProxyReceiverForSalesforce(
+      PluginConfig config = source.getPluginConfig();
+      Receiver receiver =
+          CdapPluginMappingUtils.getProxyReceiver(
               config,
               args -> {
                 V dataItem = (V) args[0];
                 try {
                   availableRecordsQueue.offer(
                       dataItem, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
+                  LOG.info(dataItem.toString());
                 } catch (InterruptedException e) {
                   LOG.error("Can not offer data item to the records queue", e);
                 }
                 // checkpoint mark
               });
-      receiver.ifPresent(Receiver::onStart);
+      receiver.onStart();
     } catch (Exception e) {
       LOG.error("Can not get Spark Receiver object!", e);
     }
@@ -124,7 +125,7 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
 
   @Override
   public Instant getCurrentTimestamp() throws NoSuchElementException {
-    return curTimestamp;
+    return Instant.now();
   }
 
   @Override
@@ -150,7 +151,7 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
   private final SparkReceiverUnboundedSource<V> source;
   private final String name;
   private V curRecord;
-  private Instant curTimestamp;
+//  private Instant curTimestamp;
   private final SynchronousQueue<V> availableRecordsQueue = new SynchronousQueue<>();
   //    private Iterator<KV<K, V>> recordIter = Collections.emptyIterator();
 
