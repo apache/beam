@@ -23,12 +23,12 @@ This page illustrates the usage of Beam SQL with example code.
 ## Beam Schemas and Rows
 
 A SQL query can only be applied to a a `PCollection<T>`
-where `T` has a schema registered (preferred), or a `PCollection<Row>`. See the
+where `T` has a schema registered, or a `PCollection<Row>`. See the
 [schema documentation](/documentation/programming-guide/#what-is-a-schema) in
 the Beam Programming Guide for details on registering a schema for a type `T`.
 
-If you'd prefer to work with `Row` directly, a `PCollection<Row>` can be
-obtained multiple ways, for example:
+If you don't have an existing type `T`, a `PCollection<Row>` can be obtained
+multiple ways, for example:
 
   - **From in-memory data** (typically for unit testing).
 
