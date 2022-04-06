@@ -27,7 +27,7 @@ func TestStopProcessing(t *testing.T) {
 	}
 }
 
-func TestResumeProcessIn(t *testing.T) {
+func TestResumeProcessingIn(t *testing.T) {
 	dur := 10 * time.Second
 	pc := ResumeProcessingIn(dur)
 	if !pc.ShouldResume() {
