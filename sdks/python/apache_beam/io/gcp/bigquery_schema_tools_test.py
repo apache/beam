@@ -29,15 +29,17 @@ class TestBigQueryToSchema(unittest.TestCase):
         bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT', mode="REPEATED"),
         bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
-
     ]
     schema = bigquery.TableSchema(fields=fields)
 
     usertype = bigquery_schema_tools.produce_pcoll_with_schema(
         self, the_table_schema=schema)
     self.assertEqual(
-        usertype.__annotations__, {
-            'stn': typing.Optional[str], 'temp': typing.Sequence[np.float64], 'count': np.int64
+        usertype.__annotations__,
+        {
+            'stn': typing.Optional[str],
+            'temp': typing.Sequence[np.float64],
+            'count': np.int64
         })
 
   def test_produce_pcoll_with_empty_schema(self):

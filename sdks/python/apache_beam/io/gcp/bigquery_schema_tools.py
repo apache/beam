@@ -59,46 +59,46 @@ def produce_pcoll_with_schema(self, the_table_schema):
   for x in the_schema['fields']:
     if the_schema['fields'][i]['type'] == 'STRING':
       if the_schema['fields'][i]['mode'] == 'NULLABLE':
-          typ = Optional[str]
+        typ = Optional[str]
       elif the_schema['fields'][i]['mode'] == 'REPEATED':
-          typ = Sequence[str]
+        typ = Sequence[str]
       else:
-          typ = str
+        typ = str
     elif the_schema['fields'][i]['type'] == 'INTEGER':
       if the_schema['fields'][i]['mode'] == 'NULLABLE':
-          typ = Optional[np.int64]
+        typ = Optional[np.int64]
       elif the_schema['fields'][i]['mode'] == 'REPEATED':
-          typ = Sequence[np.int64]
+        typ = Sequence[np.int64]
       else:
-          typ = np.int64
+        typ = np.int64
     elif the_schema['fields'][i]['type'] == 'FLOAT':
       if the_schema['fields'][i]['mode'] == 'NULLABLE':
-          typ = Optional[np.float64]
+        typ = Optional[np.float64]
       elif the_schema['fields'][i]['mode'] == 'REPEATED':
-          typ = Sequence[np.float64]
+        typ = Sequence[np.float64]
       else:
-          typ = np.float64
+        typ = np.float64
     elif the_schema['fields'][i]['type'] == 'BOOL':
       if the_schema['fields'][i]['mode'] == 'NULLABLE':
-          typ = Optional[bool]
+        typ = Optional[bool]
       elif the_schema['fields'][i]['mode'] == 'REPEATED':
-          typ = Sequence[bool]
+        typ = Sequence[bool]
       else:
-          typ = bool
+        typ = bool
     elif the_schema['fields'][i]['type'] == 'BYTES':
       if the_schema['fields'][i]['mode'] == 'NULLABLE':
-          typ = Optional[bytes]
+        typ = Optional[bytes]
       elif the_schema['fields'][i]['mode'] == 'REPEATED':
-          typ = Sequence[bytes]
+        typ = Sequence[bytes]
       else:
-          typ = bytes
+        typ = bytes
     elif the_schema['fields'][i]['type'] == 'TIMESTAMP':
       if the_schema['fields'][i]['mode'] == 'NULLABLE':
-          typ = Optional[beam.utils.timestamp.Timestamp]
+        typ = Optional[beam.utils.timestamp.Timestamp]
       elif the_schema['fields'][i]['mode'] == 'REPEATED':
-          typ = Sequence[beam.utils.timestamp.Timestamp]
+        typ = Sequence[beam.utils.timestamp.Timestamp]
       else:
-          typ = beam.utils.timestamp.Timestamp
+        typ = beam.utils.timestamp.Timestamp
     else:
       raise ValueError(the_schema['fields'][i]['type'])
     # TODO svetaksundhar@: Map remaining BQ types
