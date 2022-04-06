@@ -101,6 +101,7 @@ import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
@@ -609,13 +610,13 @@ public class ElasticsearchIO {
         i++;
       }
       RestClientBuilder restClientBuilder = RestClient.builder(hosts);
+      HttpAsyncClientBuilder httpAsyncClientBuilder = HttpAsyncClientBuilder.create();
+
       if (getUsername() != null) {
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(
             AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
-        restClientBuilder.setHttpClientConfigCallback(
-            httpAsyncClientBuilder ->
-                httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
+        httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
       }
       if (getApiKey() != null) {
         restClientBuilder.setDefaultHeaders(
@@ -637,13 +638,16 @@ public class ElasticsearchIO {
           final SSLContext sslContext =
               SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
-          restClientBuilder.setHttpClientConfigCallback(
-              httpClientBuilder ->
-                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
+          httpAsyncClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
         } catch (Exception e) {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
       }
+
+      if (getUsername() != null || (getKeystorePath() != null && !getKeystorePath().isEmpty())) {
+        restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpAsyncClientBuilder);
+      }
+
       restClientBuilder.setRequestConfigCallback(
           new RestClientBuilder.RequestConfigCallback() {
             @Override
