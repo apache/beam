@@ -30,33 +30,33 @@ type ProcessContinuation interface {
 	ResumeDelay() time.Duration
 }
 
-// DefaultProcessContinuation is the SDK-default implementation of the ProcessContinuation
+// defaultProcessContinuation is the SDK-default implementation of the ProcessContinuation
 // interface, encapsulating the basic behavior necessary to resume a process later.
-type DefaultProcessContinuation struct {
+type defaultProcessContinuation struct {
 	resumes     bool
 	resumeDelay time.Duration
 }
 
 // ShouldResume returns whether or not the DefaultProcessContinuation should lead to the
 // process being resumed.
-func (p *DefaultProcessContinuation) ShouldResume() bool {
+func (p *defaultProcessContinuation) ShouldResume() bool {
 	return p.resumes
 }
 
 // ResumeDelay returns the suggested duration that should pass before the process is resumed.
 // If the process should not be resumed, the value returned here does not matter.
-func (p *DefaultProcessContinuation) ResumeDelay() time.Duration {
+func (p *defaultProcessContinuation) ResumeDelay() time.Duration {
 	return p.resumeDelay
 }
 
-// StoppingProcessContinuation returns a ProcessContinuation that will not resume the process
+// StopProcessing returns a ProcessContinuation that will not resume the process
 // later.
-func StoppingProcessContinuation() ProcessContinuation {
-	return &DefaultProcessContinuation{resumes: false, resumeDelay: 0 * time.Second}
+func StopProcessing() ProcessContinuation {
+	return &defaultProcessContinuation{resumes: false, resumeDelay: 0 * time.Second}
 }
 
-// ResumingProcessContinuation returns a ProcessContinuation that will resume the process
+// ResumeProcessingIn returns a ProcessContinuation that will resume the process
 // later with a suggested delay passed as a time.Duration.
-func ResumingProcessContinuation(delay time.Duration) ProcessContinuation {
-	return &DefaultProcessContinuation{resumes: true, resumeDelay: delay}
+func ResumeProcessingIn(delay time.Duration) ProcessContinuation {
+	return &defaultProcessContinuation{resumes: true, resumeDelay: delay}
 }

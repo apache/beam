@@ -20,16 +20,16 @@ import (
 	"time"
 )
 
-func TestStoppingProcessContinuation(t *testing.T) {
-	pc := StoppingProcessContinuation()
+func TestStopProcessing(t *testing.T) {
+	pc := StopProcessing()
 	if pc.ShouldResume() {
 		t.Error("ShouldResume() got true, want false")
 	}
 }
 
-func TestResumingProcessContinuation(t *testing.T) {
+func TestResumeProcessIn(t *testing.T) {
 	dur := 10 * time.Second
-	pc := ResumingProcessContinuation(dur)
+	pc := ResumeProcessingIn(dur)
 	if !pc.ShouldResume() {
 		t.Error("ShouldResume() got false, want true")
 	}
