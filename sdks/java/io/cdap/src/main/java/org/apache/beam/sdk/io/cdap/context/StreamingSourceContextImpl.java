@@ -23,13 +23,15 @@ import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
 import javax.annotation.Nullable;
 import org.apache.tephra.TransactionFailureException;
 
-/**
- * Class StreamingSourceContextWrapper is a class for creating context object of different CDAP
- * classes with stream source type.
- */
+/** Class for creating context object of different CDAP classes with stream source type. */
 public class StreamingSourceContextImpl extends BatchContextImpl implements StreamingSourceContext {
 
   @Override
   public void registerLineage(String referenceName, @Nullable Schema schema)
       throws DatasetManagementException, TransactionFailureException {}
+
+  @Override
+  public boolean isPreviewEnabled() {
+    return false;
+  }
 }

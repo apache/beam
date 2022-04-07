@@ -451,6 +451,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk_version = "1.12.135"
     def aws_java_sdk2_version = "2.17.106"
     def cassandra_driver_version = "3.10.2"
+    def cdap_version = "6.5.1"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
     def errorprone_version = "2.10.0"
@@ -535,6 +536,10 @@ class BeamModulePlugin implements Plugin<Project> {
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
+        cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
+        cdap_api_commons                            : "io.cdap.cdap:cdap-api-common:$cdap_version",
+        cdap_etl_api                                : "io.cdap.cdap:cdap-etl-api:$cdap_version",
+        cdap_etl_api_spark                          : "io.cdap.cdap:cdap-etl-api-spark:$cdap_version",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
@@ -680,6 +685,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark3_sql                                  : "org.apache.spark:spark-sql_2.12:$spark3_version",
         spark3_streaming                            : "org.apache.spark:spark-streaming_2.12:$spark3_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
+        tephra                                      : "org.apache.tephra:tephra-api:0.15.0-incubating",
         testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",

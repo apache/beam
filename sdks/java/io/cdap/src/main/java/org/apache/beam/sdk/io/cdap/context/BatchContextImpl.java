@@ -37,14 +37,12 @@ import java.net.URL;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /**
- * Class OperationContext is a common class for Batch, Sink and Stream CDAP wrapper classes that use
- * it to provide common details.
+ * Common class for Batch, Sink and Stream CDAP wrapper classes that used to provide common details.
  */
 @SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
-public class BatchContextImpl implements BatchContext {
+public abstract class BatchContextImpl implements BatchContext {
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
 
@@ -101,12 +99,12 @@ public class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public @Nullable Map<String, Schema> getInputSchemas() {
+  public Map<String, Schema> getInputSchemas() {
     return null;
   }
 
   @Override
-  public @Nullable Schema getOutputSchema() {
+  public Schema getOutputSchema() {
     return null;
   }
 
