@@ -63,14 +63,12 @@ class PytorchModelLoader(ModelLoader):
       self,
       state_dict_path: str,
       model_class: torch.nn.Module,
-      device: str = 'CPU',
-      map_location=None):
+      device: str = 'CPU'):
     """
     state_dict_path: path to the saved dictionary of the model state.
     model_class: class of the Pytorch model that defines the model structure.
     device: the device on which you wish to run the model. If ``device = GPU``
         then device will be cuda if it is avaiable. Otherwise, it will be cpu.
-    map_location:
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
@@ -82,13 +80,11 @@ class PytorchModelLoader(ModelLoader):
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_class.to(self._device)
-    self._map_location = map_location
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
     model = self._model_class
-    model.load_state_dict(
-        torch.load(self._state_dict_path, map_location=self._map_location))
+    model.load_state_dict(torch.load(self._state_dict_path))
     model.eval()
     return model
 

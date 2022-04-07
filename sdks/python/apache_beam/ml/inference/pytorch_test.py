@@ -24,7 +24,6 @@ import unittest
 from collections import OrderedDict
 
 import numpy as np
-import pytest
 import torch
 
 import apache_beam as beam
@@ -140,31 +139,5 @@ class PytorchRunInferenceTest(unittest.TestCase):
           model_class=PytorchLinearRegression(input_dim, output_dim))
 
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      actual = pcoll | base.RunInference(model_loader)
-      assert_that(actual, equal_to(expected))
-
-  def test_cuda_trained_model(self):
-    # TODO: Support GPUs in BEAM-13986
-    pytest.skip("BEAM-13986")
-    with TestPipeline() as pipeline:
-      examples = torch.from_numpy(
-          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
-      expected = torch.Tensor([example * 2.0 + 0.5 for example in examples])
-
-      state_dict = OrderedDict([
-          ('linear.weight', torch.Tensor([[2.0]], device='cuda')),
-          ('linear.bias', torch.Tensor([0.5], device='cuda'))
-      ])
-      path = os.path.join(self.tmpdir, 'my_state_dict_path')
-      torch.save(state_dict, path)
-
-      input_dim = 1
-      output_dim = 1
-
-      model_loader = PytorchModelLoader(
-          state_dict_path=path,
-          model_class=PytorchLinearRegression(input_dim, output_dim))
-
-      pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(model_loader)
       assert_that(actual, equal_to(expected))
