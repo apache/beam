@@ -92,7 +92,7 @@ func TestSdfNodes(t *testing.T) {
 					},
 					Elm2: &FullValue{
 						Elm:  &VetRestriction{ID: "Sdf", CreateRest: true, Val: 1},
-						Elm2: nil, // TODO - damccorm
+						Elm2: false, // TODO - damccorm
 					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
@@ -116,7 +116,7 @@ func TestSdfNodes(t *testing.T) {
 					},
 					Elm2: &FullValue{
 						Elm:  &VetRestriction{ID: "KvSdf", CreateRest: true, Key: 1, Val: 2},
-						Elm2: nil, // TODO - damccorm
+						Elm2: false, // TODO - damccorm
 					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
@@ -162,7 +162,7 @@ func TestSdfNodes(t *testing.T) {
 					},
 					Elm2: &FullValue{
 						Elm:  &VetRestriction{ID: "Sdf"},
-						Elm2: nil, // TODO - damccorm
+						Elm2: false, // TODO - damccorm
 					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
@@ -178,7 +178,7 @@ func TestSdfNodes(t *testing.T) {
 							},
 							Elm2: &FullValue{
 								Elm:  &VetRestriction{ID: "Sdf.1", SplitRest: true, RestSize: true, Val: 1},
-								Elm2: nil, // TODO - damccorm
+								Elm2: false, // TODO - damccorm
 							},
 						},
 						Elm2:      1.0,
@@ -195,7 +195,7 @@ func TestSdfNodes(t *testing.T) {
 							},
 							Elm2: &FullValue{
 								Elm:  &VetRestriction{ID: "Sdf.2", SplitRest: true, RestSize: true, Val: 1},
-								Elm2: nil, // TODO - damccorm
+								Elm2: false, // TODO - damccorm
 							},
 						},
 						Elm2:      1.0,
@@ -216,7 +216,7 @@ func TestSdfNodes(t *testing.T) {
 					},
 					Elm2: &FullValue{
 						Elm:  &VetRestriction{ID: "KvSdf"},
-						Elm2: nil, // TODO - damccorm
+						Elm2: false, // TODO - damccorm
 					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
@@ -232,7 +232,7 @@ func TestSdfNodes(t *testing.T) {
 							},
 							Elm2: &FullValue{
 								Elm:  &VetRestriction{ID: "KvSdf.1", SplitRest: true, RestSize: true, Key: 1, Val: 2},
-								Elm2: nil, // TODO - damccorm
+								Elm2: false, // TODO - damccorm
 							},
 						},
 						Elm2:      3.0,
@@ -249,7 +249,7 @@ func TestSdfNodes(t *testing.T) {
 							},
 							Elm2: &FullValue{
 								Elm:  &VetRestriction{ID: "KvSdf.2", SplitRest: true, RestSize: true, Key: 1, Val: 2},
-								Elm2: nil, // TODO - damccorm
+								Elm2: false, // TODO - damccorm
 							},
 						},
 						Elm2:      3.0,
@@ -270,7 +270,7 @@ func TestSdfNodes(t *testing.T) {
 					},
 					Elm2: &FullValue{
 						Elm:  &VetRestriction{ID: "Sdf"},
-						Elm2: nil, // TODO - damccorm
+						Elm2: false, // TODO - damccorm
 					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
@@ -325,7 +325,7 @@ func TestSdfNodes(t *testing.T) {
 					},
 					Elm2: &FullValue{
 						Elm:  offsetrange.Restriction{Start: 0, End: 4},
-						Elm2: nil, // TODO - damccorm
+						Elm2: false, // TODO - damccorm
 					},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
@@ -371,7 +371,7 @@ func TestSdfNodes(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -398,7 +398,7 @@ func TestSdfNodes(t *testing.T) {
 						},
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "KvSdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      3.0,
@@ -576,7 +576,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -631,7 +631,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -643,7 +643,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -655,7 +655,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -675,7 +675,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						},
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "KvSdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      3.0,
@@ -690,7 +690,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						},
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "KvSdf.1", RestSize: true, Key: 1, Val: 2},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      3.0,
@@ -705,7 +705,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						},
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "KvSdf.2", RestSize: true, Key: 1, Val: 2},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      3.0,
@@ -723,7 +723,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -744,7 +744,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -756,7 +756,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -768,7 +768,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -779,7 +779,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -798,7 +798,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -810,7 +810,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -822,7 +822,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -842,7 +842,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -854,7 +854,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -866,7 +866,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf", RestSize: true, Val: 1},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -885,7 +885,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -946,7 +946,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &offsetrange.Restriction{Start: 0, End: 4},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -962,7 +962,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &offsetrange.Restriction{Start: 0, End: 4},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -1013,7 +1013,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf"},
-							Elm2: nil, // TODO - damccorm
+							Elm2: false, // TODO - damccorm
 						},
 					},
 					Elm2:      1.0,
@@ -1086,7 +1086,7 @@ func TestMultiWindowProcessing(t *testing.T) {
 			Elm: 1,
 			Elm2: &FullValue{
 				Elm:  offsetrange.Restriction{Start: 0, End: 4},
-				Elm2: nil, // TODO - damccorm
+				Elm2: false, // TODO - damccorm
 			},
 		},
 		Elm2:      4.0,
