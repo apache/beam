@@ -126,13 +126,13 @@ class _MetricsCollector:
     self._model_byte_size_cache = None
 
   def update_metrics_with_cache(self):
-    if self.load_model_latency_milli_secs_cache is not None:
+    if self._load_model_latency_milli_secs_cache is not None:
       self._load_model_latency_milli_secs.update(
-          self.load_model_latency_milli_secs_cache)
-      self.load_model_latency_milli_secs_cache = None
-    if self.model_byte_size_cache is not None:
-      self._model_byte_size.update(self.model_byte_size_cache)
-      self.model_byte_size_cache = None
+          self._load_model_latency_milli_secs_cache)
+      self._load_model_latency_milli_secs_cache = None
+    if self._model_byte_size_cache is not None:
+      self._model_byte_size.update(self._model_byte_size_cache)
+      self._model_byte_size_cache = None
 
   def cache_load_model_metrics(self, load_model_latency_ms, model_byte_size):
     self._load_model_latency_milli_secs_cache = load_model_latency_ms
