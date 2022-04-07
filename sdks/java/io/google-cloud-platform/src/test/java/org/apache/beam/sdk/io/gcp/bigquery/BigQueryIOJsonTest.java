@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
@@ -95,10 +96,10 @@ public class BigQueryIOJsonTest {
   public static final String STREAMING_TEST_TABLE = "streaming_test"
       + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
-  private static final Map<String, Map<String, Object>> JSON_TYPE_DATA = generateCountryData();
+  private static final Map<String, Map<String, Object>> JSON_TEST_DATA = generateCountryData();
 
-  // Convert PCollection of TableRows to a PCollection of KV JSON string pairs
-  static class TableRowToKVJsonPairs extends DoFn<TableRow, KV<String, String>> {
+  // Make KV Json String pairs out of "country" column
+  static class CountryToKVJsonString extends DoFn<TableRow, KV<String, String>> {
     @ProcessElement
     public void processElement(@Element TableRow row, OutputReceiver<KV<String, String>> out){
       String country_code = row.get("country_code").toString();
@@ -108,10 +109,58 @@ public class BigQueryIOJsonTest {
     }
   }
 
+  // Make KV Json String pairs out of "cities" column
+  static class CitiesToKVJsonString extends DoFn<TableRow, KV<String, String>> {
+    @ProcessElement
+    public void processElement(@Element TableRow row, OutputReceiver<KV<String, String>> out){
+      String country_code = row.get("country_code").toString();
+      ArrayList<Map<String, String>> cities = (ArrayList<Map<String, String>>) row.get("cities");
+
+      for(Map<String, String> city: cities){
+        String key = country_code + "_" + city.get("city_name");
+        String value = city.get("city");
+
+        out.output(KV.of(key, value));
+      }
+    }
+  }
+
+  // Make KV Json String pairs out of "stats" column
+  static class StatsToKVJsonString extends DoFn<TableRow, KV<String, String>> {
+    @ProcessElement
+    public void processElement(@Element TableRow row, OutputReceiver<KV<String, String>> out){
+      String country_code = row.get("country_code").toString();
+      Map<String, String> map = (Map<String, String>) row.get("stats");
+
+      for(Map.Entry<String, String> entry : map.entrySet()){
+        String key = country_code + "_" + entry.getKey();
+        String value = entry.getValue();
+
+        out.output(KV.of(key, value));
+      }
+    }
+  }
+
+  // Make KV Json String pairs out of "landmarks" column
+  static class LandmarksToKVJsonString extends DoFn<TableRow, KV<String, String>> {
+    @ProcessElement
+    public void processElement(@Element TableRow row, OutputReceiver<KV<String, String>> out){
+      String country_code = row.get("country_code").toString();
+      ArrayList<String> landmarks = (ArrayList<String>) row.get("landmarks");
+
+      for(int i = 0; i < landmarks.size(); i++){
+        String key = country_code + "_" + i;
+        String value = landmarks.get(i);
+
+        out.output(KV.of(key, value));
+      }
+    }
+  }
+
   // Compare PCollection input with expected results.
-  static class CompareJSON implements SerializableFunction<Iterable<KV<String, String>>, Void> {
+  static class CompareJsonStrings implements SerializableFunction<Iterable<KV<String, String>>, Void> {
     Map<String, String> expected;
-    public CompareJSON(Map<String, String> expected){
+    public CompareJsonStrings(Map<String, String> expected){
       this.expected = expected;
     }
 
@@ -119,8 +168,7 @@ public class BigQueryIOJsonTest {
     public Void apply(Iterable<KV<String, String>> input) throws RuntimeException {
       int counter = 0;
 
-      // Iterate through input list and convert each String to JsonElement
-      // Compare with expected result JsonElements
+      // Compare by converting strings to JsonElements
       for(KV<String, String> actual: input){
         String key = actual.getKey();
 
@@ -147,7 +195,7 @@ public class BigQueryIOJsonTest {
 
   public void runTestWrite(BigQueryIOJsonOptions options){
     List<TableRow> rowsToWrite = new ArrayList<>();
-    for(Map.Entry<String, Map<String, Object>> element: JSON_TYPE_DATA.entrySet()){
+    for(Map.Entry<String, Map<String, Object>> element: JSON_TEST_DATA.entrySet()){
       rowsToWrite.add(new TableRow()
           .set("country_code", element.getKey())
           .set("country", element.getValue().get("country")));
@@ -166,15 +214,21 @@ public class BigQueryIOJsonTest {
     options.setReadMethod(TypedRead.Method.EXPORT);
 
     Map<String, String> expected = new HashMap<>();
-    for(Map.Entry<String, Map<String, Object>> country : JSON_TYPE_DATA.entrySet()){
+    for(Map.Entry<String, Map<String, Object>> country : JSON_TEST_DATA.entrySet()){
       expected.put(country.getKey(), country.getValue().get("country").toString());
     }
-    readAndValidateRows(options, expected);
+    readAndValidateRows(options);
+  }
+
+  public static Map<String, String> getTestData(String column){
+    Map<String, String> testData = JSON_TEST_DATA.get(column).entrySet().stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> (String)e.getValue()));
+    return testData;
   }
 
   // reads TableRows from BigQuery and validates JSON Strings
   // expectedJsonResults Strings must be in valid json format
-  public void readAndValidateRows(BigQueryIOJsonOptions options, Map<String, String> expectedResults){
+  public void readAndValidateRows(BigQueryIOJsonOptions options){
     TypedRead<TableRow> bigqueryIO =
         BigQueryIO.readTableRows().withMethod(options.getReadMethod());
 
@@ -185,11 +239,31 @@ public class BigQueryIOJsonTest {
       bigqueryIO = bigqueryIO.from(options.getInput());
     }
 
-    PCollection<KV<String, String>> jsonKVPairs = p
-        .apply("Read rows", bigqueryIO)
-        .apply("Convert to KV JSON Strings", ParDo.of(new TableRowToKVJsonPairs()));
+    PCollection<TableRow> jsonRows = p.apply("Read rows", bigqueryIO);
 
-    PAssert.that(jsonKVPairs).satisfies(new CompareJSON(expectedResults));
+    // Testing countries
+    PCollection<KV<String, String>> countries = jsonRows
+        .apply("Convert countries to KV JSON Strings", ParDo.of(new CountryToKVJsonString()));
+
+    PAssert.that(countries).satisfies(new CompareJsonStrings(getTestData("countries")));
+
+    // Testing cities
+    PCollection<KV<String, String>> cities = jsonRows
+        .apply("Convert cities to KV JSON Strings", ParDo.of(new CitiesToKVJsonString()));
+
+    PAssert.that(cities).satisfies(new CompareJsonStrings(getTestData("cities")));
+
+    // Testing stats
+    PCollection<KV<String, String>> stats = jsonRows
+        .apply("Convert stats to KV JSON Strings", ParDo.of(new StatsToKVJsonString()));
+
+    PAssert.that(stats).satisfies(new CompareJsonStrings(getTestData("stats")));
+
+    // Testing landmarks
+    PCollection<KV<String, String>> landmarks = jsonRows
+        .apply("Convert landmarks to KV JSON Strings", ParDo.of(new LandmarksToKVJsonString()));
+
+    PAssert.that(landmarks).satisfies(new CompareJsonStrings(getTestData("landmarks")));
 
     p.run().waitUntilFinish();
   }
@@ -201,12 +275,8 @@ public class BigQueryIOJsonTest {
     options.setReadMethod(TypedRead.Method.DIRECT_READ);
     options.setInput(JSON_TABLE_DESTINATION);
 
-    Map<String, String> expected = new HashMap<>();
-    for(Map.Entry<String, Map<String, Object>> country : JSON_TYPE_DATA.entrySet()){
-      expected.put(country.getKey(), country.getValue().get("country").toString());
-    }
-
-    readAndValidateRows(options, expected);  }
+    readAndValidateRows(options);
+  }
 
   @Test
   public void testExportRead() throws Exception {
@@ -215,12 +285,8 @@ public class BigQueryIOJsonTest {
     options.setReadMethod(TypedRead.Method.EXPORT);
     options.setInput(JSON_TABLE_DESTINATION);
 
-    Map<String, String> expected = new HashMap<>();
-    for(Map.Entry<String, Map<String, Object>> country : JSON_TYPE_DATA.entrySet()){
-      expected.put(country.getKey(), country.getValue().get("country").toString());
-    }
-
-    readAndValidateRows(options, expected);  }
+    readAndValidateRows(options);
+  }
 
   @Test
   public void testQueryRead() throws Exception {
@@ -232,14 +298,7 @@ public class BigQueryIOJsonTest {
         String.format("SELECT country_code, country.cities AS country FROM "
             + "`%s.%s.%s`", project, DATASET_ID, JSON_TYPE_TABLE_NAME));
 
-    // get nested json objects from static data
-    Map<String, String> expected = new HashMap<>();
-
-    for(Map.Entry<String, Map<String, Object>> country : JSON_TYPE_DATA.entrySet()){
-      expected.put(country.getKey(), country.getValue().get("cities").toString());
-    }
-
-    readAndValidateRows(options, expected);
+    readAndValidateRows(options);
   }
 
   @Test
