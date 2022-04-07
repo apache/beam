@@ -78,14 +78,6 @@ class ModelLoader(Generic[T]):
     raise NotImplementedError(type(self))
 
 
-def _unbatch(maybe_keyed_batches: Tuple[Any, Any]):
-  keys, results = maybe_keyed_batches
-  if keys:
-    return zip(keys, results)
-  else:
-    return results
-
-
 class RunInference(beam.PTransform):
   """An extensible transform for running inferences."""
   def __init__(self, model_loader: ModelLoader, clock=None):
@@ -100,7 +92,6 @@ class RunInference(beam.PTransform):
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
         | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock))
-        | beam.FlatMap(_unbatch))
 
 
 class _MetricsCollector:
