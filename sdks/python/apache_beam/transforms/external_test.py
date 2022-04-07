@@ -32,9 +32,7 @@ import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.portability.api.external_transforms_pb2 import BuilderMethod
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
-from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupPayload
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
@@ -61,7 +59,7 @@ except ImportError:
 
 
 def get_payload(cls):
-  payload = ExternalConfigurationPayload()
+  payload = external_transforms_pb2.ExternalConfigurationPayload()
   payload.ParseFromString(cls._payload)
   return payload
 
@@ -432,8 +430,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     payload_builder.with_constructor('abc', 123, str_field='def', int_field=456)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
-    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
+    self.assertTrue(
+        isinstance(
+            payload_from_bytes, external_transforms_pb2.JavaClassLookupPayload))
     self.assertFalse(payload_from_bytes.constructor_method)
     self._verify_row(
         payload_from_bytes.constructor_schema,
@@ -450,8 +450,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         'dummy_constructor_method', 'abc', 123, str_field='def', int_field=456)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
-    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
+    self.assertTrue(
+        isinstance(
+            payload_from_bytes, external_transforms_pb2.JavaClassLookupPayload))
     self.assertEqual(
         'dummy_constructor_method', payload_from_bytes.constructor_method)
     self._verify_row(
@@ -472,8 +474,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         'builder_method2', 'abc3', 3456, str_field2='abc4', int_field2=4567)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
-    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
+    self.assertTrue(
+        isinstance(
+            payload_from_bytes, external_transforms_pb2.JavaClassLookupPayload))
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
@@ -484,7 +488,8 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         })
     self.assertEqual(2, len(payload_from_bytes.builder_methods))
     builder_method = payload_from_bytes.builder_methods[0]
-    self.assertTrue(isinstance(builder_method, BuilderMethod))
+    self.assertTrue(
+        isinstance(builder_method, external_transforms_pb2.BuilderMethod))
     self.assertEqual('builder_method1', builder_method.name)
 
     self._verify_row(
@@ -498,7 +503,8 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         })
 
     builder_method = payload_from_bytes.builder_methods[1]
-    self.assertTrue(isinstance(builder_method, BuilderMethod))
+    self.assertTrue(
+        isinstance(builder_method, external_transforms_pb2.BuilderMethod))
     self.assertEqual('builder_method2', builder_method.name)
     self._verify_row(
         builder_method.schema,
@@ -522,7 +528,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
     payload_bytes = constructor_transform._payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
     self.assertEqual('org.pkg.MyTransform', payload_from_bytes.class_name)
     self._verify_row(
         payload_from_bytes.constructor_schema,
@@ -538,7 +544,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
     payload_bytes = constructor_transform._payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
     self.assertEqual('of', payload_from_bytes.constructor_method)
     self._verify_row(
         payload_from_bytes.constructor_schema,

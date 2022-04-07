@@ -57,7 +57,7 @@ tasks.rat {
     // Default eclipse excludes neglect subprojects
 
     // Proto/grpc generated wrappers
-    "**/apache_beam/portability/api/*_pb2*.py",
+    "**/apache_beam/portability/api/**/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
 
     // Ignore go.sum files, which don't permit headers

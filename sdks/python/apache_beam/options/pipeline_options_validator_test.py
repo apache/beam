@@ -616,6 +616,31 @@ class SetupTest(unittest.TestCase):
     self.assertIn('sdk_container_image', errors[0])
     self.assertIn('worker_harness_container_image', errors[0])
 
+  def test_prebuild_sdk_container_base_image_disallowed(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--prebuild_sdk_container_base_image=gcr.io/foo:bar'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn('prebuild_sdk_container_base_image', errors[0])
+    self.assertIn('sdk_container_image', errors[0])
+
+  def test_prebuild_sdk_container_base_allowed_if_matches_custom_image(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--sdk_container_image=gcr.io/foo:bar',
+        '--prebuild_sdk_container_base_image=gcr.io/foo:bar'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+
   def test_test_matcher(self):
     def get_validator(matcher):
       options = [

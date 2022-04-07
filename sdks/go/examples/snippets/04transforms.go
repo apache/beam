@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -87,6 +88,22 @@ func CreateAndSplit(s beam.Scope, input []stringPair) beam.PCollection {
 }
 
 // [END cogroupbykey_input_helpers]
+
+type splittableDoFn struct{}
+
+// [START bundlefinalization_simplecallback]
+
+func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalization) {
+	// ... produce output ...
+
+	bf.RegisterCallback(5*time.Minute, func() error {
+		// ... perform a side effect ...
+
+		return nil
+	})
+}
+
+// [END bundlefinalization_simplecallback]
 
 // [START cogroupbykey_output_helpers]
 

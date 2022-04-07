@@ -44,6 +44,7 @@ from apache_beam.pvalue import AsSideInput
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
@@ -166,6 +167,8 @@ class CoGroupByKey(PTransform):
       return pcolls, pcolls
 
   def expand(self, pcolls):
+    if not pcolls:
+      pcolls = (self.pipeline | Create([]), )
     if isinstance(pcolls, dict):
       tags = list(pcolls.keys())
       if all(isinstance(tag, str) and len(tag) < 10 for tag in tags):
@@ -195,7 +198,8 @@ class CoGroupByKey(PTransform):
       input_value_types.append(value_type)
     output_key_type = typehints.Union[tuple(input_key_types)]
     iterable_input_value_types = tuple(
-        typehints.Iterable[t] for t in input_value_types)
+        # TODO: Change List[t] to Iterable[t]
+        typehints.List[t] for t in input_value_types)
 
     output_value_type = typehints.Dict[
         str, typehints.Union[iterable_input_value_types or [typehints.Any]]]
