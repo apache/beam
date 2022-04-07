@@ -628,6 +628,8 @@ public class ElasticsearchIO {
       }
       RestClientBuilder restClientBuilder = RestClient.builder(hosts);
 
+      final SSLContext sslContext = getSSLContext();
+
       if (getApiKey() != null) {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "ApiKey " + getApiKey())});
@@ -636,8 +638,6 @@ public class ElasticsearchIO {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "Bearer " + getBearerToken())});
       }
-
-      final SSLContext sslContext = getSSLContext();
 
       restClientBuilder.setHttpClientConfigCallback(
           httpClientBuilder -> {
