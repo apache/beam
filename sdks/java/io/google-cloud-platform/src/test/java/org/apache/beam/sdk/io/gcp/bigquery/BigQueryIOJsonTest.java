@@ -478,6 +478,41 @@ public class BigQueryIOJsonTest {
 
 
     return ImmutableMap.of(
+        // keys for testing
+        "countries", ImmutableMap.of(
+            "usa", usa.toString(),
+            "aus", aus.toString(),
+            "special", special.toString()
+        ),
+        "cities", ImmutableMap.of(
+            "usa_nyc", nyc.toString(),
+            "usa_la", la.toString(),
+            "usa_chicago", chicago.toString(),
+            "aus_sydney", sydney.toString(),
+            "aus_melbourne", melbourne.toString(),
+            "aus_brisbane", brisbane.toString(),
+            "special_basingse", ba_sing_se.toString(),
+            "special_bikinibottom", bikini_bottom.toString()
+        ),
+        "landmarks", ImmutableMap.of(
+            "usa_0", statue_of_liberty.toString(),
+            "usa_1", golden_gate_bridge.toString(),
+            "usa_2", grand_canyon.toString(),
+            "aus_0", opera_house.toString(),
+            "aus_1", great_barrier_reef.toString(),
+            "special_0", hogwarts.toString(),
+            "special_1", willy_wonka.toString(),
+            "special_2", rivendell.toString()
+        ),
+        "stats", ImmutableMap.of(
+            "usa_gdp_per_capita", us_gdp.toString(),
+            "usa_co2_emissions", us_co2.toString(),
+            "aus_gdp_per_capita", aus_gdp.toString(),
+            "aus_co2_emissions", aus_co2.toString(),
+            "special_gdp_per_capita", special_gdp.toString(),
+            "special_co2_emissions", special_co2.toString()
+        ),
+        // keys for writing to BigQuery
         "usa", ImmutableMap.of(
             "country", usa.toString(),
             "cities", ImmutableMap.of(
@@ -492,7 +527,6 @@ public class BigQueryIOJsonTest {
                 "co2_emissions", us_co2.toString()
             )
         ),
-
         "aus", ImmutableMap.of(
             "country", aus.toString(),
             "cities", ImmutableMap.of(
@@ -506,7 +540,6 @@ public class BigQueryIOJsonTest {
                 "co2_emissions", aus_co2.toString()
             )
         ),
-
         "special", ImmutableMap.of(
             "country", special.toString(),
             "cities", ImmutableMap.of(
