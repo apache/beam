@@ -103,7 +103,7 @@ function addWrapperOverGroupOfCards(wrappingData) {
       if (isLoop) {
         var dots_wrapper = document.getElementById("dots");
         var slides = currentSliderDOM.querySelectorAll(".keen-slider__slide");
-        slides.forEach(function (t, idx) {
+        slides.forEach(function (_, idx) {
           var dot = document.createElement("button");
           dot.classList.add("dot");
           dots_wrapper.appendChild(dot);
