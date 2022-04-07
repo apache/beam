@@ -28,8 +28,8 @@ option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "ExternalTransforms";
 
-import "schema.proto";
-import "beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/schema.proto";
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 
 // A configuration payload for an external transform.
 // Used as the payload of ExternalTransform as part of an ExpansionRequest.

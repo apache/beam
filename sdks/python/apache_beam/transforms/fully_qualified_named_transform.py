@@ -21,7 +21,7 @@ import fnmatch
 import importlib
 
 from apache_beam import coders
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.pvalue import Row
 from apache_beam.transforms import ptransform
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
@@ -33,7 +33,8 @@ PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN = (
 
 
 @ptransform.PTransform.register_urn(
-    PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN, ExternalConfigurationPayload)
+    PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN,
+    external_transforms_pb2.ExternalConfigurationPayload)
 class FullyQualifiedNamedTransform(ptransform.PTransform):
 
   _FILTER_GLOB = None
@@ -87,7 +88,7 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
     })
     return (
         PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN,
-        ExternalConfigurationPayload(
+        external_transforms_pb2.ExternalConfigurationPayload(
             schema=payload_schema,
             payload=coders.RowCoder(payload_schema).encode(
                 Row(

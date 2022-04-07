@@ -2272,14 +2272,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   @PTransform.register_urn('beam:transform:write_to_big_query:v0', bytes)
   def from_runner_api(unused_ptransform, payload, context):
     from apache_beam.internal import pickler
-    from apache_beam.portability.api.beam_runner_api_pb2 import SideInput
+    from apache_beam.portability.api import beam_runner_api_pb2
 
     config = pickler.loads(payload)
 
     def deserialize(side_inputs):
       deserialized_side_inputs = {}
       for k, v in side_inputs.items():
-        side_input = SideInput()
+        side_input = beam_runner_api_pb2.SideInput()
         side_input.ParseFromString(v)
         deserialized_side_inputs[k] = side_input
 
