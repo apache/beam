@@ -214,12 +214,22 @@ public class BigQueryIOJsonTest {
     }
   }
 
+  // Writes with given write method then reads back and validates with original test data.
   public void runTestWrite(BigQueryIOJsonOptions options){
+    List<String> countries = Arrays.asList("usa", "aus", "special");
     List<TableRow> rowsToWrite = new ArrayList<>();
     for(Map.Entry<String, Map<String, Object>> element: JSON_TEST_DATA.entrySet()){
-      rowsToWrite.add(new TableRow()
+      if(!countries.contains(element.getKey()))
+        continue;
+
+      TableRow row = new TableRow()
           .set("country_code", element.getKey())
-          .set("country", element.getValue().get("country")));
+          .set("country", element.getValue().get("country"))
+          .set("stats", element.getValue().get("stats"))
+          .set("cities", element.getValue().get("cities"))
+          .set("landmarks", element.getValue().get("landmarks"));
+
+      rowsToWrite.add(row);
     }
 
     p_write
@@ -234,10 +244,6 @@ public class BigQueryIOJsonTest {
 
     options.setReadMethod(TypedRead.Method.EXPORT);
 
-    // Map<String, String> expected = new HashMap<>();
-    // for(Map.Entry<String, Map<String, Object>> country : JSON_TEST_DATA.entrySet()){
-    //   expected.put(country.getKey(), country.getValue().get("country").toString());
-    // }
     readAndValidateRows(options);
   }
 
@@ -247,8 +253,7 @@ public class BigQueryIOJsonTest {
     return testData;
   }
 
-  // reads TableRows from BigQuery and validates JSON Strings
-  // expectedJsonResults Strings must be in valid json format
+  // Read from BigQuery and compare with local test data.
   public void readAndValidateRows(BigQueryIOJsonOptions options){
     TypedRead<TableRow> bigqueryIO =
         BigQueryIO.readTableRows().withMethod(options.getReadMethod());
@@ -268,25 +273,25 @@ public class BigQueryIOJsonTest {
       return;
     }
 
-    // Testing countries
+    // Testing countries (straight json)
     PCollection<KV<String, String>> countries = jsonRows
         .apply("Convert countries to KV JSON Strings", ParDo.of(new CountryToKVJsonString()));
 
     PAssert.that(countries).satisfies(new CompareJsonStrings(getTestData("countries")));
 
-    // Testing cities
-    PCollection<KV<String, String>> cities = jsonRows
-        .apply("Convert cities to KV JSON Strings", ParDo.of(new CitiesToKVJsonString()));
-
-    PAssert.that(cities).satisfies(new CompareJsonStrings(getTestData("cities")));
-
-    // Testing stats
+    // Testing stats (json in struct)
     PCollection<KV<String, String>> stats = jsonRows
         .apply("Convert stats to KV JSON Strings", ParDo.of(new StatsToKVJsonString()));
 
     PAssert.that(stats).satisfies(new CompareJsonStrings(getTestData("stats")));
 
-    // Testing landmarks
+    // Testing cities (json in array of structs)
+    PCollection<KV<String, String>> cities = jsonRows
+        .apply("Convert cities to KV JSON Strings", ParDo.of(new CitiesToKVJsonString()));
+
+    PAssert.that(cities).satisfies(new CompareJsonStrings(getTestData("cities")));
+
+    // Testing landmarks (json in array)
     PCollection<KV<String, String>> landmarks = jsonRows
         .apply("Convert landmarks to KV JSON Strings", ParDo.of(new LandmarksToKVJsonString()));
 
@@ -484,18 +489,18 @@ public class BigQueryIOJsonTest {
 
     JSONObject special_cities = new JSONObject();
 
-    JSONObject ba_sing_se = new JSONObject();
-    ba_sing_se.put("name", "Ba Sing Se");
-    ba_sing_se.put("state", "The Earth Kingdom");
-    ba_sing_se.put("population", 200000);
+    JSONObject basingse = new JSONObject();
+    basingse.put("name", "Ba Sing Se");
+    basingse.put("state", "The Earth Kingdom");
+    basingse.put("population", 200000);
 
-    JSONObject bikini_bottom = new JSONObject();
-    bikini_bottom.put("name", "Bikini Bottom");
-    ba_sing_se.put("state", "The Pacific Ocean");
-    ba_sing_se.put("population", 50000);
+    JSONObject bikinibottom = new JSONObject();
+    bikinibottom.put("name", "Bikini Bottom");
+    bikinibottom.put("state", "The Pacific Ocean");
+    bikinibottom.put("population", 50000);
 
-    special_cities.put("basingse", ba_sing_se);
-    special_cities.put("bikinibottom", bikini_bottom);
+    special_cities.put("basingse", basingse);
+    special_cities.put("bikinibottom", bikinibottom);
 
     JSONArray special_arr = new JSONArray();
 
@@ -581,8 +586,8 @@ public class BigQueryIOJsonTest {
             "aus_sydney", sydney.toString(),
             "aus_melbourne", melbourne.toString(),
             "aus_brisbane", brisbane.toString(),
-            "special_basingse", ba_sing_se.toString(),
-            "special_bikinibottom", bikini_bottom.toString()
+            "special_basingse", basingse.toString(),
+            "special_bikinibottom", bikinibottom.toString()
         ),
         "landmarks", ImmutableMap.of(
             "usa_0", statue_of_liberty.toString(),
@@ -605,13 +610,25 @@ public class BigQueryIOJsonTest {
         // keys for writing to BigQuery
         "usa", ImmutableMap.of(
             "country", usa.toString(),
-            "cities", ImmutableMap.of(
-                "nyc", nyc.toString(),
-                "la", la.toString(),
-                "chicago", chicago.toString()
+            "cities", Arrays.asList(
+                ImmutableMap.of(
+                    "city_name", "nyc",
+                    "city", nyc.toString()
+                ),
+                ImmutableMap.of(
+                    "city_name", "la",
+                    "city", la.toString()
+                ),
+                ImmutableMap.of(
+                    "city_name", "chicago",
+                    "city", chicago.toString()
+                )
             ),
-            "landmarks", Arrays.asList(statue_of_liberty.toString(),
-                golden_gate_bridge.toString(), grand_canyon.toString()),
+            "landmarks", Arrays.asList(
+                statue_of_liberty.toString(),
+                golden_gate_bridge.toString(),
+                grand_canyon.toString()
+            ),
             "stats", ImmutableMap.of(
                 "gdp_per_capita", us_gdp.toString(),
                 "co2_emissions", us_co2.toString()
@@ -619,12 +636,24 @@ public class BigQueryIOJsonTest {
         ),
         "aus", ImmutableMap.of(
             "country", aus.toString(),
-            "cities", ImmutableMap.of(
-                "sydney", sydney.toString(),
-                "melbourne", melbourne.toString(),
-                "brisbane", brisbane.toString()
+            "cities", Arrays.asList(
+                ImmutableMap.of(
+                    "city_name", "sydney",
+                    "city", sydney.toString()
+                ),
+                ImmutableMap.of(
+                    "city_name", "melbourne",
+                    "city", melbourne.toString()
+                ),
+                ImmutableMap.of(
+                    "city_name", "brisbane",
+                    "city", brisbane.toString()
+                )
             ),
-            "landmarks", Arrays.asList(opera_house.toString(), great_barrier_reef.toString()),
+            "landmarks", Arrays.asList(
+                opera_house.toString(),
+                great_barrier_reef.toString()
+            ),
             "stats", ImmutableMap.of(
                 "gdp_per_capita", aus_gdp.toString(),
                 "co2_emissions", aus_co2.toString()
@@ -632,12 +661,21 @@ public class BigQueryIOJsonTest {
         ),
         "special", ImmutableMap.of(
             "country", special.toString(),
-            "cities", ImmutableMap.of(
-                "basingse", ba_sing_se.toString(),
-                "bikinibottom", bikini_bottom.toString()
+            "cities", Arrays.asList(
+                ImmutableMap.of(
+                    "city_name", "basingse",
+                    "city", basingse.toString()
+                ),
+                ImmutableMap.of(
+                    "city_name", "bikinibottom",
+                    "city", bikinibottom.toString()
+                )
             ),
-            "landmarks", Arrays.asList(hogwarts.toString(),
-                willy_wonka.toString(), rivendell.toString()),
+            "landmarks", Arrays.asList(
+                hogwarts.toString(),
+                willy_wonka.toString(),
+                rivendell.toString()
+            ),
             "stats", ImmutableMap.of(
                 "gdp_per_capita", special_gdp.toString(),
                 "co2_emissions", special_co2.toString()
