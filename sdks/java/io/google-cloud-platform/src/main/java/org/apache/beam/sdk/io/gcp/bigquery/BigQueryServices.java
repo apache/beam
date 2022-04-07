@@ -45,7 +45,6 @@ import com.google.protobuf.Descriptors.Descriptor;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;

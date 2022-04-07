@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.snowflake.services;
 
-import org.apache.beam.sdk.annotations.Internal;
-
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Interface which defines common methods for interacting with Snowflake. */
 @Internal
