@@ -2421,11 +2421,10 @@ class BeamModulePlugin implements Plugin<Project> {
       config.cleanupJobServer.configure{mustRunAfter pythonSqlTask}
 
       // Task for running Java testcases in Go SDK.
-      def scriptOptions = [
-        "--test_expansion_addr localhost:${javaPort}",
+      def pipelineOpts = [
+        "--expansion_addr=test:localhost:${javaPort}",
       ]
-      scriptOptions.addAll(config.goScriptOptions)
-      def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", scriptOptions)
+      def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", config.goScriptOptions, pipelineOpts)
       goTask.configure {
         description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
         dependsOn setupTask
