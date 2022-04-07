@@ -1003,6 +1003,23 @@ class UtilTest(unittest.TestCase):
         ['--experiments=use_runner_v2', '--experiments=beam_fn_api'])
     self.assertTrue(apiclient._use_unified_worker(pipeline_options))
 
+    pipeline_options = PipelineOptions(['--experiments=enable_prime'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--dataflow_service_options=enable_prime'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--experiments=disable_prime_runner_v2'
+    ])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--experiments=enable_prime', '--experiments=disable_prime_runner_v2'])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
     pipeline_options = PipelineOptions([
         '--experiments=use_unified_worker',
         '--experiments=use_runner_v2',
