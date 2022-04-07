@@ -23,6 +23,9 @@ RunInference Beam transform for that framework.
 
 The transform will handle standard inference functionality like metric
 collection, sharing model between threads and batching elements.
+
+Note: This module is still actively being developed and users should have
+no expectation that these interfaces will not change.
 """
 
 import logging
@@ -91,7 +94,7 @@ class RunInference(beam.PTransform):
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
-        | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock))
+        | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock)))
 
 
 class _MetricsCollector:
