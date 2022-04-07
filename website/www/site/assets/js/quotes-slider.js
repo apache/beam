@@ -10,43 +10,31 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+const tabletWidth = 1024;
+
 function calcBodyWidth() {
-  return window.innerWidth && document.documentElement.clientWidth ?
-    Math.min(window.innerWidth, document.documentElement.clientWidth) :
-    window.innerWidth ||
-    document.documentElement.clientWidth ||
-    document.getElementsByTagName('body')[0].clientWidth;
+  if (window.innerWidth && document.documentElement.clientWidth) {
+    return Math.min(window.innerWidth, document.documentElement.clientWidth);
+  } else {
+      return (
+        window.innerWidth ||
+        document.documentElement.clientWidth ||
+        document.getElementsByTagName('body')[0].clientWidth
+      );
+  }
 }
 
-(function () {
+function addWrapperOverGroupOfCards(wrappingData) {
+  const {
+    isDesktopWidth,
+    actualCountOfSlides,
+    CountOfSlides,
+    classOneSlide,
+    classOneSlideExtra,
+    slidesDOM,
+    currentSliderDOM
+  } = wrappingData;
 
-  var CountOfSlides = {
-    min: 1,
-    renderedOnDesktop: 3,
-  }
-
-  var Selectors = {
-    desktopSlider: '.quotes-desktop.keen-slider-JS',
-    mobileSlider: '.quote-mobile.keen-slider-JS',
-    oneSlide: '.keen-slider__slide',
-  }
-
-  var classOneSlideExtra = 'wrap-slide';
-  var classOneSlide = 'keen-slider__slide';
-  var classVisible = 'visible';
-
-  var tabletWidth = 1024;
-  var bodyWidth = calcBodyWidth();
-  var isDesktopWidth = bodyWidth >= tabletWidth;
-
-  var currentSliderSelector = isDesktopWidth ? Selectors.desktopSlider : Selectors.mobileSlider;
-  var currentSliderDOM = document.querySelector(currentSliderSelector);
-  currentSliderDOM.classList.add(classVisible);
-
-  var slidesDOM = currentSliderDOM.querySelectorAll(".keen-slider__slide");
-  var actualCountOfSlides = currentSliderDOM.querySelectorAll(Selectors.oneSlide).length;
-
-  // create and add additional div wrappers over group of 3 cards
   if (isDesktopWidth) {
     var numOfExtraGroupWrappers = Math.ceil(actualCountOfSlides / CountOfSlides.renderedOnDesktop);
     var extraGroupWrappers = new Array(numOfExtraGroupWrappers).fill(null).map(() => {
@@ -62,33 +50,69 @@ function calcBodyWidth() {
       currentSliderDOM.append(oneExtraGroupWrapper);
     });
   }
+}
 
-  var isNeedLoop = true;
+(function () {
+  var CountOfSlides = {
+    min: 1,
+    renderedOnDesktop: 3,
+  }
+
+  var Selectors = {
+    desktopSlider: '.quotes-desktop.keen-slider-JS',
+    mobileSlider: '.quote-mobile.keen-slider-JS',
+    oneSlide: '.keen-slider__slide',
+  }
+
+  var classOneSlideExtra = 'wrap-slide';
+  var classOneSlide = 'keen-slider__slide';
+  var classVisible = 'visible';
+
+  var bodyWidth = calcBodyWidth();
+  var isDesktopWidth = bodyWidth >= tabletWidth;
+
+  var currentSliderSelector = isDesktopWidth ? Selectors.desktopSlider : Selectors.mobileSlider;
+  var currentSliderDOM = document.querySelector(currentSliderSelector);
+  currentSliderDOM.classList.add(classVisible);
+
+  var slidesDOM = currentSliderDOM.querySelectorAll(".keen-slider__slide");
+  var actualCountOfSlides = currentSliderDOM.querySelectorAll(Selectors.oneSlide).length;
+
+  addWrapperOverGroupOfCards({
+    isDesktopWidth,
+    actualCountOfSlides,
+    CountOfSlides,
+    classOneSlide,
+    classOneSlideExtra,
+    slidesDOM,
+    currentSliderDOM
+  });
+
+  var isLoop = true;
   if (isDesktopWidth && actualCountOfSlides <= CountOfSlides.renderedOnDesktop) {
-    isNeedLoop = false;
+    isLoop = false;
   }
   if (!isDesktopWidth && actualCountOfSlides === CountOfSlides.min) {
-    isNeedLoop = false;
+    isLoop = false;
   }
 
   var slider = new KeenSlider(currentSliderSelector, {
     slidesPerView: CountOfSlides.min,
-    loop: isNeedLoop,
+    loop: isLoop,
     created: function (instance) {
-      if (!isNeedLoop) {
-        return;
-      }
-      var dots_wrapper = document.getElementById("dots");
-      var slides = currentSliderDOM.querySelectorAll(".keen-slider__slide");
-      slides.forEach(function (t, idx) {
-        var dot = document.createElement("button");
-        dot.classList.add("dot");
-        dots_wrapper.appendChild(dot);
-        dot.addEventListener("click", function () {
-          instance.moveToSlide(idx);
+      if (isLoop) {
+        var dots_wrapper = document.getElementById("dots");
+        var slides = currentSliderDOM.querySelectorAll(".keen-slider__slide");
+        slides.forEach(function (t, idx) {
+          var dot = document.createElement("button");
+          dot.classList.add("dot");
+          dots_wrapper.appendChild(dot);
+          dot.addEventListener("click", function () {
+            instance.moveToSlide(idx);
+          });
         });
-      });
-      updateClasses(instance);
+        updateClasses(instance);
+      }
     },
     slideChanged(instance) {
       updateClasses(instance);
