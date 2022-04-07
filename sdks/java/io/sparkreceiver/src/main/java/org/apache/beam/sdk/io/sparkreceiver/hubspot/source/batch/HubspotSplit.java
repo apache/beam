@@ -15,28 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap.context;
+package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.batch;
 
-import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.api.dataset.DatasetManagementException;
-import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
-import javax.annotation.Nullable;
-import org.apache.tephra.TransactionFailureException;
+import java.io.DataInput;
+import java.io.DataOutput;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.InputSplit;
 
-import java.io.Serializable;
-
-/**
- * Class StreamingSourceContextWrapper is a class for creating context object of different CDAP
- * classes with stream source type.
- */
-public class StreamingSourceContextImpl extends BatchContextImpl implements StreamingSourceContext, Serializable {
+/** A no-op split. */
+public class HubspotSplit extends InputSplit implements Writable {
+  public HubspotSplit() {}
 
   @Override
-  public void registerLineage(String referenceName, @Nullable Schema schema)
-      throws DatasetManagementException, TransactionFailureException {}
+  public void readFields(DataInput dataInput) {}
 
   @Override
-  public boolean isPreviewEnabled() {
-    return false;
+  public void write(DataOutput dataOutput) {}
+
+  @Override
+  public long getLength() {
+    return 0;
+  }
+
+  @Override
+  public String[] getLocations() {
+    return new String[0];
   }
 }

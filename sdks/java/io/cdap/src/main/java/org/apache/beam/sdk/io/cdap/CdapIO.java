@@ -22,12 +22,20 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
+import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.NullWritable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +67,8 @@ public class CdapIO {
 
     abstract @Nullable Class<V> getValueClass();
 
+    abstract @Nullable Coder<V> getValueCoder();
+
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -72,6 +82,8 @@ public class CdapIO {
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
+
+      abstract Builder<K, V> setValueCoder(Coder<V> coder);
 
       abstract Read<K, V> build();
     }
@@ -92,6 +104,10 @@ public class CdapIO {
       return toBuilder().setKeyClass(keyClass).build();
     }
 
+    public Read<K, V> withValueCoder(Coder<V> valueCoder) {
+      return toBuilder().setValueCoder(valueCoder).build();
+    }
+
     public Read<K, V> withValueClass(Class<V> valueClass) {
       return toBuilder().setValueClass(valueClass).build();
     }
@@ -108,8 +124,20 @@ public class CdapIO {
       getCdapPlugin().prepareRun(getPluginConfig());
 
       if (getCdapPlugin().isUnbounded()) {
-        // TODO: implement SparkReceiverIO.<~>read()
-        return null;
+        SparkReceiverIO.Read<V> reader =
+            SparkReceiverIO.<V>read()
+                .withPluginConfig(getPluginConfig())
+                .withValueClass(getValueClass());
+        PCollection<V> values = input.apply(reader)
+                .setCoder(getValueCoder());
+        return values.apply(
+            MapElements.via(
+                new SimpleFunction<V, KV<K, V>>() {
+                  @Override
+                  public KV<K, V> apply(V input) {
+                    return KV.of(null, input);
+                  }
+                }));
       } else {
         Configuration hConf = getCdapPlugin().getHadoopConf();
         HadoopFormatIO.Read<K, V> readFromHadoop =

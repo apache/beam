@@ -68,6 +68,7 @@ dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:io:hadoop-format")
+    implementation project(":sdks:java:io:sparkreceiver")
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.vendored_guava_26_0_jre
@@ -75,4 +76,5 @@ dependencies {
     testImplementation project(":sdks:java:io:hadoop-common")
     testImplementation project(":sdks:java:io:hadoop-format")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":sdks:java:io:sparkreceiver", configuration: "testRuntimeMigration")
 }

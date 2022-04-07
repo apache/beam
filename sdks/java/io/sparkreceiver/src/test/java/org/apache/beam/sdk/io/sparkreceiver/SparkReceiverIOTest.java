@@ -21,11 +21,10 @@ import static org.junit.Assert.*;
 
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.cdap.ConfigWrapper;
-import org.apache.beam.sdk.io.cdap.hubspot.common.BaseHubspotConfig;
-import org.apache.beam.sdk.io.cdap.hubspot.source.streaming.HubspotReceiver;
-import org.apache.beam.sdk.io.cdap.hubspot.source.streaming.HubspotStreamingSourceConfig;
-import org.apache.beam.sdk.io.cdap.hubspot.source.streaming.PullFrequency;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.BaseHubspotConfig;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;

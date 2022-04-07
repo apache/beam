@@ -15,28 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap.context;
+package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.batch;
 
-import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.api.dataset.DatasetManagementException;
-import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
-import javax.annotation.Nullable;
-import org.apache.tephra.TransactionFailureException;
+import java.util.Collections;
+import java.util.List;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import java.io.Serializable;
-
-/**
- * Class StreamingSourceContextWrapper is a class for creating context object of different CDAP
- * classes with stream source type.
- */
-public class StreamingSourceContextImpl extends BatchContextImpl implements StreamingSourceContext, Serializable {
+/** InputFormat for mapreduce job, which provides a single split of data. */
+@SuppressWarnings("rawtypes")
+public class HubspotInputFormat extends InputFormat {
 
   @Override
-  public void registerLineage(String referenceName, @Nullable Schema schema)
-      throws DatasetManagementException, TransactionFailureException {}
+  public List<InputSplit> getSplits(JobContext jobContext) {
+    return Collections.singletonList(new HubspotSplit());
+  }
 
   @Override
-  public boolean isPreviewEnabled() {
-    return false;
+  public RecordReader createRecordReader(
+      InputSplit inputSplit, TaskAttemptContext taskAttemptContext) {
+    return new HubspotRecordReader();
   }
 }

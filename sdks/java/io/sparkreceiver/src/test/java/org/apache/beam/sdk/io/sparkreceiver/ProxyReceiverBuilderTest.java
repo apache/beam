@@ -22,9 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.sdk.io.cdap.ConfigWrapper;
 import org.apache.spark.streaming.receiver.ReceiverSupervisor;
 import org.junit.Test;
 import org.junit.runner.RunWith;

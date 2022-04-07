@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap.hubspot.source.streaming;
+package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming;
 
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
-import org.apache.beam.sdk.io.cdap.hubspot.common.SourceHubspotConfig;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.SourceHubspotConfig;
 
 /** Config for {@link HubspotStreamingSource}. */
 public class HubspotStreamingSourceConfig extends SourceHubspotConfig {

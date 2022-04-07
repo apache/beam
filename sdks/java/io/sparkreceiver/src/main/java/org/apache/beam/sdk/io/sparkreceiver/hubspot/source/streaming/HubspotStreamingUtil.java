@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap.hubspot.source.streaming;
+package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import java.io.IOException;
-import org.apache.beam.sdk.io.cdap.hubspot.common.HubspotHelper;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.HubspotHelper;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 

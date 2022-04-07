@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -37,12 +32,14 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
+import org.apache.beam.sdk.io.cdap.context.StreamingSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSource;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSourceConfig;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubFormatProvider;
@@ -58,6 +55,9 @@ import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskBatchSourceConfig;
 import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskInputFormat;
 import org.apache.beam.sdk.io.cdap.zendesk.batch.util.ZendeskBatchSourceConstants;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSource;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
@@ -67,12 +67,15 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.junit.Assert.*;
 
 /** Test class for {@link CdapIO}. */
 @SuppressWarnings("ModifiedButNotUsed")
@@ -128,6 +131,7 @@ public class CdapIOTest {
           .put("objectType", "Contacts")
           .put("referenceName", "Contacts")
           .put("apiKey", System.getenv("HUBSPOT_TOKEN"))
+          .put("pullFrequency", PullFrequency.MINUTES_15.getName())
           .build();
 
   public static class JsonElementCoder extends CustomCoder<JsonElement> {
@@ -243,7 +247,7 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testReadFromHubspot() {
+  public void testReadFromHubspotBatch() {
 
     SourceHubspotConfig pluginConfig =
         new ConfigWrapper<>(SourceHubspotConfig.class).withParams(TEST_HUBSPOT_PARAMS_MAP).build();
@@ -296,6 +300,51 @@ public class CdapIOTest {
     SourceHubspotConfig configFromJson = GSON.fromJson(configJson, SourceHubspotConfig.class);
 
     assertEquals(pluginConfig.getObjectType(), configFromJson.getObjectType());
+  }
+
+  @Test
+  public void testReadFromHubspotStreaming() throws IOException {
+    HubspotStreamingSourceConfig pluginConfig =
+        new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
+            .withParams(TEST_HUBSPOT_PARAMS_MAP)
+            .build();
+
+    CdapIO.Read<NullWritable, String> reader =
+        CdapIO.<NullWritable, String>read()
+            .withPluginConfig(pluginConfig)
+            .withCdapPluginClass(HubspotStreamingSource.class)
+            .withKeyClass(NullWritable.class)
+            .withValueClass(String.class)
+            .withValueCoder(StringUtf8Coder.of());
+
+    assertNotNull(reader.getPluginConfig());
+    assertNotNull(reader.getCdapPlugin());
+    assertTrue(reader.getCdapPlugin().isUnbounded());
+    assertEquals(StreamingSourceContextImpl.class, reader.getCdapPlugin().getContext().getClass());
+
+    PCollection<KV<NullWritable, String>> input =
+        p.apply(reader)
+                .setCoder(KvCoder.of(
+                        NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()));
+
+    PAssert.that(input)
+        .satisfies(
+            (map) -> {
+              long numOfCorrectRecords = 0;
+              for (KV<NullWritable, String> record : map) {
+                assertFalse(StringUtils.isEmpty(record.getValue()));
+                numOfCorrectRecords++;
+              }
+              assertEquals(NUM_OF_TEST_HUBSPOT_CONTACTS, numOfCorrectRecords);
+              return null;
+            });
+
+    PipelineResult readResult = p.run();
+    PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(10));
+
+    if (readState == null) {
+      readResult.cancel();
+    }
   }
 
   @Test

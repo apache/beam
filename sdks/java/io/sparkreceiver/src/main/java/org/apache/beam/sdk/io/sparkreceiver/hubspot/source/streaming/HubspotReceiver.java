@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap.hubspot.source.streaming;
+package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.io.cdap.hubspot.common.HubspotHelper;
-import org.apache.beam.sdk.io.cdap.hubspot.common.HubspotPage;
-import org.apache.beam.sdk.io.cdap.hubspot.common.HubspotPagesIterator;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.HubspotHelper;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.HubspotPage;
+import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.HubspotPagesIterator;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;

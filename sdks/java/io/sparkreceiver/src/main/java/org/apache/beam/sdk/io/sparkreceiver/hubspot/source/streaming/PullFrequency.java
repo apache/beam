@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.cdap.hubspot.source.streaming;
+package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming;
 
 import java.util.Arrays;
 
