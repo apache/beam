@@ -15,10 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.services;
+package org.apache.beam.sdk.io.snowflake.test;
 
-/**
- * Configuration abstract class for {@link SnowflakeService} that gives parameters for write and
- * read (batch and streaming).
- */
-public abstract class ServiceConfig {}
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
+
+public class FakeSnowflakeServicesImpl implements SnowflakeServices {
+  @Override
+  public BatchService getBatchService() {
+    return new FakeSnowflakeBatchServiceImpl();
+  }
+
+  @Override
+  public StreamingService getStreamingService() {
+    return new FakeSnowflakeStreamingServiceImpl();
+  }
+}
