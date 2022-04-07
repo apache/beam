@@ -234,10 +234,10 @@ public class BigQueryIOJsonTest {
 
     options.setReadMethod(TypedRead.Method.EXPORT);
 
-    Map<String, String> expected = new HashMap<>();
-    for(Map.Entry<String, Map<String, Object>> country : JSON_TEST_DATA.entrySet()){
-      expected.put(country.getKey(), country.getValue().get("country").toString());
-    }
+    // Map<String, String> expected = new HashMap<>();
+    // for(Map.Entry<String, Map<String, Object>> country : JSON_TEST_DATA.entrySet()){
+    //   expected.put(country.getKey(), country.getValue().get("country").toString());
+    // }
     readAndValidateRows(options);
   }
 
@@ -267,7 +267,7 @@ public class BigQueryIOJsonTest {
       p.run().waitUntilFinish();
       return;
     }
-    
+
     // Testing countries
     PCollection<KV<String, String>> countries = jsonRows
         .apply("Convert countries to KV JSON Strings", ParDo.of(new CountryToKVJsonString()));
@@ -318,7 +318,6 @@ public class BigQueryIOJsonTest {
   @Test
   public void testQueryRead() throws Exception {
     LOG.info("Testing querying JSON data with DIRECT_READ read method");
-
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setReadMethod(TypedRead.Method.DIRECT_READ);
     options.setQuery(
@@ -333,7 +332,7 @@ public class BigQueryIOJsonTest {
     readAndValidateRows(options);
   }
 
-  @Test
+  @Test @Ignore
   public void testStorageWrite() throws Exception{
     LOG.info("Testing writing JSON data with Storage API");
 
@@ -347,7 +346,7 @@ public class BigQueryIOJsonTest {
     runTestWrite(options);
   }
 
-  @Test
+  @Test @Ignore
   public void testLegacyStreamingWrite() throws Exception{
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setWriteMethod(Write.Method.STREAMING_INSERTS);
