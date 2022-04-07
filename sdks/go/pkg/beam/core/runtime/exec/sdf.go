@@ -266,9 +266,10 @@ type ProcessSizedElementsAndRestrictions struct {
 	// channel once finished with it, or it will block indefinitely.
 	SU chan SplittableUnit
 
-	elm   *FullValue   // Currently processing element.
-	rt    sdf.RTracker // Currently processing element's restriction tracker.
-	currW int          // Index of the current window in elm being processed.
+	elm     *FullValue   // Currently processing element.
+	rt      sdf.RTracker // Currently processing element's restriction tracker.
+	currW   int          // Index of the current window in elm being processed.
+	initWeS interface{}  // Initial state of the watermark estimator before processing elements.
 
 	// Number of windows being processed. This number can differ from the number
 	// of windows in an element, indicating to only process a subset of windows.
@@ -377,6 +378,9 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 
 	if n.cweInv != nil {
 		n.PDo.we = n.cweInv.Invoke(elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2)
+	}
+	if n.gwesInv != nil {
+		n.initWeS = n.gwesInv.Invoke(n.PDo.we)
 	}
 
 	// Begin processing elements, exploding windows if necessary.
@@ -490,12 +494,21 @@ type SplittableUnit interface {
 // the singleWindowSplit and multiWindowSplit methods.
 func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []*FullValue, error) {
 	// Get the watermark state immediately so that we don't overestimate our current watermark.
-	var weState interface{}
+	var pWeState interface{}
+	var rWeState interface{}
 	if n.gwesInv != nil {
-		weState = n.gwesInv.Invoke(n.PDo.we)
+		rWeState = n.gwesInv.Invoke(n.PDo.we)
+		pWeState = rWeState
+		// If we've processed elements, the initial watermark estimator state will be set.
+		// In that case we should hold the output watermark at that initial state so that we don't
+		// Advance past where the current elements are holding the watermark
+		if n.initWeS != nil {
+			pWeState = n.initWeS
+		}
 	} else {
 		// If no watermark estimator state, use boolean as a placeholder
-		weState = false
+		pWeState = false
+		rWeState = false
 	}
 	addContext := func(err error) error {
 		return errors.WithContext(err, "Attempting split in ProcessSizedElementsAndRestrictions")
@@ -512,7 +525,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 	// Split behavior differs depending on whether this is a window-observing
 	// DoFn or not.
 	if len(n.elm.Windows) > 1 {
-		p, r, err := n.multiWindowSplit(f, weState)
+		p, r, err := n.multiWindowSplit(f, pWeState, rWeState)
 		if err != nil {
 			return nil, nil, addContext(err)
 		}
@@ -520,7 +533,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 	}
 
 	// Not window-observing, or window-observing but only one window.
-	p, r, err := n.singleWindowSplit(f, weState)
+	p, r, err := n.singleWindowSplit(f, pWeState, rWeState)
 	if err != nil {
 		return nil, nil, addContext(err)
 	}
@@ -532,7 +545,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 // behavior is identical). A single restriction split will occur and all windows
 // present in the unsplit element will be present in both the resulting primary
 // and residual.
-func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, weState interface{}) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeState interface{}, rWeState interface{}) ([]*FullValue, []*FullValue, error) {
 	if n.rt.IsDone() { // Not an error, but not splittable.
 		return []*FullValue{}, []*FullValue{}, nil
 	}
@@ -545,11 +558,11 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, weSta
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 
-	pfv, err := n.newSplitResult(p, n.elm.Windows, false)
+	pfv, err := n.newSplitResult(p, n.elm.Windows, pWeState)
 	if err != nil {
 		return nil, nil, err
 	}
-	rfv, err := n.newSplitResult(r, n.elm.Windows, weState)
+	rfv, err := n.newSplitResult(r, n.elm.Windows, rWeState)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -580,7 +593,7 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, weSta
 //
 // This method also updates the current number of windows (n.numW) so that
 // windows in the residual will no longer be processed.
-func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(f float64, weState interface{}) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(f float64, pWeState interface{}, rWeState interface{}) ([]*FullValue, []*FullValue, error) {
 	// Get the split point in window range, to see what window it falls in.
 	done, rem := n.rt.GetProgress()
 	cwp := done / (done + rem)                      // Progress in current window.
@@ -593,25 +606,25 @@ func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(f float64, weStat
 		if n.rt.IsDone() {
 			// Current RTracker is done so we can't split within the window, so
 			// split at window boundary instead.
-			return n.windowBoundarySplit(n.currW+1, weState)
+			return n.windowBoundarySplit(n.currW+1, pWeState, rWeState)
 		}
 
 		// Get the fraction of remaining work in the current window to split at.
 		cwsp := wsp - float64(n.currW) // Split point in current window.
 		rf := (cwsp - cwp) / (1 - cwp) // Fraction of work in RTracker to split at.
 
-		return n.currentWindowSplit(rf, weState)
+		return n.currentWindowSplit(rf, pWeState, rWeState)
 	} else {
 		// Split at nearest window boundary to split point.
 		wb := math.Round(wsp)
-		return n.windowBoundarySplit(int(wb), weState)
+		return n.windowBoundarySplit(int(wb), pWeState, rWeState)
 	}
 }
 
 // currentWindowSplit performs an appropriate split at the given fraction of
 // remaining work in the current window. Also updates numW to stop after the
 // current window.
-func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, weState interface{}) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, pWeState interface{}, rWeState interface{}) ([]*FullValue, []*FullValue, error) {
 	p, r, err := n.rt.TrySplit(f)
 	if err != nil {
 		return nil, nil, err
@@ -619,18 +632,18 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, weSt
 	if r == nil {
 		// If r is nil then the split failed/returned an empty residual, but
 		// we can still split at a window boundary.
-		return n.windowBoundarySplit(n.currW+1, weState)
+		return n.windowBoundarySplit(n.currW+1, pWeState, rWeState)
 	}
 
 	// Split of currently processing restriction in a single window.
 	ps := make([]*FullValue, 1)
-	newP, err := n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1], false)
+	newP, err := n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1], pWeState)
 	if err != nil {
 		return nil, nil, err
 	}
 	ps[0] = newP
 	rs := make([]*FullValue, 1)
-	newR, err := n.newSplitResult(r, n.elm.Windows[n.currW:n.currW+1], weState)
+	newR, err := n.newSplitResult(r, n.elm.Windows[n.currW:n.currW+1], rWeState)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -638,14 +651,14 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, weSt
 	// Window boundary split surrounding the split restriction above.
 	full := n.elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
 	if 0 < n.currW {
-		newP, err := n.newSplitResult(full, n.elm.Windows[0:n.currW], false)
+		newP, err := n.newSplitResult(full, n.elm.Windows[0:n.currW], pWeState)
 		if err != nil {
 			return nil, nil, err
 		}
 		ps = append(ps, newP)
 	}
 	if n.currW+1 < n.numW {
-		newR, err := n.newSplitResult(full, n.elm.Windows[n.currW+1:n.numW], weState)
+		newR, err := n.newSplitResult(full, n.elm.Windows[n.currW+1:n.numW], rWeState)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -658,17 +671,17 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, weSt
 // windowBoundarySplit performs an appropriate split at a window boundary. The
 // split point taken should be the index of the first window in the residual.
 // Also updates numW to stop at the split point.
-func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int, weState interface{}) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int, pWeState interface{}, rWeState interface{}) ([]*FullValue, []*FullValue, error) {
 	// If this is at the boundary of the last window, split is a no-op.
 	if splitPt == n.numW {
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 	full := n.elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
-	pFv, err := n.newSplitResult(full, n.elm.Windows[0:splitPt], false)
+	pFv, err := n.newSplitResult(full, n.elm.Windows[0:splitPt], pWeState)
 	if err != nil {
 		return nil, nil, err
 	}
-	rFv, err := n.newSplitResult(full, n.elm.Windows[splitPt:n.numW], weState)
+	rFv, err := n.newSplitResult(full, n.elm.Windows[splitPt:n.numW], rWeState)
 	if err != nil {
 		return nil, nil, err
 	}

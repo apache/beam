@@ -103,7 +103,7 @@ func TestSdfNodes(t *testing.T) {
 				},
 			},
 			{
-				name: "SingleElemWatermarkState",
+				name: "SingleElemStatefulWatermarkEstimating",
 				fn:   statefulWeFn,
 				in: FullValue{
 					Elm:       1,
@@ -718,7 +718,7 @@ func TestAsSplittableUnit(t *testing.T) {
 				}},
 			},
 			{
-				name: "SingleElem",
+				name: "SingleElemStatefulWatermarkEstimating",
 				fn:   statefulWeFn,
 				frac: 0.5,
 				in: FullValue{
@@ -738,7 +738,7 @@ func TestAsSplittableUnit(t *testing.T) {
 						Elm: 1,
 						Elm2: &FullValue{
 							Elm:  &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
-							Elm2: false,
+							Elm2: 1,
 						},
 					},
 					Elm2:      1.0,
