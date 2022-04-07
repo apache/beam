@@ -545,7 +545,7 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, weSta
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 
-	pfv, err := n.newSplitResult(p, n.elm.Windows, weState)
+	pfv, err := n.newSplitResult(p, n.elm.Windows, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -624,7 +624,7 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, weSt
 
 	// Split of currently processing restriction in a single window.
 	ps := make([]*FullValue, 1)
-	newP, err := n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1], weState)
+	newP, err := n.newSplitResult(p, n.elm.Windows[n.currW:n.currW+1], false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -638,7 +638,7 @@ func (n *ProcessSizedElementsAndRestrictions) currentWindowSplit(f float64, weSt
 	// Window boundary split surrounding the split restriction above.
 	full := n.elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
 	if 0 < n.currW {
-		newP, err := n.newSplitResult(full, n.elm.Windows[0:n.currW], weState)
+		newP, err := n.newSplitResult(full, n.elm.Windows[0:n.currW], false)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -664,7 +664,7 @@ func (n *ProcessSizedElementsAndRestrictions) windowBoundarySplit(splitPt int, w
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 	full := n.elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
-	pFv, err := n.newSplitResult(full, n.elm.Windows[0:splitPt], weState)
+	pFv, err := n.newSplitResult(full, n.elm.Windows[0:splitPt], false)
 	if err != nil {
 		return nil, nil, err
 	}
