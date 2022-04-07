@@ -90,6 +90,27 @@ public class BigQueryIOJsonTest {
               new TableFieldSchema().setName("country").setType("JSON")
           ));
 
+  private static final List<TableRow> JSON_QUERY_TEST_DATA = Arrays.asList(
+      new TableRow()
+          .set("country_code", "usa")
+          .set("past_leader", "\"George W. Bush\"")
+          .set("gdp", "58559.675")
+          .set("city_name", "\"Los Angeles\"")
+          .set("landmark_name", "\"Golden Gate Bridge\""),
+      new TableRow()
+          .set("country_code", "aus")
+          .set("past_leader", "\"Kevin Rudd\"")
+          .set("gdp", "58043.581")
+          .set("city_name", "\"Melbourne\"")
+          .set("landmark_name", "\"Great Barrier Reef\""),
+      new TableRow()
+          .set("country_code", "special")
+          .set("past_leader", "\"!@#$%^&*()_+\"")
+          .set("gdp", "421.7")
+          .set("city_name", "\"Bikini Bottom\"")
+          .set("landmark_name", "\"Willy Wonka's Factory\"")
+  );
+
   public static final String STORAGE_WRITE_TEST_TABLE = "storagewrite_test"
       + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
@@ -241,6 +262,12 @@ public class BigQueryIOJsonTest {
 
     PCollection<TableRow> jsonRows = p.apply("Read rows", bigqueryIO);
 
+    if(!options.getQuery().isEmpty()){
+      PAssert.that(jsonRows).containsInAnyOrder(JSON_QUERY_TEST_DATA);
+      p.run().waitUntilFinish();
+      return;
+    }
+    
     // Testing countries
     PCollection<KV<String, String>> countries = jsonRows
         .apply("Convert countries to KV JSON Strings", ParDo.of(new CountryToKVJsonString()));
@@ -295,7 +322,12 @@ public class BigQueryIOJsonTest {
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setReadMethod(TypedRead.Method.DIRECT_READ);
     options.setQuery(
-        String.format("SELECT country_code, country.cities AS country FROM "
+        String.format("SELECT "
+            + "country_code, "
+            + "country.past_leaders[2] AS past_leader, "
+            + "stats.gdp_per_capita[\"gdp_per_capita\"] AS gdp, "
+            + "cities[OFFSET(1)].city.name AS city_name, "
+            + "landmarks[OFFSET(1)][\"name\"] AS landmark_name FROM "
             + "`%s.%s.%s`", project, DATASET_ID, JSON_TYPE_TABLE_NAME));
 
     readAndValidateRows(options);
