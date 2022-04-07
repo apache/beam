@@ -26,9 +26,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import OutputFormat
@@ -915,94 +914,128 @@ class ReverseTestStreamTest(unittest.TestCase):
         records,
         equal_to_per_window({
             beam.window.GlobalWindow(): [
-                str(TestStreamFileHeader()),
+                str(beam_interactive_api_pb2.TestStreamFileHeader()),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            processing_time_event=TestStreamPayload.Event.
-                            AdvanceProcessingTime(advance_duration=5000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            processing_time_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceProcessingTime(
+                                advance_duration=5000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            watermark_event=TestStreamPayload.Event.
-                            AdvanceWatermark(new_watermark=0)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            watermark_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceWatermark(
+                                new_watermark=0)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            element_event=TestStreamPayload.Event.AddElements(
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            element_event=beam_runner_api_pb2.TestStreamPayload.
+                            Event.AddElements(
                                 elements=[
-                                    TestStreamPayload.TimestampedElement(
+                                    beam_runner_api_pb2.TestStreamPayload.
+                                    TimestampedElement(
                                         encoded_element=coder.encode('a'),
                                         timestamp=0),
-                                    TestStreamPayload.TimestampedElement(
+                                    beam_runner_api_pb2.TestStreamPayload.
+                                    TimestampedElement(
                                         encoded_element=coder.encode('b'),
                                         timestamp=0),
-                                    TestStreamPayload.TimestampedElement(
+                                    beam_runner_api_pb2.TestStreamPayload.
+                                    TimestampedElement(
                                         encoded_element=coder.encode('c'),
                                         timestamp=0),
                                 ])))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            watermark_event=TestStreamPayload.Event.
-                            AdvanceWatermark(new_watermark=2000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            watermark_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceWatermark(
+                                new_watermark=2000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            processing_time_event=TestStreamPayload.Event.
-                            AdvanceProcessingTime(advance_duration=1000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            processing_time_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceProcessingTime(
+                                advance_duration=1000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            watermark_event=TestStreamPayload.Event.
-                            AdvanceWatermark(new_watermark=4000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            watermark_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceWatermark(
+                                new_watermark=4000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            processing_time_event=TestStreamPayload.Event.
-                            AdvanceProcessingTime(advance_duration=1000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            processing_time_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceProcessingTime(
+                                advance_duration=1000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            watermark_event=TestStreamPayload.Event.
-                            AdvanceWatermark(new_watermark=6000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            watermark_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceWatermark(
+                                new_watermark=6000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            processing_time_event=TestStreamPayload.Event.
-                            AdvanceProcessingTime(advance_duration=1000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            processing_time_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceProcessingTime(
+                                advance_duration=1000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            watermark_event=TestStreamPayload.Event.
-                            AdvanceWatermark(new_watermark=8000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            watermark_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceWatermark(
+                                new_watermark=8000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            processing_time_event=TestStreamPayload.Event.
-                            AdvanceProcessingTime(advance_duration=1000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            processing_time_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceProcessingTime(
+                                advance_duration=1000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            watermark_event=TestStreamPayload.Event.
-                            AdvanceWatermark(new_watermark=10000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            watermark_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceWatermark(
+                                new_watermark=10000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            processing_time_event=TestStreamPayload.Event.
-                            AdvanceProcessingTime(advance_duration=1000000)))),
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            processing_time_event=beam_runner_api_pb2.
+                            TestStreamPayload.Event.AdvanceProcessingTime(
+                                advance_duration=1000000)))),
                 str(
-                    TestStreamFileRecord(
-                        recorded_event=TestStreamPayload.Event(
-                            element_event=TestStreamPayload.Event.AddElements(
+                    beam_interactive_api_pb2.TestStreamFileRecord(
+                        recorded_event=beam_runner_api_pb2.TestStreamPayload.
+                        Event(
+                            element_event=beam_runner_api_pb2.TestStreamPayload.
+                            Event.AddElements(
                                 elements=[
-                                    TestStreamPayload.TimestampedElement(
+                                    beam_runner_api_pb2.TestStreamPayload.
+                                    TimestampedElement(
                                         encoded_element=coder.encode('1'),
                                         timestamp=15000000),
-                                    TestStreamPayload.TimestampedElement(
+                                    beam_runner_api_pb2.TestStreamPayload.
+                                    TimestampedElement(
                                         encoded_element=coder.encode('2'),
                                         timestamp=15000000),
-                                    TestStreamPayload.TimestampedElement(
+                                    beam_runner_api_pb2.TestStreamPayload.
+                                    TimestampedElement(
                                         encoded_element=coder.encode('3'),
                                         timestamp=15000000),
                                 ])))),

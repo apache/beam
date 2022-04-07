@@ -32,7 +32,7 @@ option go_package = "interactive_v1";
 option java_package = "org.apache.beam.model.interactive.v1";
 option java_outer_classname = "InteractiveApi";
 
-import "beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "google/protobuf/timestamp.proto";
 
 // The first record. This contains metadata about the stream and how to
