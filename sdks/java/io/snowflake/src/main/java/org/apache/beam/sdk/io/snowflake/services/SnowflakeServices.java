@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.snowflake.services;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Interface which defines common methods for interacting with Snowflake. */
+@Internal
 public interface SnowflakeServices extends Serializable {
   BatchService getBatchService();
 
