@@ -38,7 +38,7 @@ from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import List
-from typing import  TypeVar
+from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.utils import shared
@@ -54,6 +54,7 @@ _NANOSECOND_TO_MICROSECOND = 1000
 _SECOND_TO_MICROSECOND = 1_000_000
 
 T = TypeVar('T')
+
 
 class InferenceRunner():
   """Implements running inferences for a framework."""
