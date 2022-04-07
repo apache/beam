@@ -535,10 +535,15 @@ public class FileIO {
       builder
           .add(
               DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
-                  .withLabel("Treatment of filepatterns that match no files"))
-          .addIfNotNull(
-              DisplayData.item("watchForNewFilesInterval", getWatchInterval())
-                  .withLabel("Interval to watch for new files"));
+                  .withLabel("Treatment of filepatterns that match no files"));
+      if (getWatchInterval() != null) {
+        builder.add(
+            DisplayData.item("watchForNewFilesInterval", getWatchInterval())
+                .withLabel("Interval to watch for new files"))
+            .add(
+                DisplayData.item("isMatchUpdatedFiles", getMatchUpdatedFiles())
+                    .withLabel("If also match for files with timestamp change"));
+      }
     }
   }
 

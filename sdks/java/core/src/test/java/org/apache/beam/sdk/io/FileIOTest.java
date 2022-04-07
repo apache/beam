@@ -262,12 +262,12 @@ public class FileIOTest implements Serializable {
         new Thread(
             () -> {
               try {
-                Thread.sleep(1000);
+                Thread.sleep(800);
                 Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), copyOptions);
-                Thread.sleep(300);
+                Thread.sleep(400);
                 Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updateOptions);
                 Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), copyOptions);
-                Thread.sleep(300);
+                Thread.sleep(400);
                 Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updateOptions);
                 Files.copy(
                     sourcePath.resolve("second"), watchPath.resolve("second"), updateOptions);
@@ -276,7 +276,6 @@ public class FileIOTest implements Serializable {
                 throw new RuntimeException(e);
               }
             });
-    writer.start();
 
     // We fetch lastModifiedTime from the files in the "source" directory to avoid a race condition
     // with the writer thread.
@@ -308,6 +307,7 @@ public class FileIOTest implements Serializable {
                 .via((metadata) -> metadata.resourceId().getFilename()));
     PAssert.that(matchAllUpdatedCount).containsInAnyOrder(expectedMatchAllUpdated);
 
+    writer.start();
     p.run();
 
     writer.join();
