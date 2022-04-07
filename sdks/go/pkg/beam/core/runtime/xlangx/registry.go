@@ -267,6 +267,17 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
+type expansionServiceOption func(*string)
+
+// AddClasspaths is an expansion service option for xlangx.UseAutomatedExpansionService
+// that accepts a classpaths slice and creates a tagged  expansion address string
+// suffixed with classpath separator and classpaths provided.
+func AddClasspaths(classpaths []string) expansionServiceOption {
+	return func(expansionAddress *string) {
+		*expansionAddress += ClasspathSeparator + strings.Join(classpaths, " ")
+	}
+}
+
 // UseAutomatedJavaExpansionService takes a gradle target and creates a
 // tagged string to indicate that it should be used to start up an
 // automated expansion service for a cross-language expansion.
@@ -274,18 +285,13 @@ func Require(expansionAddr string) string {
 // Intended for use by cross language wrappers to permit spinning
 // up an expansion service for a user if no expansion service address
 // is provided.
-func UseAutomatedJavaExpansionService(gradleTarget string) string {
-	return autoJavaNamespace + Separator + gradleTarget
-}
+func UseAutomatedJavaExpansionService(gradleTarget string, opts ...expansionServiceOption) string {
+	expansionAddress := autoJavaNamespace + Separator + gradleTarget
 
-// AddClasspaths takes an expansion address string and creates a tagged string
-// suffixed with classpath separator and classpaths provided. This indicates that
-// the classpaths should be added to expansion service JAR before auto start-up.
-//
-// Intended for use by cross language wrappers to add classpaths to the manifest of
-// an expansion service in case of automated start-up of JAVA expansion service.
-func AddClasspaths(expansionAddr string, classpaths []string) string {
-	return expansionAddr + ClasspathSeparator + strings.Join(classpaths, " ")
+	for _, opt := range opts {
+		opt(&expansionAddress)
+	}
+	return expansionAddress
 }
 
 // restricted namespaces to prevent some awkward edge cases.

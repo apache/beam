@@ -142,10 +142,11 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 
 	expansionAddr := cfg.expansionAddr
 	if expansionAddr == "" {
-		expansionAddr = autoStartupAddress
-	}
-	if len(cfg.classpaths) > 0 {
-		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpaths)
+		if len(cfg.classpaths) > 0 {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget, xlangx.AddClasspaths(cfg.classpaths))
+		} else {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
+		}
 	}
 
 	jcs := jdbcConfigSchema{
@@ -251,10 +252,11 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 
 	expansionAddr := cfg.expansionAddr
 	if expansionAddr == "" {
-		expansionAddr = autoStartupAddress
-	}
-	if len(cfg.classpaths) > 0 {
-		expansionAddr = xlangx.AddClasspaths(expansionAddr, cfg.classpaths)
+		if len(cfg.classpaths) > 0 {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget, xlangx.AddClasspaths(cfg.classpaths))
+		} else {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
+		}
 	}
 
 	jcs := jdbcConfigSchema{

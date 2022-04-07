@@ -172,7 +172,8 @@ func TryCrossLanguage(
 	payload []byte,
 	expansionAddr string,
 	namedInputs map[string]PCollection,
-	namedOutputTypes map[string]FullType) (map[string]PCollection, error) {
+	namedOutputTypes map[string]FullType,
+) (map[string]PCollection, error) {
 	if !s.IsValid() {
 		panic(errors.New("invalid scope"))
 	}
