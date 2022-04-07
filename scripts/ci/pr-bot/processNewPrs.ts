@@ -149,7 +149,9 @@ async function approvedBy(pull: any): Promise<string[]> {
     pull_number: pull.number,
   });
 
-  return reviews.data.map((review) => review.user.login);
+  return reviews.data
+    .filter((review) => review.state == "APPROVED")
+    .map((review) => review.user.login);
 }
 
 /*
@@ -223,6 +225,8 @@ async function processPull(
         return;
       }
     }
+    // If none of the approvers were assigned to the pr, no-op.
+    return;
   }
 
   let checkState = await getChecksStatus(REPO_OWNER, REPO, pull.head.sha);

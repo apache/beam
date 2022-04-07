@@ -1043,11 +1043,8 @@ message StandardCoders {
     //   - Followed by N interleaved keys and values, encoded with their
     //     corresponding coder.
     //
-    // Nullable types in container types (ArrayType, MapType) are encoded by:
-    //   - A one byte null indicator, 0x00 for null values, or 0x01 for present
-    //     values.
-    //   - For present values the null indicator is followed by the value
-    //     encoded with it's corresponding coder.
+    // Nullable types in container types (ArrayType, MapType) per the
+    // encoding described for general Nullable types below.
     //
     // Well known logical types:
     //   beam:logical_type:micros_instant:v1
@@ -1085,6 +1082,15 @@ message StandardCoders {
     // Components: the user key coder.
     // Experimental.
     SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
+
+    // Wraps a coder of a potentially null value
+    // A Nullable Type is encoded by:
+    //   - A one byte null indicator, 0x00 for null values, or 0x01 for present
+    //     values.
+    //   - For present values the null indicator is followed by the value
+    //     encoded with it's corresponding coder.
+    // Components: single coder for the value
+    NULLABLE = 17 [(beam_urn) = "beam:coder:nullable:v1"];
   }
 }
 

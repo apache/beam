@@ -22,7 +22,7 @@ String jobName = "beam_python_mongoio_load_test"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate, 'H */6 * * *')
+  common.setAutoJob(delegate, 'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Python MongoDBIO Load Test',
@@ -39,6 +39,7 @@ job(jobName) {
   Map pipelineOptions = [
     temp_location: 'gs://temp-storage-for-perf-tests/loadtests',
     project      : 'apache-beam-testing',
+    region       : 'us-central1',
     mongo_uri    : "mongodb://\$${mongoHostName}:27017",
     num_documents: '1000000',
     batch_size   : '10000',

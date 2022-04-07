@@ -64,6 +64,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* 'Manage Clusters' JupyterLab extension added for users to configure usage of Dataproc clusters managed by Interactive Beam (Python) ([BEAM-14130](https://issues.apache.org/jira/browse/BEAM-14130)).
 
 ## Breaking Changes
 
@@ -104,6 +105,7 @@
 
 * Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)). To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python).
 * The Flink runner now supports Flink 1.14.x ([BEAM-13106](https://issues.apache.org/jira/browse/BEAM-13106)).
+* Interactive Beam now supports remotely executing Flink pipelines on Dataproc (Python) ([BEAM-14071](https://issues.apache.org/jira/browse/BEAM-14071)).
 
 ## Breaking Changes
 
@@ -122,6 +124,7 @@
 * Fix S3 copy for large objects (Java) ([BEAM-14011](https://issues.apache.org/jira/browse/BEAM-14011))
 * Fix quadratic behavior of pipeline canonicalization (Go) ([BEAM-14128](https://issues.apache.org/jira/browse/BEAM-14128))
   * This caused unnecessarily long pre-processing times before job submission for large complex pipelines.
+* Fix `pyarrow` version parsing (Python)([BEAM-14235](https://issues.apache.org/jira/browse/BEAM-14235))
 
 ## Known Issues
 
@@ -151,6 +154,8 @@
 
 * DataFrame API now supports pandas 1.4.x ([BEAM-13605](https://issues.apache.org/jira/browse/BEAM-13605)).
 * Go SDK DoFns can now observe trigger panes directly ([BEAM-13757](https://issues.apache.org/jira/browse/BEAM-13757)).
+* Added option to specify a caching directory in Interactive Beam (Python) ([BEAM-13685](https://issues.apache.org/jira/browse/BEAM-13685)).
+* Added support for caching batch pipelines to GCS in Interactive Beam (Python) ([BEAM-13734](https://issues.apache.org/jira/browse/BEAM-13734)).
 
 ## Breaking Changes
 
