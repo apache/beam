@@ -305,7 +305,7 @@ func (u *Fn) OutEventTime() (pos int, exists bool) {
 	return -1, false
 }
 
-// ProcessContinuation returns (index, tru) iff the function returns a process continuation.
+// ProcessContinuation returns (index, true) iff the function returns a process continuation.
 func (u *Fn) ProcessContinuation() (pos int, exists bool) {
 	for i, p := range u.Ret {
 		if p.Kind == RetProcessContinuation {
@@ -617,7 +617,7 @@ var (
 	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
 	errErrorPrecedence        = errors.New("error must be the final return parameter")
 	// TODO(BEAM-11104): Enable process continuations as a valid return value.
-	errContinuationSupport = errors.New("process continuations are not yet supported")
+	errContinuationSupport = errors.New("process continuations are not supported in this SDK release; see https://issues.apache.org/jira/browse/BEAM-11104 for the feature's current status")
 )
 
 type retState int
