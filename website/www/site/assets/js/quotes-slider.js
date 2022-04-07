@@ -96,7 +96,7 @@ function addWrapperOverGroupOfCards(wrappingData) {
     isLoop = false;
   }
 
-  var slider = new KeenSlider(currentSliderSelector, {
+  new KeenSlider(currentSliderSelector, {
     slidesPerView: CountOfSlides.min,
     loop: isLoop,
     created: function (instance) {
