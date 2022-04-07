@@ -48,6 +48,7 @@ const (
 	doubleType        = "kind:double"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
+	nullableType      = "kind:nullable"
 	lengthPrefixType  = "kind:length_prefix"
 	rowType           = "kind:row"
 
@@ -116,6 +117,16 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 			return nil, err
 		}
 		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
+
+	case coder.Nullable:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad N: %v", c)
+		}
+		innerref, err := EncodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{Type: nullableType, Components: []*CoderRef{innerref}}, nil
 
 	case coder.CoGBK:
 		if len(c.Components) < 2 {
@@ -263,6 +274,19 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 		t := typex.New(root, key.T, value.T)
 		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
+
+	case nullableType:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad nullable: %+v", c)
+		}
+
+		inner, err := DecodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+
+		t := typex.New(typex.NullableType, inner.T)
+		return &coder.Coder{Kind: coder.Nullable, T: t, Components: []*coder.Coder{inner}}, nil
 
 	case lengthPrefixType:
 		if len(c.Components) != 1 {

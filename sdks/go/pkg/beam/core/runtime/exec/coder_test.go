@@ -80,6 +80,12 @@ func TestCoders(t *testing.T) {
 		}, {
 			coder: coder.NewPW(coder.NewString(), coder.NewGlobalWindow()),
 			val:   &FullValue{Elm: "myString" /*Windowing info isn't encoded for PW so we can omit it here*/},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{Elm: []byte("myBytes")},
 		},
 	} {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {

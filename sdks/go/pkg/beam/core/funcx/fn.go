@@ -78,6 +78,8 @@ const (
 	FnMultiMap FnParamKind = 0x200
 	// FnPane indicates a function input parameter that is a PaneInfo
 	FnPane FnParamKind = 0x400
+	// FnBundleFinalization indicates a function input parameter that implements typex.BundleFinalization.
+	FnBundleFinalization FnParamKind = 0x800
 )
 
 func (k FnParamKind) String() string {
@@ -104,6 +106,8 @@ func (k FnParamKind) String() string {
 		return "MultiMap"
 	case FnPane:
 		return "Pane"
+	case FnBundleFinalization:
+		return "BundleFinalization"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -267,6 +271,17 @@ func (u *Fn) RTracker() (pos int, exists bool) {
 	return -1, false
 }
 
+// BundleFinalization returns (index, true) iff the function expects a
+// parameter that implements typex.BundleFinalization.
+func (u *Fn) BundleFinalization() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnBundleFinalization {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // Error returns (index, true) iff the function returns an error.
 func (u *Fn) Error() (pos int, exists bool) {
 	for i, p := range u.Ret {
@@ -329,6 +344,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnEventTime
 		case t.Implements(typex.WindowType):
 			kind = FnWindow
+		case t == typex.BundleFinalizationType:
+			kind = FnBundleFinalization
 		case t == reflectx.Type:
 			kind = FnType
 		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
@@ -415,7 +432,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnType?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
+// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnType?, FnBundleFinalization?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -439,13 +456,14 @@ func validateOrder(u *Fn) error {
 }
 
 var (
-	errContextParam             = errors.New("may only have a single context.Context parameter and it must be the first parameter")
-	errPaneParamPrecedence      = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
-	errWindowParamPrecedence    = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
-	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
-	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errRTrackerPrecedence       = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
-	errInputPrecedence          = errors.New("inputs parameters must precede emit function parameters")
+	errContextParam                 = errors.New("may only have a single context.Context parameter and it must be the first parameter")
+	errPaneParamPrecedence          = errors.New("may only have a single PaneInfo parameter and it must precede the WindowParam, EventTime and main input parameter")
+	errWindowParamPrecedence        = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
+	errEventTimeParamPrecedence     = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
+	errReflectTypePrecedence        = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
+	errRTrackerPrecedence           = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
+	errBundleFinalizationPrecedence = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
+	errInputPrecedence              = errors.New("inputs parameters must precede emit function parameters")
 )
 
 type paramState int
@@ -460,6 +478,7 @@ const (
 	psInput
 	psOutput
 	psRTracker
+	psBundleFinalization
 )
 
 func nextParamState(cur paramState, transition FnParamKind) (paramState, error) {
@@ -476,6 +495,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
 		}
@@ -489,6 +510,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
 		}
@@ -500,6 +523,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
 		}
@@ -509,6 +534,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
 		}
@@ -516,10 +543,19 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		switch transition {
 		case FnType:
 			return psType, nil
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
 		}
 	case psType:
+		switch transition {
+		case FnBundleFinalization:
+			return psBundleFinalization, nil
+		case FnRTracker:
+			return psRTracker, nil
+		}
+	case psBundleFinalization:
 		switch transition {
 		case FnRTracker:
 			return psRTracker, nil
@@ -549,6 +585,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errEventTimeParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
+	case FnBundleFinalization:
+		return -1, errBundleFinalizationPrecedence
 	case FnRTracker:
 		return -1, errRTrackerPrecedence
 	case FnIter, FnReIter, FnValue, FnMultiMap:
