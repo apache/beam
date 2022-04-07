@@ -206,7 +206,10 @@ class _RunInferenceDoFn(beam.DoFn):
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
 
     # Keys are recombined with predictions in the RunInference PTransform.
-    yield keys, predictions
+    if has_keys:
+      yield from zip(keys, predictions)
+    else:
+      yield from predictions
 
   def finish_bundle(self):
     # TODO(BEAM-13970): Figure out why there is a cache.
