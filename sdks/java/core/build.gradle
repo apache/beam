@@ -28,6 +28,7 @@ applyJavaNature(
     dependencies {
       include(dependency("org.apache.commons:.*"))
       include(dependency(library.java.antlr_runtime))
+      include(dependency(library.java.byte_buddy))
     }
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
@@ -75,10 +76,10 @@ dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow library.java.vendored_bytebuddy_1_11_0
   shadow library.java.vendored_grpc_1_43_2
   shadow library.java.vendored_guava_26_0_jre
   implementation library.java.antlr_runtime
+  implementation library.java.byte_buddy
   implementation library.java.commons_compress
   implementation library.java.commons_lang3
   testImplementation library.java.mockito_inline
