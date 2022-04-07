@@ -21,4 +21,4 @@ Pipeline processing is a core requirement of any production ML platform. Develop
 
 Apache Beam powers AI and ML pipelines for numerous applications. Apache Beam provides a unified batch and streaming distributed processing API, a set of SDK frontends, and a variety of runners that can execute Beam jobs into various backends.
 
-Learn more about how Apache Beam is simplifying pre- and post-processing for ML pipelines and orchestrates complex business logic for BigData ecosystems of frontrunners in various industries by diving into our [Case Studies](http://apache-beam-website-pull-requests.storage.googleapis.com/17205/case-studies/index.html) section. 
+Learn more about how Apache Beam is simplifying pre- and post-processing for ML pipelines and orchestrates complex business logic for BigData ecosystems of frontrunners in various industries by diving into our [Case Studies](http://apache-beam-website-pull-requests.storage.googleapis.com/17205/case-studies/index.html) section.
