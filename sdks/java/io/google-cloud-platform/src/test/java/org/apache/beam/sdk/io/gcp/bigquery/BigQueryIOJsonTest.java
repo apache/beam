@@ -15,9 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
@@ -32,12 +29,10 @@ import com.google.gson.JsonParser;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.options.Default;
@@ -64,16 +59,13 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 @RunWith(JUnit4.class)
 public class BigQueryIOJsonTest {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOJsonTest.class);
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
-  @Rule
-  public transient TestPipeline p_write = TestPipeline.create();
+  @Rule public final transient TestPipeline p_write = TestPipeline.create();
 
   private BigQueryIOJsonOptions options;
 
@@ -84,10 +76,20 @@ public class BigQueryIOJsonTest {
   private static String JSON_TABLE_DESTINATION;
 
   private static final TableSchema JSON_TYPE_TABLE_SCHEMA =
-      new TableSchema()
-          .setFields(ImmutableList.of(
+      new TableSchema().setFields(ImmutableList.of(
               new TableFieldSchema().setName("country_code").setType("STRING"),
-              new TableFieldSchema().setName("country").setType("JSON")
+              new TableFieldSchema().setName("country").setType("JSON"),
+              new TableFieldSchema().setName("stats").setType("STRUCT")
+                  .setFields(ImmutableList.of(
+                      new TableFieldSchema().setName("gdp_per_capita").setType("JSON"),
+                      new TableFieldSchema().setName("co2_emissions").setType("JSON")
+                  )),
+              new TableFieldSchema().setName("cities").setType("STRUCT").setMode("REPEATED")
+                  .setFields(ImmutableList.of(
+                      new TableFieldSchema().setName("city_name").setType("STRING"),
+                      new TableFieldSchema().setName("city").setType("JSON")
+                  )),
+              new TableFieldSchema().setName("landmarks").setType("JSON").setMode("REPEATED")
           ));
 
   private static final List<TableRow> JSON_QUERY_TEST_DATA = Arrays.asList(
