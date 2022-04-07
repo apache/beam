@@ -20,10 +20,10 @@ package org.apache.beam.sdk.io.aws2.common;
 import static java.util.concurrent.ForkJoinPool.commonPool;
 import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -34,30 +34,24 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ForkJoinTask;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.junit.Before;
+import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnitRunner;
 
-@RunWith(MockitoJUnitRunner.class)
-public class ClientPoolTest {
-  @Spy ClientProvider provider = new ClientProvider();
-  ClientPool<Function<String, AutoCloseable>, String, AutoCloseable> pool;
+public class ObjectPoolTest {
+  Function<String, AutoCloseable> provider = spy(new Provider());
+  ObjectPool<String, AutoCloseable> pool = new ObjectPool<>(provider, obj -> obj.close());
 
-  @Before
-  public void init() {
-    pool = new ClientPool<>((p, c) -> p.apply(c));
-  }
+  @Rule public ExpectedLogs logs = ExpectedLogs.none(ObjectPool.class);
 
   class ResourceTask implements Callable<AutoCloseable> {
     @Override
-    public AutoCloseable call() throws Exception {
-      AutoCloseable client = pool.retain(provider, "config");
-      pool.retain(provider, "config");
-      pool.release(provider, "config");
+    public AutoCloseable call() {
+      AutoCloseable client = pool.retain("config");
+      pool.retain("config");
+      pool.release(client);
       verifyNoInteractions(client);
-      pool.release(provider, "config");
+      pool.release(client);
       return client;
     }
   }
@@ -83,8 +77,8 @@ public class ClientPoolTest {
     String config1 = "config1";
     String config2 = "config2";
 
-    assertThat(pool.retain(provider, config1)).isSameAs(pool.retain(provider, config1));
-    assertThat(pool.retain(provider, config1)).isNotSameAs(pool.retain(provider, config2));
+    assertThat(pool.retain(config1)).isSameAs(pool.retain(config1));
+    assertThat(pool.retain(config1)).isNotSameAs(pool.retain(config2));
     verify(provider, times(2)).apply(anyString());
     verify(provider, times(1)).apply(config1);
     verify(provider, times(1)).apply(config2);
@@ -97,47 +91,70 @@ public class ClientPoolTest {
 
     AutoCloseable client = null;
     for (int i = 0; i < sharedInstances; i++) {
-      client = pool.retain(provider, config);
+      client = pool.retain(config);
     }
 
-    for (int i = 1; i < sharedInstances; i++) {
-      pool.release(provider, config);
+    for (int i = 0; i < sharedInstances - 1; i++) {
+      pool.release(client);
     }
     verifyNoInteractions(client);
     // verify close on last release
-    pool.release(provider, config);
+    pool.release(client);
     verify(client).close();
     // verify further attempts to release have no effect
-    pool.release(provider, config);
+    pool.release(client);
+    verifyNoMoreInteractions(client);
+  }
+
+  @Test
+  public void closeClientsOnceReleasedByKey() throws Exception {
+    String config = "config";
+    int sharedInstances = 10;
+
+    AutoCloseable client = null;
+    for (int i = 0; i < sharedInstances; i++) {
+      client = pool.retain(config);
+    }
+
+    for (int i = 0; i < sharedInstances - 1; i++) {
+      pool.releaseByKey(config);
+    }
+    verifyNoInteractions(client);
+    // verify close on last release
+    pool.releaseByKey(config);
+    verify(client).close();
+    // verify further attempts to release have no effect
+    pool.releaseByKey(config);
     verifyNoMoreInteractions(client);
   }
 
   @Test
   public void recreateClientOnceReleased() throws Exception {
     String config = "config";
-    AutoCloseable client1 = pool.retain(provider, config);
-    pool.release(provider, config);
-    AutoCloseable client2 = pool.retain(provider, config);
+    AutoCloseable client1 = pool.retain(config);
+    pool.release(client1);
+    verify(client1).close();
+
+    AutoCloseable client2 = pool.retain(config);
+    verifyNoInteractions(client2);
 
     verify(provider, times(2)).apply(config);
-    verify(client1).close();
-    verifyNoInteractions(client2);
+    assertThat(client1).isNotSameAs(client2);
   }
 
   @Test
   public void releaseWithError() throws Exception {
-    String config = "config";
-    AutoCloseable client1 = pool.retain(provider, config);
-    doThrow(new Exception("error on close")).when(client1).close();
-    assertThatThrownBy(() -> pool.release(provider, config)).hasMessage("error on close");
+    Exception onClose = new Exception("error on close");
 
-    AutoCloseable client2 = pool.retain(provider, config);
-    verify(provider, times(2)).apply(config);
-    verify(client1).close();
-    verifyNoInteractions(client2);
+    AutoCloseable client = pool.retain("config");
+    doThrow(onClose).when(client).close();
+    pool.release(client);
+
+    verify(client).close();
+    logs.verifyWarn("Exception destroying pooled object.", onClose);
   }
 
-  static class ClientProvider implements Function<String, AutoCloseable> {
+  static class Provider implements Function<String, AutoCloseable> {
     @Override
     public AutoCloseable apply(String configName) {
       return mock(AutoCloseable.class, configName);
