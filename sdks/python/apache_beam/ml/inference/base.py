@@ -64,9 +64,9 @@ class InferenceRunner():
     return 'RunInference'
 
 
-class ModelLoader():
+class ModelLoader(Generic[T]):
   """Has the ability to load an ML model."""
-  def load_model(self) -> Any:
+  def load_model(self) -> T:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
 
