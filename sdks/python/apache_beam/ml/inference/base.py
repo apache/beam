@@ -51,7 +51,7 @@ _SECOND_TO_MICROSECOND = 1_000_000
 
 class InferenceRunner():
   """Implements running inferences for a framework."""
-  def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
+  def run_inference(self, batch: List[Any], model: Any) -> Iterable[Any]:
     """Runs inferences on a batch of examples and returns an Iterable of Predictions."""
     raise NotImplementedError(type(self))
 
