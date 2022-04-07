@@ -30,18 +30,18 @@ from typing import Sequence
 # with aliases (RECORD, BOOLEAN, FLOAT, INTEGER) as defined in
 # https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#setType-java.lang.String-
 BIG_QUERY_TO_PYTHON_TYPES = {
-    "STRING": "str",
-    "INTEGER": "np.int64",
-    "FLOAT64": "np.float64",
-    "BOOLEAN": "bool",
-    "BYTES": "bytes",
-    "TIMESTAMP": "apache_beam.utils.timestamp.Timestamp",
+    "STRING": str,
+    "INTEGER": np.int64,
+    "FLOAT64": np.float64,
+    "BOOLEAN": bool,
+    "BYTES": bytes,
+    "TIMESTAMP": beam.utils.timestamp.Timestamp,
     #TODO svetaksundhar@: Finish mappings for all BQ types
 }
 
 
-def produce_pcoll_with_schema(self, the_table_schema):
-  #type: [TableSchema] -> [UserType]
+def produce_pcoll_with_schema(the_table_schema):
+  #type: (TableSchema) -> type
 
   """Convert a schema of type TableSchema into a pcollection element.
       Args:
@@ -57,48 +57,10 @@ def produce_pcoll_with_schema(self, the_table_schema):
   i = 0
   dict_of_tuples = []
   for x in the_schema['fields']:
-    if the_schema['fields'][i]['type'] == 'STRING':
-      if the_schema['fields'][i]['mode'] == 'NULLABLE':
-        typ = Optional[str]
-      elif the_schema['fields'][i]['mode'] == 'REPEATED':
-        typ = Sequence[str]
-      else:
-        typ = str
-    elif the_schema['fields'][i]['type'] == 'INTEGER':
-      if the_schema['fields'][i]['mode'] == 'NULLABLE':
-        typ = Optional[np.int64]
-      elif the_schema['fields'][i]['mode'] == 'REPEATED':
-        typ = Sequence[np.int64]
-      else:
-        typ = np.int64
-    elif the_schema['fields'][i]['type'] == 'FLOAT':
-      if the_schema['fields'][i]['mode'] == 'NULLABLE':
-        typ = Optional[np.float64]
-      elif the_schema['fields'][i]['mode'] == 'REPEATED':
-        typ = Sequence[np.float64]
-      else:
-        typ = np.float64
-    elif the_schema['fields'][i]['type'] == 'BOOL':
-      if the_schema['fields'][i]['mode'] == 'NULLABLE':
-        typ = Optional[bool]
-      elif the_schema['fields'][i]['mode'] == 'REPEATED':
-        typ = Sequence[bool]
-      else:
-        typ = bool
-    elif the_schema['fields'][i]['type'] == 'BYTES':
-      if the_schema['fields'][i]['mode'] == 'NULLABLE':
-        typ = Optional[bytes]
-      elif the_schema['fields'][i]['mode'] == 'REPEATED':
-        typ = Sequence[bytes]
-      else:
-        typ = bytes
-    elif the_schema['fields'][i]['type'] == 'TIMESTAMP':
-      if the_schema['fields'][i]['mode'] == 'NULLABLE':
-        typ = Optional[beam.utils.timestamp.Timestamp]
-      elif the_schema['fields'][i]['mode'] == 'REPEATED':
-        typ = Sequence[beam.utils.timestamp.Timestamp]
-      else:
-        typ = beam.utils.timestamp.Timestamp
+    if the_schema['fields'][i][
+        'type'] == 'STRING' or 'INTEGER' or 'FLOAT64' or 'BOOLEAN' or 'BYTES' or 'TIMESTAMP':
+      typ = bq_field_to_type(
+          the_schema['fields'][i]['type'], the_schema['fields'][i]['mode'])
     else:
       raise ValueError(the_schema['fields'][i]['type'])
     # TODO svetaksundhar@: Map remaining BQ types
@@ -109,7 +71,18 @@ def produce_pcoll_with_schema(self, the_table_schema):
   return usertype
 
 
-def produce_pcoll_using_bqio(self, project_id, dataset_id, table_id):
+def produce_pcoll_using_bqio(project_id, dataset_id, table_id):
   the_table_schema = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
   ).get_table(project_id, dataset_id, table_id)
   beam.io.gcp.bigquery_schema_tools.produce_pcoll_with_schema(the_table_schema)
+
+
+def bq_field_to_type(field, mode):
+  if mode == 'NULLABLE':
+    return Optional[BIG_QUERY_TO_PYTHON_TYPES[field]]
+  elif mode == 'REPEATED':
+    return Sequence[BIG_QUERY_TO_PYTHON_TYPES[field]]
+  elif mode == 'None' or mode == '':
+    return BIG_QUERY_TO_PYTHON_TYPES[field]
+  else:
+    return ValueError("Not a supported mode")

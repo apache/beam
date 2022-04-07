@@ -27,13 +27,13 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_produce_pcoll_with_schema(self):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='temp', type='FLOAT', mode="REPEATED"),
+        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
         bigquery.TableFieldSchema(name='count', type='INTEGER', mode="None")
     ]
     schema = bigquery.TableSchema(fields=fields)
 
     usertype = bigquery_schema_tools.produce_pcoll_with_schema(
-        self, the_table_schema=schema)
+        the_table_schema=schema)
     self.assertEqual(
         usertype.__annotations__,
         {
@@ -47,5 +47,5 @@ class TestBigQueryToSchema(unittest.TestCase):
     schema = bigquery.TableSchema(fields=fields)
 
     usertype = bigquery_schema_tools.produce_pcoll_with_schema(
-        self, the_table_schema=schema)
+        the_table_schema=schema)
     self.assertEqual(usertype.__annotations__, {})
