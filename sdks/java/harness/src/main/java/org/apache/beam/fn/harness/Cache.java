@@ -38,7 +38,13 @@ public interface Cache<K, V> {
    *
    * <p>Types should consider implementing {@link org.apache.beam.sdk.util.Weighted} to not invoke
    * the overhead of using the {@link Caches#weigh default weigher} multiple times.
+   *
+   * <p>This interface may be invoked from any other thread that manipulates the cache causing this
+   * value to be shrunk. Implementers must ensure thread safety with respect to any side effects
+   * caused.
    */
+  @ThreadSafe
+  @FunctionalInterface
   interface Shrinkable<V> {
     /**
      * Returns a new object that is smaller than the object being evicted.
