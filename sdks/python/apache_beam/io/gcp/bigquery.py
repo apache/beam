@@ -16,6 +16,7 @@
 #
 
 """BigQuery sources and sinks.
+
 This module implements reading from and writing to BigQuery tables. It relies
 on several classes exposed by the BigQuery API: TableSchema, TableFieldSchema,
 TableRow, and TableCell. The default mode is to return table rows read from a
@@ -24,13 +25,17 @@ accepts PCollections of dictionaries. This is done for more convenient
 programming.  If desired, the native TableRow objects can be used throughout to
 represent rows (use an instance of TableRowJsonCoder as a coder argument when
 creating the sources or sinks respectively).
+
 Also, for programming convenience, instances of TableReference and TableSchema
 have a string representation that can be used for the corresponding arguments:
+
   - TableReference can be a PROJECT:DATASET.TABLE or DATASET.TABLE string.
   - TableSchema can be a NAME:TYPE{,NAME:TYPE}* string
     (e.g. 'month:STRING,event_count:INTEGER').
+
 The syntax supported is described here:
 https://cloud.google.com/bigquery/bq-command-line-tool-quickstart
+
 BigQuery sources can be used as main inputs or side inputs. A main input
 (common case) is expected to be massive and will be split into manageable chunks
 and processed in parallel. Side inputs are expected to be small and will be read
@@ -39,44 +44,55 @@ lambda function implementing the DoFn for the Map transform will get on each
 call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
+
   main_table = pipeline | 'VeryBig' >> beam.io.ReadFromBigQuery(...)
   side_table = pipeline | 'NotBig' >> beam.io.ReadFromBigQuery(...)
   results = (
       main_table
       | 'ProcessData' >> beam.Map(
           lambda element, side_input: ..., AsList(side_table)))
+
 There is no difference in how main and side inputs are read. What makes the
 side_table a 'side input' is the AsList wrapper used when passing the table
 as a parameter to the Map transform. AsList signals to the execution framework
 that its input should be made available whole.
+
 The main and side inputs are implemented differently. Reading a BigQuery table
 as main input entails exporting the table to a set of GCS files (in AVRO or in
 JSON format) and then processing those files.
+
 Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
 be used as the data of the input transform.::
+
   query_results = pipeline | beam.io.gcp.bigquery.ReadFromBigQuery(
       query='SELECT year, mean_temp FROM samples.weather_stations')
+
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
+
 When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
 This is due to the fact that ReadFromBigQuery uses Avro exports by default.
 When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
 returned as base64-encoded bytes. To get base64-encoded bytes using
 `ReadFromBigQuery`, you can use the flag `use_json_exports` to export
 data as JSON, and receive base64-encoded bytes.
+
 ReadAllFromBigQuery
 -------------------
 Beam 2.27.0 introduces a new transform called `ReadAllFromBigQuery` which
 allows you to define table and query reads from BigQuery at pipeline
 runtime.:::
+
   read_requests = p | beam.Create([
       ReadFromBigQueryRequest(query='SELECT * FROM mydataset.mytable'),
       ReadFromBigQueryRequest(table='myproject.mydataset.mytable')])
   results = read_requests | ReadAllFromBigQuery()
+
 A good application for this transform is in streaming pipelines to
 refresh a side input coming from BigQuery. This would work like so:::
+
   side_input = (
       p
       | 'PeriodicImpulse' >> PeriodicImpulse(
@@ -95,83 +111,108 @@ refresh a side input coming from BigQuery. This would work like so:::
       main_input
       | 'ApplyCrossJoin' >> beam.FlatMap(
           cross_join, rights=beam.pvalue.AsIter(side_input)))
+
 **Note**: This transform is supported on Portable and Dataflow v2 runners.
+
 **Note**: This transform does not currently clean up temporary datasets
 created for its execution. (BEAM-11359)
+
 Writing Data to BigQuery
 ========================
+
 The `WriteToBigQuery` transform is the recommended way of writing data to
 BigQuery. It supports a large set of parameters to customize how you'd like to
 write to BigQuery.
+
 Table References
 ----------------
+
 This transform allows you to provide static `project`, `dataset` and `table`
 parameters which point to a specific BigQuery table to be created. The `table`
 parameter can also be a dynamic parameter (i.e. a callable), which receives an
 element to be written to BigQuery, and returns the table that that element
 should be sent to.
+
 You may also provide a tuple of PCollectionView elements to be passed as side
 inputs to your callable. For example, suppose that one wishes to send
 events of different types to different tables, and the table names are
 computed at pipeline runtime, one may do something like the following::
+
     with Pipeline() as p:
       elements = (p | beam.Create([
         {'type': 'error', 'timestamp': '12:34:56', 'message': 'bad'},
         {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
       ]))
+
       table_names = (p | beam.Create([
         ('error', 'my_project:dataset1.error_table_for_today'),
         ('user_log', 'my_project:dataset1.query_table_for_today'),
       ])
+
       table_names_dict = beam.pvalue.AsDict(table_names)
+
       elements | beam.io.gcp.bigquery.WriteToBigQuery(
         table=lambda row, table_dict: table_dict[row['type']],
         table_side_inputs=(table_names_dict,))
+
 In the example above, the `table_dict` argument passed to the function in
 `table_dict` is the side input coming from `table_names_dict`, which is passed
 as part of the `table_side_inputs` argument.
+
 Schemas
 ---------
+
 This transform also allows you to provide a static or dynamic `schema`
 parameter (i.e. a callable).
+
 If providing a callable, this should take in a table reference (as returned by
 the `table` parameter), and return the corresponding schema for that table.
 This allows to provide different schemas for different tables::
+
     def compute_table_name(row):
       ...
+
     errors_schema = {'fields': [
       {'name': 'type', 'type': 'STRING', 'mode': 'NULLABLE'},
       {'name': 'message', 'type': 'STRING', 'mode': 'NULLABLE'}]}
     queries_schema = {'fields': [
       {'name': 'type', 'type': 'STRING', 'mode': 'NULLABLE'},
       {'name': 'query', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
     with Pipeline() as p:
       elements = (p | beam.Create([
         {'type': 'error', 'timestamp': '12:34:56', 'message': 'bad'},
         {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
       ]))
+
       elements | beam.io.gcp.bigquery.WriteToBigQuery(
         table=compute_table_name,
         schema=lambda table: (errors_schema
                               if 'errors' in table
                               else queries_schema))
+
 It may be the case that schemas are computed at pipeline runtime. In cases
 like these, one can also provide a `schema_side_inputs` parameter, which is
 a tuple of PCollectionViews to be passed to the schema callable (much like
 the `table_side_inputs` parameter).
+
 Additional Parameters for BigQuery Tables
 -----------------------------------------
+
 This sink is able to create tables in BigQuery if they don't already exist. It
 also relies on creating temporary tables when performing file loads.
+
 The WriteToBigQuery transform creates tables using the BigQuery API by
 inserting a load job (see the API reference [1]), or by inserting a new table
 (see the API reference for that [2][3]).
+
 When creating a new BigQuery table, there are a number of extra parameters
 that one may need to specify. For example, clustering, partitioning, data
 encoding, etc. It is possible to provide these additional parameters by
 passing a Python dictionary as `additional_bq_parameters` to the transform.
 As an example, to create a table that has specific partitioning, and
 clustering properties, one would do the following::
+
     additional_bq_parameters = {
       'timePartitioning': {'type': 'DAY'},
       'clustering': {'fields': ['country']}}
@@ -180,32 +221,43 @@ clustering properties, one would do the following::
         {'country': 'mexico', 'timestamp': '12:34:56', 'query': 'acapulco'},
         {'country': 'canada', 'timestamp': '12:34:59', 'query': 'influenza'},
       ]))
+
       elements | beam.io.gcp.bigquery.WriteToBigQuery(
         table='project_name1:dataset_2.query_events_table',
         additional_bq_parameters=additional_bq_parameters)
+
 Much like the schema case, the parameter with `additional_bq_parameters` can
 also take a callable that receives a table reference.
+
+
 [1] https://cloud.google.com/bigquery/docs/reference/rest/v2/Job\
         #jobconfigurationload
 [2] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert
 [3] https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
+
+
 *** Short introduction to BigQuery concepts ***
 Tables have rows (TableRow) and each row has cells (TableCell).
 A table has a schema (TableSchema), which in turn describes the schema of each
 cell (TableFieldSchema). The terms field and cell are used interchangeably.
+
 TableSchema: Describes the schema (types and order) for values in each row.
   Has one attribute, 'field', which is list of TableFieldSchema objects.
+
 TableFieldSchema: Describes the schema (type, name) for one field.
   Has several attributes, including 'name' and 'type'. Common values for
   the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC',
   'GEOGRAPHY'.
   All possible values are described at:
   https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
+
 TableRow: Holds all values in a table row. Has one attribute, 'f', which is a
   list of TableCell instances.
+
 TableCell: Holds the value for one cell (or field).  Has one attribute,
   'v', which is a JsonValue instance. This class is defined in
   apitools.base.py.extra_types.py module.
+
 As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
 high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
 The GEOGRAPHY data type works with Well-Known Text (See
@@ -308,12 +360,14 @@ __all__ = [
 """
 Template for BigQuery jobs created by BigQueryIO. This template is:
 `"beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"`, where:
+
 - `job_type` represents the BigQuery job type (e.g. extract / copy / load /
     query).
 - `job_id` is the Beam job name.
 - `step_id` is a UUID representing the the Dataflow step that created the
     BQ job.
 - `random` is a random string.
+
 NOTE: This job name template does not have backwards compatibility guarantees.
 """
 BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
@@ -357,6 +411,7 @@ def BigQueryWrapper(*args, **kwargs):
 
 class TableRowJsonCoder(coders.Coder):
   """A coder for a TableRow instance to/from a JSON string.
+
   Note that the encoding operation (used when writing to sinks) requires the
   table schema in order to obtain the ordered list of field names. Reading from
   sources on the other hand does not need the table schema.
@@ -488,6 +543,7 @@ class _BigQuerySource(dataflow_io.NativeSource):
       kms_key=None,
       temp_dataset=None):
     """Initialize a :class:`BigQuerySource`.
+
     Args:
       table (str): The ID of a BigQuery table. If specified all data of the
         table will be used as input of the current source. The ID must contain
@@ -528,8 +584,10 @@ class _BigQuerySource(dataflow_io.NativeSource):
         The dataset in which to create temporary tables when performing file
         loads. By default, a new dataset is created in the execution project for
         temporary tables.
+
     Raises:
       ValueError: if any of the following is true:
+
         1) the table reference as a string does not match the expected format
         2) neither a table nor a query is specified
         3) both a table and a query is specified.
@@ -814,6 +872,7 @@ class _CustomBigQuerySource(BoundedSource):
 
   def _export_files(self, bq):
     """Runs a BigQuery export job.
+
     Returns:
       bigquery.TableSchema instance, a list of FileMetadata instances
     """
@@ -1245,6 +1304,7 @@ class _ReadReadRowsResponsesWithFastAvro():
 @deprecated(since='2.11.0', current="WriteToBigQuery")
 class BigQuerySink(dataflow_io.NativeSink):
   """A sink based on a BigQuery table.
+
   This BigQuery sink triggers a Dataflow native sink for BigQuery
   that only supports batch pipelines.
   Instead of using this sink directly, please use WriteToBigQuery
@@ -1262,6 +1322,7 @@ class BigQuerySink(dataflow_io.NativeSink):
       coder=None,
       kms_key=None):
     """Initialize a BigQuerySink.
+
     Args:
       table (str): The ID of the table. The ID must contain only letters
         ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. If
@@ -1285,16 +1346,20 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
         will always be set to ``'NULLABLE'``).
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
+
           * :attr:`BigQueryDisposition.CREATE_IF_NEEDED`: create if does not
             exist.
           * :attr:`BigQueryDisposition.CREATE_NEVER`: fail the write if does not
             exist.
+
       write_disposition (BigQueryDisposition): A string describing what
         happens if the table has already some data. Possible values are:
+
           * :attr:`BigQueryDisposition.WRITE_TRUNCATE`: delete existing rows.
           * :attr:`BigQueryDisposition.WRITE_APPEND`: add to existing rows.
           * :attr:`BigQueryDisposition.WRITE_EMPTY`: fail the write if table not
             empty.
+
       validate (bool): If :data:`True`, various checks will be done when sink
         gets initialized (e.g., is table present given the disposition
         arguments?). This should be :data:`True` for most scenarios in order to
@@ -1310,6 +1375,7 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
         not desirable.
       kms_key (str): Optional Cloud KMS key name for use when creating new
         tables.
+
     Raises:
       TypeError: if the schema argument is not a :class:`str` or a
         :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
@@ -1428,6 +1494,7 @@ class BigQueryWriteFn(DoFn):
       with_batched_input=False,
       ignore_unknown_columns=False):
     """Initialize a WriteToBigQuery transform.
+
     Args:
       batch_size: Number of rows to be written to BQ per streaming API insert.
       schema: The schema to be used if the BigQuery table to write has to be
@@ -1449,6 +1516,7 @@ class BigQueryWriteFn(DoFn):
         For streaming pipelines WriteTruncate can not be used.
       kms_key: Optional Cloud KMS key name for use when creating new tables.
       test_client: Override the default bigquery client used for testing.
+
       max_buffered_rows: The maximum number of rows that are allowed to stay
         buffered when running dynamic destinations. When destinations are
         dynamic, it is important to keep caches small even when a single
@@ -1528,6 +1596,7 @@ class BigQueryWriteFn(DoFn):
   @staticmethod
   def get_table_schema(schema):
     """Transform the table schema into a bigquery.TableSchema instance.
+
     Args:
       schema: The schema to be used if the BigQuery table to write has to be
         created. This is a dictionary object created in the WriteToBigQuery
@@ -1830,6 +1899,7 @@ SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
 
 class WriteToBigQuery(PTransform):
   """Write data to BigQuery.
+
   This transform receives a PCollection of elements to be inserted into BigQuery
   tables. The elements would come in as Python dictionaries, or as `TableRow`
   instances.
@@ -1867,6 +1937,7 @@ class WriteToBigQuery(PTransform):
       ignore_unknown_columns=False,
       load_job_project_id=None):
     """Initialize a WriteToBigQuery transform.
+
     Args:
       table (str, callable, ValueProvider): The ID of the table, or a callable
          that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
@@ -1900,16 +1971,20 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         that are being loaded.
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
+
         * :attr:`BigQueryDisposition.CREATE_IF_NEEDED`: create if does not
           exist.
         * :attr:`BigQueryDisposition.CREATE_NEVER`: fail the write if does not
           exist.
+
       write_disposition (BigQueryDisposition): A string describing what happens
         if the table has already some data. Possible values are:
+
         * :attr:`BigQueryDisposition.WRITE_TRUNCATE`: delete existing rows.
         * :attr:`BigQueryDisposition.WRITE_APPEND`: add to existing rows.
         * :attr:`BigQueryDisposition.WRITE_EMPTY`: fail the write if table not
           empty.
+
         For streaming pipelines WriteTruncate can not be used.
       kms_key (str): Optional Cloud KMS key name for use when creating new
         tables.
@@ -1938,6 +2013,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         that fail to be inserted to BigQuery, they will be retried indefinitely.
         Other retry strategy settings will produce a deadletter PCollection
         as output. Appropriate values are:
+
         * `RetryStrategy.RETRY_ALWAYS`: retry all rows if
           there are any kind of errors. Note that this will hold your pipeline
           back if there are errors until you cancel or update it.
@@ -1947,6 +2023,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         * `RetryStrategy.RETRY_ON_TRANSIENT_ERROR`: retry
           rows with transient errors (e.g. timeouts). Rows with permanent errors
           will be output to dead letter queue under `'FailedRows'` tag.
+
       additional_bq_parameters (dict, callable): Additional parameters to pass
         to BQ when creating / loading data into a table. If a callable, it
         should be a function that receives a table reference indicating
@@ -2222,9 +2299,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
 class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
+
     This PTransform uses a BigQuery export job to take a snapshot of the table
     on GCS, and then reads from each produced file. File format is Avro by
     default.
+
   Args:
     method: The method to use to read from BigQuery. It may be EXPORT or
       DIRECT_READ. EXPORT invokes a BigQuery export request
@@ -2448,6 +2527,7 @@ class ReadFromBigQueryRequest:
       flatten_results: bool = False):
     """
     Only one of query or table should be specified.
+
     :param query: SQL query to fetch data.
     :param use_standard_sql:
       Specifies whether to use BigQuery's standard SQL dialect for this query.
@@ -2489,13 +2569,17 @@ class ReadFromBigQueryRequest:
 @experimental()
 class ReadAllFromBigQuery(PTransform):
   """Read data from BigQuery.
+
     PTransform:ReadFromBigQueryRequest->Rows
+
     This PTransform uses a BigQuery export job to take a snapshot of the table
     on GCS, and then reads from each produced file. Data is exported into
     a new subdirectory for each export using UUIDs generated in
     `ReadFromBigQueryRequest` objects.
+
     It is recommended not to use this PTransform for streaming jobs on
     GlobalWindow, since it will not be able to cleanup snapshots.
+
   Args:
     gcs_location (str): The name of the Google Cloud Storage
       bucket where the extracted table should be written as a string. If
