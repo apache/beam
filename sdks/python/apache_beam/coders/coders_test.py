@@ -225,15 +225,15 @@ class FallbackCoderTest(unittest.TestCase):
 class NullableCoderTest(unittest.TestCase):
   def test_determinism(self):
     deterministic = coders_registry.get_coder(typehints.Optional[int])
-    deterministic.as_deterministic_coder('lable')
+    deterministic.as_deterministic_coder('label')
 
     complex_deterministic = coders_registry.get_coder(
         typehints.Optional[DummyClass])
-    complex_deterministic.as_deterministic_coder('lable')
+    complex_deterministic.as_deterministic_coder('label')
 
     nondeterministic = coders.NullableCoder(coders.Base64PickleCoder())
     with pytest.raises(ValueError):
-      nondeterministic.as_deterministic_coder('lable')
+      nondeterministic.as_deterministic_coder('label')
 
 
 if __name__ == '__main__':
