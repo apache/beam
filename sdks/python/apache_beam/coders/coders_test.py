@@ -21,7 +21,9 @@ import logging
 import unittest
 
 import proto
+import pytest
 
+from apache_beam import typehints
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
 from apache_beam.coders.avro_record import AvroRecord
@@ -218,6 +220,20 @@ class FallbackCoderTest(unittest.TestCase):
     # FastPrimitivesCoder.
     self.assertEqual(coder, coders.FastPrimitivesCoder())
     self.assertEqual(DummyClass(), coder.decode(coder.encode(DummyClass())))
+
+
+class NullableCoderTest(unittest.TestCase):
+  def test_determinism(self):
+    deterministic = coders_registry.get_coder(typehints.Optional[int])
+    deterministic.as_deterministic_coder('lable')
+
+    complex_deterministic = coders_registry.get_coder(
+        typehints.Optional[DummyClass])
+    complex_deterministic.as_deterministic_coder('lable')
+
+    nondeterministic = coders.NullableCoder(coders.Base64PickleCoder())
+    with pytest.raises(ValueError):
+      nondeterministic.as_deterministic_coder('lable')
 
 
 if __name__ == '__main__':
