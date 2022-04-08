@@ -502,16 +502,14 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
 
     inChannel = initializeBloomFilterAndIndexPerShard(inChannel);
 
+    checkState(indexPerShard != null,
+        "indexPerShard must not be null after initializeBloomFilterAndIndexPerShard.");
+
     // If the index has been populated and contains the shard id, we can return.
     if (indexPerShard != null && indexPerShard.containsKey(shardId)) {
       checkState(bloomFilter != null, "Bloom filter expected to have been initialized.");
       return inChannel;
     }
-
-    checkState(
-        indexPerShard.get(shardId) == null,
-        "Expected to not have initialized index for shard %s",
-        shardId);
 
     Long startOfNextBlock = shardOffsetToShardMap.higherKey(shardWithIndex.getBlockOffset());
     // If this is the last block, then we need to grab the position of the Bloom filter
