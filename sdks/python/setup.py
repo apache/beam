@@ -231,10 +231,6 @@ AZURE_REQUIREMENTS = [
     'azure-core >=1.7.0',
 ]
 
-ML_REQUIREMENTS = [
-    'torch >= 1.10.2'
-]
-
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -325,8 +321,8 @@ if __name__ == '__main__':
           'interactive_test': INTERACTIVE_BEAM_TEST,
           'aws': AWS_REQUIREMENTS,
           'azure': AZURE_REQUIREMENTS,
-          'ml': ML_REQUIREMENTS,
-          'dataframe': ['pandas>=1.0,<1.5']
+          'dataframe': ['pandas>=1.0,<1.5'],
+          'pytorch': ['torch>=1.9.0,<1.11.0']
       },
       zip_safe=False,
       # PyPI package information.
