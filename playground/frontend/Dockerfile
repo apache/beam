@@ -36,3 +36,4 @@ FROM nginx:1.21.3
 COPY --from=build /app/nginx_default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build/web/ /usr/share/nginx/html
 RUN cp /usr/share/nginx/html/assets/assets/* /usr/share/nginx/html/assets/
+RUN gzip -kr /usr/share/nginx/html/assets/*

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
@@ -54,7 +55,8 @@ class TwoLevelMessageConverterCache<DestinationT, ElementT> implements Serializa
 
   public MessageConverter<ElementT> get(
       DestinationT destination,
-      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations)
+      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+      DatasetService datasetService)
       throws Exception {
     // Lookup first in the local cache, and fall back to the static cache if necessary.
     return localMessageConverters.get(
@@ -63,6 +65,6 @@ class TwoLevelMessageConverterCache<DestinationT, ElementT> implements Serializa
             (MessageConverter<ElementT>)
                 CACHED_MESSAGE_CONVERTERS.get(
                     KV.of(operationName, destination),
-                    () -> dynamicDestinations.getMessageConverter(destination)));
+                    () -> dynamicDestinations.getMessageConverter(destination, datasetService)));
   }
 }

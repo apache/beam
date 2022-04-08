@@ -186,9 +186,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     String sql = "SELECT f_int_na FROM TABLE_A";
 
-    PCollection<Row> result =
-        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testProjectUnknownField", SqlTransform.query(sql));
+    PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+        .apply("testProjectUnknownField", SqlTransform.query(sql));
 
     pipeline.run();
   }

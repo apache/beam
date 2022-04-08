@@ -141,7 +141,6 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public void processElement(WindowedValue<InputT> input) {
-
     // StatefulDoFnRunner always observes windows, so we need to explode
     for (WindowedValue<InputT> value : input.explodeWindows()) {
       BoundedWindow window = value.getWindows().iterator().next();
@@ -220,7 +219,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       if (requiresTimeSortedInput) {
         onSortFlushTimer(window, BoundedWindow.TIMESTAMP_MAX_VALUE);
       }
-      doFnRunner.onWindowExpiration(window, outputTimestamp, key);
+      onWindowExpiration(window, outputTimestamp, key);
       stateCleaner.clearForWindow(window);
     } else {
       // An event-time timer can never be late because we don't allow setting timers after GC time.
@@ -274,7 +273,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   /**
-   * Setup timer for flush time @{code flush}. The time is adjusted to respect allowed lateness and
+   * Setup timer for flush time {@code flush}. The time is adjusted to respect allowed lateness and
    * window garbage collection time. Setup watermark hold for the flush time.
    *
    * <p>Note that this is equivalent to {@link org.apache.beam.sdk.state.Timer#withOutputTimestamp}

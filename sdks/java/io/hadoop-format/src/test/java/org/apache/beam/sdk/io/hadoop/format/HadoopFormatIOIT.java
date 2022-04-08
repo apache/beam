@@ -102,8 +102,6 @@ public class HadoopFormatIOIT {
   private static Integer numberOfRows;
   private static String tableName;
   private static SerializableConfiguration hadoopConfiguration;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static InfluxDBSettings settings;
   private static HadoopFormatIOITOptions options;
 
@@ -133,8 +131,6 @@ public class HadoopFormatIOIT {
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopFormatIOIT");
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     if (!options.isWithTestcontainers()) {
       settings =
           InfluxDBSettings.builder()

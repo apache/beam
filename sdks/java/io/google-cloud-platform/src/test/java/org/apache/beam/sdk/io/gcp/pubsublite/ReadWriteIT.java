@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Rule;
@@ -255,8 +256,10 @@ public class ReadWriteIT {
     PCollection<SequencedMessage> messages = readMessages(subscription, pipeline);
     PCollection<Integer> ids = messages.apply(MapElements.via(extractIds()));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
+    start.get();
     LOG.info("Running!");
     signal.waitForSuccess(Duration.standardMinutes(5));
     // A runner may not support cancel

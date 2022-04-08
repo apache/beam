@@ -97,9 +97,8 @@ public class BeamZetaSqlCatalogTest {
     calciteSchema.add("return_array", ScalarFunctionImpl.create(method));
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Calcite type TIME not allowed in function return_array");
-    BeamZetaSqlCatalog beamCatalog =
-        BeamZetaSqlCatalog.create(
-            calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
+    BeamZetaSqlCatalog.create(
+        calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
   }
 
   @Test
@@ -110,9 +109,8 @@ public class BeamZetaSqlCatalogTest {
     calciteSchema.add("take_array", ScalarFunctionImpl.create(method));
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Calcite type TIME not allowed in function take_array");
-    BeamZetaSqlCatalog beamCatalog =
-        BeamZetaSqlCatalog.create(
-            calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
+    BeamZetaSqlCatalog.create(
+        calciteSchema, jdbcConnection.getTypeFactory(), SqlAnalyzer.baseAnalyzerOptions());
   }
 
   @Test

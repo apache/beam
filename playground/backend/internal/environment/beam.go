@@ -22,27 +22,43 @@ import (
 // ExecutorConfig contains all environment variables needed for compiling and execution of the code commands:
 // - CompileCmd: command to compile files with code
 // - RunCmd: command to run compiled code
+// - TestCmd: command to run unit test code
 // - CompileArgs: arguments which are needed to compile files with code
 // - RunArgs: arguments which are needed to run compiled code
+// - TestArgs: arguments which are needed to run unit test code
 type ExecutorConfig struct {
 	CompileCmd  string   `json:"compile_cmd"`
 	RunCmd      string   `json:"run_cmd"`
+	TestCmd     string   `json:"test_cmd"`
 	CompileArgs []string `json:"compile_args"`
 	RunArgs     []string `json:"run_args"`
+	TestArgs    []string `json:"test_args"`
 }
 
 // NewExecutorConfig creates and returns ExecutorConfig
-func NewExecutorConfig(compileCmd string, runCmd string, compileArgs []string, runArgs []string) *ExecutorConfig {
-	return &ExecutorConfig{CompileCmd: compileCmd, RunCmd: runCmd, CompileArgs: compileArgs, RunArgs: runArgs}
+func NewExecutorConfig(compileCmd, runCmd, testCmd string, compileArgs, runArgs, testArgs []string) *ExecutorConfig {
+	return &ExecutorConfig{CompileCmd: compileCmd, RunCmd: runCmd, TestCmd: testCmd, CompileArgs: compileArgs, RunArgs: runArgs, TestArgs: testArgs}
 }
 
 // BeamEnvs contains all environments related of ApacheBeam. These will use to run pipelines
 type BeamEnvs struct {
-	ApacheBeamSdk  pb.Sdk
-	ExecutorConfig *ExecutorConfig
+	ApacheBeamSdk     pb.Sdk
+	ExecutorConfig    *ExecutorConfig
+	preparedModDir    string
+	numOfParallelJobs int
 }
 
 // NewBeamEnvs is a BeamEnvs constructor
-func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig) *BeamEnvs {
-	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig}
+func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig, preparedModDir string, numOfParallelJobs int) *BeamEnvs {
+	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig, preparedModDir: preparedModDir, numOfParallelJobs: numOfParallelJobs}
+}
+
+// PreparedModDir returns the path to the directory where prepared go.mod and go.sum are located
+func (b *BeamEnvs) PreparedModDir() string {
+	return b.preparedModDir
+}
+
+// NumOfParallelJobs returns the max number of the possible code executions on the instance simultaneously.
+func (b *BeamEnvs) NumOfParallelJobs() int {
+	return b.numOfParallelJobs
 }

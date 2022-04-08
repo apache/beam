@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
+import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
+
 import java.net.URI;
 import org.elasticmq.rest.sqs.SQSRestServer;
 import org.elasticmq.rest.sqs.SQSRestServerBuilder;
@@ -25,44 +27,57 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
-import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
 
 class EmbeddedSqsServer extends ExternalResource {
-  private static SQSRestServer sqsRestServer;
-  private static SqsClient client;
-  private static String queueUrl;
-  private static String queueName = "test";
+  private SQSRestServer sqsRestServer;
+  private URI endpoint;
 
   @Override
   protected void before() {
     sqsRestServer = SQSRestServerBuilder.withDynamicPort().start();
     int port = sqsRestServer.waitUntilStarted().localAddress().getPort();
-    client =
-        SqsClient.builder()
-            .credentialsProvider(
-                StaticCredentialsProvider.create(AwsBasicCredentials.create("x", "x")))
-            .endpointOverride(URI.create(String.format("http://localhost:%d", port)))
-            .region(Region.US_WEST_2)
-            .build();
-
-    CreateQueueRequest createQueueRequest =
-        CreateQueueRequest.builder().queueName(queueName).build();
-    final CreateQueueResponse queue = client.createQueue(createQueueRequest);
-    queueUrl = queue.queueUrl();
-  }
-
-  public SqsClient getClient() {
-    return client;
-  }
-
-  public String getQueueUrl() {
-    return queueUrl;
+    endpoint = URI.create(String.format("http://localhost:%d", port));
   }
 
   @Override
   protected void after() {
     sqsRestServer.stopAndWait();
-    client.close();
+  }
+
+  /** Isolated environment (queue, client) per test case. */
+  public static class TestCaseEnv extends ExternalResource {
+    private final EmbeddedSqsServer sqsServer;
+    private SqsClient client;
+    private String queueUrl;
+
+    public TestCaseEnv(EmbeddedSqsServer sqsServer) {
+      this.sqsServer = sqsServer;
+    }
+
+    @Override
+    protected void before() throws Throwable {
+      client =
+          SqsClient.builder()
+              .credentialsProvider(
+                  StaticCredentialsProvider.create(AwsBasicCredentials.create("x", "x")))
+              .endpointOverride(sqsServer.endpoint)
+              .region(Region.US_WEST_2)
+              .build();
+
+      queueUrl = client.createQueue(b -> b.queueName(randomAlphanumeric(5))).queueUrl();
+    }
+
+    @Override
+    protected void after() {
+      client.close();
+    }
+
+    public SqsClient getClient() {
+      return client;
+    }
+
+    public String getQueueUrl() {
+      return queueUrl;
+    }
   }
 }

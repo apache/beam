@@ -116,6 +116,202 @@ func TestLiftedCombine(t *testing.T) {
 
 }
 
+// pigeonHasher only returns 0 for even hashes, and 1 for odd hashes
+// nearly guaranteeing that overflow behavior must be tested for small sets.
+type pigeonHasher struct {
+	hasher elementHasher
+}
+
+func (p *pigeonHasher) Hash(element interface{}, w typex.Window) (uint64, error) {
+	k, err := p.hasher.Hash(element, w)
+	if err != nil {
+		return 0, err
+	}
+	return k & 0x1, nil
+}
+
+func TestLiftingCache(t *testing.T) {
+	zeroVal, zeroWindow := &FullValue{Elm: 0}, window.SingleGlobalWindow[0]
+	t.Run("lookup", func(t *testing.T) {
+		c := newLiftingCache(1, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+
+		zerokey, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+
+		// Check properties of the cache
+		if got, want := len(c.cache), 1; got != want {
+			t.Fatalf("len(liftingCache.cache) = %v, want %v after first lookup", got, want)
+		}
+		if notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want first value for key", zerokey, fv, notfirst)
+		}
+		// Set value to ensure we get the same one we expect later.
+		// the cache expects the value to have the key (Elm) and
+		// a window set.
+		fv.Elm = 0
+		fv.Elm2 = "want"
+		fv.Windows = window.SingleGlobalWindow
+
+		key, fv2, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+		if got, want := len(c.cache), 1; got != want {
+			t.Fatalf("len(liftingCache.cache) = %v, want %v after lookup of existing key", got, want)
+		}
+		if got, want := key, zerokey; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), want %v", got, want)
+		}
+		// This shouldn't be the first value.
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, fv.Elm2; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+
+		// Now the hard part: We lookup new values until we pigeon hole & get a collision.
+		// This will validates overflow lookups.
+		var collision *FullValue
+		for i := 1; i < 100; i++ {
+			collision = &FullValue{Elm: i}
+			key, fv2, notfirst, err = c.lookup(collision, zeroWindow)
+			if err != nil {
+				t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", i, err)
+			}
+			if key == zerokey {
+				break
+			}
+			// Set values so subsequent hits won't fail.
+			fv2.Elm = collision.Elm
+			fv2.Elm2 = "ignoreme"
+			fv2.Windows = window.SingleGlobalWindow
+		}
+		if notfirst {
+			t.Errorf("liftingCache.lookup(%v, GW) = key(%v), %v, notfirst(%v) but want first value for key", collision.Elm, key, fv2, notfirst)
+		}
+		// Set values so we can validate later.
+		fv2.Elm = collision.Elm
+		fv2.Elm2 = "newthing"
+		fv2.Windows = window.SingleGlobalWindow
+
+		key, fv2, notfirst, err = c.lookup(collision, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", collision.Elm, err)
+		}
+		if !notfirst {
+			t.Errorf("liftingCache.lookup(%v, GW) = key(%v), %v, notfirst(%v) but want first value for key", collision.Elm, key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, "newthing"; got != want {
+			t.Fatalf("liftingCache.lookup(%v, GW) = %v, want %v", collision.Elm, got, want)
+		}
+
+		// Check the original key again.
+		key, fv2, notfirst, err = c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(0, GW) = %v", err)
+		}
+		if got, want := key, zerokey; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), want %v", got, want)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv2, notfirst)
+		}
+		if got, want := fv2.Elm2, "want"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	load := func(c *liftingCache, n int) {
+		t.Helper()
+		for i := 0; i < n; i++ {
+			_, fv, _, err := c.lookup(&FullValue{Elm: i}, zeroWindow)
+			if err != nil {
+				t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", i, err)
+			}
+			// Set values so subsequent hits won't fail.
+			fv.Elm = i
+			fv.Elm2 = "ignoreme"
+			fv.Windows = window.SingleGlobalWindow
+		}
+	}
+	t.Run("compact_sparse", func(t *testing.T) {
+		max := 10
+		c := newLiftingCache(max, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		c.start()
+		load(c, 100)
+		zerokey, _, _, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		c.compact(context.Background(), zerokey, func(ctx context.Context, elm *FullValue, values ...ReStream) error { return nil })
+		if got := len(c.cache); got >= max {
+			t.Errorf("len(c.cache) = %v, want < %v", got, max)
+		}
+		// Validate that "current" key wasn't removed.
+		key, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv, notfirst)
+		}
+		if got, want := fv.Elm2, "ignoreme"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	t.Run("compact_dense", func(t *testing.T) {
+		max := 1
+		c := newLiftingCache(max, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+		load(c, 100)
+		zerokey, _, _, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		c.compact(context.Background(), zerokey, func(ctx context.Context, elm *FullValue, values ...ReStream) error { return nil })
+		if got, want := len(c.cache), 1; got != want {
+			t.Errorf("len(c.cache) = %v, want %v", got, want)
+		}
+		key, fv, notfirst, err := c.lookup(zeroVal, zeroWindow)
+		if err != nil {
+			t.Fatalf("error on liftingCache.lookup(%v, GW) = %v", 0, err)
+		}
+		if !notfirst {
+			t.Fatalf("liftingCache.lookup(0, GW) = key(%v), %v, notfirst(%v) but want existing value for key", key, fv, notfirst)
+		}
+		if got, want := fv.Elm2, "ignoreme"; got != want {
+			t.Fatalf("liftingCache.lookup(0, GW) = %v, want %v", got, want)
+		}
+	})
+	t.Run("emitAll", func(t *testing.T) {
+		c := newLiftingCache(1, intCoder(reflectx.Int), coder.NewGlobalWindow())
+		// Replace with pigeon hasher to ensure pigeonholing.
+		c.keyHash = &pigeonHasher{hasher: c.keyHash}
+		c.start()
+		want := 100
+		load(c, want)
+		var got int
+		c.emitAll(context.Background(), func(ctx context.Context, elm *FullValue, values ...ReStream) error {
+			got++
+			return nil
+		})
+		if got != want {
+			t.Errorf("c.emitAll emitted %v values, want %v", got, want)
+		}
+		if got, want := len(c.cache), 0; got != want {
+			t.Errorf("len(c.cache) = %v, want %v", got, want)
+		}
+
+	})
+}
+
 // TestConvertToAccumulators verifies that the ConvertToAccumulators phase
 // correctly doesn't accumulate values at all.
 func TestConvertToAccumulators(t *testing.T) {

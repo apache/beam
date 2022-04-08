@@ -121,6 +121,7 @@ class PartitioningSession(Session):
         # is computed trivially with Singleton partitioning and passes.
         for input_partitioning in sorted(set([expr.requires_partition_by(),
                                               partitionings.Arbitrary(),
+                                              partitionings.JoinIndex(),
                                               partitionings.Index(),
                                               partitionings.Singleton()])):
           if not expr.requires_partition_by().is_subpartitioning_of(

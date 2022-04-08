@@ -16,11 +16,23 @@
  * limitations under the License.
  */
 
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 
-class CategoryModel {
+class CategoryModel with Comparable<CategoryModel> {
   final String name;
   final List<ExampleModel> examples;
 
-  CategoryModel(this.name, this.examples);
+  const CategoryModel({required this.name, required this.examples});
+
+  @override
+  int compareTo(CategoryModel other) {
+    if (name.toLowerCase() == kQuickStartCategoryName) {
+      return -1;
+    }
+    if (other.name.toLowerCase() == kQuickStartCategoryName) {
+      return 1;
+    }
+    return name.toLowerCase().compareTo(other.name.toLowerCase());
+  }
 }

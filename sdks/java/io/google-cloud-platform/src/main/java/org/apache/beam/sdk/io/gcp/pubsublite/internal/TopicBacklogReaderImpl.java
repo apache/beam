@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
@@ -26,13 +26,8 @@ import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
-import java.util.concurrent.ExecutionException;
-import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 final class TopicBacklogReaderImpl implements TopicBacklogReader {
-  private static final Logger LOG = LoggerFactory.getLogger(TopicBacklogReaderImpl.class);
   private final TopicStatsClient client;
   private final TopicPath topicPath;
   private final Partition partition;
@@ -49,21 +44,14 @@ final class TopicBacklogReaderImpl implements TopicBacklogReader {
     try {
       return client
           .computeMessageStats(topicPath, partition, offset, Offset.of(Integer.MAX_VALUE))
-          .get();
-    } catch (ExecutionException e) {
-      @Nonnull Throwable cause = checkNotNull(e.getCause());
-      throw toCanonical(cause).underlying;
-    } catch (InterruptedException e) {
-      throw toCanonical(e).underlying;
+          .get(1, MINUTES);
+    } catch (Throwable t) {
+      throw toCanonical(t).underlying;
     }
   }
 
   @Override
   public void close() {
-    try {
-      client.close();
-    } catch (Exception e) {
-      LOG.warn("Failed to close topic stats client.", e);
-    }
+    client.close();
   }
 }

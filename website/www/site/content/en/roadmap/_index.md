@@ -57,9 +57,9 @@ Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We continue to [
 See details on
 the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
 
-## Java 11 support
+## Java 17 support
 
-The Java SDK is eager to add support for Java's first new LTS (Long Term Support)
+The Java SDK is eager to add support for Java's next LTS (Long Term Support)
 version. See details on
 the [Java SDK's Roadmap](/roadmap/java-sdk).
 

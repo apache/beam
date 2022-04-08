@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.jdbc;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.sql.JDBCType;
 import java.time.Instant;
 import java.util.Arrays;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -67,6 +69,14 @@ class LogicalTypes {
               FieldType.STRING,
               "",
               Schema.FieldType.DATETIME) {});
+
+  static final Schema.FieldType JDBC_UUID_TYPE =
+      Schema.FieldType.logicalType(new UuidLogicalType());
+
+  static final Schema.FieldType OTHER_AS_STRING_TYPE =
+      Schema.FieldType.logicalType(
+          new PassThroughLogicalType<String>(
+              JDBCType.OTHER.getName(), FieldType.STRING, "", FieldType.STRING) {});
 
   @VisibleForTesting
   static Schema.FieldType fixedLengthString(JDBCType jdbcType, int length) {
@@ -266,12 +276,15 @@ class LogicalTypes {
     @Override
     public BigDecimal toInputType(BigDecimal base) {
       checkArgument(
-          base == null || (base.precision() == precision && base.scale() == scale),
-          "Expected BigDecimal base to be null or have precision = %s (was %s), scale = %s (was %s)",
+          base == null
+              || (base.precision() <= precision && base.scale() <= scale)
+              // for cases when received values can be safely coerced to the schema
+              || base.round(new MathContext(precision)).compareTo(base) == 0,
+          "Expected BigDecimal base to be null or have precision <= %s (was %s), scale <= %s (was %s)",
           precision,
-          base.precision(),
+          (base == null) ? null : base.precision(),
           scale,
-          base.scale());
+          (base == null) ? null : base.scale());
       return base;
     }
   }

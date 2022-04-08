@@ -17,28 +17,102 @@
 # under the License.
 #
 
-resource "google_app_engine_flexible_app_version" "backend_app" {
-  version_id = "v1"
-  project    = "${var.project_id}"
-  service    = "backend"
-  runtime    = "custom"
 
- liveness_check {
-    path = ""
-  }
 
-  readiness_check {
-    path = ""
-  }
-
-  manual_scaling {
-    instances = 1
-  }
-
-  deployment {
-    container {
-      image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"
-    }
-  }
+module "backend-go" {
+  source                  = "./backend-go"
+  project_id              = var.project_id
+  cache_address           = var.cache_address
+  docker_registry_address = var.docker_registry_address
+  network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
+  environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-go"
+  docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-go"
+  cache_type              = var.cache_type
+  volume_size             = var.go_volume_size
+  cpu                     = var.go_cpu
+  memory                  = var.go_memory
+  max_instance            = var.go_max_instance
+  min_instance            = var.go_min_instance
 }
+
+module "backend-java" {
+  source                  = "./backend-java"
+  project_id              = var.project_id
+  cache_address           = var.cache_address
+  docker_registry_address = var.docker_registry_address
+  network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
+  environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-java"
+  docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-java"
+  cache_type              = var.cache_type
+  volume_size             = var.java_volume_size
+  cpu                     = var.java_cpu
+  memory                  = var.java_memory
+  max_instance            = var.java_max_instance
+  min_instance            = var.java_min_instance
+}
+
+module "backend-python" {
+  source                  = "./backend-python"
+  project_id              = var.project_id
+  cache_address           = var.cache_address
+  docker_registry_address = var.docker_registry_address
+  network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
+  environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-python"
+  docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-python"
+  cache_type              = var.cache_type
+  volume_size             = var.python_volume_size
+  cpu                     = var.python_cpu
+  memory                  = var.python_memory
+  max_instance            = var.python_max_instance
+  min_instance            = var.python_min_instance
+}
+
+module "backend-router" {
+  source                  = "./backend-router"
+  project_id              = var.project_id
+  cache_address           = var.cache_address
+  docker_registry_address = var.docker_registry_address
+  network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
+  environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-router"
+  docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-router"
+  cache_type              = var.cache_type
+  volume_size             = var.router_volume_size
+  cpu                     = var.router_cpu
+  memory                  = var.router_memory
+  max_instance            = var.router_max_instance
+  min_instance            = var.router_min_instance
+}
+
+module "backend-scio" {
+  source                  = "./backend-scio"
+  project_id              = var.project_id
+  cache_address           = var.cache_address
+  docker_registry_address = var.docker_registry_address
+  network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
+  environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-scio"
+  docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-scio"
+  cache_type              = var.cache_type
+  volume_size             = var.scio_volume_size
+  cpu                     = var.scio_cpu
+  memory                  = var.scio_memory
+  max_instance            = var.scio_max_instance
+  min_instance            = var.scio_min_instance
+}
+
+
 

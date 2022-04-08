@@ -68,7 +68,6 @@ public class KinesisIOReadTest {
   public void testReadWithBasicCredentialsAndCustomEndpoint() {
     String customEndpoint = "localhost:9999";
     Regions region = Regions.US_WEST_1;
-    BasicAWSCredentials credentials = new BasicAWSCredentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY);
 
     Read<KinesisRecord> read =
         KinesisIO.read()
@@ -102,7 +101,6 @@ public class KinesisIOReadTest {
   public void testReadWithBasicCredentialsAndVerificationDisabled() {
     String customEndpoint = "localhost:9999";
     Regions region = Regions.US_WEST_1;
-    BasicAWSCredentials credentials = new BasicAWSCredentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY);
 
     Read<KinesisRecord> read =
         KinesisIO.read()

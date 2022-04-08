@@ -17,32 +17,58 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/graph/graph_builder/painters/graph_painter.dart';
+import 'package:playground/modules/output/components/graph.dart';
 import 'package:playground/modules/output/components/output_result.dart';
+import 'package:playground/modules/output/models/output_placement.dart';
+import 'package:playground/modules/output/models/output_placement_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-const kLogText = 'Log';
-const kGraphText = 'Graph';
-
 class OutputArea extends StatelessWidget {
-  const OutputArea({Key? key}) : super(key: key);
+  final TabController tabController;
+  final bool showGraph;
+
+  const OutputArea({
+    Key? key,
+    required this.tabController,
+    required this.showGraph,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Theme.of(context).backgroundColor,
-      child: Consumer<PlaygroundState>(
-        builder: (context, state, child) {
+      child: Consumer2<PlaygroundState, OutputPlacementState>(
+        builder: (context, playgroundState, placementState, child) {
           return TabBarView(
+            controller: tabController,
             physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
-              OutputResult(text: state.result?.output ?? ''),
-              const Center(child: Text(kLogText)),
-              const Center(child: Text(kGraphText)),
+              OutputResult(
+                text: playgroundState.result?.output ?? '',
+                isSelected: tabController.index == 0,
+              ),
+              OutputResult(
+                text: playgroundState.result?.log ?? '',
+                isSelected: tabController.index == 1,
+              ),
+              if (showGraph)
+                GraphTab(
+                  graph: playgroundState.result?.graph ?? '',
+                  sdk: playgroundState.sdk,
+                  direction: _getGraphDirection(placementState.placement),
+                ),
             ],
           );
         },
       ),
     );
+  }
+
+  GraphDirection _getGraphDirection(OutputPlacement placement) {
+    return placement == OutputPlacement.bottom
+        ? GraphDirection.horizontal
+        : GraphDirection.vertical;
   }
 }

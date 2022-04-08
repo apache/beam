@@ -85,8 +85,6 @@ public class BigQueryIOIT {
   private static final String READ_TIME_METRIC_NAME = "read_time";
   private static final String WRITE_TIME_METRIC_NAME = "write_time";
   private static final String AVRO_WRITE_TIME_METRIC_NAME = "avro_write_time";
-  private static String metricsBigQueryTable;
-  private static String metricsBigQueryDataset;
   private static String testBigQueryDataset;
   private static String testBigQueryTable;
   private static SyntheticSourceOptions sourceOptions;
@@ -102,8 +100,6 @@ public class BigQueryIOIT {
     tempRoot = options.getTempRoot();
     sourceOptions =
         SyntheticOptions.fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
-    metricsBigQueryDataset = options.getMetricsBigQueryDataset();
-    metricsBigQueryTable = options.getMetricsBigQueryTable();
     testBigQueryDataset = options.getTestBigQueryDataset();
     testBigQueryTable = options.getTestBigQueryTable();
     writeFormat = WriteFormat.valueOf(options.getWriteFormat());

@@ -17,21 +17,49 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/modules/output/components/output_header/output_tab.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:provider/provider.dart';
 
 class OutputTabs extends StatelessWidget {
-  const OutputTabs({Key? key}) : super(key: key);
+  final TabController tabController;
+  final bool showGraph;
+
+  const OutputTabs({
+    Key? key,
+    required this.tabController,
+    required this.showGraph,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 300,
-      child: TabBar(
-        tabs: <Widget>[
-          Tab(text: 'Output'),
-          Tab(text: 'Log'),
-          Tab(text: 'Graph'),
-        ],
-      ),
-    );
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    return Consumer<PlaygroundState>(builder: (context, state, child) {
+      return SizedBox(
+        width: 300,
+        child: TabBar(
+          controller: tabController,
+          tabs: <Widget>[
+            OutputTab(
+              name: appLocale.output,
+              isSelected: tabController.index == 0,
+              value: state.result?.output ?? '',
+            ),
+            OutputTab(
+              name: appLocale.log,
+              isSelected: tabController.index == 1,
+              value: state.result?.log ?? '',
+            ),
+            if (showGraph)
+              OutputTab(
+                name: appLocale.graph,
+                isSelected: tabController.index == 2,
+                value: state.result?.graph ?? '',
+              ),
+          ],
+        ),
+      );
+    });
   }
 }

@@ -42,6 +42,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -126,7 +127,7 @@ import org.slf4j.LoggerFactory;
  * *     .withUri("mongodb://localhost:27017")
  * *     .withDatabase("my-database")
  * *     .withCollection("my-collection")
- * *     .withUpdateConfiguration(UpdateConfiguration.create().withUpdateKey("key1")
+ * *     .withUpdateConfiguration(UpdateConfiguration.create().withFindKey("key1").withUpdateKey("key2")
  * *     .withUpdateFields(UpdateField.fieldUpdate("$set", "source-field1", "dest-field1"),
  * *                       UpdateField.fieldUpdate("$set","source-field2", "dest-field2"),
  * *                       //pushes entire input doc to the dest field
@@ -463,7 +464,10 @@ public class MongoDbIO {
           if (spec.bucketAuto()) {
             splitKeys = buildAutoBuckets(mongoDatabase, spec);
           } else {
-            if (spec.numSplits() > 0) {
+            if (spec.numSplits() <= 0) {
+              LOG.debug("Split keys disabled, using a unique source");
+              return Collections.singletonList(this);
+            } else {
               // the user defines his desired number of splits
               // calculate the batch size
               long estimatedSizeBytes =
@@ -628,7 +632,6 @@ public class MongoDbIO {
       ObjectId lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
         ObjectId splitKey = splitKeys.get(i).getObjectId("_id");
-        String rangeFilter;
         if (i == 0) {
           aggregates.add(Aggregates.match(Filters.lte("_id", splitKey)));
           if (splitKeys.size() == 1) {
@@ -999,8 +1002,10 @@ public class MongoDbIO {
               }
               updateDocument.append(entry.getKey(), updateSubDocument);
             }
+            String findKey =
+                Optional.ofNullable(spec.updateConfiguration().findKey()).orElse("_id");
             Document findCriteria =
-                new Document("_id", doc.get(spec.updateConfiguration().updateKey()));
+                new Document(findKey, doc.get(spec.updateConfiguration().updateKey()));
             UpdateOptions updateOptions =
                 new UpdateOptions().upsert(spec.updateConfiguration().isUpsert());
             actions.add(new UpdateOneModel<>(findCriteria, updateDocument, updateOptions));

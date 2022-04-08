@@ -224,6 +224,12 @@
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-spark</artifactId>
           <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>jul-to-slf4j</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.beam</groupId>

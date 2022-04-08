@@ -86,9 +86,8 @@ class BaseNotification extends StatelessWidget {
                 ),
                 SizedBox(
                   width: kMaxTextWidth,
-                  child: Text(
+                  child: SelectableText(
                     notification,
-                    softWrap: true,
                     style: textTheme,
                   ),
                 ),

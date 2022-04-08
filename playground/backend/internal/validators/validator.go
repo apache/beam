@@ -15,7 +15,36 @@
 
 package validators
 
+import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"fmt"
+)
+
+const (
+	UnitTestValidatorName = "UnitTest"
+	KatasValidatorName    = "Katas"
+)
+
 type Validator struct {
-	Validator func(args ...interface{}) error
+	Validator func(args ...interface{}) (bool, error)
 	Args      []interface{}
+	Name      string
+}
+
+// GetValidators returns slice of validators.Validator according to sdk
+func GetValidators(sdk pb.Sdk, filepath string) (*[]Validator, error) {
+	var val *[]Validator
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		val = GetJavaValidators(filepath)
+	case pb.Sdk_SDK_GO:
+		val = GetGoValidators(filepath)
+	case pb.Sdk_SDK_PYTHON:
+		val = GetPyValidators(filepath)
+	case pb.Sdk_SDK_SCIO:
+		val = GetScioValidators(filepath)
+	default:
+		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
+	}
+	return val, nil
 }

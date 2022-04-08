@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
@@ -26,27 +27,43 @@ import 'package:playground/modules/editor/repository/code_repository/code_reposi
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:mockito/mockito.dart';
 
 import 'code_repository_test.mocks.dart';
 
 final kRequestMock = RunCodeRequestWrapper(
   code: 'code',
   sdk: SDK.java,
+  pipelineOptions: {},
 );
 
 const kPipelineUuid = '1234';
 const kRunOutput = 'RunOutput';
+const kLogOutput = 'LogOutput';
 const kCompileOutput = 'CompileOutput';
+const kGraphOutput = 'GraphOutput';
+const kRunErrorOutput = 'RunErrorOutput';
+const kPreparationErrorOutput = 'PreparationErrorOutput';
+const kValidationErrorOutput = 'ValidationErrorOutput';
 
 final kRunCodeResponse = RunCodeResponse(kPipelineUuid);
 final kFinishedStatusResponse = CheckStatusResponse(RunCodeStatus.finished);
-final kErrorStatusResponse = CheckStatusResponse(RunCodeStatus.error);
+final kErrorStatusResponse = CheckStatusResponse(RunCodeStatus.unknownError);
+final kRunErrorStatusResponse = CheckStatusResponse(RunCodeStatus.runError);
+final kExecutingStatusResponse = CheckStatusResponse(RunCodeStatus.executing);
 final kCompileErrorStatusResponse =
     CheckStatusResponse(RunCodeStatus.compileError);
+final kValidationErrorStatusResponse =
+    CheckStatusResponse(RunCodeStatus.validationError);
+final kPreparationErrorStatusResponse =
+    CheckStatusResponse(RunCodeStatus.preparationError);
+
 final kRunOutputResponse = OutputResponse(kRunOutput);
+final kLogOutputResponse = OutputResponse(kLogOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
-final kEmptyCompileOutputResponse = OutputResponse('');
+final kRunErrorOutputResponse = OutputResponse(kRunErrorOutput);
+final kGraphResponse = OutputResponse(kGraphOutput);
+final kValidationErrorOutputResponse = OutputResponse(kValidationErrorOutput);
+final kPreparationErrorOutputResponse = OutputResponse(kPreparationErrorOutput);
 
 @GenerateMocks([CodeClient])
 void main() {
@@ -57,14 +74,23 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kFinishedStatusResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
+      );
+      when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kRunErrorOutputResponse,
+      );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
+      );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kGraphResponse,
       );
 
       // test variables
@@ -75,12 +101,21 @@ void main() {
       await expectLater(
         stream,
         emitsInOrder([
-          RunCodeResult(status: RunCodeStatus.executing),
-          RunCodeResult(status: RunCodeStatus.finished, output: kRunOutput),
+          RunCodeResult(
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            pipelineUuid: kPipelineUuid,
+            status: RunCodeStatus.finished,
+            output: kRunOutput + kRunErrorOutput,
+            log: kProcessingStartedText + kLogOutput,
+            graph: kGraphOutput
+          ),
         ]),
       );
       // compile output should not be called
-      verifyNever(client.getCompileOutput(kPipelineUuid));
+      verifyNever(client.getCompileOutput(kPipelineUuid, kRequestMock));
     });
 
     test('should return output from compilation if failed', () async {
@@ -89,14 +124,20 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileErrorStatusResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
+      );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
+      );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
       );
 
       // test variables
@@ -107,28 +148,37 @@ void main() {
       await expectLater(
         stream,
         emitsInOrder([
-          RunCodeResult(status: RunCodeStatus.executing),
           RunCodeResult(
-              status: RunCodeStatus.compileError, output: kCompileOutput),
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            pipelineUuid: kPipelineUuid,
+            status: RunCodeStatus.compileError,
+            output: kCompileOutput,
+            log: kProcessingStartedText,
+            graph: '',
+          ),
         ]),
       );
     });
 
-    test('should return output from run if failed and compile output is empty',
+    test('should return validation error output for validation error',
         () async {
       // stubs
       final client = MockCodeClient();
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
-        (_) async => kErrorStatusResponse,
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kValidationErrorStatusResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
-        (_) async => kEmptyCompileOutputResponse,
+      when(client.getValidationErrorOutput(kPipelineUuid, kRequestMock))
+          .thenAnswer(
+        (_) async => kValidationErrorOutputResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
-        (_) async => kRunOutputResponse,
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
       );
 
       // test variables
@@ -139,10 +189,172 @@ void main() {
       await expectLater(
         stream,
         emitsInOrder([
-          RunCodeResult(status: RunCodeStatus.executing),
-          RunCodeResult(status: RunCodeStatus.error, output: kRunOutput),
+          RunCodeResult(
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            status: RunCodeStatus.validationError,
+            output: kValidationErrorOutput,
+            log: kProcessingStartedText,
+            graph: '',
+          ),
         ]),
       );
     });
+
+    test('should return preparation error output for preparation error',
+        () async {
+      // stubs
+      final client = MockCodeClient();
+      when(client.runCode(kRequestMock)).thenAnswer(
+        (_) async => kRunCodeResponse,
+      );
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kPreparationErrorStatusResponse,
+      );
+      when(client.getPreparationErrorOutput(kPipelineUuid, kRequestMock))
+          .thenAnswer(
+        (_) async => kPreparationErrorOutputResponse,
+      );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
+      );
+
+      // test variables
+      final repository = CodeRepository(client);
+      final stream = repository.runCode(kRequestMock);
+
+      // test assertion
+      await expectLater(
+        stream,
+        emitsInOrder([
+          RunCodeResult(
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            status: RunCodeStatus.preparationError,
+            output: kPreparationErrorOutput,
+            log: kProcessingStartedText,
+            graph: '',
+          ),
+        ]),
+      );
+    });
+
+    test('should return output from runError if failed while running',
+        () async {
+      // stubs
+      final client = MockCodeClient();
+      when(client.runCode(kRequestMock)).thenAnswer(
+        (_) async => kRunCodeResponse,
+      );
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kRunErrorStatusResponse,
+      );
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kCompileOutputResponse,
+      );
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kRunOutputResponse,
+      );
+      when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kRunErrorOutputResponse,
+      );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
+      );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
+      );
+
+      // test variables
+      final repository = CodeRepository(client);
+      final stream = repository.runCode(kRequestMock);
+
+      // test assertion
+      await expectLater(
+        stream,
+        emitsInOrder([
+          RunCodeResult(
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            pipelineUuid: kPipelineUuid,
+            status: RunCodeStatus.runError,
+            output: kRunErrorOutput,
+            log: kProcessingStartedText,
+            graph: '',
+          ),
+        ]),
+      );
+    });
+  });
+
+  test('should return full output and log using streaming api when finished',
+      () async {
+    // stubs
+    final client = MockCodeClient();
+    when(client.runCode(kRequestMock)).thenAnswer(
+      (_) async => kRunCodeResponse,
+    );
+    final answers = [
+      kExecutingStatusResponse,
+      kExecutingStatusResponse,
+      kFinishedStatusResponse
+    ];
+    when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
+      (_) async => answers.removeAt(0),
+    );
+    when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+      (_) async => kRunOutputResponse,
+    );
+    when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+      (_) async => kRunErrorOutputResponse,
+    );
+    when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+      (_) async => kLogOutputResponse,
+    );
+    when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+          (_) async => kGraphResponse,
+    );
+
+    // test variables
+    final repository = CodeRepository(client);
+    final stream = repository.runCode(kRequestMock);
+
+    // test assertion
+    await expectLater(
+      stream,
+      emitsInOrder([
+        RunCodeResult(
+          status: RunCodeStatus.preparation,
+          log: kProcessingStartedText,
+        ),
+        RunCodeResult(
+          pipelineUuid: kPipelineUuid,
+          status: RunCodeStatus.executing,
+          output: kRunOutput,
+          log: kProcessingStartedText + kLogOutput,
+          graph: kGraphOutput,
+        ),
+        RunCodeResult(
+          pipelineUuid: kPipelineUuid,
+          status: RunCodeStatus.executing,
+          output: kRunOutput * 2,
+          log: kProcessingStartedText + kLogOutput * 2,
+          graph: kGraphOutput,
+        ),
+        RunCodeResult(
+          pipelineUuid: kPipelineUuid,
+          status: RunCodeStatus.finished,
+          output: kRunOutput * 3 + kRunErrorOutput,
+          log: kProcessingStartedText + kLogOutput * 3,
+          graph: kGraphOutput,
+        ),
+      ]),
+    );
   });
 }

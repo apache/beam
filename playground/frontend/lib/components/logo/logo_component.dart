@@ -51,7 +51,12 @@ class Logo extends StatelessWidget {
                 text: 'Beam',
                 style: TextStyle(color: theme.primaryColor),
               ),
-              const TextSpan(text: ' Playground'),
+              TextSpan(
+                text: ' Playground',
+                style: TextStyle(
+                  color: theme.textTheme.bodyText1?.color,
+                ),
+              ),
             ],
           ),
         ),

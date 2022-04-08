@@ -130,8 +130,12 @@ class ShardRecordsIterator {
     return shardId;
   }
 
+  String getStreamName() {
+    return streamName;
+  }
+
   List<ShardRecordsIterator> findSuccessiveShardRecordIterators() throws TransientKinesisException {
-    List<Shard> shards = kinesis.listShards(streamName);
+    List<Shard> shards = kinesis.listShardsFollowingClosedShard(streamName, shardId);
     List<ShardRecordsIterator> successiveShardRecordIterators = new ArrayList<>();
     for (Shard shard : shards) {
       if (shardId.equals(shard.parentShardId())) {

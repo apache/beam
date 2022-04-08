@@ -18,12 +18,13 @@
 #
 
 resource "google_app_engine_flexible_app_version" "frontend_app" {
-  version_id = "v1"
-  project    = "${var.project_id}"
-  service    = "frontend"
-  runtime    = "custom"
+  version_id                = "v1"
+  project                   = var.project_id
+  service                   = "${var.service_name}-${var.environment}"
+  runtime                   = "custom"
+  delete_service_on_destroy = true
 
- liveness_check {
+  liveness_check {
     path = ""
   }
 
@@ -33,6 +34,11 @@ resource "google_app_engine_flexible_app_version" "frontend_app" {
 
   manual_scaling {
     instances = 1
+  }
+
+  network {
+    name = var.network_name
+    subnetwork = var.subnetwork_name
   }
 
   deployment {

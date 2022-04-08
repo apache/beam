@@ -98,7 +98,6 @@ public class CassandraIOTest implements Serializable {
   private static final String CASSANDRA_TABLE = "scientist";
   private static final Logger LOG = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
-  private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final int FLUSH_TIMEOUT = 30000;
   private static final int JMX_CONF_TIMEOUT = 1000;
   private static int jmxPort;
@@ -405,9 +404,9 @@ public class CassandraIOTest implements Serializable {
                 map.put(element.getKey(), element.getValue());
               }
               assertEquals(3, map.size()); // do we have all three departments
-              assertEquals(map.get("phys"), 10L, 0L);
-              assertEquals(map.get("math"), 4L, 0L);
-              assertEquals(map.get("logic"), 2L, 0L);
+              assertEquals(10L, (long) map.get("phys"));
+              assertEquals(4L, (long) map.get("math"));
+              assertEquals(2L, (long) map.get("logic"));
               return null;
             });
 

@@ -51,6 +51,7 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -120,6 +121,7 @@ public class FlinkRequiresStableInputTest {
    * restore the savepoint to check if we produce impotent results.
    */
   @Test(timeout = 30_000)
+  @Ignore("BEAM-13575")
   public void testParDoRequiresStableInput() throws Exception {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setParallelism(1);

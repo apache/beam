@@ -54,6 +54,7 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
@@ -680,9 +681,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
     # TODO(BEAM-8247): Side inputs types.
-    # TODO(robertwb): Assert compatibility with input type hint?
-    return self._strip_output_annotations(
-        trivial_inference.infer_return_type(self.process, [input_type]))
+    return trivial_inference.element_type(
+        self._strip_output_annotations(
+            trivial_inference.infer_return_type(self.process, [input_type])))
 
   def _strip_output_annotations(self, type_hint):
     annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
@@ -765,8 +766,9 @@ class CallableWrapperDoFn(DoFn):
     return type_hints
 
   def infer_output_type(self, input_type):
-    return self._strip_output_annotations(
-        trivial_inference.infer_return_type(self._fn, [input_type]))
+    return trivial_inference.element_type(
+        self._strip_output_annotations(
+            trivial_inference.infer_return_type(self._fn, [input_type])))
 
   def _process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
@@ -1298,7 +1300,7 @@ class ParDo(PTransformWithSideInputs):
     return self.fn.get_type_hints()
 
   def infer_output_type(self, input_type):
-    return trivial_inference.element_type(self.fn.infer_output_type(input_type))
+    return self.fn.infer_output_type(input_type)
 
   def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
@@ -2565,8 +2567,8 @@ class GroupByKey(PTransform):
 
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
-      return typehints.Iterable[typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
+      return typehints.KV[
+          key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
 
   def expand(self, pcoll):
     from apache_beam.transforms.trigger import DataLossReason
@@ -2719,12 +2721,15 @@ class GroupBy(PTransform):
       key_exprs = [expr for _, expr in self._key_fields]
       return lambda element: key_type(*(expr(element) for expr in key_exprs))
 
-  def _key_type_hint(self):
+  def _key_type_hint(self, input_type):
     if not self._force_tuple_keys and len(self._key_fields) == 1:
-      return typing.Any
+      expr = self._key_fields[0][1]
+      return trivial_inference.infer_return_type(expr, [input_type])
     else:
-      return _dynamic_named_tuple(
-          'Key', tuple(name for name, _ in self._key_fields))
+      return row_type.RowTypeConstraint([
+          (name, trivial_inference.infer_return_type(expr, [input_type]))
+          for (name, expr) in self._key_fields
+      ])
 
   def default_label(self):
     return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
@@ -2734,7 +2739,7 @@ class GroupBy(PTransform):
     return (
         pcoll
         | Map(lambda x: (self._key_func()(x), x)).with_output_types(
-            typehints.Tuple[self._key_type_hint(), input_type])
+            typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
 
@@ -2785,7 +2790,8 @@ class _GroupAndAggregate(PTransform):
     result_fields = tuple(name
                           for name, _ in self._grouping._key_fields) + tuple(
                               dest for _, __, dest in self._aggregations)
-    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint()
+    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint(
+        pcoll.element_type)
 
     return (
         pcoll
@@ -2832,7 +2838,6 @@ class Select(PTransform):
                                 for name, expr in self._fields}))
 
   def infer_output_type(self, input_type):
-    from apache_beam.typehints import row_type
     return row_type.RowTypeConstraint([
         (name, trivial_inference.infer_return_type(expr, [input_type]))
         for (name, expr) in self._fields
@@ -2981,7 +2986,7 @@ class Windowing(object):
         output_time=self.timestamp_combiner,
         # TODO(robertwb): Support EMIT_IF_NONEMPTY
         closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
-        OnTimeBehavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
+        on_time_behavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
         allowed_lateness=self.allowed_lateness.micros // 1000,
         environment_id=environment_id)
 

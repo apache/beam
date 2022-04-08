@@ -185,9 +185,8 @@ public class BigQueryToTableIT {
             "abc=,2000-01-01,00:00:00",
             "dec=,3000-12-31,23:59:59.990000",
             "xyw=,2011-01-01,23:59:59.999999");
-    QueryResponse response =
-        BQ_CLIENT.queryWithRetries(
-            String.format("SELECT bytes, date, time FROM [%s];", outputTable), project);
+    BQ_CLIENT.queryWithRetries(
+        String.format("SELECT bytes, date, time FROM [%s];", outputTable), project);
     List<TableRow> tableRows =
         getTableRowsFromQuery(
             String.format("SELECT bytes, date, time FROM [%s];", outputTable), MAX_RETRY);

@@ -113,8 +113,8 @@ func TestWordCount(t *testing.T) {
 			t.Errorf("WordCount(\"%v\") failed: %v", strings.Join(test.lines, "|"), err)
 		}
 
-		qr := pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-			return sr.Name() == "smallWords"
+		qr := pr.Metrics().Query(func(mr beam.MetricResult) bool {
+			return mr.Name() == "smallWords"
 		})
 		counter := metrics.CounterResult{}
 		if len(qr.Counters()) != 0 {
@@ -124,8 +124,8 @@ func TestWordCount(t *testing.T) {
 			t.Errorf("Metrics().Query(by Name) failed. Got %d counters, Want %d counters", counter.Result(), test.smallWordsCount)
 		}
 
-		qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
-			return sr.Name() == "lineLenDistro"
+		qr = pr.Metrics().Query(func(mr beam.MetricResult) bool {
+			return mr.Name() == "lineLenDistro"
 		})
 		distribution := metrics.DistributionResult{}
 		if len(qr.Distributions()) != 0 {

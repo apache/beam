@@ -18,7 +18,7 @@ package exec
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
+	"hash/maphash"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,7 +32,9 @@ import (
 
 func BenchmarkPrimitives(b *testing.B) {
 	var value FullValue
-	myHash := fnv.New64a()
+	myHash := &maphash.Hash{}
+	wfn := window.NewGlobalWindows()
+	we := MakeWindowEncoder(wfn.Coder())
 	b.Run("int", func(b *testing.B) {
 		test := interface{}(int(42424242))
 		b.Run("native", func(b *testing.B) {
@@ -47,8 +49,9 @@ func BenchmarkPrimitives(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-		dedicated := &numberHasher{}
+		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+		// Route through constructor to init cache.
+		dedicated := newNumberHasher(myHash, we)
 		hashbench(b, test, encoded, dedicated)
 	})
 	b.Run("float32", func(b *testing.B) {
@@ -65,8 +68,9 @@ func BenchmarkPrimitives(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-		dedicated := &numberHasher{}
+		encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+		// Route through constructor to init cache.
+		dedicated := newNumberHasher(myHash, we)
 		hashbench(b, test, encoded, dedicated)
 	})
 
@@ -93,8 +97,8 @@ func BenchmarkPrimitives(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn)}
-				dedicated := &stringHasher{hash: myHash}
+				encoded := &customEncodedHasher{hash: myHash, coder: makeEncoder(cc.Enc.Fn), we: we}
+				dedicated := &stringHasher{hash: myHash, we: we}
 				hashbench(b, test, encoded, dedicated)
 			})
 		}
@@ -110,8 +114,8 @@ func BenchmarkPrimitives(b *testing.B) {
 		for _, test := range tests {
 			typ := reflect.TypeOf(test)
 			b.Run(fmt.Sprint(typ.String()), func(b *testing.B) {
-				encoded := &customEncodedHasher{hash: myHash, coder: &jsonEncoder{}}
-				dedicated := &rowHasher{hash: myHash, coder: MakeElementEncoder(coder.NewR(typex.New(typ)))}
+				encoded := &customEncodedHasher{hash: myHash, coder: &jsonEncoder{}, we: we}
+				dedicated := &rowHasher{hash: myHash, coder: MakeElementEncoder(coder.NewR(typex.New(typ))), we: we}
 				hashbench(b, test, encoded, dedicated)
 			})
 		}

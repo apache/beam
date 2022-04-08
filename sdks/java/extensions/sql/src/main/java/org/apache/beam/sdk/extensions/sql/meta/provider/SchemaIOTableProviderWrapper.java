@@ -46,6 +46,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** A general {@link TableProvider} for IOs for consumption by Beam SQL. */
 @Internal
@@ -143,7 +145,8 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
           FieldAccessDescriptor fieldAccessDescriptor =
               FieldAccessDescriptor.withFieldNames(fieldNames);
           readerTransform =
-              projectionProducer.actuateProjectionPushdown("output", fieldAccessDescriptor);
+              projectionProducer.actuateProjectionPushdown(
+                  ImmutableMap.of(new TupleTag<PCollection<Row>>("output"), fieldAccessDescriptor));
         } else {
           throw new UnsupportedOperationException(
               String.format("%s does not support projection pushdown.", this.getClass()));

@@ -32,27 +32,31 @@ ext.summary = "IO to read and write with Apache Cassandra database"
 def achilles_version = "6.1.0"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.slf4j_api
-  compile library.java.cassandra_driver_core
-  compile library.java.cassandra_driver_mapping
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.slf4j_api
+  implementation library.java.cassandra_driver_core
+  implementation library.java.cassandra_driver_mapping
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation library.java.mockito_core
 
   // for embedded cassandra
-  testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
-  testCompile library.java.commons_io
-  testCompile library.java.jackson_jaxb_annotations
+  testImplementation group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testImplementation library.java.commons_io
+  testImplementation library.java.jackson_jaxb_annotations
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
 // Cassandra dependencies require old version of Guava (BEAM-11626)
-configurations.all {
+configurations.all (Configuration it) -> {
+  // error-prone requires newer guava, don't override for annotation processing
+  // https://github.com/google/error-prone/issues/2745
+  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+    return
+  }
   resolutionStrategy {
     force 'com.google.guava:guava:25.1-jre'
   }

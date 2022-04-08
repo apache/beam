@@ -341,9 +341,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       }
     }
     this.writeOperation = getSink().createWriteOperation();
-    this.writeOperation.setWindowedWrites(getWindowedWrites());
-
-    if (!getWindowedWrites()) {
+    if (getWindowedWrites()) {
+      this.writeOperation.setWindowedWrites();
+    } else {
       // Re-window the data into the global window and remove any existing triggers.
       input =
           input.apply(
@@ -972,10 +972,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      MoreFutures.get(MoreFutures.allAsList(closeFutures));
-      // If all writers were closed without exception, output the results to the next stage.
-      for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
-        c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
+      try {
+        MoreFutures.get(MoreFutures.allAsList(closeFutures));
+        // If all writers were closed without exception, output the results to the next stage.
+        for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
+          c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
+        }
+      } finally {
+        deferredOutput = null;
+        closeFutures = null;
       }
     }
   }

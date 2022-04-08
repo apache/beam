@@ -16,8 +16,10 @@
 package local
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
 	"reflect"
@@ -57,6 +59,8 @@ func TestLocalCache_GetValue(t *testing.T) {
 	preparedItemsMap[preparedId][preparedSubKey] = value
 	preparedExpMap := make(map[uuid.UUID]time.Time)
 	preparedExpMap[preparedId] = time.Now().Add(time.Millisecond)
+	endedExpMap := make(map[uuid.UUID]time.Time)
+	endedExpMap[preparedId] = time.Now().Add(-time.Millisecond)
 	type fields struct {
 		cleanupInterval     time.Duration
 		items               map[uuid.UUID]map[cache.SubKey]interface{}
@@ -75,7 +79,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Get exist value",
+			name: "Get existing value",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               preparedItemsMap,
@@ -90,12 +94,27 @@ func TestLocalCache_GetValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Get not exist value",
+			name: "Get not existing value",
 			fields: fields{
 				cleanupInterval: cleanupInterval,
 				items:           make(map[uuid.UUID]map[cache.SubKey]interface{}),
 			},
 			args: args{
+				pipelineId: preparedId,
+				subKey:     preparedSubKey,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Get an existing value that is expiring",
+			fields: fields{
+				cleanupInterval:     cleanupInterval,
+				items:               preparedItemsMap,
+				pipelinesExpiration: endedExpMap,
+			},
+			args: args{
+				ctx:        context.Background(),
 				pipelineId: preparedId,
 				subKey:     preparedSubKey,
 			},
@@ -158,6 +177,21 @@ func TestLocalCache_SetValue(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Set value for RunOutputIndex subKey",
+			fields: fields{
+				cleanupInterval:     cleanupInterval,
+				items:               make(map[uuid.UUID]map[cache.SubKey]interface{}),
+				pipelinesExpiration: preparedExpMap,
+			},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: preparedId,
+				subKey:     cache.RunOutputIndex,
+				value:      5,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -179,6 +213,9 @@ func TestLocalCache_SetValue(t *testing.T) {
 
 func TestLocalCache_SetExpTime(t *testing.T) {
 	preparedId, _ := uuid.NewUUID()
+	preparedItems := make(map[uuid.UUID]map[cache.SubKey]interface{})
+	preparedItems[preparedId] = make(map[cache.SubKey]interface{})
+	preparedItems[preparedId][cache.Status] = 1
 	type fields struct {
 		cleanupInterval     time.Duration
 		items               map[uuid.UUID]map[cache.SubKey]interface{}
@@ -190,12 +227,27 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 		expTime    time.Duration
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
 	}{
 		{
 			name: "Set expiration time",
+			fields: fields{
+				cleanupInterval:     cleanupInterval,
+				items:               preparedItems,
+				pipelinesExpiration: make(map[uuid.UUID]time.Time),
+			},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: preparedId,
+				expTime:    time.Minute,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Set expiration time for not existing value in cache items",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               make(map[uuid.UUID]map[cache.SubKey]interface{}),
@@ -206,6 +258,7 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 				pipelineId: preparedId,
 				expTime:    time.Minute,
 			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -215,14 +268,183 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 				items:               tt.fields.items,
 				pipelinesExpiration: tt.fields.pipelinesExpiration,
 			}
-			_ = lc.SetValue(tt.args.ctx, preparedId, cache.Status, 1)
 			err := lc.SetExpTime(tt.args.ctx, tt.args.pipelineId, tt.args.expTime)
-			if err != nil {
-				t.Error(err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetExpTime() error = %v, wantErr %v", err, tt.wantErr)
+				expTime, found := lc.pipelinesExpiration[tt.args.pipelineId]
+				if expTime.Round(time.Second) != time.Now().Add(tt.args.expTime).Round(time.Second) || !found {
+					t.Errorf("Expiration time of the pipeline: %s not set in cache.", tt.args.pipelineId)
+				}
 			}
-			expTime, found := lc.pipelinesExpiration[tt.args.pipelineId]
-			if expTime.Round(time.Second) != time.Now().Add(tt.args.expTime).Round(time.Second) || !found {
-				t.Errorf("Expiration time of the pipeline: %s not set in cache.", tt.args.pipelineId)
+		})
+	}
+}
+
+func TestCache_SetCatalog(t *testing.T) {
+	catalog := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+				{
+					CategoryName: "AnotherTestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/AnotherTestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	type fields struct {
+		catalog []*pb.Categories
+	}
+	type args struct {
+		ctx     context.Context
+		catalog []*pb.Categories
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Set catalog",
+			fields: fields{
+				catalog: catalog,
+			},
+			args: args{
+				ctx:     context.Background(),
+				catalog: catalog,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc := &Cache{
+				catalog: tt.fields.catalog,
+			}
+			if err := lc.SetCatalog(tt.args.ctx, tt.args.catalog); (err != nil) != tt.wantErr {
+				t.Errorf("SetCatalog() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(lc.catalog, tt.args.catalog) {
+				t.Errorf("SetCatalog() got = %v, want %v", lc.catalog, tt.args.catalog)
+			}
+		})
+	}
+}
+
+func TestCache_GetCatalog(t *testing.T) {
+	catalog := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+				{
+					CategoryName: "AnotherTestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/AnotherTestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	type fields struct {
+		catalog []*pb.Categories
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*pb.Categories
+		wantErr bool
+	}{
+		{
+			name:    "Get existing catalog",
+			fields:  fields{catalog},
+			args:    args{context.Background()},
+			want:    catalog,
+			wantErr: false,
+		},
+		{
+			name:    "Get non existing catalog",
+			fields:  fields{nil},
+			args:    args{context.Background()},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc := &Cache{
+				catalog: tt.fields.catalog,
+			}
+			got, err := lc.GetCatalog(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCatalog() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetCatalog() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -255,6 +477,16 @@ func TestLocalCache_startGC(t *testing.T) {
 			fields: fields{
 				cleanupInterval:     time.Microsecond,
 				items:               preparedItemsMap,
+				pipelinesExpiration: preparedExpMap,
+			},
+		},
+		{
+			// Test case with calling startGC method with nil cache items.
+			// As a result, items stay the same.
+			name: "Checking for deleting expired pipelines with nil cache items",
+			fields: fields{
+				cleanupInterval:     time.Microsecond,
+				items:               nil,
 				pipelinesExpiration: preparedExpMap,
 			},
 		},
@@ -365,6 +597,37 @@ func TestLocalCache_clearItems(t *testing.T) {
 			lc.clearItems(tt.args.pipelines)
 			if _, found := tt.fields.items[preparedId1]; found {
 				t.Errorf("Pipeline: %s has not been deleted.", preparedId1)
+			}
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	items := make(map[uuid.UUID]map[cache.SubKey]interface{})
+	pipelinesExpiration := make(map[uuid.UUID]time.Time)
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name string
+		args args
+		want *Cache
+	}{
+		{
+			name: "Initialize local cache",
+			args: args{ctx: context.Background()},
+			want: &Cache{
+				cleanupInterval:     cleanupInterval,
+				items:               items,
+				pipelinesExpiration: pipelinesExpiration,
+				catalog:             nil,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := New(tt.args.ctx); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
+				t.Errorf("New() = %v, want %v", got, tt.want)
 			}
 		})
 	}

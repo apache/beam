@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -128,6 +127,4 @@ public class LatestTest implements Serializable {
     PAssert.that(output).empty();
     p.run();
   }
-
-  private static final AtomicLong uniqueLong = new AtomicLong();
 }

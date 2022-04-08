@@ -47,6 +47,7 @@ public class StreamingInserts<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
+  private final SerializableFunction<ElementT, String> deterministicRecordIdFn;
 
   /** Constructor. */
   public StreamingInserts(
@@ -68,6 +69,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        null,
         null);
   }
 
@@ -85,6 +87,7 @@ public class StreamingInserts<DestinationT, ElementT>
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
+      SerializableFunction<ElementT, String> deterministicRecordIdFn,
       String kmsKey) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
@@ -98,6 +101,7 @@ public class StreamingInserts<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
+    this.deterministicRecordIdFn = deterministicRecordIdFn;
     this.kmsKey = kmsKey;
   }
 
@@ -117,6 +121,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -135,6 +140,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -152,6 +158,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -169,6 +176,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -186,6 +194,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -203,6 +212,26 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withDeterministicRecordIdFn(
+      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -220,6 +249,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -237,6 +267,7 @@ public class StreamingInserts<DestinationT, ElementT>
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
+        deterministicRecordIdFn,
         kmsKey);
   }
 
@@ -260,6 +291,7 @@ public class StreamingInserts<DestinationT, ElementT>
             .withAutoSharding(autoSharding)
             .withElementCoder(elementCoder)
             .withToTableRow(toTableRow)
-            .withToFailsafeTableRow(toFailsafeTableRow));
+            .withToFailsafeTableRow(toFailsafeTableRow)
+            .withDeterministicRecordIdFn(deterministicRecordIdFn));
   }
 }

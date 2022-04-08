@@ -170,8 +170,23 @@ class FnApiRunnerTest(unittest.TestCase):
           equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'), ('a', 'y'), ('b', 'y'),
                     ('c', 'y')]))
 
-  @retry(stop=stop_after_attempt(3))
   def test_pardo_side_input_dependencies(self):
+    ##
+    # The issue that this test surfaces is that whenever a PCollection is
+    # consumed as main input by several stages, we have a bug.
+    #
+    # The bug is: A stage assumes that it has run if its upstream PCollection
+    # has watermark=MAX. If multiple stages depend on a single PCollection, then
+    # the first stage that runs it will set its watermar to MAX, and other
+    # stages will think they've run.
+    #
+    # How to resolve?
+    # Option1: to make sure that a PCollection's watermark only advances with
+    #    its consumption by all consumers?
+    #          - I tested this and it didn't seem fruitful/obvious. (YET)
+    #
+    # Option2: Change execution schema: A PCollection's watermark represents
+    #    its *production* watermark, not its *consumption* watermark.(?)
     with self.create_pipeline() as p:
       inputs = [p | beam.Create([None])]
       for k in range(1, 10):
@@ -189,7 +204,7 @@ class FnApiRunnerTest(unittest.TestCase):
       def choose_input(s):
         return inputs[(389 + s * 5077) % len(inputs)]
 
-      for k in range(30):
+      for k in range(20):
         num_inputs = int((k * k % 16)**0.5)
         if num_inputs == 0:
           inputs.append(p | f'Create{k}' >> beam.Create([f'Create{k}']))
@@ -323,6 +338,11 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
+
+  def test_pardo_unfusable_side_inputs_with_separation(self):
+    def cross_product(elem, sides):
+      for side in sides:
+        yield elem, side
 
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
@@ -704,7 +724,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
     if isinstance(p.runner, fn_api_runner.FnApiRunner):
       res = p.runner._latest_run_result
-      counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+      counters = res.metrics().query(
+          beam.metrics.MetricsFilter().with_name('my_counter'))['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
@@ -888,7 +909,8 @@ class FnApiRunnerTest(unittest.TestCase):
       with self.create_pipeline() as p:
 
         def raise_error(x):
-          raise RuntimeError('x')
+          raise RuntimeError(
+              'This error is expected and does not indicate a test failure.')
 
         # pylint: disable=expression-not-assigned
         (
@@ -911,7 +933,8 @@ class FnApiRunnerTest(unittest.TestCase):
       return third(x)
 
     def third(x):
-      raise ValueError('x')
+      raise ValueError(
+          'This error is expected and does not indicate a test failure.')
 
     try:
       with self.create_pipeline() as p:
@@ -1111,7 +1134,7 @@ class FnApiRunnerTest(unittest.TestCase):
         'Pack.*')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
-    step_names = set(m.key.step for m in counters)
+    step_names = set(m.key.step for m in counters if m.key.step)
     pipeline_options = p._options
     if assert_using_counter_names:
       if pipeline_options.view_as(StandardOptions).streaming:
@@ -1469,8 +1492,9 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
     try:
       # Test the new MonitoringInfo monitoring format.
-      self.assertEqual(2, len(res._monitoring_infos_by_stage))
-      pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+      self.assertEqual(3, len(res._monitoring_infos_by_stage))
+      pregbk_mis, postgbk_mis = [
+          mi for stage, mi in res._monitoring_infos_by_stage.items() if stage]
 
       if not has_mi_for_ptransform(pregbk_mis, 'Create/Map(decode)'):
         # The monitoring infos above are actually unordered. Swap.

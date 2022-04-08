@@ -24,8 +24,6 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSClientBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -54,9 +52,9 @@ class BasicSnsProvider implements AwsClientsProvider {
   }
 
   @Override
-  public AmazonCloudWatch getCloudWatchClient() {
-    AmazonCloudWatchClientBuilder clientBuilder =
-        AmazonCloudWatchClientBuilder.standard().withCredentials(getCredentialsProvider());
+  public AmazonSNS createSnsPublisher() {
+    AmazonSNSClientBuilder clientBuilder =
+        AmazonSNSClientBuilder.standard().withCredentials(getCredentialsProvider());
     if (serviceEndpoint == null) {
       clientBuilder.withRegion(region);
     } else {
@@ -64,13 +62,5 @@ class BasicSnsProvider implements AwsClientsProvider {
           new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, region.getName()));
     }
     return clientBuilder.build();
-  }
-
-  @Override
-  public AmazonSNS createSnsPublisher() {
-    return AmazonSNSClientBuilder.standard()
-        .withCredentials(getCredentialsProvider())
-        .withRegion(region)
-        .build();
   }
 }

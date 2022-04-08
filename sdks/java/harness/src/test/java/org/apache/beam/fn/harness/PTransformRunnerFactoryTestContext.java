@@ -21,16 +21,18 @@ import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
@@ -41,10 +43,10 @@ import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -83,10 +85,10 @@ public abstract class PTransformRunnerFactoryTestContext
               }
 
               @Override
-              public <T> CloseableFnDataReceiver<T> send(
+              public BeamFnDataOutboundAggregator createOutboundAggregator(
                   ApiServiceDescriptor apiServiceDescriptor,
-                  LogicalEndpoint outputLocation,
-                  Coder<T> coder) {
+                  Supplier<String> processBundleRequestIdSupplier,
+                  boolean collectElementsIfNoFlushes) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -97,21 +99,15 @@ public abstract class PTransformRunnerFactoryTestContext
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
-        .beamFnTimerClient(
-            new BeamFnTimerClient() {
-
-              @Override
-              public <K> CloseableFnDataReceiver<Timer<K>> register(
-                  LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
-                throw new UnsupportedOperationException("Unexpected call during test.");
-              }
-            })
         .pTransformId(pTransformId)
         .pTransform(pTransform)
         .processBundleInstructionIdSupplier(
             () -> {
               throw new UnsupportedOperationException("Unexpected call during test.");
             })
+        .cacheTokensSupplier(() -> Collections.emptyList())
+        .bundleCacheSupplier(() -> Caches.noop())
+        .processWideCache(Caches.noop())
         .pCollections(Collections.emptyMap()) // expected to be immutable
         .coders(Collections.emptyMap()) // expected to be immutable
         .windowingStrategies(Collections.emptyMap()) // expected to be immutable
@@ -123,6 +119,10 @@ public abstract class PTransformRunnerFactoryTestContext
         .progressRequestCallbacks(new ArrayList<>())
         .incomingDataEndpoints(new HashMap<>())
         .incomingTimerEndpoints(new ArrayList<>())
+        .outgoingDataEndpoints(new HashMap<>())
+        .outgoingTimersEndpoints(new ArrayList<>())
+        .outboundAggregators(new HashMap<>())
+        .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
         .splitListener(
             new BundleSplitListener() {
               @Override
@@ -138,7 +138,8 @@ public abstract class PTransformRunnerFactoryTestContext
               public void afterBundleCommit(Instant callbackExpiry, Callback callback) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
-            });
+            })
+        .runnerCapabilities(new HashSet<>());
   }
 
   /** A builder to create a context for tests. */
@@ -150,13 +151,17 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder beamFnStateClient(BeamFnStateClient value);
 
-    Builder beamFnTimerClient(BeamFnTimerClient value);
-
     Builder pTransformId(String value);
 
     Builder pTransform(RunnerApi.PTransform value);
 
     Builder processBundleInstructionIdSupplier(Supplier<String> value);
+
+    Builder cacheTokensSupplier(Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> value);
+
+    Builder bundleCacheSupplier(Supplier<Cache<?, ?>> value);
+
+    Builder processWideCache(Cache<?, ?> value);
 
     default Builder processBundleInstructionId(String value) {
       return processBundleInstructionIdSupplier(() -> value);
@@ -167,6 +172,8 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder coders(Map<String, RunnerApi.Coder> value);
 
     Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
+
+    Builder runnerCapabilities(Set<String> value);
 
     Builder pCollectionConsumers(Map<String, List<FnDataReceiver<?>>> value);
 
@@ -187,6 +194,14 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder splitListener(BundleSplitListener value);
 
     Builder bundleFinalizer(BundleFinalizer value);
+
+    Builder outboundAggregators(Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> value);
+
+    Builder outgoingDataEndpoints(Map<ApiServiceDescriptor, List<DataEndpoint<?>>> value);
+
+    Builder outgoingTimersEndpoints(List<TimerEndpoint<?>> value);
+
+    Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
 
     PTransformRunnerFactoryTestContext build();
   }
@@ -249,6 +264,51 @@ public abstract class PTransformRunnerFactoryTestContext
     getIncomingTimerEndpoints()
         .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
   }
+
+  public abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
+
+  public void addOutboundAggregator(
+      ApiServiceDescriptor apiServiceDescriptor, BeamFnDataOutboundAggregator aggregator) {
+    getOutboundAggregators().put(apiServiceDescriptor, aggregator);
+  }
+
+  public abstract Map<ApiServiceDescriptor, List<DataEndpoint<?>>> getOutgoingDataEndpoints();
+
+  @Override
+  public <T> FnDataReceiver<T> addOutgoingDataEndpoint(
+      ApiServiceDescriptor apiServiceDescriptor, Coder<T> coder) {
+    BeamFnDataOutboundAggregator aggregator = getOutboundAggregators().get(apiServiceDescriptor);
+    FnDataReceiver<T> receiver = aggregator.registerOutputDataLocation(getPTransformId(), coder);
+    getOutgoingDataEndpoints()
+        .computeIfAbsent(apiServiceDescriptor, (unused) -> new ArrayList<>())
+        .add(DataEndpoint.create(getPTransformId(), coder, receiver));
+    return receiver;
+  }
+
+  public abstract List<TimerEndpoint<?>> getOutgoingTimersEndpoints();
+
+  public <T> TimerEndpoint<T> getOutgoingTimersEndpoint(String timerFamilyId) {
+    for (TimerEndpoint<?> timerEndpoint : getOutgoingTimersEndpoints()) {
+      if (timerFamilyId.equals(timerEndpoint.getTimerFamilyId())) {
+        return (TimerEndpoint<T>) timerEndpoint;
+      }
+    }
+    throw new NoSuchElementException();
+  }
+
+  @Override
+  public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
+      String timerFamilyId, Coder<Timer<T>> coder) {
+    BeamFnDataOutboundAggregator aggregator =
+        getOutboundAggregators().get(getTimerApiServiceDescriptor());
+    FnDataReceiver<Timer<T>> receiver =
+        aggregator.registerOutputTimersLocation(getPTransformId(), timerFamilyId, coder);
+    getOutgoingTimersEndpoints()
+        .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
+    return receiver;
+  }
+
+  public abstract ApiServiceDescriptor getTimerApiServiceDescriptor();
 
   /** Returns a list of methods registered to perform {@link DoFn.StartBundle}. */
   public abstract List<ThrowingRunnable> getStartBundleFunctions();

@@ -104,10 +104,10 @@ public class GroupNonMergingWindowsFunctionsTest {
     GroupByKeyIterator<String, Integer, GlobalWindow> iteratorUnderTest = createGbkIterator();
     WindowedValue<KV<String, Iterable<Integer>>> firstEl = iteratorUnderTest.next();
     Iterable<Integer> value = firstEl.getValue().getValue();
-    for (Integer i : value) {
+    for (Integer ignored : value) {
       // first iteration
     }
-    for (Integer i : value) {
+    for (Integer ignored : value) {
       // second iteration should throw IllegalStateException
     }
   }

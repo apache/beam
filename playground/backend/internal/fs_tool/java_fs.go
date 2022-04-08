@@ -19,45 +19,24 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
 const (
-	javaBaseFileFolder          = "executable_files"
-	javaExecutableFileExtension = "java"
-	javaCompiledFileExtension   = "class"
-	javaSourceFolderName        = "src"
-	javaCompiledFolderName      = "bin"
+	JavaSourceFileExtension   = ".java"
+	javaCompiledFileExtension = ".class"
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
-func newJavaLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	baseFileFolder := filepath.Join(workingDir, javaBaseFileFolder, pipelineId.String())
-	srcFileFolder := filepath.Join(baseFileFolder, javaSourceFolderName)
-	binFileFolder := filepath.Join(baseFileFolder, javaCompiledFolderName)
-
-	return &LifeCycle{
-		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-		Folder: Folder{
-			BaseFolder:       baseFileFolder,
-			ExecutableFolder: srcFileFolder,
-			CompiledFolder:   binFileFolder,
-		},
-		Extension: Extension{
-			ExecutableExtension: javaExecutableFileExtension,
-			CompiledExtension:   javaCompiledFileExtension,
-		},
-		ExecutableName: executableName,
-		pipelineId:     pipelineId,
-	}
+func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
+	javaLifeCycle := newCompilingLifeCycle(pipelineId, pipelinesFolder, JavaSourceFileExtension, javaCompiledFileExtension)
+	javaLifeCycle.Paths.ExecutableName = executableName
+	return javaLifeCycle
 }
 
 // executableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func executableName(pipelineId uuid.UUID, workingDir string) (string, error) {
-	baseFileFolder := filepath.Join(workingDir, javaBaseFileFolder, pipelineId.String())
-	binFileFolder := filepath.Join(baseFileFolder, javaCompiledFolderName)
-	dirEntries, err := os.ReadDir(binFileFolder)
+func executableName(executableFileFolderPath string) (string, error) {
+	dirEntries, err := os.ReadDir(executableFileFolderPath)
 	if err != nil {
 		return "", err
 	}

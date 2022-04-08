@@ -24,22 +24,22 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
 ext.summary = "IO to read and write from/to Solr."
 
-String solrVersion = "8.5.2"
+String solrVersion = "8.11.1"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.commons_compress
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile "org.apache.solr:solr-solrj:$solrVersion"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":sdks:java:io:common")
-  testCompile library.java.junit
-  testCompile library.java.slf4j_api
-  testCompile "org.apache.solr:solr-test-framework:$solrVersion"
-  testCompile "org.apache.solr:solr-core:$solrVersion"
-  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.8"
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.commons_compress
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation "org.apache.solr:solr-solrj:$solrVersion"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(":sdks:java:io:common")
+  testImplementation library.java.junit
+  testImplementation library.java.slf4j_api
+  testImplementation "org.apache.solr:solr-test-framework:$solrVersion"
+  testImplementation "org.apache.solr:solr-core:$solrVersion"
+  testImplementation "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.8"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

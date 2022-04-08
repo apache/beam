@@ -99,8 +99,6 @@ public class AwsModuleTest {
     credentialsProvider =
         new AWSStaticCredentialsProvider(
             new BasicSessionCredentials(ACCESS_KEY_ID, SECRET_ACCESS_KEY, SESSION_TOKEN));
-    serializedCredentialsProvider = serialize(credentialsProvider);
-    deserializedCredentialsProvider = deserializeCredentialsProvider(serializedCredentialsProvider);
 
     checkStaticSessionCredentials(credentialsProvider);
   }

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -386,7 +387,6 @@ public class ParquetIOTest implements Serializable {
     ArrayList<GenericRecord> data = new ArrayList<>();
     GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_ENCODER_SCHEMA);
     for (int i = 0; i < count; i++) {
-      int index = i % SCIENTISTS.length;
       GenericRecord record = builder.set("id", Integer.toString(i)).set("name", null).build();
       data.add(record);
     }
@@ -641,7 +641,11 @@ public class ParquetIOTest implements Serializable {
       } catch (IOException ioException) {
         throw new RuntimeException("error converting record to JSON", ioException);
       }
-      return baos.toString();
+      try {
+        return baos.toString("UTF-8");
+      } catch (UnsupportedEncodingException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

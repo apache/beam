@@ -15,6 +15,17 @@
 
 package main
 
+// beam-playground:
+//   name: Contains
+//   description: An example counts received substring in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --search king
+//   context_line: 51
+//   categories:
+//     - Filtering
+//     - Options
+//     - Debugging
+
 import (
 	"context"
 	"flag"

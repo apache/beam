@@ -20,11 +20,14 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -111,6 +114,40 @@ public class FhirIOWriteIT {
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
     PAssert.that(writeResult.getFailedBodies()).empty();
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testFhirIO_ExecuteBundle_parseResponse() {
+    List<String> bundles = BUNDLES.get("BUNDLE_PARSE_TEST");
+    FhirIO.Write.Result writeResult =
+        pipeline
+            .apply(Create.of(bundles))
+            .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
+
+    PAssert.that(writeResult.getSuccessfulBodies())
+        .satisfies(
+            input -> {
+              int counter = 0;
+              for (String resp : input) {
+                assertFalse(resp.isEmpty());
+                counter++;
+              }
+              assertEquals(2, counter);
+              return null;
+            });
+    PAssert.that(writeResult.getFailedBodies())
+        .satisfies(
+            input -> {
+              int counter = 0;
+              for (HealthcareIOError<String> resp : input) {
+                assertEquals(400, (int) resp.getStatusCode());
+                counter++;
+              }
+              assertEquals(2, counter);
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
   }

@@ -845,8 +845,6 @@ public class Watch {
       extends DoFn<InputT, KV<InputT, List<TimestampedValue<OutputT>>>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;
     private final Coder<OutputT> outputCoder;
-    private final SerializableFunction<OutputT, KeyT> outputKeyFn;
-    private final Coder<KeyT> outputKeyCoder;
     private final Funnel<OutputT> coderFunnel;
 
     WatchGrowthFn(
@@ -856,8 +854,6 @@ public class Watch {
         Coder<KeyT> outputKeyCoder) {
       this.spec = spec;
       this.outputCoder = outputCoder;
-      this.outputKeyFn = outputKeyFn;
-      this.outputKeyCoder = outputKeyCoder;
       this.coderFunnel =
           (from, into) -> {
             try {

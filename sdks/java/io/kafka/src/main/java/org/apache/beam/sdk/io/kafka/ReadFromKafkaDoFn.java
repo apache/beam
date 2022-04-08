@@ -58,7 +58,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,7 +176,7 @@ class ReadFromKafkaDoFn<K, V>
 
   private transient LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
 
-  private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
+  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(1);
 
   @VisibleForTesting final DeserializerProvider keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider valueDeserializerProvider;
@@ -246,7 +245,19 @@ class ReadFromKafkaDoFn<K, V>
       } else {
         startOffset = offsetConsumer.position(kafkaSourceDescriptor.getTopicPartition());
       }
-      return new OffsetRange(startOffset, Long.MAX_VALUE);
+
+      long endOffset = Long.MAX_VALUE;
+      if (kafkaSourceDescriptor.getStopReadOffset() != null) {
+        endOffset = kafkaSourceDescriptor.getStopReadOffset();
+      } else if (kafkaSourceDescriptor.getStopReadTime() != null) {
+        endOffset =
+            ConsumerSpEL.offsetForTime(
+                offsetConsumer,
+                kafkaSourceDescriptor.getTopicPartition(),
+                kafkaSourceDescriptor.getStopReadTime());
+      }
+
+      return new OffsetRange(startOffset, endOffset);
     }
   }
 
@@ -275,8 +286,11 @@ class ReadFromKafkaDoFn<K, V>
   }
 
   @NewTracker
-  public GrowableOffsetRangeTracker restrictionTracker(
+  public OffsetRangeTracker restrictionTracker(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor, @Restriction OffsetRange restriction) {
+    if (restriction.getTo() < Long.MAX_VALUE) {
+      return new OffsetRangeTracker(restriction);
+    }
     Map<String, Object> updatedConsumerConfig =
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
     KafkaLatestOffsetEstimator offsetPoller =
@@ -329,12 +343,13 @@ class ReadFromKafkaDoFn<K, V>
       ConsumerSpEL.evaluateAssign(
           consumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset = tracker.currentRestriction().getFrom();
+
       long expectedOffset = startOffset;
       consumer.seek(kafkaSourceDescriptor.getTopicPartition(), startOffset);
       ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
 
       while (true) {
-        rawRecords = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
+        rawRecords = consumer.poll(KAFKA_POLL_TIMEOUT);
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {

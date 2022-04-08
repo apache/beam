@@ -484,8 +484,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     InitiateMultipartUploadRequest initiateUploadRequest =
         new InitiateMultipartUploadRequest(destinationPath.getBucket(), destinationPath.getKey())
             .withStorageClass(config.getS3StorageClass())
-            .withObjectMetadata(sourceObjectMetadata);
-    initiateUploadRequest.setSSECustomerKey(config.getSSECustomerKey());
+            .withObjectMetadata(sourceObjectMetadata)
+            .withSSECustomerKey(config.getSSECustomerKey());
 
     InitiateMultipartUploadResult initiateUploadResult =
         amazonS3.get().initiateMultipartUpload(initiateUploadRequest);
@@ -512,7 +512,6 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       eTags.add(copyPartResult.getPartETag());
     } else {
       long bytePosition = 0;
-      Integer uploadBufferSizeBytes = config.getS3UploadBufferSizeBytes();
       // Amazon parts are 1-indexed, not zero-indexed.
       for (int partNumber = 1; bytePosition < objectSize; partNumber++) {
         final CopyPartRequest copyPartRequest =
@@ -524,14 +523,15 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                 .withUploadId(uploadId)
                 .withPartNumber(partNumber)
                 .withFirstByte(bytePosition)
-                .withLastByte(Math.min(objectSize - 1, bytePosition + uploadBufferSizeBytes - 1));
+                .withLastByte(
+                    Math.min(objectSize - 1, bytePosition + MAX_COPY_OBJECT_SIZE_BYTES - 1));
         copyPartRequest.setSourceSSECustomerKey(config.getSSECustomerKey());
         copyPartRequest.setDestinationSSECustomerKey(config.getSSECustomerKey());
 
         CopyPartResult copyPartResult = amazonS3.get().copyPart(copyPartRequest);
         eTags.add(copyPartResult.getPartETag());
 
-        bytePosition += uploadBufferSizeBytes;
+        bytePosition += MAX_COPY_OBJECT_SIZE_BYTES;
       }
     }
 
@@ -591,7 +591,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         keys.size());
     List<KeyVersion> deleteKeyVersions =
         keys.stream().map(KeyVersion::new).collect(Collectors.toList());
-    DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions);
+    DeleteObjectsRequest request =
+        new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions).withQuiet(true);
     try {
       amazonS3.get().deleteObjects(request);
     } catch (AmazonClientException e) {

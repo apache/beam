@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -468,6 +469,19 @@ import org.slf4j.LoggerFactory;
  *   );
  * }</pre>
  *
+ * <p>To produce Avro values you can use class {@link
+ * io.confluent.kafka.serializers.KafkaAvroSerializer}. To make this class work with {@link
+ * KafkaIO#write()} and method withValueSerializer() make sure to erase the generic types by casting
+ * to (Class) as shown in the following example:
+ *
+ * <pre>{@code
+ * KafkaIO.<Long, String>write()
+ *   ...
+ *   .withValueSerializer((Class)KafkaAvroSerializer.class)
+ *   .withProducerConfigUpdates( <Map with schema registry configuration details> )
+ *   ...
+ * }</pre>
+ *
  * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
@@ -628,6 +642,8 @@ public class KafkaIO {
 
     abstract @Nullable Instant getStartReadTime();
 
+    abstract @Nullable Instant getStopReadTime();
+
     abstract boolean isCommitOffsetsInFinalizeEnabled();
 
     abstract boolean isDynamicRead();
@@ -669,6 +685,8 @@ public class KafkaIO {
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
 
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
+
+      abstract Builder<K, V> setStopReadTime(Instant stopReadTime);
 
       abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
 
@@ -742,6 +760,10 @@ public class KafkaIO {
           builder.setStartReadTime(Instant.ofEpochMilli(config.startReadTime));
         }
 
+        if (config.stopReadTime != null) {
+          builder.setStopReadTime(Instant.ofEpochMilli(config.stopReadTime));
+        }
+
         // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
         // implementation.
         builder.setDynamicRead(false);
@@ -755,11 +777,11 @@ public class KafkaIO {
               continue;
             }
             if (returnType.equals(byte[].class)) {
-              return ByteArrayCoder.of();
+              return NullableCoder.of(ByteArrayCoder.of());
             } else if (returnType.equals(Integer.class)) {
-              return VarIntCoder.of();
+              return NullableCoder.of(VarIntCoder.of());
             } else if (returnType.equals(Long.class)) {
-              return VarLongCoder.of();
+              return NullableCoder.of(VarLongCoder.of());
             } else {
               throw new RuntimeException("Couldn't infer Coder from " + deserializer);
             }
@@ -803,6 +825,7 @@ public class KafkaIO {
         private String keyDeserializer;
         private String valueDeserializer;
         private Long startReadTime;
+        private Long stopReadTime;
         private Long maxNumRecords;
         private Long maxReadTime;
         private Boolean commitOffsetInFinalize;
@@ -826,6 +849,10 @@ public class KafkaIO {
 
         public void setStartReadTime(Long startReadTime) {
           this.startReadTime = startReadTime;
+        }
+
+        public void setStopReadTime(Long stopReadTime) {
+          this.stopReadTime = stopReadTime;
         }
 
         public void setMaxNumRecords(Long maxNumRecords) {
@@ -981,13 +1008,26 @@ public class KafkaIO {
      * <p>Note that this take priority over start offset configuration {@code
      * ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
      *
-     * <p>This results in hard failures in either of the following two cases : 1. If one of more
+     * <p>This results in hard failures in either of the following two cases : 1. If one or more
      * partitions do not contain any messages with timestamp larger than or equal to desired
      * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
      * messages do not have timestamps.
      */
     public Read<K, V> withStartReadTime(Instant startReadTime) {
       return toBuilder().setStartReadTime(startReadTime).build();
+    }
+
+    /**
+     * Use timestamp to set up stop offset. It is only supported by Kafka Client 0.10.1.0 onwards
+     * and the message format version after 0.10.0.
+     *
+     * <p>This results in hard failures in either of the following two cases : 1. If one or more
+     * partitions do not contain any messages with timestamp larger than or equal to desired
+     * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
+     * messages do not have timestamps.
+     */
+    public Read<K, V> withStopReadTime(Instant stopReadTime) {
+      return toBuilder().setStopReadTime(stopReadTime).build();
     }
 
     /**
@@ -1235,6 +1275,15 @@ public class KafkaIO {
                 + ". If you are building with maven, set \"kafka.clients.version\" "
                 + "maven property to 0.10.1.0 or newer.");
       }
+      if (getStopReadTime() != null) {
+        checkArgument(
+            ConsumerSpEL.hasOffsetsForTimes(),
+            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
+                + "current version of Kafka Client is "
+                + AppInfoParser.getVersion()
+                + ". If you are building with maven, set \"kafka.clients.version\" "
+                + "maven property to 0.10.1.0 or newer.");
+      }
       if (isCommitOffsetsInFinalizeEnabled()) {
         checkArgument(
             getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
@@ -1263,6 +1312,9 @@ public class KafkaIO {
           || getMaxNumRecords() < Long.MAX_VALUE
           || getMaxReadTime() != null
           || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
+        checkArgument(
+            getStopReadTime() == null,
+            "stopReadTime is set but it is only supported via SDF implementation.");
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
@@ -1408,6 +1460,7 @@ public class KafkaIO {
                               kafkaRead.getCheckStopReadingFn(),
                               kafkaRead.getConsumerConfig(),
                               kafkaRead.getStartReadTime(),
+                              kafkaRead.getStopReadTime(),
                               topics.stream().collect(Collectors.toList()))));
 
         } else {
@@ -1433,6 +1486,7 @@ public class KafkaIO {
         this.topics = read.getTopics();
         this.topicPartitions = read.getTopicPartitions();
         this.startReadTime = read.getStartReadTime();
+        this.stopReadTime = read.getStopReadTime();
       }
 
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -1441,6 +1495,8 @@ public class KafkaIO {
       private final List<TopicPartition> topicPartitions;
 
       private final Instant startReadTime;
+
+      private final Instant stopReadTime;
 
       @VisibleForTesting final Map<String, Object> consumerConfig;
 
@@ -1459,7 +1515,9 @@ public class KafkaIO {
           }
         }
         for (TopicPartition topicPartition : partitions) {
-          receiver.output(KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
+          receiver.output(
+              KafkaSourceDescriptor.of(
+                  topicPartition, null, startReadTime, null, stopReadTime, null));
         }
       }
     }
@@ -1657,15 +1715,17 @@ public class KafkaIO {
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         Coder keyCoder = Read.Builder.resolveCoder(keyDeserializer);
-        if (!(keyCoder instanceof ByteArrayCoder)) {
+        if (!(keyCoder instanceof NullableCoder
+            && keyCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports keys of type byte[]");
+              "ExternalWithMetadata transform only supports keys of type nullable(byte[])");
         }
         Class valueDeserializer = resolveClass(config.valueDeserializer);
         Coder valueCoder = Read.Builder.resolveCoder(valueDeserializer);
-        if (!(valueCoder instanceof ByteArrayCoder)) {
+        if (!(valueCoder instanceof NullableCoder
+            && valueCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports values of type byte[]");
+              "ExternalWithMetadata transform only supports values of type nullable(byte[])");
         }
 
         return readBuilder.build().externalWithMetadata();

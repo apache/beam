@@ -24,10 +24,13 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples import wordcount_debugging
 from apache_beam.testing.util import open_shards
 
 
+@pytest.mark.examples_postcommit
 class WordCountDebuggingTest(unittest.TestCase):
 
   SAMPLE_TEXT = 'xx yy Flourish\n zz Flourish Flourish stomach\n aa\n bb cc dd'

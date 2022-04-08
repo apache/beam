@@ -21,8 +21,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
@@ -64,12 +65,16 @@ public class SimpleStateRegistry {
     for (SimpleExecutionState state : executionStates) {
       if (state.getTotalMillis() != 0) {
         String shortId = state.getTotalMillisShortId(shortIds);
-        if (result.containsKey(shortId)) {
-          // This can happen due to flatten unzipping.
-          result.put(shortId, state.mergeTotalMillisPayload(result.get(shortId)));
-        } else {
-          result.put(shortId, state.getTotalMillisPayload());
-        }
+        result.compute(
+            shortId,
+            (String k, @Nullable ByteString existing) -> {
+              if (existing != null) {
+                // This can happen due to flatten unzipping.
+                return state.mergeTotalMillisPayload(existing);
+              } else {
+                return state.getTotalMillisPayload();
+              }
+            });
       }
     }
     return result;

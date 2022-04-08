@@ -147,6 +147,7 @@ class _SharedControlBlock(object):
         if result is None:
           return None
         self._ref = weakref.ref(result)
+        self._tag = tag
       else:
         result = self._ref()
     return result

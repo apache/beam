@@ -16,36 +16,71 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
+
 enum RunCodeStatus {
   unspecified,
-  executing,
+  preparation,
+  preparationError,
+  validationError,
+  compiling,
   compileError,
+  executing,
+  runError,
+  finished,
   timeout,
-  error,
-  finished
+  unknownError,
 }
+
+const kFinishedStatuses = [
+  RunCodeStatus.unknownError,
+  RunCodeStatus.timeout,
+  RunCodeStatus.compileError,
+  RunCodeStatus.runError,
+  RunCodeStatus.validationError,
+  RunCodeStatus.preparationError,
+  RunCodeStatus.finished,
+];
 
 class RunCodeResult {
   final RunCodeStatus status;
+  final String? pipelineUuid;
   final String? output;
+  final String? log;
+  final String? graph;
   final String? errorMessage;
 
-  RunCodeResult({required this.status, this.output, this.errorMessage});
+  RunCodeResult({
+    required this.status,
+    this.pipelineUuid,
+    this.output,
+    this.log,
+    this.errorMessage,
+    this.graph,
+  });
+
+  bool get isFinished {
+    return kFinishedStatuses.contains(status);
+  }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is RunCodeResult &&
           runtimeType == other.runtimeType &&
+          pipelineUuid == other.pipelineUuid &&
           status == other.status &&
           output == other.output &&
+          log == other.log &&
+          graph == other.graph &&
           errorMessage == other.errorMessage;
 
   @override
-  int get hashCode => status.hashCode ^ output.hashCode ^ errorMessage.hashCode;
+  int get hashCode =>
+      hashValues(pipelineUuid, status, output, log, errorMessage, graph);
 
   @override
   String toString() {
-    return 'RunCodeResult{status: $status, output: $output, errorMessage: $errorMessage}';
+    return 'RunCodeResult{pipelineId: $pipelineUuid, status: $status, output: $output, log: $log, errorMessage: $errorMessage}';
   }
 }

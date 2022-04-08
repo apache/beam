@@ -1217,11 +1217,7 @@ public class DisplayDataTest implements Serializable {
   }
 
   private static class HoldsItemSpecReference implements Serializable {
-    private final DisplayData.ItemSpec<?> spec;
-
-    public HoldsItemSpecReference(DisplayData.ItemSpec<?> spec) {
-      this.spec = spec;
-    }
+    public HoldsItemSpecReference(DisplayData.ItemSpec<?> spec) {}
   }
 
   @Test

@@ -221,7 +221,8 @@ public class PCollectionTuple implements PInput, POutput {
     @SuppressWarnings("unchecked")
     PCollection<T> pcollection = (PCollection<T>) pcollectionMap.get(tag);
     if (pcollection == null) {
-      throw new IllegalArgumentException("TupleTag not found in this PCollectionTuple tuple");
+      throw new IllegalArgumentException(
+          String.format("TupleTag %s not found in this PCollectionTuple tuple", tag));
     }
     return pcollection;
   }

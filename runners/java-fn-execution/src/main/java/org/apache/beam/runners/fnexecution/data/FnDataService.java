@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.data;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
@@ -54,6 +55,10 @@ public interface FnDataService {
    * <p>Closing the returned receiver signals the end of the stream.
    *
    * <p>The returned receiver is not thread safe.
+   *
+   * @deprecated Migrate to use {@link BeamFnDataOutboundAggregator} directly for sending outbound
+   *     data.
    */
+  @Deprecated
   <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder);
 }

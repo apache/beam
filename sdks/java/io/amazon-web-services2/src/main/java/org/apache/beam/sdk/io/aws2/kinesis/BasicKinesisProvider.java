@@ -17,65 +17,44 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.defaultFactory;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.URI;
-import java.util.Objects;
-import org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.KinesisClientBuilder;
 
-/** Basic implementation of {@link AWSClientsProvider} used by default in {@link KinesisIO}. */
+/**
+ * Basic implementation of {@link AWSClientsProvider} used by default in {@link KinesisIO}.
+ *
+ * @deprecated Configure a custom {@link org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory}
+ *     using {@link AwsOptions#getClientBuilderFactory()} instead.
+ */
+@Deprecated
 class BasicKinesisProvider implements AWSClientsProvider {
-  private final String awsCredentialsProviderSerialized;
-  private final String region;
-  private final @Nullable String serviceEndpoint;
+  private final ClientConfiguration config;
 
   BasicKinesisProvider(
-      AwsCredentialsProvider awsCredentialsProvider,
-      Region region,
-      @Nullable String serviceEndpoint) {
-    checkArgument(awsCredentialsProvider != null, "awsCredentialsProvider can not be null");
+      AwsCredentialsProvider credentialsProvider, Region region, @Nullable String serviceEndpoint) {
+    checkArgument(credentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
-    this.awsCredentialsProviderSerialized =
-        AwsSerializableUtils.serializeAwsCredentialsProvider(awsCredentialsProvider);
-    checkNotNull(awsCredentialsProviderSerialized, "awsCredentialsProviderString can not be null");
-    this.region = region.toString();
-    this.serviceEndpoint = serviceEndpoint;
-  }
-
-  private AwsCredentialsProvider getCredentialsProvider() {
-    return AwsSerializableUtils.deserializeAwsCredentialsProvider(awsCredentialsProviderSerialized);
+    URI endpoint = serviceEndpoint != null ? URI.create(serviceEndpoint) : null;
+    config = ClientConfiguration.create(credentialsProvider, region, endpoint);
   }
 
   @Override
   public KinesisClient getKinesisClient() {
-    KinesisClientBuilder clientBuilder =
-        KinesisClient.builder()
-            .credentialsProvider(getCredentialsProvider())
-            .region(Region.of(region));
-    if (serviceEndpoint != null) {
-      clientBuilder.endpointOverride(URI.create(serviceEndpoint));
-    }
-    return clientBuilder.build();
+    return defaultFactory().create(KinesisClient.builder(), config, null).build();
   }
 
   @Override
   public CloudWatchClient getCloudWatchClient() {
-    CloudWatchClientBuilder clientBuilder =
-        CloudWatchClient.builder()
-            .credentialsProvider(getCredentialsProvider())
-            .region(Region.of(region));
-    if (serviceEndpoint != null) {
-      clientBuilder.endpointOverride(URI.create(serviceEndpoint));
-    }
-    return clientBuilder.build();
+    return defaultFactory().create(CloudWatchClient.builder(), config, null).build();
   }
 
   @Override
@@ -87,13 +66,11 @@ class BasicKinesisProvider implements AWSClientsProvider {
       return false;
     }
     BasicKinesisProvider that = (BasicKinesisProvider) o;
-    return Objects.equals(awsCredentialsProviderSerialized, that.awsCredentialsProviderSerialized)
-        && Objects.equals(region, that.region)
-        && Objects.equals(serviceEndpoint, that.serviceEndpoint);
+    return config.equals(that.config);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(awsCredentialsProviderSerialized, region, serviceEndpoint);
+    return config.hashCode();
   }
 }

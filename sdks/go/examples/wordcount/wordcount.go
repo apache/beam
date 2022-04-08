@@ -55,6 +55,17 @@
 // with --input.
 package main
 
+// beam-playground:
+//   name: WordCount
+//   description: An example that counts words in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   context_line: 120
+//   categories:
+//     - Combiners
+//     - Options
+//     - Quickstart
+
 import (
 	"context"
 	"flag"

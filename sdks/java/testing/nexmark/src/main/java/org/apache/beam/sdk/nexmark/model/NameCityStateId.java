@@ -109,7 +109,7 @@ public class NameCityStateId implements KnownSize, Serializable {
     return Objects.equals(name, other.name)
         && Objects.equals(city, other.city)
         && Objects.equals(state, other.state)
-        && Objects.equals(id, other.id);
+        && id == other.id;
   }
 
   @Override

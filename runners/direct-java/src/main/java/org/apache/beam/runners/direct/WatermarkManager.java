@@ -39,9 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -1408,8 +1406,6 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
     private Instant latestSynchronizedInputWm;
     private Instant latestSynchronizedOutputWm;
-
-    private final ReadWriteLock transformWatermarkLock = new ReentrantReadWriteLock();
 
     private TransformWatermarks(
         ExecutableT executable,

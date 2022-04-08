@@ -43,7 +43,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
@@ -208,7 +208,6 @@ public class PCollectionConsumerRegistry {
    */
   private class MetricTrackingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> delegate;
-    private final String pTransformId;
     private final SimpleExecutionState state;
     private final Counter unboundedElementCountCounter;
     private final SampleByteSizeDistribution<T> unboundedSampledByteSizeDistribution;
@@ -219,7 +218,6 @@ public class PCollectionConsumerRegistry {
         String pCollectionId, ConsumerAndMetadata consumerAndMetadata) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.state = consumerAndMetadata.getExecutionState();
-      this.pTransformId = consumerAndMetadata.getPTransformId();
       HashMap<String, String> labels = new HashMap<String, String>();
       labels.put(Labels.PCOLLECTION, pCollectionId);
 

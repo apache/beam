@@ -112,7 +112,6 @@ public class DoFnRunners {
           WindowingStrategy<?, ?> windowingStrategy,
           CleanupTimer<InputT> cleanupTimer,
           StateCleaner<W> stateCleaner) {
-
     return defaultStatefulDoFnRunner(
         fn,
         inputCoder,
@@ -144,7 +143,6 @@ public class DoFnRunners {
           CleanupTimer<InputT> cleanupTimer,
           StateCleaner<W> stateCleaner,
           boolean requiresTimeSortedInputSupported) {
-
     boolean doFnRequiresTimeSortedInput =
         DoFnSignatures.signatureForDoFn(doFnRunner.getFn())
             .processElement()

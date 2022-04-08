@@ -100,6 +100,7 @@ class FlightDelaysTest(unittest.TestCase):
   def tearDown(self):
     FileSystems.delete([self.outdir + '/'])
 
+  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_flight_delays(self):
     flight_delays.run_flight_delay_pipeline(

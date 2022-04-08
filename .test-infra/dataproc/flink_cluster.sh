@@ -17,7 +17,7 @@
 #    Provide the following environment to run this script:
 #
 #    GCLOUD_ZONE: Google cloud zone. Optional. Default: "us-central1-a"
-#    DATAPROC_VERSION: Dataproc version. Optional. Default: 1.2
+#    DATAPROC_VERSION: Dataproc version. Optional. Default: 1.5
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
 #    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional: 0, 1 or multiple urls for every harness image)
@@ -46,7 +46,8 @@ set -Eeuxo pipefail
 
 # GCloud properties
 GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
-DATAPROC_VERSION="${DATAPROC_VERSION:=1.2}"
+DATAPROC_VERSION="${DATAPROC_VERSION:=2.0}"
+GCLOUD_REGION="us-central1"
 
 MASTER_NAME="$CLUSTER_NAME-m"
 
@@ -133,7 +134,7 @@ function create_cluster() {
 
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
-  gcloud dataproc clusters create $CLUSTER_NAME --region=global --num-workers=$num_dataproc_workers --initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE --quiet
+  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$num_dataproc_workers  --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster
@@ -154,7 +155,7 @@ function restart() {
 
 # Deletes a Flink cluster.
 function delete() {
-  gcloud dataproc clusters delete $CLUSTER_NAME --region=global --quiet
+  gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
 }
 
 "$@"

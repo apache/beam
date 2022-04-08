@@ -81,8 +81,6 @@ import org.junit.runners.JUnit4;
 public class MongoDBIOIT {
 
   private static final String NAMESPACE = MongoDBIOIT.class.getName();
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static String mongoUrl;
   private static MongoClient mongoClient;
   private static InfluxDBSettings settings;
@@ -128,8 +126,6 @@ public class MongoDBIOIT {
     PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
     collection = String.format("test_%s", new Date().getTime());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     mongoUrl =
         String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
     mongoClient = MongoClients.create(mongoUrl);

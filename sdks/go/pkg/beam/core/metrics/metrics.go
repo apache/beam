@@ -525,7 +525,7 @@ type SingleResult interface {
 }
 
 // Query allows metrics querying with filter. The filter takes the form of predicate function. Example:
-//   qr = pr.Metrics().Query(func(sr metrics.SingleResult) bool {
+//   qr = pr.Metrics().Query(func(mr beam.MetricResult) bool {
 //       return sr.Namespace() == test.namespace
 //   })
 func (mr Results) Query(f func(SingleResult) bool) QueryResults {

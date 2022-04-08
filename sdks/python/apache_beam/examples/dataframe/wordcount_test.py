@@ -26,6 +26,8 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples.dataframe import wordcount
 from apache_beam.testing.util import open_shards
 
@@ -44,6 +46,7 @@ class WordCountTest(unittest.TestCase):
       f.write(contents.encode('utf-8'))
       return f.name
 
+  @pytest.mark.examples_postcommit
   def test_basics(self):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     expected_words = collections.defaultdict(int)

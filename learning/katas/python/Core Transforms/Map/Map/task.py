@@ -14,6 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: Map
+#   description: Task from katas to implement a simple map function that multiplies all input elements by 5.
+#   multifile: false
+#   context_line: 29
+#   categories:
+#     - Core Transforms
+
 import apache_beam as beam
 
 from log_elements import LogElements

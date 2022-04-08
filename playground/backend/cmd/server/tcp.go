@@ -36,9 +36,7 @@ func listenTcp(ctx context.Context, errChan chan error, envs environment.Network
 		return
 	}
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		}
+		<-ctx.Done()
+		return
 	}
 }

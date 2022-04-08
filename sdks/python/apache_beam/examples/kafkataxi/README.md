@@ -149,8 +149,9 @@ instructions regarding setting up other types of Python virtual environments.
 
 ```sh
 cd ..  # Creating the virtual environment in the top level work directory.
-python -m venv env
-source env/bin/activate
+python3 -m venv env
+source ./env/bin/activate
+pip install --upgrade pip setuptools wheel
 ```
 
 Install Beam and dependencies and build a Beam distribution.

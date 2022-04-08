@@ -17,13 +17,15 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/pages/playground/states/example_selector_state.dart';
+import 'package:provider/provider.dart';
 
 const double kContainerWidth = 376.0;
 const int kMinLines = 1;
 const int kMaxLines = 1;
-const String kHintText = 'Search';
 
 class SearchField extends StatelessWidget {
   final TextEditingController controller;
@@ -37,47 +39,55 @@ class SearchField extends StatelessWidget {
       borderRadius: BorderRadius.circular(kMdBorderRadius),
     );
 
-    return Container(
-      margin: const EdgeInsets.only(
-        top: kLgSpacing,
-        right: kLgSpacing,
-        left: kLgSpacing,
-      ),
-      width: kContainerWidth,
-      height: kContainerHeight,
-      color: Theme.of(context).backgroundColor,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(kMdBorderRadius),
-        child: TextFormField(
-          controller: controller,
-          decoration: InputDecoration(
-            suffixIcon: Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: kZeroSpacing,
-                end: kZeroSpacing,
+    return Consumer<ExampleSelectorState>(
+      builder: (context, state, child) => Container(
+        margin: const EdgeInsets.only(
+          top: kLgSpacing,
+          right: kLgSpacing,
+          left: kLgSpacing,
+        ),
+        width: kContainerWidth,
+        height: kContainerHeight,
+        color: Theme.of(context).backgroundColor,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(kMdBorderRadius),
+          child: TextFormField(
+            controller: controller,
+            decoration: InputDecoration(
+              suffixIcon: Padding(
+                padding: const EdgeInsetsDirectional.only(
+                  start: kZeroSpacing,
+                  end: kZeroSpacing,
+                ),
+                child: Icon(
+                  Icons.search,
+                  color: ThemeColors.of(context).lightGreyColor,
+                  size: kIconSizeMd,
+                ),
               ),
-              child: Icon(
-                Icons.search,
-                color: ThemeColors.of(context).lightGreyColor,
-                size: kIconSizeMd,
-              ),
+              focusedBorder: border,
+              enabledBorder: border,
+              filled: false,
+              isDense: true,
+              hintText: AppLocalizations.of(context)!.search,
+              contentPadding: const EdgeInsets.only(left: kLgSpacing),
             ),
-            focusedBorder: border,
-            enabledBorder: border,
-            filled: false,
-            isDense: true,
-            hintText: kHintText,
-            contentPadding: const EdgeInsets.only(left: kLgSpacing),
+            cursorColor: ThemeColors.of(context).lightGreyColor,
+            cursorWidth: kCursorSize,
+            textAlignVertical: TextAlignVertical.center,
+            onFieldSubmitted: (String filterText) =>
+                _onChange(state, filterText),
+            onChanged: (String filterText) => _onChange(state, filterText),
+            maxLines: kMinLines,
+            minLines: kMaxLines,
           ),
-          cursorColor: ThemeColors.of(context).lightGreyColor,
-          cursorWidth: kCursorSize,
-          textAlignVertical: TextAlignVertical.center,
-          onFieldSubmitted: (String txt) {},
-          onChanged: (String txt) {},
-          maxLines: kMinLines,
-          minLines: kMaxLines,
         ),
       ),
     );
+  }
+
+  _onChange(ExampleSelectorState state, String filterText) {
+    state.setFilterText(filterText);
+    state.sortCategories();
   }
 }

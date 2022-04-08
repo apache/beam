@@ -31,16 +31,12 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Utils to wire up the custom table resolution into Calcite's planner. */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class TableResolutionUtils {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TableResolutionUtils.class);
 
   /**
    * Extract table names from the FROM clauses, register them with root TableProviders that support

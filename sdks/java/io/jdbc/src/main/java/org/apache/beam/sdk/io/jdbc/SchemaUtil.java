@@ -45,7 +45,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -95,6 +97,7 @@ class SchemaUtil {
   private static final ResultSetFieldExtractor DATE_EXTRACTOR = createDateExtractor();
   private static final ResultSetFieldExtractor TIME_EXTRACTOR = createTimeExtractor();
   private static final ResultSetFieldExtractor TIMESTAMP_EXTRACTOR = createTimestampExtractor();
+  private static final ResultSetFieldExtractor OBJECT_EXTRACTOR = createObjectExtractor();
 
   /**
    * Interface implemented by functions that create Beam {@link
@@ -105,7 +108,8 @@ class SchemaUtil {
     Schema.Field create(int index, ResultSetMetaData md) throws SQLException;
   }
 
-  private static BeamFieldConverter jdbcTypeToBeamFieldConverter(JDBCType jdbcType) {
+  private static BeamFieldConverter jdbcTypeToBeamFieldConverter(
+      JDBCType jdbcType, String className) {
     switch (jdbcType) {
       case ARRAY:
         return beamArrayField();
@@ -157,6 +161,16 @@ class SchemaUtil {
         return beamLogicalField(VARBINARY.getName(), LogicalTypes.VariableLengthBytes::of);
       case VARCHAR:
         return beamLogicalField(VARCHAR.getName(), LogicalTypes.VariableLengthString::of);
+      case BLOB:
+        return beamFieldOfType(FieldType.BYTES);
+      case CLOB:
+        return beamFieldOfType(FieldType.STRING);
+      case OTHER:
+      case JAVA_OBJECT:
+        if (UUID.class.getName().equals(className)) {
+          return beamFieldOfType(LogicalTypes.JDBC_UUID_TYPE);
+        }
+        return beamFieldOfType(LogicalTypes.OTHER_AS_STRING_TYPE);
       default:
         throw new UnsupportedOperationException(
             "Converting " + jdbcType + " to Beam schema type is not supported");
@@ -169,7 +183,8 @@ class SchemaUtil {
 
     for (int i = 1; i <= md.getColumnCount(); i++) {
       JDBCType jdbcType = JDBCType.valueOf(md.getColumnType(i));
-      BeamFieldConverter fieldConverter = jdbcTypeToBeamFieldConverter(jdbcType);
+      String className = md.getColumnClassName(i);
+      BeamFieldConverter fieldConverter = jdbcTypeToBeamFieldConverter(jdbcType, className);
       schemaBuilder.addField(fieldConverter.create(i, md));
     }
 
@@ -222,7 +237,9 @@ class SchemaUtil {
   private static BeamFieldConverter beamArrayField() {
     return (index, md) -> {
       JDBCType elementJdbcType = JDBCType.valueOf(md.getColumnTypeName(index));
-      BeamFieldConverter elementFieldConverter = jdbcTypeToBeamFieldConverter(elementJdbcType);
+      String elementClassName = md.getColumnClassName(index);
+      BeamFieldConverter elementFieldConverter =
+          jdbcTypeToBeamFieldConverter(elementJdbcType, elementClassName);
 
       String label = md.getColumnLabel(index);
       Schema.FieldType elementBeamType = elementFieldConverter.create(index, md).getType();
@@ -247,7 +264,7 @@ class SchemaUtil {
       default:
         if (!RESULTSET_FIELD_EXTRACTORS.containsKey(typeName)) {
           throw new UnsupportedOperationException(
-              "BeamRowMapper does not have support for fields of type " + fieldType.toString());
+              "BeamRowMapper does not have support for fields of type " + fieldType);
         }
         return RESULTSET_FIELD_EXTRACTORS.get(typeName);
     }
@@ -275,6 +292,10 @@ class SchemaUtil {
   private static <InputT, BaseT> ResultSetFieldExtractor createLogicalTypeExtractor(
       final Schema.LogicalType<InputT, BaseT> fieldType) {
     String logicalTypeName = fieldType.getIdentifier();
+
+    if (Objects.equals(fieldType, LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
+      return OBJECT_EXTRACTOR;
+    }
     JDBCType underlyingType = JDBCType.valueOf(logicalTypeName);
     switch (underlyingType) {
       case DATE:
@@ -322,6 +343,11 @@ class SchemaUtil {
       }
       return new DateTime(ts.toInstant().toEpochMilli(), ISOChronology.getInstanceUTC());
     };
+  }
+
+  /** Convert SQL OTHER type to Beam Object. */
+  private static ResultSetFieldExtractor createObjectExtractor() {
+    return ResultSet::getObject;
   }
 
   /**

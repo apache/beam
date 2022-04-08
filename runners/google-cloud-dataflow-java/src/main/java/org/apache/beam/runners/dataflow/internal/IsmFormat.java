@@ -412,9 +412,8 @@ public class IsmFormat {
         return false;
       }
       IsmRecordCoder<?> that = (IsmRecordCoder<?>) other;
-      return Objects.equals(this.numberOfShardKeyCoders, that.numberOfShardKeyCoders)
-          && Objects.equals(
-              this.numberOfMetadataShardKeyCoders, that.numberOfMetadataShardKeyCoders)
+      return this.numberOfShardKeyCoders == that.numberOfShardKeyCoders
+          && this.numberOfMetadataShardKeyCoders == that.numberOfMetadataShardKeyCoders
           && Objects.equals(this.keyComponentCoders, that.keyComponentCoders)
           && Objects.equals(this.valueCoder, that.valueCoder);
     }

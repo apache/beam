@@ -33,7 +33,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
-import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -341,16 +340,6 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
         pipeline.apply(expr, new CheckPTransform(expr));
       }
     }
-
-    private static final ReadOnlyTableProvider BOUNDED_TABLE =
-        new ReadOnlyTableProvider(
-            "test",
-            ImmutableMap.of(
-                "test",
-                TestBoundedTable.of(
-                        Schema.FieldType.INT32, "id",
-                        Schema.FieldType.STRING, "name")
-                    .addRows(1, "first")));
 
     private void checkJdbc(PipelineOptions pipelineOptions) throws Exception {
       // Beam SQL code is only invoked when the calling convention insists on it, so we

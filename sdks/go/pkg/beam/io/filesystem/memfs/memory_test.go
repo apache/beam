@@ -21,19 +21,20 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestReadWrite tests that read and write from the memory filesystem
 // works as expected.
 func TestReadWrite(t *testing.T) {
 	ctx := context.Background()
-	fs := New(ctx)
+	fs := &fs{m: make(map[string][]byte)}
 
 	if err := filesystem.Write(ctx, fs, "foo", []byte("foo")); err != nil {
-		t.Error(err)
+		t.Fatalf("Write(%q) error = %v", "foo", err)
 	}
 	if err := filesystem.Write(ctx, fs, "bar", []byte("bar")); err != nil {
-		t.Error(err)
+		t.Fatalf("Write(%q) error = %v", "bar", err)
 	}
 
 	foo, err := filesystem.Read(ctx, fs, "foo")
@@ -75,13 +76,13 @@ func TestDirectWrite(t *testing.T) {
 
 func TestSize(t *testing.T) {
 	ctx := context.Background()
-	fs := New(ctx)
+	fs := &fs{m: make(map[string][]byte)}
 
 	names := []string{"foo", "foobar"}
 	for _, name := range names {
 		file := []byte(name)
 		if err := filesystem.Write(ctx, fs, name, file); err != nil {
-			t.Fatal(err)
+			t.Fatalf("Write(%q) error = %v", name, err)
 		}
 		size, err := fs.Size(ctx, name)
 		if err != nil {
@@ -90,5 +91,119 @@ func TestSize(t *testing.T) {
 		if size != int64(len(name)) {
 			t.Errorf("Size(%v) incorrect: got %v, want %v", name, size, len(name))
 		}
+	}
+}
+
+func TestList(t *testing.T) {
+	ctx := context.Background()
+	fs := &fs{m: make(map[string][]byte)}
+
+	names := []string{"fizzbuzz", "foo", "foobar", "baz", "bazfoo"}
+	for _, name := range names {
+		file := []byte(name)
+		if err := filesystem.Write(ctx, fs, name, file); err != nil {
+			t.Fatalf("Write(%q) error = %v", name, err)
+		}
+	}
+	glob := "memfs://foo.*"
+	got, err := fs.List(ctx, glob)
+	if err != nil {
+		t.Errorf("error List(%q) = %v", glob, err)
+	}
+
+	want := []string{"memfs://foo", "memfs://foobar"}
+	if d := cmp.Diff(want, got); d != "" {
+		t.Errorf("List(%q) = %v, want %v", glob, got, want)
+	}
+}
+
+func TestRemove(t *testing.T) {
+	ctx := context.Background()
+	fs := &fs{m: make(map[string][]byte)}
+
+	names := []string{"fizzbuzz", "foobar", "bazfoo"}
+	for _, name := range names {
+		file := []byte(name)
+		if err := filesystem.Write(ctx, fs, name, file); err != nil {
+			t.Fatalf("Write(%q) error = %v", name, err)
+		}
+	}
+	toremove := "memfs://foobar"
+	if err := fs.Remove(ctx, toremove); err != nil {
+		t.Errorf("error Remove(%q) = %v", toremove, err)
+	}
+
+	got, err := fs.List(ctx, ".*")
+	if err != nil {
+		t.Errorf("error List(\".*\") = %v", err)
+	}
+
+	want := []string{"memfs://bazfoo", "memfs://fizzbuzz"}
+	if d := cmp.Diff(want, got); d != "" {
+		t.Errorf("After Remove fs.List(\".*\") = %v, want %v", got, want)
+	}
+}
+
+func TestCopy(t *testing.T) {
+	ctx := context.Background()
+	fs := &fs{m: make(map[string][]byte)}
+
+	oldpath := "fizzbuzz"
+	file := []byte(oldpath)
+	if err := filesystem.Write(ctx, fs, oldpath, file); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	if err := filesystem.Copy(ctx, fs, "memfs://fizzbuzz", "memfs://fizzbang"); err != nil {
+		t.Fatalf("Copy() error = %v", err)
+	}
+	glob := "memfs://fizz.*"
+	got, err := fs.List(ctx, glob)
+	if err != nil {
+		t.Errorf("error List(%q) = %v", glob, err)
+	}
+
+	want := []string{"memfs://fizzbang", "memfs://fizzbuzz"}
+	if d := cmp.Diff(want, got); d != "" {
+		t.Errorf("List(%q) = %v, want %v", glob, got, want)
+	}
+
+	read, err := filesystem.Read(ctx, fs, "memfs://fizzbang")
+	if err != nil {
+		t.Fatalf("Read error = %v", err)
+	}
+	if got, want := string(read), oldpath; got != want {
+		t.Errorf("Copy() error got %q, want %q", got, want)
+	}
+}
+
+func TestRename(t *testing.T) {
+	ctx := context.Background()
+	fs := &fs{m: make(map[string][]byte)}
+
+	oldpath := "fizzbuzz"
+	file := []byte(oldpath)
+	if err := filesystem.Write(ctx, fs, oldpath, file); err != nil {
+		t.Fatal(err)
+	}
+	if err := filesystem.Rename(ctx, fs, "memfs://fizzbuzz", "memfs://fizzbang"); err != nil {
+		t.Fatalf("Rename() error = %v", err)
+	}
+	glob := "memfs://fizz.*"
+	got, err := fs.List(ctx, glob)
+	if err != nil {
+		t.Errorf("error List(%q) = %v", glob, err)
+	}
+
+	want := []string{"memfs://fizzbang"}
+	if d := cmp.Diff(want, got); d != "" {
+		t.Errorf("List(%q) = %v, want %v", glob, got, want)
+	}
+
+	read, err := filesystem.Read(ctx, fs, "memfs://fizzbang")
+	if err != nil {
+		t.Fatalf("Read error = %v", err)
+	}
+	if got, want := string(read), oldpath; got != want {
+		t.Errorf("Rename() error got %q, want %q", got, want)
 	}
 }

@@ -133,7 +133,6 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
   /** Write-side converter for for {@link TextTable} with format {@code 'lines'}. */
   public static class LinesWriteConverter extends PTransform<PCollection<Row>, PCollection<String>>
       implements Serializable {
-    private static final Schema SCHEMA = Schema.builder().addStringField("line").build();
 
     public LinesWriteConverter() {}
 

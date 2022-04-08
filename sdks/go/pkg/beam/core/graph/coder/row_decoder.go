@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-// RowDecoderBuilder allows one to build Beam Schema row encoders for provided types.
+// RowDecoderBuilder allows one to build Beam Schema row decoder for provided types.
 type RowDecoderBuilder struct {
 	allFuncs   map[reflect.Type]decoderProvider
 	ifaceFuncs []reflect.Type
@@ -386,7 +386,7 @@ func (b *RowDecoderBuilder) containerDecoderForType(t reflect.Type) (typeDecoder
 		return typeDecoderFieldReflect{}, err
 	}
 	if t.Kind() == reflect.Ptr {
-		return typeDecoderFieldReflect{decode: containerNilDecoder(dec.decode), addr: dec.addr}, nil
+		return typeDecoderFieldReflect{decode: NullableDecoder(dec.decode), addr: dec.addr}, nil
 	}
 	return dec, nil
 }

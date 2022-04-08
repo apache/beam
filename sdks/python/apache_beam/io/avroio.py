@@ -390,13 +390,32 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
 
 class _FastAvroSink(_BaseAvroSink):
   """A sink for avro files using FastAvro. """
+  def __init__(
+      self,
+      file_path_prefix,
+      schema,
+      codec,
+      file_name_suffix,
+      num_shards,
+      shard_name_template,
+      mime_type):
+    super().__init__(
+        file_path_prefix,
+        schema,
+        codec,
+        file_name_suffix,
+        num_shards,
+        shard_name_template,
+        mime_type)
+    self.file_handle = None
+
   def open(self, temp_path):
-    file_handle = super().open(temp_path)
-    return Writer(file_handle, self._schema, self._codec)
+    self.file_handle = super().open(temp_path)
+    return Writer(self.file_handle, self._schema, self._codec)
 
   def write_record(self, writer, value):
     writer.write(value)
 
   def close(self, writer):
     writer.flush()
-    writer.fo.close()
+    self.file_handle.close()

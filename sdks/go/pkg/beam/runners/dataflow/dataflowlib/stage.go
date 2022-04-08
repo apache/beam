@@ -18,6 +18,8 @@ package dataflowlib
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"os"
 
@@ -33,15 +35,21 @@ func StageModel(ctx context.Context, project, modelURL string, model []byte) err
 	return upload(ctx, project, modelURL, bytes.NewReader(model))
 }
 
-// StageFile uploads a file to GCS.
-func StageFile(ctx context.Context, project, url, filename string) error {
+// stageFile uploads a file to GCS, and returns the sha256 hash.
+func stageFile(ctx context.Context, project, url, filename string) (string, error) {
 	fd, err := os.Open(filename)
 	if err != nil {
-		return errors.Wrapf(err, "failed to open file %s", filename)
+		return "", errors.Wrapf(err, "failed to open file %s", filename)
 	}
 	defer fd.Close()
 
-	return upload(ctx, project, url, fd)
+	sha256W := sha256.New()
+	tee := io.TeeReader(fd, sha256W)
+	if err := upload(ctx, project, url, tee); err != nil {
+		return "", err
+	}
+	hash := hex.EncodeToString(sha256W.Sum(nil))
+	return hash, nil
 }
 
 func upload(ctx context.Context, project, object string, r io.Reader) error {
@@ -68,12 +76,13 @@ func ResolveXLangArtifacts(ctx context.Context, edges []*graph.MultiEdge, projec
 		},
 	}
 	paths, err := xlangx.ResolveArtifactsWithConfig(ctx, edges, cfg)
+	xlangx.UpdateArtifactTypeFromFileToURL(edges)
 	if err != nil {
 		return nil, err
 	}
 	var urls []string
 	for local, remote := range paths {
-		err := StageFile(ctx, project, remote, local)
+		_, err := stageFile(ctx, project, remote, local)
 		if err != nil {
 			return nil, errors.WithContextf(err, "staging file to %v", remote)
 		}

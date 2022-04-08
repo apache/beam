@@ -22,42 +22,9 @@ applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Go :: Container"
 
-// Disable gogradle's dependency resolution so it uses Go modules instead.
-installDependencies.enabled = false
-resolveBuildDependencies.enabled = false
-resolveTestDependencies.enabled = false
-
-clean.dependsOn cleanVendor
-
-dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/v2/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/v2/go', dir: project(':sdks:go').projectDir
-  }
-}
-
-golang {
-  packagePath = 'github.com/apache/beam/sdks/v2/go/container'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
-    // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
-    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
-  }
+goBuild {
+  goTargets = '*.go' // only build the immediate directory.
+  outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
 }
 
 docker {
@@ -72,7 +39,7 @@ docker {
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
 }
-dockerPrepare.dependsOn goBuild
+dockerPrepare.dependsOn tasks.named("goBuild")
 
 // Ensure that making the docker image builds any required artifacts
 if (project.rootProject.hasProperty(["docker-pull-licenses"])) {

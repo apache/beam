@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.sns;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import software.amazon.awssdk.services.sns.SnsClient;
 
 /**
@@ -25,7 +26,11 @@ import software.amazon.awssdk.services.sns.SnsClient;
  *
  * <p>Please note, that any instance of {@link SnsClientProvider} must be {@link Serializable} to
  * ensure it can be sent to worker machines.
+ *
+ * @deprecated Configure a custom {@link org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory}
+ *     using {@link AwsOptions#getClientBuilderFactory()} instead.
  */
+@Deprecated
 public interface SnsClientProvider extends Serializable {
   SnsClient getSnsClient();
 }

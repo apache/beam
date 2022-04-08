@@ -58,10 +58,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes"
 })
 public class Schema implements Serializable {
-  // This is the metadata field used to store the logical type identifier.
-  private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";
-
-  private static final String LOGICAL_TYPE_ARGUMENT = "SchemaLogicalTypeArg";
 
   // Helper class that adds proper equality checks to byte arrays.
   static class ByteArrayWrapper implements Serializable {

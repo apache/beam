@@ -158,7 +158,7 @@ def read_from_pubsub(
     except (gexc.RetryError, gexc.DeadlineExceeded):
       continue
     ack_ids = [msg.ack_id for msg in response.received_messages]
-    sub_client.acknowledge(subscription_path, ack_ids)
+    sub_client.acknowledge(subscription=subscription_path, ack_ids=ack_ids)
     for msg in response.received_messages:
       message = PubsubMessage._from_message(msg.message)
       if with_attributes:

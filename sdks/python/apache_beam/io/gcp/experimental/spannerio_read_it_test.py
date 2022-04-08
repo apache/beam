@@ -105,7 +105,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     cls._add_dummy_entries()
     _LOGGER.info("Spanner Read IT Setup Complete...")
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_read_via_table(self):
     _LOGGER.info("Spanner Read via table")
     with beam.Pipeline(argv=self.args) as p:
@@ -117,7 +117,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           columns=["UserId", "Key"])
     assert_that(r, equal_to(self._data))
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_read_via_sql(self):
     _LOGGER.info("Running Spanner via sql")
     with beam.Pipeline(argv=self.args) as p:
@@ -128,7 +128,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           sql="select * from Users")
     assert_that(r, equal_to(self._data))
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_transaction_table_metrics_ok_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -151,7 +151,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     self.verify_table_read_call_metric(
         self.project, self.TEST_DATABASE, 'Users', 'ok', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_transaction_table_metrics_error_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -177,7 +177,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     self.verify_table_read_call_metric(
         self.project, self.TEST_DATABASE, 'INVALID_TABLE', '404', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_transaction_sql_metrics_ok_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -200,7 +200,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     self.verify_sql_read_call_metric(
         self.project, self.TEST_DATABASE, 'query-1', 'ok', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_transaction_sql_metrics_error_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -226,7 +226,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     self.verify_sql_read_call_metric(
         self.project, self.TEST_DATABASE, 'query-2', '400', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_table_metrics_ok_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -245,7 +245,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     self.verify_table_read_call_metric(
         self.project, self.TEST_DATABASE, 'Users', 'ok', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_table_metrics_error_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -267,7 +267,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
       self.verify_table_read_call_metric(
           self.project, self.TEST_DATABASE, 'INVALID_TABLE', '404', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_sql_metrics_ok_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -286,7 +286,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     self.verify_sql_read_call_metric(
         self.project, self.TEST_DATABASE, 'query-1', 'ok', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_sql_metrics_error_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')

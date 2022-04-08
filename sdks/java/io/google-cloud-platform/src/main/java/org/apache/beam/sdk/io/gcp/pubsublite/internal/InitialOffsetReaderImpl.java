@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
@@ -31,8 +32,9 @@ class InitialOffsetReaderImpl implements InitialOffsetReader {
   private final SubscriptionPath subscription;
   private final Partition partition;
 
-  InitialOffsetReaderImpl(CursorClient client, SubscriptionPath subscription, Partition partition) {
-    this.client = client;
+  InitialOffsetReaderImpl(
+      CursorClient unownedCursorClient, SubscriptionPath subscription, Partition partition) {
+    this.client = unownedCursorClient;
     this.subscription = subscription;
     this.partition = partition;
   }
@@ -40,15 +42,10 @@ class InitialOffsetReaderImpl implements InitialOffsetReader {
   @Override
   public Offset read() throws ApiException {
     try {
-      Map<Partition, Offset> results = client.listPartitionCursors(subscription).get();
+      Map<Partition, Offset> results = client.listPartitionCursors(subscription).get(1, MINUTES);
       return results.getOrDefault(partition, Offset.of(0));
     } catch (Throwable t) {
       throw toCanonical(t).underlying;
     }
-  }
-
-  @Override
-  public void close() {
-    client.close();
   }
 }

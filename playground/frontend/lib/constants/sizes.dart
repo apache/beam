@@ -27,7 +27,7 @@ const double kXxlSpacing = 36.0;
 // sizes
 const kHeaderButtonHeight = 46.0;
 const kRunButtonWidth = 150.0;
-const kRunButtonHeight = 40.0;
+const kButtonHeight = 40.0;
 const kIconButtonSplashRadius = 24.0;
 const kFooterHeight = 32.0;
 
@@ -41,6 +41,7 @@ const double kXlBorderRadius = 28.0;
 const double kElevation = 2;
 
 // icon sizes
+const double kIconSizeXs = 8.0;
 const double kIconSizeSm = 16.0;
 const double kIconSizeMd = 24.0;
 const double kIconSizeLg = 32.0;
@@ -51,4 +52,12 @@ const double kCursorSize = 1.0;
 // container size
 const double kContainerHeight = 40.0;
 
+const double kCaptionFontSize = 10.0;
 const double kCodeFontSize = 14.0;
+const double kLabelFontSize = 16.0;
+const double kHintFontSize = 16.0;
+const double kTitleFontSize = 18.0;
+
+//divider size
+const double kDividerHeight = 1.0;
+const double kLgDividerHeight = 2.0;

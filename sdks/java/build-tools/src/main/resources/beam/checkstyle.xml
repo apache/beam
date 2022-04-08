@@ -85,7 +85,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <!-- Forbid importing any shaded code, since it does not exist at compile time and this is probably an IDE error -->
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal, org.testcontainers.shaded"/>
     </module>
 
     <!-- This is not the Nullable annotation you are looking for -->

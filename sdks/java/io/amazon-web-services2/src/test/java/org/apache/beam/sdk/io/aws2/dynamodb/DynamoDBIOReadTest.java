@@ -18,24 +18,34 @@
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
 import static java.lang.Math.min;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getLast;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.transform;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,7 +53,11 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
@@ -56,18 +70,38 @@ public class DynamoDBIOReadTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Mock public DynamoDbClient client;
 
+  @Before
+  public void configureClientBuilderFactory() {
+    MockClientBuilderFactory.set(pipeline, DynamoDbClientBuilder.class, client);
+  }
+
+  private Read<List<Map<String, AttributeValue>>> dynamoDbRead(Integer segments) {
+    return DynamoDBIO.<List<Map<String, AttributeValue>>>read()
+        .withScanRequestFn(
+            in -> ScanRequest.builder().tableName(tableName).totalSegments(segments).build())
+        .items();
+  }
+
   @Test
   public void testReadOneSegment() {
+    readOneSegment(identity());
+  }
+
+  @Test
+  public void testReadOneSegmentWithLegacyProvider() {
+    MockClientBuilderFactory.set(pipeline, DynamoDbClientBuilder.class, null);
+    readOneSegment(
+        read -> read.withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client)));
+  }
+
+  private void readOneSegment(
+      Function<Read<List<Map<String, AttributeValue>>>, Read<List<Map<String, AttributeValue>>>>
+          fn) {
     MockData mockData = new MockData(range(0, 10));
     mockData.mockScan(10, client); // 1 scan iteration
 
-    PCollection<List<Map<String, AttributeValue>>> actual =
-        pipeline.apply(
-            DynamoDBIO.<List<Map<String, AttributeValue>>>read()
-                .withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client))
-                .withScanRequestFn(
-                    in -> ScanRequest.builder().tableName(tableName).totalSegments(1).build())
-                .items());
+    Read<List<Map<String, AttributeValue>>> read = dynamoDbRead(1);
+    PCollection<List<Map<String, AttributeValue>>> actual = pipeline.apply(fn.apply(read));
 
     PAssert.that(actual.apply(Count.globally())).containsInAnyOrder(1L);
     PAssert.that(actual).containsInAnyOrder(mockData.getAllItems());
@@ -76,17 +110,46 @@ public class DynamoDBIOReadTest {
   }
 
   @Test
+  public void testReadWithCustomLimit() {
+    final int requestedLimit = 100;
+    MockData mockData = new MockData(range(0, 10));
+    mockData.mockScan(requestedLimit, client); // 1 scan iteration
+
+    pipeline.apply(
+        dynamoDbRead(1)
+            .withScanRequestFn(
+                in ->
+                    ScanRequest.builder()
+                        .tableName(tableName)
+                        .totalSegments(1)
+                        .limit(requestedLimit)
+                        .build()));
+
+    pipeline.run().waitUntilFinish();
+
+    verify(client).scan(argThat((ScanRequest req) -> requestedLimit == req.limit()));
+  }
+
+  @Test
   public void testReadThreeSegments() {
+    readThreeSegments(identity());
+  }
+
+  @Test
+  public void testReadThreeSegmentsWithLegacyProvider() {
+    MockClientBuilderFactory.set(pipeline, DynamoDbClientBuilder.class, null);
+    readThreeSegments(
+        read -> read.withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client)));
+  }
+
+  private void readThreeSegments(
+      Function<Read<List<Map<String, AttributeValue>>>, Read<List<Map<String, AttributeValue>>>>
+          fn) {
     MockData mockData = new MockData(range(0, 10), range(10, 20), range(20, 30));
     mockData.mockScan(10, client); // 1 scan iteration per segment
 
-    PCollection<List<Map<String, AttributeValue>>> actual =
-        pipeline.apply(
-            DynamoDBIO.<List<Map<String, AttributeValue>>>read()
-                .withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client))
-                .withScanRequestFn(
-                    in -> ScanRequest.builder().tableName(tableName).totalSegments(3).build())
-                .items());
+    Read<List<Map<String, AttributeValue>>> read = dynamoDbRead(3);
+    PCollection<List<Map<String, AttributeValue>>> actual = pipeline.apply(fn.apply(read));
 
     PAssert.that(actual.apply(Count.globally())).containsInAnyOrder(3L);
     PAssert.that(actual.apply(Flatten.iterables())).containsInAnyOrder(mockData.getAllItems());
@@ -99,13 +162,7 @@ public class DynamoDBIOReadTest {
     MockData mockData = new MockData(range(0, 10), range(20, 32));
     mockData.mockScan(5, client); // 2 + 3 scan iterations
 
-    PCollection<List<Map<String, AttributeValue>>> actual =
-        pipeline.apply(
-            DynamoDBIO.<List<Map<String, AttributeValue>>>read()
-                .withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client))
-                .withScanRequestFn(
-                    in -> ScanRequest.builder().tableName(tableName).totalSegments(2).build())
-                .items());
+    PCollection<List<Map<String, AttributeValue>>> actual = pipeline.apply(dynamoDbRead(2));
 
     PAssert.that(actual.apply(Count.globally())).containsInAnyOrder(5L);
     PAssert.that(actual.apply(Flatten.iterables())).containsInAnyOrder(mockData.getAllItems());
@@ -119,17 +176,7 @@ public class DynamoDBIOReadTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("withScanRequestFn() is required");
 
-    pipeline.apply(
-        DynamoDBIO.read().withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client)));
-  }
-
-  @Test
-  public void testReadMissingDynamoDbClientProvider() {
-    pipeline.enableAbandonedNodeEnforcement(false);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("withDynamoDbClientProvider() is required");
-
-    pipeline.apply(DynamoDBIO.read().withScanRequestFn(in -> ScanRequest.builder().build()));
+    pipeline.apply(dynamoDbRead(null).withScanRequestFn(null));
   }
 
   @Test
@@ -138,10 +185,7 @@ public class DynamoDBIOReadTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("TotalSegments is required with withScanRequestFn() and greater zero");
 
-    pipeline.apply(
-        DynamoDBIO.read()
-            .withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client))
-            .withScanRequestFn(in -> ScanRequest.builder().build()));
+    pipeline.apply(dynamoDbRead(null));
   }
 
   @Test
@@ -150,10 +194,30 @@ public class DynamoDBIOReadTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("TotalSegments is required with withScanRequestFn() and greater zero");
 
-    pipeline.apply(
-        DynamoDBIO.read()
-            .withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client))
-            .withScanRequestFn(in -> ScanRequest.builder().totalSegments(0).build()));
+    pipeline.apply(dynamoDbRead(0));
+  }
+
+  @Test
+  public void testBuildWithCredentialsProviderAndRegion() {
+    Region region = Region.US_EAST_1;
+    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
+
+    Read<Object> read =
+        DynamoDBIO.read().withDynamoDbClientProvider(credentialsProvider, region.id());
+    assertThat(read.getClientConfiguration())
+        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, null));
+  }
+
+  @Test
+  public void testBuildWithCredentialsProviderAndRegionAndEndpoint() {
+    Region region = Region.US_EAST_1;
+    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
+    URI endpoint = URI.create("localhost:9999");
+
+    Read<Object> read =
+        DynamoDBIO.read().withDynamoDbClientProvider(credentialsProvider, region.id(), endpoint);
+    assertThat(read.getClientConfiguration())
+        .isEqualTo(ClientConfiguration.create(credentialsProvider, region, endpoint));
   }
 
   private static class MockData {

@@ -34,8 +34,6 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Reads each file in the input {@link PCollection} of {@link ReadableFile} using given parameters
@@ -49,7 +47,6 @@ import org.slf4j.LoggerFactory;
 public class ReadAllViaFileBasedSource<T>
     extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ReadAllViaFileBasedSource.class);
   protected static final boolean DEFAULT_USES_RESHUFFLE = true;
   private final long desiredBundleSizeBytes;
   private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;

@@ -49,7 +49,10 @@ import org.joda.time.Instant;
  * https://docs.google.com/document/d/1FU3GxVRetHPLVizP3Mdv6mP5tpjZ3fd99qNjUI5DT5k/edit# for more
  * details.
  */
-@SuppressWarnings({"nullness"})
+@SuppressWarnings({
+  "nullness",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+})
 @Experimental
 class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceDescriptor> {
 
@@ -63,6 +66,7 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
   private final SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
   private final Map<String, Object> kafkaConsumerConfig;
   private final Instant startReadTime;
+  private final Instant stopReadTime;
 
   private static final String COUNTER_NAMESPACE = "watch_kafka_topic_partition";
 
@@ -74,12 +78,14 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
       SerializableFunction<TopicPartition, Boolean> checkStopReadingFn,
       Map<String, Object> kafkaConsumerConfig,
       Instant startReadTime,
+      Instant stopReadTime,
       List<String> topics) {
     this.checkDuration = checkDuration == null ? DEFAULT_CHECK_DURATION : checkDuration;
     this.kafkaConsumerFactoryFn = kafkaConsumerFactoryFn;
     this.checkStopReadingFn = checkStopReadingFn;
     this.kafkaConsumerConfig = kafkaConsumerConfig;
     this.startReadTime = startReadTime;
+    this.stopReadTime = stopReadTime;
     this.topics = topics;
   }
 
@@ -129,7 +135,8 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
             foundedTopicPartition.inc();
             existingTopicPartitions.add(topicPartition);
             outputReceiver.output(
-                KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
+                KafkaSourceDescriptor.of(
+                    topicPartition, null, startReadTime, null, stopReadTime, null));
           }
         });
 
@@ -161,7 +168,8 @@ class WatchKafkaTopicPartitionDoFn extends DoFn<KV<byte[], byte[]>, KafkaSourceD
                 Metrics.counter(COUNTER_NAMESPACE, topicPartition.toString());
             foundedTopicPartition.inc();
             outputReceiver.output(
-                KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
+                KafkaSourceDescriptor.of(
+                    topicPartition, null, startReadTime, null, stopReadTime, null));
           }
         });
 

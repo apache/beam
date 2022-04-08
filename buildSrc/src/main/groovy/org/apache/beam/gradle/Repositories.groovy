@@ -38,7 +38,6 @@ class Repositories {
 
       mavenCentral()
       mavenLocal()
-      jcenter()
 
       // For pentaho dependencies.
       maven {
@@ -62,10 +61,6 @@ class Repositories {
       }
     }
 
-    // plugin to support repository authentication via ~/.m2/settings.xml
-    // https://github.com/mark-vieira/gradle-maven-settings-plugin/
-    project.apply plugin: 'net.linguica.maven-settings'
-
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
     // repository. This offline repository satisfies all Gradle build dependencies and Java
     // project dependencies. The offline repository is placed within $rootDir/offline-repo
@@ -78,7 +73,6 @@ class Repositories {
       repositories {
         mavenLocal()
         mavenCentral()
-        jcenter()
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://repo.spring.io/plugins-release" }
         maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }

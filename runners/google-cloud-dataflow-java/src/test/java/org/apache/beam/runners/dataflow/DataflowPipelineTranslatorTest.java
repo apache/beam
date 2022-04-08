@@ -67,6 +67,7 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -84,6 +85,7 @@ import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.SpannerChangeStreamOptions;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -121,7 +123,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -424,6 +426,71 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .getAutoscalingSettings()
             .getMaxNumWorkers()
             .intValue());
+  }
+
+  @Test
+  public void testSuccessWhenSpannerChangeStreamsAndAutoscalingEqualToNone() throws IOException {
+    final DataflowPipelineOptions options = buildPipelineOptions();
+    options.setAutoscalingAlgorithm(AutoscalingAlgorithmType.NONE);
+    options.as(SpannerChangeStreamOptions.class).setMetadataTable("MyMetadataTable");
+    final Pipeline p = buildPipeline(options);
+    final SdkComponents sdkComponents = createSdkComponents(options);
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+
+    final JobSpecification jobSpecification =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList());
+    assertNotNull(jobSpecification);
+  }
+
+  @Test
+  public void testExceptionIsThrownWhenSpannerChangeStreamsAndAutoscalingDifferentThanNone()
+      throws IOException {
+    final DataflowPipelineOptions options = buildPipelineOptions();
+    options.setAutoscalingAlgorithm(AutoscalingAlgorithmType.THROUGHPUT_BASED);
+    options.as(SpannerChangeStreamOptions.class).setMetadataTable("MyMetadataTable");
+    final Pipeline p = buildPipeline(options);
+    final SdkComponents sdkComponents = createSdkComponents(options);
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Autoscaling is not supported for SpannerIO.readChangeStreams. Please disable it by specifying the autoscaling algorithm as NONE");
+    DataflowPipelineTranslator.fromOptions(options)
+        .translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
+  }
+
+  @Test
+  public void testExceptionIsThrownWhenSpannerChangeStreamsAndNoAutoscalingSpecified()
+      throws IOException {
+    final DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(SpannerChangeStreamOptions.class).setMetadataTable("MyMetadataTable");
+    final Pipeline p = buildPipeline(options);
+    final SdkComponents sdkComponents = createSdkComponents(options);
+    final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Autoscaling is not supported for SpannerIO.readChangeStreams. Please disable it by specifying the autoscaling algorithm as NONE");
+    final JobSpecification jobSpecification =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList());
+    assertNotNull(jobSpecification);
   }
 
   @Test
@@ -832,24 +899,22 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
 
-    PCollection<Integer> output =
-        pipeline
-            .apply("CreateMainInput", Create.of(29, 31))
-            .apply(
-                "OutputSideInputs",
-                ParDo.of(
-                        new DoFn<Integer, Integer>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext c) {
-                            checkArgument(c.sideInput(view).size() == 4);
-                            checkArgument(
-                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
-                            for (Integer i : c.sideInput(view)) {
-                              c.output(i);
-                            }
-                          }
-                        })
-                    .withSideInputs(view));
+    pipeline
+        .apply("CreateMainInput", Create.of(29, 31))
+        .apply(
+            "OutputSideInputs",
+            ParDo.of(
+                    new DoFn<Integer, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        checkArgument(c.sideInput(view).size() == 4);
+                        checkArgument(c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                        for (Integer i : c.sideInput(view)) {
+                          c.output(i);
+                        }
+                      }
+                    })
+                .withSideInputs(view));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
@@ -989,19 +1054,17 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     Pipeline pipeline = Pipeline.create(options);
-
-    PCollection<String> windowedInput =
-        pipeline
-            .apply(Impulse.create())
-            .apply(
-                MapElements.via(
-                    new SimpleFunction<byte[], String>() {
-                      @Override
-                      public String apply(byte[] input) {
-                        return "";
-                      }
-                    }))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+    pipeline
+        .apply(Impulse.create())
+        .apply(
+            MapElements.via(
+                new SimpleFunction<byte[], String>() {
+                  @Override
+                  public String apply(byte[] input) {
+                    return "";
+                  }
+                }))
+        .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
     runner.replaceV1Transforms(pipeline);
 

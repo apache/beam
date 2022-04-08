@@ -20,17 +20,44 @@ import 'package:flutter/material.dart';
 import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
 
-class OutputResult extends StatelessWidget {
+class OutputResult extends StatefulWidget {
   final String text;
+  final bool isSelected;
 
-  const OutputResult({Key? key, required this.text}) : super(key: key);
+  const OutputResult({Key? key, required this.text, required this.isSelected})
+      : super(key: key);
+
+  @override
+  State<OutputResult> createState() => _OutputResultState();
+}
+
+class _OutputResultState extends State<OutputResult> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void didUpdateWidget(OutputResult oldWidget) {
+    WidgetsBinding.instance?.addPostFrameCallback((_) {
+      if (_scrollController.hasClients &&
+          !widget.isSelected &&
+          oldWidget.text != widget.text) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+    super.didUpdateWidget(oldWidget);
+  }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(kXlSpacing),
-        child: SelectableText(text, style: getCodeFontStyle()),
+      controller: _scrollController,
+      child: Scrollbar(
+        isAlwaysShown: true,
+        showTrackOnHover: true,
+        controller: _scrollController,
+        child: Padding(
+          padding: const EdgeInsets.all(kXlSpacing),
+          child: SelectableText(widget.text, style: getCodeFontStyle()),
+        ),
       ),
     );
   }

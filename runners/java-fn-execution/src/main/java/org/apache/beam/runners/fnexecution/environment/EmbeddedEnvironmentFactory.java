@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -36,11 +37,11 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,8 +106,9 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
                     null,
-                    InProcessManagedChannelFactory.create(),
-                    OutboundObserverFactory.clientDirect());
+                    ManagedChannelFactory.createInProcess(),
+                    OutboundObserverFactory.clientDirect(),
+                    Caches.fromOptions(options));
               } catch (NoClassDefFoundError e) {
                 // TODO: https://issues.apache.org/jira/browse/BEAM-4384 load the FnHarness in a
                 // Restricted classpath that we control for any user.

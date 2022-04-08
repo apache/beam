@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.I
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.transform;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -74,6 +75,28 @@ public class DynamoDBIOReadTest {
     PAssert.that(actual).containsInAnyOrder(mockData.getAllItems());
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithCustomLimit() {
+    final int requestedLimit = 100;
+    MockData mockData = new MockData(range(0, 10));
+    mockData.mockScan(requestedLimit, client); // 1 scan iteration
+
+    pipeline.apply(
+        DynamoDBIO.<List<Map<String, AttributeValue>>>read()
+            .withAwsClientsProvider(StaticAwsClientsProvider.of(client))
+            .withScanRequestFn(
+                in ->
+                    new ScanRequest()
+                        .withTableName(tableName)
+                        .withTotalSegments(1)
+                        .withLimit(requestedLimit))
+            .items());
+
+    pipeline.run().waitUntilFinish();
+
+    verify(client).scan(argThat((ScanRequest req) -> requestedLimit == req.getLimit()));
   }
 
   @Test

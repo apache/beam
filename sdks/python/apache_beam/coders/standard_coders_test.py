@@ -145,6 +145,8 @@ class StandardCodersTest(unittest.TestCase):
           end=Timestamp(micros=x['end'] * 1000)),
       'beam:coder:iterable:v1': lambda x,
       parser: list(map(parser, x)),
+      'beam:coder:state_backed_iterable:v1': lambda x,
+      parser: list(map(parser, x)),
       'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
       'beam:coder:windowed_value:v1': lambda x,
       value_parser,
@@ -191,7 +193,9 @@ class StandardCodersTest(unittest.TestCase):
       value_parser: ShardedKey(
           key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8')),
       'beam:coder:custom_window:v1': lambda x,
-      window_parser: window_parser(x['window'])
+      window_parser: window_parser(x['window']),
+      'beam:coder:nullable:v1': lambda x,
+      value_parser: x.encode('utf-8') if x else None
   }
 
   def test_standard_coders(self):
@@ -234,6 +238,18 @@ class StandardCodersTest(unittest.TestCase):
         context.coders.get_id(self.parse_coder(c))
         for c in spec.get('components', ())
     ]
+    if spec.get('state'):
+
+      def iterable_state_read(state_token, elem_coder):
+        state = spec.get('state').get(state_token.decode('latin1'))
+        if state is None:
+          state = ''
+        input_stream = coder_impl.create_InputStream(state.encode('latin1'))
+        while input_stream.size() > 0:
+          yield elem_coder.decode_from_stream(input_stream, True)
+
+      context.iterable_state_read = iterable_state_read
+
     context.coders.put_proto(
         coder_id,
         beam_runner_api_pb2.Coder(

@@ -100,8 +100,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -589,7 +589,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     // close() will also call dispose(), but call again to verify no new bundle
     // is created afterwards
-    operator.dispose();
+    operator.cleanUp();
     verifyNoMoreInteractions(bundle);
   }
 
@@ -637,6 +637,7 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(statefulDoFnRunner, instanceOf(StatefulDoFnRunner.class));
   }
 
+  @SuppressWarnings("LockNotBeforeTry")
   @Test
   public void testEnsureStateCleanupWithKeyedInputCleanupTimer() {
     InMemoryTimerInternals inMemoryTimerInternals = new InMemoryTimerInternals();

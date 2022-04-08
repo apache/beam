@@ -78,7 +78,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow.Coder;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
@@ -367,7 +367,6 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testProcessingBundleHandlesUserStateRequests() throws Exception {
     IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
-    ExecutorService executorService = Executors.newCachedThreadPool();
 
     InMemoryStateInternals<ByteString> stateInternals =
         InMemoryStateInternals.forKey(ByteString.EMPTY);
@@ -473,7 +472,6 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testProcessingBundleHandlesMultimapSideInputRequests() throws Exception {
     IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
-    ExecutorService executorService = Executors.newCachedThreadPool();
 
     DataflowStepContext mockStepContext = mock(DataflowStepContext.class);
     DataflowStepContext mockUserStepContext = mock(DataflowStepContext.class);

@@ -42,6 +42,8 @@ public class ImpulseP extends AbstractProcessor {
 
   private final boolean active;
   private final Coder outputCoder;
+
+  @SuppressWarnings("unused")
   private final String ownerId; // do not remove it, very useful for debugging
 
   private ImpulseP(boolean active, Coder outputCoder, String ownerId) {

@@ -29,9 +29,12 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.FakeBatchTransactionId;
 import com.google.cloud.spanner.FakePartitionFactory;
 import com.google.cloud.spanner.KeySet;
+import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.ResultSets;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
@@ -39,6 +42,7 @@ import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
 import com.google.protobuf.ByteString;
+import io.grpc.Status.Code;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -47,6 +51,8 @@ import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Read;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -125,7 +131,9 @@ public class SpannerIOReadTest implements Serializable {
         FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
 
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users"))))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
         .thenReturn(
@@ -137,73 +145,20 @@ public class SpannerIOReadTest implements Serializable {
     pipeline.run();
   }
 
-  private SpannerConfig getSpannerConfig() {
-    return SpannerConfig.create()
-        .withProjectId("test")
-        .withInstanceId("123")
-        .withDatabaseId("aaa")
-        .withServiceFactory(serviceFactory);
-  }
-
   @Test
-  public void runRead() throws Exception {
+  public void runQueryWithPriority() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
     SpannerConfig spannerConfig = getSpannerConfig();
+    Read read =
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery("SELECT * FROM users")
+            .withTimestampBound(timestampBound)
+            .withHighPriority();
 
-    PCollection<Struct> one =
-        pipeline.apply(
-            "read q",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withTable("users")
-                .withColumns("id", "name")
-                .withTimestampBound(timestampBound));
-
-    FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
-    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
-
-    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
-        .thenReturn(mockBatchTx);
-    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
-        .thenReturn(mockBatchTx);
-
-    Partition fakePartition =
-        FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
-
-    when(mockBatchTx.partitionRead(
-            any(PartitionOptions.class),
-            eq("users"),
-            eq(KeySet.all()),
-            eq(Arrays.asList("id", "name"))))
-        .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
-    when(mockBatchTx.execute(any(Partition.class)))
-        .thenReturn(
-            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
-            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
-            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
-
-    PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testQueryMetrics() throws Exception {
-    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
-    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
-
-    SpannerConfig spannerConfig = getSpannerConfig();
-
-    PCollection<Struct> one =
-        pipeline.apply(
-            "read q",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withQuery("SELECT * FROM users")
-                .withQueryName("queryName")
-                .withTimestampBound(timestampBound));
+    PCollection<Struct> one = pipeline.apply("read q", read);
 
     FakeBatchTransactionId id = new FakeBatchTransactionId("runQueryTest");
     when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
@@ -217,30 +172,45 @@ public class SpannerIOReadTest implements Serializable {
         FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
 
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users"))))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
-        .thenThrow(
-            SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
-        .thenThrow(
-            SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 2"))
         .thenReturn(
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 6)));
 
+    PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
+    assertEquals(RpcPriority.HIGH, read.getSpannerConfig().getRpcPriority().get());
     pipeline.run();
-    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 2);
-    verifyMetricWasSet("test", "aaa", "123", "ok", null, 2);
+  }
+
+  private SpannerConfig getSpannerConfig() {
+    return SpannerConfig.create()
+        .withProjectId("test")
+        .withInstanceId("123")
+        .withDatabaseId("aaa")
+        .withServiceFactory(serviceFactory);
   }
 
   @Test
-  public void testReadMetrics() throws Exception {
+  public void runReadTestWithProjectId() throws Exception {
+    runReadTest(getSpannerConfig());
+  }
+
+  @Test
+  public void runReadTestWithDefaultProject() throws Exception {
+    runReadTest(
+        SpannerConfig.create()
+            .withInstanceId("123")
+            .withDatabaseId("aaa")
+            .withServiceFactory(serviceFactory));
+  }
+
+  private void runReadTest(SpannerConfig spannerConfig) throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
-
-    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollection<Struct> one =
         pipeline.apply(
@@ -266,22 +236,253 @@ public class SpannerIOReadTest implements Serializable {
             any(PartitionOptions.class),
             eq("users"),
             eq(KeySet.all()),
-            eq(Arrays.asList("id", "name"))))
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
+
+    PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void runReadWithPriority() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    Read read =
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withTable("users")
+            .withColumns("id", "name")
+            .withTimestampBound(timestampBound)
+            .withLowPriority();
+    PCollection<Struct> one = pipeline.apply("read q", read);
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionRead(
+            any(PartitionOptions.class),
+            eq("users"),
+            eq(KeySet.all()),
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
+
+    PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
+    assertEquals(RpcPriority.LOW, read.getSpannerConfig().getRpcPriority().get());
+    pipeline.run();
+  }
+
+  @Test
+  public void testQueryMetricsFail() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery("SELECT * FROM users")
+            .withQueryName("queryName")
+            .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runQueryTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionQuery(
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition));
     when(mockBatchTx.execute(any(Partition.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
-        .thenThrow(
-            SpannerExceptionFactory.newSpannerException(
-                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 2"))
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"));
+    try {
+      pipeline.run();
+    } catch (PipelineExecutionException e) {
+      if (e.getCause() instanceof SpannerException
+          && ((SpannerException) e.getCause()).getErrorCode().getGrpcStatusCode()
+              == Code.DEADLINE_EXCEEDED) {
+        // expected
+      } else {
+        throw e;
+      }
+    }
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 1);
+    verifyMetricWasSet("test", "aaa", "123", "ok", null, 0);
+  }
+
+  @Test
+  public void testQueryMetricsSucceed() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery("SELECT * FROM users")
+            .withQueryName("queryName")
+            .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runQueryTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionQuery(
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)))
         .thenReturn(
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
     pipeline.run();
-    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 2);
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 0);
+    verifyMetricWasSet("test", "aaa", "123", "ok", null, 2);
+  }
+
+  @Test
+  public void testReadMetricsFail() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withTable("users")
+            .withColumns("id", "name")
+            .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionRead(
+            any(PartitionOptions.class),
+            eq("users"),
+            eq(KeySet.all()),
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"));
+    try {
+      pipeline.run();
+    } catch (PipelineExecutionException e) {
+      if (e.getCause() instanceof SpannerException
+          && ((SpannerException) e.getCause()).getErrorCode().getGrpcStatusCode()
+              == Code.DEADLINE_EXCEEDED) {
+        // expected
+      } else {
+        throw e;
+      }
+    }
+    verifyMetricWasSet("test", "aaa", "123", "deadline_exceeded", null, 1);
+    verifyMetricWasSet("test", "aaa", "123", "ok", null, 0);
+  }
+
+  @Test
+  public void testReadMetricsSucceed() throws Exception {
+    Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
+    TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
+
+    SpannerConfig spannerConfig = getSpannerConfig();
+
+    pipeline.apply(
+        "read q",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withTable("users")
+            .withColumns("id", "name")
+            .withTimestampBound(timestampBound));
+
+    FakeBatchTransactionId id = new FakeBatchTransactionId("runReadTest");
+    when(mockBatchTx.getBatchTransactionId()).thenReturn(id);
+
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
+        .thenReturn(mockBatchTx);
+    when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
+        .thenReturn(mockBatchTx);
+
+    Partition fakePartition =
+        FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("one"));
+
+    when(mockBatchTx.partitionRead(
+            any(PartitionOptions.class),
+            eq("users"),
+            eq(KeySet.all()),
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
+        .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
+    when(mockBatchTx.execute(any(Partition.class)))
+        .thenReturn(
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 4)),
+            ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
+
+    pipeline.run();
     verifyMetricWasSet("test", "aaa", "123", "ok", null, 3);
   }
 
@@ -350,7 +551,8 @@ public class SpannerIOReadTest implements Serializable {
             eq("users"),
             eq("theindex"),
             eq(KeySet.all()),
-            eq(Arrays.asList("id", "name"))))
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition, fakePartition));
 
     when(mockBatchTx.execute(any(Partition.class)))
@@ -390,7 +592,9 @@ public class SpannerIOReadTest implements Serializable {
     Partition fakePartition =
         FakePartitionFactory.createFakeQueryPartition(ByteString.copyFromUtf8("one"));
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users"))))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
 
     when(mockBatchTx.execute(any(Partition.class)))
@@ -439,13 +643,16 @@ public class SpannerIOReadTest implements Serializable {
     Partition fakePartition =
         FakePartitionFactory.createFakeReadPartition(ByteString.copyFromUtf8("partition"));
     when(mockBatchTx.partitionQuery(
-            any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users"))))
+            any(PartitionOptions.class),
+            eq(Statement.of("SELECT * FROM users")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
     when(mockBatchTx.partitionRead(
             any(PartitionOptions.class),
             eq("users"),
             eq(KeySet.all()),
-            eq(Arrays.asList("id", "name"))))
+            eq(Arrays.asList("id", "name")),
+            any(ReadQueryUpdateTransactionOption.class)))
         .thenReturn(Arrays.asList(fakePartition));
 
     when(mockBatchTx.execute(any(Partition.class)))

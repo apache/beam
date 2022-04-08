@@ -17,12 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_row.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 
-const kCloseText = 'CLOSE';
 const kButtonBorderRadius = 24.0;
 const kButtonWidth = 120.0;
 const kButtonHeight = 40.0;
@@ -33,8 +33,10 @@ class ShortcutsModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
     return AlertDialog(
-      title: const Text('Shortcuts'),
+      title: Text(appLocale.shortcuts),
       titlePadding: const EdgeInsets.only(
         top: kDialogPadding,
         left: kDialogPadding,
@@ -56,7 +58,7 @@ class ShortcutsModal extends StatelessWidget {
                 Expanded(
                   flex: 3,
                   child: Text(
-                    shortcut.name,
+                    localize(context, shortcut.name),
                     style: const TextStyle(fontWeight: kBoldWeight),
                   ),
                 ),
@@ -67,7 +69,7 @@ class ShortcutsModal extends StatelessWidget {
       ),
       actions: [
         ElevatedButton(
-          child: const Text(kCloseText),
+          child: Text(appLocale.close),
           style: ButtonStyle(
             elevation: MaterialStateProperty.all<double>(0.0),
             fixedSize: MaterialStateProperty.all<Size>(
@@ -81,5 +83,22 @@ class ShortcutsModal extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String localize(BuildContext context, String shortcutName) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
+    switch(shortcutName) {
+      case 'Run':
+        return appLocale.run;
+      case 'Reset':
+        return appLocale.reset;
+      case 'Clear Output':
+        return appLocale.clearOutput;
+      case 'New Example':
+        return appLocale.newExample;
+      default:
+        return shortcutName;
+    }
   }
 }

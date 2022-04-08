@@ -20,14 +20,22 @@
 Dataflow client utility functions."""
 
 # pytype: skip-file
+# To regenerate the client:
+# pip install google-apitools[cli]
+# gen_client --discovery_url=cloudbuild.v1 --overwrite \
+#  --outdir=apache_beam/runners/dataflow/internal/clients/cloudbuild \
+#  --root_package=. client
 
 import codecs
+from functools import partial
 import getpass
+import hashlib
 import io
 import json
 import logging
 import os
 import random
+import string
 
 import pkg_resources
 import re
@@ -73,7 +81,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9']
 
 
 class Step(object):
@@ -141,8 +149,7 @@ class Environment(object):
       options,
       environment_version,
       proto_pipeline_staged_url,
-      proto_pipeline=None,
-      _sdk_image_overrides=None):
+      proto_pipeline=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -163,7 +170,6 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
     self._proto_pipeline = proto_pipeline
-    self._sdk_image_overrides = _sdk_image_overrides or {}
 
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
@@ -279,28 +285,27 @@ class Environment(object):
     # Setting worker pool sdk_harness_container_images option for supported
     # Dataflow workers.
     environments_to_use = self._get_environments_from_tranforms()
-    if _use_unified_worker(options):
-      python_sdk_container_image = get_container_image_from_options(options)
 
-      # Adding container images for other SDKs that may be needed for
-      # cross-language pipelines.
-      for id, environment in environments_to_use:
-        if environment.urn != common_urns.environments.DOCKER.urn:
-          raise Exception(
-              'Dataflow can only execute pipeline steps in Docker environments.'
-              ' Received %r.' % environment)
-        environment_payload = proto_utils.parse_Bytes(
-            environment.payload, beam_runner_api_pb2.DockerPayload)
-        container_image_url = environment_payload.container_image
+    # Adding container images for other SDKs that may be needed for
+    # cross-language pipelines.
+    for id, environment in environments_to_use:
+      if environment.urn != common_urns.environments.DOCKER.urn:
+        raise Exception(
+            'Dataflow can only execute pipeline steps in Docker environments.'
+            ' Received %r.' % environment)
+      environment_payload = proto_utils.parse_Bytes(
+          environment.payload, beam_runner_api_pb2.DockerPayload)
+      container_image_url = environment_payload.container_image
 
-        container_image = dataflow.SdkHarnessContainerImage()
-        container_image.containerImage = container_image_url
-        # Currently we only set following to True for Python SDK.
-        # TODO: set this correctly for remote environments that might be Python.
-        container_image.useSingleCorePerContainer = (
-            container_image_url == python_sdk_container_image)
-        container_image.environmentId = id
-        pool.sdkHarnessContainerImages.append(container_image)
+      container_image = dataflow.SdkHarnessContainerImage()
+      container_image.containerImage = container_image_url
+      container_image.useSingleCorePerContainer = (
+          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING not in
+          environment.capabilities)
+      container_image.environmentId = id
+      for capability in environment.capabilities:
+        container_image.capabilities.append(capability)
+      pool.sdkHarnessContainerImages.append(container_image)
 
     if self.debug_options.number_of_worker_harness_threads:
       pool.numThreadsPerWorker = (
@@ -419,10 +424,16 @@ class Job(object):
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
     date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
     app_user_name = 'beamapp-{}'.format(user_name)
-    job_name = '{}-{}'.format(app_user_name, date_component)
+    # append 8 random alphanumeric characters to avoid collisions.
+    random_component = ''.join(
+        random.choices(string.ascii_lowercase + string.digits, k=8))
+    job_name = '{}-{}-{}'.format(
+        app_user_name, date_component, random_component)
     if len(job_name) > 63:
-      job_name = '{}-{}'.format(
-          app_user_name[:-(len(job_name) - 63)], date_component)
+      job_name = '{}-{}-{}'.format(
+          app_user_name[:-(len(job_name) - 63)],
+          date_component,
+          random_component)
     return job_name
 
   @staticmethod
@@ -455,6 +466,8 @@ class Job(object):
       (
           self.google_cloud_options.staging_location
       ) = self.google_cloud_options.temp_location
+
+    self.root_staging_location = self.google_cloud_options.staging_location
 
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
@@ -519,11 +532,16 @@ class Job(object):
 
 
 class DataflowApplicationClient(object):
+  _HASH_CHUNK_SIZE = 1024 * 8
+  _GCS_CACHE_PREFIX = "artifact_cache"
   """A Dataflow API client used by application code to create and query jobs."""
-  def __init__(self, options):
+  def __init__(self, options, root_staging_location=None):
     """Initializes a Dataflow API client object."""
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
+    self._enable_caching = self.google_cloud_options.enable_artifact_caching
+    self._root_staging_location = (
+        root_staging_location or self.google_cloud_options.staging_location)
 
     if _use_fnapi(options):
       self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
@@ -556,9 +574,47 @@ class DataflowApplicationClient(object):
     return (
         dict(s.split(',', 1) for s in sdk_overrides) if sdk_overrides else {})
 
+  @staticmethod
+  def _compute_sha256(file):
+    hasher = hashlib.sha256()
+    with open(file, 'rb') as f:
+      for chunk in iter(partial(f.read,
+                                DataflowApplicationClient._HASH_CHUNK_SIZE),
+                        b""):
+        hasher.update(chunk)
+    return hasher.hexdigest()
+
+  def _cached_location(self, sha256):
+    sha_prefix = sha256[0:2]
+    return FileSystems.join(
+        self._root_staging_location,
+        DataflowApplicationClient._GCS_CACHE_PREFIX,
+        sha_prefix,
+        sha256)
+
+  def _gcs_file_copy(self, from_path, to_path, sha256):
+    if self._enable_caching and sha256:
+      self._cached_gcs_file_copy(from_path, to_path, sha256)
+    else:
+      self._uncached_gcs_file_copy(from_path, to_path)
+
+  def _cached_gcs_file_copy(self, from_path, to_path, sha256):
+    cached_path = self._cached_location(sha256)
+    if FileSystems.exists(cached_path):
+      _LOGGER.info(
+          'Skipping upload of %s because it already exists at %s',
+          to_path,
+          cached_path)
+    else:
+      self._uncached_gcs_file_copy(from_path, cached_path)
+
+    FileSystems.copy(
+        source_file_names=[cached_path], destination_file_names=[to_path])
+    _LOGGER.info('Copied cached artifact from %s to %s', from_path, to_path)
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _gcs_file_copy(self, from_path, to_path):
+  def _uncached_gcs_file_copy(self, from_path, to_path):
     to_folder, to_name = os.path.split(to_path)
     total_size = os.path.getsize(from_path)
     with open(from_path, 'rb') as f:
@@ -586,6 +642,9 @@ class DataflowApplicationClient(object):
         role_payload = (
             beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                 dep.role_payload))
+        if self._enable_caching and not type_payload.sha256:
+          type_payload.sha256 = self._compute_sha256(type_payload.path)
+
         if type_payload.sha256 and type_payload.sha256 in staged_hashes:
           _LOGGER.info(
               'Found duplicated artifact sha256: %s (%s)',
@@ -604,7 +663,8 @@ class DataflowApplicationClient(object):
               staged_name=staged_name).SerializeToString()
         else:
           staged_name = role_payload.staged_name
-          resources.append((type_payload.path, staged_name))
+          resources.append(
+              (type_payload.path, staged_name, type_payload.sha256))
           staged_paths[type_payload.path] = staged_name
           staged_hashes[type_payload.sha256] = staged_name
 
@@ -775,8 +835,7 @@ class DataflowApplicationClient(object):
         packages=resources,
         options=job.options,
         environment_version=self.environment_version,
-        proto_pipeline=job.proto_pipeline,
-        _sdk_image_overrides=self._sdk_image_overrides).proto
+        proto_pipeline=job.proto_pipeline).proto
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
@@ -1043,9 +1102,9 @@ class _LegacyDataflowStager(Stager):
     super().__init__()
     self._dataflow_application_client = dataflow_application_client
 
-  def stage_artifact(self, local_path_to_artifact, artifact_name):
+  def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):
     self._dataflow_application_client._gcs_file_copy(
-        local_path_to_artifact, artifact_name)
+        local_path_to_artifact, artifact_name, sha256)
 
   def commit_manifest(self):
     pass
@@ -1112,10 +1171,21 @@ def _use_unified_worker(pipeline_options):
   debug_options = pipeline_options.view_as(DebugOptions)
   use_unified_worker_flag = 'use_unified_worker'
   use_runner_v2_flag = 'use_runner_v2'
+  enable_prime_flag = 'enable_prime'
 
   if (debug_options.lookup_experiment(use_runner_v2_flag) and
       not debug_options.lookup_experiment(use_unified_worker_flag)):
     debug_options.add_experiment(use_unified_worker_flag)
+
+  dataflow_service_options = pipeline_options.view_as(
+      GoogleCloudOptions).dataflow_service_options or []
+  if ((debug_options.lookup_experiment(enable_prime_flag) or
+       enable_prime_flag in dataflow_service_options) and
+      not any([debug_options.lookup_experiment('disable_prime_runner_v2'),
+               debug_options.lookup_experiment('disable_runner_v2')])):
+    debug_options.add_experiment(use_runner_v2_flag)
+    debug_options.add_experiment(use_unified_worker_flag)
+    debug_options.add_experiment(enable_prime_flag)
 
   return debug_options.lookup_experiment(use_unified_worker_flag)
 

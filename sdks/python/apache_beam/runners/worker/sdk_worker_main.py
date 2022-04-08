@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import importlib
 import json
 import logging
 import os
@@ -34,6 +35,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
@@ -45,6 +47,24 @@ from apache_beam.utils import profiler
 
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
+
+
+def _import_beam_plugins(plugins):
+  for plugin in plugins:
+    try:
+      importlib.import_module(plugin)
+      _LOGGER.info('Imported beam-plugin %s', plugin)
+    except ImportError:
+      try:
+        _LOGGER.debug((
+            "Looks like %s is not a module. "
+            "Trying to import it assuming it's a class"),
+                      plugin)
+        module, _ = plugin.rsplit('.', 1)
+        importlib.import_module(module)
+        _LOGGER.info('Imported %s for beam-plugin %s', module, plugin)
+      except ImportError as exc:
+        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
 
 
 def create_harness(environment, dry_run=False):
@@ -76,6 +96,8 @@ def create_harness(environment, dry_run=False):
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
   filesystems.FileSystems.set_options(sdk_pipeline_options)
+  pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
+  pickler.set_library(pickle_library)
 
   if 'SEMI_PERSISTENT_DIRECTORY' in environment:
     semi_persistent_directory = environment['SEMI_PERSISTENT_DIRECTORY']
@@ -85,17 +107,18 @@ def create_harness(environment, dry_run=False):
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = environment.get('WORKER_ID', None)
 
-  try:
-    _load_main_session(semi_persistent_directory)
-  except CorruptMainSessionException:
-    exception_details = traceback.format_exc()
-    _LOGGER.error(
-        'Could not load main session: %s', exception_details, exc_info=True)
-    raise
-  except Exception:  # pylint: disable=broad-except
-    exception_details = traceback.format_exc()
-    _LOGGER.error(
-        'Could not load main session: %s', exception_details, exc_info=True)
+  if pickle_library != pickler.USE_CLOUDPICKLE:
+    try:
+      _load_main_session(semi_persistent_directory)
+    except CorruptMainSessionException:
+      exception_details = traceback.format_exc()
+      _LOGGER.error(
+          'Could not load main session: %s', exception_details, exc_info=True)
+      raise
+    except Exception:  # pylint: disable=broad-except
+      exception_details = traceback.format_exc()
+      _LOGGER.error(
+          'Could not load main session: %s', exception_details, exc_info=True)
 
   _LOGGER.info(
       'Pipeline_options: %s',
@@ -112,6 +135,10 @@ def create_harness(environment, dry_run=False):
 
   experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
   enable_heap_dump = 'enable_heap_dump' in experiments
+
+  beam_plugins = sdk_pipeline_options.view_as(SetupOptions).beam_plugins or []
+  _import_beam_plugins(beam_plugins)
+
   if dry_run:
     return
   sdk_harness = SdkHarness(
