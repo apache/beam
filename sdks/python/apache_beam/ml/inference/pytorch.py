@@ -22,6 +22,7 @@ from typing import List
 
 import torch
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import InferenceRunner
 from apache_beam.ml.inference.base import ModelLoader
 
@@ -84,7 +85,8 @@ class PytorchModelLoader(ModelLoader):
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
     model = self._model_class
-    model.load_state_dict(torch.load(self._state_dict_path))
+    file = FileSystems.open(self._state_dict_path, 'rb')
+    model.load_state_dict(torch.load(file))
     model.eval()
     return model
 
