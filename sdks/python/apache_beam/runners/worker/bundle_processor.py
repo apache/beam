@@ -201,6 +201,7 @@ class DataInputOperation(RunnerIOOperation):
               0,
               self.consumers,
               self.windowed_coder,
+              self.get_output_batch_converter(),
               self._get_runtime_performance_hints())
       ]
 

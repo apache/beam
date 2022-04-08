@@ -32,6 +32,7 @@ import unittest
 import uuid
 from typing import Any
 from typing import Dict
+from typing import Iterator
 from typing import Tuple
 
 import hamcrest  # pylint: disable=ungrouped-imports
@@ -124,7 +125,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_batch_pardo(self):
     class MultiplyDoFn(beam.DoFn):
-      def process_batch(self, batch: np.ndarray) -> np.ndarray:
+      def process_batch(self, batch: np.ndarray) -> Iterator[np.ndarray]:
         assert isinstance(batch, np.ndarray)
         yield batch * 2
 

@@ -1287,6 +1287,7 @@ class DoFnRunner:
         per_element_output_counter)
 
     self.input_batch_converter = getattr(fn, 'input_batch_converter', None)
+    self.output_batch_converter = getattr(fn, 'output_batch_converter', None)
 
     if do_fn_signature.is_stateful_dofn() and not user_state_context:
       raise Exception(
