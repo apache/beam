@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import com.hadoop.compression.fourmc.FourMcCodec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
@@ -177,6 +178,19 @@ public enum Compression {
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
           LzoCompression.createLzoOutputStream(Channels.newOutputStream(channel)));
+    }
+  },
+
+  MC4(".4mc", ".4mc") {
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          new FourMcCodec().createOutputStream(Channels.newOutputStream(channel)));
+    }
+
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) {
+      return channel;
     }
   },
 

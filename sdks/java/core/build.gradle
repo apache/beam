@@ -17,6 +17,9 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+
+apply plugin: 'maven-publish'
+
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
@@ -81,6 +84,7 @@ dependencies {
   implementation library.java.antlr_runtime
   implementation library.java.commons_compress
   implementation library.java.commons_lang3
+  implementation "com.hadoop:hadoop-4mc:2.2.0"
   shadow library.java.jsr305
   shadow library.java.error_prone_annotations
   shadow library.java.jackson_core

@@ -150,7 +150,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     /** @see Compression#LZOP */
     LZOP(Compression.LZOP),
-
+    MC4(Compression.MC4),
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE),
 
@@ -182,10 +182,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       switch (canonical) {
         case AUTO:
           throw new IllegalArgumentException("AUTO is not supported for writing");
-
+        
         case UNCOMPRESSED:
           return UNCOMPRESSED;
 
+        case MC4:
+          return MC4;
         case GZIP:
           return GZIP;
 
