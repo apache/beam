@@ -57,8 +57,7 @@ def produce_pcoll_with_schema(the_table_schema):
   i = 0
   dict_of_tuples = []
   for x in the_schema['fields']:
-    if the_schema['fields'][i][
-        'type'] == 'STRING' or 'INTEGER' or 'FLOAT64' or 'BOOLEAN' or 'BYTES' or 'TIMESTAMP':
+    if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES.keys():
       typ = bq_field_to_type(
           the_schema['fields'][i]['type'], the_schema['fields'][i]['mode'])
     else:
