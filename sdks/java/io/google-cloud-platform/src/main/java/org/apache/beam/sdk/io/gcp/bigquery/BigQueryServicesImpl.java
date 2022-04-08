@@ -112,7 +112,6 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.CustomHttpErrors;
-import org.apache.beam.sdk.extensions.gcp.util.GceMetadataUtil;
 import org.apache.beam.sdk.extensions.gcp.util.LatencyRecordingHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -489,6 +488,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private BoundedExecutorService executor;
+    private final BigQueryIOMetadata bqIOMetadata;
 
     @VisibleForTesting
     DatasetServiceImpl(
@@ -500,6 +500,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -516,6 +517,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -526,6 +528,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -1219,19 +1222,14 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
-      String dataflowJobId = GceMetadataUtil.fetchDataflowJobId();
-      boolean isDataflowRunner = dataflowJobId != null && !dataflowJobId.isEmpty();
-      String beamJobId = null;
-      if (isDataflowRunner) {
-        if (BigQueryIOMetadata.isValidCloudLabel(dataflowJobId)) {
-          beamJobId = dataflowJobId;
-        }
-      }
 
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
-              .setTraceId("Dataflow:" + beamJobId != null ? beamJobId : options.getJobName())
+              .setTraceId(
+                  "Dataflow:" + bqIOMetadata.getBeamJobId() != null
+                      ? bqIOMetadata.getBeamJobId()
+                      : options.getJobName())
               .build();
       return new StreamAppendClient() {
         private int pins = 0;
