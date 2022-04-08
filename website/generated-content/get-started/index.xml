@@ -4300,8 +4300,8 @@ limitations under the License.
 localStorage.setItem("language", "language-py")
 &lt;/script>
 &lt;p>If you already know &lt;a href="http://spark.apache.org/">&lt;em>Apache Spark&lt;/em>&lt;/a>,
-learning &lt;em>Apache Beam&lt;/em> is familiar.
-The Beam and Spark APIs are similar, so you already know the basic concepts.&lt;/p>
+using Beam should be easy.
+The basic concepts are the same, and the APIs are similar as well.&lt;/p>
 &lt;p>Spark stores data &lt;em>Spark DataFrames&lt;/em> for structured data,
 and in &lt;em>Resilient Distributed Datasets&lt;/em> (RDD) for unstructured data.
 We are using RDDs for this guide.&lt;/p>
@@ -4351,7 +4351,8 @@ methods like &lt;code>data.map(...)&lt;/code>, but they&amp;rsquo;re doing the s
 &lt;blockquote>
 &lt;p>ℹ️ Note that we called &lt;code>print&lt;/code> inside a &lt;code>Map&lt;/code> transform.
 That&amp;rsquo;s because we can only access the elements of a PCollection
-from within a PTransform.&lt;/p>
+from within a PTransform.
+To inspect the data locally, you can use the &lt;a href="https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#creating_your_pipeline">InteractiveRunner&lt;/a>&lt;/p>
 &lt;/blockquote>
 &lt;p>Another thing to note is that Beam pipelines are constructed lazily.
 This means that when you pipe &lt;code>|&lt;/code> data you&amp;rsquo;re only declaring the
@@ -4549,9 +4550,10 @@ we can&amp;rsquo;t guarantee that the results we&amp;rsquo;ve calculated are ava
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">pyspark&lt;/span>
 &lt;span class="n">sc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pyspark&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SparkContext&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="n">values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sc&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parallelize&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>
-&lt;span class="n">total&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reduce&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="c1"># We can simply use `total` since it&amp;#39;s already a Python `int` value from `reduce`.&lt;/span>
-&lt;span class="n">scaled_values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">total&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">min_value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reduce&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">min&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">max_value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reduce&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">max&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># We can simply use `min_value` and `max_value` since it&amp;#39;s already a Python `int` value from `reduce`.&lt;/span>
+&lt;span class="n">scaled_values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">min_value&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">max_value&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">min_value&lt;/span>&lt;span class="p">))&lt;/span>
 &lt;span class="c1"># But to access `scaled_values`, we need to call `collect`.&lt;/span>
 &lt;span class="k">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">scaled_values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">collect&lt;/span>&lt;span class="p">())&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
@@ -4575,17 +4577,21 @@ and access them as an &lt;a href="https://docs.python.org/3/glossary.html#term-i
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
 &lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="n">values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>
-&lt;span class="n">total&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">min_value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">min&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">max_value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">max&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="c1"># To access `total`, we need to pass it as a side input.&lt;/span>
 &lt;span class="n">scaled_values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">total&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">total&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">total&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AsSingleton&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">total&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">min_value&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">max_value&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">min_value&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">max_value&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">min_value&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">min_value&lt;/span> &lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AsSingleton&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">min_value&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">max_value&lt;/span> &lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AsSingleton&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">max_value&lt;/span>&lt;span class="p">))&lt;/span>
 &lt;span class="n">scaled_values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;blockquote>
 &lt;p>ℹ️ In Beam we need to pass a side input explicitly, but we get the
-benefit that a reduction or aggregation does &lt;em>not&lt;/em> have to fit into memory.&lt;/p>
+benefit that a reduction or aggregation does &lt;em>not&lt;/em> have to fit into memory.
+Lazily computing side inputs also allows us to compute &lt;code>values&lt;/code> only once,
+rather than for each distinct reduction (or requiring explicit caching of the RDD).&lt;/p>
 &lt;/blockquote>
 &lt;h2 id="next-steps">Next Steps&lt;/h2>
 &lt;ul>
