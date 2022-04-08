@@ -107,7 +107,8 @@ public class SparkReceiverIO {
      */
     @VisibleForTesting
     UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
-      return new SparkReceiverUnboundedSource<>(this, -1);
+      //FIXME
+      return new SparkReceiverUnboundedSource<>(this, -1, "0", "32000");
     }
   }
 

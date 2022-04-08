@@ -36,10 +36,18 @@ public class HubspotReceiver extends Receiver<String> {
   private static final Logger LOG = LoggerFactory.getLogger(HubspotReceiver.class);
   private static final String RECEIVER_THREAD_NAME = "hubspot_api_listener";
   private final HubspotStreamingSourceConfig config;
+  private String offset;
+  private Integer position;
 
-  HubspotReceiver(HubspotStreamingSourceConfig config) throws IOException {
+  HubspotReceiver(HubspotStreamingSourceConfig config, String offset, Integer position) throws IOException {
     super(StorageLevel.MEMORY_AND_DISK_2());
     this.config = config;
+    this.offset = offset;
+    this.position = position;
+  }
+
+  HubspotReceiver(HubspotStreamingSourceConfig config) throws IOException {
+    this(config, null, 0);
   }
 
   @Override
@@ -58,9 +66,11 @@ public class HubspotReceiver extends Receiver<String> {
 
   private void receive() {
     try {
-      HubspotPagesIterator hubspotPagesIterator = new HubspotPagesIterator(config);
-
+      HubspotPagesIterator hubspotPagesIterator = new HubspotPagesIterator(config, offset);
+      hubspotPagesIterator.setIteratorPosition(position);
       while (!isStopped()) {
+        offset = hubspotPagesIterator.getCurrentPageOffset();
+        position = hubspotPagesIterator.getIteratorPosition();
         if (hubspotPagesIterator.hasNext()) {
           store(hubspotPagesIterator.next().toString());
         } else {
@@ -90,5 +100,13 @@ public class HubspotReceiver extends Receiver<String> {
       LOG.error(errorMessage, e);
       throw new RuntimeException(errorMessage, e);
     }
+  }
+
+  public String getOffset() {
+    return offset;
+  }
+
+  public Integer getPosition() {
+    return position;
   }
 }

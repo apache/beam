@@ -39,7 +39,7 @@ public class CdapPluginMappingUtils {
     if (config instanceof SalesforceStreamingSourceConfig) {
       return getProxyReceiverForSalesforce((SalesforceStreamingSourceConfig) config, consumer);
     } else if (config instanceof HubspotStreamingSourceConfig) {
-      return getProxyReceiverForHubspot((HubspotStreamingSourceConfig) config, consumer);
+      return getProxyReceiverForHubspot((HubspotStreamingSourceConfig) config, consumer, null, 0);
     } else {
       return null;
     }
@@ -63,15 +63,16 @@ public class CdapPluginMappingUtils {
   }
 
   public static HubspotReceiver getProxyReceiverForHubspot(
-          HubspotStreamingSourceConfig config, Consumer<Object[]> consumer) {
+          HubspotStreamingSourceConfig config, Consumer<Object[]> consumer, String offset, Integer position) {
     ProxyReceiverBuilder<String, HubspotReceiver> builder =
             new ProxyReceiverBuilder<>(HubspotReceiver.class);
-
     try {
-      return
-              builder
-                      .withConstructorArgs(config)
-                      .withCustomStoreConsumer(consumer)
+      if (offset != null) {
+        builder.withConstructorArgs(config, offset, position);
+      } else {
+        builder.withConstructorArgs(config);
+      }
+      return builder.withCustomStoreConsumer(consumer)
                       .build();
     } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       LOG.error("Can not build proxy Spark Receiver", e);

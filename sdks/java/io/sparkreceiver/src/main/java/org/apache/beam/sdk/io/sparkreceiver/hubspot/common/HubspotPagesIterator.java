@@ -43,7 +43,11 @@ public class HubspotPagesIterator implements Iterator<JsonElement> {
   }
 
   public HubspotPagesIterator(SourceHubspotConfig config) throws IOException {
-    this(config, new HubspotHelper().getHubspotPage(config, null), null);
+    this(config,null);
+  }
+
+  public HubspotPagesIterator(SourceHubspotConfig config, String offset) throws IOException {
+    this(config, new HubspotHelper().getHubspotPage(config, offset), offset);
   }
 
   /**

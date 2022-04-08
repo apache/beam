@@ -41,9 +41,14 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
   public List<SparkReceiverUnboundedSource<V>> split(int desiredNumSplits, PipelineOptions options)
       throws Exception {
 
-    List<SparkReceiverUnboundedSource<V>> result = new ArrayList<>();
+    List<SparkReceiverUnboundedSource<V>> result = new ArrayList<>(desiredNumSplits);
 
-    result.add(new SparkReceiverUnboundedSource<>(spec.toBuilder().build(), 0));
+    int offset = Integer.parseInt(maxOffset) / desiredNumSplits;
+    for (int i = 0; i < desiredNumSplits; i++) {
+      result.add(new SparkReceiverUnboundedSource<>(spec.toBuilder().build(), i,
+              String.valueOf(offset * i),
+              String.valueOf(offset * (i + 1))));
+    }
 
     return result;
   }
@@ -75,10 +80,23 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
 
   private final Read<V> spec; // Contains all the relevant configuratiton of the source.
   private final int id; // split id, mainly for debugging
+  private final String minOffset;
+  private final String maxOffset;
 
-  public SparkReceiverUnboundedSource(Read<V> spec, int id) {
+  public SparkReceiverUnboundedSource(Read<V> spec, int id, String minOffset, String maxOffset) {
     this.spec = spec;
     this.id = id;
+    this.minOffset = minOffset;
+    this.maxOffset = maxOffset;
+
+  }
+
+  public String getMaxOffset() {
+    return maxOffset;
+  }
+
+  public String getMinOffset() {
+    return minOffset;
   }
 
   Read<V> getSpec() {

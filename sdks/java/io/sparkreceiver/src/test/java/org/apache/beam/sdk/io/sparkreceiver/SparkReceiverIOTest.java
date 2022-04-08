@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequen
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.Duration;
@@ -82,13 +83,7 @@ public class SparkReceiverIOTest {
               return null;
             });
 
+      p.run().waitUntilFinish();
 
-      PipelineResult readResult = p.run();
-      PipelineResult.State readState =
-              readResult.waitUntilFinish(Duration.standardSeconds(10));
-
-      if (readState == null) {
-          readResult.cancel();
-      }
   }
 }

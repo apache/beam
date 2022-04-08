@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.util.Optional;
 import org.apache.avro.reflect.AvroIgnore;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -30,14 +31,27 @@ import org.apache.beam.sdk.io.UnboundedSource;
 })
 public class SparkReceiverCheckpointMark implements UnboundedSource.CheckpointMark {
 
+  private @Nullable String offset;
+  private @Nullable Integer position;
+
   @AvroIgnore
   private Optional<SparkReceiverUnboundedReader<?>>
       reader; // Present when offsets need to be committed.
 
   private SparkReceiverCheckpointMark() {} // for Avro
 
-  public SparkReceiverCheckpointMark(Optional<SparkReceiverUnboundedReader<?>> reader) {
+  public SparkReceiverCheckpointMark(Integer position, String offset, Optional<SparkReceiverUnboundedReader<?>> reader) {
+    this.offset = offset;
+    this.position = position;
     this.reader = reader;
+  }
+
+  public String getOffset() {
+    return offset;
+  }
+
+  public Integer getPosition() {
+    return position;
   }
 
   @Override
