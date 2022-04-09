@@ -19,14 +19,19 @@ package org.apache.beam.sdk.io.sparkreceiver;
 
 import static org.junit.Assert.*;
 
+import org.apache.beam.examples.common.WriteOneFilePerWindow;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.BaseHubspotConfig;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -45,6 +50,12 @@ public class SparkReceiverIOTest {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
+    Duration WINDOW_TIME = Duration.standardSeconds(5);
+
+    Duration ALLOWED_LATENESS = Duration.standardSeconds(5);
+
+    private static final String HUBSPOT_CONTACTS_OUTPUT_TXT = "src/test/resources/hubspot-contacts-output.txt";
+
   private static final long NUM_OF_TEST_HUBSPOT_CONTACTS =
       Long.parseLong(System.getenv("HUBSPOT_CONTACTS_NUM"));
   private static final ImmutableMap<String, Object> TEST_HUBSPOT_PARAMS_MAP =
@@ -58,6 +69,7 @@ public class SparkReceiverIOTest {
 
   @Test
   public void testReadFromHubspot() throws IOException {
+
     HubspotStreamingSourceConfig pluginConfig =
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
             .withParams(TEST_HUBSPOT_PARAMS_MAP)
@@ -69,7 +81,10 @@ public class SparkReceiverIOTest {
             .withValueClass(String.class)
             .withSparkReceiverClass(HubspotReceiver.class);
 
-    PCollection<String> input = p.apply(reader).setCoder(StringUtf8Coder.of());
+    PCollection<String> input = p.apply(reader).setCoder(StringUtf8Coder.of())
+            .apply("apply window", Window.<String>into(FixedWindows.of(WINDOW_TIME)));
+
+    input.apply(new WriteOneFilePerWindow(HUBSPOT_CONTACTS_OUTPUT_TXT, 1));
 
     PAssert.that(input)
         .satisfies(
@@ -83,7 +98,7 @@ public class SparkReceiverIOTest {
               return null;
             });
 
-      p.run().waitUntilFinish();
+      p.run().waitUntilFinish(Duration.millis(5000));
 
   }
 }

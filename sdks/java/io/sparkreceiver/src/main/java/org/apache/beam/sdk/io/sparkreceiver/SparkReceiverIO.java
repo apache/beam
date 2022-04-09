@@ -33,6 +33,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.PriorityQueue;
+
 /**
  * Streaming sources and sinks from <a href="https://github.com/data-integrations">CDAP</a> plugins.
  */
@@ -108,7 +110,7 @@ public class SparkReceiverIO {
     @VisibleForTesting
     UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
       //FIXME
-      return new SparkReceiverUnboundedSource<>(this, -1, "0", "32000");
+      return new SparkReceiverUnboundedSource<>(this, -1, "0", "32000", null, new PriorityQueue<>());
     }
   }
 

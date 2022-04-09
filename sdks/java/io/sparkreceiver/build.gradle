@@ -53,4 +53,5 @@ dependencies {
     testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation library.java.junit
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
 }

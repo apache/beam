@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.sparkreceiver.hubspot.common;
 import com.google.gson.JsonElement;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 /** Iterates over all records in all pages. */
 public class HubspotPagesIterator implements Iterator<JsonElement> {
@@ -73,10 +74,18 @@ public class HubspotPagesIterator implements Iterator<JsonElement> {
 
   @Override
   public boolean hasNext() {
-    try {
-      switchPageIfNeeded();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to switch to next page", e);
+    while (true) {
+      try {
+        switchPageIfNeeded();
+        break;
+      } catch (IOException e) {
+        try {
+          TimeUnit.MILLISECONDS.sleep(100);
+        } catch (InterruptedException ex) {
+          //
+        }
+//        throw new RuntimeException("Failed to switch to next page", e);
+      }
     }
     return (currentPageIterator != null);
   }

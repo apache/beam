@@ -49,47 +49,7 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
   @Override
   public boolean start() throws IOException {
     // TODO:
-    try {
-      PluginConfig config = source.getPluginConfig();
-      Receiver receiver;
-      Consumer<Object[]> storeConsumer = args -> {
-        V dataItem = (V) args[0];
-        try {
-          availableRecordsQueue.offer(
-                  dataItem, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
-          recordsRead++;
-//          LOG.info(dataItem.toString());
-          if (hReceiver!= null) {
-            curOffset = hReceiver.getOffset();
-            curPosition = hReceiver.getPosition();
-//            if (curOffset != null) {
-//              LOG.info("CUR OFFSET {}", curOffset);
-//            }
-//            if (curPosition > 0) {
-//              LOG.info("CUR POSITION {}", curPosition);
-//            }
-            if (recordsRead % 100 == 0) {
-              LOG.info("[{}], records read = {}", source.getId(), recordsRead);
-            }
-          }
-        } catch (InterruptedException e) {
-          LOG.error("Can not offer data item to the records queue", e);
-        }
-        // checkpoint mark
-      };
-      if (config instanceof HubspotStreamingSourceConfig) {
-        HubspotStreamingSourceConfig hConfig = (HubspotStreamingSourceConfig) config;
-        receiver = CdapPluginMappingUtils
-                .getProxyReceiverForHubspot(hConfig, storeConsumer, curOffset, curPosition);
-        hReceiver = ((HubspotReceiver) receiver);
-      } else {
-        receiver =
-                CdapPluginMappingUtils.getProxyReceiver(config, storeConsumer);
-      }
-      receiver.onStart();
-    } catch (Exception e) {
-      LOG.error("Can not get Spark Receiver object!", e);
-    }
+
 
     return advance();
   }
@@ -104,21 +64,34 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
       return false;
     }
     V record;
-    try {
+//    try {
       // poll available records, wait (if necessary) up to the specified timeout.
       record =
-          availableRecordsQueue.poll(
-              RECORDS_DEQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      LOG.warn("{}: Unexpected", this, e);
-      return false;
-    }
+          availableRecordsQueue.poll();
+//    } catch (InterruptedException e) {
+//      Thread.currentThread().interrupt();
+//      LOG.warn("{}: Unexpected", this, e);
+//      return false;
+//    }
 
     if (record == null) {
       return false;
     } else {
       curRecord = record;
+      recordsRead++;
+      if (hReceiver!= null) {
+        curOffset = hReceiver.getOffset();
+        curPosition = hReceiver.getPosition();
+//            if (curOffset != null) {
+//              LOG.info("CUR OFFSET {}", curOffset);
+//            }
+//            if (curPosition > 0) {
+//              LOG.info("CUR POSITION {}", curPosition);
+//            }
+        if (recordsRead % 10 == 0) {
+          LOG.info("[{}], records read = {}", source.getId(), recordsRead);
+        }
+      }
       return true;
     }
   }
@@ -174,8 +147,8 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
 //  @VisibleForTesting
 //  static final String CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC = "checkpointMarkCommitsEnqueued";
 
-  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
-  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
+//  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
+//  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
 
 //  private static final String CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC =
 //      "checkpointMarkCommitsSkipped";
@@ -188,7 +161,7 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
   private HubspotReceiver hReceiver;
   private int recordsRead = 0;
 //  private Instant curTimestamp;
-  private final SynchronousQueue<V> availableRecordsQueue = new SynchronousQueue<>();
+  private final Queue<V> availableRecordsQueue;
   //    private Iterator<KV<K, V>> recordIter = Collections.emptyIterator();
 
 //  private AtomicReference<SparkReceiverCheckpointMark> finalizedCheckpointMark =
@@ -220,12 +193,14 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
     } else {
       curOffset = source.getMinOffset();
     }
+    this.hReceiver = source.gethReceiver();
+    this.availableRecordsQueue = source.getAvailableRecordsQueue();
   }
 
   @Override
   public void close() throws IOException {
     closed.set(true);
-    hReceiver.stop("Stopped");
+//    hReceiver.stop("Stopped");
   }
 
   void finalizeCheckpointMarkAsync(SparkReceiverCheckpointMark checkpointMark) {
