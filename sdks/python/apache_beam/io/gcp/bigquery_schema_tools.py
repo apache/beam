@@ -20,10 +20,12 @@ Classes, constants and functions in this file are experimental and have no
 backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
-import apache_beam as beam
-import numpy as np
 from typing import Optional
 from typing import Sequence
+
+import numpy as np
+
+import apache_beam as beam
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
@@ -56,8 +58,8 @@ def produce_pcoll_with_schema(the_table_schema):
     raise ValueError("The schema is empty")
   i = 0
   dict_of_tuples = []
-  for x in the_schema['fields']:
-    if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES.keys():
+  for i in range(len(the_schema['fields'])):
+    if the_schema['fields'][i]['type'] in BIG_QUERY_TO_PYTHON_TYPES:
       typ = bq_field_to_type(
           the_schema['fields'][i]['type'], the_schema['fields'][i]['mode'])
     else:

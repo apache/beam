@@ -16,7 +16,9 @@
 
 import typing
 import unittest
+
 import numpy as np
+
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.internal.clients import bigquery
