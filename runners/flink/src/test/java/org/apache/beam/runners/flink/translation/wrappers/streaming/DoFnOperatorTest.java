@@ -305,10 +305,7 @@ public class DoFnOperatorTest {
             eventTimerWithOutputTimestamp
                 .withOutputTimestamp(timerOutputTimestamp)
                 .set(timerTimestamp);
-            processingTimer
-                .offset(Duration.millis(timerTimestamp.getMillis()))
-                .withOutputTimestamp(timerOutputTimestamp)
-                .setRelative();
+            processingTimer.offset(Duration.millis(timerTimestamp.getMillis())).setRelative();
           }
 
           @OnTimer(eventTimerId)
@@ -333,7 +330,7 @@ public class DoFnOperatorTest {
                 // Timestamps in processing timer context are defined to be the input watermark
                 // See SimpleDoFnRunner#onTimer
                 "Timer timestamp must match current input watermark",
-                timerOutputTimestamp,
+                timerTimestamp.plus(Duration.millis(1)),
                 context.timestamp());
             context.outputWithTimestamp(processingTimeMessage, context.timestamp());
           }
@@ -429,8 +426,10 @@ public class DoFnOperatorTest {
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(
             WindowedValue.of(
+                // Timestamps in processing timer context are defined to be the input watermark
+                // See SimpleDoFnRunner#onTimer
                 processingTimeMessage,
-                timerTimestamp.minus(Duration.millis(1)),
+                timerTimestamp.plus(Duration.millis(1)),
                 window1,
                 PaneInfo.NO_FIRING)));
 

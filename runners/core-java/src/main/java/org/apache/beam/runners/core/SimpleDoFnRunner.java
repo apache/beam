@@ -199,6 +199,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     Preconditions.checkNotNull(outputTimestamp, "outputTimestamp");
+
     OnTimerArgumentProvider<KeyT> argumentProvider =
         new OnTimerArgumentProvider<>(timerId, key, window, timestamp, outputTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
