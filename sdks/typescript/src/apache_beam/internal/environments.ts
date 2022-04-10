@@ -18,7 +18,7 @@
 
 import * as runnerApi from "../proto/beam_runner_api";
 
-export const PYTHON_DEFAULT_ENVIRONMENT_URN = "js_default";
+export const TYPESCRIPT_DEFAULT_ENVIRONMENT_URN = "js_default";
 
 function javascriptCapabilities(): string[] {
   return []; // TODO: Cleanup. Actually populate.
@@ -26,7 +26,7 @@ function javascriptCapabilities(): string[] {
 
 export function defaultJsEnvironment() {
   return runnerApi.Environment.create({
-    urn: PYTHON_DEFAULT_ENVIRONMENT_URN,
+    urn: TYPESCRIPT_DEFAULT_ENVIRONMENT_URN,
     capabilities: javascriptCapabilities(),
   });
 }

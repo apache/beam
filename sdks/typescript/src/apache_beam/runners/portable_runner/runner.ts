@@ -125,18 +125,34 @@ export class PortableRunner extends Runner {
     options?: PipelineOptions
   ) {
     // TODO: (Cleanup) Choose a free port.
+    const use_loopback_service = false;
     const externalWorkerServiceAddress = "localhost:5555";
-    const workers = new ExternalWorkerPool(externalWorkerServiceAddress);
-    workers.start();
+    const workers = use_loopback_service
+      ? new ExternalWorkerPool(externalWorkerServiceAddress)
+      : undefined;
+    if (use_loopback_service) {
+      workers!.start();
+    }
 
     // Replace the default environment according to the pipeline options.
     pipeline = runnerApiProto.Pipeline.clone(pipeline);
     for (const [envId, env] of Object.entries(
       pipeline.components!.environments
     )) {
-      if (env.urn == environments.PYTHON_DEFAULT_ENVIRONMENT_URN) {
-        pipeline.components!.environments[envId] =
-          environments.asExternalEnvironment(env, externalWorkerServiceAddress);
+      if (env.urn == environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
+        if (use_loopback_service) {
+          pipeline.components!.environments[envId] =
+            environments.asExternalEnvironment(
+              env,
+              externalWorkerServiceAddress
+            );
+        } else {
+          pipeline.components!.environments[envId] =
+            environments.asDockerEnvironment(
+              env,
+              "docker.io/apache/beam_typescript_sdk:latest"
+            );
+        }
       }
     }
 

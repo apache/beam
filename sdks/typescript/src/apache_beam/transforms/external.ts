@@ -91,7 +91,7 @@ export class RawExternalTransform<
 
     const request = ExpansionRequest.create({
       transform: runnerApi.PTransform.create({
-        uniqueName: "test",
+        uniqueName: transformProto.uniqueName,
         spec: { urn: this.urn, payload: this.payload },
         inputs: transformProto.inputs,
       }),

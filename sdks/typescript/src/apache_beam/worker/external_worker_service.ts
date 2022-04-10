@@ -29,7 +29,7 @@ import {
   IBeamFnExternalWorkerPool,
 } from "../proto/beam_fn_api.grpc-server";
 
-import { Worker } from "./worker";
+import { Worker, WorkerEndpoints } from "./worker";
 
 export class ExternalWorkerPool {
   host: string;
@@ -58,7 +58,13 @@ export class ExternalWorkerPool {
         console.log(call.request);
         this_.workers.set(
           call.request.workerId,
-          new Worker(call.request.workerId, call.request)
+          new Worker(
+            call.request.workerId,
+            {
+              controlUrl: call.request?.controlEndpoint?.url!,
+            },
+            {}
+          )
         );
         callback(null, {
           error: "",
