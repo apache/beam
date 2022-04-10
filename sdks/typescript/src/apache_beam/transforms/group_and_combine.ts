@@ -20,7 +20,7 @@ import { KV } from "../values";
 import { PTransform } from "./transform";
 import { PCollection } from "../pvalue";
 import * as internal from "./internal";
-import { CountFn } from "./combiners";
+import { count } from "./combiners";
 
 // TODO: (API) Consider groupBy as a top-level method on PCollections.
 // TBD how to best express the combiners.
@@ -199,11 +199,7 @@ export class CountPerElement<T> extends PTransform<
 > {
   expand(input) {
     return input.apply(
-      new GroupBy((e) => e, "element").combining(
-        (e) => e,
-        new CountFn(),
-        "count"
-      )
+      new GroupBy((e) => e, "element").combining((e) => e, count, "count")
     );
   }
 }
@@ -214,7 +210,7 @@ export class CountGlobally<T> extends PTransform<
 > {
   expand(input) {
     return input
-      .apply(new GroupGlobally().combining((e) => e, new CountFn(), "count"))
+      .apply(new GroupGlobally().combining((e) => e, count, "count"))
       .map((o) => o.count);
   }
 }

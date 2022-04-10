@@ -83,7 +83,7 @@ export class MultiplexingDataChannel {
     transformId: string,
     consumer: IDataChannel
   ) {
-    consumer = new TruncateOnErrorDataChannel(consumer);
+    consumer = truncateOnErrorDataChannel(consumer);
     if (!this.consumers.has(bundleId)) {
       this.consumers.set(bundleId, new Map());
     }
@@ -104,9 +104,7 @@ export class MultiplexingDataChannel {
       this.consumers.set(bundleId, new Map());
     }
     if (!this.consumers.get(bundleId)!.has(transformId)) {
-      this.consumers
-        .get(bundleId)!
-        .set(transformId, new BufferingDataChannel());
+      this.consumers.get(bundleId)!.set(transformId, bufferingDataChannel());
     }
     return this.consumers.get(bundleId)!.get(transformId)!;
   }
@@ -162,73 +160,79 @@ export interface IDataChannel {
   onError: (Error) => void;
 }
 
-class BufferingDataChannel implements IDataChannel {
-  data: Uint8Array[] = [];
-  timers: [string, Uint8Array][] = [];
-  closed: boolean = false;
-  error?: Error;
-
-  sendData(data: Uint8Array) {
-    this.data.push(data);
-    return Promise.resolve();
-  }
-
-  sendTimers(timerFamilyId: string, timers: Uint8Array) {
-    this.timers.push([timerFamilyId, timers]);
-    return Promise.resolve();
-  }
-
-  close() {
-    this.closed = true;
-  }
-
-  onError(error: Error) {
-    this.closed = true;
-    this.error = error;
-  }
-
-  async flush(channel: IDataChannel) {
-    for (const datum of this.data) {
-      await channel.sendData(datum);
-    }
-    for (const [timerFamilyId, timers] of this.timers) {
-      await channel.sendTimers(timerFamilyId, timers);
-    }
-    if (this.error) {
-      channel.onError(this.error);
-    }
-    if (this.closed) {
-      channel.close();
-    }
-  }
+interface BufferingDataChannel extends IDataChannel {
+  flush: (channel: IDataChannel) => Promise<void>;
 }
 
-class TruncateOnErrorDataChannel implements IDataChannel {
-  private seenError: boolean = false;
+function bufferingDataChannel(): BufferingDataChannel {
+  const bufferedData: Uint8Array[] = [];
+  const bufferedTimers: [string, Uint8Array][] = [];
+  let closed: boolean = false;
+  let error: Error | undefined = undefined;
 
-  constructor(private underlying: IDataChannel) {}
-
-  sendData(data: Uint8Array) {
-    if (this.seenError) {
+  return {
+    sendData: function (data: Uint8Array) {
+      bufferedData.push(data);
       return Promise.resolve();
-    }
-    return this.underlying.sendData(data);
-  }
+    },
 
-  sendTimers(timerFamilyId: string, timers: Uint8Array) {
-    if (this.seenError) {
+    sendTimers: function (timerFamilyId: string, timers: Uint8Array) {
+      bufferedTimers.push([timerFamilyId, timers]);
       return Promise.resolve();
-    }
-    return this.underlying.sendTimers(timerFamilyId, timers);
-  }
+    },
 
-  close() {
-    this.underlying.close();
-  }
+    close: function () {
+      closed = true;
+    },
 
-  onError(error: Error) {
-    console.error("DATA ERROR", error);
-    this.seenError = true;
-    this.underlying.onError(error);
-  }
+    onError: function (error: Error) {
+      closed = true;
+      error = error;
+    },
+
+    flush: async function (channel: IDataChannel) {
+      for (const datum of bufferedData) {
+        await channel.sendData(datum);
+      }
+      for (const [timerFamilyId, timers] of bufferedTimers) {
+        await channel.sendTimers(timerFamilyId, timers);
+      }
+      if (error) {
+        channel.onError(error);
+      }
+      if (closed) {
+        channel.close();
+      }
+    },
+  };
+}
+
+function truncateOnErrorDataChannel(underlying: IDataChannel): IDataChannel {
+  let seenError: boolean = false;
+
+  return {
+    sendData: function (data: Uint8Array) {
+      if (seenError) {
+        return Promise.resolve();
+      }
+      return underlying.sendData(data);
+    },
+
+    sendTimers: function (timerFamilyId: string, timers: Uint8Array) {
+      if (seenError) {
+        return Promise.resolve();
+      }
+      return underlying.sendTimers(timerFamilyId, timers);
+    },
+
+    close: function () {
+      underlying.close();
+    },
+
+    onError: function (error: Error) {
+      console.error("DATA ERROR", error);
+      seenError = true;
+      underlying.onError(error);
+    },
+  };
 }
