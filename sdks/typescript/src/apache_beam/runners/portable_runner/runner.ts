@@ -150,7 +150,7 @@ export class PortableRunner extends Runner {
           pipeline.components!.environments[envId] =
             environments.asDockerEnvironment(
               env,
-              "docker.io/apache/beam_typescript_sdk:latest"
+              "gcr.io/apache-beam-testing/beam_typescript_sdk:dev"
             );
         }
       }

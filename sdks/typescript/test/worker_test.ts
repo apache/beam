@@ -193,7 +193,7 @@ describe("worker module", function () {
     const processor = new worker.BundleProcessor(descriptor, null!, null!, [
       CREATE_URN,
     ]);
-    await processor.process("bundle_id", 0);
+    await processor.process("bundle_id");
     assert.deepEqual(Recording.log, [
       "z.startBundle()",
       "y.startBundle()",
@@ -235,7 +235,7 @@ describe("worker module", function () {
     const processor = new worker.BundleProcessor(descriptor, null!, null!, [
       CREATE_URN,
     ]);
-    await processor.process("bundle_id", 0);
+    await processor.process("bundle_id");
     assert.deepEqual(Recording.log, [
       "all.startBundle()",
       "big.startBundle()",

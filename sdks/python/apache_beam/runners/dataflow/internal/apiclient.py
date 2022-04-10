@@ -302,6 +302,12 @@ class Environment(object):
             container_image_url == python_sdk_container_image)
         container_image.environmentId = id
         pool.sdkHarnessContainerImages.append(container_image)
+      # Dataflow expects a value here when there is only one environment.
+      if len(pool.sdkHarnessContainerImages) == 1:
+        pool.workerHarnessContainerImage = pool.sdkHarnessContainerImages[0].containerImage
+    else:
+      pool.workerHarnessContainerImage = (
+          get_container_image_from_options(options))
 
     if not _use_fnapi(options):
       pool.workerHarnessContainerImage = (
