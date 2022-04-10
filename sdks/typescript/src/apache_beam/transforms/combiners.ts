@@ -18,72 +18,50 @@
 
 import { CombineFn } from "./group_and_combine";
 
-export class CountFn implements CombineFn<any, number, number> {
-  createAccumulator() {
-    return 0;
-  }
-  addInput(acc: number, i: any) {
-    return acc + 1;
-  }
-  mergeAccumulators(accumulators: number[]) {
-    return accumulators.reduce((prev, current) => prev + current);
-  }
-  extractOutput(acc: number) {
-    return acc;
-  }
-}
+// TODO(cleanup): These reductions only work on Arrays, not Iterables.
 
-export class SumFn implements CombineFn<number, number, number> {
-  createAccumulator() {
-    return 0;
-  }
-  addInput(acc: number, i: number) {
-    return acc + i;
-  }
-  mergeAccumulators(accumulators: number[]) {
-    return accumulators.reduce((prev, current) => prev + current);
-  }
-  extractOutput(acc: number) {
-    return acc;
-  }
-}
+export const count: CombineFn<any, number, number> = {
+  createAccumulator: () => 0,
+  addInput: (acc, i) => acc + 1,
+  mergeAccumulators: (accumulators: number[]) =>
+    accumulators.reduce((prev, current) => prev + current),
+  extractOutput: (acc) => acc,
+};
 
-export class MaxFn implements CombineFn<any, any, any> {
-  createAccumulator() {
-    return null;
-  }
-  addInput(acc: any, i: any) {
-    if (acc == null || acc < i) {
-      return i;
-    } else {
-      return acc;
-    }
-  }
-  mergeAccumulators(accumulators: any[]) {
-    return accumulators.reduce((a, b) => (a > b ? a : b));
-  }
-  extractOutput(acc: any) {
-    return acc;
-  }
-}
+export const sum: CombineFn<number, number, number> = {
+  createAccumulator: () => 0,
+  addInput: (acc: number, i: number) => acc + i,
+  mergeAccumulators: (accumulators: number[]) =>
+    accumulators.reduce((prev, current) => prev + current),
+  extractOutput: (acc: number) => acc,
+};
 
-export class MeanFn implements CombineFn<number, [number, number], number> {
-  createAccumulator() {
-    return [0, 0] as [number, number];
-  }
-  addInput(acc: [number, number], i: number) {
-    return [acc[0] + i, acc[1] + 1] as [number, number];
-  }
-  mergeAccumulators(accumulators: [number, number][]) {
-    return accumulators.reduce(([sum0, count0], [sum1, count1]) => [
+export const max: CombineFn<any, any, any> = {
+  createAccumulator: () => undefined,
+  addInput: (acc: any, i: any) => (acc === undefined || acc < i ? i : acc),
+  mergeAccumulators: (accumulators: any[]) =>
+    accumulators.reduce((a, b) => (a > b ? a : b)),
+  extractOutput: (acc: any) => acc,
+};
+
+export const min: CombineFn<any, any, any> = {
+  createAccumulator: () => undefined,
+  addInput: (acc: any, i: any) => (acc === undefined || acc > i ? i : acc),
+  mergeAccumulators: (accumulators: any[]) =>
+    accumulators.reduce((a, b) => (a < b ? a : b)),
+  extractOutput: (acc: any) => acc,
+};
+
+export const mean: CombineFn<number, [number, number], number> = {
+  createAccumulator: () => [0, 0],
+  addInput: ([sum, count]: [number, number], i: number) => [sum + i, count + 1],
+  mergeAccumulators: (accumulators: [number, number][]) =>
+    accumulators.reduce(([sum0, count0], [sum1, count1]) => [
       sum0 + sum1,
       count0 + count1,
-    ]);
-  }
-  extractOutput(acc: number) {
-    return acc[0] / acc[1];
-  }
-}
+    ]),
+  extractOutput: ([sum, count]: [number, number]) => sum / count,
+};
 
 import { requireForSerialization } from "../serialization";
 requireForSerialization("apache_beam.transforms.combiners", exports);

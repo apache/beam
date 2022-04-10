@@ -21,7 +21,7 @@ import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
 import * as testing from "../src/apache_beam/testing/assert";
 import { KV } from "../src/apache_beam/values";
 import { GroupBy } from "../src/apache_beam/transforms/group_and_combine";
-import { SumFn } from "../src/apache_beam/transforms/combiners";
+import * as combiners from "../src/apache_beam/transforms/combiners";
 
 import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
 
@@ -42,7 +42,11 @@ class CountElements extends beam.PTransform<
 > {
   expand(input: beam.PCollection<any>) {
     return input.apply(
-      new GroupBy((e) => e, "element").combining((e) => 1, new SumFn(), "count")
+      new GroupBy((e) => e, "element").combining(
+        (e) => 1,
+        combiners.sum,
+        "count"
+      )
     );
   }
 }

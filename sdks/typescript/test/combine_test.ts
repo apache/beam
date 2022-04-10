@@ -22,7 +22,7 @@ import * as testing from "../src/apache_beam/testing/assert";
 import { KV } from "../src/apache_beam/values";
 
 import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
-import { SumFn, MeanFn, MaxFn } from "../src/apache_beam/transforms/combiners";
+import * as combiners from "../src/apache_beam/transforms/combiners";
 import {
   CombineFn,
   GroupBy,
@@ -50,7 +50,7 @@ describe("Apache Beam combiners", function () {
           yield* line.split(/[^a-z]+/);
         })
         .map((elm) => ({ key: elm, value: 1 }))
-        .apply(new GroupBy("key").combining("value", new SumFn(), "value"))
+        .apply(new GroupBy("key").combining("value", combiners.sum, "value"))
         .apply(
           new testing.AssertDeepEqual([
             { key: "in", value: 1 },
@@ -155,7 +155,7 @@ describe("Apache Beam combiners", function () {
         .map((word) => word.length)
         .apply(
           new GroupGlobally()
-            .combining((c) => c, new MeanFn(), "mean")
+            .combining((c) => c, combiners.mean, "mean")
             .combining((c) => c, unstableStdDevCombineFn(), "stdDev")
         )
         .apply(
@@ -179,9 +179,9 @@ describe("Apache Beam combiners", function () {
       inputs
         .apply(
           new GroupBy("k")
-            .combining("a", new MaxFn(), "aMax")
-            .combining("a", new SumFn(), "aSum")
-            .combining("b", new MeanFn(), "mean")
+            .combining("a", combiners.max, "aMax")
+            .combining("a", combiners.sum, "aSum")
+            .combining("b", combiners.mean, "mean")
         )
         .apply(
           new testing.AssertDeepEqual([
@@ -203,7 +203,7 @@ describe("Apache Beam combiners", function () {
       );
 
       inputs
-        .apply(new GroupBy(["a", "b"]).combining("c", new SumFn(), "sum"))
+        .apply(new GroupBy(["a", "b"]).combining("c", combiners.sum, "sum"))
         .apply(
           new testing.AssertDeepEqual([
             { a: 1, b: 10, sum: 500 },
@@ -212,7 +212,7 @@ describe("Apache Beam combiners", function () {
         );
 
       inputs
-        .apply(new GroupBy(["b", "c"]).combining("a", new SumFn(), "sum"))
+        .apply(new GroupBy(["b", "c"]).combining("a", combiners.sum, "sum"))
         .apply(
           new testing.AssertDeepEqual([
             { b: 10, c: 100, sum: 3 },
@@ -236,7 +236,7 @@ describe("Apache Beam combiners", function () {
         .apply(
           new GroupBy((element: any) => element.a * element.a).combining(
             "b",
-            new SumFn(),
+            combiners.sum,
             "sum"
           )
         )

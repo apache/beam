@@ -22,7 +22,7 @@ import * as beam from "../../apache_beam";
 import * as textio from "../io/textio";
 import { DirectRunner } from "../runners/direct_runner";
 
-import { CountFn } from "../transforms/combiners";
+import { count } from "../transforms/combiners";
 import { GroupBy } from "../transforms/group_and_combine";
 
 import { PortableRunner } from "../runners/portable_runner/runner";
@@ -34,9 +34,7 @@ class CountElements extends beam.PTransform<
   expand(input: beam.PCollection<any>) {
     return input
       .map((e) => ({ element: e }))
-      .apply(
-        new GroupBy("element").combining("element", new CountFn(), "count")
-      );
+      .apply(new GroupBy("element").combining("element", count, "count"));
   }
 }
 

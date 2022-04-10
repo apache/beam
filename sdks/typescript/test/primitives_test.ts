@@ -29,7 +29,7 @@ import {
   GroupBy,
   GroupGlobally,
 } from "../src/apache_beam/transforms/group_and_combine";
-import { SumFn } from "../src/apache_beam/transforms/combiners";
+import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
@@ -106,7 +106,7 @@ describe("primitives module", function () {
         const input = root.apply(new beam.Create([1, 2, 1]));
         // TODO: Can this type be inferred?
         const sideInput: beam.PCollection<{ sum: number }> = input.apply(
-          new GroupGlobally().combining((e) => e, new SumFn(), "sum")
+          new GroupGlobally().combining((e) => e, combiners.sum, "sum")
         );
         input
           .map((e, context) => e / context.side.lookup().sum, {
