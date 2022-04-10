@@ -184,7 +184,7 @@ export class JavaJarService extends SubprocessService {
       // node-ts 0.x corresponds to Beam 2.x.
       version = "2" + version.substring(1);
     }
-    version = '2.36.0'
+    version = "2.36.0";
     const gradlePackage = gradleTarget.match(/^:?(.*):[^:]+:?$/)![1];
     const artifactId = "beam-" + gradlePackage.replaceAll(":", "-");
     const projectRoot = path.resolve(

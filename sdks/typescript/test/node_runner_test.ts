@@ -19,6 +19,7 @@
 import fs from "fs";
 import assert from "assert";
 
+import * as runnerApiProto from "../src/apache_beam/proto/beam_runner_api";
 import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
 import { JobState_Enum } from "../src/apache_beam/proto/beam_job_api";
 
@@ -34,9 +35,8 @@ describe("node runner", () => {
     const pipelineJson = fs.readFileSync(JSON_PROTO_PATH, "utf-8");
 
     const runner = new PortableRunner(JOB_SERVICE_HOST);
-    const pipelineResult = await runner.runPipelineWithJsonStringProto(
-      pipelineJson,
-      "pipeline"
+    const pipelineResult = await runner.runPipelineWithProto(
+      runnerApiProto.Pipeline.fromJsonString(pipelineJson)
     );
 
     const event = await pipelineResult.waitUntilFinish(60000);

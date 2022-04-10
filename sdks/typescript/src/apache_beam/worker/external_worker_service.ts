@@ -32,16 +32,17 @@ import {
 import { Worker, WorkerEndpoints } from "./worker";
 
 export class ExternalWorkerPool {
-  host: string;
+  address: string;
   server: grpc.Server;
   workers: Map<string, Worker> = new Map();
 
-  constructor(host: string) {
-    this.host = host;
+  // TODO: (Cleanup) Choose a free port.
+  constructor(address: string = "localhost:5555") {
+    this.address = address;
   }
 
   start() {
-    console.log("Starting the workers at ", this.host);
+    console.log("Starting the workers at ", this.address);
     const this_ = this;
 
     this.server = new grpc.Server();
@@ -87,7 +88,7 @@ export class ExternalWorkerPool {
     };
 
     this.server.bindAsync(
-      this.host,
+      this.address,
       grpc.ServerCredentials.createInsecure(),
       (err: Error | null, port: number) => {
         if (err) {
@@ -107,7 +108,7 @@ export class ExternalWorkerPool {
   }
 }
 
-const default_host = "0.0.0.0:5555";
+const default_host = "localhost:5555";
 
 if (require.main === module) {
   new ExternalWorkerPool(default_host).start();

@@ -16,6 +16,4 @@
  * limitations under the License.
  */
 
-import { Struct } from "../proto/google/protobuf/struct";
-
-export type PipelineOptions = Struct;
+export type PipelineOptions = Object;
