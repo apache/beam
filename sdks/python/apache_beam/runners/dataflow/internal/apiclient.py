@@ -276,8 +276,6 @@ class Environment(object):
       pool.network = self.worker_options.network
     if self.worker_options.subnetwork:
       pool.subnetwork = self.worker_options.subnetwork
-    pool.workerHarnessContainerImage = (
-        get_container_image_from_options(options))
 
     # Setting worker pool sdk_harness_container_images option for supported
     # Dataflow workers.
@@ -304,6 +302,14 @@ class Environment(object):
             container_image_url == python_sdk_container_image)
         container_image.environmentId = id
         pool.sdkHarnessContainerImages.append(container_image)
+
+    if not _use_fnapi(options):
+      pool.workerHarnessContainerImage = (
+          get_container_image_from_options(options))
+    elif len(pool.sdkHarnessContainerImages) == 1:
+      # Dataflow expects a value here when there is only one environment.
+      pool.workerHarnessContainerImage = (
+          pool.sdkHarnessContainerImages[0].containerImage)
 
     if self.debug_options.number_of_worker_harness_threads:
       pool.numThreadsPerWorker = (
