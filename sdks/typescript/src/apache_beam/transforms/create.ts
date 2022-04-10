@@ -39,11 +39,11 @@ export class Create<T> extends PTransform<Root, PCollection<T>> {
   }
 
   expand(root: Root) {
-    const this_ = this;
+    const elements = this.elements;
     // TODO: (Cleanup) Store encoded values and conditionally shuffle.
     return root.apply(new Impulse()).flatMap(
-      withName("ExtractElements", function* (_) {
-        yield* this_.elements;
+      withName("ExtractElements", function* blarg(_) {
+        yield* elements;
       })
     );
   }

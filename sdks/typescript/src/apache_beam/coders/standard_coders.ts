@@ -187,3 +187,6 @@ export class IntervalWindowCoder implements Coder<IntervalWindow> {
 }
 
 globalRegistry().register(IntervalWindowCoder.URN, IntervalWindowCoder);
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.coders.standard_coders", exports);

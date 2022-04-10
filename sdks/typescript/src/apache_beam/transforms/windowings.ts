@@ -23,7 +23,7 @@ import {
   FixedWindowsPayload,
   SessionWindowsPayload,
 } from "../proto/standard_window_fns";
-import { WindowFn } from "../base";
+import { WindowFn } from "./window";
 import {
   GlobalWindowCoder,
   IntervalWindowCoder,
@@ -136,3 +136,6 @@ export class Sessions implements WindowFn<IntervalWindow> {
 function millisToProto(t: Long) {
   return { seconds: BigInt(t.div(1000).toString()), nanos: 0 };
 }
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.transforms.windowings", exports);

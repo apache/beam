@@ -336,3 +336,6 @@ function onlyValueOr<T>(
     return candidate;
   }
 }
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.pipeline", exports);

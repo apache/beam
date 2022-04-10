@@ -23,3 +23,6 @@ export * from "./group_and_combine";
 export * from "./pardo";
 export * from "./transform";
 export * from "./window";
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.transforms", exports);

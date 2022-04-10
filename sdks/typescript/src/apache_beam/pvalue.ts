@@ -138,10 +138,10 @@ export class PCollection<T> {
         "flatMap(" + extractName(fn) + ")",
         new ParDo<T, OutputT, ContextT>(
           {
-            process: function* (element: T, context: ContextT) {
+            process: function (element: T, context: ContextT) {
               // While it's legal to call a function with extra arguments which will
               // be ignored, this can have surprising behavior (e.g. for map(console.log))
-              yield* context == undefined
+              return context == undefined
                 ? (fn as (T) => Iterable<OutputT>)(element)
                 : fn(element, context);
             },
@@ -284,3 +284,6 @@ class AsyncPTransformFromCallable<
     return this.expander(input);
   }
 }
+
+import { requireForSerialization } from "./serialization";
+requireForSerialization("apache_beam.pvalue", exports);
