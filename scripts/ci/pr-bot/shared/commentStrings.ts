@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+const { NO_MATCHING_LABEL } = require("./constants");
+
 export function allChecksPassed(reviewersToNotify: string[]): string {
   return `All checks have passed: @${reviewersToNotify.join(" ")}`;
 }
@@ -30,7 +32,7 @@ export function assignReviewer(labelToReviewerMapping: any): string {
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
-    if (label === "no-matching-label") {
+    if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
@@ -41,7 +43,9 @@ export function assignReviewer(labelToReviewerMapping: any): string {
 Available commands:
 - \`stop reviewer notifications\` - opt out of the automated review tooling
 - \`remind me after tests pass\` - tag the comment author after tests pass
-- \`waiting on author\` - shift the attention set back to the author (any comment or push by the author will return the attention set to the reviewers)`;
+- \`waiting on author\` - shift the attention set back to the author (any comment or push by the author will return the attention set to the reviewers)
+
+The PR bot will only process comments in the main thread (not review comments).`;
   return commentString;
 }
 
@@ -69,4 +73,72 @@ export function reviewersAlreadyAssigned(reviewers: string[]): string {
 
 export function noLegalReviewers(): string {
   return "No reviewers could be found from any of the labels on the PR or in the fallback reviewers list. Check the config file to make sure reviewers are configured";
+}
+
+export function updateReviewerConfig(
+  reviewersAddedForLabels: { [reviewer: string]: string[] },
+  reviewersRemovedForLabels: { [reviewer: string]: string[] }
+) {
+  let commentString = `Adds and/or removes reviewers based on activity in the repo.
+If you have been added and would prefer not to be, you can avoid getting repeatedly suggested by adding yourself to that label's exclusionList.
+`;
+
+  if (Object.keys(reviewersAddedForLabels).length > 0) {
+    commentString += `
+The following users have been added as reviewers to the configuration.
+If you choose to accept being added, you will be added to the rotation of users who are automatically added to pull requests for an initial review.
+A committer will still have to approve after your review (if you are not a committer), but you will be the initial touchpoint for PRs to which you are assigned.
+`;
+    for (const reviewer of Object.keys(reviewersAddedForLabels)) {
+      commentString += `${reviewer} added for label(s): ${reviewersAddedForLabels[
+        reviewer
+      ].join(",")}\n`;
+    }
+  }
+
+  if (Object.keys(reviewersRemovedForLabels).length > 0) {
+    commentString += `
+The following users have been removed as reviewers from the configuration.
+Users are removed if they haven't reviewed or completed a PR in the last 3 months.
+`;
+    for (const reviewer of Object.keys(reviewersRemovedForLabels)) {
+      commentString += `@${reviewer} removed for label(s): ${reviewersRemovedForLabels[
+        reviewer
+      ].join(",")}\n`;
+    }
+  }
+
+  return commentString;
+}
+
+export function assignNewReviewer(labelToReviewerMapping: {
+  [label: string]: string;
+}): string {
+  let commentString =
+    "Assigning new set of reviewers because Pr has gone too long without review. If you would like to opt out of this review, comment `assign to next reviewer`:\n\n";
+
+  for (const label in labelToReviewerMapping) {
+    const reviewer = labelToReviewerMapping[label];
+    if (label === NO_MATCHING_LABEL) {
+      commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
+    } else {
+      commentString += `R: @${reviewer} for label ${label}.\n`;
+    }
+  }
+
+  commentString += `
+Available commands:
+- \`stop reviewer notifications\` - opt out of the automated review tooling
+- \`remind me after tests pass\` - tag the comment author after tests pass
+- \`waiting on author\` - shift the attention set back to the author (any comment or push by the author will return the attention set to the reviewers)`;
+  return commentString;
+}
+
+export function slowReview(reviewers: string[]): string {
+  let commentString = `Reminder, please take a look at this pr: `;
+  for (const reviewer of reviewers) {
+    commentString += `@${reviewer} `;
+  }
+
+  return commentString;
 }

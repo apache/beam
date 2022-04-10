@@ -13,9 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# If you would like to be excluded from consideration for reviewing a certain label,
+# add yourself to that label's exclusionList
+# FallbackReviewers is for reviewers who can review any area of the code base that might
+# not receive a label. These should generally be more experienced committers.
 labels:
-- name: "Go"
-  reviewers: ["damccorm", "lostluck", "jrmccluskey", "youngoli", "riteshghorse"]
-  exclusionList: [] # These users will never be suggested as reviewers
-# I don't know the other areas well enough to assess who the normal committers/contributors who might want to be reviewers are
-fallbackReviewers: [] # List of committers to use when no label matches
+  - name: Go
+    reviewers:
+      - damccorm
+      - lostluck
+      - jrmccluskey
+      - youngoli
+      - riteshghorse
+    exclusionList: []
+fallbackReviewers: []

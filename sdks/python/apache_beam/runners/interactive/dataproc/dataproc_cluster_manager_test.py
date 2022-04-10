@@ -23,7 +23,7 @@ import unittest
 from unittest.mock import patch
 
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 
 try:
   from google.cloud import dataproc_v1  # pylint: disable=unused-import

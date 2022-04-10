@@ -143,6 +143,15 @@ func TestMarshal(t *testing.T) {
 			edges:      1,
 			transforms: 2,
 			roots:      1,
+		}, {
+			name: "Reshuffle",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				in := newIntInput(g)
+				graph.NewReshuffle(g, g.Root(), in)
+			},
+			edges:      1,
+			transforms: 4,
+			roots:      1,
 		},
 	}
 	for _, test := range tests {

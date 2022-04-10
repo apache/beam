@@ -42,6 +42,7 @@ type ParDo struct {
 	emitters []ReusableEmitter
 	ctx      context.Context
 	inv      *invoker
+	bf       *bundleFinalizer
 
 	reader StateReader
 	cache  *cacheElm
@@ -83,7 +84,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -229,7 +230,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.reader = nil
 	n.cache = nil
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -245,7 +246,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 
 		n.cache = &cacheElm{
 			key:   w,
-			extra: make([]interface{}, sideCount+emitCount, sideCount+emitCount),
+			extra: make([]interface{}, sideCount+emitCount),
 		}
 		for i, emit := range n.emitters {
 			n.cache.extra[i+sideCount] = emit.Value()
@@ -295,7 +296,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.cache.extra...)
+	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +314,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}

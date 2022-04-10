@@ -173,6 +173,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.useDefaultStream = useDefaultStream;
       }
 
+      void teardown() {
+        if (streamAppendClient != null) {
+          runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+        }
+      }
+
       String getDefaultStreamName() {
         return BigQueryHelpers.stripPartitionDecorator(tableUrn) + "/streams/_default";
       }
@@ -188,12 +194,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             } else {
               this.streamName = getDefaultStreamName();
             }
-            this.streamAppendClient =
-                APPEND_CLIENTS.get(
-                    streamName,
-                    () ->
-                        datasetService.getStreamAppendClient(
-                            streamName, messageConverter.getSchemaDescriptor()));
+            synchronized (APPEND_CLIENTS) {
+              this.streamAppendClient =
+                  APPEND_CLIENTS.get(
+                      streamName,
+                      () ->
+                          datasetService.getStreamAppendClient(
+                              streamName, messageConverter.getSchemaDescriptor()));
+              this.streamAppendClient.pin();
+            }
             this.currentOffset = 0;
           }
           return streamAppendClient;
@@ -203,11 +212,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       void invalidateWriteStream() {
-        try {
-          runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
+        if (streamAppendClient != null) {
+          synchronized (APPEND_CLIENTS) {
+            // Unpin in a different thread, as it may execute a blocking close.
+            runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+            APPEND_CLIENTS.invalidate(streamName);
+          }
           streamAppendClient = null;
-        } catch (Exception e) {
-          throw new RuntimeException(e);
         }
       }
 
@@ -380,19 +391,22 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
       flushAll();
-      if (!useDefaultStream) {
-        for (DestinationState state : destinations.values()) {
+      for (DestinationState state : destinations.values()) {
+        if (!useDefaultStream) {
           context.output(
               KV.of(state.tableUrn, state.streamName),
               BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
               GlobalWindow.INSTANCE);
         }
+        state.teardown();
       }
+      destinations.clear();
+      destinations = null;
     }
 
     @Teardown
     public void teardown() {
-      destinations.clear();
+      destinations = null;
       try {
         if (datasetService != null) {
           datasetService.close();

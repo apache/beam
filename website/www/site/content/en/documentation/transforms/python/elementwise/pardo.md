@@ -141,8 +141,6 @@ Output:
 
 > *Known issues:*
 >
-> * [[BEAM-7885]](https://issues.apache.org/jira/browse/BEAM-7885)
->   `DoFn.setup()` doesn't run for streaming jobs running in the `DirectRunner`.
 > * [[BEAM-7340]](https://issues.apache.org/jira/browse/BEAM-7340)
 >   `DoFn.teardown()` metrics are lost.
 

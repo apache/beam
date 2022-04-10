@@ -18,6 +18,10 @@ package exec
 import (
 	"reflect"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 func TestUnmarshalKeyedValues(t *testing.T) {
@@ -52,5 +56,30 @@ func TestUnmarshalKeyedValues(t *testing.T) {
 		if !reflect.DeepEqual(actual, test.exp) {
 			t.Errorf("unmarshalKeyedValues(%v) = %v, want %v", test.in, actual, test.exp)
 		}
+	}
+}
+
+func TestUnmarshalReshuffleCoders(t *testing.T) {
+	payloads := map[string][]byte{}
+	encode := func(id, urn string, comps ...string) {
+		payloads[id] = protox.MustEncode(&pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
+				Urn: urn,
+			},
+			ComponentCoderIds: comps,
+		})
+	}
+	encode("a", "beam:coder:bytes:v1")
+	encode("b", "beam:coder:string_utf8:v1")
+	encode("c", "beam:coder:kv:v1", "b", "a")
+
+	got, err := unmarshalReshuffleCoders("c", payloads)
+	if err != nil {
+		t.Fatalf("unmarshalReshuffleCoders() err: %v", err)
+	}
+
+	want := coder.NewKV([]*coder.Coder{coder.NewString(), coder.NewBytes()})
+	if !want.Equals(got) {
+		t.Errorf("got %v, want != %v", got, want)
 	}
 }

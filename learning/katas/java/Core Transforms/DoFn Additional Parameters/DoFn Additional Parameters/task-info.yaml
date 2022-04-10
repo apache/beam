@@ -17,7 +17,7 @@
 # under the License.
 #
 
-type: edu
+type: theory
 files:
 - name: src/org/apache/beam/learning/katas/coretransforms/dofnadditionalparams/Task.java
   visible: true

@@ -14,7 +14,6 @@
 // limitations under the License.
 
 // Package jdbc contains integration tests for cross-language JDBC IO transforms.
-
 package jdbc
 
 import (
@@ -62,6 +61,27 @@ func ReadPipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, 
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
 	res := readRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
+	want := beam.CreateList(s, []JdbcTestRow{{1}, {2}})
+	passert.Equals(s, res, want)
+	return p
+}
+
+// WriteToPostgres creates a pipeline for JDBC IO Write transform.
+func WriteToPostgres(expansionAddr, tableName, jdbcUrl, username, password string) *beam.Pipeline {
+	beam.Init()
+	p, s := beam.NewPipelineWithRoot()
+	rows := []JdbcTestRow{{1}, {2}}
+	input := beam.CreateList(s, rows)
+	jdbcio.WriteToPostgres(s.Scope("jdbc_test.ReadFromJdbc"), tableName, jdbcUrl, username, password, input, jdbcio.ExpansionAddrWrite(expansionAddr))
+	return p
+}
+
+// ReadFromPostgres creates a pipeline for JDBC IO Read transform.
+func ReadFromPostgres(expansionAddr, tableName, jdbcUrl, username, password string) *beam.Pipeline {
+	beam.Init()
+	p, s := beam.NewPipelineWithRoot()
+	outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
+	res := jdbcio.ReadFromPostgres(s.Scope("jdbc_test.WriteToJdbc"), tableName, jdbcUrl, username, password, outT, jdbcio.ExpansionAddrRead(expansionAddr))
 	want := beam.CreateList(s, []JdbcTestRow{{1}, {2}})
 	passert.Equals(s, res, want)
 	return p

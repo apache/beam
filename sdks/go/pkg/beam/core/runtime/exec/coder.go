@@ -156,6 +156,12 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 			enc: enc,
 		}
 
+	case coder.Nullable:
+		return &nullableEncoder{
+			inner: MakeElementEncoder(c.Components[0]),
+			be:    boolEncoder{},
+		}
+
 	default:
 		panic(fmt.Sprintf("Unexpected coder: %v", c))
 	}
@@ -267,6 +273,12 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 			dec: dec,
 		}
 
+	case coder.Nullable:
+		return &nullableDecoder{
+			inner: MakeElementDecoder(c.Components[0]),
+			bd:    boolDecoder{},
+		}
+
 	default:
 		panic(fmt.Sprintf("Unexpected coder: %v", c))
 	}
@@ -324,7 +336,7 @@ type boolDecoder struct{}
 
 func (*boolDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: false = 0, true = 1
-	b := make([]byte, 1, 1)
+	b := make([]byte, 1)
 	if err := ioutilx.ReadNBufUnsafe(r, b); err != nil {
 		if err == io.EOF {
 			return err
@@ -607,6 +619,56 @@ func convertIfNeeded(v interface{}, allocated *FullValue) *FullValue {
 	}
 	*allocated = FullValue{Elm: v}
 	return allocated
+}
+
+type nullableEncoder struct {
+	inner ElementEncoder
+	be    boolEncoder
+}
+
+func (n *nullableEncoder) Encode(value *FullValue, writer io.Writer) error {
+	if value.Elm == nil {
+		if err := n.be.Encode(&FullValue{Elm: false}, writer); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := n.be.Encode(&FullValue{Elm: true}, writer); err != nil {
+		return err
+	}
+	if err := n.inner.Encode(value, writer); err != nil {
+		return err
+	}
+	return nil
+}
+
+type nullableDecoder struct {
+	inner ElementDecoder
+	bd    boolDecoder
+}
+
+func (n *nullableDecoder) Decode(reader io.Reader) (*FullValue, error) {
+	hasValue, err := n.bd.Decode(reader)
+	if err != nil {
+		return nil, err
+	}
+	if !hasValue.Elm.(bool) {
+		return &FullValue{}, nil
+	}
+	val, err := n.inner.Decode(reader)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func (n *nullableDecoder) DecodeTo(reader io.Reader, value *FullValue) error {
+	val, err := n.Decode(reader)
+	if err != nil {
+		return err
+	}
+	value.Elm = val.Elm
+	return nil
 }
 
 type iterableEncoder struct {
@@ -1086,7 +1148,7 @@ func (d *intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 
 	n, err := coder.DecodeInt32(r) // #windows
 
-	ret := make([]typex.Window, n, n)
+	ret := make([]typex.Window, n)
 	for i := int32(0); i < n; i++ {
 		w, err := d.DecodeSingle(r)
 		if err != nil {

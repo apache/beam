@@ -67,7 +67,7 @@ public class CounterCellTest {
     Assert.assertNotEquals(counterCell, new Object());
 
     CounterCell differentDirty = new CounterCell(MetricName.named("namespace", "name"));
-    differentDirty.getDirty().beforeCommit();
+    differentDirty.getDirty().afterModification();
     Assert.assertNotEquals(counterCell, differentDirty);
     Assert.assertNotEquals(counterCell.hashCode(), differentDirty.hashCode());
 
@@ -85,6 +85,7 @@ public class CounterCellTest {
   public void testReset() {
     CounterCell counterCell = new CounterCell(MetricName.named("namespace", "name"));
     counterCell.inc(1);
+    Assert.assertNotEquals(counterCell.getDirty(), new DirtyState());
     assertThat(counterCell.getCumulative(), equalTo(1L));
 
     counterCell.reset();

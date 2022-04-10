@@ -86,13 +86,16 @@ class PlaygroundPage extends StatelessWidget {
             actions: const [ToggleThemeButton(), MoreActions()],
           ),
           body: Column(
-            children: const [
-              Expanded(child: PlaygroundPageBody()),
-              PlaygroundPageFooter(),
+            children: [
+              const Expanded(child: PlaygroundPageBody()),
+              Semantics(
+                container: true,
+                child: const PlaygroundPageFooter(),
+              ),
             ],
           ),
         ),
-      )
+      ),
     );
   }
 }

@@ -18,31 +18,20 @@
 #
 
 
-data "terraform_remote_state" "remote_state_vpc" {
-  backend = "gcs"
-  config = {
-    bucket = var.terraform_state_bucket_name
-  }
-}
-
-data "google_compute_network" "default" {
-  project = var.project_id
-  name = var.network
-}
-
 # Redis for storing state of Playground application.
 # In this cache Playground instances stores pipeline's statuses, outputs and pipeline's graph
 resource "google_redis_instance" "cache" {
   // TODO: remove when replica_count, etc is generally available
-  provider       = google-beta
-  project        = var.project_id
-  region         = var.redis_region
-  name           = var.redis_name
-  tier           = var.redis_tier
-  memory_size_gb = var.redis_memory_size_gb
-  replica_count  = var.redis_replica_count
+  provider           = google-beta
+  project            = var.project_id
+  region             = var.region
+  name               = var.name
+  tier               = var.tier
+  memory_size_gb     = var.memory_size_gb
+  replica_count      = var.replica_count
+  authorized_network = var.network
+  read_replicas_mode = var.replicas_mode
   redis_version      = var.redis_version
   display_name       = var.display_name
-  read_replicas_mode = var.read_replicas_mode
-  authorized_network = data.google_compute_network.default.id
+
 }

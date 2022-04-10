@@ -62,24 +62,6 @@ func mapDecoder(rt reflect.Type, decodeToKey, decodeToElem typeDecoderFieldRefle
 	}
 }
 
-// containerNilDecoder handles when a value is nillable for map or iterable components.
-// Nillable types have an extra byte prefixing them indicating nil status.
-func containerNilDecoder(decodeToElem func(reflect.Value, io.Reader) error) func(reflect.Value, io.Reader) error {
-	return func(ret reflect.Value, r io.Reader) error {
-		hasValue, err := DecodeBool(r)
-		if err != nil {
-			return err
-		}
-		if !hasValue {
-			return nil
-		}
-		if err := decodeToElem(ret, r); err != nil {
-			return err
-		}
-		return nil
-	}
-}
-
 // mapEncoder reflectively encodes a map or array type using the beam map encoding.
 func mapEncoder(rt reflect.Type, encodeKey, encodeValue typeEncoderFieldReflect) func(reflect.Value, io.Writer) error {
 	return func(rv reflect.Value, w io.Writer) error {
@@ -130,19 +112,5 @@ func mapEncoder(rt reflect.Type, encodeKey, encodeValue typeEncoderFieldReflect)
 			}
 		}
 		return nil
-	}
-}
-
-// containerNilEncoder handles when a value is nillable for map or iterable components.
-// Nillable types have an extra byte prefixing them indicating nil status.
-func containerNilEncoder(encodeElem func(reflect.Value, io.Writer) error) func(reflect.Value, io.Writer) error {
-	return func(rv reflect.Value, w io.Writer) error {
-		if rv.IsNil() {
-			return EncodeBool(false, w)
-		}
-		if err := EncodeBool(true, w); err != nil {
-			return err
-		}
-		return encodeElem(rv, w)
 	}
 }
