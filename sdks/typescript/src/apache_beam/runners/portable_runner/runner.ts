@@ -18,6 +18,7 @@
 
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
+import { Struct } from "../../proto/google/protobuf/struct";
 
 import * as runnerApiProto from "../../proto/beam_runner_api";
 import { PrepareJobRequest } from "../../proto/beam_job_api";
@@ -96,12 +97,18 @@ class PortableRunnerPipelineResult implements PipelineResult {
 
 export class PortableRunner extends Runner {
   client: JobServiceClient;
+  defaultOptions: any;
 
-  constructor(host: string) {
+  constructor(options: string | { jobEndpoint: string }) {
     super();
+    if (typeof options == "string") {
+      this.defaultOptions = { jobEndpoint: options };
+    } else if (options) {
+      this.defaultOptions = options;
+    }
     this.client = new JobServiceClient(
       new GrpcTransport({
-        host,
+        host: this.defaultOptions?.jobEndpoint,
         channelCredentials: ChannelCredentials.createInsecure(),
       })
     );
@@ -116,20 +123,22 @@ export class PortableRunner extends Runner {
     pipeline: Pipeline,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    return this.runPipelineWithProto(pipeline.getProto(), "", options);
+    return this.runPipelineWithProto(pipeline.getProto(), options);
   }
 
   async runPipelineWithProto(
     pipeline: runnerApiProto.Pipeline,
-    jobName: string,
     options?: PipelineOptions
   ) {
-    // TODO: (Cleanup) Choose a free port.
-    const use_loopback_service = false;
-    const externalWorkerServiceAddress = "localhost:5555";
-    const workers = use_loopback_service
-      ? new ExternalWorkerPool(externalWorkerServiceAddress)
-      : undefined;
+    if (!options) {
+      options = this.defaultOptions;
+    } else {
+      options = { ...this.defaultOptions, ...options };
+    }
+
+    const use_loopback_service =
+      (options as any)?.environmentType == "LOOPBACK";
+    const workers = use_loopback_service ? new ExternalWorkerPool() : undefined;
     if (use_loopback_service) {
       workers!.start();
     }
@@ -142,24 +151,34 @@ export class PortableRunner extends Runner {
       if (env.urn == environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
         if (use_loopback_service) {
           pipeline.components!.environments[envId] =
-            environments.asExternalEnvironment(
-              env,
-              externalWorkerServiceAddress
-            );
+            environments.asExternalEnvironment(env, workers!.address);
         } else {
           pipeline.components!.environments[envId] =
             environments.asDockerEnvironment(
               env,
-              "gcr.io/apache-beam-testing/beam_typescript_sdk:dev"
+              (options as any)?.sdkContainerImage ||
+                "gcr.io/apache-beam-testing/beam_typescript_sdk:dev"
             );
         }
       }
     }
 
     // Inform the runner that we'd like to execute this pipeline.
-    let message: PrepareJobRequest = { pipeline, jobName };
+    let message: PrepareJobRequest = {
+      pipeline,
+      jobName: (options as any)?.jobName || "",
+    };
     if (options) {
-      message.pipelineOptions = options;
+      const camel_to_snake = (option) =>
+        option.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+      message.pipelineOptions = Struct.fromJson(
+        Object.fromEntries(
+          Object.entries(options).map(([k, v]) => [
+            `beam:option:${camel_to_snake(k)}:v1`,
+            v,
+          ])
+        )
+      );
     }
     const prepareResponse = await this.client.prepare(message).response;
 
@@ -188,29 +207,5 @@ export class PortableRunner extends Runner {
     // this function returns as soon as the job is successfully started, not
     // once the job has completed.
     return new PortableRunnerPipelineResult(this, jobId, workers);
-  }
-
-  async runPipelineWithJsonValueProto(
-    json: string,
-    jobName: string,
-    options?: PipelineOptions
-  ) {
-    return this.runPipelineWithProto(
-      runnerApiProto.Pipeline.fromJsonString(json),
-      jobName,
-      options
-    );
-  }
-
-  async runPipelineWithJsonStringProto(
-    json: string,
-    jobName: string,
-    options?: PipelineOptions
-  ) {
-    return this.runPipelineWithProto(
-      runnerApiProto.Pipeline.fromJsonString(json),
-      jobName,
-      options
-    );
   }
 }
