@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.Footer;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.FooterCoder;
@@ -111,7 +112,8 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
   private NavigableMap<Long, IsmShard> shardOffsetToShardMap;
 
   /** Values lazily initialized per shard on first keyed read of each shard. */
-  private Map<Integer, ImmutableSortedMap<RandomAccessData, IsmShardKey>> indexPerShard;
+  private ConcurrentHashMap<Integer, ImmutableSortedMap<RandomAccessData, IsmShardKey>>
+      indexPerShard;
 
   ScalableBloomFilter bloomFilter;
 
@@ -505,27 +507,59 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     checkState(indexPerShard != null,
         "indexPerShard must not be null after initializeBloomFilterAndIndexPerShard.");
 
-    // If the index has been populated and contains the shard id, we can return.
-    if (indexPerShard != null && indexPerShard.containsKey(shardId)) {
-      checkState(bloomFilter != null, "Bloom filter expected to have been initialized.");
+    if (indexPerShard.containsKey(shardId)) {
+      // ConcurrentHashMap.containsKey doesn't lock a bin, so it's faster than `computeIfAbsent` for
+      // a present key.
       return inChannel;
     }
 
-    Long startOfNextBlock = shardOffsetToShardMap.higherKey(shardWithIndex.getBlockOffset());
-    // If this is the last block, then we need to grab the position of the Bloom filter
-    // as the upper bound.
-    if (startOfNextBlock == null) {
-      startOfNextBlock = footer.getBloomFilterPosition();
-    }
+    // Using AtomicReference for an object holder. Actually, atomicity is not required.
+    AtomicReference<SeekableByteChannel> rawChannelReference =
+        new AtomicReference<>(inChannel.orNull());
 
-    checkState(shardWithIndex.getIndexOffset() < startOfNextBlock,
-        "Expected the index start offset is less than the next block start offset. "
-        + "But, IsmShard is '%s' and the next block offset is %s for resourceId '%s'",
-        shardWithIndex, startOfNextBlock, resourceId);
+    // JDK-8161372 (ConcurrentHashMap.computeIfAbsent locks bin when k present) alleviated the
+    // performance loss by not acquiring lock for the first node. But, the fix was applied to Java9,
+    // and it still has chance to lock the bin containing the key at the second or next nodes. As we
+    // expect `indexPerShard` already has the shardId in most cases, it would have a better
+    // performance to check `containsKey` above before invoking `computeIfAbsent` here.
+    indexPerShard.computeIfAbsent(shardId,
+        ignored -> {
+          Long startOfNextBlock = shardOffsetToShardMap.higherKey(shardWithIndex.getBlockOffset());
+          // If this is the last block, then we need to grab the position of the Bloom filter
+          // as the upper bound.
+          if (startOfNextBlock == null) {
+            startOfNextBlock = footer.getBloomFilterPosition();
+          }
+
+          checkState(shardWithIndex.getIndexOffset() < startOfNextBlock,
+              "Expected the index start offset is less than the next block start offset. "
+                  + "But, IsmShard is '%s' and the next block offset is %s for resourceId '%s'",
+              shardWithIndex, startOfNextBlock, resourceId);
+
+          try {
+            SeekableByteChannel rawChannel = openIfNeeded(Optional.of(rawChannelReference.get()));
+            rawChannelReference.set(rawChannel);
+            return readIndexBlockForShard(resourceId, shardWithIndex, startOfNextBlock, rawChannel);
+          } catch (IOException e) {
+            // Wrapping with RuntimeException
+            throw new RuntimeException(
+                "failed to read shard index for resourceId: " + resourceId + " shardId: " + shardId,
+                e);
+          }
+        });
+
+    return Optional.of(rawChannelReference.get());
+  }
+
+  /**
+   * Read index block for a shard.
+   */
+  private static ImmutableSortedMap<RandomAccessData, IsmShardKey> readIndexBlockForShard(
+      ResourceId resourceId, IsmShard shard, long startOfNextBlock, SeekableByteChannel rawChannel)
+      throws IOException {
 
     // Open the channel if needed and seek to the start of the index.
-    SeekableByteChannel rawChannel = openIfNeeded(inChannel);
-    rawChannel.position(shardWithIndex.getIndexOffset());
+    rawChannel.position(shard.getIndexOffset());
     InputStream inStream = Channels.newInputStream(rawChannel);
 
     ImmutableSortedMap.Builder<RandomAccessData, IsmShardKey> builder =
@@ -536,19 +570,19 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     readKey(inStream, currentKeyBytes);
     long currentOffset = VarInt.decodeLong(inStream);
 
-    checkState(shardWithIndex.getBlockOffset() < currentOffset
-            && currentOffset < shardWithIndex.getIndexOffset(),
+    checkState(shard.getBlockOffset() < currentOffset
+            && currentOffset < shard.getIndexOffset(),
         "Expected the first index offset in the range of IsmShard. "
             + "But, the first index offset is %s and IsmShard is '%s' for resourceId '%s'",
-        currentOffset, shardWithIndex, resourceId);
+        currentOffset, shard, resourceId);
     // Insert the entry that happens at the beginning limiting the shard block by the
     // first keys block offset.
     builder.put(
         new RandomAccessData(0),
         new IsmShardKey(
-            IsmReaderImpl.this.resourceId.toString(),
+            resourceId.toString(),
             new RandomAccessData(0),
-            shardWithIndex.getBlockOffset(),
+            shard.getBlockOffset(),
             currentOffset));
 
     // While another index entry exists, insert an index entry with the key, and offsets
@@ -563,16 +597,16 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
               currentKeyBytes, nextKeyBytes) < 0,
           "Expected keys in index to be sorted. But, the key of the index at position %s is "
               + "not larger than the previous key for IsmShard '%s' in resourceId '%s'",
-          currentPosition, shardWithIndex, resourceId);
-      checkState(currentOffset < nextOffset && nextOffset < shardWithIndex.getIndexOffset(),
+          currentPosition, shard, resourceId);
+      checkState(currentOffset < nextOffset && nextOffset < shard.getIndexOffset(),
           "Expected an index offset to be between the previous index offset and the index start "
               + "offset. But, the index offset of the key at position %s is %s and the previous "
               + "offset is %s for IsmShard '%s' in resourceId '%s'",
-          currentPosition, nextOffset, currentOffset, shardWithIndex, resourceId);
+          currentPosition, nextOffset, currentOffset, shard, resourceId);
       builder.put(
           currentKeyBytes,
           new IsmShardKey(
-              IsmReaderImpl.this.resourceId.toString(),
+              resourceId.toString(),
               currentKeyBytes,
               currentOffset,
               nextOffset));
@@ -585,13 +619,12 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     builder.put(
         currentKeyBytes,
         new IsmShardKey(
-            IsmReaderImpl.this.resourceId.toString(),
+            resourceId.toString(),
             currentKeyBytes,
             currentOffset,
-            shardWithIndex.getIndexOffset()));
-    indexPerShard.put(shardId, builder.build());
+            shard.getIndexOffset()));
 
-    return Optional.of(rawChannel);
+    return builder.build();
   }
 
   /** A function which takes an IsmShardKey fully describing a data block to read and return. */
