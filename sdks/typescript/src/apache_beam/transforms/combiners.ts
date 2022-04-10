@@ -84,3 +84,6 @@ export class MeanFn implements CombineFn<number, [number, number], number> {
     return acc[0] / acc[1];
   }
 }
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.transforms.combiners", exports);

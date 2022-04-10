@@ -18,8 +18,14 @@
 
 import * as beam from "../../apache_beam";
 import { GlobalWindows } from "../../apache_beam/transforms/windowings";
+import * as internal from "../transforms/internal";
 
 import * as assert from "assert";
+
+// TODO(serialization): See if we can avoid this.
+function callAssertDeepEqual(a, b) {
+  return assert.deepEqual(a, b);
+}
 
 // TODO: (Naming)
 export class AssertDeepEqual extends beam.PTransform<
@@ -44,7 +50,7 @@ export class AssertDeepEqual extends beam.PTransform<
         }
         expected.sort();
         actualArray.sort();
-        assert.deepEqual(actualArray, expected);
+        callAssertDeepEqual(actualArray, expected);
       })
     );
   }
@@ -74,7 +80,7 @@ export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
       .P([singleton, tagged])
       .apply(new beam.Flatten())
       .map((e) => ({ key: 0, value: e }))
-      .apply(new beam.GroupByKey())
+      .apply(new internal.GroupByKey()) // TODO: GroupBy.
       .map(
         beam.withName("extractActual", (kv) => {
           // Javascript list comprehension?
@@ -89,3 +95,10 @@ export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
       );
   }
 }
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.testing.assert", exports);
+requireForSerialization("apache_beam.testing.assert", {
+  callAssertDeepEqual: callAssertDeepEqual,
+});
+requireForSerialization("assert");

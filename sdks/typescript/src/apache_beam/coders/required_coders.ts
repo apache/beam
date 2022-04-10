@@ -639,3 +639,6 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
     );
   }
 }
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.coders.required_coders", exports);

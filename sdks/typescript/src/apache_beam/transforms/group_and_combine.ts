@@ -330,3 +330,11 @@ function extractFnAndName<T, K>(
 function extractFn<T, K>(extractor: string | string[] | ((T) => K)) {
   return extractFnAndName(extractor, undefined!)[0];
 }
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.transforms.pardo", exports);
+requireForSerialization("apache_beam.transforms.pardo", {
+  BinaryCombineFn: BinaryCombineFn,
+  GroupByAndCombine: GroupByAndCombine,
+  MultiCombineFn: MultiCombineFn,
+});

@@ -64,3 +64,6 @@ export enum Timing {
   LATE = "LATE",
   UNKNOWN = "UNKNOWN",
 }
+
+import { requireForSerialization } from "./serialization";
+requireForSerialization("apache_beam.values", exports);

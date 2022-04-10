@@ -109,33 +109,34 @@ describe("Apache Beam combiners", function () {
       sumOfSquares: number;
     };
 
-    class UnstableStdDevCombineFn
-      implements CombineFn<number, StdDevAcc, number>
-    {
+    function unstableStdDevCombineFn(): CombineFn<number, StdDevAcc, number> {
       // NOTE: This Standard Deviation algorithm is **unstable**, so it is not recommended
       //    for an actual production-level pipeline.
-      createAccumulator() {
-        return { count: 0, sum: 0, sumOfSquares: 0 };
-      }
-      addInput(acc: StdDevAcc, inp: number) {
-        return {
-          count: acc.count + 1,
-          sum: acc.sum + inp,
-          sumOfSquares: acc.sumOfSquares + inp * inp,
-        };
-      }
-      mergeAccumulators(accumulators: StdDevAcc[]) {
-        return accumulators.reduce((previous, current) => ({
-          count: previous.count + current.count,
-          sum: previous.sum + current.sum,
-          sumOfSquares: previous.sumOfSquares + current.sumOfSquares,
-        }));
-      }
-      extractOutput(acc: StdDevAcc) {
-        const mean = acc.sum / acc.count;
-        return acc.sumOfSquares / acc.count - mean * mean;
-      }
+      return {
+        createAccumulator: function () {
+          return { count: 0, sum: 0, sumOfSquares: 0 };
+        },
+        addInput: function (acc: StdDevAcc, inp: number) {
+          return {
+            count: acc.count + 1,
+            sum: acc.sum + inp,
+            sumOfSquares: acc.sumOfSquares + inp * inp,
+          };
+        },
+        mergeAccumulators: function (accumulators: StdDevAcc[]) {
+          return accumulators.reduce((previous, current) => ({
+            count: previous.count + current.count,
+            sum: previous.sum + current.sum,
+            sumOfSquares: previous.sumOfSquares + current.sumOfSquares,
+          }));
+        },
+        extractOutput: function (acc: StdDevAcc) {
+          const mean = acc.sum / acc.count;
+          return acc.sumOfSquares / acc.count - mean * mean;
+        },
+      };
     }
+
     await new DirectRunner().run((root) => {
       const lines = root.apply(
         new beam.Create([
@@ -155,7 +156,7 @@ describe("Apache Beam combiners", function () {
         .apply(
           new GroupGlobally()
             .combining((c) => c, new MeanFn(), "mean")
-            .combining((c) => c, new UnstableStdDevCombineFn(), "stdDev")
+            .combining((c) => c, unstableStdDevCombineFn(), "stdDev")
         )
         .apply(
           new testing.AssertDeepEqual([

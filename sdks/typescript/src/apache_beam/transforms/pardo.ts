@@ -365,3 +365,6 @@ export class SingletonSideInput<T> extends SideInputParam<T, Iterable<T>, T> {
 
 // TODO: (Extension) Add providers for state, timers,
 // restriction trackers, counters, etc.
+
+import { requireForSerialization } from "../serialization";
+requireForSerialization("apache_beam.transforms.pardo", exports);
