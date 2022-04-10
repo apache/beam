@@ -19,31 +19,31 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-task flinkValidatesRunner {
+tasks.register("flinkValidatesRunner") {
   getVersionsAsList('flink_validates_runner_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkValidatesRunner")
   }
 }
 
-task samzaValidatesRunner {
+tasks.register("samzaValidatesRunner") {
   getVersionsAsList('samza_validates_runner_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:samzaValidatesRunner")
   }
 }
 
-task flinkValidatesRunnerPrecommit {
+tasks.register("flinkValidatesRunnerPrecommit") {
   getVersionsAsList('flink_validates_runner_precommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkValidatesRunner")
   }
 }
 
-task flinkExamplesPostCommit {
+tasks.register("flinkExamplesPostCommit") {
   getVersionsAsList('flink_examples_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkExamples")
   }
 }
 
-task sparkExamplesPostCommit {
+tasks.register("sparkExamplesPostCommit") {
   getVersionsAsList('spark_examples_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:sparkExamples")
   }

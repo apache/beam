@@ -53,7 +53,7 @@ public class PartitionMetadataMapper {
    *       {@link String} representing the partition parents' unique identifiers.
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_START_TIMESTAMP}: non-nullable {@link Timestamp}
    *       representing the start time at which the partition started existing in Cloud Spanner.
-   *   <li>{@link PartitionMetadataAdminDao#COLUMN_END_TIMESTAMP}: nullable {@link Timestamp}
+   *   <li>{@link PartitionMetadataAdminDao#COLUMN_END_TIMESTAMP}: non-nullable {@link Timestamp}
    *       representing the end time for querying this partition.
    *   <li>{@link PartitionMetadataAdminDao#COLUMN_HEARTBEAT_MILLIS}: non-nullable {@link Long}
    *       representing the number of milliseconds after the stream is idle, which a heartbeat
@@ -82,8 +82,7 @@ public class PartitionMetadataMapper {
         .setPartitionToken(row.getString(COLUMN_PARTITION_TOKEN))
         .setParentTokens(Sets.newHashSet(row.getStringList(COLUMN_PARENT_TOKENS)))
         .setStartTimestamp(row.getTimestamp(COLUMN_START_TIMESTAMP))
-        .setEndTimestamp(
-            !row.isNull(COLUMN_END_TIMESTAMP) ? row.getTimestamp(COLUMN_END_TIMESTAMP) : null)
+        .setEndTimestamp(row.getTimestamp(COLUMN_END_TIMESTAMP))
         .setHeartbeatMillis(row.getLong(COLUMN_HEARTBEAT_MILLIS))
         .setState(State.valueOf(row.getString(COLUMN_STATE)))
         .setWatermark(row.getTimestamp(COLUMN_WATERMARK))

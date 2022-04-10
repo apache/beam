@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	UnitTestValidatorName    = "UnitTest"
-	KatasValidatorName       = "Katas"
-	PublicClassValidatorName = "ClassName"
+	UnitTestValidatorName = "UnitTest"
+	KatasValidatorName    = "Katas"
 )
 
 type Validator struct {

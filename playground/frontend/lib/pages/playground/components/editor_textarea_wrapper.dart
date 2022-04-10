@@ -69,49 +69,58 @@ class CodeTextAreaWrapper extends StatelessWidget {
                     children: [
                       if (state.selectedExample != null) ...[
                         if (state.selectedExample?.isMultiFile ?? false)
-                          MultifilePopoverButton(
+                          Semantics(
+                            container: true,
+                            child: MultifilePopoverButton(
+                              example: state.selectedExample!,
+                              followerAnchor: Alignment.topRight,
+                              targetAnchor: Alignment.bottomRight,
+                            ),
+                          ),
+                        Semantics(
+                          container: true,
+                          child: DescriptionPopoverButton(
                             example: state.selectedExample!,
                             followerAnchor: Alignment.topRight,
                             targetAnchor: Alignment.bottomRight,
                           ),
-                        DescriptionPopoverButton(
-                          example: state.selectedExample!,
-                          followerAnchor: Alignment.topRight,
-                          targetAnchor: Alignment.bottomRight,
                         ),
                       ],
-                      RunButton(
-                        disabled: state.selectedExample?.isMultiFile ?? false,
-                        isRunning: state.isCodeRunning,
-                        cancelRun: () {
-                          state.cancelRun().catchError(
-                                (_) => NotificationManager.showError(
-                                  context,
-                                  AppLocalizations.of(context)!.runCode,
-                                  AppLocalizations.of(context)!.cancelExecution,
-                                ),
-                              );
-                        },
-                        runCode: () {
-                          AnalyticsService analyticsService =
-                              AnalyticsService.get(context);
-                          final stopwatch = Stopwatch()..start();
-                          final exampleName = getAnalyticsExampleName(
-                            state.selectedExample,
-                            state.isExampleChanged,
-                            state.sdk,
-                          );
-                          state.runCode(
-                            onFinish: () {
-                              analyticsService.trackRunTimeEvent(
-                                exampleName,
-                                stopwatch.elapsedMilliseconds,
-                              );
-                            },
-                          );
-                          AnalyticsService.get(context)
-                              .trackClickRunEvent(exampleName);
-                        },
+                      Semantics(
+                        container: true,
+                        child: RunButton(
+                          disabled: state.selectedExample?.isMultiFile ?? false,
+                          isRunning: state.isCodeRunning,
+                          cancelRun: () {
+                            state.cancelRun().catchError(
+                                  (_) => NotificationManager.showError(
+                                    context,
+                                    AppLocalizations.of(context)!.runCode,
+                                    AppLocalizations.of(context)!.cancelExecution,
+                                  ),
+                                );
+                          },
+                          runCode: () {
+                            AnalyticsService analyticsService =
+                                AnalyticsService.get(context);
+                            final stopwatch = Stopwatch()..start();
+                            final exampleName = getAnalyticsExampleName(
+                              state.selectedExample,
+                              state.isExampleChanged,
+                              state.sdk,
+                            );
+                            state.runCode(
+                              onFinish: () {
+                                analyticsService.trackRunTimeEvent(
+                                  exampleName,
+                                  stopwatch.elapsedMilliseconds,
+                                );
+                              },
+                            );
+                            AnalyticsService.get(context)
+                                .trackClickRunEvent(exampleName);
+                          },
+                        ),
                       ),
                     ],
                   ),

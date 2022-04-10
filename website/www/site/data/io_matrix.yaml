@@ -136,6 +136,9 @@ categories:
         description: "`FileSystem` implementation for [Amazon S3](https://aws.amazon.com/s3/)."
         implementations:
           - language: java
+            name: org.apache.beam.sdk.io.aws2.s3.S3FileSystemRegistrar (recommended)
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/s3/S3FileSystemRegistrar.html
+          - language: java
             name: org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html
       - transform: In-memory
@@ -150,6 +153,9 @@ categories:
       - transform: KinesisIO
         description: PTransforms for reading from and writing to [Kinesis](https://aws.amazon.com/kinesis/) streams.
         implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.aws2.kinesis.KinesisIO (recommended)
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/kinesis/KinesisIO.html
           - language: java
             name: org.apache.beam.sdk.io.kinesis.KinesisIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html
@@ -205,20 +211,29 @@ categories:
         description: An unbounded source for [Amazon Simple Queue Service (SQS)](https://aws.amazon.com/sqs/).
         implementations:
           - language: java
+            name: org.apache.beam.sdk.io.aws2.sqs.SqsIO (recommended)
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html
+          - language: java
             name: org.apache.beam.sdk.io.aws.sqs.SqsIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sqs/SqsIO.html
-          - language: java
-            name: org.apache.beam.sdk.io.aws2.sqs.SqsIO
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html
       - transform: SnsIO
         description: PTransforms for writing to [Amazon Simple Notification Service (SNS)](https://aws.amazon.com/sns/).
         implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.aws2.sns.SnsIO (recommended)
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html
           - language: java
             name: org.apache.beam.sdk.io.aws.sns.SnsIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sns/SnsIO.html
           - language: java
             name: org.apache.beam.sdk.io.aws2.sns.SnsIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html
+      - transform: Pub/Sub Lite
+        description: I/O transforms for reading from Google Pub/Sub Lite.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.pubsublite.PubSubLiteIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsublite/PubsubLiteIO.html
   - name: Database
     description: These I/O connectors are used to connect to database systems.
     rows:
@@ -344,11 +359,11 @@ categories:
         description: Read from and write to [Amazon DynamoDB](https://aws.amazon.com/dynamodb/).
         implementations:
           - language: java
+            name: org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO (recommended)
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html
+          - language: java
             name: org.apache.beam.sdk.io.aws.dynamodb.DynamoDBIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/dynamodb/DynamoDBIO.html
-          - language: java
-            name: org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html
       - transform: ClickHouseIO
         description: Transform for writing to [ClickHouse](https://clickhouse.tech/).
         implementations:
@@ -361,6 +376,21 @@ categories:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/databaseio
             url: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/databaseio
+      - transform: InfluxDB
+        description: IO to read and write from InfluxDB.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.influxdb.InfluxDbIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html
+      - transform: Firestore IO
+        description: FirestoreIO provides an API for reading from and writing to Google Cloud Firestore.
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.gcp.healthcare.FirestoreIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/firestore/FirestoreIO.html
+      - transform: Neo4j
+        implementations:
+          - language: java
   - name: Miscellaneous
     description: Miscellaneous I/O sources.
     rows:

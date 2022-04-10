@@ -732,6 +732,15 @@ class StateHandler(metaclass=abc.ABCMeta):
       continuation_token=None  # type: Optional[bytes]
   ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]
+
+    """Gets the contents of state for the given state key.
+
+    State is associated to a state key, AND an instruction_id, which is set
+    when calling process_instruction_id.
+
+    Returns a tuple with the contents in state, and an optional continuation
+    token, which is used to page the API.
+    """
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
@@ -741,22 +750,46 @@ class StateHandler(metaclass=abc.ABCMeta):
       data  # type: bytes
   ):
     # type: (...) -> _Future
+
+    """Append the input data into the state key.
+
+    Returns a future that allows one to wait for the completion of the call.
+
+    State is associated to a state key, AND an instruction_id, which is set
+    when calling process_instruction_id.
+    """
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
   def clear(self, state_key):
     # type: (beam_fn_api_pb2.StateKey) -> _Future
+
+    """Clears the contents of a cell for the input state key.
+
+    Returns a future that allows one to wait for the completion of the call.
+
+    State is associated to a state key, AND an instruction_id, which is set
+    when calling process_instruction_id.
+    """
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id):
     # type: (str) -> Iterator[None]
+
+    """Switch the context of the state handler to a specific instruction.
+
+    This must be called before performing any write or read operations on the
+    existing state.
+    """
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
   def done(self):
     # type: () -> None
+
+    """Mark the state handler as done, and potentially delete all context."""
     raise NotImplementedError(type(self))
 
 

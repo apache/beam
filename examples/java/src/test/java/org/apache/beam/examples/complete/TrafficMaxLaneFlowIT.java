@@ -23,13 +23,13 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.QueryResponse;
-import org.apache.beam.examples.complete.TrafficMaxLaneFlow.FormatMaxesFn;
 import org.apache.beam.examples.complete.TrafficMaxLaneFlow.TrafficMaxLaneFlowOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -51,7 +51,7 @@ public class TrafficMaxLaneFlowIT {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    PipelineOptionsFactory.register(TrafficMaxLaneFlowOptions.class);
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
     this.options = TestPipeline.testingPipelineOptions().as(TrafficMaxLaneFlowOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     this.bqClient = new BigqueryClient("TrafficMaxLaneFlowIT");
@@ -65,7 +65,6 @@ public class TrafficMaxLaneFlowIT {
 
   @Test
   public void testE2ETrafficMaxLaneFlow() throws Exception {
-    this.options.setBigQuerySchema(FormatMaxesFn.getSchema());
     this.options.setProject(this.projectId);
     this.options.setBigQueryDataset(this.outputDatasetId);
     this.options.setBigQueryTable(this.outputTable);

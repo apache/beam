@@ -123,6 +123,23 @@ func New() *CloudStorage {
 	return &CloudStorage{}
 }
 
+// GetPrecompiledObject returns the precompiled example
+func (cd *CloudStorage) GetPrecompiledObject(ctx context.Context, precompiledObjectPath, bucketName string) (*pb.PrecompiledObject, error) {
+	cloudPath := filepath.Join(precompiledObjectPath, MetaInfoName)
+	data, err := cd.getFileFromBucket(ctx, cloudPath, "", bucketName)
+	if err != nil {
+		return nil, err
+	}
+	precompiledObject := &pb.PrecompiledObject{}
+	err = json.Unmarshal(data, precompiledObject)
+	if err != nil {
+		logger.Errorf("json.Unmarshal: %v", err.Error())
+		return nil, err
+	}
+	precompiledObject.CloudPath = precompiledObjectPath
+	return precompiledObject, nil
+}
+
 // GetPrecompiledObjectCode returns the source code of the example
 func (cd *CloudStorage) GetPrecompiledObjectCode(ctx context.Context, precompiledObjectPath, bucketName string) (string, error) {
 	extension, err := getFileExtensionBySdk(precompiledObjectPath)
@@ -355,7 +372,10 @@ func (cd *CloudStorage) getFileFromBucket(ctx context.Context, pathToObject stri
 
 	bucket := client.Bucket(bucketName)
 
-	filePath := getFullFilePath(pathToObject, extension)
+	filePath := pathToObject
+	if extension != "" {
+		filePath = getFullFilePath(pathToObject, extension)
+	}
 	rc, err := bucket.Object(filePath).NewReader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Object(%q).NewReader: %v", filePath, err)
