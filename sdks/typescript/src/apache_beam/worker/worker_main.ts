@@ -8,6 +8,10 @@ import { Worker, WorkerEndpoints } from "./worker";
 import { LogEntry, LogEntry_Severity_Enum } from "../proto/beam_fn_api";
 import { BeamFnLoggingClient } from "../proto/beam_fn_api.grpc-client";
 
+// Needed for registration.
+import * as row_coder from "../coders/row_coder";
+import * as combiners from "../transforms/combiners";
+
 function createLoggingChannel(workerId: string, endpoint: string) {
   const logQueue = new Queue<LogEntry>();
   function toEntry(line: string): LogEntry {

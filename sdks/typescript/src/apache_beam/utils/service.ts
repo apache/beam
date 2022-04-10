@@ -56,7 +56,7 @@ export class SubprocessService {
   async start() {
     // TODO: (Cleanup) Choose a free port.
     const host = "localhost";
-    const port = "7777";
+    const port = "7778";
     console.log(this.args.map((arg) => arg.replace("{{PORT}}", port)));
     this.process = childProcess.spawn(
       this.cmd,
@@ -184,6 +184,7 @@ export class JavaJarService extends SubprocessService {
       // node-ts 0.x corresponds to Beam 2.x.
       version = "2" + version.substring(1);
     }
+    version = '2.36.0'
     const gradlePackage = gradleTarget.match(/^:?(.*):[^:]+:?$/)![1];
     const artifactId = "beam-" + gradlePackage.replaceAll(":", "-");
     const projectRoot = path.resolve(

@@ -116,37 +116,37 @@ export class Worker {
     const descriptorId =
       request.request.processBundle.processBundleDescriptorId;
     console.log("process", request.instructionId, descriptorId);
-    if (!this.processBundleDescriptors.has(descriptorId)) {
-      const call = this.controlClient.getProcessBundleDescriptor(
-        {
-          processBundleDescriptorId: descriptorId,
-        },
-        (err, value: ProcessBundleDescriptor) => {
-          if (err) {
-            this.respond({
-              instructionId: request.instructionId,
-              error: "" + err,
-              response: {
-                oneofKind: "processBundle",
-                processBundle: {
-                  residualRoots: [],
-                  monitoringInfos: [],
-                  requiresFinalization: false,
-                  monitoringData: {},
-                },
-              },
-            });
-          } else {
-            this.processBundleDescriptors.set(descriptorId, value);
-            this.process(request);
-          }
-        }
-      );
-      return;
-    }
-
-    const processor = this.aquireBundleProcessor(descriptorId);
     try {
+      if (!this.processBundleDescriptors.has(descriptorId)) {
+        const call = this.controlClient.getProcessBundleDescriptor(
+          {
+            processBundleDescriptorId: descriptorId,
+          },
+          (err, value: ProcessBundleDescriptor) => {
+            if (err) {
+              this.respond({
+                instructionId: request.instructionId,
+                error: "" + err,
+                response: {
+                  oneofKind: "processBundle",
+                  processBundle: {
+                    residualRoots: [],
+                    monitoringInfos: [],
+                    requiresFinalization: false,
+                    monitoringData: {},
+                  },
+                },
+              });
+            } else {
+              this.processBundleDescriptors.set(descriptorId, value);
+              this.process(request);
+            }
+          }
+        );
+        return;
+      }
+
+      const processor = this.aquireBundleProcessor(descriptorId);
       await processor.process(request.instructionId);
       await this.respond({
         instructionId: request.instructionId,
@@ -161,15 +161,15 @@ export class Worker {
           },
         },
       });
+      this.returnBundleProcessor(processor);
     } catch (error) {
       console.error("PROCESS ERROR", error);
       await this.respond({
         instructionId: request.instructionId,
         error: "" + error,
-        response: undefined!,
+        response: {oneofKind: undefined},
       });
     }
-    this.returnBundleProcessor(processor);
   }
 
   aquireBundleProcessor(descriptorId: string) {
@@ -326,7 +326,7 @@ export class BundleProcessor {
   }
 
   // Put this on a worker thread...
-  async process(instructionId: string, delay_ms = 600) {
+  async process(instructionId: string) {
     console.log("Processing ", this.descriptor.id, "for", instructionId);
     this.currentBundleId = instructionId;
     // We must await these in reverse topological order.
