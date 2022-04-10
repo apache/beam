@@ -38,7 +38,7 @@ var (
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
 )
 
-const entrypoint = "dist/apache_beam/worker/external_worker_service.js"
+const entrypoint = "dist/worker/worker_main.js"
 
 func main() {
 	flag.Parse()
@@ -78,7 +78,7 @@ func main() {
 		log.Fatal("No control endpoint provided.")
 	}
 
-	log.Printf("Initializing java harness: %v", strings.Join(os.Args, " "))
+	log.Printf("Initializing typescript harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
 
@@ -91,7 +91,7 @@ func main() {
 
 	args := []string{
 		entrypoint,
-		"--id" + *id,
+		"--id=" + *id,
 		"--logging_endpoint=" + *loggingEndpoint,
 		"--control_endpoint=" + *controlEndpoint,
 		"--semi_persist_dir=" + *semiPersistDir,
@@ -103,4 +103,5 @@ func main() {
 	}
 
 	log.Fatalf("User program exited: %v", execx.Execute("node", args...))
+	log.Printf("SDK exited cleanly.")
 }

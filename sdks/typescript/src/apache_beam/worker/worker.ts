@@ -36,12 +36,6 @@ import {
 } from "../proto/beam_fn_api.grpc-client";
 
 import {
-  StartWorkerRequest,
-  StartWorkerResponse,
-  StopWorkerRequest,
-  StopWorkerResponse,
-} from "../proto/beam_fn_api";
-import {
   beamFnExternalWorkerPoolDefinition,
   IBeamFnExternalWorkerPool,
 } from "../proto/beam_fn_api.grpc-server";
@@ -60,6 +54,10 @@ import {
   OperatorContext,
 } from "./operators";
 
+export interface WorkerEndpoints {
+  controlUrl: string;
+}
+
 export class Worker {
   controlClient: BeamFnControlClient;
   controlChannel: grpc.ClientDuplexStream<
@@ -72,14 +70,15 @@ export class Worker {
   dataChannels: Map<string, MultiplexingDataChannel> = new Map();
   stateChannels: Map<string, MultiplexingStateChannel> = new Map();
 
-  constructor(private id: string, private endpoints: StartWorkerRequest) {
-    if (endpoints?.controlEndpoint?.url == undefined) {
-      throw "Missing control endpoint.";
-    }
+  constructor(
+    private id: string,
+    private endpoints: WorkerEndpoints,
+    options: Object = {}
+  ) {
     const metadata = new grpc.Metadata();
     metadata.add("worker_id", this.id);
     this.controlClient = new BeamFnControlClient(
-      endpoints.controlEndpoint.url,
+      endpoints.controlUrl,
       grpc.ChannelCredentials.createInsecure(),
       {},
       {}
@@ -104,6 +103,11 @@ export class Worker {
     });
   }
 
+  async wait() {
+    // TODO: Await closing of control log.
+    await new Promise((r) => setTimeout(r, 1e9));
+  }
+
   respond(response: InstructionResponse) {
     this.controlChannel.write(response);
   }
@@ -111,6 +115,7 @@ export class Worker {
   async process(request) {
     const descriptorId =
       request.request.processBundle.processBundleDescriptorId;
+    console.log("process", request.instructionId, descriptorId);
     if (!this.processBundleDescriptors.has(descriptorId)) {
       const call = this.controlClient.getProcessBundleDescriptor(
         {

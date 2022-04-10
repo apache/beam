@@ -31,10 +31,10 @@ COPY src ./src
 
 # Install dependencies and compile
 RUN npm install
-RUN npx tsc
+RUN npm run build
 
 # Check that filesystem is set up as expected
 RUN ls -a
 
-# TODO: Change to boot.go entrypoint
-CMD ["node", "dist/apache_beam/worker/external_worker_service.js"]
+COPY boot /opt/apache/beam/
+ENTRYPOINT ["/opt/apache/beam/boot"]
