@@ -671,7 +671,7 @@ def create_and_optimize_stages(
       leaf_transform_stages(
           pipeline_proto.root_transform_ids,
           pipeline_proto.components,
-          union(known_runner_urns, KNOWN_COMPOSITES)))
+          known_composites=union(known_runner_urns, KNOWN_COMPOSITES)))
 
   # Apply each phase in order.
   for phase in phases:

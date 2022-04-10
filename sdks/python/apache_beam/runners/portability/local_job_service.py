@@ -274,8 +274,9 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         result = self._invoke_runner()
         _LOGGER.info(
             'Successfully completed job in %s seconds.', time.time() - start)
-        self.set_state(beam_job_api_pb2.JobState.DONE)
         self.result = result
+        result.wait_until_finish()
+        self.set_state(beam_job_api_pb2.JobState.DONE)
       except:  # pylint: disable=bare-except
         self._log_queues.put(
             beam_job_api_pb2.JobMessage(
