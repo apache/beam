@@ -79,6 +79,7 @@ class UtilsTest(unittest.TestCase):
     self.assertEqual(
         'ANamedTuple(a: int, b: str)', pformat_namedtuple(ANamedTuple))
 
+  @unittest.skip("BEAM-14288")
   def test_pformat_namedtuple_with_unnamed_fields(self):
     self.assertEqual(
         f'OptionalUnionType(unnamed: {repr(Optional[Union[int, str]])})',
