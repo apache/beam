@@ -25,7 +25,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
-      '^runners/google-cloud-dataflow-java/.*$',
+      '^runners/flink/.*$',
+      '^runners/spark/.*$',
+      '^runners/direct-java/.*$',
       '^examples/kotlin/.*$',
       '^release/.*$',
     ]
