@@ -93,6 +93,9 @@ const _urn_to_json_value_parser = {
     },
     timestamp: Long.fromNumber(x.timestamp),
   }),
+  "beam:coder:nullable:v1": (components) => (x) => {
+    return x == undefined ? undefined : components[0](x);
+  },
 };
 
 function get_json_value_parser(coderRepr: CoderRepr) {

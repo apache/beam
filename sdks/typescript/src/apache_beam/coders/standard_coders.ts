@@ -160,6 +160,45 @@ export class BoolCoder implements Coder<Boolean> {
 }
 globalRegistry().register(BoolCoder.URN, BoolCoder);
 
+export class NullableCoder<T> implements Coder<T | undefined> {
+  static URN: string = "beam:coder:nullable:v1";
+  type: string = "nullablecoder";
+
+  elementCoder: Coder<T>;
+
+  constructor(elementCoder: Coder<T>) {
+    this.elementCoder = elementCoder;
+  }
+
+  encode(element: T | undefined, writer: Writer, context: Context) {
+    if (element == undefined) {
+      writer.bool(false);
+    } else {
+      writer.bool(true);
+      this.elementCoder.encode(element, writer, context);
+    }
+  }
+
+  decode(reader: Reader, context: Context): T | undefined {
+    if (reader.bool()) {
+      return this.elementCoder.decode(reader, context);
+    } else {
+      return undefined;
+    }
+  }
+
+  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+    return {
+      spec: {
+        urn: NullableCoder.URN,
+        payload: new Uint8Array(),
+      },
+      componentCoderIds: [pipelineContext.getCoderId(this.elementCoder)],
+    };
+  }
+}
+globalRegistry().register(NullableCoder.URN, NullableCoder);
+
 export class IntervalWindowCoder implements Coder<IntervalWindow> {
   static URN: string = "beam:coder:interval_window:v1";
   static INSTANCE: IntervalWindowCoder = new IntervalWindowCoder();

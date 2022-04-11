@@ -167,7 +167,7 @@ export class Worker {
       await this.respond({
         instructionId: request.instructionId,
         error: "" + error,
-        response: {oneofKind: undefined},
+        response: { oneofKind: undefined },
       });
     }
   }
