@@ -681,7 +681,7 @@ public class JmsIO {
      * acts as a producer on the queue.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withTopic(String)}. The user has to
-     * specify a destination: queue or topic.
+     * specify a destination: queue or topic or topicNameMapper.
      *
      * <p>For instance:
      *
@@ -703,7 +703,7 @@ public class JmsIO {
      * as a publisher on the topic.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)}. The user has to
-     * specify a destination: queue or topic.
+     * specify a destination: queue or topic or topicNameMapper.
      *
      * <p>For instance:
      *
@@ -743,9 +743,7 @@ public class JmsIO {
      *
      * <p>For instance:
      * <pre>{@code
-     * SerializableFunction<SomeEventObject, String> topicNameMapper =
-     *         (e ->
-     *             return the topic name ;
+     * SerializableFunction<SomeEventObject, String> topicNameMapper = (e -> return "the topic name");
      *
      * }</pre>
      *
