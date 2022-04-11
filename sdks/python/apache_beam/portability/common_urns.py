@@ -19,25 +19,30 @@
 
 # pytype: skip-file
 
-from apache_beam.portability.api.beam_runner_api_pb2_urns import BeamConstants
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardArtifacts
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardCoders
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardDisplayData
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardEnvironments
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardProtocols
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardPTransforms
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardRequirements
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardResourceHints
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardSideInputTypes
-from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardUserStateTypes
-from apache_beam.portability.api.external_transforms_pb2_urns import ExpansionMethods
-from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfo
-from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoSpecs
-from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoTypeUrns
-from apache_beam.portability.api.standard_window_fns_pb2_urns import FixedWindowsPayload
-from apache_beam.portability.api.standard_window_fns_pb2_urns import GlobalWindowsPayload
-from apache_beam.portability.api.standard_window_fns_pb2_urns import SessionWindowsPayload
-from apache_beam.portability.api.standard_window_fns_pb2_urns import SlidingWindowsPayload
+from .api import beam_runner_api_pb2_urns
+from .api import external_transforms_pb2_urns
+from .api import metrics_pb2_urns
+from .api import standard_window_fns_pb2_urns
+
+BeamConstants = beam_runner_api_pb2_urns.BeamConstants
+StandardArtifacts = beam_runner_api_pb2_urns.StandardArtifacts
+StandardCoders = beam_runner_api_pb2_urns.StandardCoders
+StandardDisplayData = beam_runner_api_pb2_urns.StandardDisplayData
+StandardEnvironments = beam_runner_api_pb2_urns.StandardEnvironments
+StandardProtocols = beam_runner_api_pb2_urns.StandardProtocols
+StandardPTransforms = beam_runner_api_pb2_urns.StandardPTransforms
+StandardRequirements = beam_runner_api_pb2_urns.StandardRequirements
+StandardResourceHints = beam_runner_api_pb2_urns.StandardResourceHints
+StandardSideInputTypes = beam_runner_api_pb2_urns.StandardSideInputTypes
+StandardUserStateTypes = beam_runner_api_pb2_urns.StandardUserStateTypes
+ExpansionMethods = external_transforms_pb2_urns.ExpansionMethods
+MonitoringInfo = metrics_pb2_urns.MonitoringInfo
+MonitoringInfoSpecs = metrics_pb2_urns.MonitoringInfoSpecs
+MonitoringInfoTypeUrns = metrics_pb2_urns.MonitoringInfoTypeUrns
+FixedWindowsPayload = standard_window_fns_pb2_urns.FixedWindowsPayload
+GlobalWindowsPayload = standard_window_fns_pb2_urns.GlobalWindowsPayload
+SessionWindowsPayload = standard_window_fns_pb2_urns.SessionWindowsPayload
+SlidingWindowsPayload = standard_window_fns_pb2_urns.SlidingWindowsPayload
 
 primitives = StandardPTransforms.Primitives
 deprecated_primitives = StandardPTransforms.DeprecatedPrimitives

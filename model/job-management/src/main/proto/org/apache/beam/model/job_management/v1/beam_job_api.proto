@@ -29,11 +29,11 @@ option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagem
 option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "JobApi";
 
-import "beam_runner_api.proto";
-import "endpoints.proto";
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/endpoints.proto";
+import "org/apache/beam/model/pipeline/v1/metrics.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
-import "metrics.proto";
 
 // Job Service for running RunnerAPI pipelines
 service JobService {

@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -776,11 +777,11 @@ public class KafkaIO {
               continue;
             }
             if (returnType.equals(byte[].class)) {
-              return ByteArrayCoder.of();
+              return NullableCoder.of(ByteArrayCoder.of());
             } else if (returnType.equals(Integer.class)) {
-              return VarIntCoder.of();
+              return NullableCoder.of(VarIntCoder.of());
             } else if (returnType.equals(Long.class)) {
-              return VarLongCoder.of();
+              return NullableCoder.of(VarLongCoder.of());
             } else {
               throw new RuntimeException("Couldn't infer Coder from " + deserializer);
             }
@@ -1714,15 +1715,17 @@ public class KafkaIO {
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         Coder keyCoder = Read.Builder.resolveCoder(keyDeserializer);
-        if (!(keyCoder instanceof ByteArrayCoder)) {
+        if (!(keyCoder instanceof NullableCoder
+            && keyCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports keys of type byte[]");
+              "ExternalWithMetadata transform only supports keys of type nullable(byte[])");
         }
         Class valueDeserializer = resolveClass(config.valueDeserializer);
         Coder valueCoder = Read.Builder.resolveCoder(valueDeserializer);
-        if (!(valueCoder instanceof ByteArrayCoder)) {
+        if (!(valueCoder instanceof NullableCoder
+            && valueCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports values of type byte[]");
+              "ExternalWithMetadata transform only supports values of type nullable(byte[])");
         }
 
         return readBuilder.build().externalWithMetadata();
