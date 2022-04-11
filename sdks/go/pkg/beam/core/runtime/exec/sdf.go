@@ -236,6 +236,11 @@ type ProcessSizedElementsAndRestrictions struct {
 	// channel once finished with it, or it will block indefinitely.
 	SU chan SplittableUnit
 
+	// source contains a direct reference to the DataSource that feeds into this
+	// node. This reference will be used to propagate information up to the DataSource
+	// if the DoFn returns a ProcessContinuation and self-checkpoints.
+	source *DataSource
+
 	elm   *FullValue   // Currently processing element.
 	rt    sdf.RTracker // Currently processing element's restriction tracker.
 	currW int          // Index of the current window in elm being processed.
@@ -343,7 +348,12 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		defer func() {
 			<-n.SU
 		}()
-		return n.PDo.processSingleWindow(mainIn)
+		continuation, processResult := n.PDo.processSingleWindow(mainIn)
+		if continuation != nil {
+			n.source.pc = continuation
+			n.source.selfSu = n
+		}
+		return processResult
 	} else {
 		// If we need to process the element in multiple windows, each one needs
 		// its own RTracker and progress must be tracked among all windows by
@@ -361,7 +371,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 			n.rt = rt
 			n.elm = elm
 			n.SU <- n
-			err := n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
+			_, err := n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
 			if err != nil {
 				<-n.SU
 				return n.PDo.fail(err)

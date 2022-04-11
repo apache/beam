@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -53,6 +54,13 @@ type DataSource struct {
 	// DataSource is finished using it.
 	su chan SplittableUnit
 
+	// pc is non-nil if a splittable unit the DataSource feeds directly into
+	// has initiated a split. The continuation will be used to determine if
+	// the process should be split and resumed later. The splitable unit that
+	// initiated the split will be stored in selfSu and cleared after the split.
+	pc     sdf.ProcessContinuation
+	selfSu SplittableUnit
+
 	mu sync.Mutex
 }
 
@@ -64,6 +72,7 @@ func (n *DataSource) InitSplittable() {
 	}
 	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok {
 		n.su = u.SU
+		u.source = n
 	}
 }
 

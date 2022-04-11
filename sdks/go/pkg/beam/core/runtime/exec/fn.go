@@ -90,7 +90,7 @@ type invoker struct {
 	args []interface{}
 	// TODO(lostluck):  2018/07/06 consider replacing with a slice of functions to run over the args slice, as an improvement.
 	ctxIdx, pnIdx, wndIdx, etIdx, bfIdx int   // specialized input indexes
-	outEtIdx, outErrIdx                 int   // specialized output indexes
+	outEtIdx, outPcIdx, outErrIdx       int   // specialized output indexes
 	in, out                             []int // general indexes
 
 	ret                     FullValue                     // ret is a cached allocation for passing to the next Unit. Units never modify the passed in FullValue.
@@ -126,6 +126,9 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	}
 	if n.bfIdx, ok = fn.BundleFinalization(); !ok {
 		n.bfIdx = -1
+	}
+	if n.outPcIdx, ok = fn.ProcessContinuation(); !ok {
+		n.outPcIdx = -1
 	}
 
 	n.initCall()
@@ -224,7 +227,7 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 }
 
 // ret1 handles processing of a single return value.
-// Errors or single values are the only options.
+// Errors, single values, or a ProcessContinuation are the only options.
 func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0 interface{}) (*FullValue, error) {
 	switch {
 	case n.outErrIdx >= 0:
@@ -232,6 +235,9 @@ func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 			return nil, r0.(error)
 		}
 		return nil, nil
+	case n.outPcIdx >= 0:
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Continuation: r0.(sdf.ProcessContinuation)}
+		return &n.ret, nil
 	case n.outEtIdx >= 0:
 		panic("invoker.ret1: cannot return event time without a value")
 	default:
@@ -247,9 +253,16 @@ func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 		if r1 != nil {
 			return nil, r1.(error)
 		}
+		if n.outPcIdx >= 0 {
+			n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Continuation: r0.(sdf.ProcessContinuation)}
+			return &n.ret, nil
+		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Pane: pn}
 		return &n.ret, nil
 	case n.outEtIdx == 0:
+		if n.outPcIdx >= 0 {
+			panic("invoker.ret2: cannot return event time without a value")
+		}
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn}
 		return &n.ret, nil
 	default:
@@ -261,21 +274,34 @@ func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 // ret3 handles processing of a trio of return values.
 func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2 interface{}) (*FullValue, error) {
 	switch {
-	case n.outErrIdx >= 0:
-		if r2 != nil {
-			return nil, r2.(error)
-		}
-		if n.outEtIdx < 0 {
-			n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn}
+	case n.outEtIdx >= 0:
+		if n.outErrIdx == 2 {
+			if r2 != nil {
+				return nil, r2.(error)
+			}
+			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn}
 			return &n.ret, nil
 		}
-		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn}
-		return &n.ret, nil
-	case n.outEtIdx == 0:
+		if n.outPcIdx >= 0 {
+			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
+			return &n.ret, nil
+		}
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn}
 		return &n.ret, nil
 	default:
-		panic(fmt.Sprintf("invoker.ret3: %T, %T, and %T don't match permitted return values.", r0, r1, r2))
+		if n.outErrIdx == 2 {
+			if r2 != nil {
+				return nil, r2.(error)
+			}
+			if n.outPcIdx == 1 {
+				n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Pane: pn, Continuation: r1.(sdf.ProcessContinuation)}
+				return &n.ret, nil
+			}
+			n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn}
+			return &n.ret, nil
+		}
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
+		return &n.ret, nil
 	}
 }
 
@@ -284,7 +310,24 @@ func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 	if r3 != nil {
 		return nil, r3.(error)
 	}
-	n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn}
+	if n.outEtIdx == 0 {
+		if n.outPcIdx >= 0 {
+			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
+			return &n.ret, nil
+		}
+		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn}
+		return &n.ret, nil
+	}
+	n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
+	return &n.ret, nil
+}
+
+// ret5 handles processing five return values.
+func (n *invoker) ret5(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3, r4 interface{}) (*FullValue, error) {
+	if r4 != nil {
+		return nil, r4.(error)
+	}
+	n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Continuation: r3.(sdf.ProcessContinuation)}
 	return &n.ret, nil
 }
 
