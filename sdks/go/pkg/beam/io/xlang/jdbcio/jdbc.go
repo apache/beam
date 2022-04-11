@@ -91,6 +91,7 @@ type config struct {
 
 // jdbcConfig stores the expansion service and configuration for JDBC IO.
 type jdbcConfig struct {
+	classpaths    []string
 	expansionAddr string
 	config        *config
 }
@@ -141,7 +142,11 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 
 	expansionAddr := cfg.expansionAddr
 	if expansionAddr == "" {
-		expansionAddr = autoStartupAddress
+		if len(cfg.classpaths) > 0 {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget, xlangx.AddClasspaths(cfg.classpaths))
+		} else {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
+		}
 	}
 
 	jcs := jdbcConfigSchema{
@@ -153,6 +158,12 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 }
 
 type writeOption func(*jdbcConfig)
+
+func WriteClasspaths(classpaths []string) writeOption {
+	return func(jc *jdbcConfig) {
+		jc.classpaths = classpaths
+	}
+}
 
 // WriteStatement option overrides the default write statement of
 // "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)".
@@ -241,20 +252,29 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 
 	expansionAddr := cfg.expansionAddr
 	if expansionAddr == "" {
-		expansionAddr = autoStartupAddress
+		if len(cfg.classpaths) > 0 {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget, xlangx.AddClasspaths(cfg.classpaths))
+		} else {
+			expansionAddr = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
+		}
 	}
 
 	jcs := jdbcConfigSchema{
 		Location: tableName,
 		Config:   toRow(cfg.config),
 	}
-
 	pl := beam.CrossLanguagePayload(jcs)
 	result := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)))
 	return result[beam.UnnamedOutputTag()]
 }
 
 type readOption func(*jdbcConfig)
+
+func ReadClasspaths(classpaths []string) readOption {
+	return func(jc *jdbcConfig) {
+		jc.classpaths = classpaths
+	}
+}
 
 // ReadQuery overrides the default read query "SELECT * FROM tableName;"
 func ReadQuery(query string) readOption {
