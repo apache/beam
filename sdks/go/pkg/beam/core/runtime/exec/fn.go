@@ -237,7 +237,7 @@ func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 		return nil, nil
 	case n.outPcIdx == 0:
 		if r0 == nil {
-			panic(fmt.Sprintf("invoker.ret1: cannot return a nil process continuation from function %v", n.fn.Name()))
+			panic(fmt.Sprintf("invoker.ret1: cannot return a nil process continuation from function %v", n.fn))
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Continuation: r0.(sdf.ProcessContinuation)}
 		return &n.ret, nil
@@ -258,7 +258,7 @@ func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 		}
 		if n.outPcIdx == 0 {
 			if r0 == nil {
-				panic("invoker.ret2: cannot return a nil process continuation")
+				panic(fmt.Sprintf("invoker.ret2: cannot return a nil process continuation from function %v", n.fn))
 			}
 			n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Continuation: r0.(sdf.ProcessContinuation)}
 			return &n.ret, nil
@@ -273,7 +273,7 @@ func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 		return &n.ret, nil
 	case n.outPcIdx == 1:
 		if r1 == nil {
-			panic("invoker.ret2: cannot return a nil process continuation")
+			panic(fmt.Sprintf("invoker.ret2: cannot return a nil process continuation from function %v", n.fn))
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Elm: r0, Continuation: r1.(sdf.ProcessContinuation)}
 		return &n.ret, nil
@@ -295,6 +295,9 @@ func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 			return &n.ret, nil
 		}
 		if n.outPcIdx == 2 {
+			if r2 == nil {
+				panic(fmt.Sprintf("invoker.ret3: cannot return a nil process continuation from function %v", n.fn))
+			}
 			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
 			return &n.ret, nil
 		}
@@ -305,12 +308,18 @@ func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 			return nil, r2.(error)
 		}
 		if n.outPcIdx == 1 {
+			if r1 == nil {
+				panic(fmt.Sprintf("invoker.ret3: cannot return a nil process continuation from function %v", n.fn))
+			}
 			n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Pane: pn, Continuation: r1.(sdf.ProcessContinuation)}
 			return &n.ret, nil
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn}
 		return &n.ret, nil
 	default:
+		if r2 == nil {
+			panic(fmt.Sprintf("invoker.ret3: cannot return a nil process continuation from function %v", n.fn))
+		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
 		return &n.ret, nil
 	}
@@ -325,17 +334,26 @@ func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 				return nil, r3.(error)
 			}
 			if n.outPcIdx == 2 {
+				if r2 == nil {
+					panic(fmt.Sprintf("invoker.ret4: cannot return a nil process continuation from function %v", n.fn))
+				}
 				n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
 				return &n.ret, nil
 			}
 			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn}
 			return &n.ret, nil
 		}
+		if r3 == nil {
+			panic(fmt.Sprintf("invoker.ret4: cannot return a nil process continuation from function %v", n.fn))
+		}
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn, Continuation: r3.(sdf.ProcessContinuation)}
 		return &n.ret, nil
 	default:
 		if r3 != nil {
 			return nil, r3.(error)
+		}
+		if r2 == nil {
+			panic(fmt.Sprintf("invoker.ret4: cannot return a nil process continuation from function %v", n.fn))
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
 		return &n.ret, nil
@@ -346,6 +364,9 @@ func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 func (n *invoker) ret5(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3, r4 interface{}) (*FullValue, error) {
 	if r4 != nil {
 		return nil, r4.(error)
+	}
+	if r3 == nil {
+		panic(fmt.Sprintf("invoker.ret5: cannot return a nil process continuation from function %v", n.fn))
 	}
 	n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Continuation: r3.(sdf.ProcessContinuation)}
 	return &n.ret, nil
