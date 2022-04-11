@@ -236,10 +236,9 @@ type ProcessSizedElementsAndRestrictions struct {
 	// channel once finished with it, or it will block indefinitely.
 	SU chan SplittableUnit
 
-	// source contains a direct reference to the DataSource that feeds into this
-	// node. This reference will be used to propagate information up to the DataSource
-	// if the DoFn returns a ProcessContinuation and self-checkpoints.
-	source *DataSource
+	// continuation is a field that will hold a returned process continuation
+	// from a DoFn for use in splitting the bundle if the process should be resumed.
+	continuation sdf.ProcessContinuation
 
 	elm   *FullValue   // Currently processing element.
 	rt    sdf.RTracker // Currently processing element's restriction tracker.
@@ -350,8 +349,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		}()
 		continuation, processResult := n.PDo.processSingleWindow(mainIn)
 		if continuation != nil {
-			n.source.pc = continuation
-			n.source.selfSu = n
+			n.continuation = continuation
 		}
 		return processResult
 	} else {
