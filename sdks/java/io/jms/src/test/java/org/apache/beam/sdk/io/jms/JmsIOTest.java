@@ -298,7 +298,6 @@ public class JmsIOTest {
 
   @Test
   public void testWriteDynamicMessage() throws Exception {
-
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     connection.start();
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
