@@ -74,6 +74,11 @@ func (t Time) Milliseconds() int64 {
 	return int64(t)
 }
 
+// ToTime returns the Time represented as a time.Time
+func (t Time) ToTime() time.Time {
+	return time.UnixMilli(int64(t)).UTC()
+}
+
 // Add returns the time plus the duration. Input Durations of less than one
 // millisecond will not increment the time due to a loss of precision when
 // converting to milliseconds.

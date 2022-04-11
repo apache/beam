@@ -19,6 +19,18 @@ import "time"
 
 type WallTimeWatermarkEstimator struct{}
 
-func (e WallTimeWatermarkEstimator) CurrentWatermark() time.Time {
+func (e *WallTimeWatermarkEstimator) CurrentWatermark() time.Time {
 	return time.Now()
+}
+
+type TimestampObservingWatermarkEstimator struct {
+	State time.Time
+}
+
+func (e *TimestampObservingWatermarkEstimator) CurrentWatermark() time.Time {
+	return e.State
+}
+
+func (e *TimestampObservingWatermarkEstimator) ObserveTimestamp(t time.Time) {
+	e.State = t
 }

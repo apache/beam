@@ -812,7 +812,7 @@ type GoodStatefulWatermarkEstimating struct {
 	*GoodSdf
 }
 
-func (fn *GoodStatefulWatermarkEstimating) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) int {
+func (fn *GoodStatefulWatermarkEstimating) GetInitialWatermarkEstimatorState(ts typex.EventTime, rest RestT, element int) int {
 	return 0
 }
 
@@ -828,7 +828,7 @@ type GoodStatefulWatermarkEstimatingKv struct {
 	*GoodSdfKv
 }
 
-func (fn *GoodStatefulWatermarkEstimatingKv) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, k int, v int) int {
+func (fn *GoodStatefulWatermarkEstimatingKv) GetInitialWatermarkEstimatorState(ts typex.EventTime, rest RestT, k int, v int) int {
 	return 0
 }
 
@@ -1088,7 +1088,7 @@ type BadStatefulWatermarkEstimatingWrongPositionalParameter0 struct {
 	*GoodStatefulWatermarkEstimating
 }
 
-func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter0) GetInitialWatermarkEstimatorState(a int, rt *RTrackerT, element int) int {
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter0) GetInitialWatermarkEstimatorState(a int, rest RestT, element int) int {
 	return 0
 }
 
@@ -1104,7 +1104,7 @@ type BadStatefulWatermarkEstimatingWrongPositionalParameter2 struct {
 	*GoodStatefulWatermarkEstimating
 }
 
-func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter2) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element string) int {
+func (fn *BadStatefulWatermarkEstimatingWrongPositionalParameter2) GetInitialWatermarkEstimatorState(ts typex.EventTime, rest RestT, element string) int {
 	return 0
 }
 
@@ -1112,7 +1112,7 @@ type BadStatefulKvWatermarkEstimatingWrongPositionalParameter2 struct {
 	*GoodStatefulWatermarkEstimatingKv
 }
 
-func (fn *BadStatefulKvWatermarkEstimatingWrongPositionalParameter2) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) int {
+func (fn *BadStatefulKvWatermarkEstimatingWrongPositionalParameter2) GetInitialWatermarkEstimatorState(ts typex.EventTime, rest RestT, element int) int {
 	return 0
 }
 
@@ -1120,7 +1120,7 @@ type BadStatefulWatermarkEstimatingWrongReturn struct {
 	*GoodStatefulWatermarkEstimating
 }
 
-func (fn *BadStatefulWatermarkEstimatingWrongReturn) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) string {
+func (fn *BadStatefulWatermarkEstimatingWrongReturn) GetInitialWatermarkEstimatorState(ts typex.EventTime, rest RestT, element int) string {
 	return ""
 }
 

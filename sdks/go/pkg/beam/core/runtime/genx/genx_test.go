@@ -232,15 +232,15 @@ func (fn *DoFn03) CreateTracker(rest R) *sdf.LockRTracker {
 
 type WatermarkEstimatorState struct{}
 
-func (fn *DoFn03) GetWatermarkEstimatorState(estimator sdf.WallTimeWatermarkEstimator) WatermarkEstimatorState {
+func (fn *DoFn03) GetWatermarkEstimatorState(estimator *sdf.WallTimeWatermarkEstimator) WatermarkEstimatorState {
 	return WatermarkEstimatorState{}
 }
 
-func (fn *DoFn03) CreateWatermarkEstimator(state WatermarkEstimatorState) sdf.WallTimeWatermarkEstimator {
-	return sdf.WallTimeWatermarkEstimator{}
+func (fn *DoFn03) CreateWatermarkEstimator(state WatermarkEstimatorState) *sdf.WallTimeWatermarkEstimator {
+	return &sdf.WallTimeWatermarkEstimator{}
 }
 
-func (fn *DoFn03) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *sdf.LockRTracker, s string) WatermarkEstimatorState {
+func (fn *DoFn03) GetInitialWatermarkEstimatorState(ts typex.EventTime, rest R, s string) WatermarkEstimatorState {
 	return WatermarkEstimatorState{}
 }
 
