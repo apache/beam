@@ -27,7 +27,6 @@ import static org.hamcrest.Matchers.in;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ArrayListMultimap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Rule;
