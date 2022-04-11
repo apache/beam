@@ -1650,7 +1650,8 @@ class DataflowPipelineResult(PipelineResult):
     assert duration or terminated, (
         'Job did not reach to a terminal state after waiting indefinitely.')
 
-    if terminated and self.state != PipelineState.DONE:
+    if terminated and self.state not in [PipelineState.DONE,
+                                         PipelineState.UNKNOWN]:
       # TODO(BEAM-1290): Consider converting this to an error log based on
       # theresolution of the issue.
       raise DataflowRuntimeException(

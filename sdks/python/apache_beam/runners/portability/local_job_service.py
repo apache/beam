@@ -271,11 +271,10 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
       self._update_dependencies()
       try:
         start = time.time()
-        result = self._invoke_runner()
+        self.result = self._invoke_runner()
+        self.result.wait_until_finish()
         _LOGGER.info(
             'Successfully completed job in %s seconds.', time.time() - start)
-        self.result = result
-        result.wait_until_finish()
         self.set_state(beam_job_api_pb2.JobState.DONE)
       except:  # pylint: disable=bare-except
         self._log_queues.put(
