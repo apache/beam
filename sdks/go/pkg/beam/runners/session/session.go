@@ -136,7 +136,7 @@ func (c *controlServer) readSession(filename string) {
 		// Read out the entry header message.
 		b, err = br.Peek(int(l))
 		if err != nil {
-			panic(err)
+			panic(errors.Wrap(err, "Problem peeking entry header value"))
 		}
 		var hMsg session.EntryHeader
 		if err := proto.Unmarshal(b, &hMsg); err != nil {
