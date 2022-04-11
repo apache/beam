@@ -557,7 +557,7 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
           } catch (IOException e) {
             // Wrapping with RuntimeException
             throw new RuntimeException(
-                "failed to read shard index for resourceId: " + resourceId + " shardId: " + shardId,
+                "Failed to read shard index for resourceId: " + resourceId + " shardId: " + shardId,
                 e);
           }
         });
