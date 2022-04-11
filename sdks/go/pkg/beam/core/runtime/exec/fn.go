@@ -230,15 +230,18 @@ func (n *invoker) Invoke(ctx context.Context, pn typex.PaneInfo, ws []typex.Wind
 // Errors, single values, or a ProcessContinuation are the only options.
 func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0 interface{}) (*FullValue, error) {
 	switch {
-	case n.outErrIdx >= 0:
+	case n.outErrIdx == 0:
 		if r0 != nil {
 			return nil, r0.(error)
 		}
 		return nil, nil
-	case n.outPcIdx >= 0:
+	case n.outPcIdx == 0:
+		if r0 == nil {
+			panic("invoker.ret1: cannot return a nil process continuation")
+		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Continuation: r0.(sdf.ProcessContinuation)}
 		return &n.ret, nil
-	case n.outEtIdx >= 0:
+	case n.outEtIdx == 0:
 		panic("invoker.ret1: cannot return event time without a value")
 	default:
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Pane: pn}
@@ -249,21 +252,30 @@ func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 // ret2 handles processing of a pair of return values.
 func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1 interface{}) (*FullValue, error) {
 	switch {
-	case n.outErrIdx >= 0:
+	case n.outErrIdx == 2:
 		if r1 != nil {
 			return nil, r1.(error)
 		}
-		if n.outPcIdx >= 0 {
+		if n.outPcIdx == 0 {
+			if r0 == nil {
+				panic("invoker.ret2: cannot return a nil process continuation")
+			}
 			n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Continuation: r0.(sdf.ProcessContinuation)}
 			return &n.ret, nil
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Pane: pn}
 		return &n.ret, nil
 	case n.outEtIdx == 0:
-		if n.outPcIdx >= 0 {
+		if n.outPcIdx == 1 {
 			panic("invoker.ret2: cannot return event time without a value")
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn}
+		return &n.ret, nil
+	case n.outPcIdx == 1:
+		if r1 == nil {
+			panic("invoker.ret2: cannot return a nil process continuation")
+		}
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Elm: r0, Continuation: r1.(sdf.ProcessContinuation)}
 		return &n.ret, nil
 	default:
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn}
@@ -274,7 +286,7 @@ func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 // ret3 handles processing of a trio of return values.
 func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2 interface{}) (*FullValue, error) {
 	switch {
-	case n.outEtIdx >= 0:
+	case n.outEtIdx == 0:
 		if n.outErrIdx == 2 {
 			if r2 != nil {
 				return nil, r2.(error)
@@ -282,24 +294,23 @@ func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn}
 			return &n.ret, nil
 		}
-		if n.outPcIdx >= 0 {
+		if n.outPcIdx == 2 {
 			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
 			return &n.ret, nil
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn}
 		return &n.ret, nil
-	default:
-		if n.outErrIdx == 2 {
-			if r2 != nil {
-				return nil, r2.(error)
-			}
-			if n.outPcIdx == 1 {
-				n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Pane: pn, Continuation: r1.(sdf.ProcessContinuation)}
-				return &n.ret, nil
-			}
-			n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn}
+	case n.outErrIdx == 2:
+		if r2 != nil {
+			return nil, r2.(error)
+		}
+		if n.outPcIdx == 1 {
+			n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Pane: pn, Continuation: r1.(sdf.ProcessContinuation)}
 			return &n.ret, nil
 		}
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn}
+		return &n.ret, nil
+	default:
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
 		return &n.ret, nil
 	}
@@ -307,19 +318,28 @@ func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 
 // ret4 handles processing of a quad of return values.
 func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3 interface{}) (*FullValue, error) {
-	if r3 != nil {
-		return nil, r3.(error)
-	}
-	if n.outEtIdx == 0 {
-		if n.outPcIdx >= 0 {
-			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
+	switch {
+	case n.outEtIdx == 0:
+		if n.outErrIdx == 3 {
+			if r3 != nil {
+				return nil, r3.(error)
+			}
+			if n.outPcIdx == 2 {
+				n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
+				return &n.ret, nil
+			}
+			n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn}
 			return &n.ret, nil
 		}
-		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn}
+		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn, Continuation: r3.(sdf.ProcessContinuation)}
+		return &n.ret, nil
+	default:
+		if r3 != nil {
+			return nil, r3.(error)
+		}
+		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
 		return &n.ret, nil
 	}
-	n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
-	return &n.ret, nil
 }
 
 // ret5 handles processing five return values.
