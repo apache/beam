@@ -673,7 +673,7 @@ class GenericMergingWindowFn(window.WindowFn):
                 windowing_strategy_id=global_windowing_strategy_id,
                 coder_id=output_coder_id),
         },
-        coders=coders,
+        coders=coders,  # type: ignore
         windowing_strategies={
             global_windowing_strategy_id: global_windowing_strategy_proto,
         },

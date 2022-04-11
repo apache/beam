@@ -1025,13 +1025,26 @@ public class DoFnOperator<InputT, OutputT>
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     timerInternals.onFiredOrDeletedTimer(timerData);
+    Instant effectiveOutputTimestamp;
+
+    if (timerData.getDomain() == TimeDomain.EVENT_TIME) {
+      effectiveOutputTimestamp = timerData.getOutputTimestamp();
+    } else {
+      // Flink does not set a watermark hold for the timer's output timestamp, and previous to
+      // https://github.com/apache/beam/pull/17262 processing time timers did not correctly emit
+      // elements at their output timestamp.  In this case we need to continue doing the wrong thing
+      // and using the output watermark rather than the firing timestamp.  Once flink correctly sets
+      // a  watermark hold for the output timestamp, this should be changed back.
+      effectiveOutputTimestamp = timerInternals.currentOutputWatermarkTime();
+    }
+
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
         keyedStateInternals.getKey(),
         window,
         timerData.getTimestamp(),
-        timerData.getOutputTimestamp(),
+        effectiveOutputTimestamp,
         timerData.getDomain());
   }
 

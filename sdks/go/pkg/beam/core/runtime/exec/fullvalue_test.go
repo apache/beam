@@ -183,12 +183,6 @@ func equal(a, b FullValue) bool {
 	return true
 }
 
-type testStruct struct {
-	a int
-}
-
-func (*testStruct) M() {}
-
 // Conversion tests.
 func TestConvert(t *testing.T) {
 	tests := []struct {

@@ -30,8 +30,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-type testInt int32
-
 // TestInvoke verifies the the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
@@ -441,7 +439,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {
-		args := make([]reflect.Value, 1, 1)
+		args := make([]reflect.Value, 1)
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
@@ -451,7 +449,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 func BenchmarkReflectCallReuseArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
-	args := make([]reflect.Value, 1, 1)
+	args := make([]reflect.Value, 1)
 	for i := 0; i < b.N; i++ {
 		args[0] = n
 		n = fn.Call(args)[0]

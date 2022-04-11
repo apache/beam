@@ -301,8 +301,10 @@ class ReadFromDatastore(PTransform):
       except (ClientError, GoogleAPICallError) as e:
         # e.code.value contains the numeric http status code.
         service_call_metric.call(e.code.value)
+        raise
       except HttpError as e:
         service_call_metric.call(e)
+        raise
 
 
 class _Mutate(PTransform):
