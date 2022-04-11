@@ -327,8 +327,7 @@ func (n *invoker) ret3(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 
 // ret4 handles processing of a quad of return values.
 func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1, r2, r3 interface{}) (*FullValue, error) {
-	switch {
-	case n.outEtIdx == 0:
+	if n.outEtIdx == 0 {
 		if n.outErrIdx == 3 {
 			if r3 != nil {
 				return nil, r3.(error)
@@ -348,16 +347,16 @@ func (n *invoker) ret4(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2, Pane: pn, Continuation: r3.(sdf.ProcessContinuation)}
 		return &n.ret, nil
-	default:
-		if r3 != nil {
-			return nil, r3.(error)
-		}
-		if r2 == nil {
-			panic(fmt.Sprintf("invoker.ret4: cannot return a nil process continuation from function %v", n.fn))
-		}
-		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
-		return &n.ret, nil
 	}
+
+	if r3 != nil {
+		return nil, r3.(error)
+	}
+	if r2 == nil {
+		panic(fmt.Sprintf("invoker.ret4: cannot return a nil process continuation from function %v", n.fn))
+	}
+	n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1, Pane: pn, Continuation: r2.(sdf.ProcessContinuation)}
+	return &n.ret, nil
 }
 
 // ret5 handles processing five return values.
