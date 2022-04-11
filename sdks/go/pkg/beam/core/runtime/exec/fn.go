@@ -237,7 +237,7 @@ func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 		return nil, nil
 	case n.outPcIdx == 0:
 		if r0 == nil {
-			panic("invoker.ret1: cannot return a nil process continuation")
+			panic(fmt.Sprintf("invoker.ret1: cannot return a nil process continuation from function %v", n.fn.Name()))
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Pane: pn, Continuation: r0.(sdf.ProcessContinuation)}
 		return &n.ret, nil
