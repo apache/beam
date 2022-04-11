@@ -77,8 +77,7 @@ var (
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
-	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
-	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
+	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 )
 
 // flagFilter filters flags that are already represented by the above flags
