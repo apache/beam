@@ -228,7 +228,6 @@ type UserType4 struct {
 type unexportedUserType struct {
 	A int
 	B string
-	c int32
 }
 
 // Embedding check with unexported type.
