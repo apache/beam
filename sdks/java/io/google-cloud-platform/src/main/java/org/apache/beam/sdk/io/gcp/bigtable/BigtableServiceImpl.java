@@ -33,23 +33,33 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.grpc.scanner.FlatRow;
+import com.google.cloud.bigtable.grpc.scanner.FlatRowConverter;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.cloud.bigtable.grpc.scanner.ScanHandler;
 import com.google.cloud.bigtable.util.ByteStringComparator;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -64,6 +74,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Comparis
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +88,8 @@ import org.slf4j.LoggerFactory;
 class BigtableServiceImpl implements BigtableService {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
   private static final int DEFAULT_MINI_BATCH_SIZE = 100;
+  // Default byte limit is the recommended 100MB rows with the default batch size
+  private static final long DEFAULT_BYTE_LIMIT = (long) DEFAULT_MINI_BATCH_SIZE * 100 * 1024 * 1024;
 
   public BigtableServiceImpl(BigtableOptions options) {
     this.options = options;
@@ -226,22 +239,25 @@ class BigtableServiceImpl implements BigtableService {
     private BigtableSession session;
     private final BigtableSource source;
     private Row currentRow;
-    private Queue<Row> buffer;
+    private Queue<FlatRow> buffer;
     private RowSet rowSet;
     private ServiceCallMetric serviceCallMetric;
-    private Future<List<Row>> future;
+    private Future<List<FlatRow>> future;
     private ByteString lastFetchedRow;
     private boolean lastFillComplete;
 
     private int miniBatchLimit = DEFAULT_MINI_BATCH_SIZE;
+    private long bufferSizeLimit = DEFAULT_BYTE_LIMIT;
     private int miniBatchWaterMark;
     private final String tableName;
 
     @VisibleForTesting
     BigtableMiniBatchReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
-      if (source.getMaxBufferElementCount() != null && source.getMaxBufferElementCount() != 0)
+      if (source.getMaxBufferElementCount() != null && source.getMaxBufferElementCount() != 0) {
         this.miniBatchLimit = source.getMaxBufferElementCount();
+        this.bufferSizeLimit = (long) miniBatchLimit * 100 * 1024 * 1024;
+      }
       this.miniBatchWaterMark = miniBatchLimit / 10;
       tableName =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
@@ -292,7 +308,8 @@ class BigtableServiceImpl implements BigtableService {
       serviceCallMetric =
           new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
 
-      future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
+      //future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
+      future = createFuture();
       return advance();
     }
 
@@ -306,8 +323,51 @@ class BigtableServiceImpl implements BigtableService {
           return false;
         waitReadRowsFuture();
       }
-      currentRow = buffer.remove();
+      currentRow = FlatRowConverter.convert(buffer.remove());
       return currentRow != null;
+    }
+
+    private SettableFuture<List<FlatRow>> createFuture() {
+      SettableFuture<List<FlatRow>> f = SettableFuture.create();
+
+      AtomicReference<ScanHandler> atomic = new AtomicReference<>();
+      ScanHandler handler;
+
+      handler = session.getDataClient().readFlatRows(buildReadRowsRequest(),
+          new StreamObserver<FlatRow>() {
+            List<FlatRow> rows = new ArrayList<>();
+            long currentByteSize = 0;
+            @Override
+            public void onNext(FlatRow flatRow) {
+              rows.add(flatRow);
+              currentByteSize += flatRow.getRowKey().size() + flatRow.getCells().stream()
+                  .mapToLong(c -> c.getQualifier().size() + c.getValue().size()).sum();
+              if (currentByteSize > bufferSizeLimit) {
+                atomic.get().cancel();
+                return;
+              }
+            }
+
+            @Override
+            public void onError(Throwable e) {
+              if (e instanceof CancellationException) {
+                f.set(rows);
+                return;
+              }
+              f.setException(e);
+            }
+
+            @Override
+            public void onCompleted() {
+              if (rows.size() < miniBatchLimit) {
+                lastFillComplete = true;
+              }
+              f.set(rows);
+              return;
+            }
+          });
+      atomic.set(handler);
+      return f;
     }
 
     private ReadRowsRequest buildReadRowsRequest() {
@@ -326,12 +386,12 @@ class BigtableServiceImpl implements BigtableService {
       if (!splitRowSet(lastFetchedRow)) {
         return;
       }
-      future = session.getDataClient().readRowsAsync(buildReadRowsRequest());
+      future = createFuture();
     }
 
     private void waitReadRowsFuture() throws IOException {
       try {
-        List<Row> results = future.get();
+        List<FlatRow> results = future.get();
         future = null;
         serviceCallMetric.call("ok");
         fillReadRowsBuffer(results);
@@ -347,7 +407,7 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
-    private void fillReadRowsBuffer(List<Row> results) {
+    private void fillReadRowsBuffer(List<FlatRow> results) {
       if (results.size() == 0) {
         lastFillComplete = true;
         return;
@@ -357,7 +417,7 @@ class BigtableServiceImpl implements BigtableService {
         }
         buffer.addAll(results.subList(0, results.size()));
       }
-      lastFetchedRow = results.get(results.size() - 1).getKey();
+      lastFetchedRow = FlatRowConverter.convert(results.get(results.size() - 1)).getKey();
     }
 
     private boolean splitRowSet(ByteString splitPoint) {
