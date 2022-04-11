@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
@@ -33,6 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMult
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 /**
  * {@link KafkaIO.Read} has multiple implementations with different feature set.<br>
@@ -120,7 +122,8 @@ class KafkaIOReadImplementationCompatibility {
       this.getterMethod = findGetterMethod(this);
     }
 
-    private Method findGetterMethod(KafkaIOReadProperties property) {
+    private static Method findGetterMethod(
+        @UnderInitialization(Enum.class) KafkaIOReadProperties property) {
       final String propertyNameInUpperCamel =
           CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, property.name());
       try {
@@ -141,6 +144,7 @@ class KafkaIOReadImplementationCompatibility {
      * This method can be used to provide that value.
      */
     @VisibleForTesting
+    @Nullable
     Object getDefaultValue() {
       return null;
     }
