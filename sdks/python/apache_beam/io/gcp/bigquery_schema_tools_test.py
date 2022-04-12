@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import typing
 import unittest
 
@@ -51,3 +52,8 @@ class TestBigQueryToSchema(unittest.TestCase):
     usertype = bigquery_schema_tools.produce_pcoll_with_schema(
         the_table_schema=schema)
     self.assertEqual(usertype.__annotations__, {})
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
