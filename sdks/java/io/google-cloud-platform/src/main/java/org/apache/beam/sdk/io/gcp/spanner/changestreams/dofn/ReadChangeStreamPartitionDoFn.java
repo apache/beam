@@ -69,6 +69,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
   private static final Tracer TRACER = Tracing.getTracer();
+  private static final double AUTOSCALING_SIZE_MULTIPLIER = 2.0D;
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
@@ -163,6 +164,10 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     // Cap it at Double.MAX_VALUE to avoid an overflow.
     return timeGapInSeconds
         .multiply(throughput)
+        // The multiplier is required because the job tries to reach the minimum number of workers
+        // and this leads to a very high cpu utilization. The multiplier would increase the reported
+        // size and help to reduce the cpu usage. In the future, this can become a custom parameter.
+        .multiply(BigDecimal.valueOf(AUTOSCALING_SIZE_MULTIPLIER))
         .min(BigDecimal.valueOf(Double.MAX_VALUE))
         .doubleValue();
   }
