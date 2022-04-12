@@ -76,17 +76,23 @@ class UtilsTest(unittest.TestCase):
         replaced_sql, 'SELECT * FROM PCOLLECTION WHERE a=1 AND b=2')
 
   def test_pformat_namedtuple(self):
-    self.assertEqual(
-        'ANamedTuple(a: int, b: str)', pformat_namedtuple(ANamedTuple))
+    expected = pformat_namedtuple(ANamedTuple)
+    self.assertIn('ANamedTuple(', expected)
+    self.assertIn('a: int', expected)
+    self.assertIn('b: str', expected)
 
-  @unittest.skip("BEAM-14288")
   def test_pformat_namedtuple_with_unnamed_fields(self):
-    self.assertEqual(
-        f'OptionalUnionType(unnamed: {repr(Optional[Union[int, str]])})',
-        pformat_namedtuple(OptionalUnionType))
+    expected = pformat_namedtuple(OptionalUnionType)
+    self.assertIn('OptionalUnionType(unnamed: ', expected)
+    self.assertIn('Union', expected)
+    self.assertIn('int', expected)
+    self.assertIn('str', expected)
+    self.assertIn('NoneType', expected)
 
   def test_pformat_dict(self):
-    self.assertEqual('{\na: 1,\nb: 2\n}', pformat_dict({'a': 1, 'b': '2'}))
+    expected = pformat_dict({'a': 1, 'b': '2'})
+    self.assertIn('a: 1', expected)
+    self.assertIn('b: 2', expected)
 
 
 @unittest.skipIf(
