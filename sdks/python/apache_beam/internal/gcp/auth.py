@@ -157,7 +157,7 @@ class _Credentials(object):
 
     try:
       credentials, _ = google.auth.default(scopes=CLIENT_SCOPES)  # pylint: disable=c-extension-no-member
-      credentials = _Credentials._add_impersonation_credentials()
+      credentials = _Credentials._add_impersonation_credentials(credentials)
       credentials = _ApitoolsCredentialsAdapter(credentials)
       logging.debug(
           'Connecting using Google Application Default '
@@ -177,13 +177,12 @@ class _Credentials(object):
     cls._impersonation_parameters_set = True
 
   @classmethod
-  def _add_impersonation_credentials(cls):
+  def _add_impersonation_credentials(cls, credentials):
     if not cls._impersonation_parameters_set:
       traceback_str = traceback.format_stack()
       raise Exception(
           'Impersonation credentials not yet set. \n' + str(traceback_str))
     """Adds impersonation credentials if the client species them."""
-    credentials = cls._credentials
     if cls._target_principal:
       credentials = impersonated_credentials.Credentials(
           source_credentials=credentials,
