@@ -240,7 +240,7 @@ func (fn *DoFn03) CreateWatermarkEstimator(state WatermarkEstimatorState) sdf.Wa
 	return sdf.WallTimeWatermarkEstimator{}
 }
 
-func (fn *DoFn03) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *sdf.LockRTracker, s string) WatermarkEstimatorState {
+func (fn *DoFn03) GetInitialWatermarkEstimatorState(ts typex.EventTime, rest R, s string) WatermarkEstimatorState {
 	return WatermarkEstimatorState{}
 }
 

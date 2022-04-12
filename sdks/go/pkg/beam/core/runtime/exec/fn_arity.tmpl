@@ -30,7 +30,7 @@ import (
 func (n *invoker) initCall() {
 	switch fn := n.fn.Fn.(type) {
 {{range $out := upto 4}}
-{{range $in := upto 9}}
+{{range $in := upto 10}}
 	case reflectx.Func{{$in}}x{{$out}}:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			{{if $out}}{{mktuplef $out "r%v"}} := {{end}}fn.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})

@@ -22,3 +22,15 @@ type WallTimeWatermarkEstimator struct{}
 func (e WallTimeWatermarkEstimator) CurrentWatermark() time.Time {
 	return time.Now()
 }
+
+type ManualWatermarkEstimator struct {
+	State time.Time
+}
+
+func (e *ManualWatermarkEstimator) CurrentWatermark() time.Time {
+	return e.State
+}
+
+func (e *ManualWatermarkEstimator) UpdateWatermark(t time.Time) {
+	e.State = t
+}

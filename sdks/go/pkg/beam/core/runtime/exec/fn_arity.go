@@ -86,6 +86,12 @@ func (n *invoker) initCall() {
 			return nil, nil
 		}
 
+	case reflectx.Func9x0:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			fn.Call9x0(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6], n.args[7], n.args[8])
+			return nil, nil
+		}
+
 	case reflectx.Func0x1:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			r0 := fn.Call0x1()
@@ -137,6 +143,12 @@ func (n *invoker) initCall() {
 	case reflectx.Func8x1:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			r0 := fn.Call8x1(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6], n.args[7])
+			return n.ret1(pn, ws, ts, r0)
+		}
+
+	case reflectx.Func9x1:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0 := fn.Call9x1(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6], n.args[7], n.args[8])
 			return n.ret1(pn, ws, ts, r0)
 		}
 
@@ -194,6 +206,12 @@ func (n *invoker) initCall() {
 			return n.ret2(pn, ws, ts, r0, r1)
 		}
 
+	case reflectx.Func9x2:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1 := fn.Call9x2(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6], n.args[7], n.args[8])
+			return n.ret2(pn, ws, ts, r0, r1)
+		}
+
 	case reflectx.Func0x3:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			r0, r1, r2 := fn.Call0x3()
@@ -245,6 +263,12 @@ func (n *invoker) initCall() {
 	case reflectx.Func8x3:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			r0, r1, r2 := fn.Call8x3(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6], n.args[7])
+			return n.ret3(pn, ws, ts, r0, r1, r2)
+		}
+
+	case reflectx.Func9x3:
+		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
+			r0, r1, r2 := fn.Call9x3(n.args[0], n.args[1], n.args[2], n.args[3], n.args[4], n.args[5], n.args[6], n.args[7], n.args[8])
 			return n.ret3(pn, ws, ts, r0, r1, r2)
 		}
 
