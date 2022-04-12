@@ -513,7 +513,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
         OutputReceiver<KV<String, Operation>> o) {
-      String stream = MoreObjects.firstNonNull(streamName.read(), null);
+      String stream = MoreObjects.firstNonNull(streamName.read(), "");
 
       if (!Strings.isNullOrEmpty(stream)) {
         // Finalize the stream
