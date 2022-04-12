@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -83,6 +84,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
+  @Ignore
   @Test
   public void testTransactionBoundaries() {
     LOG.info("Test pipeline: " + pipeline.toString());

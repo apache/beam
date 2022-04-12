@@ -47,6 +47,7 @@ import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,6 +85,7 @@ public class SpannerChangeStreamIT {
     pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setBlockOnRun(false);
   }
 
+  @Ignore
   @Test
   public void testReadSpannerChangeStream() {
     // Defines how many rows are going to be inserted / updated / deleted in the test
