@@ -212,8 +212,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
       credentials = None
     else:
       set_impersonation_accounts(
-          self._google_cloud_options.target_principal,
-          self._google_cloud_options.delegate_accounts)
+          self._google_cloud_options.impersonate_service_account)
       credentials = get_service_credentials()
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',

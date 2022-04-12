@@ -1491,11 +1491,10 @@ class BigQueryWriter(dataflow_io.NativeSinkWriter):
           sink.pipeline_options.view_as(GoogleCloudOptions).project)
     if hasattr(sink, 'pipeline_options'):
       gcs_options = sink.pipeline_options.view_as(GoogleCloudOptions)
-      target_principal = gcs_options.target_principal
-      delegate_accounts = gcs_options.delegate_accounts
-      auth.set_impersonation_accounts(target_principal, delegate_accounts)
+      impersonate_service_account = gcs_options.impersonate_service_account
+      auth.set_impersonation_accounts(impersonate_service_account)
     else:
-      auth.set_impersonation_accounts(None, None)
+      auth.set_impersonation_accounts(None)
 
     assert self.project_id is not None
 
