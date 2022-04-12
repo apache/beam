@@ -32,7 +32,7 @@ typedef SetExample = void Function(ExampleModel example);
 const kEmptyExampleName = 'Catalog';
 
 const double kWidth = 150;
-const double kHeight = 137;
+const double kHeight = 172;
 
 class SDKSelector extends StatelessWidget {
   final SDK sdk;
@@ -50,6 +50,7 @@ class SDKSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
+      button: true,
       label: AppLocalizations.of(context)!.selectSdkDropdown,
       child: AppDropdownButton(
         buttonText: Text(
@@ -58,10 +59,7 @@ class SDKSelector extends StatelessWidget {
         createDropdown: (close) => Column(
           children: [
             const SizedBox(height: kMdSpacing),
-            // SCIO is not supported yet
-            ...SDK.values
-                .where((element) => element != SDK.scio)
-                .map((SDK value) {
+            ...SDK.values.map((SDK value) {
               return SizedBox(
                 width: double.infinity,
                 child: Consumer<ExampleState>(
@@ -71,7 +69,7 @@ class SDKSelector extends StatelessWidget {
                       close();
                       setSdk(value);
                       setExample(
-                        state.defaultExamplesMap![value] ??
+                        state.defaultExamplesMap[value] ??
                             ExampleModel(
                               name: kEmptyExampleName,
                               path: '',

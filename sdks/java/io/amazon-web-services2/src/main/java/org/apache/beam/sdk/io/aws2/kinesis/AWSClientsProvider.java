@@ -18,15 +18,17 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /**
  * Provides instances of AWS clients.
  *
- * <p>Please note, that any instance of {@link AWSClientsProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
+ * @deprecated Configure a custom {@link org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory}
+ *     using {@link AwsOptions#getClientBuilderFactory()} instead.
  */
+@Deprecated
 public interface AWSClientsProvider extends Serializable {
   KinesisClient getKinesisClient();
 

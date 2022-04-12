@@ -54,8 +54,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20220203',
-    'dataflow.fnapi_container_version' : 'beam-master-20220203',
+    'dataflow.legacy_container_version' : 'beam-master-20220329',
+    'dataflow.fnapi_container_version' : 'beam-master-20220216',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -367,7 +367,13 @@ task printRunnerV2PipelineOptions {
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
-  dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTest'))
+  dependsOn(createLegacyWorkerValidatesRunnerTest(
+    name: 'validatesRunnerLegacyWorkerTest',
+    excludedTests: [
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+    ]
+  ))
 }
 
 task validatesRunnerStreaming {
@@ -382,12 +388,17 @@ task validatesRunnerStreaming {
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
       'org.apache.beam.sdk.testing.UsesSetState',
     ],
+    excludedTests: [
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+    ]
   ))
 }
 
 def setupXVR = tasks.register("setupXVR") {
   dependsOn buildAndPushDockerJavaContainer
   dependsOn buildAndPushDockerPythonContainer
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 }
 
 def cleanupXVR = tasks.register("cleanupXVR") {
@@ -431,8 +442,9 @@ createCrossLanguageValidatesRunnerTask(
     "--project ${dataflowProject}",
     "--dataflow_project ${dataflowProject}",
     "--region ${dataflowRegion}",
-    "--tests \"./test/integration/xlang\"",
+    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
+    "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
   ],
 )
 
@@ -473,6 +485,9 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
 
       'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
+
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
     ]
   ))
 }
@@ -523,6 +538,9 @@ task validatesRunnerV2Streaming {
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
 
+      // TODO: remove once dataflow runner v2 fixed fake windowing strategy.
+      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
+
       'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
 
       'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSameFixedWindows',
@@ -555,6 +573,8 @@ task validatesRunnerV2Streaming {
       // TODO(BEAM-13525)
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
     ]
   ))
 }
@@ -584,6 +604,8 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/SpannerChangeStreamIT.class'
   exclude '**/SpannerChangeStreamOrderedWithinKeyIT.class'
   exclude '**/SpannerChangeStreamOrderedWithinKeyGloballyIT.class'
+  exclude '**/SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.class'
+  exclude '**/SpannerChangeStreamTransactionBoundariesIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -623,6 +645,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'

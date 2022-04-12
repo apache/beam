@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -470,6 +471,19 @@ import org.slf4j.LoggerFactory;
  *   );
  * }</pre>
  *
+ * <p>To produce Avro values you can use class {@link
+ * io.confluent.kafka.serializers.KafkaAvroSerializer}. To make this class work with {@link
+ * KafkaIO#write()} and method withValueSerializer() make sure to erase the generic types by casting
+ * to (Class) as shown in the following example:
+ *
+ * <pre>{@code
+ * KafkaIO.<Long, String>write()
+ *   ...
+ *   .withValueSerializer((Class)KafkaAvroSerializer.class)
+ *   .withProducerConfigUpdates( <Map with schema registry configuration details> )
+ *   ...
+ * }</pre>
+ *
  * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
@@ -765,11 +779,11 @@ public class KafkaIO {
               continue;
             }
             if (returnType.equals(byte[].class)) {
-              return ByteArrayCoder.of();
+              return NullableCoder.of(ByteArrayCoder.of());
             } else if (returnType.equals(Integer.class)) {
-              return VarIntCoder.of();
+              return NullableCoder.of(VarIntCoder.of());
             } else if (returnType.equals(Long.class)) {
-              return VarLongCoder.of();
+              return NullableCoder.of(VarLongCoder.of());
             } else {
               throw new RuntimeException("Couldn't infer Coder from " + deserializer);
             }
@@ -1708,15 +1722,17 @@ public class KafkaIO {
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         Coder keyCoder = Read.Builder.resolveCoder(keyDeserializer);
-        if (!(keyCoder instanceof ByteArrayCoder)) {
+        if (!(keyCoder instanceof NullableCoder
+            && keyCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports keys of type byte[]");
+              "ExternalWithMetadata transform only supports keys of type nullable(byte[])");
         }
         Class valueDeserializer = resolveClass(config.valueDeserializer);
         Coder valueCoder = Read.Builder.resolveCoder(valueDeserializer);
-        if (!(valueCoder instanceof ByteArrayCoder)) {
+        if (!(valueCoder instanceof NullableCoder
+            && valueCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports values of type byte[]");
+              "ExternalWithMetadata transform only supports values of type nullable(byte[])");
         }
 
         return readBuilder.build().externalWithMetadata();

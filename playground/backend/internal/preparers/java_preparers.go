@@ -21,9 +21,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
-	"strings"
 )
 
 const (
@@ -32,9 +32,16 @@ const (
 	packagePattern                    = `^(package) (([\w]+\.)+[\w]+);`
 	importStringPattern               = `import $2.*;`
 	newLinePattern                    = "\n"
-	pathSeparatorPattern              = os.PathSeparator
-	tmpFileSuffix                     = "tmp"
 	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
+	pipelineNamePattern               = `Pipeline\s([A-z|0-9_]*)\s=\sPipeline\.create`
+	findImportsPattern                = `import.*\;`
+	graphSavePattern                  = "String dotString = org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer.toDotString(%s);\n" +
+		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"Graph.dot\")) {\n      " +
+		"		out.println(dotString);\n    " +
+		"	} catch (java.io.FileNotFoundException e) {\n" +
+		"      e.printStackTrace();\n    " +
+		"\n}\n" +
+		"%s.run"
 )
 
 //JavaPreparersBuilder facet of PreparersBuilder
@@ -80,11 +87,36 @@ func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder 
 //WithFileNameChanger adds preparer to remove package
 func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
 	unitTestFileNameChanger := Preparer{
-		Prepare: changeJavaTestFileName,
-		Args:    []interface{}{builder.filePath},
+		Prepare: utils.ChangeTestFileName,
+		Args:    []interface{}{builder.filePath, javaPublicClassNamePattern},
 	}
 	builder.AddPreparer(unitTestFileNameChanger)
 	return builder
+}
+
+//WithGraphHandler adds code to save the graph
+func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
+	graphCodeAdder := Preparer{
+		Prepare: addCodeToSaveGraph,
+		Args:    []interface{}{builder.filePath},
+	}
+	builder.AddPreparer(graphCodeAdder)
+	return builder
+}
+
+func addCodeToSaveGraph(args ...interface{}) error {
+	filePath := args[0].(string)
+	pipelineObjectName, _ := findPipelineObjectName(filePath)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, utils.GraphFileName)
+
+	if pipelineObjectName != utils.EmptyLine {
+		err := replace(filePath, fmt.Sprintf("%s.run", pipelineObjectName), graphSaveCode)
+		if err != nil {
+			logger.Error("Can't add graph extractor. Can't add new import")
+			return err
+		}
+	}
+	return nil
 }
 
 // GetJavaPreparers returns preparation methods that should be applied to Java code
@@ -92,7 +124,8 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if !isUnitTest && !isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
-			WithPackageChanger()
+			WithPackageChanger().
+			WithGraphHandler()
 	}
 	if isUnitTest {
 		builder.JavaPreparers().
@@ -102,8 +135,25 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
-			WithPackageRemover()
+			WithPackageRemover().
+			WithGraphHandler()
 	}
+}
+
+// findPipelineObjectName finds name of pipeline in JAVA code when pipeline creates
+func findPipelineObjectName(filepath string) (string, error) {
+	reg := regexp.MustCompile(pipelineNamePattern)
+	b, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return "", err
+	}
+	matches := reg.FindStringSubmatch(string(b))
+	if len(matches) > 0 {
+		return matches[1], nil
+	} else {
+		return "", nil
+	}
+
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
@@ -119,7 +169,7 @@ func replace(args ...interface{}) error {
 	}
 	defer file.Close()
 
-	tmp, err := createTempFile(filePath)
+	tmp, err := utils.CreateTempFile(filePath)
 	if err != nil {
 		logger.Errorf("Preparation: Error during create new temporary file, err: %s\n", err.Error())
 		return err
@@ -174,30 +224,6 @@ func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Reg
 	line = reg.ReplaceAllString(line, newPattern)
 	if _, err = io.WriteString(to, line); err != nil {
 		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
-		return err
-	}
-	return nil
-}
-
-// createTempFile creates temporary file next to originalFile
-func createTempFile(originalFilePath string) (*os.File, error) {
-	// all folders which are included in filePath
-	filePathSlice := strings.Split(originalFilePath, string(pathSeparatorPattern))
-	fileName := filePathSlice[len(filePathSlice)-1]
-
-	tmpFileName := fmt.Sprintf("%s_%s", tmpFileSuffix, fileName)
-	tmpFilePath := strings.Replace(originalFilePath, fileName, tmpFileName, 1)
-	return os.Create(tmpFilePath)
-}
-
-func changeJavaTestFileName(args ...interface{}) error {
-	filePath := args[0].(string)
-	className, err := utils.GetPublicClassName(filePath, javaPublicClassNamePattern)
-	if err != nil {
-		return err
-	}
-	err = utils.RenameSourceCodeFile(filePath, className)
-	if err != nil {
 		return err
 	}
 	return nil

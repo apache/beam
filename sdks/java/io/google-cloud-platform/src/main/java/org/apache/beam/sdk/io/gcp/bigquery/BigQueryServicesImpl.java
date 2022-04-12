@@ -97,6 +97,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -150,6 +151,10 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   // The initial backoff for executing a BigQuery RPC.
   private static final Duration INITIAL_RPC_BACKOFF = Duration.standardSeconds(1);
+
+  // The approximate maximum payload of rows for an insertAll request.
+  // We set it to 9MB, which leaves room for request overhead.
+  private static final Integer MAX_BQ_ROW_PAYLOAD = 9 * 1024 * 1024;
 
   // The initial backoff for polling the status of a BigQuery job.
   private static final Duration INITIAL_JOB_STATUS_POLL_BACKOFF = Duration.standardSeconds(1);
@@ -981,21 +986,38 @@ class BigQueryServicesImpl implements BigQueryServices {
           }
 
           // The following scenario must be *extremely* rare.
-          // If this row's encoding by itself is larger than the maxRowBatchSize, then it's
+          // If this row's encoding by itself is larger than the maximum row payload, then it's
           // impossible to insert into BigQuery, and so we send it out through the dead-letter
           // queue.
-          if (nextRowSize >= maxRowBatchSize) {
-            errorContainer.add(
-                failedInserts,
+          if (nextRowSize >= MAX_BQ_ROW_PAYLOAD) {
+            InsertErrors error =
                 new InsertErrors()
-                    .setErrors(ImmutableList.of(new ErrorProto().setReason("row too large"))),
-                ref,
-                rowsToPublish.get(rowIndex));
-            rowIndex++;
-            continue;
+                    .setErrors(ImmutableList.of(new ErrorProto().setReason("row-too-large")));
+            // We verify whether the retryPolicy parameter expects us to retry. If it does, then
+            // it will return true. Otherwise it will return false.
+            Boolean isRetry = retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error));
+            if (isRetry) {
+              throw new RuntimeException(
+                  String.format(
+                      "We have observed a row that is %s bytes in size. BigQuery supports"
+                          + " request sizes up to 10MB, and this row is too large. "
+                          + " You may change your retry strategy to unblock this pipeline, and "
+                          + " the row will be output as a failed insert.",
+                      nextRowSize));
+            } else {
+              errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
+              failedIndices.add(rowIndex);
+              rowIndex++;
+              continue;
+            }
           }
 
-          if (nextRowSize + dataSize >= maxRowBatchSize || rows.size() + 1 > maxRowsPerBatch) {
+          // If adding the next row will push the request above BQ row limits, or
+          // if the current batch of elements is larger than the targeted request size,
+          // we immediately go and issue the data insertion.
+          if (dataSize + nextRowSize >= MAX_BQ_ROW_PAYLOAD
+              || dataSize >= maxRowBatchSize
+              || rows.size() + 1 > maxRowsPerBatch) {
             // If the row does not fit into the insert buffer, then we take the current buffer,
             // issue the insert call, and we retry adding the same row to the troublesome buffer.
             // Add a future to insert the current batch into BQ.
@@ -1150,9 +1172,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (!(e instanceof GoogleJsonResponseException)) {
         return null;
       }
-      GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
-      GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
-      return errorInfo;
+      return Optional.ofNullable(((GoogleJsonResponseException) e).getDetails())
+          .flatMap(error -> Optional.ofNullable(error.getErrors()))
+          .flatMap(infos -> Optional.ofNullable(Iterables.getFirst(infos, null)))
+          .orElse(null);
     }
 
     @Override

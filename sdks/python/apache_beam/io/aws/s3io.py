@@ -604,8 +604,13 @@ class S3Uploader(Uploader):
         raise
 
   def finish(self):
-
-    self._write_to_s3(self.buffer)
+    if len(self.buffer) > 0:
+      # writes with zero length or mid size files between
+      # MIN_WRITE_SIZE = 5 * 1024 * 1024
+      # MAX_WRITE_SIZE = 5 * 1024 * 1024 * 1024
+      # as we will reach this finish() with len(self.buffer) == 0
+      # which will fail
+      self._write_to_s3(self.buffer)
 
     if self.last_error is not None:
       raise self.last_error  # pylint: disable=raising-bad-type

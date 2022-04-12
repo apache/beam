@@ -39,9 +39,7 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api.external_transforms_pb2 import BuilderMethod
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
-from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupPayload
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
@@ -117,7 +115,7 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
   def build(self):
     row = self._get_named_tuple_instance()
     schema = named_tuple_to_schema(type(row))
-    return ExternalConfigurationPayload(
+    return external_transforms_pb2.ExternalConfigurationPayload(
         schema=schema, payload=RowCoder(schema).encode(row))
 
 
@@ -217,7 +215,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     constructor_schema, constructor_payload = (
         self._get_schema_proto_and_payload(
             *constructor_param_args, **constructor_param_kwargs))
-    payload = JavaClassLookupPayload(
+    payload = external_transforms_pb2.JavaClassLookupPayload(
         class_name=self._class_name,
         constructor_schema=constructor_schema,
         constructor_payload=constructor_payload)
@@ -229,7 +227,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
       builder_method_schema, builder_method_payload = (
           self._get_schema_proto_and_payload(
               *builder_method_args, **builder_method_kwargs))
-      builder_method = BuilderMethod(
+      builder_method = external_transforms_pb2.BuilderMethod(
           name=builder_method_name,
           schema=builder_method_schema,
           payload=builder_method_payload)
@@ -704,7 +702,7 @@ class JavaJarExpansionService(object):
       return glob.glob(jar)
     elif isinstance(jar, str) and (jar.startswith('http://') or
                                    jar.startswith('https://')):
-      return [jar]
+      return [subprocess_server.JavaJarServer.local_jar(jar)]
     else:
       # If the input JAR is not a local glob, nor an http/https URL, then
       # we assume that it's a gradle-style Java artifact in Maven Central,
@@ -716,8 +714,9 @@ class JavaJarExpansionService(object):
         # a JAR path, we still choose to include it in the path.
         logging.warning('Unable to parse %s into group:artifact:version.', jar)
         return [jar]
-      path = subprocess_server.JavaJarServer.path_to_maven_jar(
-          artifact_id, group_id, version)
+      path = subprocess_server.JavaJarServer.local_jar(
+          subprocess_server.JavaJarServer.path_to_maven_jar(
+              artifact_id, group_id, version))
       return [path]
 
   def _default_args(self):

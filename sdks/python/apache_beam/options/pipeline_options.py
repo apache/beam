@@ -55,6 +55,11 @@ PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 _LOGGER = logging.getLogger(__name__)
 
+# Map defined with option names to flag names for boolean options
+# that have a destination(dest) in parser.add_argument() different
+# from the flag name and whose default value is `None`.
+_FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
+
 
 def _static_value_provider_of(value_type):
   """"Helper function to plug a ValueProvider into argparse.
@@ -180,7 +185,15 @@ class PipelineOptions(HasDisplayData):
       flags: An iterable of command line arguments to be used. If not specified
         then sys.argv will be used as input for parsing arguments.
 
-      **kwargs: Add overrides for arguments passed in flags.
+      **kwargs: Add overrides for arguments passed in flags. For overrides
+                of arguments, please pass the `option names` instead of
+                flag names.
+                Option names: These are defined as dest in the
+                parser.add_argument() for each flag. Passing flags
+                like {no_use_public_ips: True}, for which the dest is
+                defined to a different flag name in the parser,
+                would be discarded. Instead, pass the dest of
+                the flag (dest of no_use_public_ips is use_public_ips).
     """
     # Initializing logging configuration in case the user did not set it up.
     logging.basicConfig()
@@ -237,9 +250,22 @@ class PipelineOptions(HasDisplayData):
     """
     flags = []
     for k, v in options.items():
+      # Note: If a boolean flag is True in the dictionary,
+      # implicitly the method assumes the boolean flag is
+      # specified as a command line argument. If the
+      # boolean flag is False, this method simply discards them.
+      # Eg: {no_auth: True} is similar to python your_file.py --no_auth
+      # {no_auth: False} is similar to python your_file.py.
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+        elif k in _FLAG_THAT_SETS_FALSE_VALUE:
+          # Capture overriding flags, which have a different dest
+          # from the flag name defined in the parser.add_argument
+          # Eg: no_use_public_ips, which has the dest=use_public_ips
+          # different from flag name
+          flag_that_disables_the_option = (_FLAG_THAT_SETS_FALSE_VALUE[k])
+          flags.append('--%s' % flag_that_disables_the_option)
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
@@ -353,6 +379,7 @@ class PipelineOptions(HasDisplayData):
 
     """
     view = cls(self._flags)
+
     for option_name in view._visible_option_list():
       # Initialize values of keys defined by a cls.
       #
@@ -1081,7 +1108,7 @@ class SetupOptions(PipelineOptions):
             'custom code.'))
     parser.add_argument(
         '--beam_plugin',
-        '--beam_plugin',
+        '--beam_plugins',
         dest='beam_plugins',
         action='append',
         default=None,
@@ -1151,18 +1178,24 @@ class SetupOptions(PipelineOptions):
     parser.add_argument(
         '--prebuild_sdk_container_base_image',
         default=None,
+        help=('Deprecated. Use --sdk_container_image instead.'))
+    parser.add_argument(
+        '--cloud_build_machine_type',
+        default=None,
         help=(
-            'The base image to use when pre-building the sdk container image '
-            'with dependencies, if not specified, by default the released '
-            'public apache beam python sdk container image corresponding to '
-            'the sdk version will be used, if a dev sdk is used the base '
-            'image will default to the latest released sdk image.'))
+            'If specified, use the machine type explicitly when prebuilding'
+            'SDK container image on Google Cloud Build.'))
     parser.add_argument(
         '--docker_registry_push_url',
         default=None,
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_container_prebuilding_options(self))
+    return errors
 
 
 class PortableOptions(PipelineOptions):
@@ -1186,7 +1219,8 @@ class PortableOptions(PipelineOptions):
             'and port, e.g. localhost:8098. If none is specified, the '
             'artifact endpoint sent from the job server is used.'))
     parser.add_argument(
-        '--job-server-timeout',
+        '--job_server_timeout',
+        '--job-server-timeout',  # For backwards compatibility.
         default=60,
         type=int,
         help=(
@@ -1316,7 +1350,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.10', '1.11', '1.12', '1.13']
+  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14']
 
   @classmethod
   def _add_argparse_args(cls, parser):

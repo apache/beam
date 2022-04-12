@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 /**
@@ -25,7 +26,11 @@ import software.amazon.awssdk.services.sqs.SqsClient;
  *
  * <p>Please note, that any instance of {@link SqsClientProvider} must be {@link Serializable} to
  * ensure it can be sent to worker machines.
+ *
+ * @deprecated Configure a custom {@link org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory}
+ *     using {@link AwsOptions#getClientBuilderFactory()} instead.
  */
+@Deprecated
 public interface SqsClientProvider extends Serializable {
   SqsClient getSqsClient();
 }

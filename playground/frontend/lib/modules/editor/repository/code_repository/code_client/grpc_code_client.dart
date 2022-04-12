@@ -52,8 +52,8 @@ class GrpcCodeClient implements CodeClient {
 
   @override
   Future<void> cancelExecution(String pipelineUuid) {
-    return _runSafely(() => _defaultClient
-        .cancel(grpc.CancelRequest(pipelineUuid: pipelineUuid)));
+    return _runSafely(() =>
+        _defaultClient.cancel(grpc.CancelRequest(pipelineUuid: pipelineUuid)));
   }
 
   @override
@@ -138,6 +138,20 @@ class GrpcCodeClient implements CodeClient {
         .getPreparationOutput(
             grpc.GetPreparationOutputRequest(pipelineUuid: pipelineUuid))
         .then((response) => _toOutputResponse(response.output)));
+  }
+
+  @override
+  Future<OutputResponse> getGraphOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  ) {
+    return _runSafely(() => _defaultClient
+            .getGraph(grpc.GetGraphRequest(pipelineUuid: pipelineUuid))
+            .then((response) => OutputResponse(response.graph))
+            .catchError((err) {
+          print(err);
+          return _toOutputResponse('');
+        }));
   }
 
   Future<T> _runSafely<T>(Future<T> Function() invoke) async {

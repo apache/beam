@@ -57,19 +57,18 @@ class PlaygroundPageProviders extends StatelessWidget {
               return PlaygroundState(codeRepository: kCodeRepository);
             }
 
-            if (exampleState.sdkCategories != null &&
-                playground.selectedExample == null) {
-              final example = _getExample(exampleState, playground);
+            if (playground.selectedExample == null) {
               final newPlayground = PlaygroundState(
                 codeRepository: kCodeRepository,
                 sdk: playground.sdk,
                 selectedExample: null,
               );
+              final example = _getExample(exampleState, newPlayground);
               if (example != null) {
                 exampleState
                     .loadExampleInfo(
                       example,
-                      playground.sdk,
+                      newPlayground.sdk,
                     )
                     .then((exampleWithInfo) =>
                         newPlayground.setExample(exampleWithInfo));
@@ -95,17 +94,27 @@ class PlaygroundPageProviders extends StatelessWidget {
     PlaygroundState playground,
   ) {
     final examplePath = Uri.base.queryParameters[kExampleParam];
+
+    if (exampleState.defaultExamplesMap.isEmpty) {
+      exampleState.loadDefaultExamples();
+    }
+
+    if (examplePath?.isEmpty ?? true) {
+      return exampleState.defaultExamplesMap[playground.sdk];
+    }
+
     final allExamples = exampleState.sdkCategories?.values
         .expand((sdkCategory) => sdkCategory.map((e) => e.examples))
         .expand((element) => element)
         .toList();
+
     if (allExamples?.isEmpty ?? true) {
       return null;
     }
-    final defaultExample = exampleState.defaultExamplesMap![playground.sdk]!;
+
     return allExamples?.firstWhere(
       (example) => example.path == examplePath,
-      orElse: () => defaultExample,
+      orElse: () => exampleState.defaultExample!,
     );
   }
 }

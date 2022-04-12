@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas;
 
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
 
 /** A set of utility functions for schemas. */
 @SuppressWarnings({
@@ -100,5 +101,25 @@ public class SchemaUtils {
         result = fieldType1;
     }
     return result.withNullable(fieldType1.getNullable() || fieldType2.getNullable());
+  }
+
+  /**
+   * Returns the base type given a logical type and the input type.
+   *
+   * <p>This function can be used to handle logical types without knowing InputT or BaseT.
+   */
+  public static <InputT, BaseT> BaseT toLogicalBaseType(
+      LogicalType<InputT, BaseT> logicalType, InputT inputType) {
+    return logicalType.toBaseType(inputType);
+  }
+
+  /**
+   * Returns the input type given a logical type and the base type.
+   *
+   * <p>This function can be used to handle logical types without knowing InputT or BaseT.
+   */
+  public static <BaseT, InputT> InputT toLogicalInputType(
+      LogicalType<InputT, BaseT> logicalType, BaseT baseType) {
+    return logicalType.toInputType(baseType);
   }
 }

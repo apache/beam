@@ -17,17 +17,23 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.buildClient;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
 
 import java.util.List;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /** Represents source for single stream in Kinesis. */
 @SuppressWarnings({
@@ -49,9 +55,20 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     this.checkpointGenerator = checkNotNull(initialCheckpoint);
   }
 
-  private SimplifiedKinesisClient createClient() {
-    return SimplifiedKinesisClient.from(
-        spec.getAWSClientsProvider(), spec.getRequestRecordsLimit());
+  private SimplifiedKinesisClient createClient(PipelineOptions options) {
+    AwsOptions awsOptions = options.as(AwsOptions.class);
+    Supplier<KinesisClient> kinesisSupplier;
+    Supplier<CloudWatchClient> cloudWatchSupplier;
+    if (spec.getAWSClientsProvider() != null) {
+      kinesisSupplier = spec.getAWSClientsProvider()::getKinesisClient;
+      cloudWatchSupplier = spec.getAWSClientsProvider()::getCloudWatchClient;
+    } else {
+      ClientConfiguration config = spec.getClientConfiguration();
+      kinesisSupplier = () -> buildClient(awsOptions, KinesisClient.builder(), config);
+      cloudWatchSupplier = () -> buildClient(awsOptions, CloudWatchClient.builder(), config);
+    }
+    return new SimplifiedKinesisClient(
+        kinesisSupplier, cloudWatchSupplier, spec.getRequestRecordsLimit());
   }
 
   /**
@@ -60,14 +77,14 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
    */
   @Override
   public List<KinesisSource> split(int desiredNumSplits, PipelineOptions options) throws Exception {
-    KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(createClient());
-
-    List<KinesisSource> sources = newArrayList();
-
-    for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
-      sources.add(new KinesisSource(spec, new StaticCheckpointGenerator(partition)));
+    try (SimplifiedKinesisClient client = createClient(options)) {
+      KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(client);
+      List<KinesisSource> sources = newArrayList();
+      for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
+        sources.add(new KinesisSource(spec, new StaticCheckpointGenerator(partition)));
+      }
+      return sources;
     }
-    return sources;
   }
 
   /**
@@ -85,7 +102,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     }
 
     LOG.info("Creating new reader using {}", checkpointGenerator);
-    return new KinesisReader(spec, createClient(), checkpointGenerator, this);
+    return new KinesisReader(spec, createClient(options), checkpointGenerator, this);
   }
 
   @Override

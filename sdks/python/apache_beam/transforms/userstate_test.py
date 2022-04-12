@@ -23,6 +23,7 @@ from typing import Any
 from typing import List
 
 import mock
+import pytest
 
 import apache_beam as beam
 from apache_beam.coders import BytesCoder
@@ -164,7 +165,7 @@ class InterfaceTest(unittest.TestCase):
     context = pipeline_context.PipelineContext()
     state = BagStateSpec('statename', VarIntCoder())
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
@@ -172,21 +173,21 @@ class InterfaceTest(unittest.TestCase):
     state = CombiningValueStateSpec(
         'statename', VarIntCoder(), TopCombineFn(10))
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
     context = pipeline_context.PipelineContext()
     state = SetStateSpec('setstatename', VarIntCoder())
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
     context = pipeline_context.PipelineContext()
     state = ReadModifyWriteStateSpec('valuestatename', VarIntCoder())
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
@@ -990,6 +991,45 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
     self.assertEqual([('emit1', 10), ('emit2', 20), ('emit3', 30)],
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+  @pytest.mark.timeout(3)
+  def test_dynamic_timer_clear_then_set_timer(self):
+    class EmitTwoEvents(DoFn):
+      EMIT_CLEAR_SET_TIMER = TimerSpec('emitclear', TimeDomain.WATERMARK)
+
+      def process(self, element, emit=DoFn.TimerParam(EMIT_CLEAR_SET_TIMER)):
+        yield ('1', 'set')
+        emit.set(1)
+
+      @on_timer(EMIT_CLEAR_SET_TIMER)
+      def emit_clear(self):
+        yield ('1', 'clear')
+
+    class DynamicTimerDoFn(DoFn):
+      EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
+
+      def process(self, element, emit=DoFn.TimerParam(EMIT_TIMER_FAMILY)):
+        if element[1] == 'set':
+          emit.set(10, dynamic_timer_tag='emit1')
+          emit.set(20, dynamic_timer_tag='emit2')
+        if element[1] == 'clear':
+          emit.set(30, dynamic_timer_tag='emit3')
+          emit.clear(dynamic_timer_tag='emit3')
+          emit.set(40, dynamic_timer_tag='emit3')
+        return []
+
+      @on_timer(EMIT_TIMER_FAMILY)
+      def emit_callback(
+          self, ts=DoFn.TimestampParam, tag=DoFn.DynamicTimerTagParam):
+        yield (tag, ts)
+
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create([('1', 'impulse')])
+          | beam.ParDo(EmitTwoEvents())
+          | beam.ParDo(DynamicTimerDoFn()))
+      assert_that(res, equal_to([('emit1', 10), ('emit2', 20), ('emit3', 40)]))
 
   def test_dynamic_timer_clear_timer(self):
     class DynamicTimerDoFn(DoFn):

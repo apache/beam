@@ -95,7 +95,13 @@ class AvroBase(object):
         os.remove(path)
     self._temp_files = []
 
-  def _write_data(self, directory, prefix, codec, count, sync_interval):
+  def _write_data(
+      self,
+      directory=None,
+      prefix=None,
+      codec=None,
+      count=None,
+      sync_interval=None):
     raise NotImplementedError
 
   def _write_pattern(self, num_files, return_filenames=False):

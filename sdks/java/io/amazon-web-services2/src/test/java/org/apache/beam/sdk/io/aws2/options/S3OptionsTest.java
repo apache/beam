@@ -19,18 +19,17 @@ package org.apache.beam.sdk.io.aws2.options;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.apache.beam.repackaged.direct_java.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.io.aws2.s3.DefaultS3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Test;
 
 public class S3OptionsTest {
 
   private S3Options serializeDeserialize(S3Options opts) {
-    SerializablePipelineOptions serialized = new SerializablePipelineOptions(opts);
-    return SerializableUtils.clone(serialized).get().as(S3Options.class);
+    return SerializationTestUtil.serializeDeserialize(PipelineOptions.class, opts)
+        .as(S3Options.class);
   }
 
   private S3Options create(String... args) {

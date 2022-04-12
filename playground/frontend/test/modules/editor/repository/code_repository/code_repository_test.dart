@@ -40,6 +40,7 @@ const kPipelineUuid = '1234';
 const kRunOutput = 'RunOutput';
 const kLogOutput = 'LogOutput';
 const kCompileOutput = 'CompileOutput';
+const kGraphOutput = 'GraphOutput';
 const kRunErrorOutput = 'RunErrorOutput';
 const kPreparationErrorOutput = 'PreparationErrorOutput';
 const kValidationErrorOutput = 'ValidationErrorOutput';
@@ -60,6 +61,7 @@ final kRunOutputResponse = OutputResponse(kRunOutput);
 final kLogOutputResponse = OutputResponse(kLogOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
 final kRunErrorOutputResponse = OutputResponse(kRunErrorOutput);
+final kGraphResponse = OutputResponse(kGraphOutput);
 final kValidationErrorOutputResponse = OutputResponse(kValidationErrorOutput);
 final kPreparationErrorOutputResponse = OutputResponse(kPreparationErrorOutput);
 
@@ -87,6 +89,9 @@ void main() {
       when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kGraphResponse,
+      );
 
       // test variables
       final repository = CodeRepository(client);
@@ -105,6 +110,7 @@ void main() {
             status: RunCodeStatus.finished,
             output: kRunOutput + kRunErrorOutput,
             log: kProcessingStartedText + kLogOutput,
+            graph: kGraphOutput
           ),
         ]),
       );
@@ -130,6 +136,9 @@ void main() {
       when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
+      );
 
       // test variables
       final repository = CodeRepository(client);
@@ -148,6 +157,7 @@ void main() {
             status: RunCodeStatus.compileError,
             output: kCompileOutput,
             log: kProcessingStartedText,
+            graph: '',
           ),
         ]),
       );
@@ -167,6 +177,9 @@ void main() {
           .thenAnswer(
         (_) async => kValidationErrorOutputResponse,
       );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
+      );
 
       // test variables
       final repository = CodeRepository(client);
@@ -184,6 +197,7 @@ void main() {
             status: RunCodeStatus.validationError,
             output: kValidationErrorOutput,
             log: kProcessingStartedText,
+            graph: '',
           ),
         ]),
       );
@@ -203,6 +217,9 @@ void main() {
           .thenAnswer(
         (_) async => kPreparationErrorOutputResponse,
       );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
+      );
 
       // test variables
       final repository = CodeRepository(client);
@@ -220,6 +237,7 @@ void main() {
             status: RunCodeStatus.preparationError,
             output: kPreparationErrorOutput,
             log: kProcessingStartedText,
+            graph: '',
           ),
         ]),
       );
@@ -247,6 +265,9 @@ void main() {
       when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
+      when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+            (_) async => kGraphResponse,
+      );
 
       // test variables
       final repository = CodeRepository(client);
@@ -265,6 +286,7 @@ void main() {
             status: RunCodeStatus.runError,
             output: kRunErrorOutput,
             log: kProcessingStartedText,
+            graph: '',
           ),
         ]),
       );
@@ -295,6 +317,9 @@ void main() {
     when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => kLogOutputResponse,
     );
+    when(client.getGraphOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+          (_) async => kGraphResponse,
+    );
 
     // test variables
     final repository = CodeRepository(client);
@@ -313,18 +338,21 @@ void main() {
           status: RunCodeStatus.executing,
           output: kRunOutput,
           log: kProcessingStartedText + kLogOutput,
+          graph: kGraphOutput,
         ),
         RunCodeResult(
           pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.executing,
           output: kRunOutput * 2,
           log: kProcessingStartedText + kLogOutput * 2,
+          graph: kGraphOutput,
         ),
         RunCodeResult(
           pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.finished,
           output: kRunOutput * 3 + kRunErrorOutput,
           log: kProcessingStartedText + kLogOutput * 3,
+          graph: kGraphOutput,
         ),
       ]),
     );

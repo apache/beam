@@ -27,17 +27,17 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
  * Factory class to create data access objects to perform change stream queries and access the
  * metadata tables. The instances created are all singletons.
  */
-// static fields are un-initialized, because we start them during the first fetch call (with the
+// transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern)
 // nullness checks for metadata instance and database are handled in the constructor
-@SuppressWarnings({"initialization.static.fields.uninitialized", "nullness"})
+@SuppressWarnings({"initialization.fields.uninitialized", "nullness"})
 public class DaoFactory implements Serializable {
 
   private static final long serialVersionUID = 7929063669009832487L;
 
-  private static PartitionMetadataAdminDao partitionMetadataAdminDao;
-  private static PartitionMetadataDao partitionMetadataDaoInstance;
-  private static ChangeStreamDao changeStreamDaoInstance;
+  private transient PartitionMetadataAdminDao partitionMetadataAdminDao;
+  private transient PartitionMetadataDao partitionMetadataDaoInstance;
+  private transient ChangeStreamDao changeStreamDaoInstance;
 
   private final SpannerConfig changeStreamSpannerConfig;
   private final SpannerConfig metadataSpannerConfig;

@@ -60,4 +60,9 @@ abstract class CodeClient {
     String pipelineUuid,
     RunCodeRequestWrapper request,
   );
+
+  Future<OutputResponse> getGraphOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
 }

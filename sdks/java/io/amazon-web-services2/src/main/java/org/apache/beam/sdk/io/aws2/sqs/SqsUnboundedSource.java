@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -50,7 +51,7 @@ class SqsUnboundedSource extends UnboundedSource<SqsMessage, SqsCheckpointMark> 
   public UnboundedReader<SqsMessage> createReader(
       PipelineOptions options, @Nullable SqsCheckpointMark checkpointMark) {
     try {
-      return new SqsUnboundedReader(this, checkpointMark);
+      return new SqsUnboundedReader(this, checkpointMark, options.as(AwsOptions.class));
     } catch (IOException e) {
       throw new RuntimeException("Unable to subscribe to " + read.queueUrl() + ": ", e);
     }

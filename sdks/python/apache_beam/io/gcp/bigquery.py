@@ -1081,7 +1081,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
         'use_legacy_sql': self.use_legacy_sql,
         'use_native_datetime': self.use_native_datetime,
         'selected_fields': str(self.selected_fields),
-        'row_restriction': str(self.row_restriction)
+        'row_restriction': str(self.row_restriction),
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
@@ -1796,6 +1798,7 @@ class _StreamToBigQuery(PTransform):
       retry_strategy,
       additional_bq_parameters,
       ignore_insert_ids,
+      ignore_unknown_columns,
       with_auto_sharding,
       test_client=None):
     self.table_reference = table_reference
@@ -1811,6 +1814,7 @@ class _StreamToBigQuery(PTransform):
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
     self.ignore_insert_ids = ignore_insert_ids
+    self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
 
   class InsertIdPrefixFn(DoFn):
@@ -1836,6 +1840,7 @@ class _StreamToBigQuery(PTransform):
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
+        ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding)
 
     def _add_random_shard(element):
@@ -2168,6 +2173,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           retry_strategy=self.insert_retry_strategy,
           additional_bq_parameters=self.additional_bq_parameters,
           ignore_insert_ids=self._ignore_insert_ids,
+          ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client)
 
@@ -2266,14 +2272,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   @PTransform.register_urn('beam:transform:write_to_big_query:v0', bytes)
   def from_runner_api(unused_ptransform, payload, context):
     from apache_beam.internal import pickler
-    from apache_beam.portability.api.beam_runner_api_pb2 import SideInput
+    from apache_beam.portability.api import beam_runner_api_pb2
 
     config = pickler.loads(payload)
 
     def deserialize(side_inputs):
       deserialized_side_inputs = {}
       for k, v in side_inputs.items():
-        side_input = SideInput()
+        side_input = beam_runner_api_pb2.SideInput()
         side_input.ParseFromString(v)
         deserialized_side_inputs[k] = side_input
 

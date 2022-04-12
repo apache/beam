@@ -126,5 +126,13 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
   @override
+  _i6.Future<_i4.OutputResponse> getGraphOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(#getGraphOutput, [pipelineUuid, request]),
+              returnValue:
+                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+          as _i6.Future<_i4.OutputResponse>);
+  @override
   String toString() => super.toString();
 }

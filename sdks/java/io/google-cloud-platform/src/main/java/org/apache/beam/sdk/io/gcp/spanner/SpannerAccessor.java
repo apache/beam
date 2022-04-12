@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.api.gax.grpc.testing.LocalChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.ServerStreamingCallSettings;
@@ -107,34 +108,59 @@ public class SpannerAccessor implements AutoCloseable {
   private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
-    ValueProvider<Duration> commitDeadline = spannerConfig.getCommitDeadline();
-    if (commitDeadline != null && commitDeadline.get().getMillis() > 0) {
+    // Set retryable codes for all API methods
+    if (spannerConfig.getRetryableCodes() != null) {
+      builder
+          .getSpannerStubSettingsBuilder()
+          .applyToAllUnaryMethods(
+              input -> {
+                input.setRetryableCodes(spannerConfig.getRetryableCodes());
+                return null;
+              });
+      builder
+          .getSpannerStubSettingsBuilder()
+          .executeStreamingSqlSettings()
+          .setRetryableCodes(spannerConfig.getRetryableCodes());
+    }
 
+    // Set commit retry settings
+    UnaryCallSettings.Builder<CommitRequest, CommitResponse> commitSettings =
+        builder.getSpannerStubSettingsBuilder().commitSettings();
+    ValueProvider<Duration> commitDeadline = spannerConfig.getCommitDeadline();
+    if (spannerConfig.getCommitRetrySettings() != null) {
+      commitSettings.setRetrySettings(spannerConfig.getCommitRetrySettings());
+    } else if (commitDeadline != null && commitDeadline.get().getMillis() > 0) {
       // Set the GRPC deadline on the Commit API call.
-      UnaryCallSettings.Builder<CommitRequest, CommitResponse> commitSettings =
-          builder.getSpannerStubSettingsBuilder().commitSettings();
-      RetrySettings.Builder commitRetrySettings = commitSettings.getRetrySettings().toBuilder();
+      RetrySettings.Builder commitRetrySettingsBuilder =
+          commitSettings.getRetrySettings().toBuilder();
       commitSettings.setRetrySettings(
-          commitRetrySettings
+          commitRetrySettingsBuilder
               .setTotalTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
               .setInitialRpcTimeout(
                   org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
               .build());
     }
-    // Setting the timeout for streaming read to 2 hours. This is 1 hour by default
-    // after BEAM 2.20.
+
+    // Set execute streaming sql retry settings
     ServerStreamingCallSettings.Builder<ExecuteSqlRequest, PartialResultSet>
         executeStreamingSqlSettings =
             builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings();
-    RetrySettings.Builder executeSqlStreamingRetrySettings =
-        executeStreamingSqlSettings.getRetrySettings().toBuilder();
-    executeStreamingSqlSettings.setRetrySettings(
-        executeSqlStreamingRetrySettings
-            .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-            .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-            .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
-            .build());
+    if (spannerConfig.getExecuteStreamingSqlRetrySettings() != null) {
+      executeStreamingSqlSettings.setRetrySettings(
+          spannerConfig.getExecuteStreamingSqlRetrySettings());
+    } else {
+      // Setting the timeout for streaming read to 2 hours. This is 1 hour by default
+      // after BEAM 2.20.
+      RetrySettings.Builder executeSqlStreamingRetrySettings =
+          executeStreamingSqlSettings.getRetrySettings().toBuilder();
+      executeStreamingSqlSettings.setRetrySettings(
+          executeSqlStreamingRetrySettings
+              .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
+              .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
+              .build());
+    }
 
     ValueProvider<String> projectId = spannerConfig.getProjectId();
     if (projectId != null) {
@@ -151,6 +177,10 @@ public class SpannerAccessor implements AutoCloseable {
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
     if (emulatorHost != null) {
       builder.setEmulatorHost(emulatorHost.get());
+      if (spannerConfig.getIsLocalChannelProvider() != null
+          && spannerConfig.getIsLocalChannelProvider().get()) {
+        builder.setChannelProvider(LocalChannelProvider.create(emulatorHost.get()));
+      }
       builder.setCredentials(NoCredentials.getInstance());
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();

@@ -19,12 +19,17 @@ package org.apache.beam.sdk.io.aws2.s3;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Customer provided key for use with Amazon S3 server-side encryption. */
+@JsonInclude(value = JsonInclude.Include.NON_EMPTY)
+@JsonDeserialize(builder = SSECustomerKey.Builder.class)
 public class SSECustomerKey {
 
   private final @Nullable String key;
@@ -63,6 +68,7 @@ public class SSECustomerKey {
     return new Builder();
   }
 
+  @JsonPOJOBuilder(withPrefix = "")
   public static class Builder {
 
     private @Nullable String key;

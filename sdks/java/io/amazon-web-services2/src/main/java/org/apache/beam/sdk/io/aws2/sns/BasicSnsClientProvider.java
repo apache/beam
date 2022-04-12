@@ -17,49 +17,37 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
+import static org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory.defaultFactory;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.URI;
-import java.util.Objects;
-import org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.SnsClientBuilder;
 
-/** Basic implementation of {@link SnsClientProvider} used by default in {@link SnsIO}. */
+/**
+ * Basic implementation of {@link SnsClientProvider} used by default in {@link SnsIO}.
+ *
+ * @deprecated Configure a custom {@link org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory}
+ *     using {@link AwsOptions#getClientBuilderFactory()} instead.
+ */
+@Deprecated
 class BasicSnsClientProvider implements SnsClientProvider {
-  private final String awsCredentialsProviderSerialized;
-  private final String region;
-  private final @Nullable URI serviceEndpoint;
+  private final ClientConfiguration config;
 
   BasicSnsClientProvider(
-      AwsCredentialsProvider awsCredentialsProvider, String region, @Nullable URI serviceEndpoint) {
-    checkArgument(awsCredentialsProvider != null, "awsCredentialsProvider can not be null");
+      AwsCredentialsProvider credentialsProvider, String region, @Nullable URI endpoint) {
+    checkArgument(credentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
-    this.awsCredentialsProviderSerialized =
-        AwsSerializableUtils.serializeAwsCredentialsProvider(awsCredentialsProvider);
-    checkNotNull(awsCredentialsProviderSerialized, "awsCredentialsProviderString can not be null");
-    this.region = region;
-    this.serviceEndpoint = serviceEndpoint;
+    config = ClientConfiguration.create(credentialsProvider, Region.of(region), endpoint);
   }
 
   @Override
   public SnsClient getSnsClient() {
-    SnsClientBuilder builder =
-        SnsClient.builder()
-            .credentialsProvider(
-                AwsSerializableUtils.deserializeAwsCredentialsProvider(
-                    awsCredentialsProviderSerialized))
-            .region(Region.of(region));
-
-    if (serviceEndpoint != null) {
-      builder.endpointOverride(serviceEndpoint);
-    }
-
-    return builder.build();
+    return defaultFactory().create(SnsClient.builder(), config, null).build();
   }
 
   @Override
@@ -71,13 +59,11 @@ class BasicSnsClientProvider implements SnsClientProvider {
       return false;
     }
     BasicSnsClientProvider that = (BasicSnsClientProvider) o;
-    return Objects.equals(awsCredentialsProviderSerialized, that.awsCredentialsProviderSerialized)
-        && Objects.equals(region, that.region)
-        && Objects.equals(serviceEndpoint, that.serviceEndpoint);
+    return config.equals(that.config);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(awsCredentialsProviderSerialized, region, serviceEndpoint);
+    return config.hashCode();
   }
 }

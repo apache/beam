@@ -49,7 +49,11 @@ class EmbeddedPlaygroundPage extends StatelessWidget {
           first: EmbeddedEditor(isEditable: isEditable),
           second: Container(
             color: Theme.of(context).backgroundColor,
-            child: const Output(isEmbedded: true),
+            child: Output(
+              isEmbedded: true,
+              showGraph: state.graphAvailable,
+              key: ValueKey(state.selectedExample?.path ?? state.sdk.toString())
+            ),
           ),
         ),
       ),

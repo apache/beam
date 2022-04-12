@@ -26,6 +26,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,7 +150,11 @@ class FlinkPipelineExecutionEnvironment {
   @VisibleForTesting
   JobGraph getJobGraph(Pipeline p) {
     translate(p);
-    return flinkStreamEnv.getStreamGraph().getJobGraph();
+    StreamGraph streamGraph = flinkStreamEnv.getStreamGraph();
+    // Normally the job name is set when we execute the job, and JobGraph is immutable, so we need
+    // to set the job name here.
+    streamGraph.setJobName(p.getOptions().getJobName());
+    return streamGraph.getJobGraph();
   }
 
   @VisibleForTesting

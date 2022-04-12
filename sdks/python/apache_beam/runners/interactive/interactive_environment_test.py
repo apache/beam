@@ -23,9 +23,12 @@ import unittest
 from unittest.mock import patch
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlNode
 
@@ -353,6 +356,52 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     cache_root = 'gs://'
     with self.assertRaises(ValueError):
       env._get_gcs_cache_dir(p, cache_root)
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.cleanup',
+      return_value=None)
+  def test_cleanup_specific_dataproc_cluster(self, mock_cleanup):
+    env = ie.InteractiveEnvironment()
+    project = 'test-project'
+    region = 'test-region'
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
+    env.clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    env._tracked_user_pipelines.add_user_pipeline(p)
+    env.cleanup(p)
+    self.assertEqual(env.clusters.dataproc_cluster_managers, {})
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @patch(
+      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
+      'DataprocClusterManager.cleanup',
+      return_value=None)
+  def test_cleanup_all_dataproc_clusters(self, mock_cleanup):
+    env = ie.InteractiveEnvironment()
+    project = 'test-project'
+    region = 'test-region'
+    p = beam.Pipeline(
+        options=PipelineOptions(
+            project=project,
+            region=region,
+        ))
+    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
+    env.clusters.dataproc_cluster_managers[str(
+        id(p))] = DataprocClusterManager(cluster_metadata)
+    env._tracked_user_pipelines.add_user_pipeline(p)
+    env.cleanup()
+    self.assertEqual(env.clusters.dataproc_cluster_managers, {})
 
 
 if __name__ == '__main__':

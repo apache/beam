@@ -93,11 +93,6 @@
 
 @media(max-width: $ak-breakpoint-lg) {
     .page-nav {
-        margin-top: 0;
-        max-height: initial;
-        right: 0;
-        padding: 0 30px;
-        position: relative;
-        width: 100%
+        display: none;
     }
 }

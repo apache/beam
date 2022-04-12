@@ -18,6 +18,7 @@
 package expansionx
 
 import (
+	"archive/zip"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,11 +51,261 @@ func newJarGetter() *jarGetter {
 	return &jarGetter{repository: apacheRepository, groupID: beamGroupID, jarCache: cacheDir}
 }
 
+// GetDefaultRepositoryURL returns the current target URL for the defaultJarGetter,
+// indicating what repository will be connected to when getting a Beam JAR.
+func GetDefaultRepositoryURL() string {
+	return defaultJarGetter.getRepositoryURL()
+}
+
+// SetDefaultRepositoryURL updates the target URL for the defaultJarGetter, changing
+// which Maven repository will be connected to when getting a Beam JAR. Also
+// validates that it has been passed a URL and returns an error if not.
+//
+// When changing the target repository, make sure that the value is the prefix
+// up to "org/apache/beam" and that the organization of the repository matches
+// that of the default from that point on to ensure that the conversion of the
+// Gradle target to the JAR name is correct.
+func SetDefaultRepositoryURL(repoURL string) error {
+	return defaultJarGetter.setRepositoryURL(repoURL)
+}
+
+func buildJarName(artifactId, version string) string {
+	return fmt.Sprintf("%s-%s.jar", artifactId, version)
+}
+
+func getMavenJar(artifactID, groupID, version string) string {
+	return strings.Join([]string{string(apacheRepository), strings.ReplaceAll(groupID, ".", "/"), artifactID, version, buildJarName(artifactID, version)}, "/")
+}
+
+func expandJar(jar string) string {
+	if jarExists(jar) {
+		return jar
+	} else if strings.HasPrefix(jar, "http://") || strings.HasPrefix(jar, "https://") {
+		return jar
+	} else {
+		components := strings.Split(jar, ":")
+		groupID, artifactID, version := components[0], components[1], components[2]
+		path := getMavenJar(artifactID, groupID, version)
+		return path
+	}
+}
+
+func getLocalJar(url string) (string, error) {
+	jarName := path.Base(url)
+	usr, _ := user.Current()
+	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
+	jarPath := filepath.Join(cacheDir, jarName)
+
+	if jarExists(jarPath) {
+		return jarPath, nil
+	}
+
+	resp, err := http.Get(string(url))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("failed to connect to %v: received non 200 response code, got %v", url, resp.StatusCode)
+	}
+
+	file, err := os.Create(jarPath)
+	if err != nil {
+		return "", fmt.Errorf("error in creating jar %s: %w", jarPath, err)
+	}
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error in coping file %s inside jar %s: %w", file.Name(), jarPath, err)
+	}
+
+	return jarPath, nil
+}
+
+func extractJar(source, dest string) error {
+	reader, err := zip.OpenReader(source)
+	if err != nil {
+		return fmt.Errorf("error opening jar for extractJar(%s,%s): %w", source, dest, err)
+	}
+
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		return fmt.Errorf("error creating directory %s in extractJar(%s,%s): %w", dest, source, dest, err)
+	}
+
+	for _, file := range reader.File {
+		fileName := filepath.Join(dest, file.Name)
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(fileName, 0700)
+			continue
+		}
+
+		sf, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("error opening source file %s: %w", file.Name, err)
+		}
+		defer sf.Close()
+
+		df, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+		if err != nil {
+			return fmt.Errorf("error opening destination file %s: %w", fileName, err)
+		}
+		defer df.Close()
+
+		if _, err := io.Copy(df, sf); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func packJar(source, dest string) error {
+	jar, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("error creating jar packJar(%s,%s)=%w", source, dest, err)
+	}
+	defer jar.Close()
+
+	jarFile := zip.NewWriter(jar)
+	defer jarFile.Close()
+
+	fileInfo, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("source path %s doesn't exist: %w", source, err)
+	}
+
+	var sourceDir string
+	if fileInfo.IsDir() {
+		sourceDir = filepath.Base(source)
+	}
+
+	err = filepath.Walk(source, func(path string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("error accesing path %s: %w", path, err)
+		}
+		fileHeader, err := zip.FileInfoHeader(fileInfo)
+		if err != nil {
+			return fmt.Errorf("error getting FileInfoHeader: %w", err)
+		}
+
+		if sourceDir != "" {
+			fileHeader.Name = filepath.Join(sourceDir, strings.TrimPrefix(path, source))
+		}
+
+		if fileInfo.IsDir() {
+			fileHeader.Name += "/"
+		} else {
+			fileHeader.Method = zip.Deflate
+		}
+
+		writer, err := jarFile.CreateHeader(fileHeader)
+		if err != nil {
+			return fmt.Errorf("error creating jarFile header: %w", err)
+		}
+		if fileInfo.IsDir() {
+			return nil
+		}
+
+		f, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("error opening file %s: %w", path, err)
+		}
+		defer f.Close()
+
+		if _, err = io.Copy(writer, f); err != nil {
+			return fmt.Errorf("error copying file %s: %w", path, err)
+		}
+		return nil
+	})
+	return err
+}
+
+// MakeJar fetches additional classpath JARs and adds it to the classpath of
+// main JAR file and compiles a fresh JAR.
+func MakeJar(mainJar string, classpath string) (string, error) {
+	usr, _ := user.Current()
+	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
+
+	// fetch jars required in classpath
+	classpaths := strings.Split(classpath, " ")
+	classpathJars := []string{}
+	for _, jar := range classpaths {
+		path := expandJar(jar)
+		if j, err := getLocalJar(path); err == nil {
+			classpathJars = append(classpathJars, j)
+		} else {
+			return "", fmt.Errorf("error in getLocal(): %w", err)
+		}
+	}
+
+	// classpath jars should have relative path
+	relClasspath := []string{}
+	for _, path := range classpathJars {
+		relPath, err := filepath.Rel(cacheDir, path)
+		if err != nil {
+			return "", fmt.Errorf("error in creating relative path: %w", err)
+		}
+		relClasspath = append(relClasspath, relPath)
+	}
+
+	tmpDir := filepath.Join(cacheDir, "tmpDir")
+
+	if err := extractJar(mainJar, tmpDir); err != nil {
+		return "", fmt.Errorf("error in extractJar(): %w", err)
+	}
+
+	manifest, err := os.ReadFile(tmpDir + "/META-INF/MANIFEST.MF")
+	if err != nil {
+		return "", fmt.Errorf("error readingf: %w", err)
+	}
+
+	// trim the empty lines present at the end of MANIFEST.MF file.
+	manifestLines := strings.Split(string(manifest), "\n")
+	manifestLines = manifestLines[:len(manifestLines)-2]
+
+	classpathString := fmt.Sprintf("%sClass-Path: %s\n", strings.Join(manifestLines, "\n"), strings.Join(relClasspath, " "))
+	if err = os.WriteFile(tmpDir+"/META-INF/MANIFEST.MF", []byte(classpathString), 0660); err != nil {
+		return "", fmt.Errorf("error writing ta manifest file: %w", err)
+	}
+
+	path, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("can't get current working directory: %w", err)
+	}
+
+	if err = os.Chdir(tmpDir); err != nil {
+		return "", fmt.Errorf("can't change to temp directory %s for creating JAR: %w", tmpDir, err)
+	}
+
+	tmpJar := filepath.Join(cacheDir, "tmp.jar")
+	if err = packJar(".", tmpJar); err != nil {
+		return "", fmt.Errorf("error in packJar(): %w", err)
+	}
+
+	if err = os.Chdir(path); err != nil {
+		return "", fmt.Errorf("can't change to old working directory %s: %w", path, err)
+	}
+
+	return tmpJar, nil
+}
+
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the
 // appropriate JAR from Maven if not present, then returns the file path to the
 // JAR.
 func GetBeamJar(gradleTarget, version string) (string, error) {
 	return defaultJarGetter.getJar(gradleTarget, version)
+}
+
+func (j *jarGetter) getRepositoryURL() string {
+	return string(j.repository)
+}
+
+func (j *jarGetter) setRepositoryURL(repoURL string) error {
+	if !strings.HasPrefix(repoURL, "http") {
+		return fmt.Errorf("repo URL %v does not have an http or https prefix", repoURL)
+	}
+	j.repository = url(strings.TrimSuffix(repoURL, "/"))
+	return nil
 }
 
 func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
@@ -84,7 +335,7 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("received non 200 response code, got %v", resp.StatusCode)
+		return "", fmt.Errorf("failed to connect to %v: received non 200 response code, got %v", fullURL, resp.StatusCode)
 	}
 
 	file, err := os.Create(jarPath)

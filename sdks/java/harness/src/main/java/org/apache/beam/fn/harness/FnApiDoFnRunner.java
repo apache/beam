@@ -180,6 +180,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getWindowingStrategies(),
               context::addStartBundleFunction,
               context::addFinishBundleFunction,
+              context::addResetFunction,
               context::addTearDownFunction,
               context::getPCollectionConsumer,
               (pCollectionId, consumer, valueCoder) ->
@@ -242,6 +243,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final OnTimerContext<?> onTimerContext;
   private final OnWindowExpirationContext<?> onWindowExpirationContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
+  private final Duration allowedLateness;
 
   /**
    * Used to guarantee a consistent view of this {@link FnApiDoFnRunner} while setting up for {@link
@@ -344,6 +346,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
+      Consumer<ThrowingRunnable> addResetFunction,
       Consumer<ThrowingRunnable> addTearDownFunction,
       Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
       TriFunction<String, FnDataReceiver<WindowedValue<?>>, Coder<?>> addPCollectionConsumer,
@@ -457,6 +460,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       timerFamilyInfos = timerFamilyInfosBuilder.build();
 
+      this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
+      this.allowedLateness =
+          rehydratedComponents
+              .getPCollection(pTransform.getInputsOrThrow(mainInputId))
+              .getWindowingStrategy()
+              .getAllowedLateness();
+
     } catch (IOException exn) {
       throw new IllegalArgumentException("Malformed ParDoPayload", exn);
     }
@@ -473,12 +483,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.bundleFinalizer = bundleFinalizer;
     this.onTimerContext = new OnTimerContext();
     this.onWindowExpirationContext = new OnWindowExpirationContext<>();
+    this.timerBundleTracker =
+        new FnApiTimerBundleTracker(
+            keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
+    addResetFunction.accept(timerBundleTracker::reset);
 
-    try {
-      this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
             (Collection) localNameToConsumer.get(mainOutputTag.getId());
@@ -712,7 +721,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // no-op
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor =
         new FnApiStateAccessor(
             pipelineOptions,
@@ -756,9 +764,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void startBundle() {
-    timerBundleTracker =
-        new FnApiTimerBundleTracker(
-            keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
   }
 
@@ -804,7 +809,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -835,7 +839,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -863,7 +866,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTracker = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -897,7 +899,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTracker = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -929,7 +930,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWatermarkEstimatorState = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -981,20 +981,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       initialWatermark = null;
     }
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
   /** Internal class to hold the primary and residual roots when converted to an input element. */
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes"})
   abstract static class WindowedSplitResult {
     public static WindowedSplitResult forRoots(
-        WindowedValue primaryInFullyProcessedWindowsRoot,
-        WindowedValue primarySplitRoot,
-        WindowedValue residualSplitRoot,
-        WindowedValue residualInUnprocessedWindowsRoot) {
+        WindowedValue<?> primaryInFullyProcessedWindowsRoot,
+        WindowedValue<?> primarySplitRoot,
+        WindowedValue<?> residualSplitRoot,
+        WindowedValue<?> residualInUnprocessedWindowsRoot) {
       return new AutoValue_FnApiDoFnRunner_WindowedSplitResult(
           primaryInFullyProcessedWindowsRoot,
           primarySplitRoot,
@@ -1002,18 +1000,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           residualInUnprocessedWindowsRoot);
     }
 
-    public abstract @Nullable WindowedValue getPrimaryInFullyProcessedWindowsRoot();
+    public abstract @Nullable WindowedValue<?> getPrimaryInFullyProcessedWindowsRoot();
 
-    public abstract @Nullable WindowedValue getPrimarySplitRoot();
+    public abstract @Nullable WindowedValue<?> getPrimarySplitRoot();
 
-    public abstract @Nullable WindowedValue getResidualSplitRoot();
+    public abstract @Nullable WindowedValue<?> getResidualSplitRoot();
 
-    public abstract @Nullable WindowedValue getResidualInUnprocessedWindowsRoot();
+    public abstract @Nullable WindowedValue<?> getResidualInUnprocessedWindowsRoot();
   }
 
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes"})
   abstract static class SplitResultsWithStopIndex {
     public static SplitResultsWithStopIndex of(
         WindowedSplitResult windowSplit,
@@ -1694,14 +1691,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or
           // timerFamilyId
           // from timer family declaration.
-          String timerId =
-              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-                  ? ""
-                  : timerIdOrTimerFamilyId;
-          String timerFamilyId =
-              timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
-                  ? timerIdOrTimerFamilyId
-                  : "";
+          boolean isFamily = timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX);
+          String timerId = isFamily ? "" : timerIdOrTimerFamilyId;
+          String timerFamilyId = isFamily ? timerIdOrTimerFamilyId : "";
           processTimerDirect(timerFamilyId, timerId, timeDomain, timer);
         }
       }
@@ -1749,7 +1741,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
-    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -1778,7 +1769,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     private final K userKey;
     private final String dynamicTimerTag;
     private final TimeDomain timeDomain;
-    private final Duration allowedLateness;
     private final Instant fireTimestamp;
     private final Instant elementTimestampOrTimerHoldTimestamp;
     private final BoundedWindow boundedWindow;
@@ -1816,18 +1806,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         default:
           throw new IllegalArgumentException(
               String.format("Unknown or unsupported time domain %s", timeDomain));
-      }
-
-      try {
-        this.allowedLateness =
-            rehydratedComponents
-                .getPCollection(
-                    pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform)))
-                .getWindowingStrategy()
-                .getAllowedLateness();
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-            String.format("Unable to get allowed lateness for timer %s", timerIdOrFamily));
       }
     }
 
@@ -2614,7 +2592,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       + "changing the allowed skew.",
                   timestamp,
                   currentTimer.getHoldTimestamp(),
-                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                      ? doFn.getAllowedTimestampSkew()
+                      : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
                   BoundedWindow.TIMESTAMP_MAX_VALUE));
         }
       }

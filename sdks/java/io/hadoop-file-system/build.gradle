@@ -70,6 +70,7 @@ hadoopVersions.each {kv ->
       force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
       force "org.apache.hadoop:hadoop-minicluster:$kv.value"
       force "org.apache.hadoop:hadoop-hdfs:$kv.value:tests"
+      force "org.apache.hadoop:hadoop-hdfs-client:$kv.value:tests"
       force library.java.slf4j_jdk14
     }
   }
