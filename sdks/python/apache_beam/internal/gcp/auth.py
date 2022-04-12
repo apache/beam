@@ -26,6 +26,7 @@ import traceback
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
+  from google.auth import impersonated_credentials
   import google.auth
   import google_auth_httplib2
   _GOOGLE_AUTH_AVAILABLE = True
@@ -141,7 +142,6 @@ class _Credentials(object):
           "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
       cls._credentials = cls._get_service_credentials()
-      cls._credentials = cls._add_impersonation_credentials()
       cls._credentials_init = True
 
     return cls._credentials
@@ -157,6 +157,7 @@ class _Credentials(object):
 
     try:
       credentials, _ = google.auth.default(scopes=CLIENT_SCOPES)  # pylint: disable=c-extension-no-member
+      credentials = _Credentials._add_impersonation_credentials()
       credentials = _ApitoolsCredentialsAdapter(credentials)
       logging.debug(
           'Connecting using Google Application Default '
@@ -184,7 +185,7 @@ class _Credentials(object):
     """Adds impersonation credentials if the client species them."""
     credentials = cls._credentials
     if cls._target_principal:
-      credentials = google.auth.impersonated_credentials.Credentials(
+      credentials = impersonated_credentials.Credentials(
           source_credentials=credentials,
           target_principal=cls._target_principal,
           delegates=cls._delegate_to,
