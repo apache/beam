@@ -84,7 +84,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
-  @Ignore
+  @Ignore("BEAM-14277 Sickbay until autoscaling changes are merged")
   @Test
   public void testTransactionBoundaries() {
     LOG.info("Test pipeline: " + pipeline.toString());
