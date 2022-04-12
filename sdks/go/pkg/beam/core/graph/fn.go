@@ -310,8 +310,6 @@ func (f *SplittableDoFn) RestrictionT() reflect.Type {
 
 // IsWatermarkEstimating returns whether the DoFn implements a custom watermark estimator.
 func (f *SplittableDoFn) IsWatermarkEstimating() bool {
-	// Validation already passed, so if one SDF method is present they should
-	// all be present.
 	_, ok := f.methods[createWatermarkEstimatorName]
 	return ok
 }

@@ -228,8 +228,8 @@ func (fn *DoFn03) CreateTracker(rest R) *sdf.LockRTracker {
 	return &sdf.LockRTracker{Rt: RT{}}
 }
 
-func (fn *DoFn03) CreateWatermarkEstimator() sdf.WallTimeWatermarkEstimator {
-	return sdf.WallTimeWatermarkEstimator{}
+func (fn *DoFn03) CreateWatermarkEstimator() *sdf.WallTimeWatermarkEstimator {
+	return &sdf.WallTimeWatermarkEstimator{}
 }
 
 type DoFn04 struct{}
