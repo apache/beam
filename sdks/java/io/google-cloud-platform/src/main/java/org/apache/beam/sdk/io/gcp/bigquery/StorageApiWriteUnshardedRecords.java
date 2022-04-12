@@ -19,12 +19,14 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.core.ApiFuture;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.DescriptorWrapper;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -78,9 +81,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
-          .expireAfterAccess(5, TimeUnit.MINUTES)
+          .expireAfterAccess(15, TimeUnit.MINUTES)
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
+                LOG.info("Expiring append client for " + removal.getKey());
                 @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
                 // Close the writer in a different thread so as not to block the main one.
                 runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
@@ -132,6 +136,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
   static class WriteRecordsDoFn<DestinationT, ElementT>
       extends DoFn<KV<DestinationT, StorageApiWritePayload>, KV<String, String>> {
+    private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
+
     class DestinationState {
       private final String tableUrn;
       private final MessageConverter<ElementT> messageConverter;
@@ -144,8 +150,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
       private final Counter appendFailures =
           Metrics.counter(WriteRecordsDoFn.class, "appendFailures");
+      private final Counter schemaMismatches =
+          Metrics.counter(WriteRecordsDoFn.class, "schemaMismatches");
+      private final Distribution inflightWaitSecondsDistribution =
+          Metrics.distribution(WriteRecordsDoFn.class, "streamWriterWaitSeconds");
       private final boolean useDefaultStream;
       private DescriptorWrapper descriptorWrapper;
+      private Instant nextCacheTickle;
 
       public DestinationState(
           String tableUrn,
@@ -161,8 +172,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       void teardown() {
+        maybeTickleCache();
         if (streamAppendClient != null) {
           runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+          streamAppendClient = null;
         }
       }
 
@@ -206,10 +219,20 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               this.streamAppendClient.pin();
             }
             this.currentOffset = 0;
+            nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
           }
           return streamAppendClient;
         } catch (Exception e) {
           throw new RuntimeException(e);
+        }
+      }
+
+      void maybeTickleCache() {
+        if (streamAppendClient != null && Instant.now().isAfter(nextCacheTickle)) {
+          synchronized (APPEND_CLIENTS) {
+            APPEND_CLIENTS.getIfPresent(streamName);
+          }
+          nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
         }
       }
 
@@ -218,16 +241,29 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           synchronized (APPEND_CLIENTS) {
             // Unpin in a different thread, as it may execute a blocking close.
             runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+            // The default stream is cached across multiple different DoFns. If they all try and
+            // invalidate, then we can
+            // get races between threads invalidating and recreating streams. For this reason, we
+            // check to see that the
+            // cache still contains the object we created before invalidating (in case another
+            // thread has already invalidated
+            // and recreated the stream).
+            @Nullable
+            StreamAppendClient cachedAppendClient = APPEND_CLIENTS.getIfPresent(streamName);
+            if (cachedAppendClient != null
+                && System.identityHashCode(cachedAppendClient)
+                    == System.identityHashCode(streamAppendClient)) {
+              APPEND_CLIENTS.invalidate(streamName);
+            }
           }
           streamAppendClient = null;
-          APPEND_CLIENTS.invalidate(streamName);
-        } else if (useDefaultStream) {
-          APPEND_CLIENTS.invalidate(getDefaultStreamName());
         }
       }
 
       void addMessage(StorageApiWritePayload payload) throws Exception {
+        maybeTickleCache();
         if (payload.getSchemaHash() != descriptorWrapper.hash) {
+          schemaMismatches.inc();
           // The descriptor on the payload doesn't match the descriptor we know about. This
           // means that the table has been updated, but that this transform hasn't found out
           // about that yet. Refresh the schema and force a new StreamAppendClient to be
@@ -259,9 +295,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           return;
         }
         final ProtoRows.Builder inserts = ProtoRows.newBuilder();
-        for (ByteString m : pendingMessages) {
-          inserts.addSerializedRows(m);
-        }
+        inserts.addAllSerializedRows(pendingMessages);
 
         ProtoRows protoRows = inserts.build();
         pendingMessages.clear();
@@ -275,7 +309,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   offset = this.currentOffset;
                   this.currentOffset += inserts.getSerializedRowsCount();
                 }
-                return writeStream.appendRows(offset, protoRows);
+                ApiFuture<AppendRowsResponse> response = writeStream.appendRows(offset, protoRows);
+                inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
+                if (writeStream.getInflightWaitSeconds() > 5) {
+                  LOG.warn(
+                      "Storage Api write delay more than " + writeStream.getInflightWaitSeconds());
+                }
+                return response;
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
@@ -294,6 +334,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               recordsAppended.inc(protoRows.getSerializedRowsCount());
             },
             new Context<>());
+        maybeTickleCache();
       }
     }
 
@@ -302,7 +343,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private transient @Nullable DatasetService datasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
-    private static final int FLUSH_THRESHOLD_RECORDS = 100;
+    private static final int FLUSH_THRESHOLD_RECORDS = 150000;
+    //   private static final int FLUSH_THRESHOLD_RECORDS = 100;
     private static final int FLUSH_THRESHOLD_RECORD_BYTES = 2 * 1024 * 1024;
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
@@ -326,6 +368,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     void flushIfNecessary() throws Exception {
       if (shouldFlush()) {
+        forcedFlushes.inc();
         // Too much memory being used. Flush the state and wait for it to drain out.
         // TODO(reuvenlax): Consider waiting for memory usage to drop instead of waiting for all the
         // appends to finish.
