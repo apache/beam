@@ -559,8 +559,7 @@ class DataflowApplicationClient(object):
       credentials = None
     else:
       set_impersonation_accounts(
-          self.google_cloud_options.target_principal,
-          self.google_cloud_options.delegate_accounts)
+          self.google_cloud_options.impersonate_service_account)
       credentials = get_service_credentials()
 
     http_client = get_new_http()
