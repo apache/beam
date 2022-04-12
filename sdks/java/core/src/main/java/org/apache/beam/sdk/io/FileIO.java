@@ -508,8 +508,11 @@ public class FileIO {
 
     /**
      * Continuously watches for new files at the given interval until the given termination
-     * condition is reached, where the input to the condition is the filepattern. If {@code
-     * matchUpdatedFiles} is set, also watches for files with timestamp change.
+     * condition is reached, where the input to the condition is the filepattern.
+     *
+     * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change. Will
+     * throw a {@code RuntimeError} if timestamp extraction for the matched file failed, suggesting
+     * the timestamp metadata is not available with the IO connector.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
@@ -532,14 +535,14 @@ public class FileIO {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder
-          .add(
-              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
-                  .withLabel("Treatment of filepatterns that match no files"));
+      builder.add(
+          DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+              .withLabel("Treatment of filepatterns that match no files"));
       if (getWatchInterval() != null) {
-        builder.add(
-            DisplayData.item("watchForNewFilesInterval", getWatchInterval())
-                .withLabel("Interval to watch for new files"))
+        builder
+            .add(
+                DisplayData.item("watchForNewFilesInterval", getWatchInterval())
+                    .withLabel("Interval to watch for new files"))
             .add(
                 DisplayData.item("isMatchUpdatedFiles", getMatchUpdatedFiles())
                     .withLabel("If also match for files with timestamp change"));
@@ -680,28 +683,11 @@ public class FileIO {
         if (getConfiguration().getMatchUpdatedFiles()) {
           res =
               input
-                  .apply(
-                      "Continuously match filepatterns",
-                      Watch.growthOf(
-                              Contextful.of(new MatchPollFn(), Requirements.empty()),
-                              new ExtractFilenameAndLastUpdateFn())
-                          .withPollInterval(getConfiguration().getWatchInterval())
-                          .withTerminationPerInput(
-                              getConfiguration().getWatchTerminationCondition()))
+                  .apply(CreateWatchTransform(new ExtractFilenameAndLastUpdateFn()))
                   .apply(Values.create())
                   .setCoder(MetadataCoderV2.of());
         } else {
-          res =
-              input
-                  .apply(
-                      "Continuously match filepatterns",
-                      Watch.growthOf(
-                              Contextful.of(new MatchPollFn(), Requirements.empty()),
-                              new ExtractFilenameFn())
-                          .withPollInterval(getConfiguration().getWatchInterval())
-                          .withTerminationPerInput(
-                              getConfiguration().getWatchTerminationCondition()))
-                  .apply(Values.create());
+          res = input.apply(CreateWatchTransform(new ExtractFilenameFn())).apply(Values.create());
         }
       }
       return res.apply(Reshuffle.viaRandomKey());
@@ -711,6 +697,14 @@ public class FileIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.include("configuration", getConfiguration());
+    }
+
+    /** Helper function creating a watch transform based on outputKeyFn. */
+    private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> CreateWatchTransform(
+        SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
+      return Watch.growthOf(Contextful.of(new MatchPollFn(), Requirements.empty()), outputKeyFn)
+          .withPollInterval(getConfiguration().getWatchInterval())
+          .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
@@ -753,8 +747,12 @@ public class FileIO {
     private static class ExtractFilenameAndLastUpdateFn
         implements SerializableFunction<MatchResult.Metadata, KV<String, Long>> {
       @Override
-      public KV<String, Long> apply(MatchResult.Metadata input) {
-        return KV.of(input.resourceId().toString(), input.lastModifiedMillis());
+      public KV<String, Long> apply(MatchResult.Metadata input) throws RuntimeException {
+        long timestamp = input.lastModifiedMillis();
+        if (0L == timestamp) {
+          throw new RuntimeException("Extract file timestamp failed.");
+        }
+        return KV.of(input.resourceId().toString(), timestamp);
       }
     }
   }
