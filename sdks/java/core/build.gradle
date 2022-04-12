@@ -35,6 +35,10 @@ applyJavaNature(
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
   },
   disableLintWarnings: ['rawtypes'], // Avro-generated test code has rawtype errorss
+  shadowJarValidationExcludes: [
+    "org/apache/beam/**",
+    "net/bytebuddy/**",
+  ],
 )
 applyAvroNature()
 applyAntlrNature()
