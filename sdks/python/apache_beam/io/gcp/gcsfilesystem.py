@@ -51,12 +51,10 @@ class GCSFileSystem(FileSystem):
     super().__init__(pipeline_options)
     if isinstance(pipeline_options, PipelineOptions):
       gcs_options = pipeline_options.view_as(GoogleCloudOptions)
-      target_principal = gcs_options.target_principal
-      delegate_accounts = gcs_options.delegate_accounts
+      impersonate_service_account = gcs_options.impersonate_service_account
     else:
-      target_principal = pipeline_options.get('target_principal')
-      delegate_accounts = pipeline_options.get('delegate_accounts')
-    auth.set_impersonation_accounts(target_principal, delegate_accounts)
+      impersonate_service_account = pipeline_options.get('impersonate_service_account')
+    auth.set_impersonation_accounts(impersonate_service_account)
 
   @classmethod
   def scheme(cls):

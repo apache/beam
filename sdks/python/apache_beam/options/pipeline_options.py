@@ -752,22 +752,14 @@ class GoogleCloudOptions(PipelineOptions):
         'When true, artifacts will be cached across job submissions in the '
         'GCS staging bucket')
     parser.add_argument(
-        '--target_principal',
+        '--impersonate_service_account',
         default=None,
-        help='The service account to impersonate.')
-    parser.add_argument(
-        '--delegate_accounts',
-        default=None,
-        help=
-        'A comma separated list of delegates required to grant the final '
-        'access_token. If set, the sequence of identities must have "Service '
-        'Account Token Creator" capability granted to the preceding identity. '
-        'For example, if set to "serviceAccountB,serviceAccountC", the '
-        'source_credential must have the Token Creator role on '
-        'serviceAccountB. serviceAccountB must have the Token Creator on '
-        'serviceAccountC. Finally, C must have Token Creator on '
-        'target_principal. If left unset, source_credential must have that '
-        'role on target_principal..')
+        help='All API requests will be made as the given service account or '
+             'target service account in an impersonation delegation chain '
+             'instead of the currently selected account. You can specify '
+             'either a single service account as the impersonator, or a '
+             'comma-separated list of service accounts to create an '
+             'impersonation delegation chain.')
 
   def _create_default_gcs_bucket(self):
     try:

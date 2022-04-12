@@ -71,8 +71,8 @@ def set_running_in_gce(worker_executing_project):
   executing_project = worker_executing_project
 
 
-def set_impersonation_accounts(target_principal=None, delegate_to=None):
-  _Credentials.set_impersonation_accounts(target_principal, delegate_to)
+def set_impersonation_accounts(impersonate_service_account=None):
+  _Credentials.set_impersonation_accounts(impersonate_service_account)
 
 
 def get_service_credentials():
@@ -125,7 +125,7 @@ class _Credentials(object):
 
   _delegate_accounts = None
   _target_principal = None
-  _impersonation_parameters_set = False
+  _impersonation_parameter_set = False
 
   @classmethod
   def get_service_credentials(cls):
@@ -171,23 +171,25 @@ class _Credentials(object):
       return None
 
   @classmethod
-  def set_impersonation_accounts(cls, target_principal, delegate_to):
-    cls._target_principal = target_principal
-    cls._delegate_to = delegate_to
-    cls._impersonation_parameters_set = True
+  def set_impersonation_accounts(cls, impersonate_service_account):
+    cls._impersonate_service_account = impersonate_service_account
+    cls._impersonation_parameter_set = True
 
   @classmethod
   def _add_impersonation_credentials(cls, credentials):
-    if not cls._impersonation_parameters_set:
+    if not cls._impersonation_parameter_set:
       traceback_str = traceback.format_stack()
       raise Exception(
           'Impersonation credentials not yet set. \n' + str(traceback_str))
     """Adds impersonation credentials if the client species them."""
-    if cls._target_principal:
+    if cls._impersonate_service_account:
+      impersonate_accounts = cls._impersonate_service_account.split(',')
+      target_principal = impersonate_accounts[-1]
+      delegate_to = impersonate_accounts[0,:]
       credentials = impersonated_credentials.Credentials(
           source_credentials=credentials,
-          target_principal=cls._target_principal,
-          delegates=cls._delegate_to,
+          target_principal=target_principal,
+          delegates=delegate_to,
           target_scopes=CLIENT_SCOPES,
       )
     return credentials
