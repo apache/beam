@@ -869,7 +869,7 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					createTrackerName, 0, method.Param[0].T, restrictionT, createInitialRestrictionName)
 			}
-			if method.Ret[0].T.Implements(rTrackerT) == false {
+			if !method.Ret[0].T.Implements(rTrackerT) {
 				err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.RTracker",
 					createTrackerName, 0, method.Ret[0].T)
 				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
