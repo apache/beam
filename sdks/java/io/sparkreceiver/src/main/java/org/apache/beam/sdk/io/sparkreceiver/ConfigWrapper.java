@@ -32,57 +32,57 @@ import org.slf4j.LoggerFactory;
 /** Class for building {@link PluginConfig} object of the specific class {@param <T>}. */
 public class ConfigWrapper<T extends PluginConfig> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapper.class);
 
-    @Nullable private Map<String, Object> paramsMap = null;
-    private final Class<T> configClass;
+  @Nullable private Map<String, Object> paramsMap = null;
+  private final Class<T> configClass;
 
-    public ConfigWrapper(Class<T> configClass) {
-        this.configClass = configClass;
+  public ConfigWrapper(Class<T> configClass) {
+    this.configClass = configClass;
+  }
+
+  public ConfigWrapper<T> fromJsonString(String jsonString) throws IOException {
+    TypeReference<HashMap<String, Object>> typeRef =
+        new TypeReference<HashMap<String, Object>>() {};
+    try {
+      paramsMap = new ObjectMapper().readValue(jsonString, typeRef);
+    } catch (IOException e) {
+      LOG.error("Can not read json string to params map", e);
+      throw e;
     }
+    return this;
+  }
 
-    public ConfigWrapper<T> fromJsonString(String jsonString) throws IOException {
-        TypeReference<HashMap<String, Object>> typeRef =
-                new TypeReference<HashMap<String, Object>>() {};
-        try {
-            paramsMap = new ObjectMapper().readValue(jsonString, typeRef);
-        } catch (IOException e) {
-            LOG.error("Can not read json string to params map", e);
-            throw e;
-        }
-        return this;
+  public ConfigWrapper<T> fromJsonFile(File jsonFile) throws IOException {
+    TypeReference<HashMap<String, Object>> typeRef =
+        new TypeReference<HashMap<String, Object>>() {};
+    try {
+      paramsMap = new ObjectMapper().readValue(jsonFile, typeRef);
+    } catch (IOException e) {
+      LOG.error("Can not read json file to params map", e);
+      throw e;
     }
+    return this;
+  }
 
-    public ConfigWrapper<T> fromJsonFile(File jsonFile) throws IOException {
-        TypeReference<HashMap<String, Object>> typeRef =
-                new TypeReference<HashMap<String, Object>>() {};
-        try {
-            paramsMap = new ObjectMapper().readValue(jsonFile, typeRef);
-        } catch (IOException e) {
-            LOG.error("Can not read json file to params map", e);
-            throw e;
-        }
-        return this;
-    }
+  public ConfigWrapper<T> withParams(Map<String, Object> paramsMap) {
+    this.paramsMap = new HashMap<>(paramsMap);
+    return this;
+  }
 
-    public ConfigWrapper<T> withParams(Map<String, Object> paramsMap) {
-        this.paramsMap = new HashMap<>(paramsMap);
-        return this;
-    }
+  public ConfigWrapper<T> setParam(String paramName, Object param) {
+    getParamsMap().put(paramName, param);
+    return this;
+  }
 
-    public ConfigWrapper<T> setParam(String paramName, Object param) {
-        getParamsMap().put(paramName, param);
-        return this;
-    }
+  public @Nullable T build() {
+    return PluginConfigInstantiationUtils.getPluginConfig(getParamsMap(), configClass);
+  }
 
-    public @Nullable T build() {
-        return PluginConfigInstantiationUtils.getPluginConfig(getParamsMap(), configClass);
+  private @Nonnull Map<String, Object> getParamsMap() {
+    if (paramsMap == null) {
+      paramsMap = new HashMap<>();
     }
-
-    private @Nonnull Map<String, Object> getParamsMap() {
-        if (paramsMap == null) {
-            paramsMap = new HashMap<>();
-        }
-        return paramsMap;
-    }
+    return paramsMap;
+  }
 }

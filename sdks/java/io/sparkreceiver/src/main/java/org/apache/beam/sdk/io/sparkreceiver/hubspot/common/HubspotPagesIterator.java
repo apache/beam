@@ -44,7 +44,7 @@ public class HubspotPagesIterator implements Iterator<JsonElement> {
   }
 
   public HubspotPagesIterator(SourceHubspotConfig config) throws IOException {
-    this(config,null);
+    this(config, null);
   }
 
   public HubspotPagesIterator(SourceHubspotConfig config, String offset) throws IOException {
@@ -84,7 +84,7 @@ public class HubspotPagesIterator implements Iterator<JsonElement> {
         } catch (InterruptedException ex) {
           //
         }
-//        throw new RuntimeException("Failed to switch to next page", e);
+        //        throw new RuntimeException("Failed to switch to next page", e);
       }
     }
     return (currentPageIterator != null);

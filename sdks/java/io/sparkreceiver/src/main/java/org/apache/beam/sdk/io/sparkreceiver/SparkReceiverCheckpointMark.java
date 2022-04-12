@@ -40,7 +40,8 @@ public class SparkReceiverCheckpointMark implements UnboundedSource.CheckpointMa
 
   private SparkReceiverCheckpointMark() {} // for Avro
 
-  public SparkReceiverCheckpointMark(Integer position, String offset, Optional<SparkReceiverUnboundedReader<?>> reader) {
+  public SparkReceiverCheckpointMark(
+      Integer position, String offset, Optional<SparkReceiverUnboundedReader<?>> reader) {
     this.offset = offset;
     this.position = position;
     this.reader = reader;

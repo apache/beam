@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import java.util.PriorityQueue;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -32,8 +34,6 @@ import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.PriorityQueue;
 
 /**
  * Streaming sources and sinks from <a href="https://github.com/data-integrations">CDAP</a> plugins.
@@ -109,8 +109,9 @@ public class SparkReceiverIO {
      */
     @VisibleForTesting
     UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
-      //FIXME
-      return new SparkReceiverUnboundedSource<>(this, -1, "0", "32000", null, new PriorityQueue<>());
+      // FIXME
+      return new SparkReceiverUnboundedSource<>(
+          this, -1, null, null, null, new PriorityQueue<>());
     }
   }
 

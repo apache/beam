@@ -22,7 +22,6 @@ import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.lang.reflect.InvocationTargetException;
 import java.util.function.Consumer;
-
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -34,12 +33,12 @@ public class CdapPluginMappingUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(CdapPluginMappingUtils.class);
 
-  public static Receiver getProxyReceiver(PluginConfig config,
-                                                       Consumer<Object[]> consumer) {
+  public static Receiver getProxyReceiver(PluginConfig config, Consumer<Object[]> consumer) {
     if (config instanceof SalesforceStreamingSourceConfig) {
       return getProxyReceiverForSalesforce((SalesforceStreamingSourceConfig) config, consumer);
     } else if (config instanceof HubspotStreamingSourceConfig) {
-      return getProxyReceiverForHubspot((HubspotStreamingSourceConfig) config, consumer, null, 0);
+      return getProxyReceiverForHubspot(
+          (HubspotStreamingSourceConfig) config, consumer, null, 0, null);
     } else {
       return null;
     }
@@ -51,11 +50,10 @@ public class CdapPluginMappingUtils {
         new ProxyReceiverBuilder<>(SalesforceReceiver.class);
 
     try {
-      return
-          builder
-              .withConstructorArgs(config.getAuthenticatorCredentials(), config.getPushTopicName())
-              .withCustomStoreConsumer(consumer)
-              .build();
+      return builder
+          .withConstructorArgs(config.getAuthenticatorCredentials(), config.getPushTopicName())
+          .withCustomStoreConsumer(consumer)
+          .build();
     } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       LOG.error("Can not build proxy Spark Receiver", e);
     }
@@ -63,17 +61,20 @@ public class CdapPluginMappingUtils {
   }
 
   public static HubspotReceiver getProxyReceiverForHubspot(
-          HubspotStreamingSourceConfig config, Consumer<Object[]> consumer, String offset, Integer position) {
+      HubspotStreamingSourceConfig config,
+      Consumer<Object[]> consumer,
+      String offset,
+      Integer position,
+      String maxOffset) {
     ProxyReceiverBuilder<String, HubspotReceiver> builder =
-            new ProxyReceiverBuilder<>(HubspotReceiver.class);
+        new ProxyReceiverBuilder<>(HubspotReceiver.class);
     try {
       if (offset != null) {
-        builder.withConstructorArgs(config, offset, position);
+        builder.withConstructorArgs(config, offset, position, maxOffset);
       } else {
         builder.withConstructorArgs(config);
       }
-      return builder.withCustomStoreConsumer(consumer)
-                      .build();
+      return builder.withCustomStoreConsumer(consumer).build();
     } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       LOG.error("Can not build proxy Spark Receiver", e);
     }

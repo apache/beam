@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
-
 import org.apache.spark.SparkConf;
 import org.apache.spark.storage.StreamBlockId;
 import org.apache.spark.streaming.receiver.BlockGenerator;

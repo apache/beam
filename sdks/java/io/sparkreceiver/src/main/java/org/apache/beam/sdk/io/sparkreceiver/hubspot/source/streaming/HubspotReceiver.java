@@ -37,17 +37,21 @@ public class HubspotReceiver extends Receiver<String> {
   private static final String RECEIVER_THREAD_NAME = "hubspot_api_listener";
   private final HubspotStreamingSourceConfig config;
   private String offset;
+  private String maxOffset;
   private Integer position;
 
-  HubspotReceiver(HubspotStreamingSourceConfig config, String offset, Integer position) throws IOException {
+  HubspotReceiver(
+      HubspotStreamingSourceConfig config, String offset, Integer position, String maxOffset)
+      throws IOException {
     super(StorageLevel.MEMORY_AND_DISK_2());
     this.config = config;
     this.offset = offset;
+    this.maxOffset = maxOffset;
     this.position = position;
   }
 
   HubspotReceiver(HubspotStreamingSourceConfig config) throws IOException {
-    this(config, null, 0);
+    this(config, null, 0, null);
   }
 
   @Override
@@ -71,7 +75,9 @@ public class HubspotReceiver extends Receiver<String> {
       while (!isStopped()) {
         offset = hubspotPagesIterator.getCurrentPageOffset();
         position = hubspotPagesIterator.getIteratorPosition();
-        if (hubspotPagesIterator.hasNext()) {
+        int curIndex = (offset != null ? Integer.parseInt(offset) : 0) + position;
+        if ((maxOffset == null || curIndex <= Integer.parseInt(maxOffset))
+            && hubspotPagesIterator.hasNext()) {
           store(hubspotPagesIterator.next().toString());
         } else {
           Integer minutesToSleep = config.getPullFrequency().getMinutesValue();
