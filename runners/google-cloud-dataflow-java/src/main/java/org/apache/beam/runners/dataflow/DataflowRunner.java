@@ -1029,8 +1029,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
+    if (firstNonNull(options.getDataflowServiceOptions(), Collections.emptyList())
+            .contains("enable_prime")
+        && !hasExperiment(options, "enable_prime")) {
+      List<String> experiments = firstNonNull(options.getExperiments(), new ArrayList<>());
+      experiments.add("enable_prime");
+      options.setExperiments(ImmutableList.copyOf(experiments));
+    }
+
     if (useUnifiedWorker(options)) {
-      List<String> experiments = options.getExperiments(); // non-null if useUnifiedWorker is true
+      List<String> experiments = firstNonNull(options.getExperiments(), new ArrayList<>());
       if (!experiments.contains("use_runner_v2")) {
         experiments.add("use_runner_v2");
       }
