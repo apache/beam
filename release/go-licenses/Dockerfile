@@ -17,7 +17,8 @@
 ###############################################################################
 
 FROM golang:1.16-bullseye
-RUN go get github.com/google/go-licenses
+# TODO(BEAM-14296): Unpin or update pinned version.
+RUN go get github.com/google/go-licenses@v1.0.0
 COPY get-licenses.sh /opt/apache/beam/
 ARG sdk_location
 ENV sdk_location=$sdk_location
