@@ -21,7 +21,6 @@ from typing import Iterable
 from typing import List
 
 import torch
-
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import InferenceRunner
 from apache_beam.ml.inference.base import ModelLoader
