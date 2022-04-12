@@ -23,36 +23,37 @@ import (
 )
 
 func TestBuildOptionsEmpty(t *testing.T) {
-  metaOptions, err := LoadMetaOptions("test/empty")
-  if metaOptions != nil {
-      t.Errorf("Got %v for meta options, but expected nil", metaOptions)
-  }
+  dir := "test/empty"
+  metaOptions, err := LoadMetaOptions(dir)
   if err != nil {
-    t.Errorf("Got error %v running LoadMetaOptions", err)
+    t.Fatalf("Got error %v running LoadMetaOptions", err)
+  }
+  if metaOptions != nil {
+    t.Fatalf("LoadMetaOptions(%v) = %v, want nil", dir, metaOptions)
   }
 
   javaOptions := BuildOptions(metaOptions)
   if len(javaOptions.JavaArguments) != 0 || len(javaOptions.Classpath) != 0 || len(javaOptions.Properties) != 0 {
-    t.Errorf("Got %v for java options, but expected nil", javaOptions)
+    t.Errorf("BuildOptions(%v) = %v, want nil", metaOptions, javaOptions)
   }
 }
 
 func TestBuildOptionsDisabled(t *testing.T) {
   metaOptions, err := LoadMetaOptions("test/disabled")
   if err != nil {
-    t.Errorf("Got error %v running LoadMetaOptions", err)
+    t.Fatalf("Got error %v running LoadMetaOptions", err)
   }
 
   javaOptions := BuildOptions(metaOptions)
   if len(javaOptions.JavaArguments) != 0 || len(javaOptions.Classpath) != 0 || len(javaOptions.Properties) != 0 {
-    t.Errorf("Got %v for java options, but expected nil", javaOptions)
+    t.Errorf("BuildOptions(%v) = %v, want nil", metaOptions, javaOptions)
   }
 }
 
 func TestBuildOptions(t *testing.T) {
   metaOptions, err := LoadMetaOptions("test/priority")
   if err != nil {
-    t.Errorf("Got error %v running LoadMetaOptions", err)
+    t.Fatalf("Got error %v running LoadMetaOptions", err)
   }
 
   javaOptions := BuildOptions(metaOptions)
@@ -62,12 +63,12 @@ func TestBuildOptions(t *testing.T) {
                         "priority":"high",
                     }
   if !reflect.DeepEqual(javaOptions.JavaArguments, wantJavaArguments) {
-    t.Errorf("Got %v for java arguments, but expected %v", javaOptions.JavaArguments, wantJavaArguments)
+    t.Errorf("BuildOptions(%v).JavaArguments = %v, want %v", metaOptions, javaOptions.JavaArguments, wantJavaArguments)
   }
   if !reflect.DeepEqual(javaOptions.Classpath, wantClasspath) {
-    t.Errorf("Got %v for java classpath, but expected %v", javaOptions.Classpath, wantClasspath)
+    t.Errorf("BuildOptions(%v).Classpath = %v, want %v", metaOptions, javaOptions.Classpath, wantClasspath)
   }
   if !reflect.DeepEqual(javaOptions.Properties, wantProperties) {
-    t.Errorf("Got %v for java properties, but expected %v", javaOptions.Properties, wantProperties)
+    t.Errorf("BuildOptions(%v).JavaProperties = %v, want %v", metaOptions, javaOptions.Properties, wantProperties)
   }
 }
