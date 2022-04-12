@@ -196,14 +196,7 @@ public class KafkaIOExternalTest {
     headers.add("dummyHeaderKey", "dummyHeaderVal".getBytes(StandardCharsets.UTF_8));
     KafkaRecord<byte[], byte[]> kafkaRecord =
         new KafkaRecord(
-            "dummyTopic",
-            111,
-            222,
-            12345,
-            KafkaTimestampType.LOG_APPEND_TIME,
-            headers,
-            null,
-            null);
+            "dummyTopic", 111, 222, 12345, KafkaTimestampType.LOG_APPEND_TIME, headers, null, null);
 
     ByteArrayKafkaRecord byteArrayKafkaRecord = RowsWithMetadata.toExternalKafkaRecord(kafkaRecord);
 
