@@ -85,7 +85,7 @@ public class SpannerChangeStreamIT {
     pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setBlockOnRun(false);
   }
 
-  @Ignore
+  @Ignore("BEAM-14277 Sickbay until autoscaling changes are merged")
   @Test
   public void testReadSpannerChangeStream() {
     // Defines how many rows are going to be inserted / updated / deleted in the test
