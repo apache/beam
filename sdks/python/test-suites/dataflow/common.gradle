@@ -124,7 +124,7 @@ task postCommitIT {
   }
 }
 
-task PostCommitSickbay {
+task postCommitSickbay {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
   dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'

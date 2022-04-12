@@ -40,7 +40,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
         steps {
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":python${versionSuffix}PostCommitSickbay")
+            tasks(":python${versionSuffix}postCommitSickbay")
             commonJobProperties.setGradleSwitches(delegate)
           }
         }
