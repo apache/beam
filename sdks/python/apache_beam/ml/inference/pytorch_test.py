@@ -24,14 +24,21 @@ import unittest
 from collections import OrderedDict
 
 import numpy as np
-import torch
+import pytest
 
 import apache_beam as beam
-from apache_beam.ml.inference import base
-from apache_beam.ml.inference.pytorch import PytorchModelLoader
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+# Protect against environments where pytorch library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  import torch
+  from apache_beam.ml.inference import base
+  from apache_beam.ml.inference.pytorch import PytorchModelLoader
+except ImportError:
+  raise unittest.SkipTest('PyTorch dependencies are not installed')
 
 
 class PytorchLinearRegression(torch.nn.Module):
@@ -44,6 +51,7 @@ class PytorchLinearRegression(torch.nn.Module):
     return out
 
 
+@pytest.mark.uses_pytorch
 class PytorchRunInferenceTest(unittest.TestCase):
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
