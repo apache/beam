@@ -336,7 +336,7 @@ type boolDecoder struct{}
 
 func (*boolDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: false = 0, true = 1
-	b := make([]byte, 1, 1)
+	b := make([]byte, 1)
 	if err := ioutilx.ReadNBufUnsafe(r, b); err != nil {
 		if err == io.EOF {
 			return err
@@ -1148,7 +1148,7 @@ func (d *intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 
 	n, err := coder.DecodeInt32(r) // #windows
 
-	ret := make([]typex.Window, n, n)
+	ret := make([]typex.Window, n)
 	for i := int32(0); i < n; i++ {
 		w, err := d.DecodeSingle(r)
 		if err != nil {

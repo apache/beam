@@ -41,10 +41,6 @@ import software.amazon.kinesis.retrieval.kpl.Messages.AggregatedRecord;
  * Record aggregator compatible with the record (de)aggregation of the Kinesis Producer Library
  * (KPL) and Kinesis Client Library (KCL).
  *
- * <p>However, only records with the same effective hash key should be aggregated to keep complexity
- * manageable. Otherwise, the aggregator would have to be aware of the most up-to-date explicit hash
- * key ranges per shard.
- *
  * <p>https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html#kinesis-kpl-concepts-aggretation
  */
 @NotThreadSafe

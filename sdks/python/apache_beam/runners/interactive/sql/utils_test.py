@@ -21,6 +21,8 @@
 
 import unittest
 from typing import NamedTuple
+from typing import Optional
+from typing import Union
 from unittest.mock import patch
 
 import pytest
@@ -40,6 +42,10 @@ from apache_beam.runners.interactive.sql.utils import replace_single_pcoll_token
 class ANamedTuple(NamedTuple):
   a: int
   b: str
+
+
+class OptionalUnionType(NamedTuple):
+  unnamed: Optional[Union[int, str]]
 
 
 class UtilsTest(unittest.TestCase):
@@ -72,6 +78,12 @@ class UtilsTest(unittest.TestCase):
   def test_pformat_namedtuple(self):
     self.assertEqual(
         'ANamedTuple(a: int, b: str)', pformat_namedtuple(ANamedTuple))
+
+  @unittest.skip("BEAM-14288")
+  def test_pformat_namedtuple_with_unnamed_fields(self):
+    self.assertEqual(
+        f'OptionalUnionType(unnamed: {repr(Optional[Union[int, str]])})',
+        pformat_namedtuple(OptionalUnionType))
 
   def test_pformat_dict(self):
     self.assertEqual('{\na: 1,\nb: 2\n}', pformat_dict({'a': 1, 'b': '2'}))

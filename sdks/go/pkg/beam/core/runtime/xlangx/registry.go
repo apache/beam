@@ -249,7 +249,9 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 
 const (
 	// Separator is the canonical separator between a namespace and optional configuration.
-	Separator             = ":"
+	Separator = ":"
+	// ClasspathSeparator is the canonical separator between a classpath namespace config string from other namespace-configuration string.
+	ClasspathSeparator    = ";"
 	hardOverrideNamespace = "hardoverride"
 	autoJavaNamespace     = "autojava"
 )
@@ -265,6 +267,17 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
+type expansionServiceOption func(*string)
+
+// AddClasspaths is an expansion service option for xlangx.UseAutomatedExpansionService
+// that accepts a classpaths slice and creates a tagged  expansion address string
+// suffixed with classpath separator and classpaths provided.
+func AddClasspaths(classpaths []string) expansionServiceOption {
+	return func(expansionAddress *string) {
+		*expansionAddress += ClasspathSeparator + strings.Join(classpaths, " ")
+	}
+}
+
 // UseAutomatedJavaExpansionService takes a gradle target and creates a
 // tagged string to indicate that it should be used to start up an
 // automated expansion service for a cross-language expansion.
@@ -272,8 +285,13 @@ func Require(expansionAddr string) string {
 // Intended for use by cross language wrappers to permit spinning
 // up an expansion service for a user if no expansion service address
 // is provided.
-func UseAutomatedJavaExpansionService(gradleTarget string) string {
-	return autoJavaNamespace + Separator + gradleTarget
+func UseAutomatedJavaExpansionService(gradleTarget string, opts ...expansionServiceOption) string {
+	expansionAddress := autoJavaNamespace + Separator + gradleTarget
+
+	for _, opt := range opts {
+		opt(&expansionAddress)
+	}
+	return expansionAddress
 }
 
 // restricted namespaces to prevent some awkward edge cases.
@@ -291,6 +309,14 @@ var restricted = map[string]struct{}{
 // and config string if any.
 func parseAddr(expansionAddr string) (ns, config string) {
 	split := strings.SplitN(expansionAddr, Separator, 2)
+	if len(split) == 1 {
+		return expansionAddr, ""
+	}
+	return split[0], split[1]
+}
+
+func parseClasspath(expansionAddr string) (string, string) {
+	split := strings.SplitN(expansionAddr, ClasspathSeparator, 2)
 	if len(split) == 1 {
 		return expansionAddr, ""
 	}

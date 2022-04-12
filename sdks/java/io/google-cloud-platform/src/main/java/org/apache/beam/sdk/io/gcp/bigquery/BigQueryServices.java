@@ -45,11 +45,13 @@ import com.google.protobuf.Descriptors.Descriptor;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
+@Internal
 public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link JobService}. */
