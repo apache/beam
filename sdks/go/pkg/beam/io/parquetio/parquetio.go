@@ -83,16 +83,16 @@ type parquetReadFn struct {
 	Type beam.EncodedType
 }
 
-func (a *parquetReadFn) ProcessElement(ctx context.Context, filename string, emit func(beam.X)) (err error) {
+func (a *parquetReadFn) ProcessElement(ctx context.Context, filename string, emit func(beam.X)) error {
 	fs, err := filesystem.New(ctx, filename)
 	if err != nil {
-		return
+		return err
 	}
 	defer fs.Close()
 
 	fd, err := fs.OpenRead(ctx, filename)
 	if err != nil {
-		return
+		return err
 	}
 	defer fd.Close()
 
