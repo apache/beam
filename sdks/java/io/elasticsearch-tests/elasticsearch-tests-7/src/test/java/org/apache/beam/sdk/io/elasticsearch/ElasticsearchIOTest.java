@@ -272,7 +272,7 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testSslConfiguration() throws Exception {
+  public void testValidSSLAndUsernameConfiguration() throws Exception {
     URL fileUrl = getClass().getClassLoader().getResource("clientkeystore");
     Path filePath = Paths.get(fileUrl.toURI());
     elasticsearchIOTestCommon.testValidSSLAndUsernameConfiguration(
