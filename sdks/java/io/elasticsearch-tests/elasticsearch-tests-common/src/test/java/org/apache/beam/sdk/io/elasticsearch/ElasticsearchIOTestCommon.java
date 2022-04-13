@@ -99,6 +99,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1231,10 +1232,6 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   void testValidSSLAndUsernameConfiguration(String filePath) throws Exception {
-    if (!useAsITests) {
-      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
-    }
-
     ConnectionConfiguration configWithSsl =
         connectionConfiguration
             .withUsername("username")
@@ -1242,7 +1239,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withKeystorePassword("qwerty")
             .withKeystorePath(filePath);
 
-    pipeline.apply(ElasticsearchIO.read().withConnectionConfiguration(configWithSsl));
-    pipeline.run();
+    RestClient restClient = configWithSsl.createClient();
+    Assert.assertNotNull("rest client should not be null", restClient);
   }
 }
