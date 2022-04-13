@@ -434,7 +434,7 @@ type SplittableUnit interface {
 	GetInputId() string
 
 	// GetOutputWatermark gets the current output watermark of the splittable unit
-	// if one  is defined, or nil otherwise.
+	// if one is defined, or nil otherwise.
 	GetOutputWatermark() map[string]*timestamppb.Timestamp
 }
 
