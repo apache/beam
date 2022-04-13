@@ -17,8 +17,13 @@ package sdf
 
 import "time"
 
+// WallTimeWatermarkEstimator is a watermark estimator that advances the
+// current DoFn's output watermark to the current wallclock time on splits
+// or checkpoints.
 type WallTimeWatermarkEstimator struct{}
 
+// CurrentWatermark returns the current time. It is used by the Sdk harness
+// to set the current DoFn's output watermark on splits and checkpoints.
 func (e *WallTimeWatermarkEstimator) CurrentWatermark() time.Time {
 	return time.Now()
 }
