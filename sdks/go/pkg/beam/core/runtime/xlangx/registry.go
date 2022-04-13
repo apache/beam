@@ -267,12 +267,12 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
-type expansionServiceOption func(*string)
+type ExpansionServiceOption func(*string)
 
 // AddClasspaths is an expansion service option for xlangx.UseAutomatedExpansionService
 // that accepts a classpaths slice and creates a tagged  expansion address string
 // suffixed with classpath separator and classpaths provided.
-func AddClasspaths(classpaths []string) expansionServiceOption {
+func AddClasspaths(classpaths []string) ExpansionServiceOption {
 	return func(expansionAddress *string) {
 		*expansionAddress += ClasspathSeparator + strings.Join(classpaths, " ")
 	}
@@ -285,7 +285,7 @@ func AddClasspaths(classpaths []string) expansionServiceOption {
 // Intended for use by cross language wrappers to permit spinning
 // up an expansion service for a user if no expansion service address
 // is provided.
-func UseAutomatedJavaExpansionService(gradleTarget string, opts ...expansionServiceOption) string {
+func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServiceOption) string {
 	expansionAddress := autoJavaNamespace + Separator + gradleTarget
 
 	for _, opt := range opts {
