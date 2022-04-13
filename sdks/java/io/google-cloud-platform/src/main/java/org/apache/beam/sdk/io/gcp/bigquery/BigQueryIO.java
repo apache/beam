@@ -1788,7 +1788,9 @@ public class BigQueryIO {
        * of load jobs allowed per day, so be careful not to set the triggering frequency too
        * frequent. For more information, see <a
        * href="https://cloud.google.com/bigquery/docs/loading-data-cloud-storage">Loading Data from
-       * Cloud Storage</a>.
+       * Cloud Storage</a>. Note: Load jobs currently do not support BigQuery's <a
+       * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
+       * JSON data type</a>.
        */
       FILE_LOADS,
 
