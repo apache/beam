@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
@@ -80,7 +81,7 @@ public class BigQuerySchemaTransformWriteProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:%s", API, VERSION);
+    return String.format("%s:%s:write", API, VERSION);
   }
 
   /**
@@ -136,17 +137,27 @@ public class BigQuerySchemaTransformWriteProvider
 
     @Override
     public void validate(PipelineOptions options) {
-      CreateDisposition createDisposition = configuration.getCreateDispositionEnum();
-      Schema destinationSchema = getDestinationRowSchema(options);
+      if (!configuration.getCreateDisposition().equals(CreateDisposition.CREATE_NEVER.name())) {
+        return;
+      }
 
-      if (destinationSchema == null) {
-        // We only care if the create disposition implies an existing table i.e. create never.
-        if (createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
-          throw new InvalidConfigurationException(
-              String.format(
-                  "configuration create disposition: %s for table: %s for a null destination schema",
-                  createDisposition, configuration.getTableSpec()));
+      BigQueryOptions bigQueryOptions = options.as(BigQueryOptions.class);
+      DatasetService datasetService = getDatasetService(bigQueryOptions);
+      TableReference tableReference = BigQueryUtils.toTableReference(configuration.getTableSpec());
+      try {
+        Table table = datasetService.getTable(tableReference);
+        if (table == null) {
+          throw new NullPointerException();
         }
+        if (table.getSchema() == null) {
+          throw new InvalidConfigurationException(
+              String.format("could not fetch schema for table: %s", configuration.getTableSpec()));
+        }
+      } catch (NullPointerException | InterruptedException | IOException ex) {
+        throw new InvalidConfigurationException(
+            String.format(
+                "could not fetch table %s, error: %s",
+                configuration.getTableSpec(), ex.getMessage()));
       }
     }
 
@@ -196,23 +207,44 @@ public class BigQuerySchemaTransformWriteProvider
                 getClass().getSimpleName(), input.getClass().getSimpleName(), INPUT_TAG));
       }
 
-      validate(input.get(INPUT_TAG));
-    }
-
-    /** Validate a {@link PCollection<Row>} input. */
-    void validate(PCollection<Row> input) {
-      Schema sourceSchema = input.getSchema();
+      PCollection<Row> rowInput = input.get(INPUT_TAG);
+      Schema sourceSchema = rowInput.getSchema();
       if (sourceSchema == null) {
         throw new IllegalArgumentException(
             String.format("%s is null for input of tag: %s", Schema.class, INPUT_TAG));
       }
 
-      Schema destinationSchema = getDestinationRowSchema(input.getPipeline().getOptions());
+      if (!configuration.getCreateDisposition().equals(CreateDisposition.CREATE_NEVER.name())) {
+        return;
+      }
 
-      // We already evaluate whether we should acquire a destination schema.
-      // See the validate(PipelineOptions) method for details.
-      if (destinationSchema != null) {
+      BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+      DatasetService datasetService = getDatasetService(bigQueryOptions);
+      TableReference tableReference = BigQueryUtils.toTableReference(configuration.getTableSpec());
+      try {
+        Table table = datasetService.getTable(tableReference);
+        if (table == null) {
+          throw new NullPointerException();
+        }
+
+        TableSchema tableSchema = table.getSchema();
+        if (tableSchema == null) {
+          throw new NullPointerException();
+        }
+
+        Schema destinationSchema = BigQueryUtils.fromTableSchema(tableSchema);
+        if (destinationSchema == null) {
+          throw new NullPointerException();
+        }
+
         validateMatching(sourceSchema, destinationSchema);
+      } catch (NullPointerException | InterruptedException | IOException e) {
+        throw new InvalidConfigurationException(
+            String.format(
+                "could not validate input for create disposition: %s and table: %s, error: %s",
+                configuration.getCreateDisposition(),
+                configuration.getTableSpec(),
+                e.getMessage()));
       }
     }
 

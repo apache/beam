@@ -71,7 +71,7 @@ public class BigQuerySchemaTransformReadProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:%s", API, VERSION);
+    return String.format("%s:%s:read", API, VERSION);
   }
 
   /**

@@ -49,7 +49,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Identifier;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.lang3.tuple.Pair;
@@ -215,7 +214,17 @@ public class BigQuerySchemaTransformWriteProviderTest {
   public void validatePCollectionRowTupleInput() {
     PCollectionRowTuple empty = PCollectionRowTuple.empty(p);
     PCollectionRowTuple valid =
-        PCollectionRowTuple.of(INPUT_TAG, p.apply(Create.of(ROWS)).setRowSchema(SCHEMA));
+        PCollectionRowTuple.of(
+            INPUT_TAG, p.apply("CreateRowsWithValidSchema", Create.of(ROWS)).setRowSchema(SCHEMA));
+
+    PCollectionRowTuple invalid =
+        PCollectionRowTuple.of(
+            INPUT_TAG,
+            p.apply(
+                "CreateRowsWithInvalidSchema",
+                Create.of(
+                    Row.nullRow(
+                        Schema.builder().addNullableField("name", FieldType.STRING).build()))));
 
     PCollectionRowTupleTransform transform =
         transformFrom(
@@ -225,46 +234,9 @@ public class BigQuerySchemaTransformWriteProviderTest {
                     WriteDisposition.WRITE_APPEND)
                 .build());
 
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          transform.validate(empty);
-        });
+    assertThrows(IllegalArgumentException.class, () -> transform.validate(empty));
 
-    transform.validate(valid);
-
-    p.run();
-  }
-
-  @Test
-  public void validatePCollectionRow() {
-    PCollection<Row> missingSchema = p.apply("Create Missing Schema", Create.of(ROWS));
-    PCollection<Row> invalidSchema =
-        p.apply(
-            "Create Invalid Schema",
-            Create.of(
-                Row.nullRow(Schema.builder().addNullableField("name", FieldType.STRING).build())));
-
-    PCollection<Row> valid = p.apply("Create Valid Schema", Create.of(ROWS)).setRowSchema(SCHEMA);
-
-    PCollectionRowTupleTransform transform =
-        transformFrom(
-            BigQuerySchemaTransformConfiguration.createLoadBuilder(
-                    TABLE_REFERENCE,
-                    CreateDisposition.CREATE_IF_NEEDED,
-                    WriteDisposition.WRITE_APPEND)
-                .build());
-
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          transform.validate(missingSchema);
-        });
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          transform.validate(invalidSchema);
-        });
+    assertThrows(IllegalStateException.class, () -> transform.validate(invalid));
 
     transform.validate(valid);
 
