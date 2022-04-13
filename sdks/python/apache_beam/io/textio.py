@@ -24,8 +24,8 @@ from functools import partial
 from typing import Any
 from typing import Optional
 
-from apache_beam.coders import coders
 from apache_beam import typehints
+from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
