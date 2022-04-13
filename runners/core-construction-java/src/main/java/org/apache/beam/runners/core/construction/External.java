@@ -94,7 +94,7 @@ public class External {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex(), null);
+        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex(), ImmutableMap.of());
   }
 
   @VisibleForTesting
@@ -103,7 +103,7 @@ public class External {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex(), null);
+        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex(), ImmutableMap.of());
   }
 
   /** Expandable transform for output type of PCollection. */
