@@ -510,9 +510,10 @@ public class FileIO {
      * Continuously watches for new files at the given interval until the given termination
      * condition is reached, where the input to the condition is the filepattern.
      *
-     * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change. Will
-     * throw a {@code RuntimeError} if timestamp extraction for the matched file failed, suggesting
-     * the timestamp metadata is not available with the IO connector.
+     * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change, with
+     * the watching frequency given by the {@code interval}. The pipeline will throw a {@code
+     * RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
+     * timestamp metadata is not available with the IO connector.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
