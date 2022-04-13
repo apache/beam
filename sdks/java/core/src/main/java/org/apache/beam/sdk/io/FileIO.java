@@ -684,11 +684,11 @@ public class FileIO {
         if (getConfiguration().getMatchUpdatedFiles()) {
           res =
               input
-                  .apply(CreateWatchTransform(new ExtractFilenameAndLastUpdateFn()))
+                  .apply(createWatchTransform(new ExtractFilenameAndLastUpdateFn()))
                   .apply(Values.create())
                   .setCoder(MetadataCoderV2.of());
         } else {
-          res = input.apply(CreateWatchTransform(new ExtractFilenameFn())).apply(Values.create());
+          res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
         }
       }
       return res.apply(Reshuffle.viaRandomKey());
@@ -701,7 +701,7 @@ public class FileIO {
     }
 
     /** Helper function creating a watch transform based on outputKeyFn. */
-    private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> CreateWatchTransform(
+    private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> createWatchTransform(
         SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
       return Watch.growthOf(Contextful.of(new MatchPollFn(), Requirements.empty()), outputKeyFn)
           .withPollInterval(getConfiguration().getWatchInterval())
@@ -751,7 +751,7 @@ public class FileIO {
       public KV<String, Long> apply(MatchResult.Metadata input) throws RuntimeException {
         long timestamp = input.lastModifiedMillis();
         if (0L == timestamp) {
-          throw new RuntimeException("Extract file timestamp failed.");
+          throw new RuntimeException("Extract file timestamp failed: got file timestamp == 0.");
         }
         return KV.of(input.resourceId().toString(), timestamp);
       }
