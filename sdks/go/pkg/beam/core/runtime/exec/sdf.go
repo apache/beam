@@ -348,9 +348,8 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 			<-n.SU
 		}()
 		continuation, processResult := n.PDo.processSingleWindow(mainIn)
-		if continuation != nil {
-			n.continuation = continuation
-		}
+		n.continuation = continuation
+
 		return processResult
 	} else {
 		// If we need to process the element in multiple windows, each one needs
@@ -369,6 +368,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 			n.rt = rt
 			n.elm = elm
 			n.SU <- n
+			// TODO(BEAM-11104): Remove placeholder for ProcessContinuation return.
 			_, err := n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
 			if err != nil {
 				<-n.SU

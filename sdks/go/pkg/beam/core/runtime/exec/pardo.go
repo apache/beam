@@ -145,12 +145,14 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 	// is that either there is a single window or the function doesn't observe windows, so we can
 	// optimize it by treating all windows as a single one.
 	if !mustExplodeWindows(n.inv.fn, elm, len(n.Side) > 0) {
+		// The ProcessContinuation return value is ignored because only SDFs can return ProcessContinuations.
 		_, processResult := n.processSingleWindow(mainIn)
 		return processResult
 	} else {
 		for _, w := range elm.Windows {
 			elm := &mainIn.Key
 			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}, Pane: elm.Pane}
+			// The ProcessContinuation return value is ignored because only SDFs can return ProcessContinuations.
 			_, err := n.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: mainIn.RTracker})
 			if err != nil {
 				return n.fail(err)
