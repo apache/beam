@@ -84,6 +84,7 @@ public class KafkaIOReadImplementationCompatibilityTest {
     return result;
   }
 
+  @SuppressWarnings("rawtypes")
   private static Set<String> getEnumValueNamesInUpperUnderscore(
       Class<? extends Enum<?>> enumClazz) {
     return Stream.of(enumClazz.getEnumConstants()).map(Enum::name).collect(Collectors.toSet());
