@@ -21,6 +21,7 @@
 
 import logging
 from functools import partial
+from typing import Any
 from typing import Optional
 
 from apache_beam.coders import coders
@@ -404,7 +405,10 @@ class _TextSource(filebasedsource.FileBasedSource):
     return escape_count % 2 == 1
 
   def output_type_hint(self):
-    return self._coder.to_type_hint()
+    try:
+      return self._coder.to_type_hint()
+    except NotImplementedError:
+      return Any
 
 
 class _TextSourceWithFilename(_TextSource):
