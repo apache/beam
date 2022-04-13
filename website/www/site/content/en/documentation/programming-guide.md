@@ -1099,16 +1099,16 @@ tree, [2]
 
 Thus, `GroupByKey` represents a transform from a multimap (multiple keys to
 individual values) to a uni-map (unique keys to collections of values).
-	
+
 Using <span class="language-java">`GroupByKey`</span> is straightforward:
-	
+
 {{< highlight java >}}
 // The input PCollection.
  PCollection<KV<String, String>> mapped = ...;
 
 // Apply GroupByKey to the PCollection mapped.
 // Save the result as the PCollection reduced.
-PCollection<KV<String, Iterable<String>>> reduced = 
+PCollection<KV<String, Iterable<String>>> reduced =
  mapped.apply(GroupByKey.<String, String>create());
 {{< /highlight >}}
 
