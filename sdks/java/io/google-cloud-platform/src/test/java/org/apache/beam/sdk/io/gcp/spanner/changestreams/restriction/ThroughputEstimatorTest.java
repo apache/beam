@@ -20,11 +20,14 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.Before;
 import org.junit.Test;
@@ -61,12 +64,15 @@ public class ThroughputEstimatorTest {
 
   @Test
   public void testThroughputIsAccumulatedWithin60SecondsWindow() {
-    List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 60, Long.MAX_VALUE);
+    List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 0, 60, Long.MAX_VALUE);
     pairs.sort((a, b) -> a.getLeft().compareTo(b.getLeft()));
 
     final long count = pairs.stream().map(ImmutablePair::getLeft).distinct().count();
-    final Double expectedSum =
-        pairs.stream().map(ImmutablePair::getRight).reduce(Long::sum).get().doubleValue() / count;
+    BigDecimal sum = BigDecimal.valueOf(0L);
+    for (ImmutablePair<Timestamp, Long> pair : pairs) {
+      sum = sum.add(BigDecimal.valueOf(pair.getRight()));
+    }
+    final BigDecimal want = sum.divide(BigDecimal.valueOf(count), MathContext.DECIMAL128);
 
     for (int i = 0; i < pairs.size(); i++) {
       estimator.update(pairs.get(i).getLeft(), pairs.get(i).getRight());
@@ -74,41 +80,45 @@ public class ThroughputEstimatorTest {
 
     // This is needed to push the current window into the queue.
     estimator.update(Timestamp.ofTimeSecondsAndNanos(60, 0), 10);
-    double actualSum = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(60, 0));
-    assertEquals(expectedSum, actualSum, DELTA);
+    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(60, 0));
+    assertEquals(want.doubleValue(), actual, DELTA);
   }
 
   @Test
   public void testThroughputIsAccumulatedWithin300SecondsWindow() {
-    List<ImmutablePair<Timestamp, Long>> pairs = generateTestData(100, 300, Long.MAX_VALUE);
+    List<ImmutablePair<Timestamp, Long>> excludedPairs =
+        generateTestData(300, 0, 240, Long.MAX_VALUE);
+    List<ImmutablePair<Timestamp, Long>> expectedPairs =
+        generateTestData(50, 240, 300, Long.MAX_VALUE);
+    List<ImmutablePair<Timestamp, Long>> pairs =
+        Stream.concat(excludedPairs.stream(), expectedPairs.stream()).collect(Collectors.toList());
     pairs.sort((a, b) -> a.getLeft().compareTo(b.getLeft()));
 
-    List<ImmutablePair<Timestamp, Long>> expectedPairs =
-        pairs.stream().filter((p) -> p.getLeft().getSeconds() > 240).collect(Collectors.toList());
-
     final long count = expectedPairs.stream().map(ImmutablePair::getLeft).distinct().count();
-    final Double expectedSum =
-        expectedPairs.stream().map(ImmutablePair::getRight).reduce(Long::sum).get().doubleValue()
-            / count;
-
+    BigDecimal sum = BigDecimal.valueOf(0L);
+    for (ImmutablePair<Timestamp, Long> pair : expectedPairs) {
+      sum = sum.add(BigDecimal.valueOf(pair.getRight()));
+    }
+    final BigDecimal want = sum.divide(BigDecimal.valueOf(count), MathContext.DECIMAL128);
     for (int i = 0; i < pairs.size(); i++) {
       estimator.update(pairs.get(i).getLeft(), pairs.get(i).getRight());
     }
 
     // This is needed to push the current window into the queue.
     estimator.update(Timestamp.ofTimeSecondsAndNanos(300, 0), 10);
-    double actualSum = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(300, 0));
-    assertEquals(expectedSum, actualSum, DELTA);
+    double actual = estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(300, 0));
+    assertEquals(want.doubleValue(), actual, DELTA);
   }
 
   private List<ImmutablePair<Timestamp, Long>> generateTestData(
-      int size, int maxSecs, long maxBytes) {
+      int size, int startSeconds, int endSeconds, long maxBytes) {
     Random random = new Random();
     List<ImmutablePair<Timestamp, Long>> pairs = new ArrayList<>();
     for (int i = 0; i < size; i++) {
+      int seconds = random.nextInt(endSeconds - startSeconds) + startSeconds;
       pairs.add(
           new ImmutablePair<>(
-              Timestamp.ofTimeSecondsAndNanos(random.nextInt(maxSecs), 0),
+              Timestamp.ofTimeSecondsAndNanos(seconds, 0),
               ThreadLocalRandom.current().nextLong(maxBytes)));
     }
     return pairs;
