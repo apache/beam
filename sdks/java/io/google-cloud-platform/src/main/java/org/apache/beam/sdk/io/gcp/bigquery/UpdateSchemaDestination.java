@@ -59,7 +59,6 @@ public class UpdateSchemaDestination
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
   private @Nullable BigQueryServices.JobService jobService;
-  private final @Nullable String tempDataset;
   private final boolean ignoreUnknownValues;
   private final Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions;
   private BigQueryIO.Write.WriteDisposition writeDisposition;
@@ -95,7 +94,6 @@ public class UpdateSchemaDestination
       String sourceFormat,
       boolean useAvroLogicalTypes,
       Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
-      @Nullable String tempDataset,
       DynamicDestinations dynamicDestinations) {
     this.loadJobProjectId = loadJobProjectId;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -106,7 +104,6 @@ public class UpdateSchemaDestination
     this.sourceFormat = sourceFormat;
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
-    this.tempDataset = tempDataset;
     this.createDisposition = createDisposition;
     this.writeDisposition = writeDisposition;
     this.dynamicDestinations = dynamicDestinations;
@@ -150,8 +147,8 @@ public class UpdateSchemaDestination
               tableDestination.getTimePartitioning(),
               tableDestination.getClustering(),
               schema,
-              BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
-              BigQueryIO.Write.CreateDisposition.CREATE_NEVER,
+              writeDisposition,
+              createDisposition,
               schemaUpdateOptions);
       if (updateSchemaDestinationJob != null) {
         pendingJobs.add(new PendingJobData(updateSchemaDestinationJob, tableDestination, window));

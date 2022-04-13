@@ -386,7 +386,6 @@ class BatchLoads<DestinationT, ElementT>
                             rowWriterFactory.getSourceFormat(),
                             useAvroLogicalTypes,
                             schemaUpdateOptions,
-                            tempDataset,
                             dynamicDestinations))
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
@@ -486,7 +485,6 @@ class BatchLoads<DestinationT, ElementT>
                             rowWriterFactory.getSourceFormat(),
                             useAvroLogicalTypes,
                             schemaUpdateOptions,
-                            tempDataset,
                             dynamicDestinations))
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
