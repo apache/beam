@@ -267,6 +267,7 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
+// ExpansionServiceOption provides an option for xlangx.UseAutomatedJavaExpansionService()
 type ExpansionServiceOption func(*string)
 
 // AddClasspaths is an expansion service option for xlangx.UseAutomatedExpansionService
