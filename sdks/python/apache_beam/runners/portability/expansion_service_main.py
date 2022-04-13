@@ -64,16 +64,9 @@ def main(argv):
     signal.signal(signal.SIGTERM, cleanup)
     signal.signal(signal.SIGINT, cleanup)
     # blocking main thread forever.
-    for _ in range(1000000):
-      print("DONE stdout")
-      _LOGGER.error("DONE stderr")
-      import time
-      time.sleep(1)
     signal.pause()
 
 
 if __name__ == '__main__':
-  print("STARTING stdout")
-  _LOGGER.error("STARTING stderr")
   logging.getLogger().setLevel(logging.INFO)
   main(sys.argv)
