@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -1121,7 +1122,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final String timerFamilyId;
     private final TimerSpec spec;
     private Instant target;
-    private Instant outputTimestamp;
+    private @Nullable Instant outputTimestamp;
+    private boolean noOutputTimestamp;
     private final Instant elementInputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
@@ -1138,6 +1140,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.timerId = timerId;
       this.timerFamilyId = "";
       this.spec = spec;
+      this.noOutputTimestamp = false;
       this.elementInputTimestamp = elementInputTimestamp;
       this.timerInternals = timerInternals;
     }
@@ -1216,6 +1219,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Timer withOutputTimestamp(Instant outputTimestamp) {
       this.outputTimestamp = outputTimestamp;
+      this.noOutputTimestamp = false;
+      return this;
+    }
+
+    @Override
+    public Timer withNoOutputTimestamp() {
+      this.outputTimestamp = null;
+      this.noOutputTimestamp = true;
       return this;
     }
 
@@ -1251,38 +1262,41 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                       : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
                   BoundedWindow.TIMESTAMP_MAX_VALUE));
         }
-      } else if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+      } else if (!noOutputTimestamp && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         // The outputTimestamp was unset and this is a timer in the EVENT_TIME domain. The output
         // timestamp will be the firing timestamp.
         outputTimestamp = target;
-      } else {
+      } else if (!noOutputTimestamp) {
         // The outputTimestamp was unset and this is a timer in the PROCESSING_TIME
         // (or SYNCHRONIZED_PROCESSING_TIME) domain. The output timestamp will be the timestamp of
         // the element (or timer) setting this timer.
         outputTimestamp = elementInputTimestamp;
       }
-
-      Instant windowExpiry = LateDataUtils.garbageCollectionTime(window, allowedLateness);
-      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        checkArgument(
-            !outputTimestamp.isAfter(windowExpiry),
-            "Attempted to set an event-time timer with an output timestamp of %s that is"
-                + " after the expiration of window %s",
-            outputTimestamp,
-            windowExpiry);
-        checkArgument(
-            !target.isAfter(windowExpiry),
-            "Attempted to set an event-time timer with a firing timestamp of %s that is"
-                + " after the expiration of window %s",
-            target,
-            windowExpiry);
+      if (outputTimestamp != null) {
+        Instant windowExpiry = LateDataUtils.garbageCollectionTime(window, allowedLateness);
+        if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+          checkArgument(
+              !outputTimestamp.isAfter(windowExpiry),
+              "Attempted to set an event-time timer with an output timestamp of %s that is"
+                  + " after the expiration of window %s",
+              outputTimestamp,
+              windowExpiry);
+          checkArgument(
+              !target.isAfter(windowExpiry),
+              "Attempted to set an event-time timer with a firing timestamp of %s that is"
+                  + " after the expiration of window %s",
+              target,
+              windowExpiry);
+        } else {
+          checkArgument(
+              !outputTimestamp.isAfter(windowExpiry),
+              "Attempted to set a processing-time timer with an output timestamp of %s that is"
+                  + " after the expiration of window %s",
+              outputTimestamp,
+              windowExpiry);
+        }
       } else {
-        checkArgument(
-            !outputTimestamp.isAfter(windowExpiry),
-            "Attempted to set a processing-time timer with an output timestamp of %s that is"
-                + " after the expiration of window %s",
-            outputTimestamp,
-            windowExpiry);
+        outputTimestamp = GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
       }
     }
 
