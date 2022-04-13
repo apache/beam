@@ -87,6 +87,18 @@ class BatchConverter(Generic[B, E]):
   def element_type(self):
     return self._element_type
 
+  def __key(self):
+    return (self._element_type, self._batch_type)
+
+  def __eq__(self, other: 'BatchConverter') -> bool:
+    if isinstance(other, BatchConverter):
+      return self.__key() == other.__key()
+
+    return NotImplemented
+
+  def __hash__(self) -> int:
+    return hash(self.__key())
+
 
 N = "ARBITRARY LENGTH DIMENSION"
 
@@ -175,6 +187,18 @@ class NumpyTypeHint():
     def _consistent_with_check_(self, sub):
       # TODO Check sub against batch type, and element type
       return True
+
+    def __key(self):
+      return (self.dtype, self.shape)
+
+    def __eq__(self, other) -> bool:
+      if isinstance(other, NumpyTypeHint.NumpyTypeConstraint):
+        return self.__key() == other.__key()
+
+      return NotImplemented
+
+    def __hash__(self) -> int:
+      return hash(self.__key())
 
   def __getitem__(self, value):
     if isinstance(value, tuple):

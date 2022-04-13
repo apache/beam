@@ -43,9 +43,12 @@ from apache_beam.typehints.typehints import validate_composite_type_param
                               np.int64),
                       }])
 class BatchTest(unittest.TestCase):
-  def setUp(self):
-    self.utils = BatchConverter.from_typehints(
+  def create_batch_converter(self):
+    return BatchConverter.from_typehints(
         element_type=self.element_typehint, batch_type=self.batch_typehint)
+
+  def setUp(self):
+    self.converter = self.create_batch_converter()
 
   def equality_check(self, left, right):
     if isinstance(left, np.ndarray) and isinstance(right, np.ndarray):
@@ -61,12 +64,12 @@ class BatchTest(unittest.TestCase):
     check_constraint(self.batch_typehint, self.batch)
 
   def test_type_check_element(self):
-    for element in self.utils.explode_batch(self.batch):
+    for element in self.converter.explode_batch(self.batch):
       check_constraint(self.element_typehint, element)
 
   def test_explode_rebatch(self):
-    exploded = list(self.utils.explode_batch(self.batch))
-    rebatched = self.utils.produce_batch(exploded)
+    exploded = list(self.converter.explode_batch(self.batch))
+    rebatched = self.converter.produce_batch(exploded)
 
     check_constraint(self.batch_typehint, rebatched)
     self.assertTrue(self.equality_check(self.batch, rebatched))
@@ -77,19 +80,26 @@ class BatchTest(unittest.TestCase):
       (10, ),
   ])
   def test_combine_batches(self, N):
-    elements = list(self.utils.explode_batch(self.batch))
+    elements = list(self.converter.explode_batch(self.batch))
 
     # Split elements into N contiguous partitions, create a batch out of each
     batches = [
-        self.utils.produce_batch(
+        self.converter.produce_batch(
             elements[len(elements) * i // N:len(elements) * (i + 1) // N])
         for i in range(N)
     ]
 
     # Combine the batches, output should be equivalent to the original batch
-    combined = self.utils.combine_batches(batches)
+    combined = self.converter.combine_batches(batches)
 
     self.assertTrue(self.equality_check(self.batch, combined))
+
+  def test_equals(self):
+    self.assertTrue(self.converter == self.create_batch_converter())
+    self.assertTrue(self.create_batch_converter() == self.converter)
+
+  def test_hash(self):
+    self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
 
 
 if __name__ == '__main__':

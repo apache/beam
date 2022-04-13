@@ -1374,7 +1374,7 @@ class ParDo(PTransformWithSideInputs):
       # Generate a batch converter to convert between the output type and the
       # (batch) output type of process_batch
       output_element_type = self.infer_output_type(input_element_type)
-      self.fn.input_batch_converter = BatchConverter.from_typehints(
+      self.fn.output_batch_converter = BatchConverter.from_typehints(
           element_type=output_element_type, batch_type=output_batch_type)
 
   def infer_output_batch_type(self):
