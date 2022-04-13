@@ -1229,4 +1229,20 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / 2, currentNumDocs);
     assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin", null));
   }
+
+  void testValidSSLAndUsernameConfiguration(String filePath) throws Exception {
+    if (!useAsITests) {
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    ConnectionConfiguration configWithSsl =
+        connectionConfiguration
+            .withUsername("username")
+            .withPassword("password")
+            .withKeystorePassword("qwerty")
+            .withKeystorePath(filePath);
+
+    pipeline.apply(ElasticsearchIO.read().withConnectionConfiguration(configWithSsl));
+    pipeline.run();
+  }
 }
