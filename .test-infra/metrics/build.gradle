@@ -22,6 +22,13 @@ plugins {
   id 'com.avast.gradle.docker-compose'
   id 'org.ajoberstar.grgit'
 }
+
+ext {
+  cluster = 'metrics-upgrade-clone'
+  zone='us-central1-a'
+  projectName='apache-beam-testing'
+}
+
 applyGroovyNature()
 
 repositories { mavenCentral() }
@@ -52,12 +59,14 @@ dockerCompose {
 dockerCompose.isRequiredBy(testMetricsStack)
 
 task validateConfiguration(type: Exec) {
-  commandLine 'sh', '-c', 'kubectl apply --dry-run=true -Rf kubernetes'
+  commandLine 'sh', '-c', "export PATH=/var/jenkins_home/google-cloud-sdk/bin:/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName} && kubectl config current-context"
+  //commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
+  // commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
 }
 
 task preCommit {
   dependsOn validateConfiguration
-  dependsOn testMetricsStack
+  // dependsOn testMetricsStack
 }
 
 task checkLastCommitId {
