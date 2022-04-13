@@ -42,7 +42,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"UnusedVariable", "rawtypes"})
+@SuppressWarnings({"nullness", "rawtypes"})
 public class UpdateSchemaDestination
     extends DoFn<
         Iterable<KV<TableDestination, WriteTables.Result>>,
