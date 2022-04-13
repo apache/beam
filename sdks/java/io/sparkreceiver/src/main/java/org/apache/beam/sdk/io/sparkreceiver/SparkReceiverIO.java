@@ -102,13 +102,11 @@ public class SparkReceiverIO {
     }
 
     /**
-     * Creates an {@link UnboundedSource UnboundedSource&lt;KafkaRecord&lt;K, V&gt;, ?&gt;} with the
-     * configuration in {@link Read}. Primary use case is unit tests, should not be used in an
-     * application.
+     * Creates an {@link UnboundedSource UnboundedSource with the
+     * configuration in {@link Read}.
      */
     @VisibleForTesting
     UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
-      // FIXME
       return new SparkReceiverUnboundedSource<>(this, -1, null, null, null, new PriorityQueue<>());
     }
   }
@@ -126,7 +124,6 @@ public class SparkReceiverIO {
 
     @Override
     public PCollection<V> expand(PBegin input) {
-      // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       org.apache.beam.sdk.io.Read.Unbounded<V> unbounded =
           org.apache.beam.sdk.io.Read.from(
               sparkReceiverRead
@@ -136,16 +133,6 @@ public class SparkReceiverIO {
                   .setSparkReceiverClass(sparkReceiverRead.getSparkReceiverClass())
                   .build()
                   .makeSource());
-
-      //      PTransform<PBegin, PCollection<KV<K, V>>> transform = unbounded;
-
-      //      if (sparkReceiverRead.getMaxNumRecords() < Long.MAX_VALUE ||
-      // sparkReceiverRead.getMaxReadTime() != null) {
-      //        transform =
-      //                unbounded
-      //                        .withMaxReadTime(kafkaRead.getMaxReadTime())
-      //                        .withMaxNumRecords(kafkaRead.getMaxNumRecords());
-      //      }
 
       return input.getPipeline().apply(unbounded);
     }

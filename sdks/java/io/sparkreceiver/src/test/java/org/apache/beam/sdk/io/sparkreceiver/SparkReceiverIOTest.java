@@ -17,17 +17,12 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-
-import java.io.IOException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.BaseHubspotConfig;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -35,7 +30,6 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.commons.lang.StringUtils;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,8 +45,6 @@ public class SparkReceiverIOTest {
   private static final String HUBSPOT_CONTACTS_OUTPUT_TXT =
       "src/test/resources/hubspot-contacts-output.txt";
 
-  private static final long NUM_OF_TEST_HUBSPOT_CONTACTS =
-      Long.parseLong(System.getenv("HUBSPOT_CONTACTS_NUM"));
   private static final ImmutableMap<String, Object> TEST_HUBSPOT_PARAMS_MAP =
       ImmutableMap.<String, Object>builder()
           .put("apiServerUrl", BaseHubspotConfig.DEFAULT_API_SERVER_URL)
@@ -63,7 +55,7 @@ public class SparkReceiverIOTest {
           .build();
 
   @Test
-  public void testReadFromHubspot() throws IOException {
+  public void testReadFromHubspot() {
 
     HubspotStreamingSourceConfig pluginConfig =
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
@@ -89,18 +81,6 @@ public class SparkReceiverIOTest {
                 .discardingFiredPanes())
         .apply(
             "Write to file", TextIO.write().withWindowedWrites().to(HUBSPOT_CONTACTS_OUTPUT_TXT));
-
-    PAssert.that(input)
-        .satisfies(
-            (map) -> {
-              long numOfCorrectRecords = 0;
-              for (String record : map) {
-                assertFalse(StringUtils.isEmpty(record));
-                numOfCorrectRecords++;
-              }
-              assertEquals(NUM_OF_TEST_HUBSPOT_CONTACTS, numOfCorrectRecords);
-              return null;
-            });
 
     p.run().waitUntilFinish(Duration.standardSeconds(30));
   }

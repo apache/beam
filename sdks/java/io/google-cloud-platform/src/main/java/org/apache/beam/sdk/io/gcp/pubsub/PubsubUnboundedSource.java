@@ -832,7 +832,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       return advance();
     }
 
-    /**KafkaUn
+    /**
      * BLOCKING Return {@literal true} if a Pubsub message is available, {@literal false} if none is
      * available at this time or we are over-subscribed. May BLOCK while extending ACKs or fetching
      * available messages. Will not block waiting for messages.
