@@ -35,13 +35,15 @@ from apache_beam.ml.inference.sklearn_loader import SKLearnModelLoader
 import apache_beam.ml.inference.base as base
 from sklearn import svm
 
+
 class FakeModel:
   def __init__(self):
     self.total_predict_calls = 0
 
-  def predict(self, input_vector:numpy.array):
+  def predict(self, input_vector: numpy.array):
     self.total_predict_calls += 1
     return numpy.sum(input_vector, axis=1)
+
 
 def build_model():
   x = [[0, 0], [1, 1]]
@@ -52,26 +54,22 @@ def build_model():
 
 
 class SkLearnRunInferenceTest(unittest.TestCase):
-
   def test_predict_output(self):
     fake_model = FakeModel()
     inference_runner = SKLearnInferenceRunner()
     batched_examples = [
-      numpy.array([1, 2, 3]),
-      numpy.array([4, 5, 6]),
-      numpy.array([7, 8, 9])]
+        numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
+    ]
     expected = [6, 15, 24]
-    inferences = inference_runner.run_inference(
-      batched_examples, fake_model)
+    inferences = inference_runner.run_inference(batched_examples, fake_model)
     self.assertListEqual(list(inferences), expected)
 
   def test_data_vectorized(self):
     fake_model = FakeModel()
     inference_runner = SKLearnInferenceRunner()
     batched_examples = [
-      numpy.array([1, 2, 3]),
-      numpy.array([4, 5, 6]),
-      numpy.array([7, 8, 9])]
+        numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
+    ]
     # even though there are 3 examples, the data should
     # be vectorized and only 1 call should happen.
     inference_runner.run_inference(batched_examples, fake_model)
@@ -82,13 +80,12 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       pickle.dump(build_model(), file)
       file.flush()
       with TestPipeline() as pipeline:
-        examples = [
-          numpy.array([0, 0]),
-          numpy.array([1, 1])]
+        examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         #TODO(BEAM-14305) Test against the public API.
-        actual = pcoll | base.RunInference(SKLearnModelLoader(model_uri=file.name))
+        actual = pcoll | base.RunInference(
+            SKLearnModelLoader(model_uri=file.name))
         expected = [0, 1]
         assert_that(actual, equal_to(expected))
 
@@ -97,14 +94,13 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       joblib.dump(build_model(), file)
       file.flush()
       with TestPipeline() as pipeline:
-        examples = [
-          numpy.array([0, 0]),
-          numpy.array([1, 1])]
+        examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         #TODO(BEAM-14305) Test against the public API.
-        actual = pcoll | base.RunInference(SKLearnModelLoader(
-            model_uri=file.name, serialization=SerializationType.JOBLIB))
+        actual = pcoll | base.RunInference(
+            SKLearnModelLoader(
+                model_uri=file.name, serialization=SerializationType.JOBLIB))
         expected = [0, 1]
         assert_that(actual, equal_to(expected))
 
@@ -114,12 +110,13 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       # TODO(BEAM-14305) Test against the public API.
       try:
-        _ = pcoll | base.RunInference(SKLearnModelLoader(
-            model_uri='/var/bad_file_name'))
+        _ = pcoll | base.RunInference(
+            SKLearnModelLoader(model_uri='/var/bad_file_name'))
         pipeline.run()
         self.fail('expected exception')
       except FileNotFoundError:
         pass
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -17,7 +17,6 @@
 
 import abc
 
-
 from dataclasses import dataclass
 import apache_beam as beam
 from apache_beam.utils import shared
@@ -34,12 +33,15 @@ from typing import Any
 from typing import Iterable
 from typing import List
 
+
 class SerializationType(enum.Enum):
   PICKLE = 1
   JOBLIB = 2
 
+
 class SKLearnInferenceRunner(base.InferenceRunner):
-  def run_inference(self, batch: List[numpy.array], model: Any) -> Iterable[numpy.array]:
+  def run_inference(self, batch: List[numpy.array],
+                    model: Any) -> Iterable[numpy.array]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     return model.predict(vectorized_batch)
@@ -48,9 +50,12 @@ class SKLearnInferenceRunner(base.InferenceRunner):
     """Returns the number of bytes of data for a batch."""
     return sum(element.size * element.itemsize for element in batch)
 
+
 class SKLearnModelLoader(base.ModelLoader):
-  def __init__(self, serialization:SerializationType=SerializationType.PICKLE,
-               model_uri:str=''):
+  def __init__(
+      self,
+      serialization: SerializationType = SerializationType.PICKLE,
+      model_uri: str = ''):
     self._serialization = serialization
     self._model_uri = model_uri
     self._inference_runner = SKLearnInferenceRunner()
