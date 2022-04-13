@@ -25,6 +25,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -104,6 +105,52 @@ func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalizat
 }
 
 // [END bundlefinalization_simplecallback]
+
+// [START watermarkestimation_customestimator]
+
+// (Optional) - define a custom watermark state type.
+type WatermarkState struct {
+	Watermark time.Time
+}
+
+// Define a watermark estimator
+type CustomWatermarkEstimator struct {
+	state WatermarkState
+}
+
+// Watermark estimators must implement CurrentWatermark() time.Time
+func (e *CustomWatermarkEstimator) CurrentWatermark() time.Time {
+	return e.state.Watermark
+}
+
+// (Optional) Watermark estimators may implement ObserveTimestamp(time.time)
+// which will be called on the output timestamps of all emitted elements.
+func (e *CustomWatermarkEstimator) ObserveTimestamp(ts time.Time) {
+	e.state.Watermark = ts
+}
+
+// (Optional) Define an initial state to initialize your estimator with.
+// If this is not defined, GetWatermarkEstimatorState may not be defined and
+// CreateWatermarkEstimator must not take in parameters.
+func (fn *splittableDoFn) GetInitialWatermarkEstimatorState(et beam.EventTime, rest offsetrange.Restriction, element string) WatermarkState {
+	// Return some watermark state
+	return WatermarkState{Watermark: time.Now()}
+}
+
+// Create the watermark estimator used by this sdf. Must take in a state parameter if
+// GetInitialWatermarkEstimatorState is defined, otherwise takes no parameters.
+func (fn *splittableDoFn) CreateWatermarkEstimator(initialState WatermarkState) *CustomWatermarkEstimator {
+	return &CustomWatermarkEstimator{state: initialState}
+}
+
+// Return state to resume future watermark estimation after a checkpoint/split.
+// Required if GetInitialWatermarkEstimatorState is defined, otherwise it must
+// not be defined.
+func (fn *splittableDoFn) GetWatermarkEstimatorState(e *CustomWatermarkEstimator) WatermarkState {
+	return e.state
+}
+
+// [END watermarkestimation_customestimator]
 
 // [START cogroupbykey_output_helpers]
 
