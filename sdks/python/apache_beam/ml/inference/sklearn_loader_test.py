@@ -105,17 +105,14 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         assert_that(actual, equal_to(expected))
 
   def test_bad_file_raises(self):
-    with TestPipeline() as pipeline:
-      examples = [numpy.array([0, 0])]
-      pcoll = pipeline | 'start' >> beam.Create(examples)
-      # TODO(BEAM-14305) Test against the public API.
-      try:
+    with self.assertRaises(RuntimeError):
+      with TestPipeline() as pipeline:
+        examples = [numpy.array([0, 0])]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        # TODO(BEAM-14305) Test against the public API.
         _ = pcoll | base.RunInference(
             SKLearnModelLoader(model_uri='/var/bad_file_name'))
         pipeline.run()
-        self.fail('expected exception')
-      except FileNotFoundError:
-        pass
 
 
 if __name__ == '__main__':
