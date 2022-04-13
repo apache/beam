@@ -22,31 +22,34 @@ from dataclasses import dataclass
 import apache_beam as beam
 from apache_beam.utils import shared
 #TODO this PR is waiting for base run_inference PR to be merged
-import apache_beam.ml.inference.base_todo_remove as base
+import apache_beam.ml.inference.base as base
 
 from apache_beam.io.filesystems import FileSystems
 import enum
 import joblib
 import pickle
-import numpy as np
-import sklearn
+import numpy
+import sklearn_loader
 from typing import Any
 from typing import Iterable
 from typing import List
 
-SERIALIZATION_TYPE = Enum('PICKLE','JOBLIB')
+class SerializationType(enum.Enum):
+  PICKLE = 1
+  JOBLIB = 2
 
 class SKLearnInferenceRunner(base.InferenceRunner):
-  def run_inference(self, batch: List[np.Array], model: Any) -> Iterable[np.Array]:
-    for example in batch:
-      yield self.model.predict(example)
+  def run_inference(self, batch: List[numpy.array], model: Any) -> Iterable[numpy.array]:
+    # vectorize data for better performance
+    vectorized_batch = numpy.stack(batch, axis=0)
+    return model.predict(vectorized_batch)
 
-  def get_num_bytes(self, batch: List[np.Array]) -> int:
+  def get_num_bytes(self, batch: List[numpy.array]) -> int:
     """Returns the number of bytes of data for a batch."""
-    return sum(element.np_size for element in batch)
+    return sum(element.size * element.itemsize for element in batch)
 
 class SKLearnModelLoader(base.ModelLoader):
-  def __init__(self, serialization:SERIALIZATION_TYPE=SERIALIZATION_TYPE.PICKLE,
+  def __init__(self, serialization:SerializationType=SerializationType.PICKLE,
                model_uri:str=''):
     self._serialization = serialization
     self._model_uri = model_uri
@@ -54,10 +57,10 @@ class SKLearnModelLoader(base.ModelLoader):
 
   def load_model(self):
     """Loads and initializes a model for processing."""
-    file = FileSystems.open(self._state_dict_path, 'rb')
-    if self._serialization == SERIALIZATION_TYPE.PICKLE:
+    file = FileSystems.open(self._model_uri, 'rb')
+    if self._serialization == SerializationType.PICKLE:
       return pickle.load(file)
-    elif self._serialization == SERIALIZATION_TYPE.JOBLIB:
+    elif self._serialization == SerializationType.JOBLIB:
       return joblib.load(file)
     raise ValueError('No supported serialization type.')
 
