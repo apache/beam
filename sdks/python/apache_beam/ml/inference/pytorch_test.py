@@ -149,3 +149,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(model_loader)
       assert_that(actual, equal_to(expected))
+
+
+if __name__ == '__main__':
+  unittest.main()
