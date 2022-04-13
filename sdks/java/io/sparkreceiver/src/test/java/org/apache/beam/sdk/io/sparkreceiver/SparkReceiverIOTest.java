@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -28,7 +29,10 @@ import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStre
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.windowing.*;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang.StringUtils;

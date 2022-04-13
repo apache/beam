@@ -28,14 +28,13 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO.Read;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link UnboundedSource} to read from SparkReceiver, used by {@link Read} transform in
+ * An {@link UnboundedSource} to read from Spark {@link Receiver}, used by {@link Read} transform in
  * SparkReceiverIO. See {@link SparkReceiverIO} for user visible documentation and example usage.
  */
 @SuppressWarnings({
@@ -44,31 +43,14 @@ import org.slf4j.LoggerFactory;
 })
 class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCheckpointMark> {
 
-  //  private final AtomicLong recordsRead;
-
   @Override
   public List<SparkReceiverUnboundedSource<V>> split(int desiredNumSplits, PipelineOptions options)
       throws Exception {
 
     List<SparkReceiverUnboundedSource<V>> result = new ArrayList<>(desiredNumSplits);
 
-    //    int offset = Integer.parseInt(maxOffset) / desiredNumSplits;
-    //    for (int i = 0; i < desiredNumSplits; i++) {
-    //      Queue<V> queue = new SynchronousQueue<>();
     Queue<V> queue = new PriorityQueue<>();
     AtomicLong recordsRead = new AtomicLong(0);
-    //      final int sourceId = i;
-    //      result.add(new SparkReceiverUnboundedSource<>(spec.toBuilder().build(), sourceId,
-    //              String.valueOf(offset * i),
-    //              String.valueOf(offset * (i + 1)), objects -> {
-    //                V dataItem = (V) objects[0];
-    //                  queue.offer(dataItem);
-    //                  long read = recordsRead.getAndIncrement();
-    //                  if (read % 100 == 0) {
-    //                    LOG.info("[{}], records read = {}", sourceId, recordsRead);
-    //                  }
-    //              }, queue, recordsRead));
-    //    }
     result.add(
         new SparkReceiverUnboundedSource<>(
             spec.toBuilder().build(),
@@ -76,8 +58,7 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
             null,
             null,
             objects -> {
-              V dataItem = (V) objects[0];
-              queue.offer(dataItem);
+              queue.offer((V) objects[0]);
               long read = recordsRead.getAndIncrement();
               if (read % 100 == 0) {
                 LOG.info("[{}], records read = {}", 0, recordsRead);
@@ -112,14 +93,11 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
   /////////////////////////////////////////////////////////////////////////////////////////////
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUnboundedSource.class);
-  //  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
 
   private final Read<V> spec; // Contains all the relevant configuratiton of the source.
   private final int id; // split id, mainly for debugging
   private final String minOffset;
   private final String maxOffset;
-  //  private String curOffset;
-  private HubspotReceiver hReceiver;
   private final Queue<V> availableRecordsQueue;
 
   public SparkReceiverUnboundedSource(
@@ -133,22 +111,10 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
     this.id = id;
     this.minOffset = minOffset;
     this.maxOffset = maxOffset;
-    //    this.recordsRead = recordsRead;
-    //    this.curOffset = minOffset;
     this.availableRecordsQueue = queue;
     try {
       PluginConfig config = getPluginConfig();
-      Receiver receiver;
-
-      //      if (config instanceof HubspotStreamingSourceConfig) {
-      //        HubspotStreamingSourceConfig hConfig = (HubspotStreamingSourceConfig) config;
-      //        receiver = CdapPluginMappingUtils
-      //                .getProxyReceiverForHubspot(hConfig, storeConsumer, minOffset, 0,
-      // maxOffset);
-      //        hReceiver = ((HubspotReceiver) receiver);
-      //      } else {
-      receiver = CdapPluginMappingUtils.getProxyReceiver(config, storeConsumer);
-      //      }
+      Receiver receiver = CdapPluginMappingUtils.getSparkReceiver(config, storeConsumer);
       receiver.onStart();
     } catch (Exception e) {
       LOG.error("Can not get Spark Receiver object!", e);
@@ -157,10 +123,6 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
 
   public Queue<V> getAvailableRecordsQueue() {
     return availableRecordsQueue;
-  }
-
-  public HubspotReceiver gethReceiver() {
-    return hReceiver;
   }
 
   public String getMaxOffset() {

@@ -66,7 +66,7 @@ public class ProxyReceiverBuilderTest {
 
       AtomicBoolean customStoreConsumerWasUsed = new AtomicBoolean(false);
       SalesforceReceiver proxyReciever =
-          CdapPluginMappingUtils.getProxyReceiverForSalesforce(
+          CdapPluginMappingUtils.getSparkReceiverForSalesforce(
               config, args -> customStoreConsumerWasUsed.set(true));
 
       assertNotNull(proxyReciever);

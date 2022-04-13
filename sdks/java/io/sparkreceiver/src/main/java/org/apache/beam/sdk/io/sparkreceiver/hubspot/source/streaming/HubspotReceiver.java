@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -25,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.HubspotHelper;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.HubspotPage;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.HubspotPagesIterator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;

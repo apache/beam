@@ -112,13 +112,12 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
           String methodName = method.getName();
           switch (methodName) {
             case "supervisor":
-              //            case "_supervisor":
               return getWrappedSupervisor();
             case "onStart":
-              LOG.info("Custom Receiver was started");
+              LOG.debug("Original Receiver will be started");
               break;
             case "stop":
-              LOG.info("Custom Receiver was stopped. Message = {}", args[0]);
+              LOG.debug("Custom Receiver was stopped. Message = {}", args[0]);
               break;
             case "store":
               storeConsumer.accept(args);

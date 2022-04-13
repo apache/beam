@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -28,6 +29,10 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * An unbounded reader to read from CDAP plugin. Each reader consumes records from the {@link
+ * SparkReceiverUnboundedSource}.
+ */
 @SuppressWarnings("rawtypes")
 public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedReader<V> {
 
@@ -35,50 +40,24 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
   @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public boolean start() throws IOException {
-    // TODO:
 
     return advance();
   }
 
   @Override
-  public boolean advance() throws IOException {
+  public boolean advance() {
 
-    //    if (curOffset != null && Integer.parseInt(curOffset) >
-    // Integer.parseInt(source.getMaxOffset())) {
-    //      return false;
-    //    }
-    //    if (curOffset != null && Integer.parseInt(curOffset) <
-    // Integer.parseInt(source.getMinOffset())) {
-    //      return false;
-    //    }
-    V record;
-    try {
-      // poll available records, wait (if necessary) up to the specified timeout.
-      record = availableRecordsQueue.poll();
-    } catch (NullPointerException e) {
-      //      Thread.currentThread().interrupt();
-      //      LOG.warn("{}: Unexpected", this, e);
-      return false;
-    }
+    V record = availableRecordsQueue.poll();
 
     if (record == null) {
       return false;
     } else {
       curRecord = record;
       recordsRead++;
-      //      if (hReceiver!= null) {
-      //        curOffset = hReceiver.getOffset();
       curPosition++;
-      //            if (curOffset != null) {
-      //              LOG.info("CUR OFFSET {}", curOffset);
-      //            }
-      //            if (curPosition > 0) {
-      //              LOG.info("CUR POSITION {}", curPosition);
-      //            }
       if (recordsRead % 100 == 0) {
         LOG.info("[{}], records read = {}", source.getId(), recordsRead);
       }
-      //      }
       return true;
     }
   }
@@ -88,16 +67,11 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
     if (curRecord == null) {
       return initialWatermark;
     } else {
+      if (curOffset == null) {
+        return initialWatermark;
+      }
       return new Instant(Long.parseLong(curOffset) + curPosition);
     }
-    //        if (source.getSpec().getWatermarkFn() != null) {
-    //            // Support old API which requires a SparkReceiverRecord to invoke watermarkFn.
-    //            if (curRecord == null) {
-    //                LOG.debug("{}: getWatermark() : no records have been read yet.", name);
-    //    return initialWatermark;
-    //            }
-    //            return source.getSpec().getWatermarkFn().apply(curRecord);
-    //        }
   }
 
   @Override
@@ -129,37 +103,18 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUnboundedReader.class);
 
-  //  @VisibleForTesting static final String METRIC_NAMESPACE = "KafkaIOReader";
-  //
-  //  @VisibleForTesting
-  //  static final String CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC = "checkpointMarkCommitsEnqueued";
-
   //  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
   //  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
 
-  //  private static final String CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC =
-  //      "checkpointMarkCommitsSkipped";
-
   private final SparkReceiverUnboundedSource<V> source;
   private final String name;
+  private final Queue<V> availableRecordsQueue;
+
   private V curRecord;
   private String curOffset;
   private Integer curPosition = 0;
-  //  private HubspotReceiver hReceiver;
   private int recordsRead = 0;
-  //  private Instant curTimestamp;
-  private final Queue<V> availableRecordsQueue;
-  //    private Iterator<KV<K, V>> recordIter = Collections.emptyIterator();
-
-  //  private AtomicReference<SparkReceiverCheckpointMark> finalizedCheckpointMark =
-  //      new AtomicReference<>();
   private AtomicBoolean closed = new AtomicBoolean(false);
-
-  //  private final Counter checkpointMarkCommitsEnqueued =
-  //      Metrics.counter(METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC);
-  //  // Checkpoint marks skipped in favor of newer mark (only the latest needs to be committed).
-  //  private final Counter checkpointMarkCommitsSkipped =
-  //      Metrics.counter(METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC);
 
   /** watermark before any records have been read. */
   private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -180,20 +135,13 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
     } else {
       curOffset = source.getMinOffset();
     }
-    //    this.hReceiver = source.gethReceiver();
     this.availableRecordsQueue = source.getAvailableRecordsQueue();
   }
 
   @Override
   public void close() throws IOException {
     closed.set(true);
-    //    hReceiver.stop("Stopped");
   }
 
-  void finalizeCheckpointMarkAsync(SparkReceiverCheckpointMark checkpointMark) {
-    //    if (finalizedCheckpointMark.getAndSet(checkpointMark) != null) {
-    //      checkpointMarkCommitsSkipped.inc();
-    //    }
-    //    checkpointMarkCommitsEnqueued.inc();
-  }
+  void finalizeCheckpointMarkAsync(SparkReceiverCheckpointMark checkpointMark) {}
 }

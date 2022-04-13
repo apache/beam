@@ -28,23 +28,26 @@ import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A class that performs mapping for CDAP classes and is used to obtain the appropriate
+ * implementations.
+ */
 @SuppressWarnings("rawtypes")
 public class CdapPluginMappingUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(CdapPluginMappingUtils.class);
 
-  public static Receiver getProxyReceiver(PluginConfig config, Consumer<Object[]> consumer) {
+  public static Receiver getSparkReceiver(PluginConfig config, Consumer<Object[]> consumer) {
     if (config instanceof SalesforceStreamingSourceConfig) {
-      return getProxyReceiverForSalesforce((SalesforceStreamingSourceConfig) config, consumer);
+      return getSparkReceiverForSalesforce((SalesforceStreamingSourceConfig) config, consumer);
     } else if (config instanceof HubspotStreamingSourceConfig) {
-      return getProxyReceiverForHubspot(
-          (HubspotStreamingSourceConfig) config, consumer, null, 0, null);
+      return getSparkReceiverForHubspot((HubspotStreamingSourceConfig) config, consumer);
     } else {
       return null;
     }
   }
 
-  public static SalesforceReceiver getProxyReceiverForSalesforce(
+  public static SalesforceReceiver getSparkReceiverForSalesforce(
       SalesforceStreamingSourceConfig config, Consumer<Object[]> consumer) {
     ProxyReceiverBuilder<String, SalesforceReceiver> builder =
         new ProxyReceiverBuilder<>(SalesforceReceiver.class);
@@ -60,20 +63,12 @@ public class CdapPluginMappingUtils {
     return null;
   }
 
-  public static HubspotReceiver getProxyReceiverForHubspot(
-      HubspotStreamingSourceConfig config,
-      Consumer<Object[]> consumer,
-      String offset,
-      Integer position,
-      String maxOffset) {
+  public static HubspotReceiver getSparkReceiverForHubspot(
+      HubspotStreamingSourceConfig config, Consumer<Object[]> consumer) {
     ProxyReceiverBuilder<String, HubspotReceiver> builder =
         new ProxyReceiverBuilder<>(HubspotReceiver.class);
     try {
-      if (offset != null) {
-        builder.withConstructorArgs(config, offset, position, maxOffset);
-      } else {
-        builder.withConstructorArgs(config);
-      }
+      builder.withConstructorArgs(config);
       return builder.withCustomStoreConsumer(consumer).build();
     } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       LOG.error("Can not build proxy Spark Receiver", e);

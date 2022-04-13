@@ -39,10 +39,22 @@ allprojects {
 }
 
 dependencies {
+    implementation library.java.avro
     implementation library.java.cdap_api
+    implementation library.java.cdap_api_commons
     implementation library.java.cdap_etl_api
+    implementation library.java.cdap_etl_api_spark
+    implementation library.java.cdap_hydrator_common
     implementation library.java.cglib
     implementation library.java.commons_lang2_6
+    implementation library.java.google_code_gson
+    implementation library.java.hadoop_common
+    implementation library.java.hadoop_mapreduce_client_core
+    implementation library.java.http_client
+    implementation library.java.http_core
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
+    implementation library.java.joda_time
     implementation library.java.scala
     implementation library.java.slf4j_api
     implementation library.java.spark_streaming

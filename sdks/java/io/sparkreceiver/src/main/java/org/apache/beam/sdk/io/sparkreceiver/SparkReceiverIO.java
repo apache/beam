@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import java.util.PriorityQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -110,8 +109,7 @@ public class SparkReceiverIO {
     @VisibleForTesting
     UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
       // FIXME
-      return new SparkReceiverUnboundedSource<>(
-          this, -1, null, null, null, new PriorityQueue<>());
+      return new SparkReceiverUnboundedSource<>(this, -1, null, null, null, new PriorityQueue<>());
     }
   }
 

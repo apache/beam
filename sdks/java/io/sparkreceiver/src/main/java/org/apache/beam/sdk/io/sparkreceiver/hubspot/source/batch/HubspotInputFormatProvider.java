@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver.hubspot.source.batch;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.cdap.cdap.api.data.batch.InputFormatProvider;
 import java.util.Map;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.SourceHubspotConfig;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** InputFormatProvider used by cdap to provide configurations to mapreduce job. */
 public class HubspotInputFormatProvider implements InputFormatProvider {
