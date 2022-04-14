@@ -749,7 +749,6 @@ public class JmsIO {
      *
      * <pre>{@code
      * .apply(JmsIO.write().withTopicNameMapper(topicNameNapper)
-     *
      * }</pre>
      *
      * @param topicNameMapper The function returning the dynamic topic name.
