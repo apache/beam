@@ -2444,8 +2444,6 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.check.dependsOn project.test
 
-      project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
-
       // Due to Beam-4256, we need to limit the length of virtualenv path to make the
       // virtualenv activated properly. So instead of include project name in the path,
       // we use the hash value.
