@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformConfiguration.Read;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaTransformReadProvider.PCollectionRowTupleTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -109,8 +108,7 @@ public class BigQuerySchemaTransformReadProviderTest {
     BigQueryIO.clearCreatedTables();
     fakeTable.setSchema(TABLE_SCHEMA);
     fakeTable.setTableReference(TABLE_REFERENCE);
-    fakeTable.setNumBytes(1024L * 1024L);
-    fakeDatasetService.createDataset(PROJECT, DATASET, "", "", null);
+    fakeDatasetService.createDataset(PROJECT, DATASET, LOCATION, "", null);
     fakeDatasetService.createTable(fakeTable);
     fakeDatasetService.insertAll(fakeTable.getTableReference(), RECORDS, null);
     temporaryFolder.create();
@@ -132,27 +130,31 @@ public class BigQuerySchemaTransformReadProviderTest {
     // TODO: refactor this test using FakeBigQueryServices.
     // Previous attempts using FakeBigQueryServices with a Read configuration using a query failed.
     // For now we test using DisplayData and the toTypedRead method.
-    List<Pair<Read.Builder, TypedRead<TableRow>>> cases =
+    List<Pair<BigQuerySchemaTransformReadConfiguration.Builder, TypedRead<TableRow>>> cases =
         Arrays.asList(
             Pair.of(
-                BigQuerySchemaTransformConfiguration.createQueryBuilder(QUERY),
+                BigQuerySchemaTransformReadConfiguration.builder().setQuery(QUERY),
+                BigQueryIO.readTableRowsWithSchema().fromQuery(QUERY)),
+            Pair.of(
+                BigQuerySchemaTransformReadConfiguration.builder()
+                    .setQuery(QUERY)
+                    .setQueryLocation(LOCATION),
+                BigQueryIO.readTableRowsWithSchema().fromQuery(QUERY).withQueryLocation(LOCATION)),
+            Pair.of(
+                BigQuerySchemaTransformReadConfiguration.builder()
+                    .setQuery(QUERY)
+                    .setUseStandardSql(true),
                 BigQueryIO.readTableRowsWithSchema().fromQuery(QUERY).usingStandardSql()),
             Pair.of(
-                BigQuerySchemaTransformConfiguration.createQueryBuilder(QUERY)
-                    .setQueryLocation(LOCATION),
-                BigQueryIO.readTableRowsWithSchema()
-                    .fromQuery(QUERY)
-                    .usingStandardSql()
-                    .withQueryLocation(LOCATION)),
-            Pair.of(
-                BigQuerySchemaTransformConfiguration.createQueryBuilder(QUERY)
+                BigQuerySchemaTransformReadConfiguration.builder()
+                    .setQuery(QUERY)
                     .setUseStandardSql(false),
                 BigQueryIO.readTableRowsWithSchema().fromQuery(QUERY)));
 
-    for (Pair<Read.Builder, TypedRead<TableRow>> caze : cases) {
+    for (Pair<BigQuerySchemaTransformReadConfiguration.Builder, TypedRead<TableRow>> caze : cases) {
       Map<Identifier, Item> want = DisplayData.from(caze.getRight()).asMap();
       SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
-      BigQuerySchemaTransformConfiguration.Read configuration = caze.getLeft().build();
+      BigQuerySchemaTransformReadConfiguration configuration = caze.getLeft().build();
       Row configurationRow = configuration.toBeamRow();
       SchemaTransform schemaTransform = provider.from(configurationRow);
       PCollectionRowTupleTransform pCollectionRowTupleTransform =
@@ -166,8 +168,8 @@ public class BigQuerySchemaTransformReadProviderTest {
   @Test
   public void testExtract() {
     SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
-    BigQuerySchemaTransformConfiguration.Read configuration =
-        BigQuerySchemaTransformConfiguration.createExtractBuilder(TABLE_SPEC).build();
+    BigQuerySchemaTransformReadConfiguration configuration =
+        BigQuerySchemaTransformReadConfiguration.builder().setTableSpec(TABLE_SPEC).build();
     Row configurationRow = configuration.toBeamRow();
     SchemaTransform schemaTransform = provider.from(configurationRow);
     PCollectionRowTupleTransform pCollectionRowTupleTransform =
@@ -185,10 +187,42 @@ public class BigQuerySchemaTransformReadProviderTest {
   }
 
   @Test
+  public void testInvalidConfiguration() {
+    SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
+    for (Pair<
+            BigQuerySchemaTransformReadConfiguration.Builder,
+            ? extends Class<? extends RuntimeException>>
+        caze :
+            Arrays.asList(
+                Pair.of(
+                    BigQuerySchemaTransformReadConfiguration.builder(),
+                    IllegalArgumentException.class),
+                Pair.of(
+                    BigQuerySchemaTransformReadConfiguration.builder()
+                        .setQuery(QUERY)
+                        .setTableSpec(TABLE_SPEC),
+                    IllegalStateException.class),
+                Pair.of(
+                    BigQuerySchemaTransformReadConfiguration.builder().setQueryLocation(LOCATION),
+                    IllegalArgumentException.class),
+                Pair.of(
+                    BigQuerySchemaTransformReadConfiguration.builder().setUseStandardSql(true),
+                    IllegalArgumentException.class))) {
+      Row configurationRow = caze.getLeft().build().toBeamRow();
+      SchemaTransform schemaTransform = provider.from(configurationRow);
+      PCollectionRowTupleTransform pCollectionRowTupleTransform =
+          (PCollectionRowTupleTransform) schemaTransform.buildTransform();
+      pCollectionRowTupleTransform.setTestBigQueryServices(fakeBigQueryServices);
+      PCollectionRowTuple empty = PCollectionRowTuple.empty(p);
+      assertThrows(caze.getRight(), () -> empty.apply(pCollectionRowTupleTransform));
+    }
+  }
+
+  @Test
   public void testInvalidInput() {
     SchemaTransformProvider provider = new BigQuerySchemaTransformReadProvider();
-    BigQuerySchemaTransformConfiguration.Read configuration =
-        BigQuerySchemaTransformConfiguration.createExtractBuilder(TABLE_SPEC).build();
+    BigQuerySchemaTransformReadConfiguration configuration =
+        BigQuerySchemaTransformReadConfiguration.builder().setTableSpec(TABLE_SPEC).build();
     Row configurationRow = configuration.toBeamRow();
     SchemaTransform schemaTransform = provider.from(configurationRow);
     PCollectionRowTupleTransform pCollectionRowTupleTransform =

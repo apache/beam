@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
- * using {@link BigQuerySchemaTransformConfiguration.Write}.
+ * using {@link BigQuerySchemaTransformWriteConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -60,7 +60,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Internal
 @Experimental(Kind.SCHEMAS)
 public class BigQuerySchemaTransformWriteProvider
-    extends TypedSchemaTransformProvider<BigQuerySchemaTransformConfiguration.Write> {
+    extends TypedSchemaTransformProvider<BigQuerySchemaTransformWriteConfiguration> {
 
   private static final String API = "bigquery";
   private static final String VERSION = "v2";
@@ -68,13 +68,13 @@ public class BigQuerySchemaTransformWriteProvider
 
   /** Returns the expected class of the configuration. */
   @Override
-  protected Class<BigQuerySchemaTransformConfiguration.Write> configurationClass() {
-    return BigQuerySchemaTransformConfiguration.Write.class;
+  protected Class<BigQuerySchemaTransformWriteConfiguration> configurationClass() {
+    return BigQuerySchemaTransformWriteConfiguration.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQuerySchemaTransformConfiguration.Write configuration) {
+  protected SchemaTransform from(BigQuerySchemaTransformWriteConfiguration configuration) {
     return new BigQueryWriteSchemaTransform(configuration);
   }
 
@@ -104,15 +104,19 @@ public class BigQuerySchemaTransformWriteProvider
 
   /**
    * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
-   * BigQuerySchemaTransformConfiguration.Write}.
+   * BigQuerySchemaTransformWriteConfiguration}.
    */
   static class BigQueryWriteSchemaTransform implements SchemaTransform {
-    private final BigQuerySchemaTransformConfiguration.Write configuration;
+    private final BigQuerySchemaTransformWriteConfiguration configuration;
 
-    BigQueryWriteSchemaTransform(BigQuerySchemaTransformConfiguration.Write configuration) {
+    BigQueryWriteSchemaTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
     }
 
+    /**
+     * Overrides {@link SchemaTransform#buildTransform()} by returning a {@link
+     * PCollectionRowTupleTransform}.
+     */
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
       return new PCollectionRowTupleTransform(configuration);
@@ -121,17 +125,17 @@ public class BigQuerySchemaTransformWriteProvider
 
   /**
    * An implementation of {@link PTransform} for BigQuery write jobs configured using {@link
-   * BigQuerySchemaTransformConfiguration.Write}.
+   * BigQuerySchemaTransformWriteConfiguration}.
    */
   static class PCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
 
-    private final BigQuerySchemaTransformConfiguration.Write configuration;
+    private final BigQuerySchemaTransformWriteConfiguration configuration;
 
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    PCollectionRowTupleTransform(BigQuerySchemaTransformConfiguration.Write configuration) {
+    PCollectionRowTupleTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -142,17 +146,26 @@ public class BigQuerySchemaTransformWriteProvider
       }
 
       BigQueryOptions bigQueryOptions = options.as(BigQueryOptions.class);
-      DatasetService datasetService = getDatasetService(bigQueryOptions);
+
+      BigQueryServices bigQueryServices = new BigQueryServicesImpl();
+      if (testBigQueryServices != null) {
+        bigQueryServices = testBigQueryServices;
+      }
+
+      DatasetService datasetService = bigQueryServices.getDatasetService(bigQueryOptions);
       TableReference tableReference = BigQueryUtils.toTableReference(configuration.getTableSpec());
+
       try {
         Table table = datasetService.getTable(tableReference);
         if (table == null) {
           throw new NullPointerException();
         }
+
         if (table.getSchema() == null) {
           throw new InvalidConfigurationException(
               String.format("could not fetch schema for table: %s", configuration.getTableSpec()));
         }
+
       } catch (NullPointerException | InterruptedException | IOException ex) {
         throw new InvalidConfigurationException(
             String.format(
@@ -209,6 +222,7 @@ public class BigQuerySchemaTransformWriteProvider
 
       PCollection<Row> rowInput = input.get(INPUT_TAG);
       Schema sourceSchema = rowInput.getSchema();
+
       if (sourceSchema == null) {
         throw new IllegalArgumentException(
             String.format("%s is null for input of tag: %s", Schema.class, INPUT_TAG));
@@ -219,8 +233,15 @@ public class BigQuerySchemaTransformWriteProvider
       }
 
       BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-      DatasetService datasetService = getDatasetService(bigQueryOptions);
+
+      BigQueryServices bigQueryServices = new BigQueryServicesImpl();
+      if (testBigQueryServices != null) {
+        bigQueryServices = testBigQueryServices;
+      }
+
+      DatasetService datasetService = bigQueryServices.getDatasetService(bigQueryOptions);
       TableReference tableReference = BigQueryUtils.toTableReference(configuration.getTableSpec());
+
       try {
         Table table = datasetService.getTable(tableReference);
         if (table == null) {
@@ -238,6 +259,7 @@ public class BigQuerySchemaTransformWriteProvider
         }
 
         validateMatching(sourceSchema, destinationSchema);
+
       } catch (NullPointerException | InterruptedException | IOException e) {
         throw new InvalidConfigurationException(
             String.format(
@@ -283,52 +305,6 @@ public class BigQuerySchemaTransformWriteProvider
         return false;
       }
       return want.equals(got);
-    }
-
-    TableSchema getDestinationTableSchema(BigQueryOptions options) {
-      Table destinationTable = getDestinationTable(options);
-      if (destinationTable == null) {
-        return null;
-      }
-      return destinationTable.getSchema();
-    }
-
-    DatasetService getDatasetService(BigQueryOptions options) {
-      BigQueryServices bigQueryServices = testBigQueryServices;
-      if (bigQueryServices == null) {
-        bigQueryServices = new BigQueryServicesImpl();
-      }
-      return bigQueryServices.getDatasetService(options);
-    }
-
-    Table getDestinationTable(BigQueryOptions options) {
-      Table destinationTable = null;
-      CreateDisposition createDisposition = configuration.getCreateDispositionEnum();
-      DatasetService datasetService = getDatasetService(options);
-      try {
-        destinationTable = datasetService.getTable(configuration.getTableReference());
-      } catch (IOException | InterruptedException e) {
-        // We only care if the create disposition implies an existing table i.e. create never.
-        if (createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
-          throw new InvalidConfigurationException(
-              String.format(
-                  "error querying destination schema for create disposition: %s for table: %s, error: %s",
-                  createDisposition, configuration.getTableSpec(), e.getMessage()));
-        }
-      }
-      return destinationTable;
-    }
-
-    Schema getDestinationRowSchema(BigQueryOptions options) {
-      TableSchema tableSchema = getDestinationTableSchema(options);
-      if (tableSchema == null) {
-        return null;
-      }
-      return BigQueryUtils.fromTableSchema(tableSchema);
-    }
-
-    Schema getDestinationRowSchema(PipelineOptions options) {
-      return getDestinationRowSchema(options.as(BigQueryOptions.class));
     }
   }
 }
