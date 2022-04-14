@@ -70,6 +70,10 @@ class ExpansionServiceServicer(
             v in request.output_coder_override.items()
         }
         transform = transform.with_output_types(list(output_coder.values())[0])
+      elif len(request.output_coder_override) > 1:
+        raise ValueError(
+            'type annotation for multiple outputs is not allowed yet: %s' %
+            request.output_coder_override)
       inputs = transform._pvaluish_from_dict({
           tag:
           with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)
