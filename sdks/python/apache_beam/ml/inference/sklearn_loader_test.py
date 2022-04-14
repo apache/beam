@@ -26,16 +26,20 @@ import joblib
 import numpy
 
 import apache_beam as beam
+import apache_beam.ml.inference.api as api
 import apache_beam.ml.inference.base as base
-import sklearn
 from apache_beam.ml.inference.sklearn_loader import SerializationType
 from apache_beam.ml.inference.sklearn_loader import SKLearnInferenceRunner
 from apache_beam.ml.inference.sklearn_loader import SKLearnModelLoader
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import matches_all
 from sklearn import svm
 
+def _compare_prediction_result(a, b):
+  example_equal = numpy.array_equal(a.example, b.example)
+  return a.inference == b.inference and example_equal
 
 class FakeModel:
   def __init__(self):
@@ -61,9 +65,13 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
-    expected = [6, 15, 24]
+    expected_predictions = [
+      api.PredictionResult(numpy.array([1, 2, 3]), 6),
+      api.PredictionResult(numpy.array([4, 5, 6]), 15),
+      api.PredictionResult(numpy.array([7, 8, 9]), 24)]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
-    self.assertListEqual(list(inferences), expected)
+    for actual, expected in zip(inferences, expected_predictions):
+      self.assertTrue(_compare_prediction_result(actual, expected))
 
   def test_data_vectorized(self):
     fake_model = FakeModel()
@@ -105,8 +113,10 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         #TODO(BEAM-14305) Test against the public API.
         actual = pcoll | base.RunInference(
             SKLearnModelLoader(model_uri=file.name))
-        expected = [0, 1]
-        assert_that(actual, equal_to(expected))
+        expected = [
+            api.PredictionResult(numpy.array([0, 0]), 0),
+            api.PredictionResult(numpy.array([1, 1]), 1)]
+        assert_that(actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   def test_pipeline_joblib(self):
     with tempfile.NamedTemporaryFile() as file:
@@ -120,8 +130,10 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         actual = pcoll | base.RunInference(
             SKLearnModelLoader(
                 model_uri=file.name, serialization=SerializationType.JOBLIB))
-        expected = [0, 1]
-        assert_that(actual, equal_to(expected))
+        expected = [
+            api.PredictionResult(numpy.array([0, 0]), 0),
+            api.PredictionResult(numpy.array([1, 1]), 1)]
+        assert_that(actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   def test_bad_file_raises(self):
     with self.assertRaises(RuntimeError):

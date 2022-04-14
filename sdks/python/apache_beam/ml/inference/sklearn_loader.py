@@ -27,11 +27,10 @@ from typing import List
 import joblib
 import numpy
 
-import apache_beam as beam
+import apache_beam.ml.inference.api as api
 import apache_beam.ml.inference.base as base
 import sklearn_loader
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.utils import shared
 
 
 class SerializationType(enum.Enum):
@@ -44,7 +43,8 @@ class SKLearnInferenceRunner(base.InferenceRunner):
                     model: Any) -> Iterable[numpy.array]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
-    return model.predict(vectorized_batch)
+    predictions = model.predict(vectorized_batch)
+    return [api.PredictionResult(x, y) for x, y in zip (batch, predictions)]
 
   def get_num_bytes(self, batch: List[numpy.array]) -> int:
     """Returns the number of bytes of data for a batch."""
