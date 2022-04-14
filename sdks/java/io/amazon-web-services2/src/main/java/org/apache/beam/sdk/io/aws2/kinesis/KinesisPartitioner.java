@@ -48,6 +48,26 @@ public interface KinesisPartitioner<T> extends Serializable {
   }
 
   /**
+   * An explicit partitioner that always returns a {@code Nonnull} explicit hash key. The partition
+   * key is irrelevant in this case, though it cannot be {@code null}.
+   */
+  interface ExplicitPartitioner<T> extends KinesisPartitioner<T> {
+    @Override
+    default @Nonnull String getPartitionKey(T record) {
+      return "a"; // will be ignored, but can't be null or empty
+    }
+
+    /**
+     * Required hash value (128-bit integer) to determine explicitly the shard a record is assigned
+     * to based on the hash key range of each shard. The explicit hash key overrides the partition
+     * key hash.
+     */
+    @Override
+    @Nonnull
+    String getExplicitHashKey(T record);
+  }
+
+  /**
    * Explicit hash key partitioner that randomly returns one of x precalculated hash keys. Hash keys
    * are derived by equally dividing the 128-bit hash universe, assuming that hash ranges of shards
    * are also equally sized.
@@ -70,14 +90,8 @@ public interface KinesisPartitioner<T> extends Serializable {
       hashKey = hashKey.add(distance);
     }
 
-    return new KinesisPartitioner<T>() {
+    return new ExplicitPartitioner<T>() {
       @Nonnull
-      @Override
-      public String getPartitionKey(T record) {
-        return "a"; // ignored, but can't be null
-      }
-
-      @Nullable
       @Override
       public String getExplicitHashKey(T record) {
         return hashKeys[new Random().nextInt(shards)];

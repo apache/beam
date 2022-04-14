@@ -88,7 +88,7 @@ func mapEncoder(rt reflect.Type, encodeKey, encodeValue typeEncoderFieldReflect)
 			if err := encodeKey.encode(key, &buf); err != nil {
 				return err
 			}
-			p := pair{v: key, b: make([]byte, buf.Len(), buf.Len())}
+			p := pair{v: key, b: make([]byte, buf.Len())}
 			copy(p.b, buf.Bytes())
 			sorted = append(sorted, p)
 			buf.Reset() // Reset for next iteration.

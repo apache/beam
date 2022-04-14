@@ -1066,12 +1066,6 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.check.dependsOn project.javadoc
 
-      // Apply the eclipse plugins.  This adds the "eclipse" task and
-      // connects the apt-eclipse plugin to update the eclipse project files
-      // with the instructions needed to run apt within eclipse to handle the AutoValue
-      // and additional annotations
-      project.apply plugin: 'eclipse'
-
       // Enables a plugin which can apply code formatting to source.
       project.apply plugin: "com.diffplug.spotless"
       // scan CVE
@@ -2421,11 +2415,10 @@ class BeamModulePlugin implements Plugin<Project> {
       config.cleanupJobServer.configure{mustRunAfter pythonSqlTask}
 
       // Task for running Java testcases in Go SDK.
-      def scriptOptions = [
-        "--test_expansion_addr localhost:${javaPort}",
+      def pipelineOpts = [
+        "--expansion_addr=test:localhost:${javaPort}",
       ]
-      scriptOptions.addAll(config.goScriptOptions)
-      def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", scriptOptions)
+      def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", config.goScriptOptions, pipelineOpts)
       goTask.configure {
         description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
         dependsOn setupTask

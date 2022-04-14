@@ -979,12 +979,9 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int, startIn
 // false if they aren't, and returns an error if they are present but the function isn't an sdf and thus doesn't
 // support watermark estimation
 func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
-	var isWatermarkEstimating bool
-	if _, ok := fn.methods[createWatermarkEstimatorName]; ok {
-		isWatermarkEstimating = true
-	}
+	_, isWatermarkEstimating := fn.methods[createWatermarkEstimatorName]
 	if !isSdf && isWatermarkEstimating {
-		return false, errors.Errorf("Watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
+		return false, errors.Errorf("watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
 			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
 	}
 	return isWatermarkEstimating, nil
@@ -1000,8 +997,8 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 	if len(method.Param) > 1 {
 		err := errors.Errorf("unexpected number of params in method %v. got: %v, want number in range: 0 to 1",
 			createWatermarkEstimatorName, len(method.Param))
-		return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
-			"Got: %v, Want number in range: 0 to 1. Check that the signature conforms to the expected signature for %v.",
+		return errors.SetTopLevelMsgf(err, "unexpected number of parameters in method %v. "+
+			"got: %v, want number in range: 0 to 1. Check that the signature conforms to the expected signature for %v.",
 			createWatermarkEstimatorName, len(method.Param), createWatermarkEstimatorName)
 	} else if len(method.Param) == 1 {
 		err := validateStatefulWatermarkSig(fn, numMainIn)

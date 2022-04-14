@@ -266,6 +266,10 @@ type ProcessSizedElementsAndRestrictions struct {
 	// channel once finished with it, or it will block indefinitely.
 	SU chan SplittableUnit
 
+	// continuation is a field that will hold a returned process continuation
+	// from a DoFn for use in splitting the bundle if the process should be resumed.
+	continuation sdf.ProcessContinuation
+
 	elm     *FullValue   // Currently processing element.
 	rt      sdf.RTracker // Currently processing element's restriction tracker.
 	currW   int          // Index of the current window in elm being processed.
@@ -399,7 +403,10 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		defer func() {
 			<-n.SU
 		}()
-		return n.PDo.processSingleWindow(mainIn)
+		continuation, processResult := n.PDo.processSingleWindow(mainIn)
+		n.continuation = continuation
+
+		return processResult
 	} else {
 		// If we need to process the element in multiple windows, each one needs
 		// its own RTracker and progress must be tracked among all windows by
@@ -417,7 +424,8 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 			n.rt = rt
 			n.elm = elm
 			n.SU <- n
-			err := n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
+			// TODO(BEAM-11104): Remove placeholder for ProcessContinuation return.
+			_, err := n.PDo.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: rt})
 			if err != nil {
 				<-n.SU
 				return n.PDo.fail(err)
@@ -478,7 +486,7 @@ type SplittableUnit interface {
 	GetInputId() string
 
 	// GetOutputWatermark gets the current output watermark of the splittable unit
-	// if one  is defined, or nil otherwise.
+	// if one is defined, or nil otherwise.
 	GetOutputWatermark() map[string]*timestamppb.Timestamp
 }
 
