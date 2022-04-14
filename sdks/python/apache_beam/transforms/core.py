@@ -1351,7 +1351,7 @@ class ParDo(PTransformWithSideInputs):
 
   def infer_batch_converters(self, input_element_type):
     # This assumes batch input implies batch output
-    # TODO: Define and handle yields_batches and yields_elements
+    # TODO(BEAM-14293): Define and handle yields_batches and yields_elements
     if self.fn.process_batch_defined:
       input_batch_type = self.fn.get_input_batch_type()
 
@@ -1378,7 +1378,7 @@ class ParDo(PTransformWithSideInputs):
           element_type=output_element_type, batch_type=output_batch_type)
 
   def infer_output_batch_type(self):
-    # TODO: Handle process() with @yields_batch
+    # TODO(BEAM-14293): Handle process() with @yields_batch
     if not self.fn.process_batch_defined:
       return
 
