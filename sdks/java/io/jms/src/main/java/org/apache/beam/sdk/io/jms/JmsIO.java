@@ -870,18 +870,14 @@ public class JmsIO {
 
       @ProcessElement
       public void processElement(ProcessContext ctx) {
-        Destination dynamicDestination = null;
+        Destination destinationToSendTo = destination;
         try {
           Message message = spec.getValueMapper().apply(ctx.element(), session);
           if (spec.getTopicNameMapper() != null) {
-            dynamicDestination =
+            destinationToSendTo =
                 session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
-            producer.send(dynamicDestination, message);
-
-          } else {
-            producer.send(destination, message);
           }
-
+          producer.send(destinationToSendTo, message);
         } catch (Exception ex) {
           LOG.error(
               "Error sending message on topic {}",
