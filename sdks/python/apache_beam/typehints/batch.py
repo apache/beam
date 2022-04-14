@@ -15,18 +15,17 @@
 # limitations under the License.
 #
 
-"""Utilities for type-hinting batched types for use in the Beam SDK.
+"""Utilities for working with batched types in the Beam SDK.
 
 A batched type is a type B that is logically equivalent to Sequence[E], where E
 is some other type. Typically B has a different physical representation than
 Sequence[E] for performance reasons.
 
 A trivial example is B=np.array(dtype=np.int64), E=int.
+"""
 
-Batched type hints are used to enable more efficient processing of
-a PCollection[E], by allowing users to write DoFns that operate on
-multi-element partitions of the PCollection represented with type B."""
-
+from typing import Callable
+from typing import List
 from typing import Generic
 from typing import Iterator
 from typing import Optional
@@ -35,12 +34,12 @@ from typing import TypeVar
 
 import numpy as np
 
-from apache_beam.typehints.typehints import TypeConstraint
+from apache_beam.typehints import typehints
 
 B = TypeVar('B')
 E = TypeVar('E')
 
-BATCH_CONVERTER_REGISTRY = []
+BATCH_CONVERTER_REGISTRY: List[Callable[[type, type], 'BatchConverter']] = []
 
 
 class BatchConverter(Generic[B, E]):
@@ -63,12 +62,15 @@ class BatchConverter(Generic[B, E]):
     raise NotImplementedError
 
   @staticmethod
-  def register(batching_util_fn):
-    BATCH_CONVERTER_REGISTRY.append(batching_util_fn)
-    return batching_util_fn
+  def register(
+      batch_converter_constructor: Callable[[type, type], 'BatchConverter']):
+    BATCH_CONVERTER_REGISTRY.append(batch_converter_constructor)
+    return batch_converter_constructor
 
   @staticmethod
   def from_typehints(*, element_type, batch_type) -> 'BatchConverter':
+    element_type = typehints.normalize(element_type)
+    batch_type = typehints.normalize(batch_type)
     for constructor in BATCH_CONVERTER_REGISTRY:
       result = constructor(element_type, batch_type)
       if result is not None:
@@ -98,6 +100,29 @@ class BatchConverter(Generic[B, E]):
 
   def __hash__(self) -> int:
     return hash(self.__key())
+
+
+class ListBatchConverter(BatchConverter):
+  @staticmethod
+  @BatchConverter.register
+  def from_typehints(element_type, batch_type):
+    if (isinstance(batch_type, typehints.ListConstraint) and
+        batch_type.inner_type == element_type):
+      return ListBatchConverter(batch_type, element_type)
+    else:
+      return None
+
+  def produce_batch(self, elements):
+    return list(elements)
+
+  def explode_batch(self, batch):
+    return iter(batch)
+
+  def combine_batches(self, batches):
+    return sum(batches, [])
+
+  def get_length(self, batch):
+    return len(batch)
 
 
 N = "ARBITRARY LENGTH DIMENSION"
@@ -167,7 +192,7 @@ class NumpyBatchConverter(BatchConverter):
 # specifying shape, seems to be coming after
 # https://www.python.org/dev/peps/pep-0646/
 class NumpyTypeHint():
-  class NumpyTypeConstraint(TypeConstraint):
+  class NumpyTypeConstraint(typehints.TypeConstraint):
     def __init__(self, dtype, shape=()):
       self.dtype = np.dtype(dtype)
       self.shape = shape
