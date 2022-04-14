@@ -954,7 +954,7 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int) error {
 func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
 	_, isWatermarkEstimating := fn.methods[createWatermarkEstimatorName]
 	if !isSdf && isWatermarkEstimating {
-		return false, errors.Errorf("Watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
+		return false, errors.Errorf("watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
 			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
 	}
 	return isWatermarkEstimating, nil
