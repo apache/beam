@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // PairWithRestriction is an executor for the expanded SDF step of the same
@@ -221,6 +222,7 @@ type ProcessSizedElementsAndRestrictions struct {
 	TfId    string // Transform ID. Needed for splitting.
 	ctInv   *ctInvoker
 	sizeInv *rsInvoker
+	cweInv  *cweInvoker
 
 	// SU is a buffered channel for indicating when this unit is splittable.
 	// When this unit is processing an element, it sends a SplittableUnit
@@ -249,6 +251,9 @@ type ProcessSizedElementsAndRestrictions struct {
 	// This can change during processing due to splits, but it should always be
 	// set greater than currW.
 	numW int
+
+	// List of PTransforms that this Sdf outputs into.
+	outputs []string
 }
 
 // ID calls the ParDo's ID method.
@@ -266,6 +271,12 @@ func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 	fn = (*graph.SplittableDoFn)(n.PDo.Fn).RestrictionSizeFn()
 	if n.sizeInv, err = newRestrictionSizeInvoker(fn); err != nil {
 		return errors.WithContextf(err, "%v", n)
+	}
+	if (*graph.SplittableDoFn)(n.PDo.Fn).IsWatermarkEstimating() {
+		fn = (*graph.SplittableDoFn)(n.PDo.Fn).CreateWatermarkEstimatorFn()
+		if n.cweInv, err = newCreateWatermarkEstimatorInvoker(fn); err != nil {
+			return errors.WithContextf(err, "%v", n)
+		}
 	}
 	n.SU = make(chan SplittableUnit, 1)
 	return n.PDo.Up(ctx)
@@ -331,6 +342,10 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		}
 	}
 
+	if n.cweInv != nil {
+		n.PDo.we = n.cweInv.Invoke()
+	}
+
 	// Begin processing elements, exploding windows if necessary.
 	n.currW = 0
 	if !mustExplodeWindows(n.PDo.inv.fn, elm, len(n.PDo.Side) > 0) {
@@ -384,6 +399,9 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) error {
 	n.ctInv.Reset()
 	n.sizeInv.Reset()
+	if n.cweInv != nil {
+		n.cweInv.Reset()
+	}
 	return n.PDo.FinishBundle(ctx)
 }
 
@@ -422,6 +440,10 @@ type SplittableUnit interface {
 	// GetInputId returns the local input ID of the input that the element being
 	// split was received from.
 	GetInputId() string
+
+	// GetOutputWatermark gets the current output watermark of the splittable unit
+	// if one is defined, or nil otherwise.
+	GetOutputWatermark() map[string]*timestamppb.Timestamp
 }
 
 // Split splits the currently processing element using its restriction tracker.
@@ -670,6 +692,21 @@ func (n *ProcessSizedElementsAndRestrictions) GetTransformId() string {
 // split.
 func (n *ProcessSizedElementsAndRestrictions) GetInputId() string {
 	return indexToInputId(0)
+}
+
+// GetOutputWatermark gets the current output watermark of the splittable unit
+// if one is defined, or returns nil otherwise.
+func (n *ProcessSizedElementsAndRestrictions) GetOutputWatermark() map[string]*timestamppb.Timestamp {
+	if n.PDo.we != nil {
+		ow := timestamppb.New(n.PDo.we.CurrentWatermark())
+		owMap := make(map[string]*timestamppb.Timestamp)
+		for _, out := range n.outputs {
+			owMap[out] = ow
+		}
+		return owMap
+	}
+
+	return nil
 }
 
 // SdfFallback is an executor used when an SDF isn't expanded into steps by the

@@ -40,6 +40,7 @@ func TestRegisterDoFn(t *testing.T) {
 	tA := reflect.TypeOf((*A)(nil)).Elem()
 	tO := reflect.TypeOf((*O)(nil)).Elem()
 	tRt := reflect.TypeOf((*sdf.LockRTracker)(nil)).Elem()
+	tWe := reflect.TypeOf((*sdf.WallTimeWatermarkEstimator)(nil)).Elem()
 
 	tests := []struct {
 		name   string
@@ -68,7 +69,7 @@ func TestRegisterDoFn(t *testing.T) {
 		{"DoFn01 pointer reflect", reflect.TypeOf(&DoFn01{}), true, false, []reflect.Type{tDoFn01, tR, tS}},
 		{"DoFn02 reflect - filtered types", tDoFn02, true, false, []reflect.Type{tDoFn02}},
 		{"CombineFn01 reflect - combine methods", tCmbFn01, true, false, []reflect.Type{tCmbFn01, tA, tI, tO}},
-		{"DoFn03 reflect - sdf methods", tDoFn03, true, false, []reflect.Type{tDoFn03, tRt, tR}},
+		{"DoFn03 reflect - sdf methods", tDoFn03, true, false, []reflect.Type{tDoFn03, tRt, tWe, tR}},
 		{"DoFn04 reflect - containers", tDoFn04, true, false, []reflect.Type{tDoFn04, tR, tS, tT, tA, tI, tO}},
 	}
 
@@ -225,6 +226,10 @@ func (fn *DoFn03) RestrictionSize(_ string, rest R) float64 {
 }
 func (fn *DoFn03) CreateTracker(rest R) *sdf.LockRTracker {
 	return &sdf.LockRTracker{Rt: RT{}}
+}
+
+func (fn *DoFn03) CreateWatermarkEstimator() *sdf.WallTimeWatermarkEstimator {
+	return &sdf.WallTimeWatermarkEstimator{}
 }
 
 type DoFn04 struct{}
