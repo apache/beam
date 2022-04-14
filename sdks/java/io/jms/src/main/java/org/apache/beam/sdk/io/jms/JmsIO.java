@@ -881,7 +881,7 @@ public class JmsIO {
         } catch (Exception ex) {
           LOG.error(
               "Error sending message on topic {}",
-              dynamicDestination != null ? dynamicDestination : destination);
+              destinationToSendTo);
           ctx.output(failedMessageTag, ctx.element());
         }
       }
