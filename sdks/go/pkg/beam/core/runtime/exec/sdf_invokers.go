@@ -305,11 +305,7 @@ func (n *ctInvoker) Reset() {
 type cweInvoker struct {
 	fn   *funcx.Fn
 	args []interface{} // Cache to avoid allocating new slices per-element.
-<<<<<<< HEAD
 	call func(rest interface{}) sdf.WatermarkEstimator
-=======
-	call func() sdf.WatermarkEstimator
->>>>>>> 73c683fe2b0a02ae7a5327e0cdf2991079ca3500
 }
 
 func newCreateWatermarkEstimatorInvoker(fn *funcx.Fn) (*cweInvoker, error) {
@@ -325,7 +321,6 @@ func newCreateWatermarkEstimatorInvoker(fn *funcx.Fn) (*cweInvoker, error) {
 
 func (n *cweInvoker) initCallFn() error {
 	// Expects a signature of the form:
-<<<<<<< HEAD
 	// (watermarkState?) sdf.WatermarkEstimator
 	switch fnT := n.fn.Fn.(type) {
 	case reflectx.Func0x1:
@@ -351,35 +346,13 @@ func (n *cweInvoker) initCallFn() error {
 			return errors.Errorf("CreateWatermarkEstimator fn %v has unexpected number of parameters: %v",
 				n.fn.Fn.Name(), len(n.fn.Param))
 		}
-=======
-	// () sdf.WatermarkEstimator
-	switch fnT := n.fn.Fn.(type) {
-	case reflectx.Func0x1:
-		n.call = func() sdf.WatermarkEstimator {
-			return fnT.Call0x1().(sdf.WatermarkEstimator)
-		}
-	default:
-		if len(n.fn.Param) != 0 {
-			return errors.Errorf("CreateWatermarkEstimator fn %v has unexpected number of parameters: %v",
-				n.fn.Fn.Name(), len(n.fn.Param))
-		}
-		n.call = func() sdf.WatermarkEstimator {
-			return n.fn.Fn.Call(n.args)[0].(sdf.WatermarkEstimator)
-		}
->>>>>>> 73c683fe2b0a02ae7a5327e0cdf2991079ca3500
 	}
 	return nil
 }
 
-<<<<<<< HEAD
 // Invoke calls CreateWatermarkEstimator given a restriction and returns an sdf.RTracker.
 func (n *cweInvoker) Invoke(rest interface{}) sdf.WatermarkEstimator {
 	return n.call(rest)
-=======
-// Invoke calls CreateWatermarkEstimator given a restriction and returns an sdf.WatermarkEstimator.
-func (n *cweInvoker) Invoke() sdf.WatermarkEstimator {
-	return n.call()
->>>>>>> 73c683fe2b0a02ae7a5327e0cdf2991079ca3500
 }
 
 // Reset zeroes argument entries in the cached slice to allow values to be
@@ -389,7 +362,6 @@ func (n *cweInvoker) Reset() {
 		n.args[i] = nil
 	}
 }
-<<<<<<< HEAD
 
 // giwesInvoker is an invoker for GetInitialWatermarkEstimatorState.
 type giwesInvoker struct {
@@ -512,5 +484,3 @@ func (n *gwesInvoker) Reset() {
 		n.args[i] = nil
 	}
 }
-=======
->>>>>>> 73c683fe2b0a02ae7a5327e0cdf2991079ca3500

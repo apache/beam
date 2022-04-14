@@ -812,7 +812,7 @@ type GoodStatefulWatermarkEstimating struct {
 	*GoodSdf
 }
 
-func (fn *GoodStatefulWatermarkEstimating) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, element int) int {
+func (fn *GoodStatefulWatermarkEstimating) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt RestT, element int) int {
 	return 0
 }
 
@@ -828,7 +828,7 @@ type GoodStatefulWatermarkEstimatingKv struct {
 	*GoodSdfKv
 }
 
-func (fn *GoodStatefulWatermarkEstimatingKv) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt *RTrackerT, k int, v int) int {
+func (fn *GoodStatefulWatermarkEstimatingKv) GetInitialWatermarkEstimatorState(ts typex.EventTime, rt RestT, k int, v int) int {
 	return 0
 }
 

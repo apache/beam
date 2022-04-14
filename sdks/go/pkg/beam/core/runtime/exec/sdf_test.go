@@ -995,7 +995,7 @@ func TestAsSplittableUnit(t *testing.T) {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
 				// Setup, create transforms, inputs, and desired outputs.
-				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}, we: VetWatermarkEstimator{State: 1}}
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}, we: &VetWatermarkEstimator{State: 1}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
 				node.rt = &SplittableUnitRTracker{
 					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*FullValue).Elm.(*VetRestriction)},

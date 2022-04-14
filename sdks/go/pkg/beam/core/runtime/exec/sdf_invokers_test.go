@@ -267,7 +267,7 @@ func TestInvokes(t *testing.T) {
 					t.Fatalf("newCreateWatermarkEstimatorInvoker failed: %v", err)
 				}
 				got := invoker.Invoke(test.state)
-				want := test.want
+				want := &test.want
 				if !cmp.Equal(got, want) {
 					t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
 				}
@@ -294,13 +294,13 @@ func TestInvokes(t *testing.T) {
 		}
 	})
 
-	t.Run("GetWatermarkEstimatorState Invoker (gweInvoker)", func(t *testing.T) {
+	t.Run("GetWatermarkEstimatorState Invoker (gwesInvoker)", func(t *testing.T) {
 		fn := statefulWeFn.GetWatermarkEstimatorStateFn()
 		invoker, err := newGetWatermarkEstimatorStateInvoker(fn)
 		if err != nil {
 			t.Fatalf("newGetWatermarkEstimatorStateInvoker failed: %v", err)
 		}
-		got := invoker.Invoke(VetWatermarkEstimator{State: 11})
+		got := invoker.Invoke(&VetWatermarkEstimator{State: 11})
 		want := 11
 		if got != want {
 			t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
@@ -451,11 +451,11 @@ func (fn *VetSdfStatefulWatermark) GetInitialWatermarkEstimatorState(_ typex.Eve
 	return 1
 }
 
-func (fn *VetSdfStatefulWatermark) CreateWatermarkEstimator(state int) VetWatermarkEstimator {
-	return VetWatermarkEstimator{State: state}
+func (fn *VetSdfStatefulWatermark) CreateWatermarkEstimator(state int) *VetWatermarkEstimator {
+	return &VetWatermarkEstimator{State: state}
 }
 
-func (fn *VetSdfStatefulWatermark) GetWatermarkEstimatorState(e VetWatermarkEstimator) int {
+func (fn *VetSdfStatefulWatermark) GetWatermarkEstimatorState(e *VetWatermarkEstimator) int {
 	return e.State
 }
 
