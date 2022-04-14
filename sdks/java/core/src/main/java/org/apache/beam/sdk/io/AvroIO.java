@@ -549,6 +549,36 @@ public class AvroIO {
    *
    * <p>If the output type is {@link GenericRecord} use {@link #writeCustomTypeToGenericRecords()}
    * instead.
+   *
+   * @deprecated Use {@link AvroIO#writeCustomType(Class)} instead and provide the custom record
+   *     class
+   */
+  @Deprecated
+  @SuppressWarnings("unchecked")
+  public static <UserT, OutputT> TypedWrite<UserT, Void, OutputT> writeCustomType() {
+    // setting Object as record class will default to AvroReflectCoder when writing
+    return (TypedWrite<UserT, Void, OutputT>)
+        AvroIO.defaultWriteBuilder().setRecordClass(Object.class).build();
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} to an avro file (or multiple avro files
+   * matching a sharding pattern), with each element of the input collection encoded into its own
+   * record of type OutputT.
+   *
+   * <p>This version allows you to apply {@link AvroIO} writes to a PCollection of a custom type
+   * {@link UserT}. A format mechanism that converts the input type {@link UserT} to the output type
+   * that will be written to the file must be specified. If using a custom {@link
+   * DynamicAvroDestinations} object this is done using {@link
+   * DynamicAvroDestinations#formatRecord}, otherwise the {@link
+   * AvroIO.TypedWrite#withFormatFunction} can be used to specify a format function.
+   *
+   * <p>The advantage of using a custom type is that is it allows a user-provided {@link
+   * DynamicAvroDestinations} object, set via {@link AvroIO.Write#to(DynamicAvroDestinations)} to
+   * examine the custom type when choosing a destination.
+   *
+   * <p>If the output type is {@link GenericRecord} use {@link #writeCustomTypeToGenericRecords()}
+   * instead.
    */
   public static <UserT, OutputT> TypedWrite<UserT, Void, OutputT> writeCustomType(
       Class<OutputT> recordClass) {
@@ -556,8 +586,8 @@ public class AvroIO {
   }
 
   /**
-   * Similar to {@link #writeCustomType(Class<OutputT> recordClass)}, but specialized for the case
-   * where the output type is {@link GenericRecord}. A schema must be specified either in {@link
+   * Similar to {@link #writeCustomType(Class)}, but specialized for the case where the output type
+   * is {@link GenericRecord}. A schema must be specified either in {@link
    * DynamicAvroDestinations#getSchema} or if not using dynamic destinations, by using {@link
    * TypedWrite#withSchema(Schema)}.
    */
@@ -1382,6 +1412,15 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(
           @Nullable String shardTemplate);
+
+      /** @deprecated Use {@link AvroIO.TypedWrite.Builder#setRecordClass(Class)} instead */
+      @Deprecated
+      @SuppressWarnings("unchecked")
+      public Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords) {
+        // setting Object as record class will default to AvroReflectCoder when writing
+        final Class<?> recordClass = genericRecords ? GenericRecord.class : Object.class;
+        return setRecordClass((Class<OutputT>) recordClass);
+      }
 
       abstract Builder<UserT, DestinationT, OutputT> setRecordClass(Class<OutputT> recordClass);
 
