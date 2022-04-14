@@ -17,23 +17,23 @@
 
 # pytype: skip-file
 
+import pickle
+import sys
+import tempfile
 import unittest
 
 import joblib
 import numpy
-import pickle
-import sklearn
-import tempfile
-import sys
 
 import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+import apache_beam.ml.inference.base as base
+import sklearn
 from apache_beam.ml.inference.sklearn_loader import SerializationType
 from apache_beam.ml.inference.sklearn_loader import SKLearnInferenceRunner
 from apache_beam.ml.inference.sklearn_loader import SKLearnModelLoader
-import apache_beam.ml.inference.base as base
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from sklearn import svm
 
 

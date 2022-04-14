@@ -16,23 +16,22 @@
 #
 
 import abc
-
-from dataclasses import dataclass
-import apache_beam as beam
-from apache_beam.utils import shared
-#TODO this PR is waiting for base run_inference PR to be merged
-import apache_beam.ml.inference.base as base
-
-from apache_beam.io.filesystems import FileSystems
 import enum
-import joblib
 import pickle
-import numpy
-import sklearn_loader
 import sys
+from dataclasses import dataclass
 from typing import Any
 from typing import Iterable
 from typing import List
+
+import joblib
+import numpy
+
+import apache_beam as beam
+import apache_beam.ml.inference.base as base
+import sklearn_loader
+from apache_beam.io.filesystems import FileSystems
+from apache_beam.utils import shared
 
 
 class SerializationType(enum.Enum):
