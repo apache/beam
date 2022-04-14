@@ -93,7 +93,7 @@ public class BigQuerySchemaTransformReadProvider
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
    * BigQuerySchemaTransformReadConfiguration}.
    */
-  static class BigQueryReadSchemaTransform implements SchemaTransform {
+  private static class BigQueryReadSchemaTransform implements SchemaTransform {
     private final BigQuerySchemaTransformReadConfiguration configuration;
 
     BigQueryReadSchemaTransform(BigQuerySchemaTransformReadConfiguration configuration) {

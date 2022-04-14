@@ -106,7 +106,7 @@ public class BigQuerySchemaTransformWriteProvider
    * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
    * BigQuerySchemaTransformWriteConfiguration}.
    */
-  static class BigQueryWriteSchemaTransform implements SchemaTransform {
+  private static class BigQueryWriteSchemaTransform implements SchemaTransform {
     private final BigQuerySchemaTransformWriteConfiguration configuration;
 
     BigQueryWriteSchemaTransform(BigQuerySchemaTransformWriteConfiguration configuration) {
