@@ -807,7 +807,7 @@ public class JmsIO {
       checkArgument(
           exclusiveTopicQueue,
           "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
-      checkArgument(getValueMapper() != null, "withValueeMapper() is required");
+      checkArgument(getValueMapper() != null, "withValueMapper() is required");
 
       final TupleTag<EventT> failedMessagesTag = new TupleTag<>();
       final TupleTag<EventT> messagesTag = new TupleTag<>();
