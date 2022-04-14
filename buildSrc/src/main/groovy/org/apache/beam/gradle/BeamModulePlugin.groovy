@@ -507,8 +507,8 @@ class BeamModulePlugin implements Plugin<Project> {
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
-        avro                                        : "org.apache.avro:avro:1.8.2",
-        avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
+        avro                                        : "org.apache.avro:avro:1.9.2",
+        avro_tests                                  : "org.apache.avro:avro:1.9.2:tests",
         aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
         aws_java_sdk_core                           : "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version",
         aws_java_sdk_dynamodb                       : "com.amazonaws:aws-java-sdk-dynamodb:$aws_java_sdk_version",
@@ -695,6 +695,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
+        xz_java                                     : "org.tukaani:xz:1.9",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
         quickcheck_generators                       : "com.pholser:junit-quickcheck-generators:$quickcheck_version",
@@ -2149,7 +2150,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
-    project.ext.applyAvroNature = { project.apply plugin: "com.commercehub.gradle.plugin.avro" }
+    project.ext.applyAvroNature = { project.apply plugin: "com.github.davidmc24.gradle.plugin.avro" }
 
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
