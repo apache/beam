@@ -633,8 +633,6 @@ public class JmsIO {
 
     abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
 
-    abstract @Nullable Coder<EventT> getCoder();
-
     abstract Builder<EventT> builder();
 
     @AutoValue.Builder
@@ -654,8 +652,6 @@ public class JmsIO {
 
       abstract Builder<EventT> setTopicNameMapper(
           SerializableFunction<EventT, String> topicNameMapper);
-
-      abstract Builder<EventT> setCoder(Coder<EventT> coder);
 
       abstract Write<EventT> build();
     }
@@ -794,15 +790,9 @@ public class JmsIO {
       return builder().setValueMapper(valueMapper).build();
     }
 
-    public Write<EventT> withCoder(Coder<EventT> coder) {
-      checkArgument(coder != null, "coder can not be null");
-      return builder().setCoder(coder).build();
-    }
-
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
-      checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
           "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is required");
@@ -818,8 +808,8 @@ public class JmsIO {
           input.apply(
               ParDo.of(new WriterFn<>(this, failedMessagesTag))
                   .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
-      PCollection<EventT> failedMessages = res.get(failedMessagesTag).setCoder(getCoder());
-      res.get(messagesTag).setCoder(getCoder());
+      PCollection<EventT> failedMessages = res.get(failedMessagesTag).setCoder(input.getCoder());
+      res.get(messagesTag).setCoder(input.getCoder());
       return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedMessages);
     }
 

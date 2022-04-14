@@ -243,7 +243,6 @@ public class JmsIOTest {
                 .withConnectionFactory(connectionFactory)
                 .withValueMapper(new TextMessageMapper())
                 .withQueue(QUEUE)
-                .withCoder(SerializableCoder.of(String.class))
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD));
 
@@ -277,7 +276,6 @@ public class JmsIOTest {
                     .withConnectionFactory(connectionFactory)
                     .withValueMapper(new TextMessageMapperWithError())
                     .withQueue(QUEUE)
-                    .withCoder(SerializableCoder.of(String.class))
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
 
@@ -318,7 +316,6 @@ public class JmsIOTest {
                 .withConnectionFactory(connectionFactory)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
-                .withCoder(SerializableCoder.of(TestEvent.class))
                 .withTopicNameMapper(e -> e.getTopicName())
                 .withValueMapper(
                     (e, s) -> {
