@@ -33,6 +33,7 @@ func equalPanes(left, right typex.PaneInfo) bool {
 
 func TestPaneCoder(t *testing.T) {
 	tests := []struct {
+		name    string
 		timing  typex.PaneTiming
 		first   bool
 		last    bool
@@ -40,6 +41,7 @@ func TestPaneCoder(t *testing.T) {
 		nsIndex int64
 	}{
 		{
+			"false bools",
 			typex.PaneUnknown,
 			false,
 			false,
@@ -47,6 +49,7 @@ func TestPaneCoder(t *testing.T) {
 			0,
 		},
 		{
+			"true bools",
 			typex.PaneUnknown,
 			true,
 			true,
@@ -54,6 +57,7 @@ func TestPaneCoder(t *testing.T) {
 			0,
 		},
 		{
+			"first pane",
 			typex.PaneUnknown,
 			true,
 			false,
@@ -61,6 +65,15 @@ func TestPaneCoder(t *testing.T) {
 			0,
 		},
 		{
+			"last pane",
+			typex.PaneUnknown,
+			false,
+			true,
+			0,
+			0,
+		},
+		{
+			"on time, different index and non-speculative",
 			typex.PaneOnTime,
 			false,
 			false,
@@ -68,6 +81,7 @@ func TestPaneCoder(t *testing.T) {
 			2,
 		},
 		{
+			"valid early pane",
 			typex.PaneEarly,
 			true,
 			false,
@@ -75,6 +89,7 @@ func TestPaneCoder(t *testing.T) {
 			-1,
 		},
 		{
+			"on time, max non-speculative index",
 			typex.PaneOnTime,
 			false,
 			true,
@@ -82,6 +97,7 @@ func TestPaneCoder(t *testing.T) {
 			math.MaxInt64,
 		},
 		{
+			"late pane, max index",
 			typex.PaneLate,
 			false,
 			false,
@@ -89,6 +105,7 @@ func TestPaneCoder(t *testing.T) {
 			0,
 		},
 		{
+			"on time, min non-speculative index",
 			typex.PaneOnTime,
 			false,
 			true,
@@ -96,6 +113,7 @@ func TestPaneCoder(t *testing.T) {
 			math.MinInt64,
 		},
 		{
+			"late, min index",
 			typex.PaneLate,
 			false,
 			false,
@@ -104,23 +122,26 @@ func TestPaneCoder(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		input := makePaneInfo(test.timing, test.first, test.last, test.index, test.nsIndex)
-		var buf bytes.Buffer
-		err := EncodePane(input, &buf)
-		if err != nil {
-			t.Fatalf("failed to encode pane %v, got %v", input, err)
-		}
-		got, err := DecodePane(&buf)
-		if err != nil {
-			t.Fatalf("failed to decode pane from buffer %v, got %v", buf, err)
-		}
-		if want := input; !equalPanes(got, want) {
-			t.Errorf("got pane %v, want %v", got, want)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			input := makePaneInfo(test.timing, test.first, test.last, test.index, test.nsIndex)
+			var buf bytes.Buffer
+			err := EncodePane(input, &buf)
+			if err != nil {
+				t.Fatalf("failed to encode pane %v, got %v", input, err)
+			}
+			got, err := DecodePane(&buf)
+			if err != nil {
+				t.Fatalf("failed to decode pane from buffer %v, got %v", buf, err)
+			}
+			if want := input; !equalPanes(got, want) {
+				t.Errorf("got pane %v, want %v", got, want)
+			}
+		})
 	}
 }
 func TestEncodePane_bad(t *testing.T) {
 	tests := []struct {
+		name    string
 		timing  typex.PaneTiming
 		first   bool
 		last    bool
@@ -128,6 +149,7 @@ func TestEncodePane_bad(t *testing.T) {
 		nsIndex int64
 	}{
 		{
+			"invalid early pane, max ints",
 			typex.PaneEarly,
 			true,
 			false,
@@ -135,6 +157,7 @@ func TestEncodePane_bad(t *testing.T) {
 			math.MaxInt64,
 		},
 		{
+			"invalid early pane, min ints",
 			typex.PaneEarly,
 			true,
 			false,
@@ -143,11 +166,13 @@ func TestEncodePane_bad(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		input := makePaneInfo(test.timing, test.first, test.last, test.index, test.nsIndex)
-		var buf bytes.Buffer
-		err := EncodePane(input, &buf)
-		if err == nil {
-			t.Errorf("successfully encoded pane when it should have failed, got %v", buf)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			input := makePaneInfo(test.timing, test.first, test.last, test.index, test.nsIndex)
+			var buf bytes.Buffer
+			err := EncodePane(input, &buf)
+			if err == nil {
+				t.Errorf("successfully encoded pane when it should have failed, got %v", buf)
+			}
+		})
 	}
 }
