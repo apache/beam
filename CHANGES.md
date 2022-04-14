@@ -83,7 +83,7 @@
 2. Let's create a valueMapper that will return a javax.jms.Message:
 
 ```java
-      SerializableMessageMapper<EmployeeEvent> valueMapper = (e, s) -> {
+      SerializableBiFunction<EmployeeEvent, Session, Message> valueMapper = (e, s) -> {
         try {
           TextMessage msg = s.createTextMessage();
           msg.setText(Mapper.MAPPER.toJson(e));

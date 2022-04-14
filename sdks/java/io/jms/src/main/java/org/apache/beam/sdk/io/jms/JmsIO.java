@@ -114,10 +114,6 @@ import org.slf4j.LoggerFactory;
  *   .apply(JmsIO.write()
  *       .withConnectionFactory(myConnectionFactory)
  *       .withQueue("my-queue")
- *       .withCoder(
- *         // a coder for T
- *       )
- *
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
@@ -763,7 +759,7 @@ public class JmsIO {
      * <p>For instance:
      *
      * <pre>{@code
-     * SerializableMapper<VehicleEvent> valueMapper = (e, s) -> {
+     * SerializableBiFunction<SomeEventObject, Session, Message> valueMapper = (e, s) -> {
      *
      *       try {
      *         TextMessage msg = s.createTextMessage();
