@@ -99,77 +99,40 @@
     }
   }
 
-  .dots-JS {
-    display: none;
-  }
-
-  .keen-slider {
-    width: 327px;
-    margin: 0 auto;
-    border-radius: 16px;
-    background-color: $color-white;
-    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
-      0 4px 4px 0 rgba(0, 0, 0, 0.06);
-
-    .keen-slider__slide {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      width: 100%;
-      max-width: 327px;
-      height: 468px;
-      padding: 55px 24px 24px 24px;
-
-      .quote-text {
-        @extend .component-quote;
-
-        margin: 108px 0 20px 0;
-      }
-
-      img {
-        width: 172px;
-      }
-    }
-  }
-
-  .keen-slider-JS {
-    display: none;
-  }
-
   .dots {
     display: flex;
     padding-bottom: 10px;
     justify-content: center;
+    list-style-type: none;
+
+    li {
+      border: none;
+      width: 13px;
+      height: 13px;
+      background: $color-smoke;
+      border-radius: 50%;
+      margin: 0 5px;
+      padding: 4px;
+      cursor: pointer;
+
+      button {
+        display: none;
+      }
+    }
+
+    li:focus {
+      outline: none;
+    }
+
+    li.slick-active {
+      background: $color-sun;
+    }
   }
 
-  .dot {
-    border: none;
-    width: 13px;
-    height: 13px;
-    background: $color-smoke;
-    border-radius: 50%;
-    margin: 0 5px;
-    padding: 4px;
-    cursor: pointer;
-  }
-
-  .dot:focus {
-    outline: none;
-  }
-
-  .dot--active {
-    background: $color-sun;
-  }
-
-  .keen-slider-JS.visible {
-    display: flex;
-  }
 }
 
 @media (max-width: $tablet) {
   .quotes {
-
     .quotes-title {
       margin-bottom: 64px;
     }
@@ -177,16 +140,5 @@
     h2 {
       margin-bottom: 0 !important;
     }
-
-    .quote-mobile {
-      display: flex;
-      width: 100%;
-      overflow: hidden;
-    }
-
-    .keen-slider-JS {
-      display: none;
-    }
-
   }
 }
