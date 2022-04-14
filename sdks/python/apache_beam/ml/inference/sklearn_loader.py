@@ -29,6 +29,7 @@ import joblib
 import pickle
 import numpy
 import sklearn_loader
+import sys
 from typing import Any
 from typing import Iterable
 from typing import List
@@ -48,7 +49,7 @@ class SKLearnInferenceRunner(base.InferenceRunner):
 
   def get_num_bytes(self, batch: List[numpy.array]) -> int:
     """Returns the number of bytes of data for a batch."""
-    return sum(element.size * element.itemsize for element in batch)
+    return sum(sys.getsizeof(element) for element in batch)
 
 
 class SKLearnModelLoader(base.ModelLoader):
