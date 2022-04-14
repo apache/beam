@@ -952,10 +952,7 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int) error {
 // false if they aren't, and returns an error if they are present but the function isn't an sdf and thus doesn't
 // support watermark estimation
 func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
-	var isWatermarkEstimating bool
-	if _, ok := fn.methods[createWatermarkEstimatorName]; ok {
-		isWatermarkEstimating = true
-	}
+	_, isWatermarkEstimating := fn.methods[createWatermarkEstimatorName]
 	if !isSdf && isWatermarkEstimating {
 		return false, errors.Errorf("Watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
 			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
