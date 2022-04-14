@@ -19,6 +19,8 @@
 // likely to have bugs.
 package sdf
 
+import "time"
+
 // RTracker is an interface used to interact with restrictions while processing elements in
 // splittable DoFns (specifically, in the ProcessElement method). Each RTracker tracks the progress
 // of a single restriction.
@@ -85,4 +87,12 @@ type RTracker interface {
 	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
 	// is unavailable for some reason.
 	GetRestriction() interface{}
+}
+
+// WatermarkEstimator is an interface used to represent a user defined watermark estimator.
+// Watermark estimators allow users to advance the output watermark of the current sdf.
+type WatermarkEstimator interface {
+	// CurrentWatermark returns the estimator's current watermark. It is called any time a DoFn
+	// splits or checkpoints to advance the output watermark of the restriction's stage.
+	CurrentWatermark() time.Time
 }

@@ -44,6 +44,7 @@ type ParDo struct {
 	ctx      context.Context
 	inv      *invoker
 	bf       *bundleFinalizer
+	we       sdf.WatermarkEstimator
 
 	reader StateReader
 	cache  *cacheElm
