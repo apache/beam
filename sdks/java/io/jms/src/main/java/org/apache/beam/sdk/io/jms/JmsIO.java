@@ -802,7 +802,7 @@ public class JmsIO {
       checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
-          "Either withTopicNameMapper(topicNameMapper) or withQueue(queue) or withTopic(topic) is required");
+          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is required");
       boolean exclusiveTopicQueue = isExclusiveTopicQueue();
       checkArgument(
           exclusiveTopicQueue,
