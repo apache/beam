@@ -82,6 +82,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.PostProcessingMetri
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -1595,6 +1596,7 @@ public class SpannerIO {
                 : getInclusiveEndAt();
         final MapperFactory mapperFactory = new MapperFactory();
         final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
+        final ThroughputEstimator throughputEstimator = new ThroughputEstimator();
         final RpcPriority rpcPriority =
             MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
         final DaoFactory daoFactory =
@@ -1612,7 +1614,8 @@ public class SpannerIO {
         final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
             new DetectNewPartitionsDoFn(daoFactory, mapperFactory, actionFactory, metrics);
         final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-            new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+            new ReadChangeStreamPartitionDoFn(
+                daoFactory, mapperFactory, actionFactory, metrics, throughputEstimator);
         final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
             new PostProcessingMetricsDoFn(metrics);
 
