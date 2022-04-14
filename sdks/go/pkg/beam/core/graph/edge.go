@@ -426,11 +426,9 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, rc *coder.C
 	for i := 0; i < len(in); i++ {
 		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
 	}
-	continuation := false
-	// u.Fn is not guaranteed to be non-nil
-	if u.Fn != nil {
-		_, continuation = u.Fn.ProcessContinuation()
-	}
+
+	_, continuation := u.ProcessElementFn().ProcessContinuation()
+
 	bounded := inputBounded(in) && !continuation
 	for i := 0; i < len(out); i++ {
 		n := g.NewNode(out[i], inputWindow(in), bounded)
