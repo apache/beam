@@ -81,14 +81,18 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     batched_examples_int = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
-    self.assertEqual(sys.getsizeof(batched_examples_int[0]) * 3,
-                     inference_runner.get_num_bytes(batched_examples_int))
+    self.assertEqual(
+        sys.getsizeof(batched_examples_int[0]) * 3,
+        inference_runner.get_num_bytes(batched_examples_int))
 
     batched_examples_float = [
-      numpy.array([1.0, 2.0, 3.0]), numpy.array([4.1, 5.2, 6.3]), numpy.array([7.7, 8.8, 9.9])
+        numpy.array([1.0, 2.0, 3.0]),
+        numpy.array([4.1, 5.2, 6.3]),
+        numpy.array([7.7, 8.8, 9.9])
     ]
-    self.assertEqual(sys.getsizeof(batched_examples_float[0]) * 3,
-                     inference_runner.get_num_bytes(batched_examples_float))
+    self.assertEqual(
+        sys.getsizeof(batched_examples_float[0]) * 3,
+        inference_runner.get_num_bytes(batched_examples_float))
 
   def test_pipeline_pickled(self):
     with tempfile.NamedTemporaryFile() as file:
