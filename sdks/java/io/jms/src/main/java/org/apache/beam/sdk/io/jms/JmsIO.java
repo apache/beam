@@ -49,6 +49,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
@@ -628,7 +629,7 @@ public class JmsIO {
 
     abstract @Nullable String getPassword();
 
-    abstract @Nullable SerializableMessageMapper<EventT> getValueMapper();
+    abstract @Nullable SerializableBiFunction<EventT, Session, Message> getValueMapper();
 
     abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
 
@@ -648,7 +649,8 @@ public class JmsIO {
 
       abstract Builder<EventT> setPassword(String password);
 
-      abstract Builder<EventT> setValueMapper(SerializableMessageMapper<EventT> valueMapper);
+      abstract Builder<EventT> setValueMapper(
+          SerializableBiFunction<EventT, Session, Message> valueMapper);
 
       abstract Builder<EventT> setTopicNameMapper(
           SerializableFunction<EventT, String> topicNameMapper);
@@ -786,7 +788,8 @@ public class JmsIO {
      * @param valueMapper The function returning the {@link javax.jms.Message}
      * @return The corresponding {@link JmsIO.Write}.
      */
-    public Write<EventT> withValueMapper(SerializableMessageMapper<EventT> valueMapper) {
+    public Write<EventT> withValueMapper(
+        SerializableBiFunction<EventT, Session, Message> valueMapper) {
       checkArgument(valueMapper != null, "valueMapper can not be null");
       return builder().setValueMapper(valueMapper).build();
     }
@@ -879,9 +882,7 @@ public class JmsIO {
           }
           producer.send(destinationToSendTo, message);
         } catch (Exception ex) {
-          LOG.error(
-              "Error sending message on topic {}",
-              destinationToSendTo);
+          LOG.error("Error sending message on topic {}", destinationToSendTo);
           ctx.output(failedMessageTag, ctx.element());
         }
       }

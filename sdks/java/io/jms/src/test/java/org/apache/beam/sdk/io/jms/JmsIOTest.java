@@ -64,6 +64,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.junit.After;
@@ -664,7 +665,8 @@ public class JmsIOTest {
     }
   }
 
-  private static class TextMessageMapperWithError implements SerializableMessageMapper<String> {
+  private static class TextMessageMapperWithError
+      implements SerializableBiFunction<String, Session, Message> {
     @Override
     public Message apply(String value, Session session) {
       try {

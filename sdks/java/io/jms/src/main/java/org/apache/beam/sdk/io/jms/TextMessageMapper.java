@@ -21,12 +21,13 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 
 /**
  * The TextMessageMapper takes a {@link String} value, a {@link javax.jms.Session} and returns a
  * {@link javax.jms.TextMessage}.
  */
-public class TextMessageMapper implements SerializableMessageMapper<String> {
+public class TextMessageMapper implements SerializableBiFunction<String, Session, Message> {
 
   @Override
   public Message apply(String value, Session session) {
