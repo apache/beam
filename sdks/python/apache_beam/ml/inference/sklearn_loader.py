@@ -27,9 +27,9 @@ from typing import List
 import joblib
 import numpy
 
-import apache_beam.ml.inference.api as api
-import apache_beam.ml.inference.base as base
-import sklearn_loader
+from apache_beam.ml.inference.api import PredictionResult
+from apache_beam.ml.inference.base import InferenceRunner
+from apache_beam.ml.inference.base import ModelLoader
 from apache_beam.io.filesystems import FileSystems
 
 
@@ -38,20 +38,20 @@ class SerializationType(enum.Enum):
   JOBLIB = 2
 
 
-class SklearnInferenceRunner(base.InferenceRunner):
+class SklearnInferenceRunner(InferenceRunner):
   def run_inference(self, batch: List[numpy.array],
                     model: Any) -> Iterable[numpy.array]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
-    return [api.PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[numpy.array]) -> int:
     """Returns the number of bytes of data for a batch."""
     return sum(sys.getsizeof(element) for element in batch)
 
 
-class SklearnModelLoader(base.ModelLoader):
+class SklearnModelLoader(ModelLoader):
   def __init__(
       self,
       serialization: SerializationType = SerializationType.PICKLE,
