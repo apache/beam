@@ -133,3 +133,8 @@
 #swiper-pagination-id {
   bottom: -5px;
 }
+
+.swiper-slide {
+  -webkit-backface-visibility: hidden;
+  -webkit-transform: translate3d(0, 0, 0);
+}
