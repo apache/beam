@@ -2913,6 +2913,14 @@ public class BigQueryIO {
               "useAvroLogicalTypes can only be set with Avro output.");
         }
 
+        if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
+          // Batch load jobs currently support JSON data insertion only with CSV files
+          checkArgument(
+              !getJsonSchema().get().contains("JSON"),
+              "Found JSON type in TableSchema. JSON data insertion is currently "
+                  + "not supported with batch loads.");
+        }
+
         BatchLoads<DestinationT, T> batchLoads =
             new BatchLoads<>(
                 getWriteDisposition(),
