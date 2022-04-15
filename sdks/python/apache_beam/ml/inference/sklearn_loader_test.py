@@ -30,8 +30,8 @@ import apache_beam as beam
 import apache_beam.ml.inference.api as api
 import apache_beam.ml.inference.base as base
 from apache_beam.ml.inference.sklearn_loader import SerializationType
-from apache_beam.ml.inference.sklearn_loader import SKLearnInferenceRunner
-from apache_beam.ml.inference.sklearn_loader import SKLearnModelLoader
+from apache_beam.ml.inference.sklearn_loader import SklearnInferenceRunner
+from apache_beam.ml.inference.sklearn_loader import SklearnModelLoader
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -62,7 +62,7 @@ def build_model():
 class SkLearnRunInferenceTest(unittest.TestCase):
   def test_predict_output(self):
     fake_model = FakeModel()
-    inference_runner = SKLearnInferenceRunner()
+    inference_runner = SklearnInferenceRunner()
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -77,7 +77,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   def test_data_vectorized(self):
     fake_model = FakeModel()
-    inference_runner = SKLearnInferenceRunner()
+    inference_runner = SklearnInferenceRunner()
     batched_examples = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -87,7 +87,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     self.assertEqual(1, fake_model.total_predict_calls)
 
   def test_num_bytes(self):
-    inference_runner = SKLearnInferenceRunner()
+    inference_runner = SklearnInferenceRunner()
     batched_examples_int = [
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
@@ -114,7 +114,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         pcoll = pipeline | 'start' >> beam.Create(examples)
         #TODO(BEAM-14305) Test against the public API.
         actual = pcoll | base.RunInference(
-            SKLearnModelLoader(model_uri=file.name))
+            SklearnModelLoader(model_uri=file.name))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
             api.PredictionResult(numpy.array([1, 1]), 1)
@@ -132,7 +132,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         pcoll = pipeline | 'start' >> beam.Create(examples)
         #TODO(BEAM-14305) Test against the public API.
         actual = pcoll | base.RunInference(
-            SKLearnModelLoader(
+            SklearnModelLoader(
                 model_uri=file.name, serialization=SerializationType.JOBLIB))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
@@ -148,7 +148,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         pcoll = pipeline | 'start' >> beam.Create(examples)
         # TODO(BEAM-14305) Test against the public API.
         _ = pcoll | base.RunInference(
-            SKLearnModelLoader(model_uri='/var/bad_file_name'))
+            SklearnModelLoader(model_uri='/var/bad_file_name'))
         pipeline.run()
 
 

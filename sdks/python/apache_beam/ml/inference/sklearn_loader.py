@@ -38,7 +38,7 @@ class SerializationType(enum.Enum):
   JOBLIB = 2
 
 
-class SKLearnInferenceRunner(base.InferenceRunner):
+class SklearnInferenceRunner(base.InferenceRunner):
   def run_inference(self, batch: List[numpy.array],
                     model: Any) -> Iterable[numpy.array]:
     # vectorize data for better performance
@@ -51,14 +51,14 @@ class SKLearnInferenceRunner(base.InferenceRunner):
     return sum(sys.getsizeof(element) for element in batch)
 
 
-class SKLearnModelLoader(base.ModelLoader):
+class SklearnModelLoader(base.ModelLoader):
   def __init__(
       self,
       serialization: SerializationType = SerializationType.PICKLE,
       model_uri: str = ''):
     self._serialization = serialization
     self._model_uri = model_uri
-    self._inference_runner = SKLearnInferenceRunner()
+    self._inference_runner = SklearnInferenceRunner()
 
   def load_model(self):
     """Loads and initializes a model for processing."""
@@ -69,5 +69,5 @@ class SKLearnModelLoader(base.ModelLoader):
       return joblib.load(file)
     raise ValueError('No supported serialization type.')
 
-  def get_inference_runner(self) -> SKLearnInferenceRunner:
+  def get_inference_runner(self) -> SklearnInferenceRunner:
     return self._inference_runner
