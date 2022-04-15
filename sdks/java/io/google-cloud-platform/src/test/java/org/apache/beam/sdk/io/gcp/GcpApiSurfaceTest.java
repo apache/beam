@@ -121,7 +121,6 @@ public class GcpApiSurfaceTest {
             classesInPackage("org.apache.avro"),
             classesInPackage("org.apache.beam"),
             classesInPackage("org.apache.commons.logging"),
-            classesInPackage("org.codehaus.jackson"),
             classesInPackage("org.joda.time"),
             Matchers.<Class<?>>equalTo(org.threeten.bp.Duration.class),
             Matchers.<Class<?>>equalTo(org.threeten.bp.format.ResolverStyle.class),
