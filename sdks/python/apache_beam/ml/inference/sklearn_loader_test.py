@@ -37,9 +37,11 @@ from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import matches_all
 from sklearn import svm
 
+
 def _compare_prediction_result(a, b):
   example_equal = numpy.array_equal(a.example, b.example)
   return a.inference == b.inference and example_equal
+
 
 class FakeModel:
   def __init__(self):
@@ -66,9 +68,10 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
     ]
     expected_predictions = [
-      api.PredictionResult(numpy.array([1, 2, 3]), 6),
-      api.PredictionResult(numpy.array([4, 5, 6]), 15),
-      api.PredictionResult(numpy.array([7, 8, 9]), 24)]
+        api.PredictionResult(numpy.array([1, 2, 3]), 6),
+        api.PredictionResult(numpy.array([4, 5, 6]), 15),
+        api.PredictionResult(numpy.array([7, 8, 9]), 24)
+    ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_prediction_result(actual, expected))
@@ -115,8 +118,10 @@ class SkLearnRunInferenceTest(unittest.TestCase):
             SKLearnModelLoader(model_uri=file.name))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
-            api.PredictionResult(numpy.array([1, 1]), 1)]
-        assert_that(actual, equal_to(expected, equals_fn=_compare_prediction_result))
+            api.PredictionResult(numpy.array([1, 1]), 1)
+        ]
+        assert_that(
+            actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   def test_pipeline_joblib(self):
     with tempfile.NamedTemporaryFile() as file:
@@ -132,8 +137,10 @@ class SkLearnRunInferenceTest(unittest.TestCase):
                 model_uri=file.name, serialization=SerializationType.JOBLIB))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
-            api.PredictionResult(numpy.array([1, 1]), 1)]
-        assert_that(actual, equal_to(expected, equals_fn=_compare_prediction_result))
+            api.PredictionResult(numpy.array([1, 1]), 1)
+        ]
+        assert_that(
+            actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   def test_bad_file_raises(self):
     with self.assertRaises(RuntimeError):
