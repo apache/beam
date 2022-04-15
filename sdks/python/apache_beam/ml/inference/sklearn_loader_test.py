@@ -158,5 +158,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
             model_uri=file.name, serialization=None)
         model_loader.load_model()
 
+
 if __name__ == '__main__':
   unittest.main()
