@@ -67,7 +67,7 @@ class SklearnModelLoader(base.ModelLoader):
       return pickle.load(file)
     elif self._serialization == SerializationType.JOBLIB:
       return joblib.load(file)
-    raise ValueError('No supported serialization type.')
+    raise TypeError('Unsupported serialization type.')
 
   def get_inference_runner(self) -> SklearnInferenceRunner:
     return self._inference_runner

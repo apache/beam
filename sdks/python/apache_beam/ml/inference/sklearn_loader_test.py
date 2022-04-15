@@ -151,6 +151,12 @@ class SkLearnRunInferenceTest(unittest.TestCase):
             SklearnModelLoader(model_uri='/var/bad_file_name'))
         pipeline.run()
 
+  def test_bad_input_type_raises(self):
+    with tempfile.NamedTemporaryFile() as file:
+      with self.assertRaises(TypeError):
+        model_loader = SklearnModelLoader(
+            model_uri=file.name, serialization=None)
+        model_loader.load_model()
 
 if __name__ == '__main__':
   unittest.main()
