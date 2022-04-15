@@ -40,6 +40,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -64,6 +65,7 @@ public class QueryChangeStreamActionTest {
   private PartitionMetadataDao partitionMetadataDao;
   private PartitionMetadata partition;
   private ChangeStreamMetrics metrics;
+  private ThroughputEstimator throughputEstimator;
   private TimestampRange restriction;
   private RestrictionTracker<TimestampRange, Timestamp> restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
@@ -86,6 +88,7 @@ public class QueryChangeStreamActionTest {
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
     metrics = mock(ChangeStreamMetrics.class);
+    throughputEstimator = mock(ThroughputEstimator.class);
 
     action =
         new QueryChangeStreamAction(
@@ -96,7 +99,8 @@ public class QueryChangeStreamActionTest {
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
-            metrics);
+            metrics,
+            throughputEstimator);
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()

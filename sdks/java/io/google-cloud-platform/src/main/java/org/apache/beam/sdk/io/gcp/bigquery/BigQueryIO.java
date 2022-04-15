@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -2956,7 +2957,7 @@ public class BigQueryIO {
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
-          // This ensures that the Beam rows are directly translated into protos for Sorage API
+          // This ensures that the Beam rows are directly translated into protos for Storage API
           // writes, with no
           // need to round trip through JSON TableRow objects.
           storageApiDynamicDestinations =
@@ -2968,7 +2969,11 @@ public class BigQueryIO {
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsTableRow<>(
-                  dynamicDestinations, tableRowWriterFactory.getToRowFn(), getCreateDisposition());
+                  dynamicDestinations,
+                  tableRowWriterFactory.getToRowFn(),
+                  getCreateDisposition(),
+                  getIgnoreUnknownValues(),
+                  bqOptions.getSchemaUpdateRetries());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
@@ -3066,8 +3071,10 @@ public class BigQueryIO {
 
   /** Clear the cached map of created tables. Used for testing. */
   @VisibleForTesting
-  static void clearCreatedTables() {
+  static void clearStaticCaches() throws ExecutionException, InterruptedException {
     CreateTables.clearCreatedTables();
+    TwoLevelMessageConverterCache.clear();
+    StorageApiDynamicDestinationsTableRow.clearSchemaCache();
   }
 
   /////////////////////////////////////////////////////////////////////////////

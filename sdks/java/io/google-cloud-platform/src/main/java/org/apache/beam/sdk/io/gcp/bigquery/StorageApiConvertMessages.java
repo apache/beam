@@ -33,7 +33,8 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class StorageApiConvertMessages<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<DestinationT, ElementT>>, PCollection<KV<DestinationT, byte[]>>> {
+        PCollection<KV<DestinationT, ElementT>>,
+        PCollection<KV<DestinationT, StorageApiWritePayload>>> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
 
@@ -45,7 +46,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   }
 
   @Override
-  public PCollection<KV<DestinationT, byte[]>> expand(
+  public PCollection<KV<DestinationT, StorageApiWritePayload>> expand(
       PCollection<KV<DestinationT, ElementT>> input) {
     String operationName = input.getName() + "/" + getName();
 
@@ -56,7 +57,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   }
 
   public static class ConvertMessagesDoFn<DestinationT, ElementT>
-      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, byte[]>> {
+      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, StorageApiWritePayload>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private final BigQueryServices bqServices;
@@ -96,14 +97,14 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         ProcessContext c,
         PipelineOptions pipelineOptions,
         @Element KV<DestinationT, ElementT> element,
-        OutputReceiver<KV<DestinationT, byte[]>> o)
+        OutputReceiver<KV<DestinationT, StorageApiWritePayload>> o)
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       MessageConverter<ElementT> messageConverter =
           messageConverters.get(
               element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
-      o.output(
-          KV.of(element.getKey(), messageConverter.toMessage(element.getValue()).toByteArray()));
+      StorageApiWritePayload payload = messageConverter.toMessage(element.getValue());
+      o.output(KV.of(element.getKey(), payload));
     }
   }
 }

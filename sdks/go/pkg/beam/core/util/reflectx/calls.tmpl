@@ -30,7 +30,7 @@ import (
 // later.
 
 {{range $in := upto 9}}
-{{range $out := upto 4}}
+{{range $out := upto 5}}
 type Func{{$in}}x{{$out}} interface {
     Func
     Call{{$in}}x{{$out}}({{mktuple $in "interface{}"}}) ({{mktuple $out "interface{}"}})
