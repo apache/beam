@@ -13,7 +13,8 @@
 $(document).ready(function() {
     function Switcher(conf) {
         var id = conf["class-prefix"],
-            def = conf["default"];
+            def = conf["default"],
+            langs = [];
         var prefix = id + "-";
         return {
             "id": id,
@@ -31,7 +32,6 @@ $(document).ready(function() {
             "navHtml": function(types) {
                 var lists = "";
                 var selectors = "";
-
                 types.forEach(function(type) {
                     var name = type.replace(prefix, "");
                     name = (name === "py")? "python": name;
@@ -76,6 +76,7 @@ $(document).ready(function() {
             */
             "lookup": function(el, lang) {
                 if (!el.is("div"+this.selector)) {
+                    langs = lang;
                     return lang;
                 }
 
@@ -102,8 +103,14 @@ $(document).ready(function() {
                     }
                 });
 
-                if(!isPrefSelected) {
-                  pref = this.default;
+                if (!isPrefSelected) {
+                  // if there's no code block for the default language, set the
+                  // preferred language to the first available language
+                  if (!langs.includes(this.default)) {
+                    pref = langs[0]
+                  } else {
+                    pref = this.default;
+                  }
 
                   $("." + this.wrapper + " li").each(function() {
                       if ($(this).data("type") === pref) {
@@ -111,7 +118,6 @@ $(document).ready(function() {
                       }
                   });
                }
-
                 // Swapping visibility of code blocks.
                 $(this.selector).hide();
                 $("nav"+this.selector).show();
