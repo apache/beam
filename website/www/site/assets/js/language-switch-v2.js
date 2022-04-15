@@ -32,6 +32,7 @@ $(document).ready(function() {
             "navHtml": function(types) {
                 var lists = "";
                 var selectors = "";
+
                 types.forEach(function(type) {
                     var name = type.replace(prefix, "");
                     name = (name === "py")? "python": name;
@@ -104,12 +105,14 @@ $(document).ready(function() {
                 });
 
                 if (!isPrefSelected) {
-                  // if there's no code block for the default language, set the
-                  // preferred language to the first available language
-                  if (!langs.includes(this.default)) {
-                    pref = langs[0]
-                  } else {
+                  // if there's a code block for the default language,
+                  // set the preferred language to the default language
+                  if (langs.includes(this.default)) {
                     pref = this.default;
+                  // otherwise set the preferred language to the first available
+                  // language, so we don't have a page with no code blocks
+                  } else {
+                    pref = langs[0];
                   }
 
                   $("." + this.wrapper + " li").each(function() {
