@@ -376,13 +376,18 @@ class HadoopFileSystem(FileSystem):
     return self._hdfs_client.status(path, strict=False) is not None
 
   def size(self, url):
-    _, path = self._parse_url(url)
-    status = self._hdfs_client.status(path, strict=False)
-    if status is None:
-      raise BeamIOError('File not found: %s' % url)
-    return status[_FILE_STATUS_LENGTH]
+    """Fetches file size for a URL.
+
+    Returns:
+      Returns: int size of path according to the FileSystem.
+
+    Raises:
+      ``BeamIOError``: if url doesn't exist.
+    """
+    return self.metadata(url).size_in_bytes
 
   def last_updated(self, url):
+    """Fetches last updated time for a URL. NOT IMPLEMENTED."""
     raise NotImplementedError
 
   def checksum(self, url):
@@ -390,6 +395,9 @@ class HadoopFileSystem(FileSystem):
 
     Returns:
       String describing the checksum.
+
+    Raises:
+      ``BeamIOError``: if url doesn't exist.
     """
     _, path = self._parse_url(url)
     file_checksum = self._hdfs_client.checksum(path)
@@ -398,6 +406,25 @@ class HadoopFileSystem(FileSystem):
         file_checksum[_FILE_CHECKSUM_LENGTH],
         file_checksum[_FILE_CHECKSUM_BYTES],
     )
+
+  def metadata(self, url):
+    """Fetch metadata fields of a file on the FileSystem.
+
+    Args:
+      url: string url of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
+      Note: last_updated field is not supported yet.
+
+    Raises:
+      ``BeamIOError``: if url doesn't exist."""
+    _, path = self._parse_url(url)
+    status = self._hdfs_client.status(path, strict=False)
+    print(status)
+    if status is None:
+      raise BeamIOError('File not found: %s' % url)
+    return FileMetadata(url, status[_FILE_STATUS_LENGTH])
 
   def delete(self, urls):
     exceptions = {}
