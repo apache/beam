@@ -209,13 +209,18 @@
         {{ T "home-quotes-title" }}
       </div>
 
-      <div class="quotes-desktop slick-JS">
+      <div class="quotes-desktop swiper">
+        <div class="swiper-wrapper">
         {{ $data := index $.Site.Data .Site.Language.Lang }}
         {{ range $quote := $data.quotes }}
+          <div class="swiper-slide">
             {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
+          </div>
         {{ end }}
+        </div>
+        <div id="swiper-pagination-id" class="swiper-pagination"></div>
       </div>
-      <div class="dots-wrapper"></div>
+
     </div>
   </div>
 {{ end }}

@@ -10,32 +10,20 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-$(document).ready(function(){
-  const SelectorNames = {
-    slider: 'slick-JS',
-    dotsWrapper: 'dots-wrapper',
-    dots: 'dots',
+const swiper = new Swiper('.swiper', {
+  loop: true,
+  slidesPerView: 1,
+  slidesPerGroup: 1,
+  pagination: {
+    el: ".swiper-pagination",
+    clickable: true,
+    bulletClass: "bullet-class-custom",
+    bulletActiveClass: "bullet-active-class-custom",
+  },
+  breakpoints: {
+    1024: {
+      slidesPerView: 3,
+      slidesPerGroup: 3,
+    },
   }
-
-  $(`.${SelectorNames.slider}`).slick({
-    mobileFirst: true,
-    infinite: true,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-
-    arrows: false,
-    dots: true,
-    appendDots: `.${SelectorNames.dotsWrapper}`,
-    dotsClass: SelectorNames.dots,
-    responsive: [
-      {
-        breakpoint: 1024,
-        settings: {
-          infinite: false,
-          slidesToShow: 3,
-          slidesToScroll: 3,
-        }
-      },
-    ]
-  });
 });

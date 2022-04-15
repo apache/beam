@@ -39,7 +39,6 @@
 .wrap-slide {
   padding: 20px;
   width: 100%;
-  max-width: 33.33%;
   display: flex;
   justify-content: center;
 }
@@ -99,36 +98,6 @@
     }
   }
 
-  .dots {
-    display: flex;
-    padding-bottom: 10px;
-    justify-content: center;
-    list-style-type: none;
-
-    li {
-      border: none;
-      width: 13px;
-      height: 13px;
-      background: $color-smoke;
-      border-radius: 50%;
-      margin: 0 5px;
-      padding: 4px;
-      cursor: pointer;
-
-      button {
-        display: none;
-      }
-    }
-
-    li:focus {
-      outline: none;
-    }
-
-    li.slick-active {
-      background: $color-sun;
-    }
-  }
-
 }
 
 @media (max-width: $tablet) {
@@ -141,4 +110,26 @@
       margin-bottom: 0 !important;
     }
   }
+}
+
+
+.bullet-class-custom {
+  display: inline-block;
+  border: none;
+  width: 13px;
+  height: 13px;
+  background: $color-smoke;
+  border-radius: 50%;
+  margin: 0 5px;
+  padding: 4px;
+  cursor: pointer;
+  bottom: 0;
+}
+
+.bullet-active-class-custom {
+  background: $color-sun;
+}
+
+#swiper-pagination-id {
+  bottom: -5px;
 }
