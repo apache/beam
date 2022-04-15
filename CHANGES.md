@@ -68,7 +68,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Unused functions `ShallowCloneParDoPayload()`, `ShallowCloneSideInput()`, and `ShallowCloneFunctionSpec()` have been removed from the Go SDK's pipelinex package ([BEAM-13739](https://issues.apache.org/jira/browse/BEAM-13739)).
 
 ## Deprecations
 
@@ -137,9 +137,6 @@
   * Users using Dataflow Runner V2 may see issues with state cache due to inaccurate object sizes ([BEAM-13695](https://issues.apache.org/jira/browse/BEAM-13695)).
   * ZetaSql is currently unsupported ([issue](https://github.com/google/zetasql/issues/89)).
 * Python 3.9 support in Apache Beam ([BEAM-12000](https://issues.apache.org/jira/browse/BEAM-12000)).
-  * Dataflow support for Python 3.9 is expected to be available with 2.37.0,
-    but may not be fully available yet when the release is announced ([BEAM-13864](https://issues.apache.org/jira/browse/BEAM-13864)).
-  * Users of Dataflow Runner V2 can run Python 3.9 pipelines with 2.37.0 release right away.
 
 ## I/Os
 

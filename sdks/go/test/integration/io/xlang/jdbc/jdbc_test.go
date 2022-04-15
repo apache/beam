@@ -45,7 +45,7 @@ func checkFlags(t *testing.T) {
 	}
 }
 
-func setupTestContainer(t *testing.T, dbname, username, password string) int {
+func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, password string) (testcontainers.Container, int) {
 	t.Helper()
 
 	var env = map[string]string{
@@ -68,7 +68,6 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 		},
 		Started: true,
 	}
-	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
 		t.Fatalf("failed to start container: %s", err)
@@ -90,7 +89,7 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 	if err != nil {
 		t.Fatalf("can't create table, check command and access level")
 	}
-	return mappedPort.Int()
+	return container, mappedPort.Int()
 }
 
 // TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
@@ -98,10 +97,13 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 
+	ctx := context.Background()
 	dbname := "postjdbc"
 	username := "newuser"
 	password := "password"
-	port := setupTestContainer(t, dbname, username, password)
+
+	cont, port := setupTestContainer(t, ctx, dbname, username, password)
+	defer cont.Terminate(ctx)
 	tableName := "roles"
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
@@ -121,7 +123,9 @@ func TestJDBCIO_PostgresReadWrite(t *testing.T) {
 	dbname := "postjdbc"
 	username := "newuser"
 	password := "password"
-	port := setupTestContainer(t, dbname, username, password)
+	ctx := context.Background()
+	cont, port := setupTestContainer(t, ctx, dbname, username, password)
+	defer cont.Terminate(ctx)
 	tableName := "roles"
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)

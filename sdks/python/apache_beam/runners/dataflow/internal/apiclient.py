@@ -294,6 +294,7 @@ class Environment(object):
       environment_payload = proto_utils.parse_Bytes(
           environment.payload, beam_runner_api_pb2.DockerPayload)
       container_image_url = environment_payload.container_image
+
       container_image = dataflow.SdkHarnessContainerImage()
       container_image.containerImage = container_image_url
       container_image.useSingleCorePerContainer = (
@@ -304,7 +305,7 @@ class Environment(object):
         container_image.capabilities.append(capability)
       pool.sdkHarnessContainerImages.append(container_image)
 
-    if not _use_fnapi(options):
+    if not _use_fnapi(options) or not pool.sdkHarnessContainerImages:
       pool.workerHarnessContainerImage = (
           get_container_image_from_options(options))
     elif len(pool.sdkHarnessContainerImages) == 1:
