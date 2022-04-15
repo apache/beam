@@ -82,19 +82,11 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.38.0] - Unreleased
-
-## Highlights
-
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+# [2.38.0] - !!!!!!!!!!!!!!!
 
 ## I/Os
 * Introduce projection pushdown optimizer to the Java SDK ([BEAM-12976](https://issues.apache.org/jira/browse/BEAM-12976)). The optimizer currently only works on the [BigQuery Storage API](https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api), but more I/Os will be added in future releases. If you encounter a bug with the optimizer, please file a JIRA and disable the optimizer using pipeline option `--experiments=disable_projection_pushdown`.
-
 * A new IO for Neo4j graph databases was added. ([BEAM-1857](https://issues.apache.org/jira/browse/BEAM-1857))  It has the ability to update nodes and relationships using UNWIND statements and to read data using cypher statements with parameters.
-
-* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * `amazon-web-services2` has reached feature parity and is finally recommended over the earlier `amazon-web-services` and `kinesis` modules (Java). These will be deprecated in one of the next releases ([BEAM-13174](https://issues.apache.org/jira/browse/BEAM-13174)).
   * Long outstanding write support for `Kinesis` was added ([BEAM-13175](https://issues.apache.org/jira/browse/BEAM-13175)).
   * Configuration was simplified and made consistent across all IOs, including the usage of `AwsOptions` ([BEAM-13563](https://issues.apache.org/jira/browse/BEAM-13563), [BEAM-13663](https://issues.apache.org/jira/browse/BEAM-13663), [BEAM-13587](https://issues.apache.org/jira/browse/BEAM-13587)).
@@ -119,7 +111,6 @@
 * Beam 2.38.0 will be the last minor release to support Flink 1.11.
 * (`amazon-web-services2`) Client providers (`withXYZClientProvider()`) as well as IO specific `RetryConfiguration`s are deprecated, instead use `withClientConfiguration()` or `AwsOptions` to configure AWS IOs / clients.
   Custom implementations of client providers shall be replaced with a respective `ClientBuilderFactory` and configured through `AwsOptions` ([BEAM-13563](https://issues.apache.org/jira/browse/BEAM-13563)).
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Bugfixes
 
@@ -127,10 +118,6 @@
 * Fix quadratic behavior of pipeline canonicalization (Go) ([BEAM-14128](https://issues.apache.org/jira/browse/BEAM-14128))
   * This caused unnecessarily long pre-processing times before job submission for large complex pipelines.
 * Fix `pyarrow` version parsing (Python)([BEAM-14235](https://issues.apache.org/jira/browse/BEAM-14235))
-
-## Known Issues
-
-* ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 # [2.37.0] - 2022-03-04
 
