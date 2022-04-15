@@ -68,6 +68,12 @@ dependencies {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
     exclude group: 'io.grpc', module: 'grpc-grpclb'
   }
+  // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
+  // Java7 compatibility. The old google-cloud-bigtable is not compatible with
+  // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
+  // users receive newer google-cloud-bigtable. Beam doesn't directly use this
+  // artifact.
+  permitUnusedDeclared library.java.google_cloud_bigtable
   implementation library.java.google_cloud_core
   implementation(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
