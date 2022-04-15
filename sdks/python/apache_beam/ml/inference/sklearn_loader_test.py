@@ -24,6 +24,7 @@ import unittest
 
 import joblib
 import numpy
+from sklearn import svm
 
 import apache_beam as beam
 import apache_beam.ml.inference.api as api
@@ -34,8 +35,6 @@ from apache_beam.ml.inference.sklearn_loader import SKLearnModelLoader
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import matches_all
-from sklearn import svm
 
 
 def _compare_prediction_result(a, b):
