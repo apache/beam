@@ -22,6 +22,7 @@ const swiper = new Swiper('.swiper', {
   },
   breakpoints: {
     1024: {
+      loop: false,
       slidesPerView: 3,
       slidesPerGroup: 3,
     },
