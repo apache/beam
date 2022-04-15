@@ -21,6 +21,7 @@
 # mypy: check-untyped-defs
 
 import collections
+import copy
 import functools
 import itertools
 import logging
@@ -286,7 +287,9 @@ class Stage(object):
     # type: (...) -> beam_runner_api_pb2.PTransform
     if (len(self.transforms) == 1 and
         self.transforms[0].spec.urn in known_runner_urns):
-      return self.transforms[0]
+      result = copy.copy(self.transforms[0])
+      del result.subtransforms[:]
+      return result
 
     else:
       all_inputs = set(

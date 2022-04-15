@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
 enablePythonPerformanceTest()
 
 String pythonVersionSuffix = project.ext.pythonVersion

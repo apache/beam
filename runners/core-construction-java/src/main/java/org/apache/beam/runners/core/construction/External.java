@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -91,7 +93,17 @@ public class External {
           String urn, byte[] payload, String endpoint) {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
-    return new SingleOutputExpandableTransform<>(urn, payload, apiDesc, getFreshNamespaceIndex());
+    return new SingleOutputExpandableTransform<>(
+        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex());
+  }
+
+  @VisibleForTesting
+  static <InputT extends PInput, OutputT> SingleOutputExpandableTransform<InputT, OutputT> of(
+      String urn, byte[] payload, String endpoint, ExpansionServiceClientFactory clientFactory) {
+    Endpoints.ApiServiceDescriptor apiDesc =
+        Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
+    return new SingleOutputExpandableTransform<>(
+        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex());
   }
 
   /** Expandable transform for output type of PCollection. */
@@ -101,8 +113,9 @@ public class External {
         String urn,
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
+        ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex) {
-      super(urn, payload, endpoint, namespaceIndex);
+      super(urn, payload, endpoint, clientFactory, namespaceIndex);
     }
 
     @Override
@@ -113,12 +126,12 @@ public class External {
 
     public MultiOutputExpandableTransform<InputT> withMultiOutputs() {
       return new MultiOutputExpandableTransform<>(
-          getUrn(), getPayload(), getEndpoint(), getNamespaceIndex());
+          getUrn(), getPayload(), getEndpoint(), getClientFactory(), getNamespaceIndex());
     }
 
     public <T> SingleOutputExpandableTransform<InputT, T> withOutputType() {
       return new SingleOutputExpandableTransform<>(
-          getUrn(), getPayload(), getEndpoint(), getNamespaceIndex());
+          getUrn(), getPayload(), getEndpoint(), getClientFactory(), getNamespaceIndex());
     }
   }
 
@@ -129,8 +142,9 @@ public class External {
         String urn,
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
+        ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex) {
-      super(urn, payload, endpoint, namespaceIndex);
+      super(urn, payload, endpoint, clientFactory, namespaceIndex);
     }
 
     @Override
@@ -151,10 +165,12 @@ public class External {
     private final String urn;
     private final byte[] payload;
     private final Endpoints.ApiServiceDescriptor endpoint;
+    private final ExpansionServiceClientFactory clientFactory;
     private final Integer namespaceIndex;
 
     private transient RunnerApi.@Nullable Components expandedComponents;
     private transient RunnerApi.@Nullable PTransform expandedTransform;
+    private transient @Nullable List<String> expandedRequirements;
     private transient @Nullable Map<PCollection, String> externalPCollectionIdMap;
     private transient @Nullable Map<Coder, String> externalCoderIdMap;
 
@@ -162,10 +178,12 @@ public class External {
         String urn,
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
+        ExpansionServiceClientFactory clientFactory,
         Integer namespaceIndex) {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
+      this.clientFactory = clientFactory;
       this.namespaceIndex = namespaceIndex;
     }
 
@@ -207,23 +225,38 @@ public class External {
         }
       }
 
+      RunnerApi.Components originalComponents = components.toComponents();
       ExpansionApi.ExpansionRequest request =
           ExpansionApi.ExpansionRequest.newBuilder()
-              .setComponents(components.toComponents())
+              .setComponents(originalComponents)
               .setTransform(ptransformBuilder.build())
               .setNamespace(getNamespace())
               .build();
 
       ExpansionApi.ExpansionResponse response =
-          DEFAULT.getExpansionServiceClient(endpoint).expand(request);
+          clientFactory.getExpansionServiceClient(endpoint).expand(request);
 
       if (!Strings.isNullOrEmpty(response.getError())) {
         throw new RuntimeException(
             String.format("expansion service error: %s", response.getError()));
       }
 
-      expandedComponents = resolveArtifacts(response.getComponents());
+      Map<String, RunnerApi.Environment> newEnvironmentsWithDependencies =
+          response.getComponents().getEnvironmentsMap().entrySet().stream()
+              .filter(
+                  kv ->
+                      !originalComponents.getEnvironmentsMap().containsKey(kv.getKey())
+                          && kv.getValue().getDependenciesCount() != 0)
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+      expandedComponents =
+          response
+              .getComponents()
+              .toBuilder()
+              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies))
+              .build();
       expandedTransform = response.getTransform();
+      expandedRequirements = response.getRequirementsList();
 
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(expandedComponents).withPipeline(p);
@@ -263,29 +296,30 @@ public class External {
       return toOutputCollection(outputMapBuilder.build());
     }
 
-    private RunnerApi.Components resolveArtifacts(RunnerApi.Components components) {
-      if (components.getEnvironmentsMap().values().stream()
-          .allMatch(env -> env.getDependenciesCount() == 0)) {
-        return components;
+    private Map<String, RunnerApi.Environment> resolveArtifacts(
+        Map<String, RunnerApi.Environment> environments) {
+      if (environments.size() == 0) {
+        return environments;
       }
-
       ManagedChannel channel =
           ManagedChannelBuilder.forTarget(endpoint.getUrl())
               .usePlaintext()
               .maxInboundMessageSize(Integer.MAX_VALUE)
               .build();
       try {
-        RunnerApi.Components.Builder componentsBuilder = components.toBuilder();
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
             ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
-        for (Map.Entry<String, RunnerApi.Environment> env :
-            componentsBuilder.getEnvironmentsMap().entrySet()) {
-          componentsBuilder.putEnvironments(
-              env.getKey(), resolveArtifacts(retrievalStub, env.getValue()));
-        }
-        return componentsBuilder.build();
-      } catch (IOException exn) {
-        throw new RuntimeException(exn);
+        return environments.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    kv -> {
+                      try {
+                        return resolveArtifacts(retrievalStub, kv.getValue());
+                      } catch (IOException e) {
+                        throw new RuntimeException(e);
+                      }
+                    }));
       } finally {
         channel.shutdown();
       }
@@ -369,6 +403,10 @@ public class External {
       return expandedComponents;
     }
 
+    List<String> getExpandedRequirements() {
+      return expandedRequirements;
+    }
+
     Map<PCollection, String> getExternalPCollectionIdMap() {
       return externalPCollectionIdMap;
     }
@@ -387,6 +425,10 @@ public class External {
 
     Endpoints.ApiServiceDescriptor getEndpoint() {
       return endpoint;
+    }
+
+    ExpansionServiceClientFactory getClientFactory() {
+      return clientFactory;
     }
 
     Integer getNamespaceIndex() {
