@@ -41,13 +41,11 @@ import org.slf4j.LoggerFactory;
 })
 public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
+//  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
   private final Class<T> sparkReceiverClass;
   private @Nullable Constructor<?> currentConstructor;
   private @Nullable Object[] constructorArgs;
-  private @Nullable Consumer<Object[]> storeConsumer;
-  private @Nullable T proxy;
-  private @Nullable WrappedSupervisor wrappedSupervisor;
+  private @Nullable T receiver;
 
   public ProxyReceiverBuilder(Class<T> sparkReceiverClass) {
     this.sparkReceiverClass = sparkReceiverClass;
@@ -84,12 +82,6 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
     throw new IllegalArgumentException("Can not find appropriate constructor for given args");
   }
 
-  /** Method for specifying custom realization of {@link Receiver#store(Object)} method. */
-  public ProxyReceiverBuilder<X, T> withCustomStoreConsumer(Consumer<Object[]> storeConsumer) {
-    this.storeConsumer = storeConsumer;
-    return this;
-  }
-
   /**
    * @return Proxy for given {@param receiver} that doesn't use Spark environment and uses Apache
    *     Beam mechanisms instead.
@@ -97,55 +89,15 @@ public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
   public T build()
       throws InvocationTargetException, InstantiationException, IllegalAccessException {
 
-    if (currentConstructor == null || constructorArgs == null || storeConsumer == null) {
+    if (currentConstructor == null || constructorArgs == null) {
       throw new IllegalStateException(
           "It is not possible to build a Receiver proxy without setting the obligatory parameters.");
     }
-    if (proxy != null) {
+    if (receiver != null) {
       throw new IllegalStateException("Proxy already built.");
     }
     currentConstructor.setAccessible(true);
-    T originalReceiver = (T) currentConstructor.newInstance(constructorArgs);
-
-    MethodInterceptor handler =
-        (obj, method, args, proxy) -> {
-          String methodName = method.getName();
-          switch (methodName) {
-            case "supervisor":
-              return getWrappedSupervisor();
-            case "onStart":
-              LOG.debug("Original Receiver will be started");
-              break;
-            case "stop":
-              LOG.debug("Custom Receiver was stopped. Message = {}", args[0]);
-              break;
-            case "store":
-              storeConsumer.accept(args);
-              return null;
-          }
-          return proxy.invoke(originalReceiver, args);
-        };
-
-    Enhancer enhancer = new Enhancer();
-    enhancer.setSuperclass(sparkReceiverClass);
-    enhancer.setCallback(handler);
-    this.proxy = (T) enhancer.create(currentConstructor.getParameterTypes(), constructorArgs);
-    getWrappedSupervisor();
-    return this.proxy;
-  }
-
-  /**
-   * @return {@link org.apache.spark.streaming.receiver.ReceiverSupervisor} that uses Apache Beam
-   *     mechanisms.
-   */
-  private WrappedSupervisor getWrappedSupervisor() {
-    if (this.wrappedSupervisor == null) {
-      if (this.proxy == null) {
-        throw new IllegalStateException(
-            "Can not create WrappedSupervisor, because proxy Receiver was not built yet");
-      }
-      this.wrappedSupervisor = new WrappedSupervisor(this.proxy, new SparkConf(), storeConsumer);
-    }
-    return this.wrappedSupervisor;
+    this.receiver = (T) currentConstructor.newInstance(constructorArgs);
+    return this.receiver;
   }
 }

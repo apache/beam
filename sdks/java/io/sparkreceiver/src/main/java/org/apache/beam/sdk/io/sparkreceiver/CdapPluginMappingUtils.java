@@ -37,25 +37,24 @@ public class CdapPluginMappingUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(CdapPluginMappingUtils.class);
 
-  public static Receiver getSparkReceiver(PluginConfig config, Consumer<Object[]> consumer) {
+  public static Receiver getSparkReceiver(PluginConfig config) {
     if (config instanceof SalesforceStreamingSourceConfig) {
-      return getSparkReceiverForSalesforce((SalesforceStreamingSourceConfig) config, consumer);
+      return getSparkReceiverForSalesforce((SalesforceStreamingSourceConfig) config);
     } else if (config instanceof HubspotStreamingSourceConfig) {
-      return getSparkReceiverForHubspot((HubspotStreamingSourceConfig) config, consumer);
+      return getSparkReceiverForHubspot((HubspotStreamingSourceConfig) config);
     } else {
       return null;
     }
   }
 
   public static SalesforceReceiver getSparkReceiverForSalesforce(
-      SalesforceStreamingSourceConfig config, Consumer<Object[]> consumer) {
+      SalesforceStreamingSourceConfig config) {
     ProxyReceiverBuilder<String, SalesforceReceiver> builder =
         new ProxyReceiverBuilder<>(SalesforceReceiver.class);
 
     try {
       return builder
           .withConstructorArgs(config.getAuthenticatorCredentials(), config.getPushTopicName())
-          .withCustomStoreConsumer(consumer)
           .build();
     } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       LOG.error("Can not build proxy Spark Receiver", e);
@@ -64,12 +63,11 @@ public class CdapPluginMappingUtils {
   }
 
   public static HubspotReceiver getSparkReceiverForHubspot(
-      HubspotStreamingSourceConfig config, Consumer<Object[]> consumer) {
+      HubspotStreamingSourceConfig config) {
     ProxyReceiverBuilder<String, HubspotReceiver> builder =
         new ProxyReceiverBuilder<>(HubspotReceiver.class);
     try {
-      builder.withConstructorArgs(config);
-      return builder.withCustomStoreConsumer(consumer).build();
+      return builder.withConstructorArgs(config).build();
     } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       LOG.error("Can not build proxy Spark Receiver", e);
     }

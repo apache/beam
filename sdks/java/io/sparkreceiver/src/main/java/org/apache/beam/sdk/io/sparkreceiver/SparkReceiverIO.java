@@ -52,9 +52,7 @@ public class SparkReceiverIO {
   @SuppressWarnings({"UnnecessaryParentheses", "UnusedVariable", "rawtypes"})
   public abstract static class Read<V> extends PTransform<PBegin, PCollection<V>> {
 
-    abstract @Nullable PluginConfig getPluginConfig();
-
-    abstract @Nullable Class<? extends Receiver> getSparkReceiverClass();
+    abstract @Nullable Receiver<V> getSparkReceiver();
 
     abstract @Nullable Class<V> getValueClass();
 
@@ -68,17 +66,11 @@ public class SparkReceiverIO {
 
       abstract Builder<V> setValueClass(Class<V> valueClass);
 
-      abstract Builder<V> setPluginConfig(PluginConfig config);
-
       abstract Builder<V> setValueCoder(Coder<V> valueCoder);
 
-      abstract Builder<V> setSparkReceiverClass(Class<? extends Receiver> sparkReceiverClass);
+      abstract Builder<V> setSparkReceiver(Receiver<V> sparkReceiver);
 
       abstract Read<V> build();
-    }
-
-    public Read<V> withPluginConfig(PluginConfig pluginConfig) {
-      return toBuilder().setPluginConfig(pluginConfig).build();
     }
 
     public Read<V> withValueClass(Class<V> valueClass) {
@@ -89,8 +81,8 @@ public class SparkReceiverIO {
       return toBuilder().setValueCoder(valueCoder).build();
     }
 
-    public Read<V> withSparkReceiverClass(Class<? extends Receiver> sparkReceiverClass) {
-      return toBuilder().setSparkReceiverClass(sparkReceiverClass).build();
+    public Read<V> withSparkReceiver(Receiver<V> sparkReceiver) {
+      return toBuilder().setSparkReceiver(sparkReceiver).build();
     }
 
     @Override
@@ -107,7 +99,7 @@ public class SparkReceiverIO {
      */
     @VisibleForTesting
     UnboundedSource<V, SparkReceiverCheckpointMark> makeSource() {
-      return new SparkReceiverUnboundedSource<>(this, -1, null, null, null, new PriorityQueue<>());
+      return new SparkReceiverUnboundedSource<>(this, -1, null, null, getSparkReceiver());
     }
   }
 
@@ -129,8 +121,7 @@ public class SparkReceiverIO {
               sparkReceiverRead
                   .toBuilder()
                   .setValueCoder(valueCoder)
-                  .setPluginConfig(sparkReceiverRead.getPluginConfig())
-                  .setSparkReceiverClass(sparkReceiverRead.getSparkReceiverClass())
+                  .setSparkReceiver(sparkReceiverRead.getSparkReceiver())
                   .build()
                   .makeSource());
 

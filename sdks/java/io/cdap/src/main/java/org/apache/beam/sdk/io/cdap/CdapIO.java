@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
+import org.apache.beam.sdk.io.sparkreceiver.CdapPluginMappingUtils;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,9 +126,11 @@ public class CdapIO {
       getCdapPlugin().prepareRun(getPluginConfig());
 
       if (getCdapPlugin().isUnbounded()) {
+        Receiver<V> sparkReceiver = CdapPluginMappingUtils.getSparkReceiver(getPluginConfig());
         SparkReceiverIO.Read<V> reader =
             SparkReceiverIO.<V>read()
-                .withPluginConfig(getPluginConfig())
+                .withSparkReceiver(sparkReceiver)
+                .withValueCoder(getValueCoder())
                 .withValueClass(getValueClass());
         PCollection<V> values = input.apply(reader)
                 .setCoder(getValueCoder());

@@ -23,6 +23,8 @@ import static org.junit.Assert.assertTrue;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.ReceiverSupervisor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,7 +58,7 @@ public class ProxyReceiverBuilderTest {
    * {@link ReceiverSupervisor} was wrapped into {@link WrappedSupervisor}.
    */
   @Test
-  public void testCreatingProxySparkReceiverForSalesforce() {
+  public void testCreatingSparkReceiverForSalesforce() {
     try {
       SalesforceStreamingSourceConfig config =
           new ConfigWrapper<>(SalesforceStreamingSourceConfig.class)
@@ -65,15 +67,16 @@ public class ProxyReceiverBuilderTest {
       assertNotNull(config);
 
       AtomicBoolean customStoreConsumerWasUsed = new AtomicBoolean(false);
-      SalesforceReceiver proxyReciever =
+      SalesforceReceiver reciever =
           CdapPluginMappingUtils.getSparkReceiverForSalesforce(
-              config, args -> customStoreConsumerWasUsed.set(true));
+              config);
+      new WrappedSupervisor(reciever, new SparkConf(), args -> customStoreConsumerWasUsed.set(true));
 
-      assertNotNull(proxyReciever);
-      proxyReciever.onStart();
-      assertTrue(proxyReciever.supervisor() instanceof WrappedSupervisor);
+      assertNotNull(reciever);
+      reciever.onStart();
+      assertTrue(reciever.supervisor() instanceof WrappedSupervisor);
 
-      proxyReciever.store(TEST_MESSAGE);
+      reciever.store(TEST_MESSAGE);
       assertTrue(customStoreConsumerWasUsed.get());
     } catch (Exception e) {
       LOG.error("Can not get proxy", e);

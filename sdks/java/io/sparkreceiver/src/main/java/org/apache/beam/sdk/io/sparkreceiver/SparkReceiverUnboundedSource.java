@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,22 +50,20 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
 
     List<SparkReceiverUnboundedSource<V>> result = new ArrayList<>(desiredNumSplits);
 
-    Queue<V> queue = new PriorityQueue<>();
     AtomicLong recordsRead = new AtomicLong(0);
-    result.add(
-        new SparkReceiverUnboundedSource<>(
+    SparkReceiverUnboundedSource<V> source = new SparkReceiverUnboundedSource<>(
             spec.toBuilder().build(),
             0,
             null,
-            null,
-            objects -> {
-              queue.offer((V) objects[0]);
-              long read = recordsRead.getAndIncrement();
-              if (read % 100 == 0) {
-                LOG.info("[{}], records read = {}", 0, recordsRead);
-              }
-            },
-            queue));
+            null, spec.getSparkReceiver());
+    result.add(source);
+    source.initReceiver(objects -> {
+      source.getAvailableRecordsQueue().offer((V) objects[0]);
+      long read = recordsRead.getAndIncrement();
+      if (read % 100 == 0) {
+        LOG.info("[{}], records read = {}", 0, recordsRead);
+      }
+    });
 
     return result;
   }
@@ -94,30 +93,34 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUnboundedSource.class);
 
-  private final Read<V> spec; // Contains all the relevant configuratiton of the source.
+  private final Read<V> spec; // Contains all the relevant configuration of the source.
   private final int id; // split id, mainly for debugging
   private final String minOffset;
   private final String maxOffset;
   private final Queue<V> availableRecordsQueue;
+  private final Receiver<V> receiver;
 
   public SparkReceiverUnboundedSource(
       Read<V> spec,
       int id,
       String minOffset,
       String maxOffset,
-      Consumer<Object[]> storeConsumer,
-      Queue<V> queue) {
+      Receiver<V> receiver) {
     this.spec = spec;
     this.id = id;
     this.minOffset = minOffset;
     this.maxOffset = maxOffset;
-    this.availableRecordsQueue = queue;
+    this.availableRecordsQueue = new PriorityQueue<>();
+    this.receiver = receiver;
+  }
+
+  void initReceiver(Consumer<Object[]> storeConsumer) {
     try {
-      PluginConfig config = getPluginConfig();
-      Receiver receiver = CdapPluginMappingUtils.getSparkReceiver(config, storeConsumer);
+      new WrappedSupervisor(receiver, new SparkConf(), storeConsumer);
+
       receiver.onStart();
     } catch (Exception e) {
-      LOG.error("Can not get Spark Receiver object!", e);
+      LOG.error("Can not init Spark Receiver!", e);
     }
   }
 
@@ -141,11 +144,7 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
     return id;
   }
 
-  public Class<? extends Receiver> getSparkReceiverClass() {
-    return spec.getSparkReceiverClass();
-  }
-
-  public PluginConfig getPluginConfig() {
-    return spec.getPluginConfig();
+  public Receiver<V> getSparkReceiver() {
+    return spec.getSparkReceiver();
   }
 }
