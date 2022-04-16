@@ -426,8 +426,8 @@ class FileMetadata(object):
   Fields:
     path: [Required] file path.
     size_in_bytes: [Required] file size in bytes.
-    last_updated_in_seconds: [Optional] last modified timestamp of the file.
-      Valued 0.0 if not specified.
+    last_updated_in_seconds: [Optional] last modified timestamp of the file, or
+    valued 0.0 if not specified.
   """
   def __init__(
       self,
@@ -454,7 +454,7 @@ class FileMetadata(object):
     return hash((self.path, self.size_in_bytes, self.last_updated_in_seconds))
 
   def __repr__(self):
-    if 0.0 == self.last_updated_in_seconds:
+    if self.last_updated_in_seconds == 0.0:
       return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
     else:
       return 'FileMetadata(%s, %s, %s)' % (
@@ -902,7 +902,8 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
 
     This operation returns metadata as stored in the underlying
     FileSystem. It should not need to read file data to obtain this value.
-    For web based file systems, this method should also incur as few as possible requests.
+    For web based file systems, this method should also incur as few as
+    possible requests.
 
     Args:
       path: string path of a file.
@@ -911,7 +912,8 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       :class:`~apache_beam.io.filesystem.FileMetadata`.
 
     Raises:
-      ``BeamIOError``: if path isn't a file or doesn't exist."""
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
     raise NotImplementedError
 
   @abc.abstractmethod

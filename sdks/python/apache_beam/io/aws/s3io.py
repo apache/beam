@@ -109,7 +109,8 @@ class S3IO(object):
       with_metadata: Experimental. Specify whether returns file metadata.
 
     Returns:
-      Dictionary of file name -> size.
+      If ``with_metadata`` is False: dict of file name -> size; if
+        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
     """
     bucket, prefix = parse_s3_path(path, object_optional=True)
     request = messages.ListRequest(bucket=bucket, prefix=prefix)
@@ -461,7 +462,8 @@ class S3IO(object):
   def _vars(self, path):
     """For internal use only; no backwards-compatibility guarantees.
 
-    Returns supported fields (checksum, last_updated, size) of a single object as a dict at once.
+    Returns supported fields (checksum, last_updated, size) of a single object
+    as a dict at once.
 
     This method does not perform glob expansion. Hence the given path must be
     for a single S3 object.

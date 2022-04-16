@@ -128,7 +128,6 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_checksum(self):
-
     file_name = self.TEST_DATA_PATH + 'checksum'
     file_size = 1024
     file_ = self._insert_random_file(self.client, file_name, file_size)
@@ -145,6 +144,22 @@ class TestS3IO(unittest.TestCase):
     self.assertEqual(original_etag, rewritten_etag)
     self.assertEqual(len(original_etag), 36)
     self.assertTrue(original_etag.endswith('-1"'))
+
+    # Clean up
+    self.aws.delete(file_name)
+
+  def test_metadata_vars(self):
+    file_name = self.TEST_DATA_PATH + 'metadata'
+    file_size = 1024
+    self._insert_random_file(self.client, file_name, file_size)
+    file_checksum = self.aws.checksum(file_name)
+    file_timestamp = self.aws.last_updated(file_name)
+
+    metadata_vars = self.aws._vars(file_name)
+
+    self.assertEqual(metadata_vars['size'], file_size)
+    self.assertEqual(metadata_vars['checksum'], file_checksum)
+    self.assertEqual(metadata_vars['last_updated'], file_timestamp)
 
     # Clean up
     self.aws.delete(file_name)

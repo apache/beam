@@ -321,7 +321,8 @@ class LocalFileSystem(FileSystem):
       :class:`~apache_beam.io.filesystem.FileMetadata`.
 
     Raises:
-      ``BeamIOError``: if path isn't a file or doesn't exist."""
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
     if not self.exists(path):
       raise BeamIOError('Path does not exist: %s' % path)
     return FileMetadata(path, os.path.getsize(path), os.path.getmtime(path))

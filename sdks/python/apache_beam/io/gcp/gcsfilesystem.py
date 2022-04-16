@@ -322,7 +322,8 @@ class GCSFileSystem(FileSystem):
       :class:`~apache_beam.io.filesystem.FileMetadata`.
 
     Raises:
-      ``BeamIOError``: if path isn't a file or doesn't exist."""
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
     try:
       file_metadata = gcsio.GcsIO()._vars(path)
       return FileMetadata(

@@ -555,12 +555,11 @@ class GcsIO(object):
 
     Args:
       path: GCS file path pattern in the form gs://<bucket>/[name].
-      with_metadata: Experimental. Specify whether returns file metadata
+      with_metadata: Experimental. Specify whether returns file metadata.
 
     Returns:
-      If ``with_metadata`` is set to False: Dictionary of file name -> size.
-      If ``with_metadata`` is set to True: Dictionary of file name -> tuple
-        (size, timestamp)
+      If ``with_metadata`` is False: dict of file name -> size; if
+        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
     """
     bucket, prefix = parse_gcs_path(path, object_optional=True)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)

@@ -379,7 +379,7 @@ class HadoopFileSystem(FileSystem):
     """Fetches file size for a URL.
 
     Returns:
-      Returns: int size of path according to the FileSystem.
+      int size of path according to the FileSystem.
 
     Raises:
       ``BeamIOError``: if url doesn't exist.
@@ -418,7 +418,8 @@ class HadoopFileSystem(FileSystem):
       Note: last_updated field is not supported yet.
 
     Raises:
-      ``BeamIOError``: if url doesn't exist."""
+      ``BeamIOError``: if url doesn't exist.
+    """
     _, path = self._parse_url(url)
     status = self._hdfs_client.status(path, strict=False)
     print(status)

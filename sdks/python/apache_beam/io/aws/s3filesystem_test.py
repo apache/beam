@@ -79,6 +79,18 @@ class S3FileSystemTest(unittest.TestCase):
       self.fs.split('/no/s3/prefix')
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
+  def test_match_single(self, unused_mock_arg):
+    # Prepare mocks.
+    s3io_mock = mock.MagicMock()
+    s3filesystem.s3io.S3IO = lambda options: s3io_mock  # type: ignore[misc]
+    s3io_mock._vars.return_value = {'size': 1, 'last_updated': 9999999.0}
+    expected_results = [FileMetadata('s3://bucket/file1', 1, 9999999.0)]
+    match_result = self.fs.match(['s3://bucket/file1'])[0]
+
+    self.assertEqual(match_result.metadata_list, expected_results)
+    s3io_mock._vars.assert_called_once_with('s3://bucket/file1')
+
+  @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
   def test_match_multiples(self, unused_mock_arg):
     # Prepare mocks.
     s3io_mock = mock.MagicMock()

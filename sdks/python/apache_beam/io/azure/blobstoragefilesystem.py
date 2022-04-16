@@ -118,8 +118,8 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, (size, updated) in \
-          blobstorageio.BlobStorageIO().list_prefix(dir_or_prefix, with_metadata=True).items():
+      for path, (size, updated) in blobstorageio.BlobStorageIO() \
+        .list_prefix(dir_or_prefix, with_metadata=True).items():
         yield FileMetadata(path, size, updated)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
@@ -286,7 +286,8 @@ class BlobStorageFileSystem(FileSystem):
       :class:`~apache_beam.io.filesystem.FileMetadata`.
 
     Raises:
-      ``BeamIOError``: if path isn't a file or doesn't exist."""
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
     try:
       file_metadata = blobstorageio.BlobStorageIO()._vars(path)
       return FileMetadata(
