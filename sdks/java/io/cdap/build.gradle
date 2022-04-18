@@ -39,7 +39,7 @@ interface for integration with CDAP plugins."""
 
 allprojects {
     repositories {
-        maven { url 'https://jitpack.io' }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
     }
 }
 
@@ -69,7 +69,7 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:io:hadoop-format")
     implementation project(":sdks:java:io:sparkreceiver")
-    testImplementation "com.github.data-integrations:salesforce:v1.3.9"
+    testImplementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit

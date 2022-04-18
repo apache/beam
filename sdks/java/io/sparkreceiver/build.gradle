@@ -34,7 +34,7 @@ interface for streaming integration with CDAP plugins."""
 
 allprojects {
     repositories {
-        maven { url 'https://jitpack.io' }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
     }
 }
 
@@ -60,8 +60,8 @@ dependencies {
     implementation library.java.spark_core
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation "com.github.data-integrations:salesforce:v1.3.9"
-    testImplementation "com.github.data-integrations:salesforce:v1.3.9"
+    implementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
+    testImplementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
     testImplementation library.java.junit
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
