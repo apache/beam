@@ -35,16 +35,24 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import torch
-  from apache_beam.ml.inference import base
+  from apache_beam.ml.inference.api import PredictionResult
+  from apache_beam.ml.inference.base import RunInference
+  from apache_beam.ml.inference.pytorch import PytorchInferenceRunner
   from apache_beam.ml.inference.pytorch import PytorchModelLoader
 except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
 
+def _compare_prediction_result(a, b):
+  return (
+      torch.equal(a.inference, b.inference) and
+      torch.equal(a.example, b.example))
+
+
 class PytorchLinearRegression(torch.nn.Module):
-  def __init__(self, inputSize, outputSize):
+  def __init__(self, input_dim, output_dim):
     super().__init__()
-    self.linear = torch.nn.Linear(inputSize, outputSize)
+    self.linear = torch.nn.Linear(input_dim, output_dim)
 
   def forward(self, x):
     out = self.linear(x)
@@ -59,27 +67,161 @@ class PytorchRunInferenceTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
-  def test_simple_single_tensor_feature(self):
+  def test_inference_runner_single_tensor_feature(self):
+    examples = [
+        torch.from_numpy(np.array([1], dtype="float32")),
+        torch.from_numpy(np.array([5], dtype="float32")),
+        torch.from_numpy(np.array([-3], dtype="float32")),
+        torch.from_numpy(np.array([10.0], dtype="float32")),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            torch.Tensor([example * 2.0 + 0.5
+                          for example in examples]).reshape(-1, 1))
+    ]
+
+    model = PytorchLinearRegression(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    predictions = inference_runner.run_inference(examples, model)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
+  def test_inference_runner_multiple_tensor_features(self):
+    examples = torch.from_numpy(
+        np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
+                 dtype="float32")).reshape(-1, 2)
+    examples = [
+        torch.from_numpy(np.array([1, 5], dtype="float32")),
+        torch.from_numpy(np.array([3, 10], dtype="float32")),
+        torch.from_numpy(np.array([-14, 0], dtype="float32")),
+        torch.from_numpy(np.array([0.5, 0.5], dtype="float32")),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            torch.Tensor([f1 * 2.0 + f2 * 3 + 0.5
+                          for f1, f2 in examples]).reshape(-1, 1))
+    ]
+
+    model = PytorchLinearRegression(input_dim=2, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    predictions = inference_runner.run_inference(examples, model)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
+  def test_num_bytes(self):
+    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    examples = torch.from_numpy(
+        np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
+                 dtype="float32")).reshape(-1, 2)
+    self.assertEqual((examples[0].element_size()) * 8,
+                     inference_runner.get_num_bytes(examples))
+
+  def test_namespace(self):
+    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    self.assertEqual(
+        'RunInferencePytorch', inference_runner.get_metrics_namespace())
+
+  def test_pipeline_local_model(self):
+    with TestPipeline() as pipeline:
+      examples = torch.from_numpy(
+          np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
+                   dtype="float32")).reshape(-1, 2)
+      expected_predictions = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(
+              examples,
+              torch.Tensor([f1 * 2.0 + f2 * 3 + 0.5
+                            for f1, f2 in examples]).reshape(-1, 1))
+      ]
+
+      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+      path = os.path.join(self.tmpdir, 'my_state_dict_path')
+      torch.save(state_dict, path)
+
+      model_loader = PytorchModelLoader(
+          state_dict_path=path,
+          model_class=PytorchLinearRegression(input_dim=2, output_dim=1))
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      predictions = pcoll | RunInference(model_loader)
+      assert_that(
+          predictions,
+          equal_to(expected_predictions, equals_fn=_compare_prediction_result))
+
+  def test_pipeline_local_model_with_key(self):
     with TestPipeline() as pipeline:
       examples = torch.from_numpy(
           np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
-      expected = torch.Tensor([example * 2.0 + 0.5 for example in examples])
+      keyed_examples = list(zip(range(len(examples)), examples))
+      expected_values = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(
+              examples,
+              torch.Tensor([example * 2.0 + 0.5
+                            for example in examples]).reshape(-1, 1))
+      ]
+      expected_predictions = list(zip(range(len(examples)), expected_values))
 
       state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                                 ('linear.bias', torch.Tensor([0.5]))])
       path = os.path.join(self.tmpdir, 'my_state_dict_path')
       torch.save(state_dict, path)
 
-      input_dim = 1
-      output_dim = 1
-
       model_loader = PytorchModelLoader(
           state_dict_path=path,
-          model_class=PytorchLinearRegression(input_dim, output_dim))
+          model_class=PytorchLinearRegression(input_dim=1, output_dim=1))
+
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      predictions = pcoll | RunInference(model_loader)
+
+      def _compare_keyed_prediction_result(a, b):
+        key_equal = a[0] == b[0]
+        return (
+            torch.equal(a[1].inference, b[1].inference) and
+            torch.equal(a[1].example, b[1].example) and key_equal)
+
+      assert_that(
+          predictions,
+          equal_to(
+              expected_predictions, equals_fn=_compare_keyed_prediction_result))
+
+  def test_pipeline_gcs_model(self):
+    with TestPipeline() as pipeline:
+      examples = torch.from_numpy(
+          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
+      expected_predictions = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(
+              examples,
+              torch.Tensor([example * 2.0 + 0.5
+                            for example in examples]).reshape(-1, 1))
+      ]
+
+      gs_pth = 'gs://apache-beam-ml/pytorch_lin_reg_model_2x+0.5_state_dict.pth'
+      model_loader = PytorchModelLoader(
+          state_dict_path=gs_pth,
+          model_class=PytorchLinearRegression(input_dim=1, output_dim=1))
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(model_loader)
-      assert_that(actual, equal_to(expected))
+      predictions = pcoll | RunInference(model_loader)
+      assert_that(
+          predictions,
+          equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
     with self.assertRaisesRegex(TypeError, "expected Tensor as element"):
@@ -91,64 +233,13 @@ class PytorchRunInferenceTest(unittest.TestCase):
         path = os.path.join(self.tmpdir, 'my_state_dict_path')
         torch.save(state_dict, path)
 
-        input_dim = 1
-        output_dim = 1
-
         model_loader = PytorchModelLoader(
             state_dict_path=path,
-            model_class=PytorchLinearRegression(input_dim, output_dim))
+            model_class=PytorchLinearRegression(input_dim=1, output_dim=1))
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         # pylint: disable=expression-not-assigned
-        pcoll | base.RunInference(model_loader)
-
-  def test_simple_multiple_tensor_features(self):
-    with TestPipeline() as pipeline:
-      examples = torch.from_numpy(
-          np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
-                   dtype="float32")).reshape(-1, 2)
-      expected = torch.Tensor([f1 * 2.0 + f2 * 3 + 0.5 for f1, f2 in examples])
-
-      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
-                                ('linear.bias', torch.Tensor([0.5]))])
-      path = os.path.join(self.tmpdir, 'my_state_dict_path')
-      torch.save(state_dict, path)
-
-      input_dim = 2
-      output_dim = 1
-
-      model_loader = PytorchModelLoader(
-          state_dict_path=path,
-          model_class=PytorchLinearRegression(input_dim, output_dim))
-
-      pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(model_loader)
-      assert_that(actual, equal_to(expected))
-
-  def test_with_key(self):
-    with TestPipeline() as pipeline:
-      examples = torch.from_numpy(
-          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
-      keyed_examples = list(zip(range(len(examples)), examples))
-      expected_values = torch.Tensor(
-          [example * 2.0 + 0.5 for example in examples])
-      expected = list(zip(range(len(examples)), expected_values))
-
-      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
-                                ('linear.bias', torch.Tensor([0.5]))])
-      path = os.path.join(self.tmpdir, 'my_state_dict_path')
-      torch.save(state_dict, path)
-
-      input_dim = 1
-      output_dim = 1
-
-      model_loader = PytorchModelLoader(
-          state_dict_path=path,
-          model_class=PytorchLinearRegression(input_dim, output_dim))
-
-      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      actual = pcoll | base.RunInference(model_loader)
-      assert_that(actual, equal_to(expected))
+        pcoll | RunInference(model_loader)
 
 
 if __name__ == '__main__':

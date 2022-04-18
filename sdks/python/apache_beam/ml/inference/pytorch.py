@@ -22,6 +22,7 @@ from typing import List
 
 import torch
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.base import InferenceRunner
 from apache_beam.ml.inference.base import ModelLoader
 
@@ -44,7 +45,8 @@ class PytorchInferenceRunner(InferenceRunner):
     batch = torch.stack(batch)
     if batch.device != self._device:
       batch = batch.to(self._device)
-    return model(batch)
+    predictions = model(batch)
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
     """Returns the number of bytes of data for a batch."""
@@ -80,6 +82,7 @@ class PytorchModelLoader(ModelLoader):
       self._device = torch.device('cpu')
     self._model_class = model_class
     self._model_class.to(self._device)
+    self._inference_runner = PytorchInferenceRunner(device=self._device)
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
@@ -91,4 +94,4 @@ class PytorchModelLoader(ModelLoader):
 
   def get_inference_runner(self) -> InferenceRunner:
     """Returns a Pytorch implementation of InferenceRunner."""
-    return PytorchInferenceRunner(device=self._device)
+    return self._inference_runner
