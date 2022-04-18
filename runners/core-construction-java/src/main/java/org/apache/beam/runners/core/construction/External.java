@@ -144,17 +144,6 @@ public class External {
           getNamespaceIndex(),
           ImmutableMap.of("0", outputCoder));
     }
-
-    public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(
-        Map<String, Coder> outputCoders) {
-      return new SingleOutputExpandableTransform<>(
-          getUrn(),
-          getPayload(),
-          getEndpoint(),
-          getClientFactory(),
-          getNamespaceIndex(),
-          outputCoders);
-    }
   }
 
   /** Expandable transform for output type of PCollectionTuple. */
@@ -179,6 +168,16 @@ public class External {
         pCollectionTuple = pCollectionTuple.and(entry.getKey(), entry.getValue());
       }
       return pCollectionTuple;
+    }
+
+    public MultiOutputExpandableTransform<InputT> withOutputCoder(Map<String, Coder> outputCoders) {
+      return new MultiOutputExpandableTransform<>(
+          getUrn(),
+          getPayload(),
+          getEndpoint(),
+          getClientFactory(),
+          getNamespaceIndex(),
+          outputCoders);
     }
   }
 
@@ -253,20 +252,18 @@ public class External {
 
       ExpansionApi.ExpansionRequest.Builder requestBuilder =
           ExpansionApi.ExpansionRequest.newBuilder();
-      if (!outputCoders.isEmpty()) {
-        requestBuilder.putAllOutputCoderOverride(
-            outputCoders.entrySet().stream()
-                .collect(
-                    Collectors.toMap(
-                        Map.Entry::getKey,
-                        v -> {
-                          try {
-                            return components.registerCoder(v.getValue());
-                          } catch (IOException e) {
-                            throw new RuntimeException(e);
-                          }
-                        })));
-      }
+      requestBuilder.putAllOutputCoderRequests(
+          outputCoders.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey,
+                      kv -> {
+                        try {
+                          return components.registerCoder(kv.getValue());
+                        } catch (IOException e) {
+                          throw new RuntimeException(e);
+                        }
+                      })));
       RunnerApi.Components originalComponents = components.toComponents();
       ExpansionApi.ExpansionRequest request =
           requestBuilder

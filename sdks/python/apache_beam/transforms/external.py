@@ -502,24 +502,23 @@ class ExternalTransform(ptransform.PTransform):
               spec=beam_runner_api_pb2.FunctionSpec(
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
-    output_coder = None
+    output_coders = None
     if self._type_hints.output_types:
       if self._type_hints.output_types[0]:
-        output_coder = dict((str(k), context.coder_id_from_element_type(v))
-                            for k,
-                            v in enumerate(self._type_hints.output_types[0]))
+        output_coders = dict(
+            (str(k), context.coder_id_from_element_type(v))
+            for (k, v) in enumerate(self._type_hints.output_types[0]))
       elif self._type_hints.output_types[1]:
-        output_coder = {
+        output_coders = {
             k: context.coder_id_from_element_type(v)
-            for k,
-            v in self._type_hints.output_types[1].items()
+            for (k, v) in self._type_hints.output_types[1].items()
         }
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
         namespace=self._external_namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
         transform=transform_proto,
-        output_coder_override=output_coder)
+        output_coder_requests=output_coders)
 
     with self._service() as service:
       response = service.Expand(request)
