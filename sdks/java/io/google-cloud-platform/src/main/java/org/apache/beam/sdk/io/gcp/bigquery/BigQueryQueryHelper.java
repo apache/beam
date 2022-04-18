@@ -100,13 +100,13 @@ class BigQueryQueryHelper {
       if (effectiveLocation == null) {
         List<TableReference> referencedTables =
             dryRunQueryIfNeeded(
-                bqServices,
-                options,
-                dryRunJobStats,
-                query,
-                flattenResults,
-                useLegacySql,
-                location)
+                    bqServices,
+                    options,
+                    dryRunJobStats,
+                    query,
+                    flattenResults,
+                    useLegacySql,
+                    location)
                 .getQuery()
                 .getReferencedTables();
         if (referencedTables != null && !referencedTables.isEmpty()) {
@@ -118,8 +118,8 @@ class BigQueryQueryHelper {
         }
       }
 
-      // Step 2: Create a temporary dataset in the query location only if the user has not specified a
-      // temp dataset.
+      // Step 2: Create a temporary dataset in the query location only if the user has not specified
+      // a temp dataset.
       String queryJobId =
           BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
       Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
@@ -134,8 +134,8 @@ class BigQueryQueryHelper {
       boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
       // Create dataset only if it has not been set by the user
       if (beamToCreateTempDataset) {
-        LOG.info("Creating temporary dataset {} for query results",
-            queryResultTable.getDatasetId());
+        LOG.info(
+            "Creating temporary dataset {} for query results", queryResultTable.getDatasetId());
 
         tableService.createDataset(
             queryResultTable.getProjectId(),
@@ -153,10 +153,10 @@ class BigQueryQueryHelper {
             queryResultTable.getDatasetId());
       }
 
-      // Step 3: Execute the query. Generate a transient (random) query job ID, because this code may
-      // be retried after the temporary dataset and table have been deleted by a previous attempt --
-      // in that case, we want to regenerate the temporary dataset and table, and we'll need a fresh
-      // query ID to do that.
+      // Step 3: Execute the query. Generate a transient (random) query job ID, because this code
+      // may be retried after the temporary dataset and table have been deleted by a previous
+      // attempt -- in that case, we want to regenerate the temporary dataset and table, and we'll
+      // need a fresh query ID to do that.
       LOG.info(
           "Exporting query results into temporary table {} using job {}",
           queryResultTable,
