@@ -307,62 +307,6 @@ class SingletonElementConsumerSet(ConsumerSet):
     return self.consumer.current_element_progress()
 
 
-class SingletonBatchConsumerSet(ConsumerSet):
-  """ConsumerSet representing a single consumer that will process batches."""
-  def __init__(self,
-               counter_factory,
-               step_name,
-               output_index,
-               consumer,  # type: Operation
-               coder,
-               consumer_batch_converter,
-               producer_batch_converter,
-               producer_type_hints
-               ):
-    super().__init__(
-        counter_factory,
-        step_name,
-        output_index, [consumer],
-        coder,
-        producer_type_hints)
-    self.consumer = consumer
-    self._batched_elements = []
-    self._consumer_batch_converter = consumer_batch_converter
-    self._producer_batch_converter = producer_batch_converter
-
-  def receive(self, windowed_value):
-    # type: (WindowedValue) -> None
-    #self.update_counters_start(windowed_value)
-    self._batched_elements.append(windowed_value)
-    #self.update_counters_finish()
-
-  def flush(self):
-    if not self._batched_elements:
-      return
-
-    # Convert batch of elements to the batched type, wrap in windowed batch,
-    # erase the buffer.
-    windowed_batch = WindowedBatch.from_windowed_values(
-        self._batched_elements,
-        produce_fn=self.consumer_batch_converter.produce_batch)
-    self._batched_elements = []
-
-    # Send batched type downstream
-    cython.cast(Operation, self.consumer).process_batch(windowed_batch)
-
-  def receive_batch(self, windowed_batch: WindowedBatch) -> None:
-    #self.update_counters_start(windowed_value)
-    self.consumer.process_batch(windowed_batch)
-    #self.update_counters_finish()
-
-  def try_split(self, fraction_of_remainder):
-    # type: (...) -> Optional[Any]
-    return self.consumer.try_split(fraction_of_remainder)
-
-  def current_element_progress(self):
-    return self.consumer.current_element_progress()
-
-
 class Operation(object):
   """An operation representing the live version of a work item specification.
 
