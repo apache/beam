@@ -34,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
@@ -401,11 +402,33 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				c.plans[bdID] = append(c.plans[bdID], plan)
 			}
 		}
+
+		sr, delay, checkpointed, err := plan.Checkpoint()
+		if err != nil {
+			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
+		}
+		var rRoots []*fnpb.DelayedBundleApplication
+		if checkpointed {
+			rRoots = make([]*fnpb.DelayedBundleApplication, len(sr.RS))
+			for i, r := range sr.RS {
+				rRoots[i] = &fnpb.DelayedBundleApplication{
+					Application: &fnpb.BundleApplication{
+						TransformId:      sr.TId,
+						InputId:          sr.InId,
+						Element:          r,
+						OutputWatermarks: sr.OW,
+					},
+					RequestedTimeDelay: durationpb.New(delay),
+				}
+			}
+		}
+
 		delete(c.active, instID)
 		if removed, ok := c.inactive.Insert(instID); ok {
 			delete(c.failed, removed) // Also GC old failed bundles.
 		}
 		delete(c.metStore, instID)
+
 		c.mu.Unlock()
 
 		if err != nil {
@@ -416,6 +439,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{
 				ProcessBundle: &fnpb.ProcessBundleResponse{
+					ResidualRoots:        rRoots,
 					MonitoringData:       pylds,
 					MonitoringInfos:      mons,
 					RequiresFinalization: requiresFinalization,
