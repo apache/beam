@@ -147,13 +147,13 @@ class ConsumerSet(Receiver):
                ):
     self.producer_batch_converter = producer_batch_converter
 
-    consumers_by_batch_converter: Dict[Optional[BatchConverter],
-                                       List[Operation]] = {
-        batch_converter: list(consumers)
-        for batch_converter,
-        consumers in itertools.groupby(
-            consumers, key=lambda c: c.get_input_batch_converter())
-    }
+    consumers_by_batch_converter: Dict[
+        Optional[BatchConverter], List[Operation]] = {
+            batch_converter: list(consumers)
+            for batch_converter,
+            consumers in itertools.groupby(
+                consumers, key=lambda c: c.get_input_batch_converter())
+        }
 
     self.element_consumers = consumers_by_batch_converter.pop(None, [])
     self.passthrough_batch_consumers = consumers_by_batch_converter.pop(
@@ -162,8 +162,8 @@ class ConsumerSet(Receiver):
     # TODO: Pass elements for these mismatches if possible
     self.other_batch_consumers = consumers_by_batch_converter
 
-    self.has_batch_consumers = (self.passthrough_batch_consumers or
-                                self.other_batch_consumers)
+    self.has_batch_consumers = (
+        self.passthrough_batch_consumers or self.other_batch_consumers)
     self._batched_elements: List[Any] = []
 
     self.opcounter = opcounters.OperationCounters(
