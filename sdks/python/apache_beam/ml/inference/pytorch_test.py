@@ -163,43 +163,6 @@ class PytorchRunInferenceTest(unittest.TestCase):
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
-  def test_pipeline_local_model_with_key(self):
-    with TestPipeline() as pipeline:
-      examples = torch.from_numpy(
-          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
-      keyed_examples = list(zip(range(len(examples)), examples))
-      expected_values = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(
-              examples,
-              torch.Tensor([example * 2.0 + 0.5
-                            for example in examples]).reshape(-1, 1))
-      ]
-      expected_predictions = list(zip(range(len(examples)), expected_values))
-
-      state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
-                                ('linear.bias', torch.Tensor([0.5]))])
-      path = os.path.join(self.tmpdir, 'my_state_dict_path')
-      torch.save(state_dict, path)
-
-      model_loader = PytorchModelLoader(
-          state_dict_path=path,
-          model_class=PytorchLinearRegression(input_dim=1, output_dim=1))
-
-      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      predictions = pcoll | RunInference(model_loader)
-
-      def _compare_keyed_prediction_result(a, b):
-        key_equal = a[0] == b[0]
-        return (
-            torch.equal(a[1].inference, b[1].inference) and
-            torch.equal(a[1].example, b[1].example) and key_equal)
-
-      assert_that(
-          predictions,
-          equal_to(
-              expected_predictions, equals_fn=_compare_keyed_prediction_result))
-
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
       examples = torch.from_numpy(

@@ -29,7 +29,9 @@ from apache_beam.ml.inference.base import ModelLoader
 
 class PytorchInferenceRunner(InferenceRunner):
   """
-  Implements Pytorch inference method
+  This class runs Pytorch inferences with the run_inference method. It also has
+  other methods to get the bytes of a batch of Tensors as well as the namespace
+  for Pytorch models.
   """
   def __init__(self, device: torch.device):
     self._device = device
@@ -37,11 +39,13 @@ class PytorchInferenceRunner(InferenceRunner):
   def run_inference(self, batch: List[torch.Tensor],
                     model: torch.nn.Module) -> Iterable[torch.Tensor]:
     """
-    Runs inferences on a batch of examples and returns an Iterable of
-    Predictions."""
+    Runs inferences on a batch of Tensors and returns an Iterable of
+    Tensor Predictions.
 
-    if not batch:
-      return []
+    This method stacks the list of Tensors in a vectorized format to optimize
+    the inference call.
+    """
+
     batch = torch.stack(batch)
     if batch.device != self._device:
       batch = batch.to(self._device)
@@ -49,7 +53,7 @@ class PytorchInferenceRunner(InferenceRunner):
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:
-    """Returns the number of bytes of data for a batch."""
+    """Returns the number of bytes of data for a batch of Tensors."""
     return sum((el.element_size() for tensor in batch for el in tensor))
 
   def get_metrics_namespace(self) -> str:
