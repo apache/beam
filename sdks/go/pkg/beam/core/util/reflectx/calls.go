@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore S1023 redundant return statements are generated
+
 package reflectx
 
 import (
