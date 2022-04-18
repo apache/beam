@@ -98,6 +98,7 @@ cdef class DoOperation(Operation):
   cdef public dict timer_inputs
   cdef dict timer_specs
   cdef public object input_info
+  cdef object fn
 
 
 cdef class SdfProcessSizedElements(DoOperation):
