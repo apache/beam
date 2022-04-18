@@ -253,6 +253,36 @@ class ExternalTransformTest(unittest.TestCase):
               'payload', b's', expansion_service.ExpansionServiceServicer()))
       assert_that(res, equal_to(['as', 'bbs']))
 
+  def test_output_coder(self):
+    external_transform = beam.ExternalTransform(
+        'map_to_union_types',
+        None,
+        expansion_service.ExpansionServiceServicer()).with_output_types(int)
+    with beam.Pipeline() as p:
+      res = (p | beam.Create([2, 2], reshuffle=False) | external_transform)
+      assert_that(res, equal_to([2, 2]))
+    context = pipeline_context.PipelineContext(
+        external_transform._expanded_components)
+    self.assertEqual(len(external_transform._expanded_transform.outputs), 1)
+    for _, pcol_id in external_transform._expanded_transform.outputs.items():
+      pcol = context.pcollections.get_by_id(pcol_id)
+      self.assertEqual(pcol.element_type, int)
+
+  def test_no_output_coder(self):
+    external_transform = beam.ExternalTransform(
+        'map_to_union_types',
+        None,
+        expansion_service.ExpansionServiceServicer())
+    with beam.Pipeline() as p:
+      res = (p | beam.Create([2, 2], reshuffle=False) | external_transform)
+      assert_that(res, equal_to([2, 2]))
+    context = pipeline_context.PipelineContext(
+        external_transform._expanded_components)
+    self.assertEqual(len(external_transform._expanded_transform.outputs), 1)
+    for _, pcol_id in external_transform._expanded_transform.outputs.items():
+      pcol = context.pcollections.get_by_id(pcol_id)
+      self.assertEqual(pcol.element_type, typehints.Any)
+
   def test_nested(self):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
