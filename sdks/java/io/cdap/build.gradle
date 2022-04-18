@@ -44,7 +44,7 @@ allprojects {
 }
 
 dependencies {
-    implementation library.java.guavaz
+    implementation library.java.guava
     implementation library.java.cdap_api
     implementation library.java.cdap_common
     implementation library.java.jackson_core
