@@ -543,7 +543,6 @@ class BeamModulePlugin implements Plugin<Project> {
         cdap_etl_api_spark                          : "io.cdap.cdap:cdap-etl-api-spark:$cdap_version",
         cdap_formats                                : "io.cdap.cdap:cdap-formats:$cdap_version",
         cdap_hydrator_common                        : "io.cdap.plugin:hydrator-common:2.4.0",
-        cglib                                       : "org.sonatype.sisu.inject:cglib:2.2.1-v20090111",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",

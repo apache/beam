@@ -21,7 +21,6 @@ import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.lang.reflect.InvocationTargetException;
-import java.util.function.Consumer;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import org.apache.spark.streaming.receiver.Receiver;
@@ -62,8 +61,7 @@ public class CdapPluginMappingUtils {
     return null;
   }
 
-  public static HubspotReceiver getSparkReceiverForHubspot(
-      HubspotStreamingSourceConfig config) {
+  public static HubspotReceiver getSparkReceiverForHubspot(HubspotStreamingSourceConfig config) {
     ProxyReceiverBuilder<String, HubspotReceiver> builder =
         new ProxyReceiverBuilder<>(HubspotReceiver.class);
     try {

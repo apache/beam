@@ -19,15 +19,9 @@ package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import net.sf.cglib.proxy.Enhancer;
-import net.sf.cglib.proxy.MethodInterceptor;
 import org.apache.commons.lang.ClassUtils;
-import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.Receiver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class for building proxy for {@link Receiver} that uses Apache Beam mechanisms instead of Spark
@@ -41,7 +35,7 @@ import org.slf4j.LoggerFactory;
 })
 public class ProxyReceiverBuilder<X, T extends Receiver<X>> {
 
-//  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
+  //  private static final Logger LOG = LoggerFactory.getLogger(ProxyReceiverBuilder.class);
   private final Class<T> sparkReceiverClass;
   private @Nullable Constructor<?> currentConstructor;
   private @Nullable Object[] constructorArgs;

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
-import io.cdap.cdap.api.plugin.PluginConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
@@ -51,19 +50,18 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
     List<SparkReceiverUnboundedSource<V>> result = new ArrayList<>(desiredNumSplits);
 
     AtomicLong recordsRead = new AtomicLong(0);
-    SparkReceiverUnboundedSource<V> source = new SparkReceiverUnboundedSource<>(
-            spec.toBuilder().build(),
-            0,
-            null,
-            null, spec.getSparkReceiver());
+    SparkReceiverUnboundedSource<V> source =
+        new SparkReceiverUnboundedSource<>(
+            spec.toBuilder().build(), 0, null, null, spec.getSparkReceiver());
     result.add(source);
-    source.initReceiver(objects -> {
-      source.getAvailableRecordsQueue().offer((V) objects[0]);
-      long read = recordsRead.getAndIncrement();
-      if (read % 100 == 0) {
-        LOG.info("[{}], records read = {}", 0, recordsRead);
-      }
-    });
+    source.initReceiver(
+        objects -> {
+          source.getAvailableRecordsQueue().offer((V) objects[0]);
+          long read = recordsRead.getAndIncrement();
+          if (read % 100 == 0) {
+            LOG.info("[{}], records read = {}", 0, recordsRead);
+          }
+        });
 
     return result;
   }
@@ -101,11 +99,7 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
   private final Receiver<V> receiver;
 
   public SparkReceiverUnboundedSource(
-      Read<V> spec,
-      int id,
-      String minOffset,
-      String maxOffset,
-      Receiver<V> receiver) {
+      Read<V> spec, int id, String minOffset, String maxOffset, Receiver<V> receiver) {
     this.spec = spec;
     this.id = id;
     this.minOffset = minOffset;

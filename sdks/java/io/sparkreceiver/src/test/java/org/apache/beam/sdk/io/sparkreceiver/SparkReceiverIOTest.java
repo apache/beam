@@ -30,14 +30,11 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.spark.streaming.receiver.Receiver;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import static org.junit.Assert.fail;
 
 /** Test class for {@link SparkReceiverIO}. */
 @RunWith(JUnit4.class)
@@ -66,10 +63,8 @@ public class SparkReceiverIOTest {
             .build();
 
     ProxyReceiverBuilder<String, HubspotReceiver> receiverBuilder =
-            new ProxyReceiverBuilder<>(HubspotReceiver.class);
-    HubspotReceiver receiver = receiverBuilder
-            .withConstructorArgs(pluginConfig)
-            .build();
+        new ProxyReceiverBuilder<>(HubspotReceiver.class);
+    HubspotReceiver receiver = receiverBuilder.withConstructorArgs(pluginConfig).build();
     SparkReceiverIO.Read<String> reader =
         SparkReceiverIO.<String>read()
             .withValueClass(String.class)

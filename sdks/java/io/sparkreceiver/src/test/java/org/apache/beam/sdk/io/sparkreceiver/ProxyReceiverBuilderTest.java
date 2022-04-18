@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.receiver.ReceiverSupervisor;
 import org.junit.Test;
@@ -53,7 +52,7 @@ public class ProxyReceiverBuilderTest {
   public static final String TEST_MESSAGE = "testMessage";
 
   /**
-   * If this test passed, then proxy object for custom {@link
+   * If this test passed, then object for Salesforce {@link
    * org.apache.spark.streaming.receiver.Receiver} was created successfully, and the corresponding
    * {@link ReceiverSupervisor} was wrapped into {@link WrappedSupervisor}.
    */
@@ -67,10 +66,9 @@ public class ProxyReceiverBuilderTest {
       assertNotNull(config);
 
       AtomicBoolean customStoreConsumerWasUsed = new AtomicBoolean(false);
-      SalesforceReceiver reciever =
-          CdapPluginMappingUtils.getSparkReceiverForSalesforce(
-              config);
-      new WrappedSupervisor(reciever, new SparkConf(), args -> customStoreConsumerWasUsed.set(true));
+      SalesforceReceiver reciever = CdapPluginMappingUtils.getSparkReceiverForSalesforce(config);
+      new WrappedSupervisor(
+          reciever, new SparkConf(), args -> customStoreConsumerWasUsed.set(true));
 
       assertNotNull(reciever);
       reciever.onStart();

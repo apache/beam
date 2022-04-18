@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.sparkreceiver;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import io.cdap.cdap.api.plugin.PluginConfig;
-import java.util.PriorityQueue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
