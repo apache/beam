@@ -25,9 +25,9 @@ A trivial example is B=np.array(dtype=np.int64), E=int.
 """
 
 from typing import Callable
-from typing import List
 from typing import Generic
 from typing import Iterator
+from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
