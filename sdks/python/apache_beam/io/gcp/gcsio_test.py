@@ -405,7 +405,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertTrue(self.gcs.exists(file_name))
     self.assertEqual(last_updated, self.gcs.last_updated(file_name))
 
-  def test_metadata_vars(self):
+  def test_file_status(self):
     file_name = 'gs://gcsio-test/dummy_file'
     file_size = 1234
     last_updated = 123456.78
@@ -419,11 +419,11 @@ class TestGCSIO(unittest.TestCase):
         crc32c=checksum)
     file_checksum = self.gcs.checksum(file_name)
 
-    metadata_vars = self.gcs._vars(file_name)
+    file_status = self.gcs._status(file_name)
 
-    self.assertEqual(metadata_vars['size'], file_size)
-    self.assertEqual(metadata_vars['checksum'], file_checksum)
-    self.assertEqual(metadata_vars['last_updated'], last_updated)
+    self.assertEqual(file_status['size'], file_size)
+    self.assertEqual(file_status['checksum'], file_checksum)
+    self.assertEqual(file_status['last_updated'], last_updated)
 
   def test_file_mode(self):
     file_name = 'gs://gcsio-test/dummy_mode_file'

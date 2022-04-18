@@ -22,6 +22,7 @@
 import io
 import logging
 import posixpath
+import time
 import unittest
 
 from parameterized import parameterized_class
@@ -36,14 +37,10 @@ class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
   __hash__ = None  # type: ignore[assignment]
 
-  def __init__(self, path, mode='', type='FILE'):
+  def __init__(self, path, mode='', type='FILE', mtime=int(time.time() * 1000)):
     io.BytesIO.__init__(self)
 
-    self.stat = {
-        'path': path,
-        'mode': mode,
-        'type': type,
-    }
+    self.stat = {'path': path, 'mode': mode, 'type': type, 'mtime': mtime}
     self.saved_data = None
 
   def __eq__(self, other):
@@ -73,6 +70,7 @@ class FakeFile(io.BytesIO):
         hdfs._FILE_STATUS_PATH_SUFFIX: posixpath.basename(self.stat['path']),
         hdfs._FILE_STATUS_LENGTH: self.size,
         hdfs._FILE_STATUS_TYPE: self.stat['type'],
+        hdfs._FILE_STATUS_UPDATED: self.stat['mtime']
     }
 
   def get_file_checksum(self):
@@ -537,6 +535,14 @@ class HadoopFileSystemTest(unittest.TestCase):
       f.write(b'Hello')
     self.assertEqual(
         'fake_algo-5-checksum_byte_sequence', self.fs.checksum(url))
+
+  def test_last_updated(self):
+    url = self.fs.join(self.tmpdir, 'f1')
+    with self.fs.create(url) as f:
+      f.write(b'Hello')
+    tolerance = 5 * 60  # 5 mins
+    result = self.fs.last_updated(url)
+    self.assertAlmostEqual(result, time.time(), delta=tolerance)
 
   def test_delete_file(self):
     url = self.fs.join(self.tmpdir, 'old_file1')

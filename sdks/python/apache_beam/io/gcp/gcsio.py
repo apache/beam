@@ -512,7 +512,7 @@ class GcsIO(object):
     """
     return self._updated_to_seconds(self._gcs_object(path).updated)
 
-  def _vars(self, path):
+  def _status(self, path):
     """For internal use only; no backwards-compatibility guarantees.
 
     Returns supported fields (checksum, kms_key, last_updated, size) of a
@@ -524,14 +524,15 @@ class GcsIO(object):
     Returns: dict of fields of the GCS object.
     """
     gcs_object = self._gcs_object(path)
-    file_vars = {}
-    if hasattr(gcs_object, 'crc32c'): file_vars['checksum'] = gcs_object.crc32c
+    file_status = {}
+    if hasattr(gcs_object, 'crc32c'):
+      file_status['checksum'] = gcs_object.crc32c
     if hasattr(gcs_object, 'kmsKeyName'):
-      file_vars['kms_key'] = gcs_object.kmsKeyName
+      file_status['kms_key'] = gcs_object.kmsKeyName
     if hasattr(gcs_object, 'updated'):
-      file_vars['last_updated'] = self._updated_to_seconds(gcs_object.updated)
-    if hasattr(gcs_object, 'size'): file_vars['size'] = gcs_object.size
-    return file_vars
+      file_status['last_updated'] = self._updated_to_seconds(gcs_object.updated)
+    if hasattr(gcs_object, 'size'): file_status['size'] = gcs_object.size
+    return file_status
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)

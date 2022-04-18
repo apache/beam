@@ -289,7 +289,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      file_metadata = blobstorageio.BlobStorageIO()._vars(path)
+      file_metadata = blobstorageio.BlobStorageIO()._status(path)
       return FileMetadata(
           path, file_metadata['size'], file_metadata['last_updated'])
     except Exception as e:  # pylint: disable=broad-except

@@ -90,14 +90,16 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
         lambda: blobstorageio_mock
     blobstorageio_mock.exists.return_value = True
-    blobstorageio_mock._vars.return_value = {'size': 1, 'last_updated': 99999.0}
+    blobstorageio_mock._status.return_value = {
+        'size': 1, 'last_updated': 99999.0
+    }
     expected_results = [
         FileMetadata('azfs://storageaccount/container/file1', 1, 99999.0)
     ]
     match_result = self.fs.match(['azfs://storageaccount/container/file1'])[0]
 
     self.assertEqual(match_result.metadata_list, expected_results)
-    blobstorageio_mock._vars.assert_called_once_with(
+    blobstorageio_mock._status.assert_called_once_with(
         'azfs://storageaccount/container/file1')
 
   @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')

@@ -366,7 +366,7 @@ class BlobStorageIO(object):
     """
     return self._blob_properties(path).properties.etag
 
-  def _vars(self, path):
+  def _status(self, path):
     """For internal use only; no backwards-compatibility guarantees.
 
     Returns supported fields (checksum, last_updated, size) of a single object
@@ -378,13 +378,13 @@ class BlobStorageIO(object):
     Returns: dict of fields of the blob property.
     """
     properties = self._blob_properties(path)
-    file_vars = {}
-    if hasattr(properties, 'etag'): file_vars['checksum'] = properties.etag
+    file_status = {}
+    if hasattr(properties, 'etag'): file_status['checksum'] = properties.etag
     if hasattr(properties, 'last_modified'):
-      file_vars['last_updated'] = self._updated_to_seconds(
+      file_status['last_updated'] = self._updated_to_seconds(
           properties.last_modified)
-    if hasattr(properties, 'size'): file_vars['size'] = properties.size
-    return file_vars
+    if hasattr(properties, 'size'): file_status['size'] = properties.size
+    return file_status
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)

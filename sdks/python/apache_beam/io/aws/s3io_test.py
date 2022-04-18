@@ -113,7 +113,6 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_last_updated(self):
-    self.skipTest('BEAM-9532 fix issue with s3 last updated')
     file_name = self.TEST_DATA_PATH + 'dummy_file'
     file_size = 1234
 
@@ -148,18 +147,18 @@ class TestS3IO(unittest.TestCase):
     # Clean up
     self.aws.delete(file_name)
 
-  def test_metadata_vars(self):
+  def test_file_status(self):
     file_name = self.TEST_DATA_PATH + 'metadata'
     file_size = 1024
     self._insert_random_file(self.client, file_name, file_size)
     file_checksum = self.aws.checksum(file_name)
     file_timestamp = self.aws.last_updated(file_name)
 
-    metadata_vars = self.aws._vars(file_name)
+    file_status = self.aws._status(file_name)
 
-    self.assertEqual(metadata_vars['size'], file_size)
-    self.assertEqual(metadata_vars['checksum'], file_checksum)
-    self.assertEqual(metadata_vars['last_updated'], file_timestamp)
+    self.assertEqual(file_status['size'], file_size)
+    self.assertEqual(file_status['checksum'], file_checksum)
+    self.assertEqual(file_status['last_updated'], file_timestamp)
 
     # Clean up
     self.aws.delete(file_name)

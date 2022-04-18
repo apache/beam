@@ -51,6 +51,7 @@ _FILE_CHECKSUM_BYTES = 'bytes'
 _FILE_CHECKSUM_LENGTH = 'length'
 # WebHDFS FileStatus property constants.
 _FILE_STATUS_LENGTH = 'length'
+_FILE_STATUS_UPDATED = 'modificationTime'
 _FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
 _FILE_STATUS_TYPE = 'type'
 _FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
@@ -212,7 +213,8 @@ class HadoopFileSystem(FileSystem):
       for res in self._hdfs_client.list(path, status=True):
         yield FileMetadata(
             _HDFS_PREFIX + self._join(server, path, res[0]),
-            res[1][_FILE_STATUS_LENGTH])
+            res[1][_FILE_STATUS_LENGTH],
+            res[1][_FILE_STATUS_UPDATED] / 1000.0)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError('List operation failed', {url: e})
 
@@ -387,8 +389,17 @@ class HadoopFileSystem(FileSystem):
     return self.metadata(url).size_in_bytes
 
   def last_updated(self, url):
-    """Fetches last updated time for a URL. NOT IMPLEMENTED."""
-    raise NotImplementedError
+    """Fetches last updated time for a URL.
+
+    Args:
+      url: string url of file.
+
+    Returns: float UNIX Epoch time
+
+    Raises:
+      ``BeamIOError``: if path doesn't exist.
+    """
+    return self.metadata(url).last_updated_in_seconds
 
   def checksum(self, url):
     """Fetches a checksum description for a URL.
@@ -422,10 +433,10 @@ class HadoopFileSystem(FileSystem):
     """
     _, path = self._parse_url(url)
     status = self._hdfs_client.status(path, strict=False)
-    print(status)
     if status is None:
       raise BeamIOError('File not found: %s' % url)
-    return FileMetadata(url, status[_FILE_STATUS_LENGTH])
+    return FileMetadata(
+        url, status[_FILE_STATUS_LENGTH], status[_FILE_STATUS_UPDATED] / 1000.0)
 
   def delete(self, urls):
     exceptions = {}
