@@ -184,7 +184,7 @@ class DataInputOperation(RunnerIOOperation):
         transform_id=transform_id,
         data_channel=data_channel)
 
-    self.consumers = next(iter(consumers.values()))
+    self.consumer = next(iter(consumers.values()))
     self.splitting_lock = threading.Lock()
     self.index = -1
     self.stop = float('inf')
@@ -199,7 +199,7 @@ class DataInputOperation(RunnerIOOperation):
               self.counter_factory,
               self.name_context.step_name,
               0,
-              self.consumers,
+              self.consumer,
               self.windowed_coder,
               self.get_output_batch_converter(),
               self._get_runtime_performance_hints())

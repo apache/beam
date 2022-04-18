@@ -125,7 +125,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_batch_pardo(self):
     class MultiplyDoFn(beam.DoFn):
-      def process_batch(self, batch: np.ndarray) -> Iterator[np.ndarray]:
+      def process_batch(self, batch: np.ndarray,
+                        *unused_args, **unused_kwargs) -> Iterator[np.ndarray]:
         assert isinstance(batch, np.ndarray)
         yield batch * 2
 

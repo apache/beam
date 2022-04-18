@@ -108,7 +108,7 @@ class ConsumerSet(Receiver):
              consumers,  # type: List[Operation]
              coder,
              producer_type_hints,
-             producer_batch_converter, # type: Optional[BatchTypeCovnerter]
+             producer_batch_converter, # type: Optional[BatchConverter]
              ):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
@@ -116,7 +116,9 @@ class ConsumerSet(Receiver):
 
       consumer_batch_preference = consumer.get_batching_preference()
       consumer_batch_converter = consumer.get_input_batch_converter()
-      if not consumer_batch_preference.supports_batches and producer_batch_converter is None and consumer_batch_converter is None:
+      if (not consumer_batch_preference.supports_batches and
+          producer_batch_converter is None and
+          consumer_batch_converter is None):
         return SingletonElementConsumerSet(
             counter_factory,
             step_name,
@@ -145,7 +147,8 @@ class ConsumerSet(Receiver):
                ):
     self.producer_batch_converter = producer_batch_converter
 
-    consumers_by_batch_converter: Dict[BatchConverter, List[Operation]] = {
+    consumers_by_batch_converter: Dict[Optional[BatchConverter],
+                                       List[Operation]] = {
         batch_converter: list(consumers)
         for batch_converter,
         consumers in itertools.groupby(
@@ -159,8 +162,9 @@ class ConsumerSet(Receiver):
     # TODO: Pass elements for these mismatches if possible
     self.other_batch_consumers = consumers_by_batch_converter
 
-    self.has_batch_consumers = self.passthrough_batch_consumers or self.other_batch_consumers
-    self._batched_elements = []
+    self.has_batch_consumers = (self.passthrough_batch_consumers or
+                                self.other_batch_consumers)
+    self._batched_elements: List[Any] = []
 
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
@@ -197,14 +201,16 @@ class ConsumerSet(Receiver):
     for consumer in self.passthrough_batch_consumers:
       cython.cast(Operation, consumer).process_batch(windowed_batch)
 
-    for consumer_batch_converter, consumers in self.other_batch_consumers.items():
+    for (consumer_batch_converter,
+         consumers) in self.other_batch_consumers.items():
       # Explode and rebatch into the new batch type (ouch!)
       # TODO: Register direct conversions for equivalent batch types
-      cython.cast(Operation, consumer).process_batch(
-          windowed_batch.with_values(
-              self.consumer_batch_converter.produce_batch(
-                  self.producer_batch_converter.explode_batch(
-                      windowed_batch.values))))
+      for consumer in consumers:
+        cython.cast(Operation, consumer).process_batch(
+            windowed_batch.with_values(
+                consumer_batch_converter.produce_batch(
+                    self.producer_batch_converter.explode_batch(
+                        windowed_batch.values))))
     #self.update_counters_finish()
 
   def flush(self):
@@ -445,12 +451,12 @@ class Operation(object):
     # By default operations don't support batching, require Receiver to unbatch
     return common.BatchingConfiguration.elementwise()
 
-  def get_input_batch_converter(self) -> Optional[None]:
+  def get_input_batch_converter(self) -> Optional[BatchConverter]:
     """Returns a batch type converter if this operation can accept a batch,
     otherwise None."""
     return None
 
-  def get_output_batch_converter(self) -> Optional[None]:
+  def get_output_batch_converter(self) -> Optional[BatchConverter]:
     """Returns a batch type converter if this operation can produce a batch,
     otherwise None."""
     return None
