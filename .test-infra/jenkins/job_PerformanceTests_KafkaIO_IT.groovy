@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+//Testing kafkaiotest TOREMOVE comment
 import CommonJobProperties as common
 import Kubernetes
 import InfluxDBCredentialsHelper
