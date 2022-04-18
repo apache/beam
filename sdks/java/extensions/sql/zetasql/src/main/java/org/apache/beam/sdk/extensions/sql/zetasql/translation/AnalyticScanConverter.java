@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import com.google.zetasql.resolvedast.*;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedExpr;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedColumnRef;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByItem;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedWindowFrameExpr;
 import com.google.zetasql.resolvedast.ResolvedWindowFrameExprEnums.BoundaryType;
@@ -47,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@SuppressWarnings("UnusedVariable")
 public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
 
     AnalyticScanConverter(ConversionContext context) {
@@ -67,7 +70,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         List<Window.Group> windowGroups = new ArrayList<>();
 
         for(ResolvedAnalyticFunctionGroup analyticFunctionGroup: zetaNode.getFunctionGroupList()) {
-           Window.Group windowGroup = convert(analyticFunctionGroup);
+           Window.Group windowGroup = convert(analyticFunctionGroup, input);
            windowGroups.add(windowGroup);
         }
 
@@ -95,9 +98,31 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
 
 
 
+
         for(ResolvedAnalyticFunctionGroup analyticFunctionGroup: zetaNode.getFunctionGroupList()) {
+//            if(analyticFunctionGroup.getPartitionBy() != null) {
+//                for (ResolvedColumnRef resolvedColumnRef : analyticFunctionGroup.getPartitionBy().getPartitionByList()) {
+//                    projects.add(
+//                            getExpressionConverter()
+//                                    .convertRexNodeFromResolvedExpr(resolvedColumnRef)
+//                    );
+////                    fieldNames.add(getTrait().resolveAlias(resolvedColumnRef.getColumn()));
+//                }
+//            }
+//
+//            if(analyticFunctionGroup.getOrderBy() != null) {
+//                for(ResolvedOrderByItem resolvedOrderByItem: analyticFunctionGroup.getOrderBy().getOrderByItemList()) {
+//                    projects.add(
+//                            getExpressionConverter()
+//                                    .convertRexNodeFromResolvedExpr(resolvedOrderByItem.getColumnRef())
+//                    );
+////                    fieldNames.add(getTrait().resolveAlias(resolvedOrderByItem.getColumnRef().getColumn()));
+//                }
+//            }
+
             for(ResolvedComputedColumn resolvedComputedColumn: analyticFunctionGroup.getAnalyticFunctionList()){
                 ResolvedAnalyticFunctionCall resolvedAnalyticFunctionCall = (ResolvedAnalyticFunctionCall) resolvedComputedColumn.getExpr();
+                //TODO: handle analytic function calls with more arguments
                 ResolvedExpr resolvedExpr = resolvedAnalyticFunctionCall.getArgumentList().get(0);
 
                 projects.add(
@@ -117,7 +142,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         );
     }
 
-    private Window.Group convert(ResolvedAnalyticFunctionGroup functionGroup){
+    private Window.Group convert(ResolvedAnalyticFunctionGroup functionGroup, RelNode input){
 
         List<Window.RexWinAggCall> aggCalls = new ArrayList<>();
         ImmutableBitSet keys = ImmutableBitSet.of();
@@ -126,6 +151,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         int ordinal = 0;
 
        for(ResolvedComputedColumn resolvedComputedColumn: functionGroup.getAnalyticFunctionList()) {
+           List<RexNode> operands = new ArrayList<>();
            ResolvedAnalyticFunctionCall analyticFunctionCall = (ResolvedAnalyticFunctionCall) resolvedComputedColumn.getExpr();
 
            if(upperBound == null && lowerBound == null) {
@@ -133,26 +159,32 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                upperBound = convert(analyticFunctionCall.getWindowFrame().getEndExpr());
            }
 
-           //Transforms aggregate call to RexAggWinCalls
+           //TODO: Go through the aggregate conversion and complete it
+           //TODO: Make this code and the one in AggregateScanConverter reusable if needed
            SqlAggFunction sqlAggFunction = (SqlAggFunction) SqlOperatorMappingTable.create(analyticFunctionCall);
            RelDataType type = ZetaSqlCalciteTranslationUtils.toCalciteType(
                    analyticFunctionCall
                            .getFunction()
                            .getSignatureList()
-                           .get(0)
+                           .get(ordinal)
                            .getResultType()
                            .getType(),
                    false,
                    getCluster().getRexBuilder()
            );
 
+           //TODO: Fill the list of operands of the RexWinAggCall
+           RexNode operand = getExpressionConverter().convertRexNodeFromResolvedExpr(analyticFunctionCall.getArgumentList().get(0));
+           operands.add(operand);
+
            Window.RexWinAggCall rexWinAggCall = new Window.RexWinAggCall(
                    sqlAggFunction,
                    type,
-                   ImmutableList.of(), //Add operands (columns used in the function)
-                   ordinal++,
+                   operands,
+//                   ImmutableList.of(), //Add operands (columns used in the function)
+                   ordinal,
                    false,
-                    false
+                   false
            );
 
            aggCalls.add(rexWinAggCall);
@@ -160,11 +192,11 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
        }
 
         return new Window.Group(
-                keys,
+                keys, //TODO: add grouping keys
                 true,
                 lowerBound,
                 upperBound,
-                RelCollations.EMPTY,
+                RelCollations.EMPTY, //TODO: add order keys
                 aggCalls
         );
 
