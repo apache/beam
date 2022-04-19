@@ -471,7 +471,7 @@ public class BigQueryIOJsonIT {
     melbourne.put("population", 5159211);
 
     JSONObject brisbane = new JSONObject();
-    brisbane.put("name", "Birsbane");
+    brisbane.put("name", "Brisbane");
     brisbane.put("state", "Queensland");
     brisbane.put("population", 2560720);
 
