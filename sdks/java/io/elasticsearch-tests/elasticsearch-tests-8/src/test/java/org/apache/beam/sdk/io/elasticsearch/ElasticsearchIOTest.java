@@ -30,7 +30,6 @@ import java.io.Serializable;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.elasticsearch.client.RestClient;
 import org.junit.AfterClass;
@@ -277,6 +276,6 @@ public class ElasticsearchIOTest implements Serializable {
     URL fileUrl = getClass().getClassLoader().getResource("clientkeystore");
     Path filePath = Paths.get(fileUrl.toURI());
     elasticsearchIOTestCommon.testValidSSLAndUsernameConfiguration(
-            filePath.toAbsolutePath().toString());
+        filePath.toAbsolutePath().toString());
   }
 }
