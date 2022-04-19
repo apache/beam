@@ -31,7 +31,7 @@ from apache_beam.ml.inference.base import ModelLoader
 from apache_beam.io.filesystems import FileSystems
 
 
-class SerializationType(enum.Enum):
+class ModelFileType(enum.Enum):
   PICKLE = 1
   JOBLIB = 2
 
@@ -52,18 +52,18 @@ class SklearnInferenceRunner(InferenceRunner):
 class SklearnModelLoader(ModelLoader):
   def __init__(
       self,
-      serialization: SerializationType = SerializationType.PICKLE,
+      serialization: ModelFileType = ModelFileType.PICKLE,
       model_uri: str = ''):
-    self._serialization = serialization
+    self._model_file_type = serialization
     self._model_uri = model_uri
     self._inference_runner = SklearnInferenceRunner()
 
   def load_model(self):
     """Loads and initializes a model for processing."""
     file = FileSystems.open(self._model_uri, 'rb')
-    if self._serialization == SerializationType.PICKLE:
+    if self._model_file_type == ModelFileType.PICKLE:
       return pickle.load(file)
-    elif self._serialization == SerializationType.JOBLIB:
+    elif self._model_file_type == ModelFileType.JOBLIB:
       return joblib.load(file)
     raise TypeError('Unsupported serialization type.')
 

@@ -29,7 +29,7 @@ from sklearn import svm
 import apache_beam as beam
 import apache_beam.ml.inference.api as api
 import apache_beam.ml.inference.base as base
-from apache_beam.ml.inference.sklearn_loader import SerializationType
+from apache_beam.ml.inference.sklearn_loader import ModelFileType
 from apache_beam.ml.inference.sklearn_loader import SklearnInferenceRunner
 from apache_beam.ml.inference.sklearn_loader import SklearnModelLoader
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -133,7 +133,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         #TODO(BEAM-14305) Test against the public API.
         actual = pcoll | base.RunInference(
             SklearnModelLoader(
-                model_uri=file.name, serialization=SerializationType.JOBLIB))
+                model_uri=file.name, serialization=ModelFileType.JOBLIB))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
             api.PredictionResult(numpy.array([1, 1]), 1)
