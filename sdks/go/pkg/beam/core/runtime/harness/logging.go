@@ -27,7 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // TODO(herohde) 10/12/2017: make this file a separate package. Then
@@ -56,7 +56,7 @@ type logger struct {
 }
 
 func (l *logger) Log(ctx context.Context, sev log.Severity, calldepth int, msg string) {
-	now, _ := ptypes.TimestampProto(time.Now())
+	now := timestamppb.New(time.Now())
 
 	entry := &fnpb.LogEntry{
 		Timestamp: now,

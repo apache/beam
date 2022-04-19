@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +80,7 @@ class QuiescenceDriver implements ExecutionDriver {
   // watermark of a PTransform before enqueuing the resulting bundle to pendingUpdates of downstream
   // PTransform, which can lead to watermark being updated past the emitted elements.
   private final Map<AppliedPTransform<?, ?, ?>, Collection<CommittedBundle<?>>> inflightBundles =
-      new ConcurrentHashMap<>();
+      Maps.newHashMap();
 
   private final AtomicReference<ExecutorState> state =
       new AtomicReference<>(ExecutorState.QUIESCENT);
@@ -164,15 +164,17 @@ class QuiescenceDriver implements ExecutionDriver {
 
   private void processBundle(
       CommittedBundle<?> bundle, AppliedPTransform<?, ?, ?> consumer, CompletionCallback callback) {
-    inflightBundles.compute(
-        consumer,
-        (k, v) -> {
-          if (v == null) {
-            v = new ArrayList<>();
-          }
-          v.add(bundle);
-          return v;
-        });
+    synchronized (inflightBundles) {
+      inflightBundles.compute(
+          consumer,
+          (k, v) -> {
+            if (v == null) {
+              v = new ArrayList<>();
+            }
+            v.add(bundle);
+            return v;
+          });
+    }
     outstandingWork.incrementAndGet();
     bundleProcessor.process(bundle, consumer, callback);
   }
@@ -180,24 +182,28 @@ class QuiescenceDriver implements ExecutionDriver {
   /** Fires any available timers. */
   private void fireTimers() {
     try {
-      for (FiredTimers<AppliedPTransform<?, ?, ?>> transformTimers :
-          evaluationContext.extractFiredTimers(inflightBundles.keySet())) {
-        Collection<TimerData> delivery = transformTimers.getTimers();
-        KeyedWorkItem<?, Object> work =
-            KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        CommittedBundle<?> bundle =
-            evaluationContext
-                .createKeyedBundle(
-                    transformTimers.getKey(),
-                    (PCollection)
-                        Iterables.getOnlyElement(
-                            transformTimers.getExecutable().getMainInputs().values()))
-                .add(WindowedValue.valueInGlobalWindow(work))
-                .commit(evaluationContext.now());
-        processBundle(
-            bundle, transformTimers.getExecutable(), new TimerIterableCompletionCallback(delivery));
-        state.set(ExecutorState.ACTIVE);
+      synchronized (inflightBundles) {
+        for (FiredTimers<AppliedPTransform<?, ?, ?>> transformTimers :
+            evaluationContext.extractFiredTimers(inflightBundles.keySet())) {
+          Collection<TimerData> delivery = transformTimers.getTimers();
+          KeyedWorkItem<?, Object> work =
+              KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
+          @SuppressWarnings({"unchecked", "rawtypes"})
+          CommittedBundle<?> bundle =
+              evaluationContext
+                  .createKeyedBundle(
+                      transformTimers.getKey(),
+                      (PCollection)
+                          Iterables.getOnlyElement(
+                              transformTimers.getExecutable().getMainInputs().values()))
+                  .add(WindowedValue.valueInGlobalWindow(work))
+                  .commit(evaluationContext.now());
+          processBundle(
+              bundle,
+              transformTimers.getExecutable(),
+              new TimerIterableCompletionCallback(delivery));
+          state.set(ExecutorState.ACTIVE);
+        }
       }
     } catch (Exception e) {
       LOG.error("Internal Error while delivering timers", e);
@@ -312,13 +318,15 @@ class QuiescenceDriver implements ExecutionDriver {
       if (!committedResult.getProducedOutputTypes().isEmpty()) {
         state.set(ExecutorState.ACTIVE);
       }
+      synchronized (inflightBundles) {
+        inflightBundles.compute(
+            result.getTransform(),
+            (k, v) -> {
+              v.remove(inputBundle);
+              return v.isEmpty() ? null : v;
+            });
+      }
       outstandingWork.decrementAndGet();
-      inflightBundles.compute(
-          result.getTransform(),
-          (k, v) -> {
-            v.remove(inputBundle);
-            return v.isEmpty() ? null : v;
-          });
       return committedResult;
     }
 

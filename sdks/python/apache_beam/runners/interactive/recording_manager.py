@@ -24,7 +24,7 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
@@ -133,7 +133,7 @@ class ElementStream:
       # From the to_element_list we either get TestStreamPayload.Events if
       # include_time_events or decoded elements from the reader. Make sure we
       # only count the decoded elements to break early.
-      if isinstance(e, TestStreamPayload.Event):
+      if isinstance(e, beam_runner_api_pb2.TestStreamPayload.Event):
         time_limiter.update(e)
       else:
         count_limiter.update(e)

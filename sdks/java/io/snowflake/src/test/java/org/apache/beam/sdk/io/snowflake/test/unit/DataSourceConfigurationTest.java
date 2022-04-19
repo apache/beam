@@ -30,6 +30,7 @@ import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -48,80 +49,174 @@ public class DataSourceConfigurationTest {
 
   @Test
   public void testSettingUrlWithBadPrefix() {
-    assertThrows(IllegalArgumentException.class, () -> configuration.withUrl(SERVER_NAME));
+    Exception ex =
+        assertThrows(IllegalArgumentException.class, () -> configuration.withUrl(SERVER_NAME));
+    assertEquals(
+        "url must have format: jdbc:snowflake://<account_identifier>.snowflakecomputing.com",
+        ex.getMessage());
   }
 
   @Test
   public void testSettingUrlWithBadSuffix() {
-    assertThrows(
-        IllegalArgumentException.class, () -> configuration.withUrl("jdbc:snowflake://account"));
+    Exception ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> configuration.withUrl("jdbc:snowflake://account"));
+    assertEquals(
+        "url must have format: jdbc:snowflake://<account_identifier>.snowflakecomputing.com",
+        ex.getMessage());
   }
 
   @Test
   public void testSettingStringUrl() {
     String url = "jdbc:snowflake://account.snowflakecomputing.com";
-    configuration = configuration.withUrl(url);
+    configuration = configuration.withUrl(url).withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(url, configuration.getUrl());
   }
 
   @Test
   public void testSettingServerNameWithBadSuffix() {
-    assertThrows(
-        IllegalArgumentException.class, () -> configuration.withServerName("not.properly.ended"));
+    Exception ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> configuration.withServerName("not.properly.ended"));
+    assertEquals(
+        "serverName must be in format <account_identifier>.snowflakecomputing.com",
+        ex.getMessage());
+  }
+
+  @Test
+  public void testSettingServerNameWithBadSuffixAndValueProvider() {
+    configuration.withServerName(ValueProvider.StaticValueProvider.of("not.properly.ended"));
+    Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
+    assertEquals("Server name or URL is required", ex.getMessage());
   }
 
   @Test
   public void testSettingStringServerName() {
-    configuration = configuration.withServerName(SERVER_NAME);
+    configuration = configuration.withServerName(SERVER_NAME).withOAuth("some-token");
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(SERVER_NAME, configuration.getServerName().get());
   }
 
   @Test
   public void testSettingStringDatabase() {
     String database = "dbname";
-    configuration = configuration.withDatabase(database);
+    configuration =
+        configuration
+            .withDatabase(database)
+            .withServerName(SERVER_NAME)
+            .withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(database, configuration.getDatabase().get());
   }
 
   @Test
   public void testSettingStringWarehouse() {
     String warehouse = "warehouse";
-    configuration = configuration.withWarehouse(warehouse);
+    configuration =
+        configuration
+            .withWarehouse(warehouse)
+            .withServerName(SERVER_NAME)
+            .withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(warehouse, configuration.getWarehouse().get());
   }
 
   @Test
   public void testSettingStringSchema() {
     String schema = "schema";
-    configuration = configuration.withSchema(schema);
+    configuration =
+        configuration
+            .withSchema(schema)
+            .withServerName(SERVER_NAME)
+            .withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(schema, configuration.getSchema().get());
   }
 
   @Test
   public void testSettingStringRole() {
     String role = "role";
-    configuration = configuration.withRole(role);
+    configuration =
+        configuration
+            .withRole(role)
+            .withServerName(SERVER_NAME)
+            .withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(role, configuration.getRole().get());
   }
 
   @Test
   public void testSettingStringAuthenticator() {
     String authenticator = "authenticator";
-    configuration = configuration.withAuthenticator(authenticator);
+    configuration =
+        configuration
+            .withAuthenticator(authenticator)
+            .withServerName(SERVER_NAME)
+            .withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(authenticator, configuration.getAuthenticator());
   }
 
   @Test
   public void testSettingStringPortNumber() {
     Integer portNumber = 1234;
-    configuration = configuration.withPortNumber(portNumber);
+    configuration =
+        configuration
+            .withPortNumber(portNumber)
+            .withServerName(SERVER_NAME)
+            .withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(portNumber, configuration.getPortNumber());
   }
 
   @Test
   public void testSettingStringLoginTimeout() {
     Integer loginTimeout = 999;
-    configuration = configuration.withLoginTimeout(loginTimeout);
+    configuration =
+        configuration
+            .withLoginTimeout(loginTimeout)
+            .withServerName(SERVER_NAME)
+            .withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    // Make sure DataSource can be built
+    DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(loginTimeout, configuration.getLoginTimeout());
   }
 
@@ -131,9 +226,10 @@ public class DataSourceConfigurationTest {
     String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com?application=beam";
     configuration = configuration.withOAuth("some-token").withUrl(url);
 
+    // Make sure DataSource can be built
     DataSource dataSource = configuration.buildDatasource();
-
     assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     assertEquals(expectedUrl, ((SnowflakeBasicDataSource) dataSource).getUrl());
   }
 
@@ -141,10 +237,11 @@ public class DataSourceConfigurationTest {
   public void testDataSourceCreatedFromServerName() {
     configuration = configuration.withOAuth("some-token").withServerName(SERVER_NAME);
 
+    // Make sure DataSource can be built
     DataSource dataSource = configuration.buildDatasource();
+    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
 
     String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com?application=beam";
-    assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
     assertEquals(expectedUrl, ((SnowflakeBasicDataSource) dataSource).getUrl());
   }
 
@@ -158,15 +255,16 @@ public class DataSourceConfigurationTest {
             .withServerName(SERVER_NAME)
             .withPortNumber(portNumber);
 
+    // Make sure DataSource can be built
     DataSource dataSource = configuration.buildDatasource();
     assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
+
     String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com:1234?application=beam";
     assertEquals(expectedUrl, ((SnowflakeBasicDataSource) dataSource).getUrl());
   }
 
   @Test
   public void testSettingUsernamePasswordAuth() {
-
     configuration =
         configuration.withUsernamePasswordAuth(USERNAME, PASSWORD).withServerName(SERVER_NAME);
 
@@ -411,10 +509,17 @@ public class DataSourceConfigurationTest {
 
   @Test
   public void testSettingNonAuth() {
-
     configuration = configuration.withServerName(SERVER_NAME);
 
     Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
     assertEquals("Missing credentials values. Please check your credentials", ex.getMessage());
+  }
+
+  @Test
+  public void testMissingServerNameOrUrl() {
+    configuration = configuration.withUsernamePasswordAuth(USERNAME, PASSWORD);
+
+    Exception ex = assertThrows(RuntimeException.class, () -> configuration.buildDatasource());
+    assertEquals("Server name or URL is required", ex.getMessage());
   }
 }

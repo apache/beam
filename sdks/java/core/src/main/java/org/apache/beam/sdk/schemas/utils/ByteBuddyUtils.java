@@ -1434,6 +1434,10 @@ public class ByteBuddyUtils {
         if (index == null) {
           index = fieldsByJavaClassMember.get(paramName);
         }
+        if (index == null && paramName.endsWith("$")) {
+          // AutoValue appends "$" in some cases
+          index = fieldsByJavaClassMember.get(paramName.substring(0, paramName.length() - 1));
+        }
         if (index == null) {
           throw new RuntimeException(
               "Creator parameter " + paramName + " Doesn't correspond to a schema field");
