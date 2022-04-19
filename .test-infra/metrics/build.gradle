@@ -59,9 +59,8 @@ dockerCompose {
 dockerCompose.isRequiredBy(testMetricsStack)
 
 task validateConfiguration(type: Exec) {
-  commandLine 'sh', '-c', "export PATH=/var/jenkins_home/google-cloud-sdk/bin:/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName} && kubectl config current-context"
-  //commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
-  // commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+  commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
 }
 
 task preCommit {
