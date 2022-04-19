@@ -24,7 +24,7 @@ plugins {
 }
 
 ext {
-  cluster = 'metrics-upgrade-clone'
+  cluster = 'metrics'
   zone='us-central1-a'
   projectName='apache-beam-testing'
 }
@@ -65,7 +65,7 @@ task validateConfiguration(type: Exec) {
 
 task preCommit {
   dependsOn validateConfiguration
-  // dependsOn testMetricsStack
+  dependsOn testMetricsStack
 }
 
 task checkLastCommitId {
