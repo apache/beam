@@ -139,6 +139,7 @@ func TestPaneCoder(t *testing.T) {
 		})
 	}
 }
+
 func TestEncodePane_bad(t *testing.T) {
 	tests := []struct {
 		name    string
