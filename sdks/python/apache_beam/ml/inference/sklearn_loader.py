@@ -52,9 +52,9 @@ class SklearnInferenceRunner(InferenceRunner):
 class SklearnModelLoader(ModelLoader):
   def __init__(
       self,
-      serialization: ModelFileType = ModelFileType.PICKLE,
+      model_file_type: ModelFileType = ModelFileType.PICKLE,
       model_uri: str = ''):
-    self._model_file_type = serialization
+    self._model_file_type = model_file_type
     self._model_uri = model_uri
     self._inference_runner = SklearnInferenceRunner()
 

@@ -133,7 +133,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         #TODO(BEAM-14305) Test against the public API.
         actual = pcoll | base.RunInference(
             SklearnModelLoader(
-                model_uri=file.name, serialization=ModelFileType.JOBLIB))
+                model_uri=file.name, model_file_type=ModelFileType.JOBLIB))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
             api.PredictionResult(numpy.array([1, 1]), 1)
