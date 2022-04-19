@@ -488,6 +488,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private BoundedExecutorService executor;
+    private final BigQueryIOMetadata bqIOMetadata;
 
     @VisibleForTesting
     DatasetServiceImpl(
@@ -499,6 +500,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -515,6 +517,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -525,6 +528,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -1218,10 +1222,14 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
+
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
-              .setTraceId("Dataflow:" + options.getJobName())
+              .setTraceId(
+                  "Dataflow:" + bqIOMetadata.getBeamJobId() != null
+                      ? bqIOMetadata.getBeamJobId()
+                      : options.getJobName())
               .build();
       return new StreamAppendClient() {
         private int pins = 0;
