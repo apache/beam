@@ -58,14 +58,18 @@ dockerCompose {
 
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task validateConfiguration(type: Exec) {
+task getClusterCredentials(type: Exec) {
   commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
+}
+
+task validateConfiguration(type: Exec) {
   commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
 }
 
 task preCommit {
+  dependsOn getClusterCredentials
   dependsOn validateConfiguration
-  dependsOn testMetricsStack
+  //dependsOn testMetricsStack
 }
 
 task checkLastCommitId {
