@@ -11,7 +11,7 @@
 // the License.
 
 const swiper = new Swiper('.swiper', {
-  loop: true,
+  loop: false,
   slidesPerView: 1,
   slidesPerGroup: 1,
   pagination: {
