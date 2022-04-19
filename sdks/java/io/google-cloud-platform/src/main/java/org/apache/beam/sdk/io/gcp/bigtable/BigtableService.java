@@ -103,8 +103,3 @@ interface BigtableService extends Serializable {
    */
   List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException;
 }
-
-
-
-
-

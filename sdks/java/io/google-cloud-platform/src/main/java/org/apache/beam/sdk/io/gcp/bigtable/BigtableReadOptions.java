@@ -64,7 +64,9 @@ abstract class BigtableReadOptions implements Serializable {
   }
 
   BigtableReadOptions setMaxBufferElementCount(Integer maxBufferElementCount) {
-    return toBuilder().setMaxBufferElementCount(ValueProvider.StaticValueProvider.of(maxBufferElementCount)).build();
+    return toBuilder()
+        .setMaxBufferElementCount(ValueProvider.StaticValueProvider.of(maxBufferElementCount))
+        .build();
   }
 
   BigtableReadOptions withRowFilter(RowFilter rowFilter) {
@@ -90,7 +92,8 @@ abstract class BigtableReadOptions implements Serializable {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
     }
     if (getMaxBufferElementCount() != null && getMaxBufferElementCount().isAccessible()) {
-      checkArgument(getMaxBufferElementCount().get() != null, "maxBufferElementCount can not be null");
+      checkArgument(
+          getMaxBufferElementCount().get() != null, "maxBufferElementCount can not be null");
       checkArgument(getMaxBufferElementCount().get() != 0, "maxBufferElementCount can not be zero");
     }
 

@@ -41,7 +41,6 @@ import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.FlatRowConverter;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.grpc.scanner.ScanHandler;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
@@ -150,7 +149,7 @@ public class BigtableServiceImplTest {
    * @throws IOException
    */
   @Test
-  public void testReadSingleRangeBelowMiniBatchLimit() throws Exception {
+  public void testReadSingleRangeBelowSegmentLimit() throws Exception {
     ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
 
@@ -159,28 +158,28 @@ public class BigtableServiceImplTest {
     FlatRow expectedRow = FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build();
 
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                flatRowObserver.onNext(expectedRow);
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    flatRowObserver.onNext(expectedRow);
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        });
+                return scanHandler;
+              }
+            });
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
-    Assert.assertEquals(FlatRowConverter.convert(expectedRow),
-        underTest.getCurrentRow());
+    Assert.assertEquals(FlatRowConverter.convert(expectedRow), underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
     underTest.close();
 
@@ -194,18 +193,20 @@ public class BigtableServiceImplTest {
    * @throws IOException
    */
   @Test
-  public void testReadSingleRangeAboveMiniBatchLimit() throws IOException {
+  public void testReadSingleRangeAboveSegmentLimit() throws IOException {
     List<FlatRow> expectedFirstRangeRows = new ArrayList<>();
     List<FlatRow> expectedSecondRangeRows = new ArrayList<>();
 
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-      expectedFirstRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
+      expectedFirstRangeRows.add(
+          FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
       expectedSecondRangeRows.add(
           FlatRow.newBuilder()
               .withRowKey(ByteString.copyFromUtf8("b" + (i + MINI_BATCH_ROW_LIMIT)))
               .build());
     }
-    expectedFirstRangeRows.set(0, FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
+    expectedFirstRangeRows.set(
+        0, FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
 
     ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey end = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
@@ -214,52 +215,58 @@ public class BigtableServiceImplTest {
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
 
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedFirstRangeRows.get(i));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedFirstRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedSecondRangeRows.get(i));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedSecondRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            flatRowObserver.onCompleted();
-            return scanHandler;
-          }
-        });
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                flatRowObserver.onCompleted();
+                return scanHandler;
+              }
+            });
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
-    Assert.assertEquals(FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
+    Assert.assertEquals(
+        FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
     for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
@@ -267,11 +274,12 @@ public class BigtableServiceImplTest {
       underTest.advance();
     }
     Assert.assertEquals(
-        FlatRowConverter.convert(expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1)), underTest.getCurrentRow());
+        FlatRowConverter.convert(expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1)),
+        underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
   }
 
   /**
@@ -285,13 +293,16 @@ public class BigtableServiceImplTest {
   @Test
   public void testReadMultipleRanges() throws IOException {
     List<FlatRow> expectedFirstRangeRows = new ArrayList<>();
-    expectedFirstRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
+    expectedFirstRangeRows.add(
+        FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
 
     List<FlatRow> expectedSecondRangeRows = new ArrayList<>();
-    expectedSecondRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("c")).build());
+    expectedSecondRangeRows.add(
+        FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("c")).build());
 
     for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) {
-      expectedFirstRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
+      expectedFirstRangeRows.add(
+          FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
       expectedSecondRangeRows.add(
           FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("d" + i)).build());
     }
@@ -307,67 +318,75 @@ public class BigtableServiceImplTest {
                 ByteKeyRange.of(sharedKeyEnd, secondEnd)));
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedFirstRangeRows.get(i));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedFirstRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedSecondRangeRows.get(i));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedSecondRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            flatRowObserver.onCompleted();
-            return scanHandler;
-          }
-        });
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                flatRowObserver.onCompleted();
+                return scanHandler;
+              }
+            });
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
-    Assert.assertEquals(FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
+    Assert.assertEquals(
+        FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
     for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
     Assert.assertEquals(
-        FlatRowConverter.convert(expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1)), underTest.getCurrentRow());
+        FlatRowConverter.convert(expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1)),
+        underTest.getCurrentRow());
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
 
     Assert.assertEquals(
-        FlatRowConverter.convert(expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1)), underTest.getCurrentRow());
+        FlatRowConverter.convert(expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1)),
+        underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
   }
 
   /**
@@ -381,10 +400,12 @@ public class BigtableServiceImplTest {
   @Test
   public void testReadMultipleRangesOverlappingKeys() throws IOException {
     List<FlatRow> expectedFirstRangeRows = new ArrayList<>();
-    expectedFirstRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
+    expectedFirstRangeRows.add(
+        FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
 
     List<FlatRow> expectedSecondRangeRows = new ArrayList<>();
-    expectedSecondRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("c")).build());
+    expectedSecondRangeRows.add(
+        FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("c")).build());
 
     for (int i = 1; i < 2 * MINI_BATCH_ROW_LIMIT; i++) {
       if (i < MINI_BATCH_ROW_LIMIT) {
@@ -417,66 +438,75 @@ public class BigtableServiceImplTest {
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
 
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedFirstRangeRows.get(i));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedFirstRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedSecondRangeRows.get(i + MINI_BATCH_ROW_LIMIT / 2));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(
+                          expectedSecondRangeRows.get(i + MINI_BATCH_ROW_LIMIT / 2));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            flatRowObserver.onCompleted();
-            return scanHandler;
-          }
-        });
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                flatRowObserver.onCompleted();
+                return scanHandler;
+              }
+            });
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
-    Assert.assertEquals(FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
+    Assert.assertEquals(
+        FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
     for (int i = 1; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
     Assert.assertEquals(
-        FlatRowConverter.convert(expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1)), underTest.getCurrentRow());
+        FlatRowConverter.convert(expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1)),
+        underTest.getCurrentRow());
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
     Assert.assertEquals(
-        FlatRowConverter.convert(expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1)), underTest.getCurrentRow());
+        FlatRowConverter.convert(expectedSecondRangeRows.get(expectedSecondRangeRows.size() - 1)),
+        underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
   }
 
   /**
@@ -491,79 +521,90 @@ public class BigtableServiceImplTest {
 
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT * 3; i++) {
       if (i < MINI_BATCH_ROW_LIMIT) {
-        expectedRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
+        expectedRangeRows.add(
+            FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
       } else if (i < MINI_BATCH_ROW_LIMIT * 2) {
-        expectedRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
+        expectedRangeRows.add(
+            FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
       } else {
-        expectedRangeRows.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
+        expectedRangeRows.add(
+            FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
       }
     }
 
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList());
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedRangeRows.get(i));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(expectedRangeRows.get(i + MINI_BATCH_ROW_LIMIT));
-                }
-                flatRowObserver.onCompleted();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedRangeRows.get(i + MINI_BATCH_ROW_LIMIT));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
+
+                return scanHandler;
               }
-            }.start();
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(expectedRangeRows.get(i + 2 * MINI_BATCH_ROW_LIMIT));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-      @Override
-      public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-        StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-        new Thread() {
-          @Override
-          public void run() {
-            for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-              flatRowObserver.onNext(expectedRangeRows.get(i + 2 * MINI_BATCH_ROW_LIMIT));
-            }
-            flatRowObserver.onCompleted();
-          }
-        }.start();
-
-        return scanHandler;
-      }
-    }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            flatRowObserver.onCompleted();
-            return scanHandler;
-          }
-        });
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                flatRowObserver.onCompleted();
+                return scanHandler;
+              }
+            });
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
-    Assert.assertEquals(FlatRowConverter.convert(expectedRangeRows.get(0)), underTest.getCurrentRow());
+    Assert.assertEquals(
+        FlatRowConverter.convert(expectedRangeRows.get(0)), underTest.getCurrentRow());
     for (int i = 1; i < 3 * MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
@@ -584,9 +625,11 @@ public class BigtableServiceImplTest {
 
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT + MINI_BATCH_ROW_LIMIT / 2; i++) {
       if (i < MINI_BATCH_ROW_LIMIT) {
-        rowsInRowRanges.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
+        rowsInRowRanges.add(
+            FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("b" + i)).build());
       } else {
-        rowsInRowRanges.add(FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("c" + i)).build());
+        rowsInRowRanges.add(
+            FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("c" + i)).build());
       }
     }
     rowsInRowRanges.set(0, FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
@@ -612,67 +655,165 @@ public class BigtableServiceImplTest {
                 ByteKeyRange.of(thirdStart, thirdEnd)));
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
-                  flatRowObserver.onNext(rowsInRowRanges.get(i));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+                      flatRowObserver.onNext(rowsInRowRanges.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            new Thread() {
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
               @Override
-              public void run() {
-                for (int i = 0; i < MINI_BATCH_ROW_LIMIT / 2; i++) {
-                  flatRowObserver.onNext(rowsInRowRanges.get(i + MINI_BATCH_ROW_LIMIT));
-                }
-                flatRowObserver.onCompleted();
-              }
-            }.start();
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < MINI_BATCH_ROW_LIMIT / 2; i++) {
+                      flatRowObserver.onNext(rowsInRowRanges.get(i + MINI_BATCH_ROW_LIMIT));
+                    }
+                    flatRowObserver.onCompleted();
+                  }
+                }.start();
 
-            return scanHandler;
-          }
-        }).thenAnswer(new Answer<ScanHandler>() {
-          @Override
-          public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-            StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-            flatRowObserver.onCompleted();
-            return scanHandler;
-          }
-        });
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                flatRowObserver.onCompleted();
+                return scanHandler;
+              }
+            });
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableMiniBatchReaderImpl(mockSession, mockBigtableSource);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
 
     underTest.start();
-    verify(mockBigtableDataClient, times(1)).readFlatRows(requestCaptor.capture(), any(StreamObserver.class));
+    verify(mockBigtableDataClient, times(1))
+        .readFlatRows(requestCaptor.capture(), any(StreamObserver.class));
     Assert.assertEquals(3, requestCaptor.getValue().getRows().getRowRangesCount());
-    Assert.assertEquals(FlatRowConverter.convert(rowsInRowRanges.get(0)), underTest.getCurrentRow());
+    Assert.assertEquals(
+        FlatRowConverter.convert(rowsInRowRanges.get(0)), underTest.getCurrentRow());
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
-    verify(mockBigtableDataClient, times(2)).readFlatRows(requestCaptor.capture(), any(StreamObserver.class));
+    verify(mockBigtableDataClient, times(2))
+        .readFlatRows(requestCaptor.capture(), any(StreamObserver.class));
     for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
       underTest.advance();
     }
-    Assert.assertEquals(FlatRowConverter.convert(rowsInRowRanges.get(rowsInRowRanges.size() - 1)), underTest.getCurrentRow());
+    Assert.assertEquals(
+        FlatRowConverter.convert(rowsInRowRanges.get(rowsInRowRanges.size() - 1)),
+        underTest.getCurrentRow());
     Assert.assertEquals(1, requestCaptor.getValue().getRows().getRowRangesCount());
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
     verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+  }
+
+  @Test
+  public void testReadByteLimitBuffer() throws IOException {
+    List<FlatRow> expectedFirstRangeRows = new ArrayList<>();
+    // Max amount of memory allowed in a Row
+    byte[] largeMemory = new byte[1024 * 1024 * 256];
+    FlatRow.Builder largeRow =
+        FlatRow.newBuilder()
+            .addCell(
+                "Family",
+                ByteString.copyFromUtf8("LargeMemoryRow"),
+                System.currentTimeMillis(),
+                ByteString.copyFrom(largeMemory));
+
+    for (int i = 0; i < MINI_BATCH_ROW_LIMIT / 2; i++) {
+      expectedFirstRangeRows.add(largeRow.withRowKey(ByteString.copyFromUtf8("b" + i)).build());
+    }
+    expectedFirstRangeRows.set(
+        0, FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
+
+    ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
+    ByteKey end = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
+
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+
+    when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 0; i < 41; i++) {
+                      flatRowObserver.onNext(expectedFirstRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                    // flatRowObserver.onError(new Throwable());
+                  }
+                }.start();
+
+                return scanHandler;
+              }
+            })
+        .thenAnswer(
+            new Answer<ScanHandler>() {
+              @Override
+              public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+                StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+                new Thread() {
+                  @Override
+                  public void run() {
+                    for (int i = 41; i < 50; i++) {
+                      flatRowObserver.onNext(expectedFirstRangeRows.get(i));
+                    }
+                    flatRowObserver.onCompleted();
+                    // flatRowObserver.onError(new Throwable(new CancellationException()));
+                  }
+                }.start();
+
+                return scanHandler;
+              }
+            });
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+
+    underTest.start();
+    Assert.assertEquals(
+        FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
+    for (int i = 1; i < expectedFirstRangeRows.size(); i++) {
+      underTest.advance();
+      Assert.assertEquals(
+          FlatRowConverter.convert(expectedFirstRangeRows.get(i)), underTest.getCurrentRow());
+    }
+    Assert.assertEquals(
+        FlatRowConverter.convert(expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1)),
+        underTest.getCurrentRow());
+    Assert.assertFalse(underTest.advance());
+
+    underTest.close();
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+    // I need to figure out at what point this will break off with 256MB rows and a 200MB limit
+    // I need to ask Igor what the amount for the byte buffer should be
+
   }
 
   /**

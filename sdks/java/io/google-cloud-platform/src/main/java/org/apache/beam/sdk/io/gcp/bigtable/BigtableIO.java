@@ -408,13 +408,18 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * When we have a builder, we initialize the value. When they call the method then we override the value
+     * <p>When we have a builder, we initialize the value. When they call the method then we
+     * override the value
      */
     public Read withMaxBufferElementCount(ValueProvider<Integer> maxBufferElementCount) {
       checkArgument(maxBufferElementCount != null, "maxBufferElementCount can not be null");
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
-          .setBigtableReadOptions(bigtableReadOptions.toBuilder().setMaxBufferElementCount(maxBufferElementCount).build())
+          .setBigtableReadOptions(
+              bigtableReadOptions
+                  .toBuilder()
+                  .setMaxBufferElementCount(maxBufferElementCount)
+                  .build())
           .build();
     }
 
