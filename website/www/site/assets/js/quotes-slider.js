@@ -10,7 +10,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-const swiper = new Swiper('.swiper', {
+new Swiper('.swiper', {
   loop: false,
   slidesPerView: 1,
   slidesPerGroup: 1,
