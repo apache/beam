@@ -263,7 +263,7 @@ class ProgressIndicatorTest(unittest.TestCase):
 
       @utils.progress_indicated
       def progress_indicated_dummy():
-        mocked_display.assert_any_call('Processing...')
+        mocked_display.assert_any_call('Processing... progress_indicated_dummy')
 
       progress_indicated_dummy()
       mocked_display.assert_any_call('Done.')
@@ -378,36 +378,6 @@ class GCSUtilsTest(unittest.TestCase):
       return_value='test-bucket-found')
   def test_assert_bucket_exists_found(self, mock_response, mock_client):
     utils.assert_bucket_exists('')
-
-
-class BidictTest(unittest.TestCase):
-  def test_inverse_set_correctly(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    self.assertEqual(bd.inverse['bar'], 'foo')
-    bd['foo'] = 'baz'
-    self.assertEqual(bd.inverse['baz'], 'foo')
-
-  def test_on_delete_remove_pair(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    del bd['foo']
-    self.assertEqual(bd, {})
-    self.assertEqual(bd.inverse, {})
-
-  def test_clear_bidirectionally(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    bd.clear()
-    self.assertEqual(bd, {})
-    self.assertEqual(bd.inverse, {})
-
-  def test_on_pop_pair(self):
-    bd = utils.bidict()
-    bd['foo'] = 'bar'
-    value, inverse_value = bd.pop('foo')
-    self.assertEqual(value, 'bar')
-    self.assertEqual(inverse_value, 'foo')
 
 
 class PipelineUtilTest(unittest.TestCase):
