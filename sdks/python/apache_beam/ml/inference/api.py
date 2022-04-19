@@ -15,30 +15,13 @@
 # limitations under the License.
 #
 
-import abc
 from dataclasses import dataclass
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
 import apache_beam as beam
-
-
-class BaseModelSpec:
-  """
-  Model factory that returns ModelLoader and
-  InferenceRunner objects to be used
-  """
-  @abc.abstractmethod
-  def get_model_loader(self):
-    "Returns ModelLoader object"
-    raise NotImplementedError
-
-  @abc.abstractmethod
-  def get_inference_runner(self):
-    "Returns InferenceRunner object"
-    raise NotImplementedError
-
+from apache_beam.ml.inference import base
 
 _K = TypeVar('_K')
 _INPUT_TYPE = TypeVar('_INPUT_TYPE')
@@ -54,9 +37,7 @@ class PredictionResult:
 @beam.ptransform_fn
 @beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[_K, _INPUT_TYPE]])
 @beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
-def RunInference(
-    examples: beam.pvalue.PCollection,
-    model_spec: BaseModelSpec) -> beam.pvalue.PCollection:
+class RunInference(beam.PTransform):
   """
   A transform that takes a PCollection of examples (or features) to be used on
   an ML model. It will then output inferences (or predictions) for those
@@ -71,4 +52,8 @@ def RunInference(
 
   TODO(BEAM-14046): Add and link to help documentation
   """
-  pass  # TODO: add implementation (RunInferenceImpl)
+  def __init__(self, model_loader: base.ModelLoader) -> beam.pvalue.PCollection:
+    self._model_loader = model_loader
+
+  def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
+    return pcoll | base.RunInference(self._model_loader)
