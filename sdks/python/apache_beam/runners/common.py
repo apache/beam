@@ -34,7 +34,6 @@ from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Mapping
-from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 
@@ -233,35 +232,13 @@ class BatchingPreference(Enum):
   BATCH_FORBIDDEN = 3  # This operation can only work element-at-a-time
   # Other possibilities: BATCH_PREFERRED (with min batch size specified)
 
-
-class BatchingConfiguration(NamedTuple):
-  preference: BatchingPreference
-  batch_converter: Optional[BatchConverter] = None
-
-  @staticmethod
-  def batch_required(
-      batch_converter: BatchConverter) -> 'BatchingConfiguration':
-    return BatchingConfiguration(
-        BatchingPreference.BATCH_REQUIRED, batch_converter)
-
-  @staticmethod
-  def batch_supported(
-      batch_converter: BatchConverter) -> 'BatchingConfiguration':
-    return BatchingConfiguration(
-        BatchingPreference.DO_NOT_CARE, batch_converter)
-
-  @staticmethod
-  def elementwise() -> 'BatchingConfiguration':
-    return BatchingConfiguration(BatchingPreference.BATCH_FORBIDDEN)
-
   @property
   def supports_batches(self) -> bool:
-    return self.preference in (
-        BatchingPreference.BATCH_REQUIRED, BatchingPreference.DO_NOT_CARE)
+    return self in (self.BATCH_REQUIRED, self.DO_NOT_CARE)
 
   @property
   def requires_batches(self) -> bool:
-    return self.preference == BatchingPreference.BATCH_REQUIRED
+    return self == self.BATCH_REQUIRED
 
 
 class DoFnSignature(object):
@@ -288,14 +265,6 @@ class DoFnSignature(object):
     self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
     self.setup_lifecycle_method = MethodWrapper(do_fn, 'setup')
     self.teardown_lifecycle_method = MethodWrapper(do_fn, 'teardown')
-
-    self.output_batch_utilities = None
-
-    if self.do_fn.process_batch_defined:
-      if not self.do_fn.process_defined:
-        self.batching_configuration = BatchingConfiguration.batch_required(None)
-      else:
-        raise NotImplementedError("BatchingConfiguration for either")
 
     restriction_provider = self.get_restriction_provider()
     watermark_estimator_provider = self.get_watermark_estimator_provider()
@@ -1272,11 +1241,6 @@ class DoFnRunner:
     else:
       per_element_output_counter = None
 
-    self.batching_configuration = BatchingConfiguration.batch_required(
-        do_fn_signature.input_batch_converter
-    ) if fn.process_batch_defined else BatchingConfiguration.elementwise()
-    self.output_batch_utilities = do_fn_signature.output_batch_utilities
-
     # TODO: output processor assumes DoFns are batch-to-batch or
     # element-to-element, @yields_batches and @yields_elements will break this
     # assumption.
@@ -1285,9 +1249,6 @@ class DoFnRunner:
         main_receivers,
         tagged_receivers,
         per_element_output_counter)
-
-    self.input_batch_converter = getattr(fn, 'input_batch_converter', None)
-    self.output_batch_converter = getattr(fn, 'output_batch_converter', None)
 
     if do_fn_signature.is_stateful_dofn() and not user_state_context:
       raise Exception(

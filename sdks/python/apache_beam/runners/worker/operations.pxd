@@ -29,20 +29,24 @@ cdef type _global_window_type
 
 
 cdef class ConsumerSet(Receiver):
-  cdef list consumers
   cdef readonly opcounters.OperationCounters opcounter
   cdef public step_name
   cdef public output_index
   cdef public coder
+  cdef object producer_batch_converter
+  # TODO: Branch this as a separate sub-class so SingletonElementConsumer
+  # doesn't construct these unnecessarily
+  cdef list element_consumers
+  cdef list passthrough_batch_consumers
+  cdef dict other_batch_consumers
+  cdef bint has_batch_consumers
+  cdef list _batched_elements
 
   cpdef receive(self, WindowedValue windowed_value)
   cpdef update_counters_start(self, WindowedValue windowed_value)
   cpdef update_counters_finish(self)
 
 cdef class SingletonElementConsumerSet(ConsumerSet):
-  cdef Operation consumer
-
-cdef class SingletonBatchConsumerSet(ConsumerSet):
   cdef Operation consumer
 
 cdef class Operation(object):

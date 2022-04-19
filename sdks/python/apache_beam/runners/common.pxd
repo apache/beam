@@ -50,6 +50,7 @@ cdef class MethodWrapper(object):
 
 cdef class DoFnSignature(object):
   cdef public MethodWrapper process_method
+  cdef public MethodWrapper process_batch_method
   cdef public MethodWrapper start_bundle_method
   cdef public MethodWrapper finish_bundle_method
   cdef public MethodWrapper setup_lifecycle_method
@@ -58,6 +59,7 @@ cdef class DoFnSignature(object):
   cdef public MethodWrapper initial_restriction_method
   cdef public MethodWrapper create_tracker_method
   cdef public MethodWrapper split_method
+  cdef public object batching_configuration
   cdef public object do_fn
   cdef public object timer_methods
   cdef bint _is_stateful_dofn
@@ -81,6 +83,7 @@ cdef class DoFnInvoker(object):
 
 cdef class SimpleInvoker(DoFnInvoker):
   cdef object process_method
+  cdef object process_batch_method
 
 
 cdef class PerWindowInvoker(DoFnInvoker):

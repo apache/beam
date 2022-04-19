@@ -149,9 +149,9 @@ class ConsumerSet(Receiver):
 
     consumers_by_batch_converter: Dict[
         Optional[BatchConverter], List[Operation]] = {
-            batch_converter: list(consumers)
+            batch_converter: list(consumer_subset)
             for batch_converter,
-            consumers in itertools.groupby(
+            consumer_subset in itertools.groupby(
                 consumers, key=lambda c: c.get_input_batch_converter())
         }
 
@@ -393,7 +393,7 @@ class Operation(object):
 
   def get_batching_preference(self):
     # By default operations don't support batching, require Receiver to unbatch
-    return common.BatchingConfiguration.elementwise()
+    return common.BatchingPreference.BATCH_FORBIDDEN
 
   def get_input_batch_converter(self) -> Optional[BatchConverter]:
     """Returns a batch type converter if this operation can accept a batch,
@@ -813,14 +813,18 @@ class DoOperation(Operation):
       self.dofn_runner.start()
 
   def get_batching_preference(self):
-    return self.dofn_runner.batching_configuration
+    if self.fn.process_batch_defined:
+      if self.fn.process_defined:
+        return common.BatchingPreference.DO_NOT_CARE
+      else:
+        return common.BatchingPreference.BATCH_REQUIRED
+    else:
+      return common.BatchingPreference.BATCH_FORBIDDEN
 
   def get_input_batch_converter(self) -> Optional[BatchConverter]:
     return getattr(self.fn, 'input_batch_converter', None)
 
   def get_output_batch_converter(self) -> Optional[BatchConverter]:
-    """Returns a batch type converter if this operation can produce a batch,
-    otherwise None."""
     return getattr(self.fn, 'output_batch_converter', None)
 
   def process(self, o):
@@ -859,7 +863,7 @@ class DoOperation(Operation):
 
   def finish(self):
     # type: () -> None
-    super().finish()
+    super(DoOperation, self).finish()
     with self.scoped_finish_state:
       self.dofn_runner.finish()
       if self.user_state_context:
@@ -1046,7 +1050,7 @@ class CombineOperation(Operation):
   def finish(self):
     # type: () -> None
     _LOGGER.debug('Finishing %s', self)
-    super().finish()
+    super(CombineOperation, self).finish()
 
   def teardown(self):
     # type: () -> None
