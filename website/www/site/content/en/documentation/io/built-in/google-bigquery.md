@@ -789,6 +789,9 @@ BigQueryIO.writeTableRows()
         .withMethod(Method.STORAGE_WRITE_API)
 );
 {{< /highlight >}}
+{{< highlight py >}}
+# The SDK for Python does not support the BigQuery Storage API.
+{{< /highlight >}}
 
 If your pipeline needs to create the table (in case it doesn’t exist and you
 specified the create disposition as `CREATE_IF_NEEDED`), you must provide a
@@ -807,6 +810,9 @@ TableSchema schema = new TableSchema().setFields(
                 .setType("STRING")
                 .setMode("REQUIRED")));
 {{< /highlight >}}
+{{< highlight py >}}
+# The SDK for Python does not support the BigQuery Storage API.
+{{< /highlight >}}
 
 For streaming pipelines, you need to set two additional parameters: the number
 of streams and the triggering frequency.
@@ -817,6 +823,9 @@ BigQueryIO.writeTableRows()
         .withTriggeringFrequency(Duration.standardSeconds(5))
         .withNumStorageWriteApiStreams(3)
 );
+{{< /highlight >}}
+{{< highlight py >}}
+# The SDK for Python does not support the BigQuery Storage API.
 {{< /highlight >}}
 
 The number of streams defines the parallelism of the BigQueryIO Write transform
