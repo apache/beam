@@ -357,52 +357,6 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       env._get_gcs_cache_dir(p, cache_root)
 
-  @unittest.skipIf(
-      not ie.current_env().is_interactive_ready,
-      '[interactive] dependency is not installed.')
-  @patch(
-      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
-      'DataprocClusterManager.cleanup',
-      return_value=None)
-  def test_cleanup_specific_dataproc_cluster(self, mock_cleanup):
-    env = ie.InteractiveEnvironment()
-    project = 'test-project'
-    region = 'test-region'
-    p = beam.Pipeline(
-        options=PipelineOptions(
-            project=project,
-            region=region,
-        ))
-    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
-    env.clusters.dataproc_cluster_managers[str(
-        id(p))] = DataprocClusterManager(cluster_metadata)
-    env._tracked_user_pipelines.add_user_pipeline(p)
-    env.cleanup(p)
-    self.assertEqual(env.clusters.dataproc_cluster_managers, {})
-
-  @unittest.skipIf(
-      not ie.current_env().is_interactive_ready,
-      '[interactive] dependency is not installed.')
-  @patch(
-      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
-      'DataprocClusterManager.cleanup',
-      return_value=None)
-  def test_cleanup_all_dataproc_clusters(self, mock_cleanup):
-    env = ie.InteractiveEnvironment()
-    project = 'test-project'
-    region = 'test-region'
-    p = beam.Pipeline(
-        options=PipelineOptions(
-            project=project,
-            region=region,
-        ))
-    cluster_metadata = MasterURLIdentifier(project_id=project, region=region)
-    env.clusters.dataproc_cluster_managers[str(
-        id(p))] = DataprocClusterManager(cluster_metadata)
-    env._tracked_user_pipelines.add_user_pipeline(p)
-    env.cleanup()
-    self.assertEqual(env.clusters.dataproc_cluster_managers, {})
-
 
 if __name__ == '__main__':
   unittest.main()
