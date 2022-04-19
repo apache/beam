@@ -13,7 +13,7 @@
 - text: Seznam, a Czech search engine, has been an early contributor and adopter of Apache Beam, and they migrated several petabyte-scale workloads to Apache Beam pipelines.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/seznam.png
-  linkUrl: https://beam.apache.org/case-studies/paloalto/
+  linkUrl: https://beam.apache.org/case-studies/seznam/
   linkText: Learn more
 - text: Palo Alto Networks, Inc. is a global cybersecurity leader that uses Apache Beam to process ~10 millions of security log events per second for their real-time streaming infrastructure.
   icon: icons/quote-icon.svg
@@ -23,12 +23,12 @@
 - text: Apache Beam provides Ricardo, a leading Swiss second hand marketplace, with a scalable and reliable data processing framework that supports fundamental business scenarios and enables real-time and ML data processing.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/ricardo.png
-  linkUrl: https://beam.apache.org/case-studies/paloalto/
+  linkUrl: https://beam.apache.org/case-studies/ricardo/
   linkText: Learn more
 - text: Apache Hop, an open-source data orchestration platform, uses Apache Beam to "design once, run anywhere" and creates a value-add for Apache Beam users by enabling visual pipeline development and lifecycle management.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/hop.svg
-  linkUrl: https://beam.apache.org/case-studies/paloalto/
+  linkUrl: https://beam.apache.org/case-studies/hop/
   linkText: Learn more
 - text: Have a story to share? Your logo could be here.
   icon: icons/quote-icon.svg
