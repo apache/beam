@@ -328,6 +328,23 @@ func (n *DataSource) getProcessContinuation() sdf.ProcessContinuation {
 	return nil
 }
 
+func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
+	wc := MakeWindowEncoder(n.Coder.Window)
+	ec := MakeElementEncoder(coder.SkipW(n.Coder))
+	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
+		encElms := make([][]byte, len(fvs))
+		for i, fv := range fvs {
+			enc, err := encodeElm(fv, wc, ec)
+			if err != nil {
+				return nil, err
+			}
+			encElms[i] = enc
+		}
+		return encElms, nil
+	}
+	return encodeElms
+}
+
 // Checkpoint attempts to split an SDF that has self-checkpointed (e.g. returned a
 // ProcessContinuation) and needs to be resumed later. If the underlying DoFn is not
 // splittable or has not returned a resuming continuation, the function returns an empty
@@ -355,19 +372,7 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want nil", ps)
 	}
 
-	wc := MakeWindowEncoder(n.Coder.Window)
-	ec := MakeElementEncoder(coder.SkipW(n.Coder))
-	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
-		encElms := make([][]byte, len(fvs))
-		for i, fv := range fvs {
-			enc, err := encodeElm(fv, wc, ec)
-			if err != nil {
-				return nil, err
-			}
-			encElms[i] = enc
-		}
-		return encElms, nil
-	}
+	encodeElms := n.makeEncodeElms()
 
 	rsEnc, err := encodeElms(rs)
 	if err != nil {
@@ -466,19 +471,7 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 
 	// TODO(BEAM-10579) Eventually encode elements with the splittable
 	// unit's input coder instead of the DataSource's coder.
-	wc := MakeWindowEncoder(n.Coder.Window)
-	ec := MakeElementEncoder(coder.SkipW(n.Coder))
-	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
-		encElms := make([][]byte, len(fvs))
-		for i, fv := range fvs {
-			enc, err := encodeElm(fv, wc, ec)
-			if err != nil {
-				return nil, err
-			}
-			encElms[i] = enc
-		}
-		return encElms, nil
-	}
+	encodeElms := n.makeEncodeElms()
 
 	psEnc, err := encodeElms(ps)
 	if err != nil {
