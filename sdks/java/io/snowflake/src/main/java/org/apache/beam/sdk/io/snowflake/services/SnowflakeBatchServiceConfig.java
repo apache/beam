@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.snowflake.services;
 
 import java.util.List;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.io.snowflake.FileFormat;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
@@ -42,6 +43,7 @@ public class SnowflakeBatchServiceConfig {
   private SnowflakeTableSchema tableSchema;
   private final String stagingBucketDir;
   private final String quotationMark;
+  private FileFormat fileFormat;
 
   /** Creating a batch configuration for reading. */
   public SnowflakeBatchServiceConfig(
@@ -76,7 +78,8 @@ public class SnowflakeBatchServiceConfig {
       WriteDisposition writeDisposition,
       String storageIntegrationName,
       String stagingBucketDir,
-      String quotationMark) {
+      String quotationMark,
+      FileFormat fileFormat) {
     this.dataSourceProviderFn = dataSourceProviderFn;
     this.filesList = filesList;
     this.database = database;
@@ -89,6 +92,7 @@ public class SnowflakeBatchServiceConfig {
     this.storageIntegrationName = storageIntegrationName;
     this.stagingBucketDir = stagingBucketDir;
     this.quotationMark = quotationMark;
+    this.fileFormat = fileFormat;
   }
 
   /** Getting a DataSource provider function for connection credentials. */
@@ -147,5 +151,9 @@ public class SnowflakeBatchServiceConfig {
 
   public SnowflakeTableSchema getTableSchema() {
     return tableSchema;
+  }
+
+  public FileFormat getFileFormat() {
+    return fileFormat;
   }
 }

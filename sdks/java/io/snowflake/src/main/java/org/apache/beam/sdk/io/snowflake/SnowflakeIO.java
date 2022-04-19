@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.security.PrivateKey;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -63,13 +64,11 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
@@ -85,8 +84,10 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -676,7 +677,14 @@ public class SnowflakeIO {
     abstract CreateDisposition getCreateDisposition();
 
     @Nullable
+    @Deprecated
     abstract UserDataMapper<T> getUserDataMapper();
+
+    @Nullable
+    abstract SerializableFunction<T, Object[]> getCsvFormatFunction();
+
+    @Nullable
+    abstract SerializableFunction<T, AbstractMap<String, Object>> getJsonFormatFunction();
 
     @Nullable
     abstract SnowflakeTableSchema getTableSchema();
@@ -715,7 +723,13 @@ public class SnowflakeIO {
 
       abstract Builder<T> setFileNameTemplate(String fileNameTemplate);
 
+      @Deprecated
       abstract Builder<T> setUserDataMapper(UserDataMapper<T> userDataMapper);
+
+      abstract Builder<T> setCsvFormatFunction(SerializableFunction<T, Object[]> csvFormatFunction);
+
+      abstract Builder<T> setJsonFormatFunction(
+          SerializableFunction<T, AbstractMap<String, Object>> jsonDataMapper);
 
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
 
@@ -826,8 +840,28 @@ public class SnowflakeIO {
      *
      * @param userDataMapper an instance of {@link UserDataMapper}.
      */
+    @Deprecated
     public Write<T> withUserDataMapper(UserDataMapper<T> userDataMapper) {
       return toBuilder().setUserDataMapper(userDataMapper).build();
+    }
+
+    /**
+     * User-defined function mapping user data into CSV lines.
+     *
+     * @param csvFormatFunction
+     */
+    public Write<T> withCsvFormatFunction(SerializableFunction<T, Object[]> csvFormatFunction) {
+      return toBuilder().setCsvFormatFunction(csvFormatFunction).build();
+    }
+
+    /**
+     * User-defined function mapping user data into JSON.
+     *
+     * @param jsonFormatFunction
+     */
+    public Write<T> withJsonFormatFunction(
+        SerializableFunction<T, AbstractMap<String, Object>> jsonFormatFunction) {
+      return toBuilder().setJsonFormatFunction(jsonFormatFunction).build();
     }
 
     /**
@@ -983,7 +1017,16 @@ public class SnowflakeIO {
       checkArgument(getStagingBucketName() != null, "withStagingBucketName is required");
       checkArgument(isNotEmpty(getStagingBucketName()), "staging bucket name can not be empty");
 
-      checkArgument(getUserDataMapper() != null, "withUserDataMapper() is required");
+      List<?> allFormatArgs =
+          Lists.newArrayList(getUserDataMapper(), getCsvFormatFunction(), getJsonFormatFunction());
+
+      checkArgument(
+          1
+              == Iterables.size(
+                  allFormatArgs.stream()
+                      .filter(Predicates.notNull()::apply)
+                      .collect(Collectors.toList())),
+          "Exactly one of withUserDataMapper(), withCsvFormatFunction, or withJsonFormatFunction must be set");
 
       checkArgument(
           (getDataSourceProviderFn() != null),
@@ -1047,7 +1090,8 @@ public class SnowflakeIO {
       SnowflakeServices snowflakeServices =
           getSnowflakeServices() != null ? getSnowflakeServices() : new SnowflakeServicesImpl();
 
-      PCollection<String> files = writeBatchFiles(input, stagingBucketDir);
+      int shards = (getShardsNumber() > 0) ? getShardsNumber() : DEFAULT_BATCH_SHARDS_NUMBER;
+      PCollection<String> files = writeFiles(input, stagingBucketDir, shards);
 
       // Combining PCollection of files as a side input into one list of files
       ListCoder<String> coder = ListCoder.of(StringUtf8Coder.of());
@@ -1058,29 +1102,40 @@ public class SnowflakeIO {
           "Copy files to table", copyToTable(snowflakeServices, stagingBucketDir));
     }
 
-    private PCollection<String> writeBatchFiles(
-        PCollection<T> input, ValueProvider<String> outputDirectory) {
-      int shards = (getShardsNumber() > 0) ? getShardsNumber() : DEFAULT_BATCH_SHARDS_NUMBER;
-      return writeFiles(input, outputDirectory, shards);
-    }
-
     private PCollection<String> writeFiles(
         PCollection<T> input, ValueProvider<String> stagingBucketDir, int numShards) {
 
-      PCollection<String> mappedUserData =
-          input
-              .apply(
-                  MapElements.via(
-                      new SimpleFunction<T, Object[]>() {
-                        @Override
-                        public Object[] apply(T element) {
-                          return getUserDataMapper().mapRow(element);
-                        }
-                      }))
-              .apply(
-                  "Map Objects array to CSV lines",
-                  ParDo.of(new MapObjectsArrayToCsvFn(getQuotationMark())))
-              .setCoder(StringUtf8Coder.of());
+      PCollection<String> mappedUserData;
+      String suffix = resolveFileFormat().getFilenameSuffix();
+      if (getUserDataMapper() != null) {
+        UserDataMapper<T> userDataMapper = getUserDataMapper();
+        mappedUserData =
+            input
+                .apply(
+                    "Map user type to CSV lines",
+                    ParDo.of(
+                        new MapUserTypeToCsvLineFn<>(userDataMapper::mapRow, getQuotationMark())))
+                .setCoder(StringUtf8Coder.of());
+      } else if (getCsvFormatFunction() != null) {
+        mappedUserData =
+            input
+                .apply(
+                    "Map user type to CSV lines",
+                    ParDo.of(
+                        new MapUserTypeToCsvLineFn<>(getCsvFormatFunction(), getQuotationMark())))
+                .setCoder(StringUtf8Coder.of());
+      } else if (getJsonFormatFunction() != null) {
+        mappedUserData =
+            input
+                .apply(
+                    "Map user type to JSON lines",
+                    ParDo.of(new MapUserTypeToJsonFn<>(getJsonFormatFunction())))
+                .setCoder(StringUtf8Coder.of());
+
+      } else {
+        throw new RuntimeException(
+            "Exactly one of withUserDataMapper(), withCsvFormatFunction, or withJsonFormatFunction must be set");
+      }
 
       WriteFilesResult<Void> filesResult =
           mappedUserData.apply(
@@ -1089,7 +1144,7 @@ public class SnowflakeIO {
                   .via(TextIO.sink())
                   .to(stagingBucketDir)
                   .withPrefix(UUID.randomUUID().toString().subSequence(0, 8).toString())
-                  .withSuffix(".csv")
+                  .withSuffix(suffix)
                   .withNumShards(numShards)
                   .withCompression(Compression.GZIP));
 
@@ -1111,7 +1166,8 @@ public class SnowflakeIO {
               getWriteDisposition(),
               getTableSchema(),
               snowflakeServices,
-              getQuotationMark()));
+              getQuotationMark(),
+              resolveFileFormat()));
     }
 
     protected ParDo.SingleOutput<List<String>, Void> streamToTable(
@@ -1123,6 +1179,19 @@ public class SnowflakeIO {
               stagingBucketDir,
               getDebugMode(),
               snowflakeServices));
+    }
+
+    FileFormat resolveFileFormat() {
+      if (getUserDataMapper() != null || getCsvFormatFunction() != null) {
+        return FileFormat.CSV;
+      }
+
+      if (getJsonFormatFunction() != null) {
+        return FileFormat.JSON;
+      }
+
+      throw new RuntimeException(
+          "Exactly one of withUserDataMapper(), withCsvFormatFunction, or withJsonFormatFunction must be set");
     }
   }
 
@@ -1157,44 +1226,6 @@ public class SnowflakeIO {
     }
   }
 
-  /**
-   * Custom DoFn that maps {@link Object[]} into CSV line to be saved to Snowflake.
-   *
-   * <p>Adds Snowflake-specific quotations around strings.
-   */
-  private static class MapObjectsArrayToCsvFn extends DoFn<Object[], String> {
-    private String quotationMark;
-
-    public MapObjectsArrayToCsvFn(String quotationMark) {
-      this.quotationMark = quotationMark;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      List<Object> csvItems = new ArrayList<>();
-      for (Object o : context.element()) {
-        if (o instanceof String) {
-          String field = (String) o;
-          field = field.replace("'", "''");
-          field = quoteField(field);
-
-          csvItems.add(field);
-        } else {
-          csvItems.add(o);
-        }
-      }
-      context.output(Joiner.on(",").useForNull("").join(csvItems));
-    }
-
-    private String quoteField(String field) {
-      return quoteField(field, this.quotationMark);
-    }
-
-    private String quoteField(String field, String quotation) {
-      return String.format("%s%s%s", quotation, field, quotation);
-    }
-  }
-
   private static class CopyToTableFn extends DoFn<List<String>, Void> {
     private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
     private final ValueProvider<String> table;
@@ -1208,6 +1239,7 @@ public class SnowflakeIO {
     private final WriteDisposition writeDisposition;
     private final CreateDisposition createDisposition;
     private final SnowflakeServices snowflakeServices;
+    private final FileFormat fileFormat;
 
     CopyToTableFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn,
@@ -1219,7 +1251,8 @@ public class SnowflakeIO {
         WriteDisposition writeDisposition,
         SnowflakeTableSchema tableSchema,
         SnowflakeServices snowflakeServices,
-        String quotationMark) {
+        String quotationMark,
+        FileFormat fileFormat) {
       this.dataSourceProviderFn = dataSourceProviderFn;
       this.query = query;
       this.table = table;
@@ -1237,6 +1270,7 @@ public class SnowflakeIO {
 
       this.database = config.getDatabase();
       this.schema = config.getSchema();
+      this.fileFormat = fileFormat;
     }
 
     @ProcessElement
@@ -1259,7 +1293,8 @@ public class SnowflakeIO {
               writeDisposition,
               storageIntegrationName.get(),
               stagingBucketDir.get(),
-              quotationMark);
+              quotationMark,
+              fileFormat);
       snowflakeServices.getBatchService().write(config);
     }
   }

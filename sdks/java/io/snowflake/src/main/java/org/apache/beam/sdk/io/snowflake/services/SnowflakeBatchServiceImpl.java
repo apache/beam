@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.io.snowflake.FileFormat;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
@@ -118,6 +119,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
     WriteDisposition writeDisposition = config.getWriteDisposition();
     String storageIntegrationName = config.getStorageIntegrationName();
     String stagingBucketDir = config.getStagingBucketDir();
+    FileFormat fileFormat = config.getFileFormat();
 
     String source;
     if (query != null) {
@@ -135,20 +137,31 @@ public class SnowflakeBatchServiceImpl implements SnowflakeServices.BatchService
     prepareTableAccordingCreateDisposition(dataSource, table, tableSchema, createDisposition);
     prepareTableAccordingWriteDisposition(dataSource, table, writeDisposition);
 
+    String fileFormatOptions;
+    if (fileFormat == FileFormat.CSV) {
+      fileFormatOptions =
+          String.format(
+              "FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP)",
+              getASCIICharRepresentation(config.getQuotationMark()));
+    } else if (fileFormat == FileFormat.JSON) {
+      fileFormatOptions = "FILE_FORMAT=(TYPE=JSON)";
+    } else {
+      throw new IllegalArgumentException("Unexpected file format: " + fileFormat);
+    }
+
     if (!storageIntegrationName.isEmpty()) {
       query =
           String.format(
-              "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP) STORAGE_INTEGRATION=%s;",
+              "COPY INTO %s FROM %s FILES=(%s) %s STORAGE_INTEGRATION=%s;",
               getTablePath(database, schema, table),
               getProperBucketDir(source),
               files,
-              getASCIICharRepresentation(config.getQuotationMark()),
+              fileFormatOptions,
               storageIntegrationName);
     } else {
       query =
           String.format(
-              "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP);",
-              table, source, files, getASCIICharRepresentation(config.getQuotationMark()));
+              "COPY INTO %s FROM %s FILES=(%s) %s;", table, source, files, fileFormatOptions);
     }
 
     runStatement(query, dataSource.getConnection(), null);

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.snowflake.test.unit.write;
 
-import static org.junit.Assert.assertTrue;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -115,7 +116,7 @@ public class SnowflakeIOWriteTest {
 
     List<Long> actualData = FakeSnowflakeDatabase.getElementsAsLong(FAKE_TABLE);
 
-    assertTrue(TestUtils.areListsEqual(testData, actualData));
+    Assert.assertTrue(TestUtils.areListsEqual(testData, actualData));
   }
 
   @Test
@@ -136,7 +137,7 @@ public class SnowflakeIOWriteTest {
 
     List<Long> actualData = FakeSnowflakeDatabase.getElementsAsLong(FAKE_TABLE);
 
-    assertTrue(TestUtils.areListsEqual(testData, actualData));
+    Assert.assertTrue(TestUtils.areListsEqual(testData, actualData));
   }
 
   @Test
@@ -159,7 +160,7 @@ public class SnowflakeIOWriteTest {
     List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
     List<String> testDataInStrings =
         testData.stream().map(Object::toString).collect(Collectors.toList());
-    assertTrue(TestUtils.areListsEqual(testDataInStrings, actualData));
+    Assert.assertTrue(TestUtils.areListsEqual(testDataInStrings, actualData));
   }
 
   @Test
@@ -183,11 +184,11 @@ public class SnowflakeIOWriteTest {
 
     List<Long> actualData = FakeSnowflakeDatabase.getElementsAsLong(FAKE_TABLE);
 
-    assertTrue(TestUtils.areListsEqual(testData, actualData));
+    Assert.assertTrue(TestUtils.areListsEqual(testData, actualData));
   }
 
   @Test
-  public void writeToExternalWithDoubleQuotation() throws SnowflakeSQLException {
+  public void writeToExternalWithCsvAndDoubleQuotation() throws SnowflakeSQLException {
 
     pipeline
         .apply(Create.of(testDataInStrings))
@@ -206,11 +207,52 @@ public class SnowflakeIOWriteTest {
 
     List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
     List<String> escapedTestData =
-        testDataInStrings.stream()
-            .map(e -> e.replace("'", "''"))
-            .map(e -> String.format("\"%s\"", e))
-            .collect(Collectors.toList());
-    assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
+        Arrays.asList(
+            "\"Second row with single one '' quotation\"",
+            "\"Second row with ''single'' quotation\"",
+            "\"Third row with double twice \"\" quotation\"",
+            "\"First row\"",
+            "\"Second row with single twice '''' quotation\"",
+            "\"Third row with double one \" quotation\"",
+            "\"Third row with \"double\" quotation\"");
+    Assert.assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
+  }
+
+  @Test
+  public void writeToExternalAsJson() throws SnowflakeSQLException {
+    pipeline
+        .apply(Create.of(testDataInStrings))
+        .apply(
+            "Write SnowflakeIO",
+            SnowflakeIO.<String>write()
+                .withDataSourceConfiguration(dc)
+                .withJsonFormatFunction(
+                    (element) -> {
+                      HashMap<String, Object> row = new HashMap<>();
+                      row.put("value", element);
+                      return row;
+                    })
+                .to(FAKE_TABLE)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
+                .withSnowflakeServices(snowflakeServices)
+                .withQuotationMark("\""));
+
+    pipeline.run(options).waitUntilFinish();
+
+    List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
+
+    Assert.assertTrue(
+        TestUtils.areListsEqual(
+            Arrays.asList(
+                "{\"value\":\"Second row with single one ' quotation\"}",
+                "{\"value\":\"Third row with double one \" quotation\"}",
+                "{\"value\":\"First row\"}",
+                "{\"value\":\"Second row with 'single' quotation\"}",
+                "{\"value\":\"Third row with double twice \"\" quotation\"}",
+                "{\"value\":\"Second row with single twice '' quotation\"}",
+                "{\"value\":\"Third row with \"double\" quotation\"}"),
+            actualData));
   }
 
   @Test
@@ -233,7 +275,40 @@ public class SnowflakeIOWriteTest {
     List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
 
     List<String> escapedTestData =
-        testDataInStrings.stream().map(e -> e.replace("'", "''")).collect(Collectors.toList());
-    assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
+        Arrays.asList(
+            "Third row with double one \" quotation",
+            "Second row with single twice '''' quotation",
+            "Third row with double twice \"\" quotation",
+            "Second row with ''single'' quotation",
+            "First row",
+            "Third row with \"double\" quotation",
+            "Second row with single one '' quotation");
+    Assert.assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
+  }
+
+  @Test
+  public void writeToExternalMutuallyExclusiveFormatFunction() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Exception ex =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                pipeline
+                    .apply(Create.of(testDataInStrings))
+                    .apply(
+                        "Write SnowflakeIO",
+                        SnowflakeIO.<String>write()
+                            .withDataSourceConfiguration(dc)
+                            .withUserDataMapper(TestUtils.getStringCsvMapper())
+                            .withJsonFormatFunction((element) -> new HashMap<>())
+                            .to(FAKE_TABLE)
+                            .withStagingBucketName(options.getStagingBucketName())
+                            .withStorageIntegrationName(options.getStorageIntegrationName())
+                            .withSnowflakeServices(snowflakeServices)
+                            .withQuotationMark("")));
+    Assert.assertEquals(
+        "Exactly one of withUserDataMapper(), withCsvFormatFunction, or withJsonFormatFunction must be set",
+        ex.getMessage());
   }
 }
