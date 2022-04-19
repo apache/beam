@@ -32,6 +32,8 @@ Parquet file.
 
 from functools import partial
 
+from pkg_resources import parse_version
+
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes
@@ -50,7 +52,8 @@ except ImportError:
   pq = None
   ARROW_MAJOR_VERSION = None
 else:
-  ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
+  base_pa_version = parse_version(pa.__version__).base_version
+  ARROW_MAJOR_VERSION, _, _ = map(int, base_pa_version.split('.'))
 
 __all__ = [
     'ReadFromParquet',
@@ -369,6 +372,7 @@ class WriteToParquet(PTransform):
       record_batch_size=1000,
       codec='none',
       use_deprecated_int96_timestamps=False,
+      use_compliant_nested_type=False,
       file_name_suffix='',
       num_shards=0,
       shard_name_template=None,
@@ -428,6 +432,7 @@ class WriteToParquet(PTransform):
         by the pyarrow specification is accepted.
       use_deprecated_int96_timestamps: Write nanosecond resolution timestamps to
         INT96 Parquet format. Defaults to False.
+      use_compliant_nested_type: Write compliant Parquet nested type (lists).
       file_name_suffix: Suffix for the files written.
       num_shards: The number of files (shards) used for output. If not set, the
         service will decide on the optimal number of shards.
@@ -456,6 +461,7 @@ class WriteToParquet(PTransform):
           row_group_buffer_size,
           record_batch_size,
           use_deprecated_int96_timestamps,
+          use_compliant_nested_type,
           file_name_suffix,
           num_shards,
           shard_name_template,
@@ -476,6 +482,7 @@ def _create_parquet_sink(
     row_group_buffer_size,
     record_batch_size,
     use_deprecated_int96_timestamps,
+    use_compliant_nested_type,
     file_name_suffix,
     num_shards,
     shard_name_template,
@@ -488,6 +495,7 @@ def _create_parquet_sink(
         row_group_buffer_size,
         record_batch_size,
         use_deprecated_int96_timestamps,
+        use_compliant_nested_type,
         file_name_suffix,
         num_shards,
         shard_name_template,
@@ -505,6 +513,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
       row_group_buffer_size,
       record_batch_size,
       use_deprecated_int96_timestamps,
+      use_compliant_nested_type,
       file_name_suffix,
       num_shards,
       shard_name_template,
@@ -528,6 +537,12 @@ class _ParquetSink(filebasedsink.FileBasedSink):
           f"codec. Your pyarrow version: {pa.__version__}")
     self._row_group_buffer_size = row_group_buffer_size
     self._use_deprecated_int96_timestamps = use_deprecated_int96_timestamps
+    if use_compliant_nested_type and ARROW_MAJOR_VERSION < 4:
+      raise ValueError(
+          "With ARROW-11497, use_compliant_nested_type is only supported in "
+          "pyarrow version >= 4.x, please use a different pyarrow version. "
+          f"Your pyarrow version: {pa.__version__}")
+    self._use_compliant_nested_type = use_compliant_nested_type
     self._buffer = [[] for _ in range(len(schema.names))]
     self._buffer_size = record_batch_size
     self._record_batches = []
@@ -536,11 +551,18 @@ class _ParquetSink(filebasedsink.FileBasedSink):
 
   def open(self, temp_path):
     self._file_handle = super().open(temp_path)
+    if ARROW_MAJOR_VERSION < 4:
+      return pq.ParquetWriter(
+          self._file_handle,
+          self._schema,
+          compression=self._codec,
+          use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps)
     return pq.ParquetWriter(
         self._file_handle,
         self._schema,
         compression=self._codec,
-        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps)
+        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps,
+        use_compliant_nested_type=self._use_compliant_nested_type)
 
   def write_record(self, writer, value):
     if len(self._buffer[0]) >= self._buffer_size:

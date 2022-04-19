@@ -117,4 +117,10 @@ public interface BigQueryOptions
   String getBigQueryProject();
 
   void setBigQueryProject(String value);
+
+  @Description("Specify the number of schema update retries. For internal testing only.")
+  @Default.Integer(2)
+  Integer getSchemaUpdateRetries();
+
+  void setSchemaUpdateRetries(Integer value);
 }

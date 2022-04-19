@@ -1148,11 +1148,13 @@ class WriteImpl(ptransform.PTransform):
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
-    pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
-        _pre_finalize,
-        self.sink,
-        AsSingleton(init_result_coll),
-        AsIter(write_result_coll))
+    pre_finalize_coll = (
+        do_once
+        | 'PreFinalize' >> core.FlatMap(
+            _pre_finalize,
+            self.sink,
+            AsSingleton(init_result_coll),
+            AsIter(write_result_coll)))
     return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
@@ -1665,9 +1667,8 @@ class SDFBoundedSourceReader(PTransform):
         current_restriction = restriction_tracker.current_restriction()
         assert isinstance(current_restriction, _SDFBoundedSourceRestriction)
 
-        result = current_restriction.source().read(
+        return current_restriction.source().read(
             current_restriction.range_tracker())
-        return result
 
     return SDFBoundedSourceDoFn(self._data_to_display)
 
