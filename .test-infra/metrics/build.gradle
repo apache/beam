@@ -69,7 +69,7 @@ task validateConfiguration(type: Exec) {
 task preCommit {
   dependsOn getClusterCredentials
   dependsOn validateConfiguration
-  //dependsOn testMetricsStack
+  dependsOn testMetricsStack
 }
 
 task checkLastCommitId {
