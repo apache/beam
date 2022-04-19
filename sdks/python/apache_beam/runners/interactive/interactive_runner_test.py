@@ -31,7 +31,6 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
