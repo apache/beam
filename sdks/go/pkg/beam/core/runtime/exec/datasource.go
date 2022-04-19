@@ -338,16 +338,12 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 	defer n.mu.Unlock()
 
 	pc := n.getProcessContinuation()
-	if pc == nil {
-		return SplitResult{}, -1 * time.Minute, false, nil
-	}
-	if !pc.ShouldResume() {
+	if pc == nil || !pc.ShouldResume() {
 		return SplitResult{}, -1 * time.Minute, false, nil
 	}
 
 	su := SplittableUnit(n.Out.(*ProcessSizedElementsAndRestrictions))
 
-	// Get the output watermark before splitting to avoid accidentally overestimating
 	ow := su.GetOutputWatermark()
 
 	// Always split at fraction 0.0, should have no primaries left.

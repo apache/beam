@@ -404,9 +404,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		// Check if the underlying DoFn self-checkpointed.
-		// TODO(BEAM-11104): How should a returned error here be handled to avoid clobbering
-		// an error that is returned after the mutex is given up?
-		sr, delay, checkpointed, _ := plan.Checkpoint()
+		sr, delay, checkpointed, checkErr := plan.Checkpoint()
 
 		var rRoots []*fnpb.DelayedBundleApplication
 		if checkpointed {
@@ -434,6 +432,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		if err != nil {
 			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
+		}
+
+		if checkErr != nil {
+			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, checkErr)
 		}
 
 		return &fnpb.InstructionResponse{
