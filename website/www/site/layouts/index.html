@@ -211,7 +211,7 @@
         {{ $data := index $.Site.Data .Site.Language.Lang }}
         {{ range $quote := $data.quotes }}
           <div class="swiper-slide">
-            {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
+            {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl "linkUrl" $quote.linkUrl "linkText" $quote.linkText) }}
           </div>
         {{ end }}
         </div>

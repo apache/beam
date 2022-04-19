@@ -18,6 +18,12 @@
       {{ end }}
     </div>
     <h5 class="quote-text">{{ .text | markdownify }}</h5>
+    <div>
+      <a class="quote-card-link" href="{{ .linkUrl }}">
+        <span>{{ .linkText }}</span>
+        <img src="/images/arrow-right.svg" alt="Go to the case study">
+      </a>
+    </div>
     <div class="quote-img-container">
       <div class="quote-img">
         <img src="{{ .logoUrl }}" alt="Quote Logo" />
