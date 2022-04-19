@@ -658,6 +658,8 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+# TODO(BEAM-14331): remove the serialization restriction in transform
+# implementation once InteractiveRunner can work without runner api roundtrips.
 @dataclass
 class _BigQueryExportResult:
   coder: beam.coders.Coder
