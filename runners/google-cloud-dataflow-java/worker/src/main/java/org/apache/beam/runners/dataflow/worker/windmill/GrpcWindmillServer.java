@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.net.URI;
@@ -120,8 +119,8 @@ import org.slf4j.LoggerFactory;
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
 
-  // If a connection cannot be established, gRPC will fail fast so this deadline can be
-  // relatively high.
+  // If a connection cannot be established, gRPC will fail fast so this deadline can be relatively
+  // high.
   private static final long DEFAULT_UNARY_RPC_DEADLINE_SECONDS = 300;
   private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
 
@@ -632,6 +631,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
     // The following should be protected by synchronizing on this, except for
     // the atomics which may be read atomically for status pages.
     private StreamObserver<RequestT> requestObserver;
+    // Indicates if the current stream in requestObserver is closed by calling close() method
+    private final AtomicBoolean streamClosed = new AtomicBoolean();
     private final AtomicLong startTimeMs = new AtomicLong();
     private final AtomicLong lastSendTimeMs = new AtomicLong();
     private final AtomicLong lastResponseTimeMs = new AtomicLong();
@@ -663,7 +664,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected final void send(RequestT request) {
       lastSendTimeMs.set(Instant.now().getMillis());
       synchronized (this) {
-        if (clientClosed.get()) {
+        if (streamClosed.get()) {
           throw new IllegalStateException("Send called on a client closed stream.");
         }
         requestObserver.onNext(request);
@@ -681,6 +682,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
             startTimeMs.set(Instant.now().getMillis());
             lastResponseTimeMs.set(0);
             requestObserver = streamObserverFactory.from(clientFactory, new ResponseObserver());
+            streamClosed.set(false);
             onNewStream();
             if (clientClosed.get()) {
               close();
@@ -742,10 +744,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
         writer.format(", %dms backoff remaining", sleepLeft);
       }
       writer.format(
-          ", current stream is %dms old, last send %dms, last response %dms",
+          ", current stream is %dms old, last send %dms, last response %dms, closed: %s",
           debugDuration(nowMs, startTimeMs.get()),
           debugDuration(nowMs, lastSendTimeMs.get()),
-          debugDuration(nowMs, lastResponseTimeMs.get()));
+          debugDuration(nowMs, lastResponseTimeMs.get()),
+          streamClosed.get());
     }
 
     // Don't require synchronization on stream, see the appendSummaryHtml comment.
@@ -838,6 +841,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
       clientClosed.set(true);
       requestObserver.onCompleted();
+      streamClosed.set(true);
     }
 
     @Override
@@ -1466,82 +1470,36 @@ public class GrpcWindmillServer extends WindmillServerStub {
       }
     }
 
-    // An OutputStream which splits the output into chunks of no more than COMMIT_STREAM_CHUNK_SIZE
-    // before calling the chunkWriter on each.
-    //
-    // This avoids materializing the whole serialized request in the case it is large.
-    private class ChunkingByteStream extends OutputStream {
-      private final ByteString.Output output = ByteString.newOutput(COMMIT_STREAM_CHUNK_SIZE);
-      private final Consumer<ByteString> chunkWriter;
-
-      ChunkingByteStream(Consumer<ByteString> chunkWriter) {
-        this.chunkWriter = chunkWriter;
-      }
-
-      @Override
-      public void close() {
-        flushBytes();
-      }
-
-      @Override
-      public void write(int b) throws IOException {
-        output.write(b);
-        if (output.size() == COMMIT_STREAM_CHUNK_SIZE) {
-          flushBytes();
-        }
-      }
-
-      @Override
-      public void write(byte b[], int currentOffset, int len) throws IOException {
-        final int endOffset = currentOffset + len;
-        while ((endOffset - currentOffset) + output.size() >= COMMIT_STREAM_CHUNK_SIZE) {
-          int writeSize = COMMIT_STREAM_CHUNK_SIZE - output.size();
-          output.write(b, currentOffset, writeSize);
-          currentOffset += writeSize;
-          flushBytes();
-        }
-        if (currentOffset != endOffset) {
-          output.write(b, currentOffset, endOffset - currentOffset);
-        }
-      }
-
-      private void flushBytes() {
-        if (output.size() == 0) {
-          return;
-        }
-        chunkWriter.accept(output.toByteString());
-        output.reset();
-      }
-    }
-
     private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
       Preconditions.checkNotNull(pendingRequest.computation);
-      Consumer<ByteString> chunkWriter =
-          new Consumer<ByteString>() {
-            private long remaining = pendingRequest.request.getSerializedSize();
+      final ByteString serializedCommit = pendingRequest.request.toByteString();
 
-            @Override
-            public void accept(ByteString chunk) {
-              StreamingCommitRequestChunk.Builder chunkBuilder =
-                  StreamingCommitRequestChunk.newBuilder()
-                      .setRequestId(id)
-                      .setSerializedWorkItemCommit(chunk)
-                      .setComputationId(pendingRequest.computation)
-                      .setShardingKey(pendingRequest.request.getShardingKey());
-              Preconditions.checkState(remaining >= chunk.size());
-              remaining -= chunk.size();
-              if (remaining > 0) {
-                chunkBuilder.setRemainingBytesForWorkItem(remaining);
-              }
-              StreamingCommitWorkRequest requestChunk =
-                  StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
-              send(requestChunk);
-            }
-          };
-      try (ChunkingByteStream s = new ChunkingByteStream(chunkWriter)) {
-        pendingRequest.request.writeTo(s);
-      } catch (IllegalStateException | IOException e) {
-        LOG.info("Stream was broken, request will be retried when stream is reopened.", e);
+      synchronized (this) {
+        pending.put(id, pendingRequest);
+        for (int i = 0; i < serializedCommit.size(); i += COMMIT_STREAM_CHUNK_SIZE) {
+          int end = i + COMMIT_STREAM_CHUNK_SIZE;
+          ByteString chunk = serializedCommit.substring(i, Math.min(end, serializedCommit.size()));
+
+          StreamingCommitRequestChunk.Builder chunkBuilder =
+              StreamingCommitRequestChunk.newBuilder()
+                  .setRequestId(id)
+                  .setSerializedWorkItemCommit(chunk)
+                  .setComputationId(pendingRequest.computation)
+                  .setShardingKey(pendingRequest.request.getShardingKey());
+          int remaining = serializedCommit.size() - end;
+          if (remaining > 0) {
+            chunkBuilder.setRemainingBytesForWorkItem(remaining);
+          }
+
+          StreamingCommitWorkRequest requestChunk =
+              StreamingCommitWorkRequest.newBuilder().addCommitChunk(chunkBuilder).build();
+          try {
+            send(requestChunk);
+          } catch (IllegalStateException e) {
+            // Stream was broken, request will be retried when stream is reopened.
+            break;
+          }
+        }
       }
     }
   }

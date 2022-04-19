@@ -75,9 +75,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class AutoValueUtils {
   public static Class getBaseAutoValueClass(Class<?> clazz) {
-    int lastDot = clazz.getName().lastIndexOf('.');
-    String baseName = clazz.getName().substring(lastDot + 1, clazz.getName().length());
-    return baseName.startsWith("AutoValue_") ? clazz.getSuperclass() : clazz;
+    // AutoValue extensions may be nested
+    while (clazz != null && clazz.getName().contains("AutoValue_")) {
+      clazz = clazz.getSuperclass();
+    }
+    return clazz;
   }
 
   private static Class getAutoValueGenerated(Class<?> clazz) {
@@ -90,8 +92,19 @@ public class AutoValueUtils {
   }
 
   private static @Nullable Class getAutoValueGeneratedBuilder(Class<?> clazz) {
-    // TODO: Handle extensions. Find the class with the maximum number of $ character prefixexs.
-    String builderName = getAutoValueGeneratedName(clazz.getName()) + "$Builder";
+    Class generated;
+    try {
+      generated = Class.forName(getAutoValueGeneratedName(clazz.getName()));
+    } catch (ClassNotFoundException e) {
+      return null;
+    }
+    // Find the first generated class
+    Class base = generated;
+    while (base != null && base.getName().contains("AutoValue_")) {
+      generated = base;
+      base = base.getSuperclass();
+    }
+    String builderName = generated.getName() + "$Builder";
     try {
       return Class.forName(builderName);
     } catch (ClassNotFoundException e) {
@@ -144,9 +157,27 @@ public class AutoValueUtils {
                     f -> ReflectUtils.stripGetterPrefix(f.getMethod().getName()),
                     Function.identity()));
 
+    boolean valid = true;
     // Verify that constructor parameters match (name and type) the inferred schema.
     for (Parameter parameter : constructor.getParameters()) {
-      FieldValueTypeInformation type = typeMap.getOrDefault(parameter.getName(), null);
+      FieldValueTypeInformation type = typeMap.get(parameter.getName());
+      if (type == null || type.getRawType() != parameter.getType()) {
+        valid = false;
+        break;
+      }
+    }
+    if (valid) {
+      return valid;
+    }
+
+    // Extensions add a $ suffix
+    for (Parameter parameter : constructor.getParameters()) {
+      String name = parameter.getName();
+      if (!name.endsWith("$")) {
+        return false;
+      }
+      name = name.substring(0, name.length() - 1);
+      FieldValueTypeInformation type = typeMap.get(name);
       if (type == null || type.getRawType() != parameter.getType()) {
         return false;
       }

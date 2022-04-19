@@ -26,20 +26,20 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-type testInt int32
-
 // TestInvoke verifies the the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
-		Fn                  interface{}
-		Opt                 *MainInput
-		Args                []interface{}
-		Expected, Expected2 interface{}
-		ExpectedTime        typex.EventTime
+		Fn                   interface{}
+		Opt                  *MainInput
+		Args                 []interface{}
+		Expected, Expected2  interface{}
+		ExpectedTime         typex.EventTime
+		ExpectedContinuation sdf.ProcessContinuation
 	}{
 		{
 			// Void function
@@ -159,6 +159,7 @@ func TestInvoke(t *testing.T) {
 			Opt:      &MainInput{Key: FullValue{Elm: "basketball", Elm2: []typex.T{23}}},
 			Expected: "basketball", Expected2: 1,
 		},
+		// TODO(BEAM-11104): Add unit test cases for ProcessContinuations once they are enabled for use.
 	}
 
 	for i, test := range tests {
@@ -191,6 +192,9 @@ func TestInvoke(t *testing.T) {
 			}
 			if val != nil && val.Timestamp != test.ExpectedTime {
 				t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+			}
+			if val != nil && val.Continuation != test.ExpectedContinuation {
+				t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Continuation, test.ExpectedContinuation)
 			}
 		})
 	}
@@ -441,7 +445,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {
-		args := make([]reflect.Value, 1, 1)
+		args := make([]reflect.Value, 1)
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
@@ -451,7 +455,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 func BenchmarkReflectCallReuseArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
-	args := make([]reflect.Value, 1, 1)
+	args := make([]reflect.Value, 1)
 	for i := 0; i < b.N; i++ {
 		args[0] = n
 		n = fn.Call(args)[0]

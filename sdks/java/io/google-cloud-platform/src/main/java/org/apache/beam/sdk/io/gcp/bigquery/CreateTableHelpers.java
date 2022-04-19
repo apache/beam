@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -40,16 +41,15 @@ public class CreateTableHelpers {
    *
    * <p>TODO: We should put a bound on memory usage of this. Use guava cache instead.
    */
-  private static Set<String> createdTables =
-      Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+  private static Set<String> createdTables = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   static TableDestination possiblyCreateTable(
       DoFn<?, ?>.ProcessContext context,
       TableDestination tableDestination,
       Supplier<TableSchema> schemaSupplier,
       CreateDisposition createDisposition,
-      Coder<?> tableDestinationCoder,
-      String kmsKey,
+      @Nullable Coder<?> tableDestinationCoder,
+      @Nullable String kmsKey,
       BigQueryServices bqServices) {
     checkArgument(
         tableDestination.getTableSpec() != null,
@@ -104,7 +104,7 @@ public class CreateTableHelpers {
       TableDestination tableDestination,
       CreateDisposition createDisposition,
       String tableSpec,
-      String kmsKey,
+      @Nullable String kmsKey,
       BigQueryServices bqServices) {
     TableReference tableReference = tableDestination.getTableReference().clone();
     tableReference.setTableId(BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));

@@ -39,12 +39,11 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api.external_transforms_pb2 import BuilderMethod
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
-from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupPayload
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
+from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import row_type
 from apache_beam.typehints.schemas import named_fields_to_schema
@@ -117,7 +116,7 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
   def build(self):
     row = self._get_named_tuple_instance()
     schema = named_tuple_to_schema(type(row))
-    return ExternalConfigurationPayload(
+    return external_transforms_pb2.ExternalConfigurationPayload(
         schema=schema, payload=RowCoder(schema).encode(row))
 
 
@@ -217,7 +216,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
     constructor_schema, constructor_payload = (
         self._get_schema_proto_and_payload(
             *constructor_param_args, **constructor_param_kwargs))
-    payload = JavaClassLookupPayload(
+    payload = external_transforms_pb2.JavaClassLookupPayload(
         class_name=self._class_name,
         constructor_schema=constructor_schema,
         constructor_payload=constructor_payload)
@@ -229,7 +228,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
       builder_method_schema, builder_method_payload = (
           self._get_schema_proto_and_payload(
               *builder_method_args, **builder_method_kwargs))
-      builder_method = BuilderMethod(
+      builder_method = external_transforms_pb2.BuilderMethod(
           name=builder_method_name,
           schema=builder_method_schema,
           payload=builder_method_payload)
@@ -435,6 +434,9 @@ class ExternalTransform(ptransform.PTransform):
     self._inputs = {}  # type: Dict[str, pvalue.PCollection]
     self._outputs = {}  # type: Dict[str, pvalue.PCollection]
 
+  def with_output_types(self, *args, **kwargs):
+    return WithTypeHints.with_output_types(self, *args, **kwargs)
+
   def replace_named_inputs(self, named_inputs):
     self._inputs = named_inputs
 
@@ -500,11 +502,23 @@ class ExternalTransform(ptransform.PTransform):
               spec=beam_runner_api_pb2.FunctionSpec(
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
+    output_coders = None
+    if self._type_hints.output_types:
+      if self._type_hints.output_types[0]:
+        output_coders = dict(
+            (str(k), context.coder_id_from_element_type(v))
+            for (k, v) in enumerate(self._type_hints.output_types[0]))
+      elif self._type_hints.output_types[1]:
+        output_coders = {
+            k: context.coder_id_from_element_type(v)
+            for (k, v) in self._type_hints.output_types[1].items()
+        }
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
         namespace=self._external_namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
-        transform=transform_proto)
+        transform=transform_proto,
+        output_coder_requests=output_coders)
 
     with self._service() as service:
       response = service.Expand(request)

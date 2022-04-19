@@ -57,7 +57,7 @@ tasks.rat {
     // Default eclipse excludes neglect subprojects
 
     // Proto/grpc generated wrappers
-    "**/apache_beam/portability/api/*_pb2*.py",
+    "**/apache_beam/portability/api/**/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
 
     // Ignore go.sum files, which don't permit headers
@@ -323,8 +323,7 @@ tasks.register("python38PostCommit") {
 }
 
 tasks.register("python39PostCommit") {
-  // TODO(BEAM-12920): Enable DF suite here.
-  // dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
