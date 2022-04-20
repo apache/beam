@@ -18,7 +18,7 @@
 
 import * as runnerApi from "../proto/beam_runner_api";
 import { PValue } from "../pvalue";
-import { Pipeline } from "../base";
+import { Pipeline } from "../internal/pipeline";
 
 export function withName<T>(name: string | (() => string), arg: T): T {
   (arg as any).beamName = name;

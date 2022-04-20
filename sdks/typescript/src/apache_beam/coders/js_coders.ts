@@ -18,7 +18,7 @@
 
 import * as BSON from "bson";
 import { Writer, Reader } from "protobufjs";
-import { Coder, Context, globalRegistry } from "./coders";
+import { Coder, Context, ProtoContext, globalRegistry } from "./coders";
 import {
   BoolCoder,
   DoubleCoder,
@@ -26,7 +26,6 @@ import {
   VarIntCoder,
 } from "./standard_coders";
 import * as runnerApi from "../proto/beam_runner_api";
-import { PipelineContext } from "../base";
 
 export class BsonObjectCoder<T> implements Coder<T> {
   static URN = "beam:coder:bsonjs:v1";
@@ -41,7 +40,7 @@ export class BsonObjectCoder<T> implements Coder<T> {
     return BSON.deserialize(encoded) as T;
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: BsonObjectCoder.URN,
@@ -77,7 +76,7 @@ class NumberOrFloatCoder implements Coder<number> {
     }
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: NumberOrFloatCoder.URN,
@@ -137,7 +136,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
     }
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: GeneralObjectCoder.URN,

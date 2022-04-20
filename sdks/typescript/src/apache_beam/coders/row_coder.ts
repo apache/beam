@@ -21,10 +21,9 @@ import * as uuid from "uuid";
 import * as runnerApi from "../proto/beam_runner_api";
 
 import { Writer, Reader } from "protobufjs";
-import { Coder, Context, globalRegistry } from "./coders";
+import { Coder, Context, ProtoContext, globalRegistry } from "./coders";
 
 import { Schema, Field, FieldType, AtomicType } from "../proto/schema";
-import { PipelineContext } from "..";
 import {
   BoolCoder,
   BytesCoder,
@@ -378,7 +377,7 @@ export class RowCoder implements Coder<any> {
     return obj;
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: RowCoder.URN,

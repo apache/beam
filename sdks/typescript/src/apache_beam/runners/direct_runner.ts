@@ -26,7 +26,9 @@ import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
 import { JobState_Enum } from "../proto/beam_job_api";
 
-import { Pipeline, Root, Impulse, GroupByKey } from "../base";
+import { Pipeline } from "../internal/pipeline";
+import { Root } from "../pvalue";
+import { Impulse, GroupByKey } from "../transforms/internal";
 import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
