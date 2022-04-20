@@ -81,18 +81,22 @@ class BigQueryJsonIT(unittest.TestCase):
           self.assertTrue(l_expected == l_actual)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--read_method', default="EXPORT")
+    parser.add_argument('--read_method')
     parser.add_argument('--query')
     parser.add_argument('--input')
 
     known_args, pipeline_args = parser.parse_known_args(options)
+
+    method = ReadFromBigQuery.Method.DIRECT_READ if \
+      known_args.read_method == "DIRECT_READ" else \
+      ReadFromBigQuery.Method.EXPORT
 
     if known_args.query:
       json_query_data = self.generate_query_data()
       with beam.Pipeline(argv=self.args) as p:
         data = p | 'Read rows' >> ReadFromBigQuery(
           query=known_args.query,
-          method=known_args.read_method,
+          method=method,
           use_standard_sql=True
         )
         assert_that(data, equal_to(json_query_data))
@@ -100,8 +104,26 @@ class BigQueryJsonIT(unittest.TestCase):
       with beam.Pipeline(argv=self.args) as p:
         p | 'Read rows' >> ReadFromBigQuery(
           table=known_args.input,
-          method=known_args.read_method,
+          method=method,
         ) | 'Validate rows' >> beam.ParDo(CompareJson())
+
+  def test_direct_read(self):
+    extra_opts = {
+      'read_method': "DIRECT_READ",
+      'input': JSON_TABLE_DESTINATION,
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+
+    self.read_and_validate_rows(options)
+
+  def test_export_read(self):
+    extra_opts = {
+      'read_method': "EXPORT",
+      'input': JSON_TABLE_DESTINATION,
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+
+    self.read_and_validate_rows(options)
 
   # Expected data for query test
   def generate_query_data(self):
