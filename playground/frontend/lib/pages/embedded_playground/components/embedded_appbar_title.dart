@@ -26,8 +26,8 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground/utils/analytics_utils.dart';
 import 'package:provider/provider.dart';
 
 class EmbeddedAppBarTitle extends StatelessWidget {
@@ -53,18 +53,20 @@ class EmbeddedAppBarTitle extends StatelessWidget {
             },
             runCode: () {
               final stopwatch = Stopwatch()..start();
+              final exampleName = getAnalyticsExampleName(
+                state.selectedExample,
+                state.isExampleChanged,
+                state.sdk,
+              );
               state.runCode(
                 onFinish: () {
                   AnalyticsService.get(context).trackRunTimeEvent(
-                    state.selectedExample?.path ??
-                        '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
+                    exampleName,
                     stopwatch.elapsedMilliseconds,
                   );
                 },
               );
-              AnalyticsService.get(context).trackClickRunEvent(
-                state.selectedExample,
-              );
+              AnalyticsService.get(context).trackClickRunEvent(exampleName);
             },
           ),
           const ToggleThemeIconButton(),

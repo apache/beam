@@ -213,7 +213,7 @@ project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker",
 project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false)
 project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false)
 
-task validatesPortableRunner() {
+tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming

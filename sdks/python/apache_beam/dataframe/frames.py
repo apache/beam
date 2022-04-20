@@ -44,6 +44,9 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from pandas._libs import lib
+from pandas.api.types import is_float_dtype
+from pandas.api.types import is_int64_dtype
+from pandas.api.types import is_list_like
 from pandas.core.groupby.generic import DataFrameGroupBy
 
 from apache_beam.dataframe import expressions
@@ -228,6 +231,16 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()
             if axis in (1, 'column') else partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  def swaplevel(self, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'swaplevel',
+            lambda df: df.swaplevel(**kwargs), [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -946,6 +959,77 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             truncate, [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def unstack(self, **kwargs):
+    level = kwargs.get('level', -1)
+
+    if self._expr.proxy().index.nlevels == 1:
+      if PD_VERSION < (1, 2):
+        raise frame_base.WontImplementError(
+            "unstack() is not supported when using pandas < 1.2.0"
+            "Please upgrade to pandas 1.2.0 or higher to use this operation.")
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'unstack',
+              lambda s: s.unstack(**kwargs), [self._expr],
+              requires_partition_by=partitionings.Index()))
+    else:
+      # Unstacking MultiIndex objects
+      idx = self._expr.proxy().index
+
+      # Converting level (int, str, or combination) to a list of number levels
+      level_list = level if isinstance(level, list) else [level]
+      level_number_list = [idx._get_level_number(l) for l in level_list]
+
+      # Checking if levels provided are of CategoricalDtype
+      if not all(isinstance(idx.levels[l].dtype, (pd.CategoricalDtype,
+                                                  pd.BooleanDtype))
+                 for l in level_number_list):
+        raise frame_base.WontImplementError(
+            "unstack() is only supported on DataFrames if unstacked level "
+            "is a categorical or boolean column",
+            reason="non-deferred-columns")
+      else:
+        tmp = self._expr.proxy().unstack(**kwargs)
+        if isinstance(tmp.columns, pd.MultiIndex):
+          levels = []
+          for i in range(tmp.columns.nlevels):
+            level = tmp.columns.levels[i]
+            levels.append(level)
+          col_idx = pd.MultiIndex.from_product(levels)
+        else:
+          if tmp.columns.dtype == 'boolean':
+            col_idx = pd.Index([False, True], dtype='boolean')
+          else:
+            col_idx = pd.CategoricalIndex(tmp.columns.categories)
+
+        if isinstance(self._expr.proxy(), pd.Series):
+          proxy_dtype = self._expr.proxy().dtypes
+        else:
+          # Set dtype to object if more than one value
+          dtypes = [d for d in self._expr.proxy().dtypes]
+          proxy_dtype = object
+          if np.int64 in dtypes:
+            proxy_dtype = np.int64
+          if np.float64 in dtypes:
+            proxy_dtype = np.float64
+          if object in dtypes:
+            proxy_dtype = object
+
+        proxy = pd.DataFrame(
+            columns=col_idx, dtype=proxy_dtype, index=tmp.index)
+
+        with expressions.allow_non_parallel_operations(True):
+          return frame_base.DeferredFrame.wrap(
+              expressions.ComputedExpression(
+                  'unstack',
+                  lambda s: pd.concat([proxy, s.unstack(**kwargs)]),
+                  [self._expr],
+                  proxy=proxy,
+                  requires_partition_by=partitionings.Singleton()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -2175,9 +2259,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         other: df.update(other) or df, [self._expr, other._expr],
         preserves_partition_by=partitionings.Arbitrary(),
         requires_partition_by=partitionings.Index())
-
-  unstack = frame_base.wont_implement_method(
-      pd.Series, 'unstack', reason='non-deferred-columns')
 
   @frame_base.with_docs_from(pd.Series)
   def value_counts(
@@ -3645,6 +3726,141 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   describe = _agg_method(pd.DataFrame, 'describe')
   max = _agg_method(pd.DataFrame, 'max')
   min = _agg_method(pd.DataFrame, 'min')
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def pivot(self, index=None, columns=None, values=None, **kwargs):
+    """Because pivot is a non-deferred method, any columns specified in
+    ``columns`` must be CategoricalDType so we can determine the output column
+    names."""
+
+    def verify_all_categorical(all_cols_are_categorical):
+      if not all_cols_are_categorical:
+        message = "pivot() of non-categorical type is not supported because " \
+            "the type of the output column depends on the data. Please use " \
+            "pd.CategoricalDtype with explicit categories."
+        raise frame_base.WontImplementError(
+          message, reason="non-deferred-columns")
+
+    # If values not provided, take all remaining columns of dataframe
+    if not values:
+      tmp = self._expr.proxy()
+      if index:
+        tmp = tmp.drop(index, axis=1)
+      if columns:
+        tmp = tmp.drop(columns, axis=1)
+      values = tmp.columns.values
+
+    # Construct column index
+    if is_list_like(columns) and len(columns) <= 1:
+      columns = columns[0]
+    selected_cols = self._expr.proxy()[columns]
+    if isinstance(selected_cols, pd.Series):
+      all_cols_are_categorical = isinstance(
+        selected_cols.dtype, pd.CategoricalDtype
+      )
+      verify_all_categorical(all_cols_are_categorical)
+
+      if is_list_like(values) and len(values) > 1:
+        # If more than one value provided, don't create a None level
+        values_in_col_index = values
+        names = [None, columns]
+        col_index = pd.MultiIndex.from_product(
+          [values_in_col_index,
+          selected_cols.dtypes.categories.astype('category')],
+          names=names
+        )
+      else:
+        col_index = pd.CategoricalIndex(
+          selected_cols.dtype.categories,
+          name=columns
+        )
+    else:
+      all_cols_are_categorical = all(
+        isinstance(c, pd.CategoricalDtype) for c in selected_cols.dtypes
+      )
+      verify_all_categorical(all_cols_are_categorical)
+
+      if is_list_like(values) and len(values) > 1:
+        # If more than one value provided, don't create a None level
+        values_in_col_index = values
+        names = [None, *columns]
+        categories = [
+          c.categories.astype('category') for c in selected_cols.dtypes
+        ]
+        col_index = pd.MultiIndex.from_product(
+          [values_in_col_index, *categories],
+          names=names
+        )
+      else:
+        # If one value provided, don't create a None level
+        names = columns
+        categories = [
+          c.categories.astype('category') for c in selected_cols.dtypes
+        ]
+        col_index = pd.MultiIndex.from_product(
+          categories,
+          names=names
+        )
+
+    # Construct row index
+    if index:
+      if PD_VERSION < (1, 4) and is_list_like(index) and len(index) > 1:
+        raise frame_base.WontImplementError(
+          "pivot() is not supported when pandas<1.4 and index is a MultiIndex")
+      per_partition = expressions.ComputedExpression(
+          'pivot-per-partition',
+          lambda df: df.set_index(keys=index), [self._expr],
+          preserves_partition_by=partitionings.Singleton(),
+          requires_partition_by=partitionings.Arbitrary()
+      )
+      tmp = per_partition.proxy().pivot(
+        columns=columns, values=values, **kwargs)
+      row_index = tmp.index
+    else:
+      per_partition = self._expr
+      row_index = self._expr.proxy().index
+    if PD_VERSION < (1, 4) and isinstance(row_index, pd.MultiIndex):
+      raise frame_base.WontImplementError(
+        "pivot() is not supported when pandas<1.4 and index is a MultiIndex")
+
+    selected_values = self._expr.proxy()[values]
+    if isinstance(selected_values, pd.Series):
+      value_dtype = selected_values.dtype
+    else:
+      # Set dtype to object if more than one value
+      dtypes = [d for d in selected_values.dtypes]
+      value_dtype = object
+      if any((is_int64_dtype(x) for x in dtypes)):
+        value_dtype = np.int64
+      if any((is_float_dtype(x) for x in dtypes)):
+        value_dtype = np.float64
+      if object in dtypes:
+        value_dtype = object
+
+    # Construct proxy
+    proxy = pd.DataFrame(
+      columns=col_index, dtype=value_dtype, index=row_index
+    )
+
+    def pivot_helper(df):
+      result = pd.concat(
+        [proxy, df.pivot(columns=columns, values=values, **kwargs)]
+      )
+      result.columns = col_index
+      result = result.astype(value_dtype)
+      return result
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'pivot',
+            pivot_helper,
+            [per_partition],
+            proxy=proxy,
+            preserves_partition_by=partitionings.Index(),
+            requires_partition_by=partitionings.Index()))
+
   prod = product = _agg_method(pd.DataFrame, 'prod')
   sum = _agg_method(pd.DataFrame, 'sum')
   mean = _agg_method(pd.DataFrame, 'mean')
@@ -3677,25 +3893,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       pd.DataFrame, 'transpose', reason='non-deferred-columns')
   T = property(frame_base.wont_implement_method(
       pd.DataFrame, 'T', reason='non-deferred-columns'))
-
-
-  @frame_base.with_docs_from(pd.DataFrame)
-  def unstack(self, *args, **kwargs):
-    """unstack cannot be used on :class:`DeferredDataFrame` instances with
-    multiple index levels, because the columns in the output depend on the
-    data."""
-    if self._expr.proxy().index.nlevels == 1:
-      return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'unstack',
-            lambda df: df.unstack(*args, **kwargs),
-            [self._expr],
-            requires_partition_by=partitionings.Index()))
-    else:
-      raise frame_base.WontImplementError(
-          "unstack() is not supported on DataFrames with a multiple indexes, "
-          "because the columns in the output depend on the input data.",
-          reason="non-deferred-columns")
 
   update = frame_base._proxy_method(
       'update',
@@ -4755,13 +4952,72 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
 
-  split = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'split',
-      reason='non-deferred-columns')
+  def _split_helper(self, rsplit=False, **kwargs):
+    expand = kwargs.get('expand', False)
 
-  rsplit = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'rsplit',
-      reason='non-deferred-columns')
+    if not expand:
+      # Not creating separate columns
+      proxy = self._expr.proxy()
+      if not rsplit:
+        func = lambda s: pd.concat([proxy, s.str.split(**kwargs)])
+      else:
+        func = lambda s: pd.concat([proxy, s.str.rsplit(**kwargs)])
+    else:
+      # Creating separate columns, so must be more strict on dtype
+      dtype = self._expr.proxy().dtype
+      if not isinstance(dtype, pd.CategoricalDtype):
+        method_name = 'rsplit' if rsplit else 'split'
+        raise frame_base.WontImplementError(
+            f"{method_name}() of non-categorical type is not supported because "
+            "the type of the output column depends on the data. Please use "
+            "pd.CategoricalDtype with explicit categories.",
+            reason="non-deferred-columns")
+
+      # Split the categories
+      split_cats = dtype.categories.str.split(**kwargs)
+
+      # Count the number of new columns to create for proxy
+      max_splits = len(max(split_cats, key=len))
+      proxy = pd.DataFrame(columns=range(max_splits))
+
+      def func(s):
+        if not rsplit:
+          result = s.str.split(**kwargs)
+        else:
+          result = s.str.rsplit(**kwargs)
+        result[~result.isna()].replace(np.nan, value=None)
+        return result
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'split',
+            func,
+            [self._expr],
+            proxy=proxy,
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def split(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=False, **kwargs)
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def rsplit(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=True, **kwargs)
 
 
 ELEMENTWISE_STRING_METHODS = [

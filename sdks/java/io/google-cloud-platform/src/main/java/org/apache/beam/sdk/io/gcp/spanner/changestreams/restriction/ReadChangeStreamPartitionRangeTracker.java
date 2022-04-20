@@ -17,64 +17,69 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import com.google.cloud.Timestamp;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * This restriction tracker is a decorator on top of the {@link OffsetRangeTracker}. It modifies the
- * behaviour of {@link OffsetRangeTracker#tryClaim(Long)} to ignore claims for the same long
- * multiple times. This is because several change stream records might have the same timestamp, thus
- * leading to multiple claims of the same {@link Long}. Other than that, it modifies the {@link
- * OffsetRangeTracker#trySplit(double)} method to always deny splits for the {@link
- * InitialPartition#PARTITION_TOKEN}, since we only need to perform this query once.
+ * This restriction tracker delegates most of its behavior to an internal {@link
+ * TimestampRangeTracker}. It has a different logic for tryClaim and trySplit methods. It ignores
+ * claims for the same timestamp multiple times. This is because several change stream records might
+ * have the same timestamp, thus leading to multiple claims of the same {@link Timestamp}. Other
+ * than that, it always denies splits for the {@link InitialPartition#PARTITION_TOKEN}, since we
+ * only need to perform this query once.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class ReadChangeStreamPartitionRangeTracker extends OffsetRangeTracker {
+public class ReadChangeStreamPartitionRangeTracker extends TimestampRangeTracker {
 
   private final PartitionMetadata partition;
 
   /**
-   * Receives the partition that will be queried and be using this tracker, alongside the range
-   * itself.
+   * Receives the partition that will be queried and the timestamp range that belongs to it.
    *
    * @param partition the partition that will use the tracker
-   * @param range closed / open range interval representing the start / end times for a partition
+   * @param range closed / open range interval for the start / end times of the given partition
    */
-  public ReadChangeStreamPartitionRangeTracker(PartitionMetadata partition, OffsetRange range) {
+  public ReadChangeStreamPartitionRangeTracker(PartitionMetadata partition, TimestampRange range) {
     super(range);
     this.partition = partition;
   }
 
   /**
-   * Attempts to claim the given offset.
+   * Attempts to claim the given position.
    *
-   * <p>Must be equal or larger than the last successfully claimed offset.
+   * <p>Must be equal or larger than the last successfully claimed position.
    *
-   * @return {@code true} if the offset was successfully claimed, {@code false} if it is outside the
-   *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
+   * @return {@code true} if the position was successfully claimed, {@code false} if it is outside
+   *     the current {@link TimestampRange} of this tracker (in that case this operation is a
+   *     no-op).
    */
   @Override
-  public boolean tryClaim(Long i) {
-    if (i.equals(lastAttemptedOffset)) {
+  public boolean tryClaim(Timestamp position) {
+    if (position.equals(lastAttemptedPosition)) {
       return true;
     }
-    return super.tryClaim(i);
+
+    return super.tryClaim(position);
   }
 
   /**
    * If the partition token is the {@link InitialPartition#PARTITION_TOKEN}, it does not allow for
    * splits (returns null).
+   *
+   * <p>If a split is successful (non-null), then the restriction is updated to the result of the
+   * primary.
    */
   @Override
-  public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+  public @Nullable SplitResult<TimestampRange> trySplit(double fractionOfRemainder) {
     if (InitialPartition.isInitialPartition(partition.getPartitionToken())) {
       return null;
     }
+
     return super.trySplit(fractionOfRemainder);
   }
 }

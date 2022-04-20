@@ -25,16 +25,15 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -85,7 +84,7 @@ public class DetectNewPartitionsAction {
    *   <li>If it is not possible to claim the timestamp, stops.
    * </ol>
    *
-   * @param tracker an instance of {@link OffsetRangeTracker}
+   * @param tracker an instance of {@link DetectNewPartitionsRangeTracker}
    * @param receiver a {@link PartitionMetadata} {@link OutputReceiver}
    * @param watermarkEstimator a {@link ManualWatermarkEstimator} of {@link Instant}
    * @return a {@link ProcessContinuation#stop()} if there are no more partitions to process or
@@ -93,12 +92,11 @@ public class DetectNewPartitionsAction {
    *     interval.
    */
   public ProcessContinuation run(
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
-    final Timestamp readTimestamp =
-        Timestamp.ofTimeMicroseconds(tracker.currentRestriction().getFrom());
+    final Timestamp readTimestamp = tracker.currentRestriction().getFrom();
     // Updates the current watermark as the min of the watermarks from all existing partitions
     final Timestamp minWatermark = dao.getUnfinishedMinWatermark();
 
@@ -110,7 +108,7 @@ public class DetectNewPartitionsAction {
   }
 
   private ProcessContinuation processPartitions(
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       Timestamp minWatermark,
@@ -145,7 +143,7 @@ public class DetectNewPartitionsAction {
   }
 
   private ProcessContinuation schedulePartitions(
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       Timestamp minWatermark,
       TreeMap<Timestamp, List<PartitionMetadata>> batches) {
@@ -154,8 +152,7 @@ public class DetectNewPartitionsAction {
       final List<PartitionMetadata> batchPartitions = batch.getValue();
 
       final Timestamp scheduledAt = updateBatchToScheduled(batchPartitions);
-      // FIXME: Should be nanos precision
-      if (!tracker.tryClaim(TimestampConverter.timestampToMicros(batchCreatedAt))) {
+      if (!tracker.tryClaim(batchCreatedAt)) {
         return ProcessContinuation.stop();
       }
       outputBatch(receiver, minWatermark, batchPartitions, scheduledAt);
@@ -201,10 +198,9 @@ public class DetectNewPartitionsAction {
     }
   }
 
-  private ProcessContinuation terminate(RestrictionTracker<OffsetRange, Long> tracker) {
-    if (!tracker.tryClaim(tracker.currentRestriction().getTo())) {
-      LOG.warn("Failed to claim the end of range in DetectNewPartitionsDoFn.");
-    }
+  private ProcessContinuation terminate(RestrictionTracker<TimestampRange, Timestamp> tracker) {
+    // We need to try claim something here, otherwise restriction tracker check done fails
+    tracker.tryClaim(tracker.currentRestriction().getTo());
     LOG.info("All partitions have been processed, stopping");
     return ProcessContinuation.stop();
   }

@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	precompiledObjectPath = "SDK_JAVA/MinimalWordCount"
+	precompiledObjectPath = "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount"
 	targetSdk             = pb.Sdk_SDK_UNSPECIFIED
+	defaultBucketName     = "playground-precompiled-objects"
 )
 
 var bucket *CloudStorage
@@ -240,18 +241,24 @@ func Test_getFileExtensionBySdk(t *testing.T) {
 
 func Benchmark_GetPrecompiledObjects(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = bucket.GetPrecompiledObjects(ctx, targetSdk, "")
+		_, _ = bucket.GetPrecompiledObjects(ctx, targetSdk, "", defaultBucketName)
 	}
 }
 
 func Benchmark_GetPrecompiledObjectOutput(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = bucket.GetPrecompiledObjectOutput(ctx, precompiledObjectPath)
+		_, _ = bucket.GetPrecompiledObjectOutput(ctx, precompiledObjectPath, defaultBucketName)
+	}
+}
+
+func Benchmark_GetPrecompiledObjectCode(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = bucket.GetPrecompiledObjectCode(ctx, precompiledObjectPath, defaultBucketName)
 	}
 }
 
 func Benchmark_GetPrecompiledObject(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = bucket.GetPrecompiledObject(ctx, precompiledObjectPath)
+		_, _ = bucket.GetPrecompiledObject(ctx, precompiledObjectPath, defaultBucketName)
 	}
 }

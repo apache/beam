@@ -26,12 +26,13 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
 import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -45,9 +46,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class SnowflakeIOReadTest implements Serializable {
   public static final String FAKE_TABLE = "FAKE_TABLE";
   public static final String FAKE_QUERY = "SELECT * FROM FAKE_TABLE";
@@ -60,7 +58,7 @@ public class SnowflakeIOReadTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private static SnowflakeIO.DataSourceConfiguration dataSourceConfiguration;
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
   private static List<GenericRecord> avroTestData;
 
   @BeforeClass
@@ -83,7 +81,7 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.DataSourceConfiguration.create(new FakeSnowflakeBasicDataSource())
             .withServerName(options.getServerName());
 
-    snowflakeService = new FakeSnowflakeBatchServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
   }
 
   @AfterClass
@@ -97,10 +95,27 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withStagingBucketName() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStorageIntegrationName(options.getStorageIntegrationName())
+            .withCsvMapper(getCsvMapper())
+            .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testConfigIsMissingStagingBucketNameValue() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("staging bucket name cannot be empty");
+
+    pipeline.apply(
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
+            .withDataSourceConfiguration(dataSourceConfiguration)
+            .fromTable(FAKE_TABLE)
+            .withStorageIntegrationName(options.getStorageIntegrationName())
+            .withStagingBucketName(ValueProvider.StaticValueProvider.of(null))
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -113,9 +128,26 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withStorageIntegrationName() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
+            .withStagingBucketName(options.getStagingBucketName())
+            .withCsvMapper(getCsvMapper())
+            .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testConfigIsMissingStorageIntegrationValue() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("storage integration cannot be empty");
+
+    pipeline.apply(
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
+            .withDataSourceConfiguration(dataSourceConfiguration)
+            .fromTable(FAKE_TABLE)
+            .withStorageIntegrationName(ValueProvider.StaticValueProvider.of(null))
             .withStagingBucketName(options.getStagingBucketName())
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
@@ -129,7 +161,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withCsvMapper() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(options.getStagingBucketName())
@@ -145,7 +177,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withCoder() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(options.getStagingBucketName())
@@ -161,11 +193,28 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("fromTable() or fromQuery() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .withStagingBucketName(options.getStagingBucketName())
             .withStorageIntegrationName(options.getStorageIntegrationName())
             .withCsvMapper(getCsvMapper())
+            .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testConfigIsMissingFromTableOrFromQueryValue() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("table or query is required");
+
+    pipeline.apply(
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
+            .withDataSourceConfiguration(dataSourceConfiguration)
+            .withStagingBucketName(options.getStagingBucketName())
+            .withStorageIntegrationName(options.getStorageIntegrationName())
+            .withCsvMapper(getCsvMapper())
+            .fromTable(ValueProvider.StaticValueProvider.of(null))
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
     pipeline.run();
@@ -177,7 +226,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(options.getStagingBucketName())
             .withStorageIntegrationName(options.getStorageIntegrationName())
@@ -193,7 +242,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("fromTable() and fromQuery() are not allowed together");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromQuery("")
             .fromTable(FAKE_TABLE)
@@ -211,7 +260,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("SQL compilation error: Table does not exist");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable("NON_EXIST")
             .withStagingBucketName(options.getStagingBucketName())
@@ -228,7 +277,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("SQL compilation error: Invalid query");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
+        SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromQuery("BAD_QUERY")
             .withStagingBucketName(options.getStagingBucketName())
@@ -243,7 +292,7 @@ public class SnowflakeIOReadTest implements Serializable {
   public void testReadFromTable() {
     PCollection<GenericRecord> items =
         pipeline.apply(
-            SnowflakeIO.<GenericRecord>read(snowflakeService)
+            SnowflakeIO.<GenericRecord>read(snowflakeServices)
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .fromTable(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
@@ -259,7 +308,7 @@ public class SnowflakeIOReadTest implements Serializable {
   public void testReadFromQuery() {
     PCollection<GenericRecord> items =
         pipeline.apply(
-            SnowflakeIO.<GenericRecord>read(snowflakeService)
+            SnowflakeIO.<GenericRecord>read(snowflakeServices)
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .fromQuery(FAKE_QUERY)
                 .withStagingBucketName(options.getStagingBucketName())
@@ -272,12 +321,11 @@ public class SnowflakeIOReadTest implements Serializable {
   }
 
   static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
-    return (SnowflakeIO.CsvMapper<GenericRecord>)
-        parts ->
-            new GenericRecordBuilder(AvroGeneratedUser.getClassSchema())
-                .set("name", String.valueOf(parts[0]))
-                .set("favorite_number", Integer.valueOf(parts[1]))
-                .set("favorite_color", String.valueOf(parts[2]))
-                .build();
+    return parts ->
+        new GenericRecordBuilder(AvroGeneratedUser.getClassSchema())
+            .set("name", String.valueOf(parts[0]))
+            .set("favorite_number", Integer.valueOf(parts[1]))
+            .set("favorite_color", String.valueOf(parts[2]))
+            .build();
   }
 }

@@ -1,3 +1,4 @@
+
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -33,33 +34,32 @@ spec:
     protocol: TCP
 ---
 # The Kubernetes deployment script for Elasticsearch master nodes.
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: es-master
   labels:
     component: elasticsearch
-    role: master
+    role: master 
 spec:
+  selector:
+    matchLabels:
+      component: elasticsearch
+      role: master
   replicas: 3
   template:
     metadata:
       labels:
         component: elasticsearch
         role: master
-      annotations:
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-          "name": "sysctl",
-            "image": "busybox",
-            "imagePullPolicy": "IfNotPresent",
-            "command": ["sysctl", "-w", "vm.max_map_count=262144"],
-            "securityContext": {
-              "privileged": true
-            }
-          }
-        ]'
     spec:
+      initContainers:
+      - name: sysctl
+        image: "busybox"
+        imagePullPolicy: IfNotPresent
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
       containers:
       - name: es-master
         securityContext:
@@ -108,7 +108,7 @@ spec:
             name: "storage"
 ---
 # Kubernetes deployment script for Elasticsearch client nodes (aka load balancing proxies).
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: es-client
@@ -116,6 +116,10 @@ metadata:
     component: elasticsearch
     role: client
 spec:
+  selector:
+    matchLabels:
+      component: elasticsearch
+      role: client
   # The no. of replicas can be incremented based on the client usage using HTTP API.
   replicas: 1
   template:
@@ -123,23 +127,18 @@ spec:
       labels:
         component: elasticsearch
         role: client
-      annotations:
+    spec:
       # Elasticsearch uses a hybrid mmapfs / niofs directory by default to store its indices.
       # The default operating system limits on mmap counts is likely to be too low, which may result
       # in out of memory exceptions. Therefore, the need to increase virtual memory
       # vm.max_map_count for large amount of data in the pod initialization annotation.
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-          "name": "sysctl",
-            "image": "busybox",
-            "imagePullPolicy": "IfNotPresent",
-            "command": ["sysctl", "-w", "vm.max_map_count=262144"],
-            "securityContext": {
-              "privileged": true
-            }
-          }
-        ]'
-    spec:
+      initContainers:
+      - name: "sysctl"
+        image: busybox
+        imagePullPolicy: IfNotPresent
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
       containers:
       - name: es-client
         securityContext:
@@ -187,7 +186,7 @@ spec:
             name: "storage"
 ---
 # Kubernetes deployment script for Elasticsearch data nodes which store and index data.
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: es-data
@@ -195,25 +194,24 @@ metadata:
     component: elasticsearch
     role: data
 spec:
+  selector:
+    matchLabels:
+      component: elasticsearch
+      role: data
   replicas: 2
   template:
     metadata:
       labels:
         component: elasticsearch
         role: data
-      annotations:
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-          "name": "sysctl",
-            "image": "busybox",
-            "imagePullPolicy": "IfNotPresent",
-            "command": ["sysctl", "-w", "vm.max_map_count=1048575"],
-            "securityContext": {
-              "privileged": true
-            }
-          }
-        ]'
     spec:
+      initContainers:
+      - name: "sysctl"
+        image: busybox 
+        imagePullPolicy: IfNotPresent
+        command: ["sysctl", "-w", "vm.max_map_count=1048575"]
+        securityContext: 
+          privileged: true
       containers:
       - name: es-data
         securityContext:

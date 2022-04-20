@@ -130,7 +130,7 @@ func (fn *sourceFn) Setup() {
 // form of KV<[]byte, []byte>.
 func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, config SourceConfig, emit func([]byte, []byte)) error {
 	generator := rand.New(rand.NewSource(0))
-	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
+	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i); i++ {
 		key := make([]byte, config.KeySize)
 		val := make([]byte, config.ValueSize)
 		generator.Seed(i)

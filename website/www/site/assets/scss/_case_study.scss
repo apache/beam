@@ -95,7 +95,7 @@
   }
 
   .case-study-card-img img {
-    height: 35px;
+    height: 50px;
   }
 
   .case-study-card-title {
@@ -208,7 +208,7 @@ h2.case-study-h2 {
     }
 
     .case-study-quote-author-img {
-      margin-left: auto;
+      padding-left: 72%;
     }
 
     &:before {
@@ -296,11 +296,13 @@ h2.case-study-h2 {
 
       img {
         width: 100%;
+        max-height: 100px;
       }
     }
   }
 
   .case-study-post {
+    max-width: 1200px;
     flex: 1;
   }
 
@@ -309,6 +311,13 @@ h2.case-study-h2 {
 
     img {
       width: 100%;
+    }
+
+    &.vertical-scheme {
+      text-align: center;
+      img {
+        max-width: 480px;
+      }
     }
   }
 

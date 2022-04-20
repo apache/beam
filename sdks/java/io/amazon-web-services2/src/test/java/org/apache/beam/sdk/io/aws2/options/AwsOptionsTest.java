@@ -22,10 +22,9 @@ import static software.amazon.awssdk.core.SdkSystemSetting.AWS_REGION;
 
 import java.net.URI;
 import java.util.function.Supplier;
-import org.apache.beam.repackaged.direct_java.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -35,9 +34,10 @@ import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
 
 public class AwsOptionsTest {
+
   private AwsOptions serializeDeserialize(AwsOptions opts) {
-    SerializablePipelineOptions serialized = new SerializablePipelineOptions(opts);
-    return SerializableUtils.clone(serialized).get().as(AwsOptions.class);
+    return SerializationTestUtil.serializeDeserialize(PipelineOptions.class, opts)
+        .as(AwsOptions.class);
   }
 
   private AwsOptions create(String... args) {

@@ -15,6 +15,9 @@
 
 // Package stringx contains utilities for working with strings. It
 // complements the standard "strings" package.
+//
+// Deprecated: the utilities in this package are unused within the code base
+// and will be removed in a future Beam release.
 package stringx
 
 // ToBytes converts a string to a byte slice.

@@ -34,3 +34,6 @@ started!
 
 Want to tell the world you are using Apache Beam? Just walk
 through [this instruction](https://github.com/apache/beam/tree/master/website/ADD_LOGO.md) and make it happen!
+
+The Apache Beam PMC reserves the right to remove logos of companies that are not demeed to be in good standing in the
+community.

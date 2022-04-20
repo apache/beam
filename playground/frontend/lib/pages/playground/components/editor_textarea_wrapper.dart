@@ -23,10 +23,12 @@ import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
+import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground/utils/analytics_utils.dart';
 import 'package:provider/provider.dart';
 
 class CodeTextAreaWrapper extends StatelessWidget {
@@ -52,7 +54,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: EditorTextArea(
-                    enabled: true,
+                    enabled: !(state.selectedExample?.isMultiFile ?? false),
                     example: state.selectedExample,
                     sdk: state.sdk,
                     onSourceChange: state.setSource,
@@ -65,39 +67,60 @@ class CodeTextAreaWrapper extends StatelessWidget {
                   height: kButtonHeight,
                   child: Row(
                     children: [
-                      if (state.selectedExample != null)
-                        DescriptionPopoverButton(
-                          example: state.selectedExample!,
-                          followerAnchor: Alignment.topRight,
-                          targetAnchor: Alignment.bottomRight,
+                      if (state.selectedExample != null) ...[
+                        if (state.selectedExample?.isMultiFile ?? false)
+                          Semantics(
+                            container: true,
+                            child: MultifilePopoverButton(
+                              example: state.selectedExample!,
+                              followerAnchor: Alignment.topRight,
+                              targetAnchor: Alignment.bottomRight,
+                            ),
+                          ),
+                        Semantics(
+                          container: true,
+                          child: DescriptionPopoverButton(
+                            example: state.selectedExample!,
+                            followerAnchor: Alignment.topRight,
+                            targetAnchor: Alignment.bottomRight,
+                          ),
                         ),
-                      RunButton(
-                        isRunning: state.isCodeRunning,
-                        cancelRun: () {
-                          state.cancelRun().catchError(
-                                (_) => NotificationManager.showError(
-                                  context,
-                                  AppLocalizations.of(context)!.runCode,
-                                  AppLocalizations.of(context)!.cancelExecution,
-                                ),
-                              );
-                        },
-                        runCode: () {
-                          AnalyticsService analyticsService =
-                              AnalyticsService.get(context);
-                          final stopwatch = Stopwatch()..start();
-                          state.runCode(
-                            onFinish: () {
-                              analyticsService.trackRunTimeEvent(
-                                state.selectedExample?.path ??
-                                    '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
-                                stopwatch.elapsedMilliseconds,
-                              );
-                            },
-                          );
-                          AnalyticsService.get(context)
-                              .trackClickRunEvent(state.selectedExample);
-                        },
+                      ],
+                      Semantics(
+                        container: true,
+                        child: RunButton(
+                          disabled: state.selectedExample?.isMultiFile ?? false,
+                          isRunning: state.isCodeRunning,
+                          cancelRun: () {
+                            state.cancelRun().catchError(
+                                  (_) => NotificationManager.showError(
+                                    context,
+                                    AppLocalizations.of(context)!.runCode,
+                                    AppLocalizations.of(context)!.cancelExecution,
+                                  ),
+                                );
+                          },
+                          runCode: () {
+                            AnalyticsService analyticsService =
+                                AnalyticsService.get(context);
+                            final stopwatch = Stopwatch()..start();
+                            final exampleName = getAnalyticsExampleName(
+                              state.selectedExample,
+                              state.isExampleChanged,
+                              state.sdk,
+                            );
+                            state.runCode(
+                              onFinish: () {
+                                analyticsService.trackRunTimeEvent(
+                                  exampleName,
+                                  stopwatch.elapsedMilliseconds,
+                                );
+                              },
+                            );
+                            AnalyticsService.get(context)
+                                .trackClickRunEvent(exampleName);
+                          },
+                        ),
                       ),
                     ],
                   ),

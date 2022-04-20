@@ -29,8 +29,8 @@ import (
 // return cases.
 func (n *invoker) initCall() {
 	switch fn := n.fn.Fn.(type) {
-{{range $out := upto 4}}
-{{range $in := upto 8}}
+{{range $out := upto 5}}
+{{range $in := upto 9}}
 	case reflectx.Func{{$in}}x{{$out}}:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			{{if $out}}{{mktuplef $out "r%v"}} := {{end}}fn.Call{{$in}}x{{$out}}({{mktuplef $in "n.args[%v]"}})
@@ -62,8 +62,10 @@ func (n *invoker) initCall() {
 				return n.ret3(pn, ws, ts, ret[0], ret[1], ret[2])
 			case 4:
 				return n.ret4(pn, ws, ts, ret[0], ret[1], ret[2], ret[3])
+			case 5:
+				return n.ret5(pn, ws, ts, ret[0], ret[1], ret[2], ret[3], ret[4])
 			}
-			panic(fmt.Sprintf("invoker: %v has > 4 return values, which is not permitted", n.fn.Fn.Name()))
+			panic(fmt.Sprintf("invoker: %v has > 5 return values, which is not permitted", n.fn.Fn.Name()))
 		} 
 	}
 }

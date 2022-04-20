@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+evaluationDependsOn(':runners:google-cloud-dataflow-java:worker')
 enablePythonPerformanceTest()
 
 String pythonVersionSuffix = project.ext.pythonVersion
@@ -160,7 +161,7 @@ task examples {
             "sdk_location": files(configurations.distTarBall.files).singleFile,
             "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
-            "collect": "examples_postcommit and not no_xdist"
+            "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -176,7 +177,7 @@ task examples {
             "sdk_location": files(configurations.distTarBall.files).singleFile,
             "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-no-xdist",
-            "collect": "examples_postcommit and no_xdist"
+            "collect": "examples_postcommit and no_xdist and not sickbay_dataflow"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {

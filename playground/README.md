@@ -22,7 +22,7 @@
 The Beam Playground is a web application to run Beam code snippets in a modern browser. This directory holds code to
 build, test, and deploy the frontend and backend services.
 
-# Requirements
+# Development Requirements
 
 The following requirements are needed for development, testing, and deploying.
 
@@ -55,12 +55,7 @@ cd beam
 ./gradlew playground:generateProto
 ```
 
-# Backend application
+# Deployment
 
-All backend's files are placed into the [backend](./backend) folder. For more details about the backend there are
-also [Contribution](./backend/CONTRIBUTE.md) guide and [README](./backend/README.md) file.
-
-# Frontend application
-
-All frontend's files are placed into the [frontend](./frontend) folder. For more details about the frontend there are
-also [Contribution](./frontend/CONTRIBUTE.md) guide and [README](./frontend/README.md) file.
+See [terraform](./terraform/README.md) for details on how to build and deploy
+the application and its dependent infrastructure.

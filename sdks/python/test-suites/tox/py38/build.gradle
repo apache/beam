@@ -64,6 +64,10 @@ toxTask "testPy38pyarrow-6", "py38-pyarrow-6"
 test.dependsOn "testPy38pyarrow-6"
 preCommitPy38.dependsOn "testPy38pyarrow-6"
 
+toxTask "testPy38pyarrow-7", "py38-pyarrow-7"
+test.dependsOn "testPy38pyarrow-7"
+preCommitPy38.dependsOn "testPy38pyarrow-7"
+
 // Create a test task for each minor version of pandas
 toxTask "testPy38pandas-11", "py38-pandas-11"
 test.dependsOn "testPy38pandas-11"

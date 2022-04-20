@@ -37,7 +37,6 @@ import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.io.aws2.sqs.EmbeddedSqsServer.TestCaseEnv;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -110,7 +109,6 @@ public class SqsUnboundedReaderTest {
   }
 
   @Test
-  @Ignore("Behavior of SQSRestServer is broken: https://issues.apache.org/jira/browse/BEAM-13738")
   public void testExtendDeletedMessage() throws IOException {
     setupMessages(DATA);
     Clock clock = mock(Clock.class);
