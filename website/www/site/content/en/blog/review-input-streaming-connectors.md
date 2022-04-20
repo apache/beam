@@ -184,7 +184,7 @@ and <a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspa
    </td>
    <td>N/A
    </td>
-   <td><a href="https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html">KafkaUtils</a>
+   <td><a href="https://spark.apache.org/docs/2.4.8/api/python/pyspark.streaming.html#pyspark.streaming.kafka.KafkaUtils">KafkaUtils</a>
    </td>
   </tr>
   <tr>
@@ -192,7 +192,7 @@ and <a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspa
    </td>
    <td>N/A
    </td>
-   <td><a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.streaming.kinesis.KinesisUtils.createStream.html">KinesisUtils</a>
+   <td><a href="https://spark.apache.org/docs/2.4.8/api/python/pyspark.streaming.html#pyspark.streaming.kinesis.KinesisUtils">KinesisUtils</a>
    </td>
   </tr>
   <tr>

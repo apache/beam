@@ -102,7 +102,7 @@ This method requires building image artifacts from Beam source. For additional i
   git checkout origin/release-$BEAM_SDK_VERSION
   ```
 
-2. Customize the `Dockerfile` for a given language, typically `sdks/<language>/container/Dockerfile` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile). If you're adding dependencies from [PyPI](https://pypi.org/), use [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/py38/base_image_requirements.txt) instead.
+2. Customize the `Dockerfile` for a given language, typically `sdks/<language>/container/Dockerfile` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile).
 
 3. Return to the root Beam directory and run the Gradle `docker` target for your image.
 

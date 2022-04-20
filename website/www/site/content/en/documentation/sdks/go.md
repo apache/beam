@@ -28,7 +28,7 @@ This means worker binaries may need to be [cross-compiled](/documentation/sdks/g
 
 Get started with the [Beam Go SDK quickstart](/get-started/quickstart-go) to set up your development environment and run an example pipeline. Then, read through the [Beam programming guide](/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
 
-See the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam) for more detailed information.
+See the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam) for more detailed information.
 
 ## Status
 
