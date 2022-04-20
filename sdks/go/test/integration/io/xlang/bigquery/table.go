@@ -38,3 +38,15 @@ func newTempTable(dataset, prefix, schema string) (string, error) {
 	}
 	return name, nil
 }
+
+// deleteTable deletes a BigQuery table using BigQuery's Data Definition Language (DDL) and the
+// "bq query" console command. Reference: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language
+func deleteTempTable(table string) error {
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", table)
+	cmd := exec.Command("bq", "query", "--use_legacy_sql=false", query)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("deleting table through command \"%s\" failed with output:\n%s", cmd.String(), out)
+	}
+	return nil
+}

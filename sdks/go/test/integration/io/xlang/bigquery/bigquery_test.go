@@ -18,83 +18,19 @@ package bigquery
 import (
 	"flag"
 	"log"
-	"math/rand"
-	"reflect"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
-
-func init() {
-	beam.RegisterFunction(createTestRows)
-	beam.RegisterType(reflect.TypeOf((*TestRow)(nil)))
-	beam.RegisterType(reflect.TypeOf((*RandData)(nil)))
-}
 
 var expansionAddr string // Populate with expansion address labelled "gcpio".
 
 func checkFlags(t *testing.T) {
 	if *integration.BigQueryDataset == "" {
 		t.Skip("No BigQuery dataset provided.")
-	}
-}
-
-const (
-	// A text to shuffle to get random words.
-	text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas eget nulla nec velit hendrerit placerat. Donec eu odio ultricies, fermentum arcu at, mollis lectus. Vestibulum porttitor pharetra sem vitae feugiat. Mauris facilisis neque in mauris feugiat rhoncus. Donec eu ipsum at nibh lobortis euismod. Nam at hendrerit felis. Vivamus et orci ex. Nam dui nisl, rutrum ac pretium eget, vehicula in tortor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Phasellus ante lorem, pharetra blandit dapibus et, tempus nec purus. Maecenas in posuere sem, vel pharetra nisl. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Donec nec facilisis ex. Praesent euismod commodo efficitur. Fusce in nisi nunc."
-	// Number of random elements to create for test. Must be less than number of words in text.
-	inputSize = 50
-)
-
-func shuffleText() []string {
-	words := strings.Fields(text)
-	rand.Shuffle(len(words), func(i, j int) { words[i], words[j] = words[j], words[i] })
-	return words
-}
-
-// TestRow is a sample row to write and read from that is expected to contain enough deterministic
-// and random data in different data types to provide a reasonable signal that reading and writing
-// works at a basic level.
-type TestRow struct {
-	Counter   int64    `beam:"counter"`   // A deterministic counter, increments for each row generated.
-	Rand_data RandData `beam:"rand_data"` // An inner struct containing randomized data.
-}
-
-// RandData is a struct of various types of random data.
-type RandData struct {
-	Flip bool   `beam:"flip"` // Flip is a bool with a random chance of either result (a coin flip).
-	Num  int64  `beam:"num"`  // Num is a random int64.
-	Word string `beam:"word"` // Word is a randomly selected word from a sample text.
-}
-
-// ddlSchema is a string for BigQuery data definition language that corresponds to TestRow.
-const ddlTestRowSchema = "counter INT64 NOT NULL, " +
-	"rand_data STRUCT<" +
-	"flip BOOL NOT NULL," +
-	"num INT64 NOT NULL," +
-	"word STRING NOT NULL" +
-	"> NOT NULL"
-
-// createTestRows creates a number of TestRows, populating the randomized data.
-func createTestRows(_ []byte, emit func(TestRow)) {
-	rand.Seed(time.Now().UnixNano())
-	words := shuffleText()
-	for i := 0; i < inputSize; i++ {
-		emit(TestRow{
-			Counter: int64(i),
-			Rand_data: RandData{
-				Flip: rand.Int63n(2) != 0,
-				Num:  rand.Int63(),
-				Word: words[i],
-			},
-		})
 	}
 }
 
@@ -110,24 +46,18 @@ func TestBigQueryIO_BasicWriteRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating BigQuery table: %v", err)
 	}
+	t.Logf("Created BigQuery table %v", table)
 
-	p := beam.NewPipeline()
-	s := p.Root()
+	write := WritePipeline(expansionAddr, table, createTestRows)
+	ptest.RunAndValidate(t, write)
+	read := ReadPipeline(expansionAddr, table, createTestRows)
+	ptest.RunAndValidate(t, read)
 
-	// Generate elements and write to table.
-	rows := beam.ParDo(s, createTestRows, beam.Impulse(s))
-	bigqueryio.Write(s, table, rows,
-		bigqueryio.CreateDisposition(bigqueryio.CreateNever),
-		bigqueryio.WriteExpansionAddr(expansionAddr))
-
-	// Read from table and compare to generated elements.
-	inType := reflect.TypeOf((*TestRow)(nil)).Elem()
-	readRows := bigqueryio.Read(s, inType,
-		bigqueryio.FromTable(table),
-		bigqueryio.ReadExpansionAddr(expansionAddr))
-	passert.Equals(s, readRows, rows)
-
-	ptest.RunAndValidate(t, p)
+	t.Logf("Deleting BigQuery table %v", table)
+	err = deleteTempTable(table)
+	if err != nil {
+		t.Logf("Error deleting BigQuery table: %v", err)
+	}
 }
 
 func TestMain(m *testing.M) {
