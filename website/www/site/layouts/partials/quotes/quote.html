@@ -18,10 +18,15 @@
       {{ end }}
     </div>
     <h5 class="quote-text">{{ .text | markdownify }}</h5>
-    <div>
+    <div class="quote-card-link-container">
       <a class="quote-card-link" href="{{ .linkUrl }}">
         <span>{{ .linkText }}</span>
         <img src="/images/arrow-right.svg" alt="Go to the case study">
+      </a>
+    </div>
+    <div class="case-study-row-button-container">
+      <a href="mailto:dev@beam.apache.org?subject=Beam Website Add New Case Study" class="case-study-primary-button">
+        Share your story
       </a>
     </div>
     <div class="quote-img-container">

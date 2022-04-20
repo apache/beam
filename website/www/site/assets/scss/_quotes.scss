@@ -90,7 +90,6 @@
       height: 260px;
       margin: 40px 0 20px 0;
       overflow: hidden;
-
     }
 
     img {
@@ -107,7 +106,9 @@
       span {
         padding-right: 10px;
       }
+
     }
+
   }
 
 }
@@ -150,10 +151,27 @@
   -webkit-backface-visibility: hidden;
   -webkit-transform: translate3d(0, 0, 0);
 
+  .case-study-row-button-container {
+    display: none;
+  }
+
+  .quote-card-link-container {
+    display: block;
+  }
+
   &:last-child {
     .quote-text {
       display: flex;
       align-items: center;
+    }
+
+    .quote-card-link-container {
+      display: none;
+    }
+
+    .case-study-row-button-container {
+      display: block;
+      margin: 0;
     }
   }
 }
