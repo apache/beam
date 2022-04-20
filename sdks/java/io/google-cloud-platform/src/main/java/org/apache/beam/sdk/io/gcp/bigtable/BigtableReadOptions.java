@@ -42,8 +42,8 @@ abstract class BigtableReadOptions implements Serializable {
   /** Returns the key ranges to read. */
   abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
 
-  /** Returns the key ranges to read. */
-  abstract @Nullable ValueProvider<Integer> getMaxBufferElementCount();
+  /** Returns the size limit for reading segements. */
+  abstract int getMaxBufferElementCount();
 
   abstract Builder toBuilder();
 
@@ -56,17 +56,15 @@ abstract class BigtableReadOptions implements Serializable {
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
 
-    abstract Builder setMaxBufferElementCount(ValueProvider<Integer> maxBufferElementCount);
+    abstract Builder setMaxBufferElementCount(int maxBufferElementCount);
 
     abstract Builder setKeyRanges(ValueProvider<List<ByteKeyRange>> keyRanges);
 
     abstract BigtableReadOptions build();
   }
 
-  BigtableReadOptions setMaxBufferElementCount(Integer maxBufferElementCount) {
-    return toBuilder()
-        .setMaxBufferElementCount(ValueProvider.StaticValueProvider.of(maxBufferElementCount))
-        .build();
+  BigtableReadOptions setMaxBufferElementCount(int maxBufferElementCount) {
+    return toBuilder().setMaxBufferElementCount(maxBufferElementCount).build();
   }
 
   BigtableReadOptions withRowFilter(RowFilter rowFilter) {
@@ -91,10 +89,9 @@ abstract class BigtableReadOptions implements Serializable {
     if (getRowFilter() != null && getRowFilter().isAccessible()) {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
     }
-    if (getMaxBufferElementCount() != null && getMaxBufferElementCount().isAccessible()) {
+    if (getMaxBufferElementCount() <= 0) {
       checkArgument(
-          getMaxBufferElementCount().get() != null, "maxBufferElementCount can not be null");
-      checkArgument(getMaxBufferElementCount().get() != 0, "maxBufferElementCount can not be zero");
+          getMaxBufferElementCount() <= 0, "maxBufferElementCount can not be zero or negative");
     }
 
     if (getKeyRanges() != null && getKeyRanges().isAccessible()) {

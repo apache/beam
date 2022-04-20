@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -403,16 +405,18 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
-     * using the given row filter.
+     * Returns a new {@link BigtableIO.Read} that will break up read requests into smaller batches.
+     * This function will switch the base BigtableIO.Reader class to using the SegmentReader
      *
      * <p>Does not modify this object.
      *
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    public Read withMaxBufferElementCount(ValueProvider<Integer> maxBufferElementCount) {
-      checkArgument(maxBufferElementCount != null, "maxBufferElementCount can not be null");
+    @Experimental(Kind.UNSPECIFIED)
+    public Read withMaxBufferElementCount(int maxBufferElementCount) {
+      checkArgument(
+          maxBufferElementCount <= 0, "maxBufferElementCount can not be zero or negative");
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(
@@ -421,16 +425,6 @@ public class BigtableIO {
                   .setMaxBufferElementCount(maxBufferElementCount)
                   .build())
           .build();
-    }
-
-    /**
-     * Returns a new {@link BigtableIO.Read} that will filter the rows read from Cloud Bigtable
-     * using the given row filter.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read withMaxBufferElementCount(int maxBufferElementCount) {
-      return withMaxBufferElementCount(StaticValueProvider.of(maxBufferElementCount));
     }
 
     /**
@@ -1293,9 +1287,8 @@ public class BigtableIO {
       return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
     }
 
-    public @Nullable Integer getMaxBufferElementCount() {
-      ValueProvider<Integer> bufferLimit = readOptions.getMaxBufferElementCount();
-      return bufferLimit != null && bufferLimit.isAccessible() ? bufferLimit.get() : null;
+    public int getMaxBufferElementCount() {
+      return readOptions.getMaxBufferElementCount();
     }
 
     public ValueProvider<String> getTableId() {

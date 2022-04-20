@@ -254,7 +254,7 @@ class BigtableServiceImpl implements BigtableService {
     @VisibleForTesting
     BigtableSegmentReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
-      if (source.getMaxBufferElementCount() != null && source.getMaxBufferElementCount() != 0) {
+      if (source.getMaxBufferElementCount() != 0) {
         this.segmentLimit = source.getMaxBufferElementCount();
         this.bufferByteLimit = (long) segmentLimit * RECOMMENDED_ROW_SIZE_IN_MEGABYTES;
       } else {
@@ -340,7 +340,7 @@ class BigtableServiceImpl implements BigtableService {
     private SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> startNextSegmentRead() {
       SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> f = SettableFuture.create();
 
-      // TODO(diegomez): Remove atomic ScanHandler implementation for simpler StreamObserver/Future
+      // TODO(diegomez): Remove atomic ScanHandler for simpler StreamObserver/Future implementation
       AtomicReference<ScanHandler> atomic = new AtomicReference<>();
       ScanHandler handler;
       handler =
