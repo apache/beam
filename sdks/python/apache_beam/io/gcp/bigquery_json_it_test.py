@@ -18,14 +18,25 @@
 Integration tests for BigQuery's JSON data type
 """
 
+import argparse
 import logging
 import unittest
+import pytest
 import json
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 _LOGGER = logging.getLogger(__name__)
+
+PROJECT = 'apache-beam-testing'
+DATASET_ID = 'bq_jsontype_test_nodelete'
+JSON_TABLE_NAME = 'json_data'
+
+JSON_TABLE_DESTINATION = f"{PROJECT}:{DATASET_ID}.{JSON_TABLE_NAME}"
 
 
 class BigQueryJsonIT(unittest.TestCase):
@@ -68,6 +79,29 @@ class BigQueryJsonIT(unittest.TestCase):
           l_actual = json.loads(landmarks_actual[i])
           l_expected = json.loads(landmarks_expected[i])
           self.assertTrue(l_expected == l_actual)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--read_method', default="EXPORT")
+    parser.add_argument('--query')
+    parser.add_argument('--input')
+
+    known_args, pipeline_args = parser.parse_known_args(options)
+
+    if known_args.query:
+      json_query_data = self.generate_query_data()
+      with beam.Pipeline(argv=self.args) as p:
+        data = p | 'Read rows' >> ReadFromBigQuery(
+          query=known_args.query,
+          method=known_args.read_method,
+          use_standard_sql=True
+        )
+        assert_that(data, equal_to(json_query_data))
+    else:
+      with beam.Pipeline(argv=self.args) as p:
+        p | 'Read rows' >> ReadFromBigQuery(
+          table=known_args.input,
+          method=known_args.read_method,
+        ) | 'Validate rows' >> beam.ParDo(CompareJson())
 
   # Expected data for query test
   def generate_query_data(self):
