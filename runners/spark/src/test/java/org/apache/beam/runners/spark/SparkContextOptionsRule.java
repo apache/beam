@@ -17,28 +17,31 @@
  */
 package org.apache.beam.runners.spark;
 
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
-import org.junit.rules.ExternalResource;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.values.KV;
 
-/** Explicitly set {@link org.apache.spark.SparkContext} to be reused (or not) in tests. */
-public class ReuseSparkContextRule extends ExternalResource {
+public class SparkContextOptionsRule extends SparkContextRule {
 
-  private final boolean reuse;
+  private Class<? extends PipelineRunner<?>> runner;
+  private @Nullable SparkContextOptions contextOptions = null;
 
-  private ReuseSparkContextRule(boolean reuse) {
-    this.reuse = reuse;
-  }
-
-  public static ReuseSparkContextRule no() {
-    return new ReuseSparkContextRule(false);
-  }
-
-  public static ReuseSparkContextRule yes() {
-    return new ReuseSparkContextRule(true);
+  public SparkContextOptionsRule(
+      Class<? extends PipelineRunner<?>> runner, KV<String, String>... sparkConfig) {
+    super(sparkConfig);
+    this.runner = runner;
   }
 
   @Override
   protected void before() throws Throwable {
-    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, Boolean.toString(reuse));
+    super.before();
+    contextOptions = createPipelineOptions(runner);
+  }
+
+  public SparkContextOptions getOptions() {
+    if (contextOptions == null) {
+      throw new IllegalStateException("SparkContextOptions not available");
+    }
+    return contextOptions;
   }
 }

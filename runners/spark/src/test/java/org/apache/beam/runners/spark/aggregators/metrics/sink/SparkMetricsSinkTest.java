@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.examples.WordCount;
@@ -51,7 +50,6 @@ import org.junit.rules.ExternalResource;
 public class SparkMetricsSinkTest {
   @Rule public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
   @Rule public final TestPipeline pipeline = TestPipeline.create();
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
 
   private static final ImmutableList<String> WORDS =
       ImmutableList.of("hi there", "hi", "hi sue bob", "hi sue", "", "bob hi");

@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
@@ -86,7 +87,8 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
 
-    JavaSparkContext jsc = new JavaSparkContext("local[1]", "Debug_Pipeline");
+    JavaSparkContext jsc =
+        SparkContextFactory.getSparkContext(pipeline.getOptions().as(SparkPipelineOptions.class));
     JavaStreamingContext jssc =
         new JavaStreamingContext(jsc, new org.apache.spark.streaming.Duration(1000));
 
@@ -107,7 +109,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
 
     pipeline.traverseTopologically(visitor);
 
-    jsc.stop();
+    SparkContextFactory.stopSparkContext(jsc);
 
     String debugString = visitor.getDebugString();
     LOG.info("Translated Native Spark pipeline:\n" + debugString);
