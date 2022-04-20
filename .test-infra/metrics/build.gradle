@@ -27,8 +27,7 @@ ext {
   cluster = 'metrics'
   zone='us-central1-a'
   projectName='apache-beam-testing'
-  //kubeConfigPath='/home/jenkins/.kube/config'
-  kubeConfigPath='/var/jenkins_home/.kube/config'
+  kubeConfigPath='/home/jenkins/.kube/config'
 }
 
 applyGroovyNature()
@@ -61,24 +60,27 @@ dockerCompose {
 dockerCompose.isRequiredBy(testMetricsStack)
 
 task getClusterCredentials(type: Exec) {
-  commandLine 'sh', '-c', "export PATH=/var/jenkins_home/google-cloud-sdk/bin:/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
-}
-
-task validateConfiguration(type: Exec) {
-  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+  commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
 }
 
 task removeKubeConfig(type: Exec) {
-  // CURRENT_CONTEXT=$(kubectl config current-context)
-  // kubectl config unset contexts.$CURRENT_CONTEXT
   commandLine 'sh', '-c', "rm ${kubeConfigPath}"
 }
 
-task preCommit {
+
+task validateK8sConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+}
+
+task validateConfiguration {
   dependsOn getClusterCredentials
+  dependsOn validateK8sConfiguration
+  finalizedBy removeKubeConfig
+}
+
+task preCommit {
   dependsOn validateConfiguration
   dependsOn testMetricsStack
-  finalizedBy removeKubeConfig
 }
 
 task checkLastCommitId {
