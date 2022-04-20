@@ -104,10 +104,11 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         sys.getsizeof(batched_examples_float[0]) * 3,
         inference_runner.get_num_bytes(batched_examples_float))
 
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-10929')
   def test_pipeline_pickled(self):
     with tempfile.NamedTemporaryFile() as file:
       pickle.dump(build_model(), file)
-      file.flush()
+      file.close()
       with TestPipeline() as pipeline:
         examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
@@ -122,10 +123,11 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         assert_that(
             actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-10929')
   def test_pipeline_joblib(self):
     with tempfile.NamedTemporaryFile() as file:
       joblib.dump(build_model(), file)
-      file.flush()
+      file.close()
       with TestPipeline() as pipeline:
         examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
