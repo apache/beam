@@ -61,6 +61,43 @@ class BigQueryJsonIT(unittest.TestCase):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
     cls.args = cls.test_pipeline.get_full_options_as_args()
 
+  def run_test_write(self, options):
+    rows_to_write = []
+    json_data = self.generate_data()
+    for country_code, country in json_data.items():
+      cities_to_write = []
+      for city_name, city in country["cities"].items():
+        cities_to_write.append({'city_name': city_name, 'city': city})
+
+      rows_to_write.append({
+        'country_code': country_code,
+        'country': country["country"],
+        'stats': country["stats"],
+        'cities': cities_to_write,
+        'landmarks': country["landmarks"]
+      })
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--write_method')
+    parser.add_argument('--output')
+
+    known_args, pipeline_args = parser.parse_known_args(options)
+
+    with beam.Pipeline() as p:
+      (p
+       | "Create rows with JSON data" >> beam.Create(rows_to_write)
+       | "Write to BigQuery" >> beam.io.WriteToBigQuery(
+                method=known_args.write_method,
+                table=known_args.output,
+                schema=JSON_TABLE_SCHEMA,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+              ))
+
+    read_options = {
+      'read_method': "EXPORT",
+      'input': known_args.output
+    }
+    self.read_and_validate_rows(read_options)
 
 
   def read_and_validate_rows(self, options):
