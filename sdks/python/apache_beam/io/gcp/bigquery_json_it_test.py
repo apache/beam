@@ -29,6 +29,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.io.gcp.internal.clients import bigquery
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,12 +39,29 @@ JSON_TABLE_NAME = 'json_data'
 
 JSON_TABLE_DESTINATION = f"{PROJECT}:{DATASET_ID}.{JSON_TABLE_NAME}"
 
+JSON_FIELDS = [
+  bigquery.TableFieldSchema(name='country_code', type='STRING', mode='NULLABLE'),
+  bigquery.TableFieldSchema(name='country', type='JSON', mode='NULLABLE'),
+  bigquery.TableFieldSchema(name='stats', type='STRUCT', mode='NULLABLE', fields=[
+    bigquery.TableFieldSchema(name="gdp_per_capita", type='JSON', mode='NULLABLE'),
+    bigquery.TableFieldSchema(name="co2_emissions", type='JSON', mode='NULLABLE'),
+  ]),
+  bigquery.TableFieldSchema(name='cities', type='STRUCT', mode='REPEATED', fields=[
+    bigquery.TableFieldSchema(name="city_name", type='STRING', mode='NULLABLE'),
+    bigquery.TableFieldSchema(name="city", type='JSON', mode='NULLABLE'),
+  ]),
+  bigquery.TableFieldSchema(name='landmarks', type='JSON', mode='REPEATED'),
+]
+
+JSON_TABLE_SCHEMA = bigquery.TableSchema(fields=JSON_FIELDS)
 
 class BigQueryJsonIT(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
     cls.args = cls.test_pipeline.get_full_options_as_args()
+
+
 
   def read_and_validate_rows(self, options):
     json_data = self.generate_data()
@@ -107,23 +125,23 @@ class BigQueryJsonIT(unittest.TestCase):
           method=method,
         ) | 'Validate rows' >> beam.ParDo(CompareJson())
 
-  # def test_direct_read(self):
-  #   extra_opts = {
-  #     'read_method': "DIRECT_READ",
-  #     'input': JSON_TABLE_DESTINATION,
-  #   }
-  #   options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-  #
-  #   self.read_and_validate_rows(options)
-  #
-  # def test_export_read(self):
-  #   extra_opts = {
-  #     'read_method': "EXPORT",
-  #     'input': JSON_TABLE_DESTINATION,
-  #   }
-  #   options = self.test_pipeline.get_full_options_as_args(**extra_opts)
-  #
-  #   self.read_and_validate_rows(options)
+  def test_direct_read(self):
+    extra_opts = {
+      'read_method': "DIRECT_READ",
+      'input': JSON_TABLE_DESTINATION,
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+
+    self.read_and_validate_rows(options)
+
+  def test_export_read(self):
+    extra_opts = {
+      'read_method': "EXPORT",
+      'input': JSON_TABLE_DESTINATION,
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+
+    self.read_and_validate_rows(options)
 
   def test_query_read(self):
     extra_opts = {
