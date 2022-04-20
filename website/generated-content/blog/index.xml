@@ -1,4 +1,159 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 04 Mar 2022 08:30:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.37.0</title><link>/blog/beam-2.37.0/</link><pubDate>Fri, 04 Mar 2022 08:30:00 -0800</pubDate><guid>/blog/beam-2.37.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 20 Apr 2022 09:00:00 -0700</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.38.0</title><link>/blog/beam-2.38.0/</link><pubDate>Wed, 20 Apr 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.38.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.38.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2380-2022-04-20">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.38.0 check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12351169">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Introduce projection pushdown optimizer to the Java SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12976">BEAM-12976&lt;/a>). The optimizer currently only works on the &lt;a href="https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api">BigQuery Storage API&lt;/a>, but more I/Os will be added in future releases. If you encounter a bug with the optimizer, please file a JIRA and disable the optimizer using pipeline option &lt;code>--experiments=disable_projection_pushdown&lt;/code>.&lt;/li>
+&lt;li>A new IO for Neo4j graph databases was added. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857&lt;/a>) It has the ability to update nodes and relationships using UNWIND statements and to read data using cypher statements with parameters.&lt;/li>
+&lt;li>&lt;code>amazon-web-services2&lt;/code> has reached feature parity and is finally recommended over the earlier &lt;code>amazon-web-services&lt;/code> and &lt;code>kinesis&lt;/code> modules (Java). These will be deprecated in one of the next releases (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13174">BEAM-13174&lt;/a>).
+&lt;ul>
+&lt;li>Long outstanding write support for &lt;code>Kinesis&lt;/code> was added (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13175">BEAM-13175&lt;/a>).&lt;/li>
+&lt;li>Configuration was simplified and made consistent across all IOs, including the usage of &lt;code>AwsOptions&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13563">BEAM-13563&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13663">BEAM-13663&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13587">BEAM-13587&lt;/a>).&lt;/li>
+&lt;li>Additionally, there&amp;rsquo;s a long list of recent improvements and fixes to
+&lt;code>S3&lt;/code> Filesystem (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13245">BEAM-13245&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13246">BEAM-13246&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13441">BEAM-13441&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13445">BEAM-13445&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-14011">BEAM-14011&lt;/a>),
+&lt;code>DynamoDB&lt;/code> IO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13009">BEAM-13209&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13209">BEAM-13209&lt;/a>),
+&lt;code>SQS&lt;/code> IO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13631">BEAM-13631&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13510">BEAM-13510&lt;/a>) and others.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Pipeline dependencies supplied through &lt;code>--requirements_file&lt;/code> will now be staged to the runner using binary distributions (wheels) of the PyPI packages for linux_x86_64 platform (&lt;a href="https://issues.apache.org/jira/browse/BEAM-4032">BEAM-4032&lt;/a>). To restore the behavior to use source distributions, set pipeline option &lt;code>--requirements_cache_only_sources&lt;/code>. To skip staging the packages at submission time, set pipeline option &lt;code>--requirements_cache=skip&lt;/code> (Python).&lt;/li>
+&lt;li>The Flink runner now supports Flink 1.14.x (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13106">BEAM-13106&lt;/a>).&lt;/li>
+&lt;li>Interactive Beam now supports remotely executing Flink pipelines on Dataproc (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14071">BEAM-14071&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>(Python) Previously &lt;code>DoFn.infer_output_types&lt;/code> was expected to return &lt;code>Iterable[element_type]&lt;/code> where &lt;code>element_type&lt;/code> is the PCollection elemnt type. It is now expected to return &lt;code>element_type&lt;/code>. Take care if you have overriden &lt;code>infer_output_type&lt;/code> in a &lt;code>DoFn&lt;/code> (this is not common). See &lt;a href="https://issues.apache.org/jira/browse/BEAM-13860">BEAM-13860&lt;/a>.&lt;/li>
+&lt;li>(&lt;code>amazon-web-services2&lt;/code>) The types of &lt;code>awsRegion&lt;/code> / &lt;code>endpoint&lt;/code> in &lt;code>AwsOptions&lt;/code> changed from String to &lt;code>Region&lt;/code> / &lt;code>URI&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13563">BEAM-13563&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Beam 2.38.0 will be the last minor release to support Flink 1.11.&lt;/li>
+&lt;li>(&lt;code>amazon-web-services2&lt;/code>) Client providers (&lt;code>withXYZClientProvider()&lt;/code>) as well as IO specific &lt;code>RetryConfiguration&lt;/code>s are deprecated, instead use &lt;code>withClientConfiguration()&lt;/code> or &lt;code>AwsOptions&lt;/code> to configure AWS IOs / clients.
+Custom implementations of client providers shall be replaced with a respective &lt;code>ClientBuilderFactory&lt;/code> and configured through &lt;code>AwsOptions&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13563">BEAM-13563&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fix S3 copy for large objects (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14011">BEAM-14011&lt;/a>)&lt;/li>
+&lt;li>Fix quadratic behavior of pipeline canonicalization (Go) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14128">BEAM-14128&lt;/a>)
+&lt;ul>
+&lt;li>This caused unnecessarily long pre-processing times before job submission for large complex pipelines.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Fix &lt;code>pyarrow&lt;/code> version parsing (Python)(&lt;a href="https://issues.apache.org/jira/browse/BEAM-14235">BEAM-14235&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.38.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.38.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>abhijeet-lele
+Ahmet Altay
+akustov
+Alexander
+Alexander Zhuravlev
+Alexey Romanenko
+AlikRodriguez
+Anand Inguva
+andoni-guzman
+andreukus
+Andy Ye
+Ankur Goenka
+ansh0l
+Artur Khanin
+Aydar Farrakhov
+Aydar Zainutdinov
+Benjamin Gonzalez
+Brian Hulette
+brucearctor
+bulat safiullin
+bullet03
+Carl Mastrangelo
+Chamikara Jayalath
+Chun Yang
+Daniela Martín
+Daniel Oliveira
+Danny McCormick
+daria.malkova
+David Cavazos
+David Huntsperger
+dmitryor
+Dmytro Sadovnychyi
+dpcollins-google
+egalpin
+Elias Segundo Antonio
+emily
+Etienne Chauchot
+Hengfeng Li
+Ismaël Mejía
+Israel Herraiz
+Jack McCluskey
+Jakub Kukul
+Janek Bevendorff
+Jeff Klukas
+Johan Sternby
+Kamil Breguła
+Kenneth Knowles
+Ke Wu
+Kiley
+Kyle Weaver
+laraschmidt
+Lara Schmidt
+LE QUELLEC Olivier
+Luka Kalinovcic
+Luke Cwik
+Marcin Kuthan
+masahitojp
+Masato Nakamura
+Matt Casters
+Melissa Pashniak
+Michael Li
+Miguel Hernandez
+Moritz Mack
+mosche
+nancyxu123
+Nathan J Mehl
+Niel Markwick
+Ning Kang
+Pablo Estrada
+paul-tlh
+Pavel Avilov
+Rahul Iyer
+Reuven Lax
+Ritesh Ghorse
+Robert Bradshaw
+Robert Burke
+Ryan Skraba
+Ryan Thompson
+Sam Whittle
+Seth Vargo
+sp029619
+Steven Niemitz
+Thiago Nunes
+Udi Meiri
+Valentyn Tymofieiev
+Victor
+vitaly.terentyev
+Yichi Zhang
+Yi Hu
+yirutang
+Zachary Houfek
+Zoe&lt;/p></description></item><item><title>Blog: Apache Beam 2.37.0</title><link>/blog/beam-2.37.0/</link><pubDate>Fri, 04 Mar 2022 08:30:00 -0800</pubDate><guid>/blog/beam-2.37.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4320,89 +4475,4 @@ See the &lt;a href="/get-started/downloads/#290-2018-12-13">download page&lt;/a>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed
 to the 2.9.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Adam Horky, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Andrea Foegler, Andrew Fulton, Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Ben Song, Bingfeng Shu, Boyuan Zhang, Brian Martin, Brian Quinlan, Chamikara Jayalath, Charles Chen, Christian Schneider, Colm O hEigeartaigh, Cory Brzycki, CraigChambersG, Daniel Oliveira, David Moravek, Dusan Rychnovsky, Etienne Chauchot, Eugene Kirpichov, Fabien Rousseau, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía, Jan Lukavský, Jaromir Vanek, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, Jeroen Steggink, Julien Tournay, Jára Vaněk, Katarzyna Kucharczyk, Keisuke Kondo, Kenneth Knowles, Liam Miller-Cushon, Luke Cwik, Manu Zhang, Mark Liu, Maximilian Michels, Melissa Pashniak, Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik, Petr, Ondrej Kvasnicka, Pablo Estrada, Pavel Slechta, Raghu Angadi, Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Ruoyu Liu, Ruoyun Huang, Sam Rohde, Sam sam, Scott Wegner, Simon Plovyt, Thomas Weise, Tim Robertson, Tomas Novak, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Varun Dhussa, Vojtech Janota, Wout Scheepers, Xinyu Liu, XuMingmin, Yifan Zou, Yueyang Qiu, akedin, amaliujia, connelloG, flyisland, huygaa11, jasonkuster, jglezt, kkpoon, mareksimunek, matthiasa4, melissa, mingmxu, nielm, reuvenlax, robbe, ruoyu90, splovyt, svXaverius, &lt;a href="mailto:vaclav.plajt@gmail.com">vaclav.plajt@gmail.com&lt;/a>, xinyuiscool, xitep, Łukasz Gajowy&lt;/p></description></item><item><title>Blog: Inaugural edition of the Beam Summit Europe 2018 - aftermath</title><link>/blog/beam-summit-aftermath/</link><pubDate>Wed, 31 Oct 2018 00:00:01 -0800</pubDate><guid>/blog/beam-summit-aftermath/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Almost 1 month ago, we had the pleasure to welcome the Beam community at Level39 in London for the inaugural edition of the Beam Summit London Summit.&lt;/p>
-&lt;blockquote class="twitter-tweet" data-lang="en">&lt;p lang="en" dir="ltr">Day 1 of the first Beam Summit London going full speed ahead! Sessions by &lt;a href="https://twitter.com/SkyUK?ref_src=twsrc%5Etfw">@SkyUK&lt;/a> &lt;a href="https://twitter.com/GCPcloud?ref_src=twsrc%5Etfw">@GCPcloud&lt;/a> &lt;a href="https://twitter.com/Talend?ref_src=twsrc%5Etfw">@Talend&lt;/a> &lt;a href="https://twitter.com/PlantixApp?ref_src=twsrc%5Etfw">@PlantixApp&lt;/a> and more! &lt;a href="https://twitter.com/hashtag/ApacheBeam?src=hash&amp;amp;ref_src=twsrc%5Etfw">#ApacheBeam&lt;/a> &lt;a href="https://twitter.com/hashtag/apachebeamlondon?src=hash&amp;amp;ref_src=twsrc%5Etfw">#apachebeamlondon&lt;/a> &lt;a href="https://twitter.com/hashtag/l39?src=hash&amp;amp;ref_src=twsrc%5Etfw">#l39&lt;/a> &lt;a href="https://twitter.com/hashtag/level39?src=hash&amp;amp;ref_src=twsrc%5Etfw">#level39&lt;/a> &lt;a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam&lt;/a> &lt;a href="https://twitter.com/hashtag/summit?src=hash&amp;amp;ref_src=twsrc%5Etfw">#summit&lt;/a> &lt;a href="https://t.co/aEESFnbgxT">pic.twitter.com/aEESFnbgxT&lt;/a>&lt;/p>&amp;mdash; Matthias Baetens 🌆 (@matthiasbaetens) &lt;a href="https://twitter.com/matthiasbaetens/status/1046756260996149248?ref_src=twsrc%5Etfw">October 1, 2018&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
-&lt;h2 id="first-edition">First edition!&lt;/h2>
-&lt;p>This first edition of the summit was a free event, with over 125 RSVPs. We had two days of content; day one was focused on the roadmap of the project, the ASF and use cases from companies that use Beam. The second day was divided into tracks (a beginner and an advanced track). Those presentations &amp;amp; workshops were organised for the more than &lt;strong>80 attendees&lt;/strong> - and next to that there were several other activities like discussions, a brainstorm session, a UX booth and a signing session. We were able to offer the attendees &lt;strong>17 sessions&lt;/strong> from a great line-up of companies:
-Google, Spotify, Talend, Sky, Amazon, Data Artisans, Datatonic, Vente Exclusive, ML6, Flumaion, Plantix, Polidea, Seznam and more!&lt;/p>
-&lt;br/>
-#### Topics included using Python to run Beam on Flink:
-&lt;blockquote class="twitter-tweet" data-lang="nl">&lt;p lang="en" dir="ltr">Don&amp;#39;t miss &lt;a href="https://twitter.com/snntrable?ref_src=twsrc%5Etfw">@snntrable&lt;/a>&amp;#39;s session at Beam Sumit London, Oct. 2, 2018, about &lt;a href="https://twitter.com/hashtag/Python?src=hash&amp;amp;ref_src=twsrc%5Etfw">#Python&lt;/a> Streaming Pipelines with &lt;a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam&lt;/a> and &lt;a href="https://twitter.com/ApacheFlink?ref_src=twsrc%5Etfw">@ApacheFlink&lt;/a>! Register here: &lt;a href="https://t.co/wblzUeiTIg">https://t.co/wblzUeiTIg&lt;/a> &lt;a href="https://twitter.com/hashtag/streamprocessing?src=hash&amp;amp;ref_src=twsrc%5Etfw">#streamprocessing&lt;/a> &lt;a href="https://twitter.com/hashtag/BigData?src=hash&amp;amp;ref_src=twsrc%5Etfw">#BigData&lt;/a> &lt;a href="https://twitter.com/hashtag/MachineLearning?src=hash&amp;amp;ref_src=twsrc%5Etfw">#MachineLearning&lt;/a> &lt;a href="https://t.co/7Ph51WqspW">pic.twitter.com/7Ph51WqspW&lt;/a>&lt;/p>&amp;mdash; data Artisans (@dataArtisans) &lt;a href="https://twitter.com/dataArtisans/status/1044967266817847296?ref_src=twsrc%5Etfw">26 september 2018&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
-&lt;br/>
-#### ML with Beam with the TensorFlow transform integration:
-&lt;blockquote class="twitter-tweet" data-lang="nl">&lt;p lang="en" dir="ltr">Such a great pleasure to listen to the talk by &lt;a href="https://twitter.com/FsMatt?ref_src=twsrc%5Etfw">@FsMatt&lt;/a> on TensorFlow transform at the &lt;a href="https://twitter.com/hashtag/BeamSummit?src=hash&amp;amp;ref_src=twsrc%5Etfw">#BeamSummit&lt;/a>! &lt;a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam&lt;/a> &lt;a href="https://twitter.com/TensorFlow?ref_src=twsrc%5Etfw">@TensorFlow&lt;/a> &lt;a href="https://twitter.com/Level39CW?ref_src=twsrc%5Etfw">@Level39CW&lt;/a> &lt;br>&lt;br>Check the code for his demo at &lt;a href="https://t.co/8IS41A2aF2">https://t.co/8IS41A2aF2&lt;/a> &lt;a href="https://t.co/UWytiudmRO">https://t.co/UWytiudmRO&lt;/a>&lt;/p>&amp;mdash; datatonic (@teamdatatonic) &lt;a href="https://twitter.com/teamdatatonic/status/1047126173493469184?ref_src=twsrc%5Etfw">2 oktober 2018&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
-&lt;br/>
-#### The portability layer was a big topic:
-&lt;blockquote class="twitter-tweet" data-lang="nl">&lt;p lang="en" dir="ltr">Excellent talk by &lt;a href="https://twitter.com/stadtlegende?ref_src=twsrc%5Etfw">@stadtlegende&lt;/a> on adding portability to &lt;a href="https://twitter.com/hashtag/ApacheBeam?src=hash&amp;amp;ref_src=twsrc%5Etfw">#ApacheBeam&lt;/a>, awesome milestone and next step to make the Apache Beam vision become a reality! &lt;a href="https://t.co/M9jERlTeAE">pic.twitter.com/M9jERlTeAE&lt;/a>&lt;/p>&amp;mdash; Matthias Feys (@FsMatt) &lt;a href="https://twitter.com/FsMatt/status/1047105336841244673?ref_src=twsrc%5Etfw">2 oktober 2018&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
-&lt;br/>
-#### As well as a session on how to build your own SDK:
-&lt;blockquote class="twitter-tweet" data-lang="nl">&lt;p lang="en" dir="ltr">Robert Bredshaw explains how to build a new &lt;a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam&lt;/a> SDK.&lt;a href="https://twitter.com/hashtag/BeamSummit?src=hash&amp;amp;ref_src=twsrc%5Etfw">#BeamSummit&lt;/a> &lt;a href="https://t.co/Bj84GJimdo">pic.twitter.com/Bj84GJimdo&lt;/a>&lt;/p>&amp;mdash; Maximilian Michels 🧗 (@stadtlegende) &lt;a href="https://twitter.com/stadtlegende/status/1047139320195366912?ref_src=twsrc%5Etfw">2 oktober 2018&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
-&lt;h2 id="presentations">Presentations&lt;/h2>
-&lt;p>In the aftermath of the Summit, you can check the presentations of all the sessions.&lt;/p>
-&lt;h3 id="day-1-use-cases">Day 1: Use cases&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1hyHw7RVpFrFpli3vLt6JGBHrEm4BcgF-5nRdH1ZE8qo">Day 1 - Session 1 - Large scale stream analytics with Apache Beam at Sky&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1MxYrFDVoVFsrzbTtmr18zcbPFUU4nSdi">Day 1 - Session 2 - Running Quantitative Analytics with Apache Beam&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=0B4bFLXEWuluSdVBJSnZrbTZjSGFHbnd4cExYOGZQU2hmY3lF">Day 1 - Session 3 - Talend Data Streams: Building Big Data pipelines with Apache Beam&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1-GIUVn9QBtg6t-O8uINDkMO4PyZSU_HAEjMWuUHiYY4">Day 1 - Session 4 - Lesson Learned from Migrating to Apache Beam for Geo-Data Visualisation&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="day-2-beginners-track">Day 2: Beginners track&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1ntQEDhb8gkxof4uFftxWTOfN39laUDZU7IDHTPKWrcQ">Day 2 - Beginner - Session 1 - Development Environment with Apache Beam&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=0B4bFLXEWuluSWWJBWXV3ZTdseWpJN1o5UFdpSzV4Qi1sSGU0">Day 2 - Beginner - Session 2 - Towards Portability and Beyond&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=0B4bFLXEWuluSLTd6TFlYdFZZYjBTOFZQV3MxZzlPLWROWjZv">Day 2 - Beginner - Session 3 - Python Streaming Pipelines with Beam on Flink&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=0B4bFLXEWuluSMEV1a1cwM3ozeWQ4TkxlS0tFcnNtRGNGcjJ3">Day 2 - Beginner - Session 4 - How runners execute a Beam pipeline&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1QyqO8zJ3fIWD5DTnr1JNCEbm2dS15c1c02fI8zD-zqY">Day 2 - Beginner - Session 5 - IO Integration Testing framework in Apache Beam&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="day-2-advanced-track">Day 2: Advanced track&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1Kr1skutObtDil2CExSQUb5rCVwZQm1m2lpmuAXFCE5I">Day 2 - Advanced - Session 1 - Pre-processing for TensorFlow pipelines with Apache Beam &amp;amp; tf.Transform&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=11x7gtuAxg76nOQKaB0YOwcvzS4TUeWONTU1ZQK0LsX8">Day 2 - Advanced - Session 2 - Streaming data into BigQuery: schema generation with Protobuf&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1cgQGBIXaACSwbYu_w3AkvvTdsCfeXAS1tBvQ77eVn74">Day 2 - Advanced - Session 3 - Implementing a SplittableParDo&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://docs.google.com/presentation/d/1F02Lwnqm9H3cGqDQhIZ3gbftyLQSnVMRxX69H_d04OE/edit?usp=sharing">Day 2 - Advanced - Session 4 - Big Data on Google Cloud with Scala and Scio&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1D1ajcKoOR5OzehPwONdHLSzpO4PZOsLk">Day 2 - Advanced - Session 5 - Landuse Classification of Satellite Imagery&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1aFH6lhnVIq4Alu-_HItQ0QOddEPJQRqI5jV_t0o3CYI">Day 2 - Advanced - Session 6 - Java 8 DSL for Beam SDK&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://drive.google.com/open?id=1AkU-QXSflau-RSeolB4TSLy0_mg0xwb398Czw7aqVGw">Day 2 - Advanced - Session 7 - So, You Want to Write a Beam SDK?&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="recordings">Recordings&lt;/h2>
-&lt;p>In case you prefer rewatching the recorded talks together with those slides, we are also happy to share the recordings of the majority of the sessions:&lt;/p>
-&lt;iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PL4dEBWmGSIU_9JTGnkGVg6-BwaV0FMxyJ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>&lt;/iframe>
-&lt;h3 id="day-1-use-cases-1">Day 1: Use cases&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://youtu.be/En0FrjvNr3M">Day 1 - Session 1 - Large scale stream analytics with Apache Beam at Sky&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/6yDEOUophuw">Day 1 - Session 2 - Running Quantitative Analytics with Apache Beam&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/1AlEGUtiQek">Day 1 - Session 3 - Talend Data Streams: Building Big Data pipelines with Apache Beam&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/GBKqw03doHE">Day 1 - Session 4 - Lesson Learned from Migrating to Apache Beam for Geo-Data Visualisation&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="day-2-advanced-track-1">Day 2: Advanced track&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://youtu.be/L-k6-3ApXR4">Day 2 - Advanced - Session 1 - Pre-processing for TensorFlow pipelines with Apache Beam &amp;amp; tf.Transform&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/ctN5U_Ke8uk">Day 2 - Advanced - Session 2 - Streaming data into BigQuery: schema generation with Protobuf&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/jU6EmPyKefg">Day 2 - Advanced - Session 3 - Implementing a SplittableParDo&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/F0n9sqj1_NQ">Day 2 - Advanced - Session 4 - Big Data on Google Cloud with Scala and Scio&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/s-IR2eFe4B4">Day 2 - Advanced - Session 5 - Landuse Classification of Satellite Imagery&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/ott1e_CnZ04">Day 2 - Advanced - Session 6 - Java 8 DSL for Beam SDK&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://youtu.be/VsGQ2LFeTHY">Day 2 - Advanced - Session 7 - So, You Want to Write a Beam SDK?&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h2 id="wrapping-up">Wrapping up&lt;/h2>
-&lt;p>We are also gathering feedback and thoughts on the Summit - please add your thoughts and discussions to the &lt;a href="https://lists.apache.org/thread.html/aa1306da25029dff12a49ba3ce63f2caf6a5f8ba73eda879c8403f3f@%3Cdev.beam.apache.org%3E">topic on the mailing list&lt;/a>.&lt;/p>
-&lt;p>Overall, we hope our attendees enjoyed this first edition of our summit and want to thank &lt;strong>our sponsors Google, Datatonic, Vente-Exclusive&lt;/strong> to make this possible.&lt;/p>
-&lt;blockquote class="twitter-tweet" data-lang="nl">&lt;p lang="en" dir="ltr">Wrapping up the first day of the &lt;a href="https://twitter.com/hashtag/BeamSummit?src=hash&amp;amp;ref_src=twsrc%5Etfw">#BeamSummit&lt;/a>. Excellent view from the &lt;a href="https://twitter.com/hashtag/level39?src=hash&amp;amp;ref_src=twsrc%5Etfw">#level39&lt;/a> venue. Very happy with the line up. &lt;a href="https://t.co/7FhokKbQY5">pic.twitter.com/7FhokKbQY5&lt;/a>&lt;/p>&amp;mdash; Alex Van Boxel (@alexvb) &lt;a href="https://twitter.com/alexvb/status/1046803829650608129?ref_src=twsrc%5Etfw">1 oktober 2018&lt;/a>&lt;/blockquote>
-&lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script></description></item></channel></rss>
+&lt;p>Adam Horky, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Andrea Foegler, Andrew Fulton, Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Ben Song, Bingfeng Shu, Boyuan Zhang, Brian Martin, Brian Quinlan, Chamikara Jayalath, Charles Chen, Christian Schneider, Colm O hEigeartaigh, Cory Brzycki, CraigChambersG, Daniel Oliveira, David Moravek, Dusan Rychnovsky, Etienne Chauchot, Eugene Kirpichov, Fabien Rousseau, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía, Jan Lukavský, Jaromir Vanek, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, Jeroen Steggink, Julien Tournay, Jára Vaněk, Katarzyna Kucharczyk, Keisuke Kondo, Kenneth Knowles, Liam Miller-Cushon, Luke Cwik, Manu Zhang, Mark Liu, Maximilian Michels, Melissa Pashniak, Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik, Petr, Ondrej Kvasnicka, Pablo Estrada, Pavel Slechta, Raghu Angadi, Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Ruoyu Liu, Ruoyun Huang, Sam Rohde, Sam sam, Scott Wegner, Simon Plovyt, Thomas Weise, Tim Robertson, Tomas Novak, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Varun Dhussa, Vojtech Janota, Wout Scheepers, Xinyu Liu, XuMingmin, Yifan Zou, Yueyang Qiu, akedin, amaliujia, connelloG, flyisland, huygaa11, jasonkuster, jglezt, kkpoon, mareksimunek, matthiasa4, melissa, mingmxu, nielm, reuvenlax, robbe, ruoyu90, splovyt, svXaverius, &lt;a href="mailto:vaclav.plajt@gmail.com">vaclav.plajt@gmail.com&lt;/a>, xinyuiscool, xitep, Łukasz Gajowy&lt;/p></description></item></channel></rss>

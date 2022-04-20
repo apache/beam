@@ -1,0 +1,121 @@
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Apache Beam 2.38.0</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700" rel=stylesheet><link rel=preload href=/scss/main.min.7e379325307fc10c285efb9d599920361547babe98510c175c947e6cb520140f.css as=style><link href=/scss/main.min.7e379325307fc10c285efb9d599920361547babe98510c175c947e6cb520140f.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script type=text/javascript src=/js/bootstrap.min.2979f9a6e32fc42c3e7406339ee9fe76b31d1b52059776a02b4a7fa6a4fd280a.js defer></script><script type=text/javascript src=/js/language-switch-v2.min.7567affc6761fe7bd274e5f39cc22164b23082717476f162a5b5b420e756bd43.js defer></script><script type=text/javascript src=/js/fix-menu.min.868b0889a2af56a467eaa417b9e2d2a743a1c448846a8702e74d97ebbb6f71b0.js defer></script><script type=text/javascript src=/js/section-nav.min.8c5356fa02e287ef99bfc8e2eee4d4f770e8d16de8fb3c1ba7c755567e7d90bd.js defer></script><script type=text/javascript src=/js/page-nav.min.cee222f85beb1ddee01aa20d04598335ccf4eda409f931d779ea70da61cac962.js defer></script><script type=text/javascript src=/js/expandable-list.min.906430196d9dc7c180eecc10131d3e929d1ffc224d695a2e2b4c4e1d3bb11043.js defer></script><script type=text/javascript src=/js/copy-to-clipboard.min.f6c6316040b86d30e6e596205510a7799d5af2f121c3eeb55e5fd66614d7e842.js defer></script><script type=text/javascript src=/js/calendar.min.430bec36c3b3f6f39206f4abbd1ab42f75a71e557a1fe8e43dbca15cf09cace3.js defer></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/blog/beam-2.38.0/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script async src=https://platform.twitter.com/widgets.js></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/keen-slider@5.3.2/keen-slider.min.css><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script><script>(function(h,o,t,j,a,r){h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};h._hjSettings={hjid:2182187,hjsv:6};a=o.getElementsByTagName('head')[0];r=o.createElement('script');r.async=1;r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;a.appendChild(r);})(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');</script></head><body class=body><nav class="navigation-bar-mobile header navbar navbar-fixed-top"><div class=navbar-header><a href=/ class=navbar-brand><img alt=Brand style=height:46px;width:43px src=/images/beam_logo_navbar_mobile.png></a>
+<a class=navbar-link href=/get-started/beam-overview/>Get Started</a>
+<a class=navbar-link href=/documentation/>Documentation</a>
+<button type=button class="navbar-toggle menu-open" aria-expanded=false aria-controls=navbar onclick=openMenu()>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar id=closeMenu>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button><ul class="nav navbar-nav"><li><div class=searchBar-mobile><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li><a class=navbar-link href=/get-started/beam-overview/>Get Started</a></li><li><span class=navbar-link>Documentation</span><ul><li><a href=/documentation/>General</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>Runners</a></li></ul></li><li><a class=navbar-link href=/roadmap/>Roadmap</a></li><li><a class=navbar-link href=/community/>Community</a></li><li><a class=navbar-link href=/contribute/>Contribute</a></li><li><a class=navbar-link href=/blog/>Blog</a></li><li><a class=navbar-link href=/case-studies/>Case Studies</a></li></ul><ul class="nav navbar-nav navbar-right"><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/blog/beam-2.38.0.md data-proofer-ignore><svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" fill="none" viewBox="0 0 25 24"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M4.543 20h4l10.5-10.5c.53-.53.828-1.25.828-2s-.298-1.47-.828-2-1.25-.828-2-.828-1.47.298-2 .828L4.543 16v4zm9.5-13.5 4 4"/></svg></a></li><li class=dropdown><a href=# class=dropdown-toggle id=apache-dropdown data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px>
+&nbsp;Apache
+<span class=arrow-icon><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#ff6d00"/><path stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.535 5.28l4.573 4.818-4.573 4.403"/></svg></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a target=_blank href=http://www.apache.org/>ASF Homepage</a></li><li><a target=_blank href=http://www.apache.org/licenses/>License</a></li><li><a target=_blank href=http://www.apache.org/security/>Security</a></li><li><a target=_blank href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a target=_blank href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a target=_blank href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li></ul></div></nav><nav class=navigation-bar-desktop><a href=/ class=navbar-logo><img src=/images/beam_logo_navbar.png alt="Beam Logo"></a><div class=navbar-bar-left><div class=navbar-links><a class=navbar-link href=/get-started/beam-overview/>Get Started</a><li class="dropdown navbar-dropdown navbar-dropdown-documentation"><a href=# class="dropdown-toggle navbar-link" role=button aria-haspopup=true aria-expanded=false>Documentation
+<span><svg xmlns="http://www.w3.org/2000/svg" width="12" height="11" fill="none" viewBox="0 0 12 11"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.666 4.535 5.847 9.108 1.444 4.535"/></svg></span></a><ul class=dropdown-menu><li><a class=navbar-dropdown-menu-link href=/documentation/>General</a></li><li><a class=navbar-dropdown-menu-link href=/documentation/sdks/java/>Languages</a></li><li><a class=navbar-dropdown-menu-link href=/documentation/runners/capability-matrix/>Runners</a></li></ul></li><a class=navbar-link href=/roadmap/>Roadmap</a>
+<a class=navbar-link href=/community/>Community</a>
+<a class=navbar-link href=/contribute/>Contribute</a>
+<a class=navbar-link href=/blog/>Blog</a>
+<a class=navbar-link href=/case-studies/>Case Studies</a></div><div id=iconsBar><a type=button onclick=showSearch()><svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" fill="none" viewBox="0 0 25 24"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M10.191 17c3.866.0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zM21.191 21l-6-6"/></svg></a><a target=_blank href=https://github.com/apache/beam/edit/master/website/www/site/content/en/blog/beam-2.38.0.md data-proofer-ignore><svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" fill="none" viewBox="0 0 25 24"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M4.543 20h4l10.5-10.5c.53-.53.828-1.25.828-2s-.298-1.47-.828-2-1.25-.828-2-.828-1.47.298-2 .828L4.543 16v4zm9.5-13.5 4 4"/></svg></a><li class="dropdown navbar-dropdown navbar-dropdown-apache"><a href=# class=dropdown-toggle role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px>
+&nbsp;Apache
+<span class=arrow-icon><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#ff6d00"/><path stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.535 5.28l4.573 4.818-4.573 4.403"/></svg></span></a><ul class=dropdown-menu><li><a class=navbar-dropdown-menu-link target=_blank href=http://www.apache.org/>ASF Homepage</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=http://www.apache.org/licenses/>License</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=http://www.apache.org/security/>Security</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li></div><div class="searchBar disappear"><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search><a type=button onclick=endSearch()><svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="none" viewBox="0 0 25 25"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M21.122 20.827 4.727 4.432M21.122 4.43 4.727 20.827"/></svg></a></div></div></nav><script>function showSearch(){addPlaceholder();var search=document.querySelector(".searchBar");search.classList.remove("disappear");var icons=document.querySelector("#iconsBar");icons.classList.add("disappear");}
+function addPlaceholder(){$('input:text').attr('placeholder',"What are you looking for?");}
+function endSearch(){var search=document.querySelector(".searchBar");search.classList.add("disappear");var icons=document.querySelector("#iconsBar");icons.classList.remove("disappear");}
+function blockScroll(){$("body").toggleClass("fixedPosition");}
+function openMenu(){addPlaceholder();blockScroll();}</script><div class="body__contained center no__padding content-up"><article class=post itemscope itemtype=http://schema.org/BlogPosting><div class=post-content><div class=post-info><p>blog</p><p>2022/04/20</p></div><header class=post-header><h2 itemprop="name headline">Apache Beam 2.38.0</h1><div class=post-info><span>Daniel Oliviera</span></div></header><div class="arrow-list header-top-margin" itemprop=articleBody><p>We are happy to present the new 2.38.0 release of Beam.
+This release includes both improvements and new functionality.
+See the <a href=/get-started/downloads/#2380-2022-04-20>download page</a> for this release.</p><p>For more information on changes in 2.38.0 check out the <a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12351169">detailed release notes</a>.</p><h2 id=ios>I/Os</h2><ul><li>Introduce projection pushdown optimizer to the Java SDK (<a href=https://issues.apache.org/jira/browse/BEAM-12976>BEAM-12976</a>). The optimizer currently only works on the <a href=https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api>BigQuery Storage API</a>, but more I/Os will be added in future releases. If you encounter a bug with the optimizer, please file a JIRA and disable the optimizer using pipeline option <code>--experiments=disable_projection_pushdown</code>.</li><li>A new IO for Neo4j graph databases was added. (<a href=https://issues.apache.org/jira/browse/BEAM-1857>BEAM-1857</a>) It has the ability to update nodes and relationships using UNWIND statements and to read data using cypher statements with parameters.</li><li><code>amazon-web-services2</code> has reached feature parity and is finally recommended over the earlier <code>amazon-web-services</code> and <code>kinesis</code> modules (Java). These will be deprecated in one of the next releases (<a href=https://issues.apache.org/jira/browse/BEAM-13174>BEAM-13174</a>).<ul><li>Long outstanding write support for <code>Kinesis</code> was added (<a href=https://issues.apache.org/jira/browse/BEAM-13175>BEAM-13175</a>).</li><li>Configuration was simplified and made consistent across all IOs, including the usage of <code>AwsOptions</code> (<a href=https://issues.apache.org/jira/browse/BEAM-13563>BEAM-13563</a>, <a href=https://issues.apache.org/jira/browse/BEAM-13663>BEAM-13663</a>, <a href=https://issues.apache.org/jira/browse/BEAM-13587>BEAM-13587</a>).</li><li>Additionally, there&rsquo;s a long list of recent improvements and fixes to
+<code>S3</code> Filesystem (<a href=https://issues.apache.org/jira/browse/BEAM-13245>BEAM-13245</a>, <a href=https://issues.apache.org/jira/browse/BEAM-13246>BEAM-13246</a>, <a href=https://issues.apache.org/jira/browse/BEAM-13441>BEAM-13441</a>, <a href=https://issues.apache.org/jira/browse/BEAM-13445>BEAM-13445</a>, <a href=https://issues.apache.org/jira/browse/BEAM-14011>BEAM-14011</a>),
+<code>DynamoDB</code> IO (<a href=https://issues.apache.org/jira/browse/BEAM-13009>BEAM-13209</a>, <a href=https://issues.apache.org/jira/browse/BEAM-13209>BEAM-13209</a>),
+<code>SQS</code> IO (<a href=https://issues.apache.org/jira/browse/BEAM-13631>BEAM-13631</a>, <a href=https://issues.apache.org/jira/browse/BEAM-13510>BEAM-13510</a>) and others.</li></ul></li></ul><h2 id=new-features--improvements>New Features / Improvements</h2><ul><li>Pipeline dependencies supplied through <code>--requirements_file</code> will now be staged to the runner using binary distributions (wheels) of the PyPI packages for linux_x86_64 platform (<a href=https://issues.apache.org/jira/browse/BEAM-4032>BEAM-4032</a>). To restore the behavior to use source distributions, set pipeline option <code>--requirements_cache_only_sources</code>. To skip staging the packages at submission time, set pipeline option <code>--requirements_cache=skip</code> (Python).</li><li>The Flink runner now supports Flink 1.14.x (<a href=https://issues.apache.org/jira/browse/BEAM-13106>BEAM-13106</a>).</li><li>Interactive Beam now supports remotely executing Flink pipelines on Dataproc (Python) (<a href=https://issues.apache.org/jira/browse/BEAM-14071>BEAM-14071</a>).</li></ul><h2 id=breaking-changes>Breaking Changes</h2><ul><li>(Python) Previously <code>DoFn.infer_output_types</code> was expected to return <code>Iterable[element_type]</code> where <code>element_type</code> is the PCollection elemnt type. It is now expected to return <code>element_type</code>. Take care if you have overriden <code>infer_output_type</code> in a <code>DoFn</code> (this is not common). See <a href=https://issues.apache.org/jira/browse/BEAM-13860>BEAM-13860</a>.</li><li>(<code>amazon-web-services2</code>) The types of <code>awsRegion</code> / <code>endpoint</code> in <code>AwsOptions</code> changed from String to <code>Region</code> / <code>URI</code> (<a href=https://issues.apache.org/jira/browse/BEAM-13563>BEAM-13563</a>).</li></ul><h2 id=deprecations>Deprecations</h2><ul><li>Beam 2.38.0 will be the last minor release to support Flink 1.11.</li><li>(<code>amazon-web-services2</code>) Client providers (<code>withXYZClientProvider()</code>) as well as IO specific <code>RetryConfiguration</code>s are deprecated, instead use <code>withClientConfiguration()</code> or <code>AwsOptions</code> to configure AWS IOs / clients.
+Custom implementations of client providers shall be replaced with a respective <code>ClientBuilderFactory</code> and configured through <code>AwsOptions</code> (<a href=https://issues.apache.org/jira/browse/BEAM-13563>BEAM-13563</a>).</li></ul><h2 id=bugfixes>Bugfixes</h2><ul><li>Fix S3 copy for large objects (Java) (<a href=https://issues.apache.org/jira/browse/BEAM-14011>BEAM-14011</a>)</li><li>Fix quadratic behavior of pipeline canonicalization (Go) (<a href=https://issues.apache.org/jira/browse/BEAM-14128>BEAM-14128</a>)<ul><li>This caused unnecessarily long pre-processing times before job submission for large complex pipelines.</li></ul></li><li>Fix <code>pyarrow</code> version parsing (Python)(<a href=https://issues.apache.org/jira/browse/BEAM-14235>BEAM-14235</a>)</li></ul><h3 id=known-issues>Known Issues</h3><ul><li>See a full list of open <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.38.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect</a> this version.</li></ul><h2 id=list-of-contributors>List of Contributors</h2><p>According to git shortlog, the following people contributed to the 2.38.0 release. Thank you to all contributors!</p><p>abhijeet-lele
+Ahmet Altay
+akustov
+Alexander
+Alexander Zhuravlev
+Alexey Romanenko
+AlikRodriguez
+Anand Inguva
+andoni-guzman
+andreukus
+Andy Ye
+Ankur Goenka
+ansh0l
+Artur Khanin
+Aydar Farrakhov
+Aydar Zainutdinov
+Benjamin Gonzalez
+Brian Hulette
+brucearctor
+bulat safiullin
+bullet03
+Carl Mastrangelo
+Chamikara Jayalath
+Chun Yang
+Daniela Martín
+Daniel Oliveira
+Danny McCormick
+daria.malkova
+David Cavazos
+David Huntsperger
+dmitryor
+Dmytro Sadovnychyi
+dpcollins-google
+egalpin
+Elias Segundo Antonio
+emily
+Etienne Chauchot
+Hengfeng Li
+Ismaël Mejía
+Israel Herraiz
+Jack McCluskey
+Jakub Kukul
+Janek Bevendorff
+Jeff Klukas
+Johan Sternby
+Kamil Breguła
+Kenneth Knowles
+Ke Wu
+Kiley
+Kyle Weaver
+laraschmidt
+Lara Schmidt
+LE QUELLEC Olivier
+Luka Kalinovcic
+Luke Cwik
+Marcin Kuthan
+masahitojp
+Masato Nakamura
+Matt Casters
+Melissa Pashniak
+Michael Li
+Miguel Hernandez
+Moritz Mack
+mosche
+nancyxu123
+Nathan J Mehl
+Niel Markwick
+Ning Kang
+Pablo Estrada
+paul-tlh
+Pavel Avilov
+Rahul Iyer
+Reuven Lax
+Ritesh Ghorse
+Robert Bradshaw
+Robert Burke
+Ryan Skraba
+Ryan Thompson
+Sam Whittle
+Seth Vargo
+sp029619
+Steven Niemitz
+Thiago Nunes
+Udi Meiri
+Valentyn Tymofieiev
+Victor
+vitaly.terentyev
+Yichi Zhang
+Yi Hu
+yirutang
+Zachary Houfek
+Zoe</p></div></div><div class=blog-content><h2>Latest from the blog</h2></div><div class=posts-list><a class=post-card href=/blog/beam-2.37.0/ data-categories=blog><div class="post-info post-category"><p>blog</p><p>2022/03/04</p></div><div class=post><p class=post-title>Apache Beam 2.37.0</p><p class=post-info>Brian Hulette</p></div></a><a class=post-card href=/blog/upcoming-events-for-beam-in-2022/ data-categories=blog><div class="post-info post-category"><p>blog</p><p>2022/02/28</p></div><div class=post><p class=post-title>Upcoming Events for Beam in 2022</p><p class=post-info>Brittany Hermann</p></div></a><a class=post-card href=/blog/beam-2.36.0/ data-categories=blog><div class="post-info post-category"><p>blog</p><p>2022/02/07</p></div><div class=post><p class=post-title>Apache Beam 2.36.0</p><p class=post-info>Emily Ye</p></div></a></div></article></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></div></div></div></footer></body></html>
