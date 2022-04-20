@@ -83,6 +83,7 @@ dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":runners:core-construction-java")
   implementation library.java.avro

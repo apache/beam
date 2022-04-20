@@ -530,6 +530,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
 
+      overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
+
       if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
         overridesBuilder.add(
             PTransformOverride.of(
