@@ -69,8 +69,8 @@ func SetDefaultRepositoryURL(repoURL string) error {
 	return defaultJarGetter.setRepositoryURL(repoURL)
 }
 
-func buildJarName(artifactId, version string) string {
-	return fmt.Sprintf("%s-%s.jar", artifactId, version)
+func buildJarName(artifactID, version string) string {
+	return fmt.Sprintf("%s-%s.jar", artifactID, version)
 }
 
 func getMavenJar(artifactID, groupID, version string) string {
