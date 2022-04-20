@@ -154,6 +154,20 @@ func TestInvoke(t *testing.T) {
 			ExpectedTime: 47,
 		},
 		{
+			// (Return check) EventTime, V, Error
+			Fn:           func(a int) (typex.EventTime, int, error) { return 10, 3 * a, nil },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 10,
+		},
+		{
+			// (Return check) EventTime, V
+			Fn:           func(a int) (typex.EventTime, int) { return 102, 3 * a },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 102,
+		},
+		{
 			// Check ConvertFn is invoked
 			Fn:       func(a string, b []int) (string, int) { return a, len(b) },
 			Opt:      &MainInput{Key: FullValue{Elm: "basketball", Elm2: []typex.T{23}}},
