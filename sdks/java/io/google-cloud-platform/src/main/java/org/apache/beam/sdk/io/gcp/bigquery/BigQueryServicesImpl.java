@@ -1227,9 +1227,10 @@ class BigQueryServicesImpl implements BigQueryServices {
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
               .setTraceId(
-                  "Dataflow:" + bqIOMetadata.getBeamJobId() != null
-                      ? bqIOMetadata.getBeamJobId()
-                      : options.getJobName())
+                  "Dataflow:"
+                      + (bqIOMetadata.getBeamJobId() != null
+                          ? bqIOMetadata.getBeamJobId()
+                          : options.getJobName()))
               .build();
       return new StreamAppendClient() {
         private int pins = 0;
