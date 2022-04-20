@@ -70,6 +70,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
       DestinationT destination, DatasetService datasetService) throws Exception {
     return new MessageConverter<T>() {
       TableSchema tableSchema;
+      TableRowToStorageApiProto.SchemaInformation schemaInformation;
       Descriptor descriptor;
       long descriptorHash;
 
@@ -103,7 +104,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
               MoreObjects.firstNonNull(
                   SCHEMA_CACHE.putSchemaIfAbsent(tableReference, tableSchema), tableSchema);
         }
-
+        schemaInformation =
+            TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
         descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
         descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
       }
@@ -138,6 +140,8 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
         }
         synchronized (this) {
           tableSchema = newSchema;
+          schemaInformation =
+              TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
           descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
           long newHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
           if (descriptorHash != newHash) {
@@ -154,16 +158,21 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
       public StorageApiWritePayload toMessage(T element) throws Exception {
         int attempt = 0;
         do {
+          TableRowToStorageApiProto.SchemaInformation localSchemaInformation;
           Descriptor localDescriptor;
           long localDescriptorHash;
           synchronized (this) {
+            localSchemaInformation = schemaInformation;
             localDescriptor = descriptor;
             localDescriptorHash = descriptorHash;
           }
           try {
             Message msg =
                 TableRowToStorageApiProto.messageFromTableRow(
-                    localDescriptor, formatFunction.apply(element), ignoreUnknownValues);
+                    localSchemaInformation,
+                    localDescriptor,
+                    formatFunction.apply(element),
+                    ignoreUnknownValues);
             return new AutoValue_StorageApiWritePayload(msg.toByteArray(), localDescriptorHash);
           } catch (SchemaTooNarrowException e) {
             if (attempt > schemaUpdateRetries) {

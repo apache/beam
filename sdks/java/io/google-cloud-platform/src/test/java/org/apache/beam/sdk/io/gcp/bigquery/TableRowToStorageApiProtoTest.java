@@ -33,6 +33,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -173,7 +174,7 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -194,7 +195,7 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(13)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -275,7 +276,7 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -296,7 +297,7 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(2)
-                  .setType(Type.TYPE_STRING)
+                  .setType(Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -429,9 +430,9 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("2.817"),
                   new TableCell().setV("true"),
                   new TableCell().setV("true"),
-                  new TableCell().setV("43"),
-                  new TableCell().setV("00:52:07[.123]|[.123456] UTC"),
-                  new TableCell().setV("2019-08-16 00:52:07[.123]|[.123456] UTC"),
+                  new TableCell().setV("1970-01-01T00:00:00.000043Z"),
+                  new TableCell().setV("00:52:07.123456"),
+                  new TableCell().setV("2019-08-16T00:52:07.123456"),
                   new TableCell().setV("2019-08-16"),
                   new TableCell().setV("23.4"),
                   new TableCell().setV(ImmutableList.of("hello", "goodbye"))));
@@ -447,9 +448,9 @@ public class TableRowToStorageApiProtoTest {
           .set("floatValue", "2.817")
           .set("boolValue", "true")
           .set("booleanValue", "true")
-          .set("timestampValue", "43")
-          .set("timeValue", "00:52:07[.123]|[.123456] UTC")
-          .set("datetimeValue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
+          .set("timestampValue", "1970-01-01T00:00:00.000043Z")
+          .set("timeValue", "00:52:07.123456")
+          .set("datetimeValue", "2019-08-16T00:52:07.123456")
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("arrayValue", ImmutableList.of("hello", "goodbye"));
@@ -465,10 +466,10 @@ public class TableRowToStorageApiProtoTest {
           .put("floatvalue", (double) 2.817)
           .put("boolvalue", true)
           .put("booleanvalue", true)
-          .put("timestampvalue", "43")
-          .put("timevalue", "00:52:07[.123]|[.123456] UTC")
-          .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
-          .put("datevalue", "2019-08-16")
+          .put("timestampvalue", 43L)
+          .put("timevalue", "00:52:07.123456")
+          .put("datetimevalue", "2019-08-16T00:52:07.123456")
+          .put("datevalue", (int) LocalDate.of(2019, 8, 16).toEpochDay())
           .put("numericvalue", "23.4")
           .put("arrayvalue", ImmutableList.of("hello", "goodbye"))
           .build();
@@ -483,10 +484,10 @@ public class TableRowToStorageApiProtoTest {
           .put("floatvalue", (double) 2.817)
           .put("boolvalue", true)
           .put("booleanvalue", true)
-          .put("timestampvalue", "43")
-          .put("timevalue", "00:52:07[.123]|[.123456] UTC")
-          .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
-          .put("datevalue", "2019-08-16")
+          .put("timestampvalue", 43L)
+          .put("timevalue", "00:52:07.123456")
+          .put("datetimevalue", "2019-08-16T00:52:07.123456")
+          .put("datevalue", (int) LocalDate.parse("2019-08-16").toEpochDay())
           .put("numericvalue", "23.4")
           .put("arrayvalue", ImmutableList.of("hello", "goodbye"))
           .build();
@@ -506,12 +507,16 @@ public class TableRowToStorageApiProtoTest {
         new TableRow()
             .set("nestedValue1", BASE_TABLE_ROW)
             .set("nestedValue2", BASE_TABLE_ROW)
-            .set("nestedvalueNoF1", BASE_TABLE_ROW_NO_F)
-            .set("nestedvalueNoF2", BASE_TABLE_ROW_NO_F);
+            .set("nestedValueNoF1", BASE_TABLE_ROW_NO_F)
+            .set("nestedValueNoF2", BASE_TABLE_ROW_NO_F);
 
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, tableRow, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, tableRow, false);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -527,8 +532,11 @@ public class TableRowToStorageApiProtoTest {
   public void testMessageWithFFromTableRow() throws Exception {
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(BASE_TABLE_SCHEMA);
     DynamicMessage msg =
-        TableRowToStorageApiProto.messageFromTableRow(descriptor, BASE_TABLE_ROW, false);
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, BASE_TABLE_ROW, false);
     assertBaseRecord(msg, true);
   }
 
@@ -567,8 +575,11 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", ImmutableList.of(BASE_TABLE_ROW_NO_F, BASE_TABLE_ROW_NO_F));
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
-        TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow, false);
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, repeatedRow, false);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -609,8 +620,11 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", null);
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
-        TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow, false);
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation, descriptor, repeatedRow, false);
 
     Map<String, FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()
