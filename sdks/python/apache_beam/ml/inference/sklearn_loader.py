@@ -22,13 +22,18 @@ from typing import Any
 from typing import Iterable
 from typing import List
 
-import joblib
 import numpy
 
 from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.base import InferenceRunner
 from apache_beam.ml.inference.base import ModelLoader
 from apache_beam.io.filesystems import FileSystems
+
+try:
+  import joblib
+catch ImportError:
+  # joblib is an optional dependency.
+  pass
 
 
 class ModelFileType(enum.Enum):
@@ -64,6 +69,8 @@ class SklearnModelLoader(ModelLoader):
     if self._model_file_type == ModelFileType.PICKLE:
       return pickle.load(file)
     elif self._model_file_type == ModelFileType.JOBLIB:
+      if not joblib:
+        raise raise ImportError('Loading with joblib requests but joblib is not available.')
       return joblib.load(file)
     raise TypeError('Unsupported serialization type.')
 
