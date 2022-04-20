@@ -23,7 +23,9 @@ import logging
 import unittest
 import pytest
 import json
+import time
 
+from random import randint
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
@@ -54,6 +56,8 @@ JSON_FIELDS = [
 ]
 
 JSON_TABLE_SCHEMA = bigquery.TableSchema(fields=JSON_FIELDS)
+
+STREAMING_TEST_TABLE = f"py_streaming_test{time.time_ns() // 1000}_{randint(0,32)}"
 
 class BigQueryJsonIT(unittest.TestCase):
   @classmethod
@@ -93,10 +97,11 @@ class BigQueryJsonIT(unittest.TestCase):
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               ))
 
-    read_options = {
+    extra_opts = {
       'read_method': "EXPORT",
       'input': known_args.output
     }
+    read_options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     self.read_and_validate_rows(read_options)
 
 
@@ -193,6 +198,15 @@ class BigQueryJsonIT(unittest.TestCase):
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
 
     self.read_and_validate_rows(options)
+
+  def test_streaming_inserts(self):
+    extra_opts = {
+      'output': f"{PROJECT}:{DATASET_ID}.{STREAMING_TEST_TABLE}",
+      'write_method': "STREAMING_INSERTS"
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+
+    self.run_test_write(options)
 
   # Expected data for query test
   def generate_query_data(self):
