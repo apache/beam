@@ -55,6 +55,15 @@
       margin-bottom: $pad
       @media (max-width: $ak-breakpoint-lg)
         margin-right: 50px
+      a
+        img
+          width: 64px
+          border-radius: 50%
+          filter: grayscale(100%)
+          opacity: 0.7
+          &:hover, focus
+            filter: grayscale(0)
+            opacity: 1
 
   .footer__flex_mobile
     display: flex

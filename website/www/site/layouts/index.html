@@ -46,16 +46,33 @@
           {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
       {{ end }}
     </div>
-    <div class="pillars-social">
-      <div class="pillars-social-icons">
-        {{ $data := index $.Site.Data .Site.Language.Lang }}
-        {{ range $pillars_social := $data.pillars_social }}
-            {{ partial "pillars/pillars-social" (dict "icon" $pillars_social.icon  "url" $pillars_social.url "name" $pillars_social.name) }}
-        {{ end }}
+    <div class="section">
+      <h2 class="margin">{{ T "home-model-title2" }}</h2>
+      <div class="row margin">
+        <div class="column">
+          <div class="logos-row">
+            <img class="first_logo" src="/images/logos/runners/flink.png"/>
+            <img src="/images/logos/runners/spark.png"/>
+            <img id="last_logo" src="/images/logos/runners/amazon_kinesis.png"/>
+          </div>
+          <p class="more">{{ T "home-graphic-more" }}</p>
+          <div>
+            <h4>{{ T "home-graphic-runner-title" }}</h4>
+            <p>{{ T "home-graphic-runner-body" }}</p>
+          </div>
+        </div>
+        <div class="column">
+          <div class="logos-row">
+            <img class="first_logo" src="/images/logos/sdks/python-logo.png"/>
+            <img src="/images/logos/sdks/go.png"/>
+          </div>
+          <p class="more">{{ T "home-graphic-more" }}</p>
+          <div>
+            <h4>{{ T "home-graphic-language-title" }}</h4>
+            <p>{{ T "home-graphic-language-body" }}</p>
+          </div>
+        </div>
       </div>
-      <p class="pillars-social-text">
-        {{ T "home-pillars-social-text" }}
-      </p>
     </div>
   </div>
 {{ end }}
@@ -102,34 +119,6 @@
               <p>{{ .body }}</p>
             </div>
           {{ end }}
-        </div>
-      </div>
-    </div>
-    <div class="section">
-      <h2 class="margin">{{ T "home-model-title2" }}</h2>
-      <div class="row margin">
-        <div class="column">
-          <div class="logos-row">
-            <img class="first_logo" src="/images/logos/runners/flink.png"/>
-            <img src="/images/logos/runners/spark.png"/>
-            <img id="last_logo" src="/images/logos/runners/amazon_kinesis.png"/>
-          </div>
-          <p class="more">{{ T "home-graphic-more" }}</p>
-          <div>
-            <h4>{{ T "home-graphic-runner-title" }}</h4>
-            <p>{{ T "home-graphic-runner-body" }}</p>
-          </div>
-        </div>
-        <div class="column">
-          <div class="logos-row">
-            <img class="first_logo" src="/images/logos/sdks/python-logo.png"/>
-            <img src="/images/logos/sdks/go.png"/>
-          </div>
-          <p class="more">{{ T "home-graphic-more" }}</p>
-          <div>
-            <h4>{{ T "home-graphic-language-title" }}</h4>
-            <p>{{ T "home-graphic-language-body" }}</p>
-          </div>
         </div>
       </div>
     </div>
