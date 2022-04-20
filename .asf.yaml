@@ -17,7 +17,7 @@
 # https://s.apache.org/asfyaml-notify
 
 github:
-  description: "Apache Beam is a unified programming model for Batch and Streaming data processing"
+  description: "Apache Beam is a unified programming model for Batch and Streaming data processing."
   homepage: https://beam.apache.org/
   labels:
     - batch
