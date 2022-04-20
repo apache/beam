@@ -107,19 +107,33 @@ class BigQueryJsonIT(unittest.TestCase):
           method=method,
         ) | 'Validate rows' >> beam.ParDo(CompareJson())
 
-  def test_direct_read(self):
-    extra_opts = {
-      'read_method': "DIRECT_READ",
-      'input': JSON_TABLE_DESTINATION,
-    }
-    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+  # def test_direct_read(self):
+  #   extra_opts = {
+  #     'read_method': "DIRECT_READ",
+  #     'input': JSON_TABLE_DESTINATION,
+  #   }
+  #   options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+  #
+  #   self.read_and_validate_rows(options)
+  #
+  # def test_export_read(self):
+  #   extra_opts = {
+  #     'read_method': "EXPORT",
+  #     'input': JSON_TABLE_DESTINATION,
+  #   }
+  #   options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+  #
+  #   self.read_and_validate_rows(options)
 
-    self.read_and_validate_rows(options)
-
-  def test_export_read(self):
+  def test_query_read(self):
     extra_opts = {
-      'read_method': "EXPORT",
-      'input': JSON_TABLE_DESTINATION,
+      'query': "SELECT "
+               "country_code, "
+               "country.past_leaders[2] AS past_leader, "
+               "stats.gdp_per_capita[\"gdp_per_capita\"] AS gdp, "
+               "cities[OFFSET(1)].city.name AS city_name, "
+               "landmarks[OFFSET(1)][\"name\"] AS landmark_name "
+               f"FROM `{PROJECT}.{DATASET_ID}.{JSON_TABLE_NAME}`",
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
 
