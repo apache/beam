@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:flutter/cupertino.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 class GetListOfExamplesRequestWrapper {
@@ -32,5 +33,5 @@ class GetListOfExamplesRequestWrapper {
               sdk == other.sdk;
 
   @override
-  int get hashCode => category.hashCode ^ sdk.hashCode;
+  int get hashCode => hashValues(category.hashCode, sdk.hashCode);
 }
