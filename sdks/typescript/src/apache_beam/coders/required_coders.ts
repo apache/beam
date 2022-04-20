@@ -22,11 +22,11 @@ import { Reader, Writer } from "protobufjs";
 import {
   Coder,
   Context,
+  ProtoContext,
   globalRegistry,
   writeRawByte,
   writeRawBytes,
 } from "./coders";
-import { PipelineContext } from "../base";
 import Long from "long";
 import {
   Window,
@@ -122,7 +122,7 @@ export class BytesCoder implements Coder<Uint8Array> {
     }
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: BytesCoder.URN,
@@ -187,7 +187,7 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
     };
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: KVCoder.URN,
@@ -328,7 +328,7 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
     }
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: IterableCoder.URN,
@@ -350,7 +350,7 @@ export class LengthPrefixedCoder<T> implements Coder<T> {
     this.elementCoder = elementCoder;
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: LengthPrefixedCoder.URN,
@@ -388,7 +388,7 @@ export class FullWindowedValueCoder<T, W extends Window>
     this.windowIterableCoder = new IterableCoder(windowCoder);
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: FullWindowedValueCoder.URN,
@@ -452,7 +452,7 @@ export class GlobalWindowCoder implements Coder<GlobalWindow> {
     return new GlobalWindow();
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: GlobalWindowCoder.URN,
@@ -485,7 +485,7 @@ export class InstantCoder implements Coder<Instant> {
     writeRawBytes(bytes, writer);
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return <runnerApi.Coder>(<unknown>undefined);
   }
 }
@@ -633,7 +633,7 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
     }
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     throw new Error(
       "No proto encoding for PaneInfoCoder, always part of WindowedValue codec"
     );

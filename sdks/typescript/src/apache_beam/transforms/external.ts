@@ -36,9 +36,12 @@ import * as runnerApi from "../proto/beam_runner_api";
 import { ExternalConfigurationPayload } from "../proto/external_transforms";
 
 import { Schema } from "../proto/schema";
+import { PValue, PCollection } from "../pvalue";
+import { Pipeline } from "../internal/pipeline";
 
-import * as base from "../base";
 import * as coders from "../coders/standard_coders";
+import * as internal from "./internal";
+import * as transform from "./transform";
 import { RowCoder } from "../coders/row_coder";
 import * as artifacts from "../runners/artifacts";
 import * as service from "../utils/service";
@@ -47,9 +50,9 @@ import * as service from "../utils/service";
 // correct Coders. It would be great if we could infer coders, or at least have
 // a cleaner way to specify them than using internal.WithCoderInternal.
 export class RawExternalTransform<
-  InputT extends base.PValue<any>,
-  OutputT extends base.PValue<any>
-> extends base.AsyncPTransform<InputT, OutputT> {
+  InputT extends PValue<any>,
+  OutputT extends PValue<any>
+> extends transform.AsyncPTransform<InputT, OutputT> {
   static namespaceCounter = 0;
   static freshNamespace() {
     return "namespace_" + RawExternalTransform.namespaceCounter++ + "_";
@@ -83,7 +86,7 @@ export class RawExternalTransform<
 
   async asyncExpandInternal(
     input: InputT,
-    pipeline: base.Pipeline,
+    pipeline: Pipeline,
     transformProto: runnerApi.PTransform
   ): Promise<OutputT> {
     const pipelineComponents = pipeline.getProto().components!;
@@ -107,7 +110,7 @@ export class RawExternalTransform<
       request.components!.transforms[fakeImpulseNamespace + pcId] =
         runnerApi.PTransform.create({
           uniqueName: fakeImpulseNamespace + "_create_" + pcId,
-          spec: { urn: base.Impulse.urn, payload: new Uint8Array() },
+          spec: { urn: internal.Impulse.urn, payload: new Uint8Array() },
           outputs: { main: pcId },
         });
     }
@@ -203,7 +206,7 @@ export class RawExternalTransform<
   }
 
   splice(
-    pipeline: base.Pipeline,
+    pipeline: Pipeline,
     transformProto: runnerApi.PTransform,
     response: ExpansionResponse,
     namespace: string
@@ -308,7 +311,7 @@ export class RawExternalTransform<
       if (outputKeys.length == 0) {
         return null!;
       } else if (outputKeys.length == 1) {
-        return new base.PCollection(
+        return new PCollection(
           pipeline,
           response.transform!.outputs[outputKeys[0]]
         ) as OutputT;
@@ -317,7 +320,7 @@ export class RawExternalTransform<
     return Object.fromEntries(
       Object.entries(response.transform!.outputs).map(([k, v]) => [
         k,
-        new base.PCollection(pipeline, v),
+        new PCollection(pipeline, v),
       ])
     ) as OutputT;
   }

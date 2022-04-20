@@ -24,7 +24,6 @@ import * as fnApi from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data";
 import { StateProvider } from "./state";
 
-import * as base from "../base";
 import * as urns from "../internal/urns";
 import { Coder, Context as CoderContext } from "../coders/coders";
 import { GlobalWindowCoder } from "../coders/required_coders";

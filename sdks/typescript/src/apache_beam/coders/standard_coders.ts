@@ -19,9 +19,14 @@
 import * as runnerApi from "../proto/beam_runner_api";
 
 import { Reader, Writer } from "protobufjs";
-import { Coder, Context, globalRegistry, writeRawBytes } from "./coders";
+import {
+  Coder,
+  Context,
+  ProtoContext,
+  globalRegistry,
+  writeRawBytes,
+} from "./coders";
 import { BytesCoder, InstantCoder } from "./required_coders";
-import { PipelineContext } from "../base";
 import Long from "long";
 import {
   Window,
@@ -68,7 +73,7 @@ export class StrUtf8Coder implements Coder<String> {
     return this.decoder.decode(BytesCoder.INSTANCE.decode(reader, context));
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: StrUtf8Coder.URN,
@@ -96,7 +101,7 @@ export class VarIntCoder implements Coder<number> {
     return reader.int32();
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: VarIntCoder.URN,
@@ -124,7 +129,7 @@ export class DoubleCoder implements Coder<number> {
     return dView.getFloat64(0, false);
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: DoubleCoder.URN,
@@ -148,7 +153,7 @@ export class BoolCoder implements Coder<Boolean> {
     return reader.bool();
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: BoolCoder.URN,
@@ -187,7 +192,7 @@ export class NullableCoder<T> implements Coder<T | undefined> {
     }
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: NullableCoder.URN,
@@ -214,7 +219,7 @@ export class IntervalWindowCoder implements Coder<IntervalWindow> {
     return new IntervalWindow(end.sub(duration), end);
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder {
     return {
       spec: {
         urn: IntervalWindowCoder.URN,

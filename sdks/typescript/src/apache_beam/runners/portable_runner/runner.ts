@@ -25,7 +25,7 @@ import { PrepareJobRequest } from "../../proto/beam_job_api";
 import { JobServiceClient } from "../../proto/beam_job_api.client";
 import { ArtifactStagingServiceClient } from "../../proto/beam_artifact_api.client";
 
-import { Pipeline } from "../../base";
+import { Pipeline } from "../../internal/pipeline";
 import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
 import { JobState_Enum } from "../../proto/beam_job_api";

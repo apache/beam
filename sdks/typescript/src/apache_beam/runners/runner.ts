@@ -17,7 +17,8 @@
  */
 
 import { JobState_Enum } from "../proto/beam_job_api";
-import { Root, PValue, Pipeline } from "../base";
+import { Pipeline } from "../internal/pipeline";
+import { Root, PValue } from "../pvalue";
 import { PipelineOptions } from "../options/pipeline_options";
 
 export interface PipelineResult {

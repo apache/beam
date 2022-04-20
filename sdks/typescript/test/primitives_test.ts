@@ -34,6 +34,7 @@ import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
 import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
+import { Pipeline } from "../src/apache_beam/internal/pipeline";
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
@@ -184,14 +185,14 @@ describe("primitives module", function () {
   describe("applies basic transforms", function () {
     // TODO: test output with direct runner.
     it("runs a basic Impulse expansion", function () {
-      var p = new beam.Pipeline();
+      var p = new Pipeline();
       var res = new beam.Root(p).apply(new beam.Impulse());
 
       assert.equal(res.type, "pcollection");
       assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
     });
     it("runs a ParDo expansion", function () {
-      var p = new beam.Pipeline();
+      var p = new Pipeline();
       var res = new beam.Root(p)
         .apply(new beam.Impulse())
         .map(function (v: any) {
@@ -209,7 +210,7 @@ describe("primitives module", function () {
     });
     // why doesn't map need types here?
     it("runs a GroupBy expansion", function () {
-      var p = new beam.Pipeline();
+      var p = new Pipeline();
       var res = new beam.Root(p)
         .apply(new beam.Impulse())
         .map(function createElement(v) {

@@ -18,7 +18,10 @@
 
 import { Writer, Reader } from "protobufjs";
 import * as runnerApi from "../proto/beam_runner_api";
-import { PipelineContext } from "../base";
+
+export interface ProtoContext {
+  getCoderId(coder: Coder<unknown>): string;
+}
 
 interface Class<T> {
   new (...args: any[]): T;
@@ -108,7 +111,7 @@ export interface Coder<T> {
    * SDK workers; and reconstructed into its runtime representation if necessary.
    * @param pipelineContext - a context that holds relevant pipeline attributes such as other coders already in the pipeline.
    */
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder;
+  toProto(pipelineContext: ProtoContext): runnerApi.Coder;
 }
 
 function writeByteCallback(val, buf, pos) {
