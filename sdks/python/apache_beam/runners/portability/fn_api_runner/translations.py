@@ -21,7 +21,6 @@
 # mypy: check-untyped-defs
 
 import collections
-import copy
 import functools
 import itertools
 import logging
@@ -287,9 +286,7 @@ class Stage(object):
     # type: (...) -> beam_runner_api_pb2.PTransform
     if (len(self.transforms) == 1 and
         self.transforms[0].spec.urn in known_runner_urns):
-      result = copy.copy(self.transforms[0])
-      del result.subtransforms[:]
-      return result
+      return self.transforms[0]
 
     else:
       all_inputs = set(
@@ -707,7 +704,7 @@ def create_and_optimize_stages(
       leaf_transform_stages(
           pipeline_proto.root_transform_ids,
           pipeline_proto.components,
-          known_composites=union(known_runner_urns, KNOWN_COMPOSITES)))
+          union(known_runner_urns, KNOWN_COMPOSITES)))
 
   # Apply each phase in order.
   for phase in phases:
