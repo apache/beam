@@ -92,6 +92,8 @@
 ## I/Os
 * Introduce projection pushdown optimizer to the Java SDK ([BEAM-12976](https://issues.apache.org/jira/browse/BEAM-12976)). The optimizer currently only works on the [BigQuery Storage API](https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api), but more I/Os will be added in future releases. If you encounter a bug with the optimizer, please file a JIRA and disable the optimizer using pipeline option `--experiments=disable_projection_pushdown`.
 
+* A new IO for Neo4j graph databases was added. ([BEAM-1857](https://issues.apache.org/jira/browse/BEAM-1857))  It has the ability to update nodes and relationships using UNWIND statements and to read data using cypher statements with parameters.
+
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * `amazon-web-services2` has reached feature parity and is finally recommended over the earlier `amazon-web-services` and `kinesis` modules (Java). These will be deprecated in one of the next releases ([BEAM-13174](https://issues.apache.org/jira/browse/BEAM-13174)).
   * Long outstanding write support for `Kinesis` was added ([BEAM-13175](https://issues.apache.org/jira/browse/BEAM-13175)).
