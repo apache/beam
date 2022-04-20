@@ -279,7 +279,10 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
                   ByteString.copyFrom(
                       CoderUtils.encodeToByteArray(RowCoder.of(payloadSchema), payloadRow)))
               .build();
-      if (expansionPort == 0) {
+      if (expansionPort > 0) {
+        PythonService.waitForPort("localhost", expansionPort, 15000);
+        return apply(input, expansionPort, payload);
+      } else {
         port = PythonService.findAvailablePort();
         PythonService service =
             new PythonService(
@@ -292,8 +295,6 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
           PythonService.waitForPort("localhost", port, 15000);
           return apply(input, port, payload);
         }
-      } else {
-        return apply(input, expansionPort, payload);
       }
     } catch (RuntimeException exn) {
       throw exn;
