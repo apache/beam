@@ -22,6 +22,7 @@ import logging
 import unittest
 import json
 
+import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,6 +33,41 @@ class BigQueryJsonIT(unittest.TestCase):
   def setUpClass(cls):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
     cls.args = cls.test_pipeline.get_full_options_as_args()
+
+  def read_and_validate_rows(self, options):
+    json_data = self.generate_data()
+    class CompareJson(beam.DoFn, unittest.TestCase):
+      def process(self, row):
+        country_code = row["country_code"]
+        expected = json_data[country_code]
+
+        # Test country (JSON String)
+        country_actual = json.loads(row["country"])
+        country_expected = json.loads(expected["country"])
+        self.assertTrue(country_expected == country_actual)
+
+        # Test stats (JSON String in BigQuery struct)
+        for stat, value in row["stats"].items():
+          stats_actual = json.loads(value)
+          stats_expected = json.loads(expected["stats"][stat])
+          self.assertTrue(stats_expected == stats_actual)
+
+        # Test cities (JSON String in BigQuery array of structs)
+        for city_row in row["cities"]:
+          city = city_row["city"]
+          city_name = city_row["city_name"]
+
+          city_actual = json.loads(city)
+          city_expected = json.loads(expected["cities"][city_name])
+          self.assertTrue(city_expected == city_actual)
+
+        # Test landmarks (JSON String in BigQuery array)
+        landmarks_actual = row["landmarks"]
+        landmarks_expected = expected["landmarks"]
+        for i in range(len(landmarks_actual)):
+          l_actual = json.loads(landmarks_actual[i])
+          l_expected = json.loads(landmarks_expected[i])
+          self.assertTrue(l_expected == l_actual)
 
   # Expected data for query test
   def generate_query_data(self):
