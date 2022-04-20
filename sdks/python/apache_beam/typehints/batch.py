@@ -76,7 +76,8 @@ class BatchConverter(Generic[B, E]):
       if result is not None:
         return result
 
-    # TODO: Include explanations for realistic candidate BatchConverter
+    # TODO(BEAM-14339): Aggregate error information from the failed
+    # BatchConverter matches instead of this generic error.
     raise TypeError(
         f"Unable to find BatchConverter for element_type {element_type!r} and "
         f"batch_type {batch_type!r}")

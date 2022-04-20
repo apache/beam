@@ -104,6 +104,11 @@ class BatchDoFnParameterizedTest(unittest.TestCase):
     self.assertEqual(self.dofn.get_output_batch_type(), self.output_batch_type)
 
 
+class BatchDoFnNoInputAnnotation(beam.DoFn):
+  def process_batch(self, batch, *args, **kwargs):
+    yield [element * 2 for element in batch]
+
+
 class BatchDoFnTest(unittest.TestCase):
   def test_map_pardo(self):
     # verify batch dofn accessors work well with beam.Map generated DoFn
@@ -114,6 +119,14 @@ class BatchDoFnTest(unittest.TestCase):
     self.assertFalse(dofn.process_batch_defined)
     self.assertEqual(dofn.get_input_batch_type(), None)
     self.assertEqual(dofn.get_output_batch_type(), None)
+
+  def test_no_input_annotation_raises(self):
+    p = beam.Pipeline()
+    pc = p | beam.Create([1, 2, 3])
+
+    with self.assertRaisesRegex(TypeError,
+                                r'BatchDoFnNoInputAnnotation.process_batch'):
+      _ = pc | beam.ParDo(BatchDoFnNoInputAnnotation())
 
 
 if __name__ == '__main__':

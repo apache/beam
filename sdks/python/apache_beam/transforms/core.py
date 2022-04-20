@@ -709,7 +709,12 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     input_type = list(
         inspect.signature(self.process_batch).parameters.values())[0].annotation
     if input_type == inspect.Signature.empty:
-      raise TypeError("TODO")
+      # TODO(BEAM-14340): Consider supporting an alternative (dynamic?) approach
+      # for declaring input type
+      raise TypeError(
+          f"{self.__class__.__name__}.process_batch() does not have a type "
+          "annotation on it's first parameter. This is reqired for "
+          "process_batch implementations.")
     return typehints.native_type_compatibility.convert_to_beam_type(input_type)
 
   def get_output_batch_type(self) -> typing.Optional[TypeConstraint]:
