@@ -93,7 +93,7 @@ from the [compatibility table](#flink-version-compatibility) below. For example:
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink-1.13</artifactId>
+  <artifactId>beam-runners-flink-1.14</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
