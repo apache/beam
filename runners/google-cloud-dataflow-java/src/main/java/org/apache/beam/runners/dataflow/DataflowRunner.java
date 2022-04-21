@@ -1507,8 +1507,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } else {
       if (options.isStreaming()) {
         return true;
-      } else if (hasExperiment(
-          options, UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE)) {
+      } else if (hasExperiment(options, UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE)) {
         LOG.info(
             "Turning a batch pipeline into streaming due to unbounded PCollection(s) has been avoided! "
                 + "Unbounded PCollection(s): {}",
