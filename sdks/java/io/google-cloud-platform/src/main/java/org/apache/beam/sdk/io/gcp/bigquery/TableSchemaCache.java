@@ -286,7 +286,7 @@ public class TableSchemaCache {
       // Since this is a daemon thread, don't exit until it is explicitly shut down. Exiting early
       // can cause the
       // pipeline to stall.
-      LOG.error("Caught exception: " + e);
+      LOG.error("Caught exception in BigQuery's table schema cache refresh thread: " + e);
     }
     this.refreshExecutor.submit(this::refreshThread);
   }
