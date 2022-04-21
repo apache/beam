@@ -74,12 +74,12 @@ class _PipelineContextMap(Generic[PortableObjectT]):
   Under the hood it encodes and decodes these objects into runner API
   representations.
   """
-  def __init__(self,
-               context: PipelineContext,
-               obj_type: Type[PortableObjectT],
-               namespace: str,
-               proto_map: Optional[Mapping[str, message.Message]] = None
-              ) -> None:
+  def __init__(
+      self,
+      context: PipelineContext,
+      obj_type: Type[PortableObjectT],
+      namespace: str,
+      proto_map: Optional[Mapping[str, message.Message]] = None) -> None:
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
@@ -100,7 +100,10 @@ class _PipelineContextMap(Generic[PortableObjectT]):
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
     return self._obj_to_id[obj]
 
-  def get_proto(self, obj: PortableObjectT, label: Optional[str] = None) -> message.Message:
+  def get_proto(
+      self,
+      obj: PortableObjectT,
+      label: Optional[str] = None) -> message.Message:
     return self._id_to_proto[self.get_id(obj, label)]
 
   def get_by_id(self, id: str) -> PortableObjectT:
@@ -109,7 +112,11 @@ class _PipelineContextMap(Generic[PortableObjectT]):
           self._id_to_proto[id], self._pipeline_context)
     return self._id_to_obj[id]
 
-  def get_by_proto(self, maybe_new_proto: message.Message, label: Optional[str] = None, deduplicate: bool = False) -> str:
+  def get_by_proto(
+      self,
+      maybe_new_proto: message.Message,
+      label: Optional[str] = None,
+      deduplicate: bool = False) -> str:
     # TODO: this method may not be safe for arbitrary protos due to
     #  xlang concerns, hence limiting usage to the only current use-case it has.
     #  See: https://github.com/apache/beam/pull/14390#discussion_r616062377
@@ -135,7 +142,11 @@ class _PipelineContextMap(Generic[PortableObjectT]):
   def get_proto_from_id(self, id: str) -> message.Message:
     return self.get_id_to_proto_map()[id]
 
-  def put_proto(self, id: str, proto: message.Message, ignore_duplicates: bool = False) -> str:
+  def put_proto(
+      self,
+      id: str,
+      proto: message.Message,
+      ignore_duplicates: bool = False) -> str:
     if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
     elif (ignore_duplicates and id in self._id_to_proto and
@@ -160,17 +171,18 @@ class PipelineContext(object):
 
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
-
-  def __init__(self,
-               proto: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
-               component_id_map: Optional[pipeline.ComponentIdMap] = None,
-               default_environment: Optional[environments.Environment] = None,
-               use_fake_coders: bool = False,
-               iterable_state_read: Optional[IterableStateReader] = None,
-               iterable_state_write: Optional[IterableStateWriter] = None,
-               namespace: str = 'ref',
-               requirements: Iterable[str] = (),
-              ) -> None:
+  def __init__(
+      self,
+      proto: Optional[Union[beam_runner_api_pb2.Components,
+                            beam_fn_api_pb2.ProcessBundleDescriptor]] = None,
+      component_id_map: Optional[pipeline.ComponentIdMap] = None,
+      default_environment: Optional[environments.Environment] = None,
+      use_fake_coders: bool = False,
+      iterable_state_read: Optional[IterableStateReader] = None,
+      iterable_state_write: Optional[IterableStateWriter] = None,
+      namespace: str = 'ref',
+      requirements: Iterable[str] = (),
+  ) -> None:
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
           coders=dict(proto.coders.items()),
@@ -229,7 +241,9 @@ class PipelineContext(object):
   # as well as performing a round-trip through protos.
   # TODO(BEAM-2717): Remove once this is no longer needed.
   def coder_id_from_element_type(
-      self, element_type: Any, requires_deterministic_key_coder: Optional[str] = None) -> str:
+      self,
+      element_type: Any,
+      requires_deterministic_key_coder: Optional[str] = None) -> str:
     if self.use_fake_coders:
       return pickler.dumps(element_type).decode('ascii')
     else:

@@ -71,14 +71,15 @@ class FnApiLogRecordHandler(logging.Handler):
       -float('inf'): beam_fn_api_pb2.LogEntry.Severity.DEBUG,
   }
 
-  def __init__(self, log_service_descriptor: endpoints_pb2.ApiServiceDescriptor) -> None:
+  def __init__(
+      self, log_service_descriptor: endpoints_pb2.ApiServiceDescriptor) -> None:
     super().__init__()
 
     self._alive = True
     self._dropped_logs = 0
-    self._log_entry_queue: queue.Queue[Union[beam_fn_api_pb2.LogEntry, Sentinel]] = queue.Queue(
-        maxsize=self._QUEUE_SIZE
-    )
+    self._log_entry_queue: queue.Queue[Union[beam_fn_api_pb2.LogEntry,
+                                             Sentinel]] = queue.Queue(
+                                                 maxsize=self._QUEUE_SIZE)
 
     ch = GRPCChannelFactory.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
@@ -134,7 +135,6 @@ class FnApiLogRecordHandler(logging.Handler):
       self._dropped_logs += 1
 
   def close(self) -> None:
-
     """Flush out all existing log entries and unregister this handler."""
     try:
       self._alive = False

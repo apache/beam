@@ -60,7 +60,6 @@ per_thread_worker_data = _PerThreadWorkerData()
 
 @contextlib.contextmanager
 def PerThreadLoggingContext(**kwargs: Any) -> Iterator[None]:
-
   """A context manager to add per thread attributes."""
   stack = per_thread_worker_data.stack
   stack.append(kwargs)
@@ -76,7 +75,6 @@ class JsonLogFormatter(logging.Formatter):
     self.worker_id = worker_id
 
   def format(self, record: logging.LogRecord) -> str:
-
     """Returns a JSON string based on a LogRecord instance.
 
     Args:
@@ -167,7 +165,6 @@ class JsonLogFormatter(logging.Formatter):
 
 
 def initialize(job_id: str, worker_id: str, log_path: str) -> None:
-
   """Initialize root logger so that we log JSON to a file and text to stdout."""
 
   file_handler = logging.FileHandler(log_path)

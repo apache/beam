@@ -54,15 +54,13 @@ class Document(object):
     from_gcs (bool): Whether the content should be interpret as a Google Cloud
       Storage URI. The default value is :data:`False`.
   """
-
   def __init__(
       self,
       content: str,
       type: Union[str, enums.Document.Type] = 'PLAIN_TEXT',
       language_hint: Optional[str] = None,
       encoding: Optional[str] = 'UTF8',
-      from_gcs: bool = False
-  ):
+      from_gcs: bool = False):
     self.content = content
     self.type = type
     self.encoding = encoding
@@ -86,8 +84,7 @@ def AnnotateText(
     pcoll: beam.pvalue.PCollection,
     features: Union[Mapping[str, bool], types.AnnotateTextRequest.Features],
     timeout: Optional[float] = None,
-    metadata: Optional[Sequence[Tuple[str, str]]] = None
-):
+    metadata: Optional[Sequence[Tuple[str, str]]] = None):
   """A :class:`~apache_beam.transforms.ptransform.PTransform`
   for annotating text using the Google Cloud Natural Language API:
   https://cloud.google.com/natural-language/docs.
@@ -117,8 +114,7 @@ class _AnnotateTextFn(beam.DoFn):
       self,
       features: Union[Mapping[str, bool], types.AnnotateTextRequest.Features],
       timeout: Optional[float],
-      metadata: Optional[Sequence[Tuple[str, str]]] = None
-  ):
+      metadata: Optional[Sequence[Tuple[str, str]]] = None):
     self.features = features
     self.timeout = timeout
     self.metadata = metadata

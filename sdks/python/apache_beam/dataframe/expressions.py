@@ -283,11 +283,7 @@ class PlaceholderExpression(Expression):
 
 class ConstantExpression(Expression):
   """An expression whose value is known at pipeline construction time."""
-  def __init__(
-      self: ConstantExpression,
-      value: T,
-      proxy: Optional[T] = None
-  ):
+  def __init__(self: ConstantExpression, value: T, proxy: Optional[T] = None):
     """Initialize a constant expression.
 
     Args:
@@ -322,12 +318,13 @@ class ComputedExpression(Expression):
   def __init__(
       self: ComputedExpression,
       name: str,
-      func: Callable[...,T],
+      func: Callable[..., T],
       args: Iterable[Expression],
       proxy: Optional[T] = None,
       _id: Optional[str] = None,
       requires_partition_by: partitionings.Partitioning = partitionings.Index(),
-      preserves_partition_by: partitionings.Partitioning = partitionings.Singleton(),
+      preserves_partition_by: partitionings.Partitioning = partitionings.
+      Singleton(),
   ):
     """Initialize a computed expression.
 

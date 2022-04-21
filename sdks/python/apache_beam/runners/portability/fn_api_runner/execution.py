@@ -188,7 +188,6 @@ class ListBuffer:
     self._grouped_output = None
 
   def reset(self) -> None:
-
     """Resets a cleared buffer for reuse."""
     if not self.cleared:
       raise RuntimeError('Trying to reset a non-cleared ListBuffer.')
@@ -197,16 +196,15 @@ class ListBuffer:
 
 class GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
-  def __init__(self,
-               pre_grouped_coder: coders.Coder,
-               post_grouped_coder: coders.Coder,
-               windowing: core.Windowing
-              ) -> None:
+  def __init__(
+      self,
+      pre_grouped_coder: coders.Coder,
+      post_grouped_coder: coders.Coder,
+      windowing: core.Windowing) -> None:
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
-    self._table: DefaultDict[bytes, List[Any]] = collections.defaultdict(
-        list)
+    self._table: DefaultDict[bytes, List[Any]] = collections.defaultdict(list)
     self._windowing = windowing
     self._grouped_output: Optional[List[List[bytes]]] = None
 
@@ -243,7 +241,6 @@ class GroupingBuffer(object):
       self._table[key].extend(values)
 
   def partition(self, n: int) -> List[List[bytes]]:
-
     """ It is used to partition _GroupingBuffer to N parts. Once it is
     partitioned, it would not be re-partitioned with diff N. Re-partition
     is not supported now.
@@ -282,7 +279,6 @@ class GroupingBuffer(object):
     return self._grouped_output
 
   def __iter__(self) -> Iterator[bytes]:
-
     """ Since partition() returns a list of lists, add this __iter__ to return
     a list to simplify code when we need to iterate through ALL elements of
     _GroupingBuffer.
@@ -305,8 +301,7 @@ class WindowGroupingBuffer(object):
   def __init__(
       self,
       access_pattern: beam_runner_api_pb2.FunctionSpec,
-      coder: WindowedValueCoder
-  ) -> None:
+      coder: WindowedValueCoder) -> None:
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
     if access_pattern.urn == common_urns.side_inputs.ITERABLE.urn:
@@ -321,8 +316,9 @@ class WindowGroupingBuffer(object):
       raise ValueError("Unknown access pattern: '%s'" % access_pattern.urn)
     self._windowed_value_coder = coder
     self._window_coder = coder.window_coder
-    self._values_by_window: DefaultDict[Tuple[str, BoundedWindow], List[Any]] = collections.defaultdict(
-        list)
+    self._values_by_window: DefaultDict[Tuple[str, BoundedWindow],
+                                        List[Any]] = collections.defaultdict(
+                                            list)
 
   def append(self, elements_data: bytes) -> None:
     input_stream = create_InputStream(elements_data)
@@ -354,7 +350,9 @@ class GenericNonMergingWindowFn(window.NonMergingWindowFn):
   def __init__(self, coder: coders.Coder) -> None:
     self._coder = coder
 
-  def assign(self, assign_context: window.WindowFn.AssignContext) -> Iterable[BoundedWindow]:
+  def assign(
+      self,
+      assign_context: window.WindowFn.AssignContext) -> Iterable[BoundedWindow]:
     raise NotImplementedError()
 
   def get_window_coder(self) -> coders.Coder:
@@ -362,7 +360,8 @@ class GenericNonMergingWindowFn(window.NonMergingWindowFn):
 
   @staticmethod
   @window.urns.RunnerApiFn.register_urn(URN, bytes)
-  def from_runner_api_parameter(window_coder_id: bytes, context: Any) -> GenericNonMergingWindowFn:
+  def from_runner_api_parameter(
+      window_coder_id: bytes, context: Any) -> GenericNonMergingWindowFn:
     return GenericNonMergingWindowFn(
         context.coders[window_coder_id.decode('utf-8')])
 
@@ -457,7 +456,10 @@ class GenericMergingWindowFn(window.WindowFn):
 
   _HANDLES: Dict[str, GenericMergingWindowFn] = {}
 
-  def __init__(self, execution_context: FnApiRunnerExecutionContext, windowing_strategy_proto: beam_runner_api_pb2.WindowingStrategy) -> None:
+  def __init__(
+      self,
+      execution_context: FnApiRunnerExecutionContext,
+      windowing_strategy_proto: beam_runner_api_pb2.WindowingStrategy) -> None:
     self._worker_handler: Optional[worker_handlers.WorkerHandler] = None
     self._handle_id = handle_id = uuid.uuid4().hex
     self._HANDLES[handle_id] = self
@@ -484,10 +486,13 @@ class GenericMergingWindowFn(window.WindowFn):
 
   @staticmethod
   @window.urns.RunnerApiFn.register_urn(URN, bytes)
-  def from_runner_api_parameter(handle_id: bytes, unused_context: Any) -> GenericMergingWindowFn:
+  def from_runner_api_parameter(
+      handle_id: bytes, unused_context: Any) -> GenericMergingWindowFn:
     return GenericMergingWindowFn._HANDLES[handle_id.decode('utf-8')]
 
-  def assign(self, assign_context: window.WindowFn.AssignContext) -> Iterable[window.BoundedWindow]:
+  def assign(
+      self, assign_context: window.WindowFn.AssignContext
+  ) -> Iterable[window.BoundedWindow]:
     raise NotImplementedError()
 
   def merge(self, merge_context: window.WindowFn.MergeContext) -> None:
@@ -543,8 +548,10 @@ class GenericMergingWindowFn(window.WindowFn):
     return self._worker_handler
 
   def make_process_bundle_descriptor(
-      self, data_api_service_descriptor: Optional[endpoints_pb2.ApiServiceDescriptor], state_api_service_descriptor: Optional[endpoints_pb2.ApiServiceDescriptor]) -> beam_fn_api_pb2.ProcessBundleDescriptor:
-
+      self,
+      data_api_service_descriptor: Optional[endpoints_pb2.ApiServiceDescriptor],
+      state_api_service_descriptor: Optional[endpoints_pb2.ApiServiceDescriptor]
+  ) -> beam_fn_api_pb2.ProcessBundleDescriptor:
     """Creates a ProcessBundleDescriptor for invoking the WindowFn's
     merge operation.
     """
@@ -658,15 +665,15 @@ class FnApiRunnerExecutionContext(object):
        PCollection IDs to list that functions as buffer for the
        ``beam.PCollection``.
  """
-  def __init__(self,
-               stages: List[translations.Stage],
-               worker_handler_manager: worker_handlers.WorkerHandlerManager,
-               pipeline_components: beam_runner_api_pb2.Components,
-               safe_coders: translations.SafeCoderMapping,
-               data_channel_coders: Dict[str, str],
-               num_workers: int,
-               uses_teststream: bool = False
-              ) -> None:
+  def __init__(
+      self,
+      stages: List[translations.Stage],
+      worker_handler_manager: worker_handlers.WorkerHandlerManager,
+      pipeline_components: beam_runner_api_pb2.Components,
+      safe_coders: translations.SafeCoderMapping,
+      data_channel_coders: Dict[str, str],
+      num_workers: int,
+      uses_teststream: bool = False) -> None:
     """
     :param worker_handler_manager: This class manages the set of worker
         handlers, and the communication with state / control APIs.
@@ -814,18 +821,20 @@ class FnApiRunnerExecutionContext(object):
           ((stage.name, MAX_TIMESTAMP), DataInput(data_input, {})))
 
   @staticmethod
-  def _build_data_side_inputs_map(stages: Iterable[translations.Stage]) -> MutableMapping[str, DataSideInput]:
-
+  def _build_data_side_inputs_map(
+      stages: Iterable[translations.Stage]
+  ) -> MutableMapping[str, DataSideInput]:
     """Builds an index mapping stages to side input descriptors.
 
     A side input descriptor is a map of side input IDs to side input access
     patterns for all of the outputs of a stage that will be consumed as a
     side input.
     """
-    transform_consumers: DefaultDict[str, List[beam_runner_api_pb2.PTransform]] = collections.defaultdict(
-        list)
-    stage_consumers: DefaultDict[str, List[translations.Stage]] = collections.defaultdict(
-        list)
+    transform_consumers: DefaultDict[
+        str,
+        List[beam_runner_api_pb2.PTransform]] = collections.defaultdict(list)
+    stage_consumers: DefaultDict[
+        str, List[translations.Stage]] = collections.defaultdict(list)
 
     def get_all_side_inputs() -> Set[str]:
       all_side_inputs: Set[str] = set()
@@ -905,7 +914,8 @@ class FnApiRunnerExecutionContext(object):
     self._last_uid += 1
     return str(self._last_uid)
 
-  def _iterable_state_write(self, values: Iterable, element_coder_impl: CoderImpl) -> bytes:
+  def _iterable_state_write(
+      self, values: Iterable, element_coder_impl: CoderImpl) -> bytes:
     token = unique_name(None, 'iter').encode('ascii')
     out = create_OutputStream()
     for element in values:
@@ -954,19 +964,20 @@ class FnApiRunnerExecutionContext(object):
 
 
 class BundleContextManager(object):
-
-  def __init__(self,
-               execution_context: FnApiRunnerExecutionContext,
-               stage: translations.Stage,
-               num_workers: int,
-              ) -> None:
+  def __init__(
+      self,
+      execution_context: FnApiRunnerExecutionContext,
+      stage: translations.Stage,
+      num_workers: int,
+  ) -> None:
     self.execution_context = execution_context
     self.stage = stage
     self.bundle_uid = self.execution_context.next_uid()
     self.num_workers = num_workers
 
     # Properties that are lazily initialized
-    self._process_bundle_descriptor: Optional[beam_fn_api_pb2.ProcessBundleDescriptor] = None
+    self._process_bundle_descriptor: Optional[
+        beam_fn_api_pb2.ProcessBundleDescriptor] = None
     self._worker_handlers: Optional[List[worker_handlers.WorkerHandler]] = None
     # a mapping of {(transform_id, timer_family_id): timer_coder_id}. The map
     # is built after self._process_bundle_descriptor is initialized.
@@ -1000,24 +1011,28 @@ class BundleContextManager(object):
               self.stage.environment, self.num_workers))
     return self._worker_handlers
 
-  def data_api_service_descriptor(self) -> Optional[endpoints_pb2.ApiServiceDescriptor]:
+  def data_api_service_descriptor(
+      self) -> Optional[endpoints_pb2.ApiServiceDescriptor]:
     # All worker_handlers share the same grpc server, so we can read grpc server
     # info from any worker_handler and read from the first worker_handler.
     return self.worker_handlers[0].data_api_service_descriptor()
 
-  def state_api_service_descriptor(self) -> Optional[endpoints_pb2.ApiServiceDescriptor]:
+  def state_api_service_descriptor(
+      self) -> Optional[endpoints_pb2.ApiServiceDescriptor]:
     # All worker_handlers share the same grpc server, so we can read grpc server
     # info from any worker_handler and read from the first worker_handler.
     return self.worker_handlers[0].state_api_service_descriptor()
 
   @property
-  def process_bundle_descriptor(self) -> beam_fn_api_pb2.ProcessBundleDescriptor:
+  def process_bundle_descriptor(
+      self) -> beam_fn_api_pb2.ProcessBundleDescriptor:
     if self._process_bundle_descriptor is None:
       self._process_bundle_descriptor = self._build_process_bundle_descriptor()
       self._timer_coder_ids = self._build_timer_coders_id_map()
     return self._process_bundle_descriptor
 
-  def _build_process_bundle_descriptor(self) -> beam_fn_api_pb2.ProcessBundleDescriptor:
+  def _build_process_bundle_descriptor(
+      self) -> beam_fn_api_pb2.ProcessBundleDescriptor:
     # Cannot be invoked until *after* _extract_endpoints is called.
     # Always populate the timer_api_service_descriptor.
     return beam_fn_api_pb2.ProcessBundleDescriptor(
@@ -1064,13 +1079,14 @@ class BundleContextManager(object):
     else:
       return self.execution_context.pipeline_context.coders[coder_id].get_impl()
 
-  def get_timer_coder_impl(self, transform_id: str, timer_family_id: str) -> CoderImpl:
+  def get_timer_coder_impl(
+      self, transform_id: str, timer_family_id: str) -> CoderImpl:
     assert self._timer_coder_ids is not None
     return self.get_coder_impl(
         self._timer_coder_ids[(transform_id, timer_family_id)])
 
-  def get_buffer(self, buffer_id: bytes, transform_id: str) -> PartitionableBuffer:
-
+  def get_buffer(
+      self, buffer_id: bytes, transform_id: str) -> PartitionableBuffer:
     """Returns the buffer for a given (operation_type, PCollection ID).
     For grouping-typed operations, we produce a ``GroupingBuffer``. For
     others, we produce a ``ListBuffer``.

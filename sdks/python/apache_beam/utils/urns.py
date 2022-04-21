@@ -73,8 +73,8 @@ class RunnerApiFn(object):
   # mypy incorrectly infers that this method has not been overridden with a
   # concrete implementation.
   # @abc.abstractmethod
-  def to_runner_api_parameter(self, unused_context: PipelineContext) -> Tuple[str, Any]:
-
+  def to_runner_api_parameter(
+      self, unused_context: PipelineContext) -> Tuple[str, Any]:
     """Returns the urn and payload for this Fn.
 
     The returned urn(s) should be registered with `register_urn`.
@@ -87,7 +87,8 @@ class RunnerApiFn(object):
       cls,
       urn: str,
       parameter_type: Type[T],
-  ) -> Callable[[Callable[[T, PipelineContext], Any]], Callable[[T, PipelineContext], Any]]:
+  ) -> Callable[[Callable[[T, PipelineContext], Any]],
+                Callable[[T, PipelineContext], Any]]:
     pass
 
   @classmethod
@@ -96,25 +97,26 @@ class RunnerApiFn(object):
       cls,
       urn: str,
       parameter_type: None,
-  ) -> Callable[[Callable[[bytes, PipelineContext], Any]], Callable[[bytes, PipelineContext], Any]]:
+  ) -> Callable[[Callable[[bytes, PipelineContext], Any]],
+                Callable[[bytes, PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn: str,
-                   parameter_type: Type[T],
-                   fn: Callable[[T, PipelineContext], Any]
-                  ) -> None:
+  def register_urn(
+      cls,
+      urn: str,
+      parameter_type: Type[T],
+      fn: Callable[[T, PipelineContext], Any]) -> None:
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn: str,
-                   parameter_type: None,
-                   fn: Callable[[bytes, PipelineContext], Any]
-                  ) -> None:
+  def register_urn(
+      cls,
+      urn: str,
+      parameter_type: None,
+      fn: Callable[[bytes, PipelineContext], Any]) -> None:
     pass
 
   @classmethod
@@ -155,8 +157,8 @@ class RunnerApiFn(object):
         lambda proto,
         unused_context: pickler.loads(proto.value))
 
-  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.FunctionSpec:
-
+  def to_runner_api(
+      self, context: PipelineContext) -> beam_runner_api_pb2.FunctionSpec:
     """Returns an FunctionSpec encoding this Fn.
 
     Prefer overriding self.to_runner_api_parameter.
@@ -169,8 +171,10 @@ class RunnerApiFn(object):
             typed_param, message.Message) else typed_param)
 
   @classmethod
-  def from_runner_api(cls: Type[RunnerApiFnT], fn_proto: beam_runner_api_pb2.FunctionSpec, context: PipelineContext) -> RunnerApiFnT:
-
+  def from_runner_api(
+      cls: Type[RunnerApiFnT],
+      fn_proto: beam_runner_api_pb2.FunctionSpec,
+      context: PipelineContext) -> RunnerApiFnT:
     """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.

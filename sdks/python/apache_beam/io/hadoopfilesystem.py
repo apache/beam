@@ -236,7 +236,6 @@ class HadoopFileSystem(FileSystem):
       url,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """
     Returns:
       A Python File-like object.
@@ -259,7 +258,6 @@ class HadoopFileSystem(FileSystem):
       url,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """
     Returns:
       A Python File-like object.
@@ -353,7 +351,6 @@ class HadoopFileSystem(FileSystem):
       raise BeamIOError('Rename operation failed', exceptions)
 
   def exists(self, url: str) -> bool:
-
     """Checks existence of url in HDFS.
 
     Args:

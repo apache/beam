@@ -17,7 +17,6 @@
 
 # pytype: skip-file
 from __future__ import annotations
-
 """Common utility class to help SDK harness to execute an SDF. """
 
 import logging
@@ -119,7 +118,6 @@ class ThreadsafeRestrictionTracker(object):
       return self._restriction_tracker.try_split(fraction_of_remainder)
 
   def deferred_status(self) -> Optional[Tuple[Any, Duration]]:
-
     """Returns deferred work which is produced by ``defer_remainder()``.
 
     When there is a self-checkpoint performed, the system needs to fulfill the
@@ -157,7 +155,9 @@ class RestrictionTrackerView(object):
   time, the RestrictionTrackerView will be fed into the ``DoFn.process`` as a
   restriction_tracker.
   """
-  def __init__(self, threadsafe_restriction_tracker: ThreadsafeRestrictionTracker) -> None:
+  def __init__(
+      self,
+      threadsafe_restriction_tracker: ThreadsafeRestrictionTracker) -> None:
     if not isinstance(threadsafe_restriction_tracker,
                       ThreadsafeRestrictionTracker):
       raise ValueError(

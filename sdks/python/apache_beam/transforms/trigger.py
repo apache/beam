@@ -270,7 +270,6 @@ class TriggerFn(metaclass=ABCMeta):
     pass
 
   def may_lose_data(self, unused_windowing: core.Windowing) -> DataLossReason:
-
     """Returns whether or not this trigger could cause data loss.
 
     A trigger can cause data loss in the following scenarios:

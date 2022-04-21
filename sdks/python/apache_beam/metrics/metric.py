@@ -67,8 +67,8 @@ class Metrics(object):
       raise ValueError('Unknown namespace type')
 
   @staticmethod
-  def counter(namespace: Union[Type, str], name: str) -> Metrics.DelegatingCounter:
-
+  def counter(
+      namespace: Union[Type, str], name: str) -> Metrics.DelegatingCounter:
     """Obtains or creates a Counter metric.
 
     Args:
@@ -82,8 +82,8 @@ class Metrics(object):
     return Metrics.DelegatingCounter(MetricName(namespace, name))
 
   @staticmethod
-  def distribution(namespace: Union[Type, str], name: str) -> Metrics.DelegatingDistribution:
-
+  def distribution(
+      namespace: Union[Type, str], name: str) -> Metrics.DelegatingDistribution:
     """Obtains or creates a Distribution metric.
 
     Distribution metrics are restricted to integer-only distributions.
@@ -100,7 +100,6 @@ class Metrics(object):
 
   @staticmethod
   def gauge(namespace: Union[Type, str], name: str) -> Metrics.DelegatingGauge:
-
     """Obtains or creates a Gauge metric.
 
     Gauge metrics are restricted to integer-only values.
@@ -117,7 +116,8 @@ class Metrics(object):
 
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name: MetricName, process_wide: bool = False) -> None:
+    def __init__(
+        self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
       self.inc = MetricUpdater(  # type: ignore[assignment]
           cells.CounterCell,
@@ -154,7 +154,6 @@ class MetricResults(object):
 
   @staticmethod
   def _is_sub_list(needle: List[str], haystack: List[str]) -> bool:
-
     """True iff `needle` is a sub-list of `haystack` (i.e. a contiguous slice
     of `haystack` exactly matches `needle`"""
     needle_len = len(needle)
@@ -167,7 +166,6 @@ class MetricResults(object):
 
   @staticmethod
   def _matches_sub_path(actual_scope: str, filter_scope: str) -> bool:
-
     """True iff the '/'-delimited pieces of filter_scope exist as a sub-list
     of the '/'-delimited pieces of actual_scope"""
     return bool(
@@ -195,8 +193,9 @@ class MetricResults(object):
       return True
     return False
 
-  def query(self, filter: Optional[MetricsFilter] = None) -> Dict[str, List[MetricResults]]:
-
+  def query(
+      self,
+      filter: Optional[MetricsFilter] = None) -> Dict[str, List[MetricResults]]:
     """Queries the runner for existing user metrics that match the filter.
 
     It should return a dictionary, with lists of each kind of metric, and
@@ -261,7 +260,8 @@ class MetricsFilter(object):
   def with_namespace(self, namespace: Union[Type, str]) -> MetricsFilter:
     return self.with_namespaces([namespace])
 
-  def with_namespaces(self, namespaces: Iterable[Union[Type, str]]) -> MetricsFilter:
+  def with_namespaces(
+      self, namespaces: Iterable[Union[Type, str]]) -> MetricsFilter:
     if isinstance(namespaces, str):
       raise ValueError('Namespaces must be an iterable, not a string')
 

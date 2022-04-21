@@ -99,17 +99,19 @@ class ArtifactStagingService(
   def __init__(
       self,
       file_writer: Callable[[str, Optional[str]], Tuple[BinaryIO, str]],
-    ):
+  ):
     self._lock = threading.Lock()
-    self._jobs_to_stage: Dict[str, Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]], threading.Event]] = {
-    }
+    self._jobs_to_stage: Dict[
+        str,
+        Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]],
+              threading.Event]] = {}
     self._file_writer = file_writer
 
   def register_job(
       self,
       staging_token: str,
-      dependency_sets: MutableMapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]
-    ):
+      dependency_sets: MutableMapping[
+          Any, List[beam_runner_api_pb2.ArtifactInformation]]):
     if staging_token in self._jobs_to_stage:
       raise ValueError('Already staging %s' % staging_token)
     with self._lock:

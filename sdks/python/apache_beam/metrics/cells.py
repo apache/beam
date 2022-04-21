@@ -293,7 +293,6 @@ class DistributionResult(object):
 
   @property
   def mean(self) -> Optional[float]:
-
     """Returns the float mean of the distribution.
 
     If the distribution contains no elements, it returns None.
@@ -339,7 +338,8 @@ class GaugeData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the GaugeCell that contains it.
   """
-  def __init__(self, value: Optional[int], timestamp: Optional[int] = None) -> None:
+  def __init__(
+      self, value: Optional[int], timestamp: Optional[int] = None) -> None:
     self.value = value
     self.timestamp = timestamp if timestamp is not None else 0
 
@@ -369,7 +369,8 @@ class GaugeData(object):
       return self
 
   @staticmethod
-  def singleton(value: Optional[int], timestamp: Optional[int] = None) -> GaugeData:
+  def singleton(
+      value: Optional[int], timestamp: Optional[int] = None) -> GaugeData:
     return GaugeData(value, timestamp=timestamp)
 
 
@@ -433,7 +434,6 @@ class MetricAggregator(object):
 
   Base interface for aggregating metric data during pipeline execution."""
   def identity_element(self) -> Any:
-
     """Returns the identical element of an Aggregation.
 
     For the identity element, it must hold that
@@ -477,7 +477,8 @@ class DistributionAggregator(MetricAggregator):
   def identity_element() -> DistributionData:
     return DistributionData(0, 0, 2**63 - 1, -2**63)
 
-  def combine(self, x: DistributionData, y: DistributionData) -> DistributionData:
+  def combine(
+      self, x: DistributionData, y: DistributionData) -> DistributionData:
     return x.combine(y)
 
   def result(self, x: DistributionData) -> DistributionResult:

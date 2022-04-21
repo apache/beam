@@ -50,8 +50,12 @@ class MetricName(object):
   allows grouping related metrics together and also prevents collisions
   between multiple metrics of the same name.
   """
-  def __init__(self, namespace: Optional[str], name: Optional[str], urn: Optional[str] = None, labels: Optional[Dict[str, str]] = None) -> None:
-
+  def __init__(
+      self,
+      namespace: Optional[str],
+      name: Optional[str],
+      urn: Optional[str] = None,
+      labels: Optional[Dict[str, str]] = None) -> None:
     """Initializes ``MetricName``.
 
     Note: namespace and name should be set for user metrics,

@@ -542,7 +542,10 @@ class _OutputProcessor(OutputProcessor):
     self.output_iter = None
 
   def process_outputs(
-      self, windowed_input_element: WindowedValue, output_iter: Iterable[Any], watermark_estimator: Optional[WatermarkEstimator] = None) -> None:
+      self,
+      windowed_input_element: WindowedValue,
+      output_iter: Iterable[Any],
+      watermark_estimator: Optional[WatermarkEstimator] = None) -> None:
     self.output_iter = output_iter
 
   def reset(self):
@@ -551,5 +554,8 @@ class _OutputProcessor(OutputProcessor):
 
 class _NoneShallPassOutputProcessor(OutputProcessor):
   def process_outputs(
-      self, windowed_input_element: WindowedValue, output_iter: Iterable[Any], watermark_estimator: Optional[WatermarkEstimator] = None) -> None:
+      self,
+      windowed_input_element: WindowedValue,
+      output_iter: Iterable[Any],
+      watermark_estimator: Optional[WatermarkEstimator] = None) -> None:
     raise RuntimeError()

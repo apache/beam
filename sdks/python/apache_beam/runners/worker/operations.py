@@ -100,13 +100,13 @@ class ConsumerSet(Receiver):
   ConsumerSet are attached to the outputting Operation.
   """
   @staticmethod
-  def create(counter_factory,
-             step_name: str,
-             output_index,
-             consumers: List[Operation],
-             coder,
-             producer_type_hints
-             ) -> ConsumerSet:
+  def create(
+      counter_factory,
+      step_name: str,
+      output_index,
+      consumers: List[Operation],
+      coder,
+      producer_type_hints) -> ConsumerSet:
     if len(consumers) == 1:
       return SingletonConsumerSet(
           counter_factory,
@@ -124,14 +124,14 @@ class ConsumerSet(Receiver):
           coder,
           producer_type_hints)
 
-  def __init__(self,
-               counter_factory,
-               step_name: str,
-               output_index,
-               consumers: List[Operation],
-               coder,
-               producer_type_hints
-               ):
+  def __init__(
+      self,
+      counter_factory,
+      step_name: str,
+      output_index,
+      consumers: List[Operation],
+      coder,
+      producer_type_hints):
     self.consumers = consumers
 
     self.opcounter = opcounters.OperationCounters(
@@ -160,7 +160,6 @@ class ConsumerSet(Receiver):
     return None
 
   def current_element_progress(self) -> Optional[iobase.RestrictionProgress]:
-
     """Returns the progress of the current element.
 
     This progress should be an instance of
@@ -186,14 +185,14 @@ class ConsumerSet(Receiver):
 
 
 class SingletonConsumerSet(ConsumerSet):
-  def __init__(self,
-               counter_factory,
-               step_name,
-               output_index,
-               consumers: List[Operation],
-               coder,
-               producer_type_hints
-               ):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,
+      output_index,
+      consumers: List[Operation],
+      coder,
+      producer_type_hints):
     assert len(consumers) == 1
     super(SingletonConsumerSet, self).__init__(
         counter_factory,
@@ -222,13 +221,12 @@ class Operation(object):
   An operation can have one or more outputs and for each output it can have
   one or more receiver operations that will take that as input.
   """
-
-  def __init__(self,
-               name_context: common.NameContext,
-               spec,
-               counter_factory,
-               state_sampler: StateSampler
-              ):
+  def __init__(
+      self,
+      name_context: common.NameContext,
+      spec,
+      counter_factory,
+      state_sampler: StateSampler):
     """Initializes a worker operation instance.
 
     Args:
@@ -266,7 +264,6 @@ class Operation(object):
     self.step_name: Optional[str] = None
 
   def setup(self) -> None:
-
     """Set up operation.
 
     This must be called before any other methods of the operation."""
@@ -290,14 +287,12 @@ class Operation(object):
     self.setup_done = True
 
   def start(self) -> None:
-
     """Start operation."""
     if not self.setup_done:
       # For legacy workers.
       self.setup()
 
   def process(self, o: WindowedValue) -> None:
-
     """Process element in operation."""
     pass
 
@@ -314,12 +309,10 @@ class Operation(object):
     return None
 
   def finish(self) -> None:
-
     """Finish operation."""
     pass
 
   def teardown(self) -> None:
-
     """Tear down operation.
 
     No other methods of this operation should be called after this."""
@@ -328,16 +321,17 @@ class Operation(object):
   def reset(self) -> None:
     self.metrics_container.reset()
 
-  def output(self, windowed_value: WindowedValue, output_index: int = 0) -> None:
+  def output(
+      self, windowed_value: WindowedValue, output_index: int = 0) -> None:
     cython.cast(Receiver, self.receivers[output_index]).receive(windowed_value)
 
   def add_receiver(self, operation: Operation, output_index: int = 0) -> None:
-
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
 
-  def monitoring_infos(self, transform_id: str, tag_to_pcollection_id: Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
-
+  def monitoring_infos(
+      self, transform_id: str, tag_to_pcollection_id: Dict[str, str]
+  ) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
@@ -345,8 +339,9 @@ class Operation(object):
     all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
     return all_monitoring_infos
 
-  def pcollection_count_monitoring_infos(self, tag_to_pcollection_id: Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
-
+  def pcollection_count_monitoring_infos(
+      self, tag_to_pcollection_id: Dict[str, str]
+  ) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
     """Returns the element count MonitoringInfo collected by this operation."""
 
     # Skip producing monitoring infos if there is more then one receiver
@@ -378,12 +373,13 @@ class Operation(object):
 
     return all_monitoring_infos
 
-  def user_monitoring_infos(self, transform_id: str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
-
+  def user_monitoring_infos(
+      self, transform_id: str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
     """Returns the user MonitoringInfos collected by this operation."""
     return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
 
-  def execution_time_monitoring_infos(self, transform_id: str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
+  def execution_time_monitoring_infos(
+      self, transform_id: str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
     total_time_spent_msecs = (
         self.scoped_start_state.sampled_msecs_int() +
         self.scoped_process_state.sampled_msecs_int() +
@@ -449,8 +445,8 @@ class Operation(object):
 
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
 
-  def _get_runtime_performance_hints(self) -> Optional[Dict[Optional[str], Tuple[Optional[str], Any]]]:
-
+  def _get_runtime_performance_hints(
+      self) -> Optional[Dict[Optional[str], Tuple[Optional[str], Any]]]:
     """Returns any type hints required for performance runtime
     type-checking."""
     return None
@@ -562,8 +558,8 @@ class DoOperation(Operation):
     # A mapping of timer tags to the input "PCollections" they come in on.
     self.input_info: Optional[OpInputInfo] = None
 
-  def _read_side_inputs(self, tags_and_types) -> Iterator[apache_sideinputs.SideInputMap]:
-
+  def _read_side_inputs(
+      self, tags_and_types) -> Iterator[apache_sideinputs.SideInputMap]:
     """Generator reading side inputs in the order prescribed by tags_and_types.
 
     Args:
@@ -722,8 +718,9 @@ class DoOperation(Operation):
       self.user_state_context.reset()
     self.dofn_runner.bundle_finalizer_param.reset()
 
-  def pcollection_count_monitoring_infos(self, tag_to_pcollection_id: Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
-
+  def pcollection_count_monitoring_infos(
+      self, tag_to_pcollection_id: Dict[str, str]
+  ) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
     """Returns the element count MonitoringInfo collected by this operation."""
     infos = super(
         DoOperation,
@@ -765,7 +762,8 @@ class SdfTruncateSizedRestrictions(DoOperation):
 
   def try_split(
       self, fraction_of_remainder
-  ) -> Optional[Tuple[Iterable[SdfSplitResultsPrimary], Iterable[SdfSplitResultsResidual]]]:
+  ) -> Optional[Tuple[Iterable[SdfSplitResultsPrimary],
+                      Iterable[SdfSplitResultsResidual]]]:
     return self.receivers[0].try_split(fraction_of_remainder)
 
 
@@ -797,7 +795,10 @@ class SdfProcessSizedElements(DoOperation):
         with self.lock:
           self.element_start_output_bytes = None
 
-  def try_split(self, fraction_of_remainder) -> Optional[Tuple[Iterable[SdfSplitResultsPrimary], Iterable[SdfSplitResultsResidual]]]:
+  def try_split(
+      self, fraction_of_remainder
+  ) -> Optional[Tuple[Iterable[SdfSplitResultsPrimary],
+                      Iterable[SdfSplitResultsResidual]]]:
     split = self.dofn_runner.try_split(fraction_of_remainder)
     if split:
       primaries, residuals = split
@@ -816,8 +817,9 @@ class SdfProcessSizedElements(DoOperation):
               self.element_start_output_bytes)
       return None
 
-  def monitoring_infos(self, transform_id: str, tag_to_pcollection_id: Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
-
+  def monitoring_infos(
+      self, transform_id: str, tag_to_pcollection_id: Dict[str, str]
+  ) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
     def encode_progress(value: float) -> bytes:
       coder = coders.IterableCoder(coders.FloatCoder())
       return coder.encode([value])
@@ -1061,7 +1063,6 @@ def create_operation(
     test_shuffle_source=None,
     test_shuffle_sink=None,
     is_streaming=False) -> Operation:
-
   """Create Operation object for given operation specification."""
 
   # TODO(pabloem): Document arguments to this function call.
@@ -1173,7 +1174,6 @@ class SimpleMapTaskExecutor(object):
     return self._ops[:]
 
   def execute(self) -> None:
-
     """Executes all the operation_specs.Worker* instructions in a map task.
 
     We update the map_task with the execution status, expressed as counters.

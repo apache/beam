@@ -81,7 +81,8 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     self._staging_dir = staging_dir or tempfile.mkdtemp()
     self._artifact_service = artifact_service.ArtifactStagingService(
         artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
-    self._artifact_staging_endpoint: Optional[endpoints_pb2.ApiServiceDescriptor] = None
+    self._artifact_staging_endpoint: Optional[
+        endpoints_pb2.ApiServiceDescriptor] = None
     self._beam_job_type = beam_job_type or BeamJob
 
   def create_beam_job(self,
@@ -230,15 +231,15 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
     The current state of the pipeline is available as self.state.
     """
-
-  def __init__(self,
-               job_id: str,
-               pipeline,
-               options,
-               provision_info: fn_runner.ExtendedProvisionInfo,
-               artifact_staging_endpoint: Optional[endpoints_pb2.ApiServiceDescriptor],
-               artifact_service: artifact_service.ArtifactStagingService,
-              ):
+  def __init__(
+      self,
+      job_id: str,
+      pipeline,
+      options,
+      provision_info: fn_runner.ExtendedProvisionInfo,
+      artifact_staging_endpoint: Optional[endpoints_pb2.ApiServiceDescriptor],
+      artifact_service: artifact_service.ArtifactStagingService,
+  ):
     super().__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint

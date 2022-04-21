@@ -97,14 +97,15 @@ class bidict(dict):
     inverse_value = self.inverse.pop(value, default_value)
     return value, inverse_value
 
+
 def to_element_list(
-    reader: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]],
+    reader: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event,
+                            WindowedValueHolder]],
     coder: Coder,
     include_window_info: bool,
     n: int = None,
     include_time_events: bool = False,
 ) -> List[WindowedValue]:
-
   """Returns an iterator that properly decodes the elements from the reader.
   """
 
@@ -142,8 +143,10 @@ def to_element_list(
       count += 1
 
 
-def elements_to_df(elements: List[WindowedValue], include_window_info: bool = False, element_type: Any = None) -> DataFrame:
-
+def elements_to_df(
+    elements: List[WindowedValue],
+    include_window_info: bool = False,
+    element_type: Any = None) -> DataFrame:
   """Parses the given elements into a Dataframe.
 
   If the elements are a list of WindowedValues, then it will break out the
@@ -183,7 +186,6 @@ def elements_to_df(elements: List[WindowedValue], include_window_info: bool = Fa
 
 
 def register_ipython_log_handler() -> None:
-
   """Adds the IPython handler to a dummy parent logger (named
   'apache_beam.runners.interactive') of all interactive modules' loggers so that
   if is_in_notebook, logging displays the logs as HTML in frontends.
@@ -239,7 +241,6 @@ class IPythonLogHandler(logging.Handler):
 
 
 def obfuscate(*inputs: Any) -> str:
-
   """Obfuscates any inputs into a hexadecimal string."""
   str_inputs = [str(input) for input in inputs]
   merged_inputs = '_'.join(str_inputs)
@@ -298,7 +299,6 @@ class ProgressIndicator(object):
 
 
 def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
-
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
   @functools.wraps(func)
@@ -310,7 +310,6 @@ def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def as_json(func: Callable[..., Any]) -> Callable[..., str]:
-
   """A decorator convert python objects returned by callables to json
   string.
 
@@ -469,7 +468,6 @@ def create_var_in_main(name: str,
 
 
 def assert_bucket_exists(bucket_name: str) -> None:
-
   """Asserts whether the specified GCS bucket with the name
   bucket_name exists.
 

@@ -53,7 +53,10 @@ class Timestamp(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
-  def __init__(self, seconds: Union[int, float] = 0, micros: Union[int, float] = 0) -> None:
+  def __init__(
+      self,
+      seconds: Union[int, float] = 0,
+      micros: Union[int, float] = 0) -> None:
     if not isinstance(seconds, (int, float)):
       raise TypeError(
           'Cannot interpret %s %s as seconds.' % (seconds, type(seconds)))
@@ -64,7 +67,6 @@ class Timestamp(object):
 
   @staticmethod
   def of(seconds: TimestampTypes) -> Timestamp:
-
     """Return the Timestamp for the given number of seconds.
 
     If the input is already a Timestamp, the input itself will be returned.
@@ -93,7 +95,6 @@ class Timestamp(object):
 
   @classmethod
   def from_utc_datetime(cls, dt: datetime.datetime) -> Timestamp:
-
     """Create a ``Timestamp`` instance from a ``datetime.datetime`` object.
 
     Args:
@@ -106,7 +107,6 @@ class Timestamp(object):
 
   @classmethod
   def from_rfc3339(cls, rfc3339: str) -> Timestamp:
-
     """Create a ``Timestamp`` instance from an RFC 3339 compliant string.
 
     .. note::
@@ -128,7 +128,6 @@ class Timestamp(object):
     return self.micros // 1000000
 
   def predecessor(self) -> Timestamp:
-
     """Returns the largest timestamp smaller than self."""
     return Timestamp(micros=self.micros - 1)
 
@@ -155,7 +154,6 @@ class Timestamp(object):
     return self.to_utc_datetime().isoformat() + 'Z'
 
   def to_proto(self) -> timestamp_pb2.Timestamp:
-
     """Returns the `google.protobuf.timestamp_pb2` representation."""
     secs = self.micros // 1000000
     nanos = (self.micros % 1000000) * 1000
@@ -163,7 +161,6 @@ class Timestamp(object):
 
   @staticmethod
   def from_proto(timestamp_proto: timestamp_pb2.Timestamp) -> Timestamp:
-
     """Creates a Timestamp from a `google.protobuf.timestamp_pb2`.
 
     Note that the google has a sub-second resolution of nanoseconds whereas this
@@ -234,7 +231,9 @@ class Timestamp(object):
   def __sub__(self, other: Timestamp) -> Duration:
     pass
 
-  def __sub__(self, other: Union[DurationTypes, Timestamp]) -> Union[Timestamp, Duration]:
+  def __sub__(
+      self, other: Union[DurationTypes,
+                         Timestamp]) -> Union[Timestamp, Duration]:
     if isinstance(other, Timestamp):
       return Duration(micros=self.micros - other.micros)
     other = Duration.of(other)
@@ -261,12 +260,14 @@ class Duration(object):
   especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
   to 0.0999999994448885).
   """
-  def __init__(self, seconds: Union[int, float] = 0, micros: Union[int, float] = 0) -> None:
+  def __init__(
+      self,
+      seconds: Union[int, float] = 0,
+      micros: Union[int, float] = 0) -> None:
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds: DurationTypes) -> Duration:
-
     """Return the Duration for the given number of seconds since Unix epoch.
 
     If the input is already a Duration, the input itself will be returned.
@@ -285,7 +286,6 @@ class Duration(object):
     return Duration(seconds)
 
   def to_proto(self) -> duration_pb2.Duration:
-
     """Returns the `google.protobuf.duration_pb2` representation."""
     secs = self.micros // 1000000
     nanos = (self.micros % 1000000) * 1000
@@ -293,7 +293,6 @@ class Duration(object):
 
   @staticmethod
   def from_proto(duration_proto: duration_pb2.Duration) -> Duration:
-
     """Creates a Duration from a `google.protobuf.duration_pb2`.
 
     Note that the google has a sub-second resolution of nanoseconds whereas this

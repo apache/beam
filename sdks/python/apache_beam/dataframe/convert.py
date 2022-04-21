@@ -39,7 +39,6 @@ def to_dataframe(
     proxy: Optional[pd.core.generic.NDFrame] = None,
     label: Optional[str] = None,
 ) -> frame_base.DeferredFrame:
-
   """Converts a PCollection to a deferred dataframe-like object, which can
   manipulated with pandas methods like `filter` and `groupby`.
 
@@ -76,10 +75,10 @@ def to_dataframe(
 # Note that the pipeline (indirectly) holds references to the transforms which
 # keeps both the PCollections and expressions alive. This ensures the
 # expression's ids are never accidentally re-used.
-TO_PCOLLECTION_CACHE: weakref.WeakValueDictionary[str, pvalue.PCollection] = weakref.WeakValueDictionary(
-)
-UNBATCHED_CACHE: weakref.WeakValueDictionary[str, pvalue.PCollection] = weakref.WeakValueDictionary(
-)
+TO_PCOLLECTION_CACHE: weakref.WeakValueDictionary[
+    str, pvalue.PCollection] = weakref.WeakValueDictionary()
+UNBATCHED_CACHE: weakref.WeakValueDictionary[
+    str, pvalue.PCollection] = weakref.WeakValueDictionary()
 
 
 def _make_unbatched_pcoll(
@@ -187,12 +186,12 @@ def to_pcollection(
       df for df in dataframes if df._expr._id not in TO_PCOLLECTION_CACHE
   ]
   if len(new_dataframes):
-    new_results: Dict[Any, pvalue.PCollection] = {p: extract_input(p)
-                   for p in placeholders
-                   } | label >> transforms._DataframeExpressionsTransform({
-                       ix: df._expr
-                       for (ix, df) in enumerate(new_dataframes)
-                   })
+    new_results: Dict[Any, pvalue.PCollection] = {
+        p: extract_input(p)
+        for p in placeholders
+    } | label >> transforms._DataframeExpressionsTransform(
+        {ix: df._expr
+         for (ix, df) in enumerate(new_dataframes)})
 
     TO_PCOLLECTION_CACHE.update(
         {new_dataframes[ix]._expr._id: pc

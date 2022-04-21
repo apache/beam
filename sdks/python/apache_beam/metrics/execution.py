@@ -169,8 +169,7 @@ class _TypedMetricName(object):
   def __init__(
       self,
       cell_type: Union[Type[MetricCell], MetricCellFactory],
-      metric_name: Union[str, MetricName]
-  ) -> None:
+      metric_name: Union[str, MetricName]) -> None:
     self.cell_type = cell_type
     self.metric_name = metric_name
     if isinstance(metric_name, str):
@@ -263,7 +262,6 @@ class MetricsContainer(object):
     return cell
 
   def get_cumulative(self) -> MetricUpdates:
-
     """Return MetricUpdates with cumulative values of all metrics in container.
 
     This returns all the cumulative values for all metrics.
@@ -294,8 +292,8 @@ class MetricsContainer(object):
         cell in self.metrics.items()
     ]
 
-  def to_runner_api_monitoring_infos(self, transform_id: str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
-
+  def to_runner_api_monitoring_infos(
+      self, transform_id: str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
     """Returns a list of MonitoringInfos for the metrics in this container."""
     with self.lock:
       items = list(self.metrics.items())
@@ -331,9 +329,7 @@ class MetricUpdates(object):
       self,
       counters: Optional[Dict[MetricKey, int]] = None,
       distributions: Optional[Dict[MetricKey, DistributionData]] = None,
-      gauges: Optional[Dict[MetricKey, GaugeData]] = None
-  ) -> None:
-
+      gauges: Optional[Dict[MetricKey, GaugeData]] = None) -> None:
     """Create a MetricUpdates object.
 
     Args:

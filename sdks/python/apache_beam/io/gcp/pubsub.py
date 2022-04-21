@@ -106,7 +106,6 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_proto_str(proto_msg: bytes) -> PubsubMessage:
-
     """Construct from serialized form of ``PubsubMessage``.
 
     Args:
@@ -153,7 +152,6 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_message(msg: Any) -> PubsubMessage:
-
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
@@ -181,9 +179,7 @@ class ReadFromPubSub(PTransform):
       subscription: Optional[str] = None,
       id_label: Optional[str] = None,
       with_attributes: bool = False,
-      timestamp_attribute: Optional[str] = None
-  ) -> None:
-
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -294,9 +290,7 @@ class WriteToPubSub(PTransform):
       topic: str,
       with_attributes: bool = False,
       id_label: Optional[str] = None,
-      timestamp_attribute: Optional[str] = None
-  ) -> None:
-
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -401,8 +395,7 @@ class _PubSubSource(dataflow_io.NativeSource):
       subscription: Optional[str] = None,
       id_label: Optional[str] = None,
       with_attributes: bool = False,
-      timestamp_attribute: Optional[str] = None
-  ):
+      timestamp_attribute: Optional[str] = None):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription

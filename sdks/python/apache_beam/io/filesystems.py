@@ -90,7 +90,6 @@ class FileSystems(object):
 
   @staticmethod
   def get_filesystem(path: str) -> FileSystems:
-
     """Get the correct filesystem for the specified path
     """
     try:
@@ -120,7 +119,6 @@ class FileSystems(object):
 
   @staticmethod
   def join(basepath: str, *paths: str) -> str:
-
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -207,7 +205,6 @@ class FileSystems(object):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """Returns a write channel for the given file path.
 
     Args:
@@ -226,7 +223,6 @@ class FileSystems(object):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO) -> BinaryIO:
-
     """Returns a read channel for the given file path.
 
     Args:

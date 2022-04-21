@@ -66,8 +66,7 @@ class ResourceHint:
     return {cls.urn: ResourceHint._parse_str(value)}
 
   @classmethod
-  def get_merged_value(
-      cls, outer_value: bytes, inner_value: bytes) -> bytes:
+  def get_merged_value(cls, outer_value: bytes, inner_value: bytes) -> bytes:
     """Reconciles values of a hint when the hint specified on a transform is
     also defined in an outer context, for example on a composite transform, or
     specified in the transform's execution environment.
@@ -89,8 +88,7 @@ class ResourceHint:
     return name in ResourceHint._name_to_known_hints
 
   @staticmethod
-  def register_resource_hint(
-      hint_name: str, hint_class: type) -> None:
+  def register_resource_hint(hint_name: str, hint_class: type) -> None:
     assert issubclass(hint_class, ResourceHint)
     assert hint_class.urn is not None
     ResourceHint._name_to_known_hints[hint_name] = hint_class
@@ -168,8 +166,7 @@ class MinRamHint(ResourceHint):
     return {cls.urn: ResourceHint._parse_storage_size_str(value)}
 
   @classmethod
-  def get_merged_value(
-      cls, outer_value: bytes, inner_value: bytes) -> bytes:
+  def get_merged_value(cls, outer_value: bytes, inner_value: bytes) -> bytes:
     return ResourceHint._use_max(outer_value, inner_value)
 
 
@@ -193,7 +190,8 @@ def parse_resource_hints(hints: Dict[Any, Any]) -> Dict[str, bytes]:
   return parsed_hints
 
 
-def resource_hints_from_options(options: Optional[PipelineOptions]) -> Dict[str, bytes]:
+def resource_hints_from_options(
+    options: Optional[PipelineOptions]) -> Dict[str, bytes]:
   if options is None:
     return {}
   hints = {}
@@ -209,8 +207,8 @@ def resource_hints_from_options(options: Optional[PipelineOptions]) -> Dict[str,
 
 
 def merge_resource_hints(
-    outer_hints: Mapping[str, bytes], inner_hints: Mapping[str, bytes]
-) -> Dict[str, bytes]:
+    outer_hints: Mapping[str, bytes],
+    inner_hints: Mapping[str, bytes]) -> Dict[str, bytes]:
   merged_hints = dict(inner_hints)
   for urn, outer_value in outer_hints.items():
     if urn in inner_hints:

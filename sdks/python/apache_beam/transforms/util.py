@@ -787,7 +787,8 @@ class Reshuffle(PTransform):
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             Tuple[int, T]).with_output_types(T))
 
-  def to_runner_api_parameter(self, unused_context: PipelineContext) -> Tuple[str, None]:
+  def to_runner_api_parameter(
+      self, unused_context: PipelineContext) -> Tuple[str, None]:
     return common_urns.composites.RESHUFFLE.urn, None
 
   @staticmethod
@@ -875,8 +876,7 @@ class GroupIntoBatches(PTransform):
             self.clock))
 
   def to_runner_api_parameter(
-      self,
-      unused_context: PipelineContext
+      self, unused_context: PipelineContext
   ) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]:
     return (
         common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn,
@@ -935,8 +935,7 @@ class GroupIntoBatches(PTransform):
               self.clock))
 
     def to_runner_api_parameter(
-        self,
-        unused_context: PipelineContext
+        self, unused_context: PipelineContext
     ) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]:
       return (
           common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn,
@@ -985,9 +984,7 @@ class _GroupIntoBatchesParams:
             self.max_buffering_duration_secs * 1000))
 
   @staticmethod
-  def parse_payload(
-      proto: beam_runner_api_pb2.GroupIntoBatchesPayload
-  ):
+  def parse_payload(proto: beam_runner_api_pb2.GroupIntoBatchesPayload):
     return proto.batch_size, proto.max_buffering_duration_millis / 1000
 
 

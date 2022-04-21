@@ -434,7 +434,13 @@ class ApproximateQuantiles(object):
 
 class _QuantileSpec(object):
   """Quantiles computation specifications."""
-  def __init__(self, buffer_size: int, num_buffers: int, weighted: bool, key: Any, reverse: bool) -> None:
+  def __init__(
+      self,
+      buffer_size: int,
+      num_buffers: int,
+      weighted: bool,
+      key: Any,
+      reverse: bool) -> None:
     self.buffer_size = buffer_size
     self.num_buffers = num_buffers
     self.weighted = weighted
@@ -455,7 +461,6 @@ class _QuantileSpec(object):
       self.less_than = lambda a, b: key(a) < key(b)
 
   def get_argsort_key(self, elements: List) -> Callable[[int], Any]:
-
     """Returns a key for sorting indices of elements by element's value."""
     if self.key is None:
       return elements.__getitem__
@@ -478,7 +483,13 @@ class _QuantileBuffer(object):
   (see http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
   def __init__(
-      self, elements: List, weights: List, weighted: bool, level: int = 0, min_val: Any = None, max_val: Any = None) -> None:
+      self,
+      elements: List,
+      weights: List,
+      weighted: bool,
+      level: int = 0,
+      min_val: Any = None,
+      max_val: Any = None) -> None:
     self.elements = elements
     # In non-weighted case weights contains a single element representing weight
     # of the buffer in the sense of the original algorithm. In weighted case,
@@ -509,7 +520,12 @@ class _QuantileState(object):
   """
   Compact summarization of a collection on which quantiles can be estimated.
   """
-  def __init__(self, unbuffered_elements: List, unbuffered_weights: List, buffers: List[_QuantileBuffer], spec: _QuantileSpec) -> None:
+  def __init__(
+      self,
+      unbuffered_elements: List,
+      unbuffered_weights: List,
+      buffers: List[_QuantileBuffer],
+      spec: _QuantileSpec) -> None:
     self.buffers = buffers
     self.spec = spec
     if spec.weighted:
@@ -537,12 +553,10 @@ class _QuantileState(object):
             self.spec))
 
   def is_empty(self) -> bool:
-
     """Check if the buffered & unbuffered elements are empty or not."""
     return not self.unbuffered_elements and not self.buffers
 
   def _add_unbuffered(self, elements: List, offset_fn: Any) -> None:
-
     """
     Add elements to the unbuffered list, creating new buffers and
     collapsing if needed.
@@ -567,7 +581,6 @@ class _QuantileState(object):
     self.collapse_if_needed(offset_fn)
 
   def _add_unbuffered_weighted(self, elements: List, offset_fn: Any) -> None:
-
     """
     Add elements with weights to the unbuffered list, creating new buffers and
     collapsing if needed.
@@ -604,7 +617,6 @@ class _QuantileState(object):
     self.collapse_if_needed(offset_fn)
 
   def finalize(self) -> None:
-
     """
     Creates a new buffer using all unbuffered elements. Called before
     extracting an output. Note that the buffer doesn't have to be put in a
@@ -635,7 +647,6 @@ class _QuantileState(object):
     self.unbuffered_elements = []
 
   def collapse_if_needed(self, offset_fn: Any) -> None:
-
     """
     Checks if summary has too many buffers and collapses some of them until the
     limit is restored.
@@ -650,8 +661,9 @@ class _QuantileState(object):
       heapq.heappush(self.buffers, _collapse(to_collapse, offset_fn, self.spec))
 
 
-def _collapse(buffers: List[_QuantileBuffer], offset_fn: Any, spec: _QuantileSpec) -> _QuantileBuffer:
-
+def _collapse(
+    buffers: List[_QuantileBuffer], offset_fn: Any,
+    spec: _QuantileSpec) -> _QuantileBuffer:
   """
   Approximates elements from multiple buffers and produces a single buffer.
   """
@@ -678,8 +690,12 @@ def _collapse(buffers: List[_QuantileBuffer], offset_fn: Any, spec: _QuantileSpe
       new_elements, new_weights, spec.weighted, new_level, min_val, max_val)
 
 
-def _interpolate(buffers: List[_QuantileBuffer], count: int, step: float, offset: float, spec: _QuantileSpec) -> Tuple[List, List, Any, Any]:
-
+def _interpolate(
+    buffers: List[_QuantileBuffer],
+    count: int,
+    step: float,
+    offset: float,
+    spec: _QuantileSpec) -> Tuple[List, List, Any, Any]:
   """
   Emulates taking the ordered union of all elements in buffers, repeated
   according to their weight, and picking out the (k * step + offset)-th elements
@@ -845,7 +861,6 @@ class ApproximateQuantilesCombineFn(CombineFn):
       reverse=False,
       weighted=False,
       input_batched=False) -> ApproximateQuantilesCombineFn:
-
     """
     Creates an approximate quantiles combiner with the given key and desired
     number of quantiles.
@@ -896,7 +911,6 @@ class ApproximateQuantilesCombineFn(CombineFn):
         input_batched=input_batched)
 
   def _offset(self, new_weight: int) -> float:
-
     """
     If the weight is even, we must round up or down. Alternate between these
     two options to avoid a bias.
@@ -923,8 +937,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
     quantile_state.add_unbuffered([element], self._offset)
     return quantile_state
 
-  def _add_inputs(self, quantile_state: _QuantileState, elements: List) -> _QuantileState:
-
+  def _add_inputs(
+      self, quantile_state: _QuantileState, elements: List) -> _QuantileState:
     """
     Add a batch of elements to the collection being summarized by quantile
     state.

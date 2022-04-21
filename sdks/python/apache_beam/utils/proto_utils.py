@@ -89,7 +89,8 @@ def parse_Bytes(serialized_bytes: bytes, msg_class: Type[MessageT]) -> MessageT:
 
 
 @overload
-def parse_Bytes(serialized_bytes: bytes, msg_class: Union[Type[bytes], None]) -> bytes:
+def parse_Bytes(
+    serialized_bytes: bytes, msg_class: Union[Type[bytes], None]) -> bytes:
   pass
 
 
@@ -105,7 +106,6 @@ def parse_Bytes(serialized_bytes, msg_class):
 
 
 def pack_Struct(**kwargs) -> struct_pb2.Struct:
-
   """Returns a struct containing the values indicated by kwargs.
   """
   msg = struct_pb2.Struct()
@@ -121,7 +121,6 @@ def from_micros(cls: Type[TimeMessageT], micros: int) -> TimeMessageT:
 
 
 def to_Timestamp(time: Union[int, float]) -> timestamp_pb2.Timestamp:
-
   """Convert a float returned by time.time() to a Timestamp.
   """
   seconds = int(time)
@@ -130,7 +129,6 @@ def to_Timestamp(time: Union[int, float]) -> timestamp_pb2.Timestamp:
 
 
 def from_Timestamp(timestamp: timestamp_pb2.Timestamp) -> float:
-
   """Convert a Timestamp to a float expressed as seconds since the epoch.
   """
   return timestamp.seconds + float(timestamp.nanos) / 10**9

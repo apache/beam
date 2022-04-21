@@ -57,7 +57,6 @@ class Metrics(object):
     self._context = threading.local()
 
   def initialize(self) -> None:
-
     """Needs to be called once per thread to initialize the local metrics cache.
     """
     if hasattr(self._context, 'metrics'):
@@ -71,8 +70,9 @@ class Metrics(object):
     self._context.metrics[total_name] += 1
     self._context.metrics[hit_miss_name] += 1
 
-  def get_monitoring_infos(self, cache_size: int, cache_capacity: int) -> List[metrics_pb2.MonitoringInfo]:
-
+  def get_monitoring_infos(
+      self, cache_size: int,
+      cache_capacity: int) -> List[metrics_pb2.MonitoringInfo]:
     """Returns the metrics scoped to the current bundle."""
     metrics = self._context.metrics
     if len(metrics) == 0:
@@ -102,8 +102,8 @@ class Metrics(object):
     return gauges + counters
 
   @staticmethod
-  def counter_hit_miss(total_name: str, hit_name: str, miss_name: str) -> Callable[[CallableT], CallableT]:
-
+  def counter_hit_miss(total_name: str, hit_name: str,
+                       miss_name: str) -> Callable[[CallableT], CallableT]:
     """Decorator for counting function calls and whether
        the return value equals None (=miss) or not (=hit)."""
     Metrics.ALL_METRICS.update([total_name, hit_name, miss_name])
@@ -123,7 +123,6 @@ class Metrics(object):
 
   @staticmethod
   def counter(metric_name: str) -> Callable[[CallableT], CallableT]:
-
     """Decorator for counting function calls."""
     Metrics.ALL_METRICS.add(metric_name)
 
@@ -172,7 +171,8 @@ class StateCache(object):
       return self._cache.get((state_key, cache_token))
 
   @Metrics.counter("put")
-  def put(self, state_key: bytes, cache_token: Optional[bytes], value: Any) -> None:
+  def put(
+      self, state_key: bytes, cache_token: Optional[bytes], value: Any) -> None:
     assert cache_token and self.is_cache_enabled()
     with self._lock:
       return self._cache.put((state_key, cache_token), value)
@@ -203,7 +203,6 @@ class StateCache(object):
     return len(self._cache)
 
   def get_monitoring_infos(self) -> List[metrics_pb2.MonitoringInfo]:
-
     """Retrieves the monitoring infos and resets the counters."""
     with self._lock:
       size = len(self._cache)
@@ -214,8 +213,7 @@ class StateCache(object):
     def __init__(self, max_entries: int, default_entry: VT) -> None:
       self._max_entries = max_entries
       self._default_entry = default_entry
-      self._cache: collections.OrderedDict[KT, VT] = collections.OrderedDict(
-      )
+      self._cache: collections.OrderedDict[KT, VT] = collections.OrderedDict()
 
     def get(self, key: KT) -> VT:
       value = self._cache.pop(key, self._default_entry)

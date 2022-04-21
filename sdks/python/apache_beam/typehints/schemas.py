@@ -149,7 +149,9 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
 _BEAM_SCHEMA_ID = "_beam_schema_id"
 
 
-def named_fields_to_schema(names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]]) -> schema_pb2.Schema:
+def named_fields_to_schema(
+    names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]]
+) -> schema_pb2.Schema:
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
   return schema_pb2.Schema(
@@ -408,13 +410,11 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
   @classmethod
   def urn(cls) -> str:
-
     """Return the URN used to identify this logical type"""
     raise NotImplementedError()
 
   @classmethod
   def language_type(cls) -> type:
-
     """Return the language type this LogicalType encodes.
 
     The returned type should match LanguageT"""
@@ -422,7 +422,6 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
   @classmethod
   def representation_type(cls) -> type:
-
     """Return the type of the representation this LogicalType uses to encode the
     language type.
 
@@ -431,24 +430,20 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
   @classmethod
   def argument_type(cls) -> type:
-
     """Return the type of the argument used for variations of this LogicalType.
 
     The returned type should match ArgT"""
     raise NotImplementedError(cls)
 
   def argument(self) -> ArgT:
-
     """Return the argument for this instance of the LogicalType."""
     raise NotImplementedError()
 
   def to_representation_type(value: LanguageT) -> RepresentationT:
-
     """Convert an instance of LanguageT to RepresentationT."""
     raise NotImplementedError()
 
   def to_language_type(value: RepresentationT) -> LanguageT:
-
     """Convert an instance of RepresentationT to LanguageT."""
     raise NotImplementedError()
 
@@ -459,7 +454,6 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
   @classmethod
   def from_typing(cls, typ: type) -> LogicalType:
-
     """Construct an instance of a registered LogicalType implementation given a
     typing.
 
@@ -475,14 +469,13 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
   @classmethod
   def _from_typing(cls, typ: type) -> LogicalType:
-
     """Construct an instance of this LogicalType implementation given a typing.
     """
     raise NotImplementedError()
 
   @classmethod
-  def from_runner_api(cls, logical_type_proto: schema_pb2.LogicalType) -> LogicalType:
-
+  def from_runner_api(
+      cls, logical_type_proto: schema_pb2.LogicalType) -> LogicalType:
     """Construct an instance of a registered LogicalType implementation given a
     proto LogicalType.
 
@@ -533,7 +526,8 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
   def language_type(cls):
     return Timestamp
 
-  def to_representation_type(self, value: Timestamp) -> MicrosInstantRepresentation:
+  def to_representation_type(
+      self, value: Timestamp) -> MicrosInstantRepresentation:
     return MicrosInstantRepresentation(
         value.micros // 1000000, value.micros % 1000000)
 

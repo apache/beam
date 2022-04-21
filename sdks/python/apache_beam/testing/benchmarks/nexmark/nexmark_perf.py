@@ -21,6 +21,7 @@ performance summary for a run of nexmark query
 
 from __future__ import annotations
 
+
 class NexmarkPerf(object):
   def __init__(
       self,
@@ -38,7 +39,6 @@ class NexmarkPerf(object):
     self.result_count = result_count if result_count else -1
 
   def has_progress(self, previous_perf: NexmarkPerf) -> bool:
-
     """
     Args:
       previous_perf: a NexmarkPerf object to be compared to self

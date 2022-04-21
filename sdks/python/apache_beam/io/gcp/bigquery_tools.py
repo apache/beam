@@ -1819,8 +1819,11 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
 
 
 def check_schema_equal(
-    left: Union[bigquery.TableSchema, bigquery.TableFieldSchema], right: Union[bigquery.TableSchema, bigquery.TableFieldSchema], *, ignore_descriptions: bool = False, ignore_field_order: bool = False) -> bool:
-
+    left: Union[bigquery.TableSchema, bigquery.TableFieldSchema],
+    right: Union[bigquery.TableSchema, bigquery.TableFieldSchema],
+    *,
+    ignore_descriptions: bool = False,
+    ignore_field_order: bool = False) -> bool:
   """Check whether schemas are equivalent.
 
   This comparison function differs from using == to compare TableSchema

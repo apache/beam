@@ -103,7 +103,9 @@ class TimestampCombiner(object):
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
   @staticmethod
-  def get_impl(timestamp_combiner: beam_runner_api_pb2.OutputTime.Enum, window_fn: WindowFn) -> timeutil.TimestampCombinerImpl:
+  def get_impl(
+      timestamp_combiner: beam_runner_api_pb2.OutputTime.Enum,
+      window_fn: WindowFn) -> timeutil.TimestampCombinerImpl:
     if timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW:
       return timeutil.OutputAtEndOfWindowImpl()
     elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST:
@@ -124,15 +126,13 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
         self,
         timestamp: TimestampTypes,
         element: Optional[Any] = None,
-        window: Optional[BoundedWindow] = None
-    ) -> None:
+        window: Optional[BoundedWindow] = None) -> None:
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
       self.window = window
 
   @abc.abstractmethod
   def assign(self, assign_context: AssignContext) -> Iterable[BoundedWindow]:
-
     """Associates windows to an element.
 
     Arguments:
@@ -148,17 +148,18 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
     def __init__(self, windows: Iterable[BoundedWindow]) -> None:
       self.windows = list(windows)
 
-    def merge(self, to_be_merged: Iterable[BoundedWindow], merge_result: BoundedWindow) -> None:
+    def merge(
+        self,
+        to_be_merged: Iterable[BoundedWindow],
+        merge_result: BoundedWindow) -> None:
       raise NotImplementedError
 
   @abc.abstractmethod
   def merge(self, merge_context: WindowFn.MergeContext) -> None:
-
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
 
   def is_merging(self) -> bool:
-
     """Returns whether this WindowFn merges windows."""
     return True
 
@@ -166,8 +167,8 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
   def get_window_coder(self) -> coders.Coder:
     raise NotImplementedError
 
-  def get_transformed_output_time(self, window: BoundedWindow, input_timestamp: Timestamp) -> Timestamp:  # pylint: disable=unused-argument
-
+  def get_transformed_output_time(
+      self, window: BoundedWindow, input_timestamp: Timestamp) -> Timestamp:  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
 
     If TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the
@@ -344,7 +345,8 @@ class GlobalWindows(NonMergingWindowFn):
   ) -> WindowedValue:
     return WindowedValue(value, timestamp, (GlobalWindow(), ), pane_info)
 
-  def assign(self, assign_context: WindowFn.AssignContext) -> List[GlobalWindow]:
+  def assign(self,
+             assign_context: WindowFn.AssignContext) -> List[GlobalWindow]:
     return [GlobalWindow()]
 
   def get_window_coder(self) -> coders.GlobalWindowCoder:
@@ -362,7 +364,8 @@ class GlobalWindows(NonMergingWindowFn):
 
   @staticmethod
   @urns.RunnerApiFn.register_urn(common_urns.global_windows.urn, None)
-  def from_runner_api_parameter(unused_fn_parameter, unused_context) -> GlobalWindows:
+  def from_runner_api_parameter(
+      unused_fn_parameter, unused_context) -> GlobalWindows:
     return GlobalWindows()
 
 
@@ -380,11 +383,7 @@ class FixedWindows(NonMergingWindowFn):
       value in range [0, size). If it is not it will be normalized to this
       range.
   """
-  def __init__(
-      self,
-      size: DurationTypes,
-      offset: TimestampTypes = 0
-  ):
+  def __init__(self, size: DurationTypes, offset: TimestampTypes = 0):
     """Initialize a ``FixedWindows`` function for a given size and offset.
 
     Args:
@@ -447,12 +446,12 @@ class SlidingWindows(NonMergingWindowFn):
       t=N * period + offset where t=0 is the epoch. The offset must be a value
       in range [0, period). If it is not it will be normalized to this range.
   """
-
-  def __init__(self,
-               size: DurationTypes,
-               period: DurationTypes,
-               offset: TimestampTypes = 0,
-              ):
+  def __init__(
+      self,
+      size: DurationTypes,
+      period: DurationTypes,
+      offset: TimestampTypes = 0,
+  ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.size = Duration.of(size)

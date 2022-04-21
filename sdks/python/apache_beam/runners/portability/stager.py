@@ -105,8 +105,9 @@ class Stager(object):
   """
   _DEFAULT_CHUNK_SIZE = 2 << 20
 
-  def stage_artifact(self, local_path_to_artifact: str, artifact_name: str, sha256: str) -> None:
-
+  def stage_artifact(
+      self, local_path_to_artifact: str, artifact_name: str,
+      sha256: str) -> None:
     """ Stages the artifact to Stager._staging_location and adds artifact_name
         to the manifest of artifacts that have been staged."""
     raise NotImplementedError
@@ -162,13 +163,15 @@ class Stager(object):
         raise RuntimeError("unknown artifact type: %s" % artifact.type_urn)
 
   @staticmethod
-  def create_job_resources(options: PipelineOptions,
-                           temp_dir: str,
-                           build_setup_args: Optional[List[str]] = None,
-                           pypi_requirements: Optional[List[str]] = None,
-                           populate_requirements_cache: Optional[Callable[[str, str, bool], None]] = None,
-                           skip_prestaged_dependencies: Optional[bool] = False,
-                           ):
+  def create_job_resources(
+      options: PipelineOptions,
+      temp_dir: str,
+      build_setup_args: Optional[List[str]] = None,
+      pypi_requirements: Optional[List[str]] = None,
+      populate_requirements_cache: Optional[Callable[[str, str, bool],
+                                                     None]] = None,
+      skip_prestaged_dependencies: Optional[bool] = False,
+  ):
     """For internal use only; no backwards-compatibility guarantees.
 
         Creates (if needed) a list of job resources.
@@ -379,10 +382,10 @@ class Stager(object):
 
     return resources
 
-  def stage_job_resources(self,
-                          resources: List[Tuple[str, str, str]],
-                          staging_location: Optional[str] = None
-                         ):
+  def stage_job_resources(
+      self,
+      resources: List[Tuple[str, str, str]],
+      staging_location: Optional[str] = None):
     """For internal use only; no backwards-compatibility guarantees.
 
         Stages job resources to staging_location.
@@ -418,9 +421,9 @@ class Stager(object):
       build_setup_args: Optional[List[str]] = None,
       temp_dir: Optional[str] = None,
       pypi_requirements: Optional[List[str]] = None,
-      populate_requirements_cache: Optional[Callable[[str, str, bool], None]] = None,
-      staging_location: Optional[str] = None
-      ):
+      populate_requirements_cache: Optional[Callable[[str, str, bool],
+                                                     None]] = None,
+      staging_location: Optional[str] = None):
     """For internal use only; no backwards-compatibility guarantees.
 
         Creates (if needed) and stages job resources to staging_location.
@@ -521,8 +524,8 @@ class Stager(object):
     return path.find('://') != -1
 
   @staticmethod
-  def _create_jar_packages(jar_packages, temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
-
+  def _create_jar_packages(
+      jar_packages, temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local jar packages for Java SDK Harness.
 
     :param jar_packages: Ordered list of local paths to jar packages to be
@@ -571,8 +574,9 @@ class Stager(object):
     return resources
 
   @staticmethod
-  def _create_extra_packages(extra_packages, temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
-
+  def _create_extra_packages(
+      extra_packages,
+      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local extra packages.
 
       Args:
@@ -663,9 +667,7 @@ class Stager(object):
 
   @staticmethod
   def _remove_dependency_from_requirements(
-          requirements_file: str,
-          dependency_to_remove: str,
-          temp_directory_path):
+      requirements_file: str, dependency_to_remove: str, temp_directory_path):
     """Function to remove dependencies from a given requirements file."""
     # read all the dependency names
     with open(requirements_file, 'r') as f:
@@ -753,10 +755,10 @@ class Stager(object):
       processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
-  def _build_setup_package(setup_file: str,
-                           temp_dir: str,
-                           build_setup_args: Optional[List[str]] = None
-                          ) -> str:
+  def _build_setup_package(
+      setup_file: str,
+      temp_dir: str,
+      build_setup_args: Optional[List[str]] = None) -> str:
     saved_current_directory = os.getcwd()
     try:
       os.chdir(os.path.dirname(setup_file))
@@ -780,7 +782,6 @@ class Stager(object):
 
   @staticmethod
   def _desired_sdk_filename_in_staging_location(sdk_location) -> str:
-
     """Returns the name that SDK file should have in the staging location.
       Args:
         sdk_location: Full path to SDK file.
@@ -795,8 +796,9 @@ class Stager(object):
       return names.STAGED_SDK_SOURCES_FILENAME
 
   @staticmethod
-  def _create_beam_sdk(sdk_remote_location, temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
-
+  def _create_beam_sdk(
+      sdk_remote_location,
+      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a Beam SDK file with the appropriate version.
 
       Args:
