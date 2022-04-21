@@ -23,6 +23,7 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1.CloudHealthcare;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.PatientEverything;
@@ -75,18 +76,14 @@ import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -105,9 +102,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       String.format(
           "apache-beam-io-google-cloud-platform-healthcare/%s",
           ReleaseInfo.getReleaseInfo().getSdkVersion());
-  private static final String FHIRSTORE_HEADER_CONTENT_TYPE = "application/fhir+json";
-  private static final String FHIRSTORE_HEADER_ACCEPT = "application/fhir+json; charset=utf-8";
-  private static final String FHIRSTORE_HEADER_ACCEPT_CHARSET = "utf-8";
+  private static final JsonFactory PARSER = new GsonFactory();
   private static final Logger LOG = LoggerFactory.getLogger(HttpHealthcareApiClient.class);
   private transient CloudHealthcare client;
   private transient HttpClient httpClient;
@@ -553,45 +548,20 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody executeFhirBundle(String fhirStore, String bundle)
-      throws IOException, HealthcareHttpException {
-    if (httpClient == null || client == null) {
+  public HttpBody executeFhirBundle(String fhirStore, String bundle) throws IOException {
+    if (client == null) {
       initClient();
     }
+    HttpBody httpBody = PARSER.fromString(bundle, HttpBody.class);
 
-    credentials.refreshIfExpired();
-    StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
-    URI uri;
-    try {
-      uri = new URIBuilder(client.getRootUrl() + "v1/" + fhirStore + "/fhir").build();
-    } catch (URISyntaxException e) {
-      LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
-      throw new IllegalArgumentException(e);
-    }
-
-    HttpUriRequest request =
-        RequestBuilder.post()
-            .setUri(uri)
-            .setEntity(requestEntity)
-            .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
-            .addHeader("User-Agent", USER_AGENT)
-            .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
-            .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
-            .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT)
-            .build();
-
-    HttpResponse response = httpClient.execute(request);
-    HttpEntity responseEntity = response.getEntity();
-    String content = EntityUtils.toString(responseEntity);
-
-    // Check 2XX code.
-    int statusCode = response.getStatusLine().getStatusCode();
-    if (!(statusCode / 100 == 2)) {
-      throw HealthcareHttpException.of(statusCode, content);
-    }
-    HttpBody responseModel = new HttpBody();
-    responseModel.setData(content);
-    return responseModel;
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .fhir()
+        .executeBundle(fhirStore, httpBody)
+        .execute();
   }
 
   /**

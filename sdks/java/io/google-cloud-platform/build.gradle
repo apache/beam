@@ -139,6 +139,7 @@ dependencies {
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
 
+  implementation 'com.google.http-client:google-http-client-gson:1.41.2'
   implementation "org.threeten:threetenbp:1.4.4"
   implementation "io.opencensus:opencensus-api:0.30.0"
 
