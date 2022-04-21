@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Collection of useful coders.
 
 Only those coders listed in __all__ are part of the public API of this module.
@@ -135,8 +136,7 @@ def deserialize_coder(serialized):
 
 class Coder(object):
   """Base class for coders."""
-  def encode(self, value):
-    # type: (Any) -> bytes
+  def encode(self, value: Any) -> bytes:
 
     """Encodes the given object into a byte string."""
     raise NotImplementedError('Encode not implemented: %s.' % self)
@@ -153,8 +153,7 @@ class Coder(object):
     """Uses the underlying implementation to decode in nested format."""
     return self.get_impl().decode_nested(encoded)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
 
     """Whether this coder is guaranteed to encode values deterministically.
 
@@ -209,8 +208,7 @@ class Coder(object):
   # user-defined coders.
   # ===========================================================================
 
-  def _create_impl(self):
-    # type: () -> coder_impl.CoderImpl
+  def _create_impl(self) -> coder_impl.CoderImpl:
 
     """Creates a CoderImpl to do the actual encoding and decoding.
     """
@@ -241,31 +239,26 @@ class Coder(object):
     raise NotImplementedError('BEAM-2717: %s' % self.__class__.__name__)
 
   @classmethod
-  def from_type_hint(cls, unused_typehint, unused_registry):
-    # type: (Type[CoderT], Any, CoderRegistry) -> CoderT
+  def from_type_hint(cls: Type[CoderT], unused_typehint: Any, unused_registry: CoderRegistry) -> CoderT:
     # If not overridden, just construct the coder without arguments.
     return cls()
 
-  def is_kv_coder(self):
-    # type: () -> bool
+  def is_kv_coder(self) -> bool:
     return False
 
-  def key_coder(self):
-    # type: () -> Coder
+  def key_coder(self) -> Coder:
     if self.is_kv_coder():
       raise NotImplementedError('key_coder: %s' % self)
     else:
       raise ValueError('Not a KV coder: %s.' % self)
 
-  def value_coder(self):
-    # type: () -> Coder
+  def value_coder(self) -> Coder:
     if self.is_kv_coder():
       raise NotImplementedError('value_coder: %s' % self)
     else:
       raise ValueError('Not a KV coder: %s.' % self)
 
-  def _get_component_coders(self):
-    # type: () -> Sequence[Coder]
+  def _get_component_coders(self) -> Sequence[Coder]:
 
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -311,27 +304,25 @@ class Coder(object):
   def __hash__(self):
     return hash(type(self))
 
-  _known_urns = {}  # type: Dict[str, Tuple[type, ConstructorFn]]
+  _known_urns: Dict[str, Tuple[type, ConstructorFn]] = {}
 
   @classmethod
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: Optional[Type[T]]
-  ):
-    # type: (...) -> Callable[[Callable[[T, List[Coder], PipelineContext], Any]], Callable[[T, List[Coder], PipelineContext], Any]]
+      urn: str,
+      parameter_type: Optional[Type[T]],
+  ) -> Callable[[Callable[[T, List[Coder], PipelineContext], Any]], Callable[[T, List[Coder], PipelineContext], Any]]:
     pass
 
   @classmethod
   @overload
   def register_urn(
       cls,
-      urn,  # type: str
-      parameter_type,  # type: Optional[Type[T]]
-      fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
-  ):
-    # type: (...) -> None
+      urn: str,
+      parameter_type: Optional[Type[T]],
+      fn: Callable[[T, List[Coder], PipelineContext], Any]
+  ) -> None:
     pass
 
   @classmethod
@@ -358,8 +349,7 @@ class Coder(object):
       # Used as a decorator.
       return register
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.Coder
+  def to_runner_api(self, context: PipelineContext) -> beam_runner_api_pb2.Coder:
     urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -369,8 +359,7 @@ class Coder(object):
         component_coder_ids=[context.coders.get_id(c) for c in components])
 
   @classmethod
-  def from_runner_api(cls, coder_proto, context):
-    # type: (Type[CoderT], beam_runner_api_pb2.Coder, PipelineContext) -> CoderT
+  def from_runner_api(cls: Type[CoderT], coder_proto: beam_runner_api_pb2.Coder, context: PipelineContext) -> CoderT:
 
     """Converts from an FunctionSpec to a Fn object.
 
@@ -382,16 +371,14 @@ class Coder(object):
         [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
         context)
 
-  def to_runner_api_parameter(self, context):
-    # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
+  def to_runner_api_parameter(self, context: Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]:
     return (
         python_urns.PICKLED_CODER,
         google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
 
   @staticmethod
-  def register_structured_urn(urn, cls):
-    # type: (str, Type[Coder]) -> None
+  def register_structured_urn(urn: str, cls: Type[Coder]) -> None:
 
     """Register a coder that's completely defined by its urn and its
     component(s), if any, which are passed to construct the instance.
@@ -425,8 +412,7 @@ class StrUtf8Coder(Coder):
   def decode(self, value):
     return value.decode('utf-8')
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def to_type_hint(self):
@@ -444,8 +430,7 @@ class ToBytesCoder(Coder):
   def decode(self, _):
     raise NotImplementedError('ToBytesCoder cannot be used for decoding.')
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
 
@@ -480,8 +465,7 @@ class BytesCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.BytesCoderImpl()
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def to_type_hint(self):
@@ -506,8 +490,7 @@ class BooleanCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.BooleanCoderImpl()
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def to_type_hint(self):
@@ -524,8 +507,7 @@ Coder.register_structured_urn(common_urns.coders.BOOL.urn, BooleanCoder)
 
 
 class MapCoder(FastCoder):
-  def __init__(self, key_coder, value_coder):
-    # type: (Coder, Coder) -> None
+  def __init__(self, key_coder: Coder, value_coder: Coder) -> None:
     self._key_coder = key_coder
     self._value_coder = value_coder
 
@@ -534,8 +516,7 @@ class MapCoder(FastCoder):
         self._key_coder.get_impl(), self._value_coder.get_impl())
 
   @classmethod
-  def from_type_hint(cls, typehint, registry):
-    # type: (typehints.DictConstraint, CoderRegistry) -> MapCoder
+  def from_type_hint(cls, typehint: typehints.DictConstraint, registry: CoderRegistry) -> MapCoder:
     return cls(
         registry.get_coder(typehint.key_type),
         registry.get_coder(typehint.value_type))
@@ -544,8 +525,7 @@ class MapCoder(FastCoder):
     return typehints.Dict[self._key_coder.to_type_hint(),
                           self._value_coder.to_type_hint()]
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     # Map ordering is non-deterministic
     return False
 
@@ -569,8 +549,7 @@ class MapCoder(FastCoder):
 # This is a separate class from MapCoder as the former is a standard coder with
 # no way to carry the is_deterministic bit.
 class DeterministicMapCoder(FastCoder):
-  def __init__(self, key_coder, value_coder):
-    # type: (Coder, Coder) -> None
+  def __init__(self, key_coder: Coder, value_coder: Coder) -> None:
     assert key_coder.is_deterministic()
     assert value_coder.is_deterministic()
     self._key_coder = key_coder
@@ -597,8 +576,7 @@ class DeterministicMapCoder(FastCoder):
 
 
 class NullableCoder(FastCoder):
-  def __init__(self, value_coder):
-    # type: (Coder) -> None
+  def __init__(self, value_coder: Coder) -> None:
     self._value_coder = value_coder
 
   def _create_impl(self):
@@ -607,8 +585,7 @@ class NullableCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Optional[self._value_coder.to_type_hint()]
 
-  def _get_component_coders(self):
-    # type: () -> List[Coder]
+  def _get_component_coders(self) -> List[Coder]:
     return [self._value_coder]
 
   @classmethod
@@ -623,8 +600,7 @@ class NullableCoder(FastCoder):
           'and cannot be converted to a NullableCoder',
           typehint)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return self._value_coder.is_deterministic()
 
   def as_deterministic_coder(self, step_label, error_message=None):
@@ -651,8 +627,7 @@ class VarIntCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.VarIntCoderImpl()
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def to_type_hint(self):
@@ -678,8 +653,7 @@ class FloatCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.FloatCoderImpl()
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def to_type_hint(self):
@@ -700,8 +674,7 @@ class TimestampCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.TimestampCoderImpl()
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def __eq__(self, other):
@@ -715,21 +688,18 @@ class _TimerCoder(FastCoder):
   """A coder used for timer values.
 
   For internal use."""
-  def __init__(self, key_coder, window_coder):
-    # type: (Coder, Coder) -> None
+  def __init__(self, key_coder: Coder, window_coder: Coder) -> None:
     self._key_coder = key_coder
     self._window_coder = window_coder
 
-  def _get_component_coders(self):
-    # type: () -> List[Coder]
+  def _get_component_coders(self) -> List[Coder]:
     return [self._key_coder, self._window_coder]
 
   def _create_impl(self):
     return coder_impl.TimerCoderImpl(
         self._key_coder.get_impl(), self._window_coder.get_impl())
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return (
         self._key_coder.is_deterministic() and
         self._window_coder.is_deterministic())
@@ -754,8 +724,7 @@ class SingletonCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.SingletonCoderImpl(self._value)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def __eq__(self, other):
@@ -785,8 +754,7 @@ def maybe_dill_loads(o):
 
 class _PickleCoderBase(FastCoder):
   """Base class for pickling coders."""
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     # Note that the default coder, the PickleCoder, is not deterministic (for
     # example, the ordering of picked entries in maps may vary across
     # executions), and so is not in general suitable for usage as a key coder in
@@ -811,8 +779,7 @@ class _PickleCoderBase(FastCoder):
   # We allow .key_coder() and .value_coder() to be called on PickleCoder since
   # we can't always infer the return values of lambdas in ParDo operations, the
   # result of which may be used in a GroupBykey.
-  def is_kv_coder(self):
-    # type: () -> bool
+  def is_kv_coder(self) -> bool:
     return True
 
   def key_coder(self):
@@ -887,12 +854,10 @@ class DeterministicFastPrimitivesCoder(FastCoder):
         self._underlying_coder.get_impl(),
         requires_deterministic_step_label=self._step_label)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
-  def is_kv_coder(self):
-    # type: () -> bool
+  def is_kv_coder(self) -> bool:
     return True
 
   def key_coder(self):
@@ -910,15 +875,13 @@ class FastPrimitivesCoder(FastCoder):
 
   For unknown types, falls back to another coder (e.g. PickleCoder).
   """
-  def __init__(self, fallback_coder=PickleCoder()):
-    # type: (Coder) -> None
+  def __init__(self, fallback_coder: Coder = PickleCoder()) -> None:
     self._fallback_coder = fallback_coder
 
   def _create_impl(self):
     return coder_impl.FastPrimitivesCoderImpl(self._fallback_coder.get_impl())
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return self._fallback_coder.is_deterministic()
 
   def as_deterministic_coder(self, step_label, error_message=None):
@@ -948,8 +911,7 @@ class FastPrimitivesCoder(FastCoder):
   # We allow .key_coder() and .value_coder() to be called on FastPrimitivesCoder
   # since we can't always infer the return values of lambdas in ParDo
   # operations, the result of which may be used in a GroupBykey.
-  def is_kv_coder(self):
-    # type: () -> bool
+  def is_kv_coder(self) -> bool:
     return True
 
   def key_coder(self):
@@ -987,8 +949,7 @@ class Base64PickleCoder(Coder):
   def decode(self, encoded):
     return pickle.loads(base64.b64decode(encoded))
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     # Note that the Base64PickleCoder is not deterministic.  See the
     # corresponding comments for PickleCoder above.
     return False
@@ -999,8 +960,7 @@ class Base64PickleCoder(Coder):
   #
   # TODO(ccy): this is currently only used for KV values from Create transforms.
   # Investigate a way to unify this with PickleCoder.
-  def is_kv_coder(self):
-    # type: () -> bool
+  def is_kv_coder(self) -> bool:
     return True
 
   def key_coder(self):
@@ -1022,15 +982,13 @@ class ProtoCoder(FastCoder):
   any protobuf Message object.
 
   """
-  def __init__(self, proto_message_type):
-    # type: (Type[google.protobuf.message.Message]) -> None
+  def __init__(self, proto_message_type: Type[google.protobuf.message.Message]) -> None:
     self.proto_message_type = proto_message_type
 
   def _create_impl(self):
     return coder_impl.ProtoCoderImpl(self.proto_message_type)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     # TODO(vikasrk): A proto message can be deterministic if it does not contain
     # a Map.
     return False
@@ -1070,8 +1028,7 @@ class DeterministicProtoCoder(ProtoCoder):
   def _create_impl(self):
     return coder_impl.DeterministicProtoCoderImpl(self.proto_message_type)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def as_deterministic_coder(self, step_label, error_message=None):
@@ -1084,8 +1041,7 @@ class ProtoPlusCoder(FastCoder):
   ProtoPlusCoder is registered in the global CoderRegistry as the default coder
   for any proto.Message object.
   """
-  def __init__(self, proto_plus_message_type):
-    # type: (Type[proto.Message]) -> None
+  def __init__(self, proto_plus_message_type: Type[proto.Message]) -> None:
     self.proto_plus_message_type = proto_plus_message_type
 
   def _create_impl(self):
@@ -1149,15 +1105,13 @@ class AvroGenericCoder(FastCoder):
 
 class TupleCoder(FastCoder):
   """Coder of tuple objects."""
-  def __init__(self, components):
-    # type: (Iterable[Coder]) -> None
+  def __init__(self, components: Iterable[Coder]) -> None:
     self._coders = tuple(components)
 
   def _create_impl(self):
     return coder_impl.TupleCoderImpl([c.get_impl() for c in self._coders])
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return all(c.is_deterministic() for c in self._coders)
 
   def as_deterministic_coder(self, step_label, error_message=None):
@@ -1173,8 +1127,7 @@ class TupleCoder(FastCoder):
     return typehints.Tuple[tuple(c.to_type_hint() for c in self._coders)]
 
   @classmethod
-  def from_type_hint(cls, typehint, registry):
-    # type: (typehints.TupleConstraint, CoderRegistry) -> TupleCoder
+  def from_type_hint(cls, typehint: typehints.TupleConstraint, registry: CoderRegistry) -> TupleCoder:
     return cls([registry.get_coder(t) for t in typehint.tuple_types])
 
   def as_cloud_object(self, coders_context=None):
@@ -1190,26 +1143,21 @@ class TupleCoder(FastCoder):
 
     return super().as_cloud_object(coders_context)
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return self.coders()
 
-  def coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def coders(self) -> Tuple[Coder, ...]:
     return self._coders
 
-  def is_kv_coder(self):
-    # type: () -> bool
+  def is_kv_coder(self) -> bool:
     return len(self._coders) == 2
 
-  def key_coder(self):
-    # type: () -> Coder
+  def key_coder(self) -> Coder:
     if len(self._coders) != 2:
       raise ValueError('TupleCoder does not have exactly 2 components.')
     return self._coders[0]
 
-  def value_coder(self):
-    # type: () -> Coder
+  def value_coder(self) -> Coder:
     if len(self._coders) != 2:
       raise ValueError('TupleCoder does not have exactly 2 components.')
     return self._coders[1]
@@ -1238,8 +1186,7 @@ class TupleCoder(FastCoder):
 
 class TupleSequenceCoder(FastCoder):
   """Coder of homogeneous tuple objects."""
-  def __init__(self, elem_coder):
-    # type: (Coder) -> None
+  def __init__(self, elem_coder: Coder) -> None:
     self._elem_coder = elem_coder
 
   def value_coder(self):
@@ -1248,8 +1195,7 @@ class TupleSequenceCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.TupleSequenceCoderImpl(self._elem_coder.get_impl())
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return self._elem_coder.is_deterministic()
 
   def as_deterministic_coder(self, step_label, error_message=None):
@@ -1260,12 +1206,10 @@ class TupleSequenceCoder(FastCoder):
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
   @classmethod
-  def from_type_hint(cls, typehint, registry):
-    # type: (Any, CoderRegistry) -> TupleSequenceCoder
+  def from_type_hint(cls, typehint: Any, registry: CoderRegistry) -> TupleSequenceCoder:
     return cls(registry.get_coder(typehint.inner_type))
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._elem_coder, )
 
   def __repr__(self):
@@ -1281,15 +1225,13 @@ class TupleSequenceCoder(FastCoder):
 
 class ListLikeCoder(FastCoder):
   """Coder of iterables of homogeneous objects."""
-  def __init__(self, elem_coder):
-    # type: (Coder) -> None
+  def __init__(self, elem_coder: Coder) -> None:
     self._elem_coder = elem_coder
 
   def _create_impl(self):
     return coder_impl.IterableCoderImpl(self._elem_coder.get_impl())
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return self._elem_coder.is_deterministic()
 
   def as_deterministic_coder(self, step_label, error_message=None):
@@ -1312,12 +1254,10 @@ class ListLikeCoder(FastCoder):
     return self._elem_coder
 
   @classmethod
-  def from_type_hint(cls, typehint, registry):
-    # type: (Any, CoderRegistry) -> ListLikeCoder
+  def from_type_hint(cls, typehint: Any, registry: CoderRegistry) -> ListLikeCoder:
     return cls(registry.get_coder(typehint.inner_type))
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._elem_coder, )
 
   def __repr__(self):
@@ -1370,8 +1310,7 @@ class IntervalWindowCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.IntervalWindowCoderImpl()
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return True
 
   def as_cloud_object(self, coders_context=None):
@@ -1392,8 +1331,7 @@ Coder.register_structured_urn(
 
 class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
-  def __init__(self, wrapped_value_coder, window_coder=None):
-    # type: (Coder, Optional[Coder]) -> None
+  def __init__(self, wrapped_value_coder: Coder, window_coder: Optional[Coder] = None) -> None:
     if not window_coder:
       window_coder = PickleCoder()
     self.wrapped_value_coder = wrapped_value_coder
@@ -1406,8 +1344,7 @@ class WindowedValueCoder(FastCoder):
         self.timestamp_coder.get_impl(),
         self.window_coder.get_impl())
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return all(
         c.is_deterministic() for c in
         [self.wrapped_value_coder, self.timestamp_coder, self.window_coder])
@@ -1422,20 +1359,16 @@ class WindowedValueCoder(FastCoder):
         ],
     }
 
-  def _get_component_coders(self):
-    # type: () -> List[Coder]
+  def _get_component_coders(self) -> List[Coder]:
     return [self.wrapped_value_coder, self.window_coder]
 
-  def is_kv_coder(self):
-    # type: () -> bool
+  def is_kv_coder(self) -> bool:
     return self.wrapped_value_coder.is_kv_coder()
 
-  def key_coder(self):
-    # type: () -> Coder
+  def key_coder(self) -> Coder:
     return self.wrapped_value_coder.key_coder()
 
-  def value_coder(self):
-    # type: () -> Coder
+  def value_coder(self) -> Coder:
     return self.wrapped_value_coder.value_coder()
 
   def __repr__(self):
@@ -1469,8 +1402,7 @@ class ParamWindowedValueCoder(WindowedValueCoder):
         self.window_coder.get_impl(),
         self.payload)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return self.wrapped_value_coder.is_deterministic()
 
   def as_cloud_object(self, coders_context=None):
@@ -1505,15 +1437,13 @@ class LengthPrefixCoder(FastCoder):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder which prefixes the length of the encoded object in the stream."""
-  def __init__(self, value_coder):
-    # type: (Coder) -> None
+  def __init__(self, value_coder: Coder) -> None:
     self._value_coder = value_coder
 
   def _create_impl(self):
     return coder_impl.LengthPrefixCoderImpl(self._value_coder.get_impl())
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return self._value_coder.is_deterministic()
 
   def estimate_size(self, value):
@@ -1531,8 +1461,7 @@ class LengthPrefixCoder(FastCoder):
         ],
     }
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._value_coder, )
 
   def __repr__(self):
@@ -1555,9 +1484,9 @@ class StateBackedIterableCoder(FastCoder):
 
   def __init__(
       self,
-      element_coder,  # type: Coder
-      read_state=None,  # type: Optional[coder_impl.IterableStateReader]
-      write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
+      element_coder: Coder,
+      read_state: Optional[coder_impl.IterableStateReader] = None,
+      write_state: Optional[coder_impl.IterableStateWriter] = None,
       write_state_threshold=DEFAULT_WRITE_THRESHOLD):
     self._element_coder = element_coder
     self._read_state = read_state
@@ -1571,12 +1500,10 @@ class StateBackedIterableCoder(FastCoder):
         self._write_state,
         self._write_state_threshold)
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return False
 
-  def _get_component_coders(self):
-    # type: () -> Tuple[Coder, ...]
+  def _get_component_coders(self) -> Tuple[Coder, ...]:
     return (self._element_coder, )
 
   def __repr__(self):
@@ -1591,8 +1518,7 @@ class StateBackedIterableCoder(FastCoder):
   def __hash__(self):
     return hash((type(self), self._element_coder, self._write_state_threshold))
 
-  def to_runner_api_parameter(self, context):
-    # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
+  def to_runner_api_parameter(self, context: Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]:
     return (
         common_urns.coders.STATE_BACKED_ITERABLE.urn,
         str(self._write_state_threshold).encode('ascii'),
@@ -1611,19 +1537,16 @@ class StateBackedIterableCoder(FastCoder):
 
 class ShardedKeyCoder(FastCoder):
   """A coder for sharded key."""
-  def __init__(self, key_coder):
-    # type: (Coder) -> None
+  def __init__(self, key_coder: Coder) -> None:
     self._key_coder = key_coder
 
-  def _get_component_coders(self):
-    # type: () -> List[Coder]
+  def _get_component_coders(self) -> List[Coder]:
     return [self._key_coder]
 
   def _create_impl(self):
     return coder_impl.ShardedKeyCoderImpl(self._key_coder.get_impl())
 
-  def is_deterministic(self):
-    # type: () -> bool
+  def is_deterministic(self) -> bool:
     return self._key_coder.is_deterministic()
 
   def as_cloud_object(self, coders_context=None):

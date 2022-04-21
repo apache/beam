@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Beam fn API log handler."""
 
 # pytype: skip-file
@@ -70,15 +71,14 @@ class FnApiLogRecordHandler(logging.Handler):
       -float('inf'): beam_fn_api_pb2.LogEntry.Severity.DEBUG,
   }
 
-  def __init__(self, log_service_descriptor):
-    # type: (endpoints_pb2.ApiServiceDescriptor) -> None
+  def __init__(self, log_service_descriptor: endpoints_pb2.ApiServiceDescriptor) -> None:
     super().__init__()
 
     self._alive = True
     self._dropped_logs = 0
-    self._log_entry_queue = queue.Queue(
+    self._log_entry_queue: queue.Queue[Union[beam_fn_api_pb2.LogEntry, Sentinel]] = queue.Queue(
         maxsize=self._QUEUE_SIZE
-    )  # type: queue.Queue[Union[beam_fn_api_pb2.LogEntry, Sentinel]]
+    )
 
     ch = GRPCChannelFactory.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
@@ -90,16 +90,14 @@ class FnApiLogRecordHandler(logging.Handler):
     self._reader.daemon = True
     self._reader.start()
 
-  def connect(self):
-    # type: () -> Iterable
+  def connect(self) -> Iterable:
     if hasattr(self, '_logging_stub'):
       del self._logging_stub  # type: ignore[has-type]
     self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
         self._log_channel)
     return self._logging_stub.Logging(self._write_log_entries())
 
-  def map_log_level(self, level):
-    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum
+  def map_log_level(self, level: int) -> beam_fn_api_pb2.LogEntry.Severity.Enum:
     try:
       return self.LOG_LEVEL_MAP[level]
     except KeyError:
@@ -107,8 +105,7 @@ class FnApiLogRecordHandler(logging.Handler):
           beam_level for python_level,
           beam_level in self.LOG_LEVEL_MAP.items() if python_level <= level)
 
-  def emit(self, record):
-    # type: (logging.LogRecord) -> None
+  def emit(self, record: logging.LogRecord) -> None:
     log_entry = beam_fn_api_pb2.LogEntry()
     log_entry.severity = self.map_log_level(record.levelno)
     log_entry.message = self.format(record)
@@ -136,8 +133,7 @@ class FnApiLogRecordHandler(logging.Handler):
     except queue.Full:
       self._dropped_logs += 1
 
-  def close(self):
-    # type: () -> None
+  def close(self) -> None:
 
     """Flush out all existing log entries and unregister this handler."""
     try:
@@ -157,8 +153,7 @@ class FnApiLogRecordHandler(logging.Handler):
       # prematurely.
       logging.error("Error closing the logging channel.", exc_info=True)
 
-  def _write_log_entries(self):
-    # type: () -> Iterator[beam_fn_api_pb2.LogEntry.List]
+  def _write_log_entries(self) -> Iterator[beam_fn_api_pb2.LogEntry.List]:
     done = False
     while not done:
       log_entries = [self._log_entry_queue.get()]
@@ -176,8 +171,7 @@ class FnApiLogRecordHandler(logging.Handler):
         yield beam_fn_api_pb2.LogEntry.List(
             log_entries=cast(List[beam_fn_api_pb2.LogEntry], log_entries))
 
-  def _read_log_control_messages(self):
-    # type: () -> None
+  def _read_log_control_messages(self) -> None:
     # Only reconnect when we are alive.
     # We can drop some logs in the unlikely event of logging connection
     # dropped(not closed) during termination when we still have logs to be sent.

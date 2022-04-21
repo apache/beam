@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """
 :class:`DisplayData`, its classes, interfaces and methods.
 
@@ -60,8 +61,7 @@ class HasDisplayData(object):
 
   It implements only the display_data method and a _namespace method.
   """
-  def display_data(self):
-    # type: () -> dict
+  def display_data(self) -> dict:
 
     """ Returns the display data associated to a pipeline component.
 
@@ -85,8 +85,7 @@ class HasDisplayData(object):
     """
     return {}
 
-  def _namespace(self):
-    # type: () -> str
+  def _namespace(self) -> str:
     return '{}.{}'.format(self.__module__, self.__class__.__name__)
 
 
@@ -95,12 +94,11 @@ class DisplayData(object):
   """
   def __init__(
       self,
-      namespace,  # type: str
-      display_data_dict  # type: dict
-  ):
-    # type: (...) -> None
+      namespace: str,
+      display_data_dict: dict
+  ) -> None:
     self.namespace = namespace
-    self.items = []  # type: List[DisplayDataItem]
+    self.items: List[DisplayDataItem] = []
     self._populate_items(display_data_dict)
 
   def _populate_items(self, display_data_dict):
@@ -126,8 +124,7 @@ class DisplayData(object):
       self.items.append(
           DisplayDataItem(element, namespace=self.namespace, key=key))
 
-  def to_proto(self):
-    # type: (...) -> List[beam_runner_api_pb2.DisplayData]
+  def to_proto(self) -> List[beam_runner_api_pb2.DisplayData]:
 
     """Returns a List of Beam proto representation of Display data."""
     def create_payload(dd):
@@ -274,8 +271,7 @@ class DisplayDataItem(object):
     self._drop_if_none = False
     self._drop_if_default = False
 
-  def drop_if_none(self):
-    # type: () -> DisplayDataItem
+  def drop_if_none(self) -> DisplayDataItem:
 
     """ The item should be dropped if its value is None.
 
@@ -285,8 +281,7 @@ class DisplayDataItem(object):
     self._drop_if_none = True
     return self
 
-  def drop_if_default(self, default):
-    # type: (...) -> DisplayDataItem
+  def drop_if_default(self, default) -> DisplayDataItem:
 
     """ The item should be dropped if its value is equal to its default.
 
@@ -297,8 +292,7 @@ class DisplayDataItem(object):
     self._drop_if_default = True
     return self
 
-  def should_drop(self):
-    # type: () -> bool
+  def should_drop(self) -> bool:
 
     """ Return True if the item should be dropped, or False if it should not
     be dropped. This depends on the drop_if_none, and drop_if_default calls.
@@ -312,8 +306,7 @@ class DisplayDataItem(object):
       return True
     return False
 
-  def is_valid(self):
-    # type: () -> None
+  def is_valid(self) -> None:
 
     """ Checks that all the necessary fields of the :class:`DisplayDataItem`
     are filled in. It checks that neither key, namespace, value or type are
@@ -354,8 +347,7 @@ class DisplayDataItem(object):
     res['value'] = self._format_value(self.value, self.type)
     return res
 
-  def get_dict(self):
-    # type: () -> dict
+  def get_dict(self) -> dict:
 
     """ Returns the internal-API dictionary representing the
     :class:`DisplayDataItem`.

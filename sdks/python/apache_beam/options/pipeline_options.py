@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Pipeline options obtained from command line parsing."""
 
 # pytype: skip-file
@@ -170,8 +171,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self, flags=None, **kwargs):
-    # type: (Optional[List[str]], **Any) -> None
+  def __init__(self, flags: Optional[List[str]] = None, **kwargs: Any) -> None:
 
     """Initialize an options class.
 
@@ -233,8 +233,7 @@ class PipelineOptions(HasDisplayData):
             self._visible_options, option_name)
 
   @classmethod
-  def _add_argparse_args(cls, parser):
-    # type: (_BeamArgumentParser) -> None
+  def _add_argparse_args(cls, parser: _BeamArgumentParser) -> None:
     # Override this in subclasses to provide options.
     pass
 
@@ -279,10 +278,9 @@ class PipelineOptions(HasDisplayData):
   def get_all_options(
       self,
       drop_default=False,
-      add_extra_args_fn=None,  # type: Optional[Callable[[_BeamArgumentParser], None]]
+      add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
       retain_unknown_options=False
-  ):
-    # type: (...) -> Dict[str, Any]
+  ) -> Dict[str, Any]:
 
     """Returns a dictionary of all defined arguments.
 
@@ -354,8 +352,7 @@ class PipelineOptions(HasDisplayData):
   def display_data(self):
     return self.get_all_options(True)
 
-  def view_as(self, cls):
-    # type: (Type[PipelineOptionsT]) -> PipelineOptionsT
+  def view_as(self, cls: Type[PipelineOptionsT]) -> PipelineOptionsT:
 
     """Returns a view of current object as provided PipelineOption subclass.
 
@@ -395,13 +392,11 @@ class PipelineOptions(HasDisplayData):
     view._all_options = self._all_options
     return view
 
-  def _visible_option_list(self):
-    # type: () -> List[str]
+  def _visible_option_list(self) -> List[str]:
     return sorted(
         option for option in dir(self._visible_options) if option[0] != '_')
 
-  def __dir__(self):
-    # type: () -> List[str]
+  def __dir__(self) -> List[str]:
     return sorted(
         dir(type(self)) + list(self.__dict__) + self._visible_option_list())
 
@@ -504,9 +499,9 @@ def additional_option_ptransform_fn():
 
 
 # Optional type checks that aren't enabled by default.
-additional_type_checks = {
+additional_type_checks: Dict[str, Callable[[], None]] = {
     'ptransform_fn': additional_option_ptransform_fn,
-}  # type: Dict[str, Callable[[], None]]
+}
 
 
 def enable_all_additional_type_checks():
@@ -1475,7 +1470,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides = []  # type: List[Dict[str, Any]]
+  overrides: List[Dict[str, Any]] = []
 
   def __init__(self, **options):
     self.options = options

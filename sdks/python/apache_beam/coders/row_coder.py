@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
 from apache_beam.coders.coder_impl import RowCoderImpl
@@ -107,8 +108,7 @@ class RowCoder(FastCoder):
     return cls(schema)
 
   @staticmethod
-  def from_payload(payload):
-    # type: (bytes) -> RowCoder
+  def from_payload(payload: bytes) -> RowCoder:
     return RowCoder(proto_utils.parse_Bytes(payload, schema_pb2.Schema))
 
   def __reduce__(self):

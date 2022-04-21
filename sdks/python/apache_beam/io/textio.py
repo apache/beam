@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """A source and a sink for reading from and writing to text files."""
 
 # pytype: skip-file
@@ -97,7 +98,7 @@ class _TextSource(filebasedsource.FileBasedSource):
                min_bundle_size,
                compression_type,
                strip_trailing_newlines,
-               coder,  # type: coders.Coder
+               coder: coders.Coder,
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
                skip_header_lines=0,
@@ -430,7 +431,7 @@ class _TextSink(filebasedsink.FileBasedSink):
                append_trailing_newlines=True,
                num_shards=0,
                shard_name_template=None,
-               coder=coders.ToBytesCoder(),  # type: coders.Coder
+               coder: coders.Coder = coders.ToBytesCoder(),
                compression_type=CompressionTypes.AUTO,
                header=None,
                footer=None):
@@ -557,7 +558,7 @@ class ReadAllFromText(PTransform):
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),  # type: coders.Coder
+      coder: coders.Coder = coders.StrUtf8Coder(),
       skip_header_lines=0,
       with_filename=False,
       delimiter=None,
@@ -638,7 +639,7 @@ class ReadFromText(PTransform):
       min_bundle_size=0,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),  # type: coders.Coder
+      coder: coders.Coder = coders.StrUtf8Coder(),
       validate=True,
       skip_header_lines=0,
       delimiter=None,
@@ -707,12 +708,12 @@ class WriteToText(PTransform):
 
   def __init__(
       self,
-      file_path_prefix,  # type: str
+      file_path_prefix: str,
       file_name_suffix='',
       append_trailing_newlines=True,
       num_shards=0,
-      shard_name_template=None,  # type: Optional[str]
-      coder=coders.ToBytesCoder(),  # type: coders.Coder
+      shard_name_template: Optional[str] = None,
+      coder: coders.Coder = coders.ToBytesCoder(),
       compression_type=CompressionTypes.AUTO,
       header=None,
       footer=None):

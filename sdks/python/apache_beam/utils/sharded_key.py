@@ -18,6 +18,7 @@
 # pytype: skip-file
 
 
+from __future__ import annotations
 class ShardedKey(object):
   """
   A sharded key consisting of a user key and an opaque shard id represented by
@@ -30,9 +31,8 @@ class ShardedKey(object):
   def __init__(
       self,
       key,
-      shard_id,  # type: bytes
-  ):
-    # type: (...) -> None
+      shard_id: bytes,
+  ) -> None:
     assert shard_id is not None
     self._key = key
     self._shard_id = shard_id

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """
 performance summary for a run of nexmark query
 """
@@ -36,8 +37,7 @@ class NexmarkPerf(object):
     # number of result produced
     self.result_count = result_count if result_count else -1
 
-  def has_progress(self, previous_perf):
-    # type: (NexmarkPerf) -> bool
+  def has_progress(self, previous_perf: NexmarkPerf) -> bool:
 
     """
     Args:

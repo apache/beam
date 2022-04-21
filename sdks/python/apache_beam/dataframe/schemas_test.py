@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Tests for schemas."""
 
 # pytype: skip-file
@@ -66,7 +67,7 @@ def matches_df(expected):
 #   pd.Series([b'abc'], dtype=bytes).dtype != 'S'
 #   pd.Series([b'abc'], dtype=bytes).astype(bytes).dtype == 'S'
 # (test data, pandas_type, column_name, beam_type)
-COLUMNS = [
+COLUMNS: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str, typing.Any]] = [
     ([375, 24, 0, 10, 16], np.int32, 'i32', np.int32),
     ([375, 24, 0, 10, 16], np.int64, 'i64', np.int64),
     ([375, 24, None, 10, 16],
@@ -95,7 +96,7 @@ COLUMNS = [
      pd.StringDtype(),
      'strdtype',
      typing.Optional[str]),
-]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str, typing.Any]]
+]
 
 NICE_TYPES_DF = pd.DataFrame(columns=[name for _, _, name, _ in COLUMNS])
 for arr, dtype, name, _ in COLUMNS:
@@ -106,9 +107,9 @@ NICE_TYPES_PROXY = NICE_TYPES_DF[:0]
 SERIES_TESTS = [(pd.Series(arr, dtype=dtype, name=name), arr, beam_type)
                 for (arr, dtype, name, beam_type) in COLUMNS]
 
-_TEST_ARRAYS = [
+_TEST_ARRAYS: typing.List[typing.List[typing.Any]] = [
     arr for (arr, _, _, _) in COLUMNS
-]  # type: typing.List[typing.List[typing.Any]]
+]
 DF_RESULT = list(zip(*_TEST_ARRAYS))
 BEAM_SCHEMA = typing.NamedTuple(  # type: ignore
     'BEAM_SCHEMA', [(name, beam_type) for _, _, name, beam_type in COLUMNS])

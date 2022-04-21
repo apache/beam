@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 import contextlib
 import random
 import threading
@@ -36,12 +37,12 @@ class Session(object):
   def __init__(self, bindings=None):
     self._bindings = dict(bindings or {})
 
-  def evaluate(self, expr):  # type: (Expression) -> Any
+  def evaluate(self, expr: Expression) -> Any:
     if expr not in self._bindings:
       self._bindings[expr] = expr.evaluate_at(self)
     return self._bindings[expr]
 
-  def lookup(self, expr):  #  type: (Expression) -> Any
+  def lookup(self, expr: Expression) -> Any:
     return self._bindings[expr]
 
 
@@ -251,9 +252,9 @@ class Expression(Generic[T]):
 class PlaceholderExpression(Expression):
   """An expression whose value must be explicitly bound in the session."""
   def __init__(
-      self,  # type: PlaceholderExpression
-      proxy, # type: T
-      reference=None,  # type: Any
+      self: PlaceholderExpression,
+      proxy: T,
+      reference: Any = None,
   ):
     """Initialize a placeholder expression.
 
@@ -283,9 +284,9 @@ class PlaceholderExpression(Expression):
 class ConstantExpression(Expression):
   """An expression whose value is known at pipeline construction time."""
   def __init__(
-      self,  # type: ConstantExpression
-      value,  # type: T
-      proxy=None  # type: Optional[T]
+      self: ConstantExpression,
+      value: T,
+      proxy: Optional[T] = None
   ):
     """Initialize a constant expression.
 
@@ -319,14 +320,14 @@ class ConstantExpression(Expression):
 class ComputedExpression(Expression):
   """An expression whose value must be computed at pipeline execution time."""
   def __init__(
-      self,  # type: ComputedExpression
-      name,  # type: str
-      func,  # type: Callable[...,T]
-      args,  # type: Iterable[Expression]
-      proxy=None,  # type: Optional[T]
-      _id=None,  # type: Optional[str]
-      requires_partition_by=partitionings.Index(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
+      self: ComputedExpression,
+      name: str,
+      func: Callable[...,T],
+      args: Iterable[Expression],
+      proxy: Optional[T] = None,
+      _id: Optional[str] = None,
+      requires_partition_by: partitionings.Partitioning = partitionings.Index(),
+      preserves_partition_by: partitionings.Partitioning = partitionings.Singleton(),
   ):
     """Initialize a computed expression.
 

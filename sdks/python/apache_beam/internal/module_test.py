@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Module used to define functions and classes used by the coder unit tests."""
 
 # pytype: skip-file
@@ -64,7 +65,7 @@ XYZ_OBJECT = Xyz()
 class RecursiveClass(object):
   """A class that contains a reference to itself."""
 
-  SELF_TYPE = None  # type: Type[RecursiveClass]
+  SELF_TYPE: Type[RecursiveClass] = None
 
   def __init__(self, datum):
     self.datum = 'RecursiveClass:%s' % datum

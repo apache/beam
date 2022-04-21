@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
 from typing import Set
 from typing import Tuple
 
@@ -35,7 +36,7 @@ from apache_beam.typehints import with_output_types
 @with_input_types(int)
 @with_output_types(int)
 class CallSequenceEnforcingCombineFn(beam.CombineFn):
-  instances = set()  # type: Set[CallSequenceEnforcingCombineFn]
+  instances: Set[CallSequenceEnforcingCombineFn] = set()
 
   def __init__(self):
     super().__init__()

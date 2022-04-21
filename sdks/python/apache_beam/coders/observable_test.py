@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Tests for the Observable mixin class."""
 # pytype: skip-file
 
@@ -29,7 +30,7 @@ from apache_beam.coders import observable
 class ObservableMixinTest(unittest.TestCase):
   observed_count = 0
   observed_sum = 0
-  observed_keys = []  # type: List[Optional[str]]
+  observed_keys: List[Optional[str]] = []
 
   def observer(self, value, key=None):
     self.observed_count += 1

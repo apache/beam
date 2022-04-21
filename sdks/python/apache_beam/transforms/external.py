@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Defines Transform whose expansion is implemented elsewhere.
 
 No backward compatibility guarantees. Everything in this module is experimental.
@@ -431,8 +432,8 @@ class ExternalTransform(ptransform.PTransform):
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
     self._expansion_service = expansion_service
     self._external_namespace = self._fresh_namespace()
-    self._inputs = {}  # type: Dict[str, pvalue.PCollection]
-    self._outputs = {}  # type: Dict[str, pvalue.PCollection]
+    self._inputs: Dict[str, pvalue.PCollection] = {}
+    self._outputs: Dict[str, pvalue.PCollection] = {}
 
   def with_output_types(self, *args, **kwargs):
     return WithTypeHints.with_output_types(self, *args, **kwargs)
@@ -467,13 +468,11 @@ class ExternalTransform(ptransform.PTransform):
     cls._external_namespace.value = prev
 
   @classmethod
-  def _fresh_namespace(cls):
-    # type: () -> str
+  def _fresh_namespace(cls) -> str:
     ExternalTransform._namespace_counter += 1
     return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
-  def expand(self, pvalueish):
-    # type: (pvalue.PCollection) -> pvalue.PCollection
+  def expand(self, pvalueish: pvalue.PCollection) -> pvalue.PCollection:
     if isinstance(pvalueish, pvalue.PBegin):
       self._inputs = {}
     elif isinstance(pvalueish, (list, tuple)):

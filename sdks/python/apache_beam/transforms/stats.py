@@ -17,6 +17,7 @@
 
 # cython: language_level=3
 
+from __future__ import annotations
 """This module has all statistic related transforms.
 
 This ApproximateUnique class will be deprecated [1]. PLease look into using
@@ -433,8 +434,7 @@ class ApproximateQuantiles(object):
 
 class _QuantileSpec(object):
   """Quantiles computation specifications."""
-  def __init__(self, buffer_size, num_buffers, weighted, key, reverse):
-    # type: (int, int, bool, Any, bool) -> None
+  def __init__(self, buffer_size: int, num_buffers: int, weighted: bool, key: Any, reverse: bool) -> None:
     self.buffer_size = buffer_size
     self.num_buffers = num_buffers
     self.weighted = weighted
@@ -454,8 +454,7 @@ class _QuantileSpec(object):
     else:
       self.less_than = lambda a, b: key(a) < key(b)
 
-  def get_argsort_key(self, elements):
-    # type: (List) -> Callable[[int], Any]
+  def get_argsort_key(self, elements: List) -> Callable[[int], Any]:
 
     """Returns a key for sorting indices of elements by element's value."""
     if self.key is None:
@@ -479,8 +478,7 @@ class _QuantileBuffer(object):
   (see http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
   def __init__(
-      self, elements, weights, weighted, level=0, min_val=None, max_val=None):
-    # type: (List, List, bool, int, Any, Any) -> None
+      self, elements: List, weights: List, weighted: bool, level: int = 0, min_val: Any = None, max_val: Any = None) -> None:
     self.elements = elements
     # In non-weighted case weights contains a single element representing weight
     # of the buffer in the sense of the original algorithm. In weighted case,
@@ -511,8 +509,7 @@ class _QuantileState(object):
   """
   Compact summarization of a collection on which quantiles can be estimated.
   """
-  def __init__(self, unbuffered_elements, unbuffered_weights, buffers, spec):
-    # type: (List, List, List[_QuantileBuffer], _QuantileSpec) -> None
+  def __init__(self, unbuffered_elements: List, unbuffered_weights: List, buffers: List[_QuantileBuffer], spec: _QuantileSpec) -> None:
     self.buffers = buffers
     self.spec = spec
     if spec.weighted:
@@ -539,14 +536,12 @@ class _QuantileState(object):
             self.buffers,
             self.spec))
 
-  def is_empty(self):
-    # type: () -> bool
+  def is_empty(self) -> bool:
 
     """Check if the buffered & unbuffered elements are empty or not."""
     return not self.unbuffered_elements and not self.buffers
 
-  def _add_unbuffered(self, elements, offset_fn):
-    # type: (List, Any) -> None
+  def _add_unbuffered(self, elements: List, offset_fn: Any) -> None:
 
     """
     Add elements to the unbuffered list, creating new buffers and
@@ -571,8 +566,7 @@ class _QuantileState(object):
 
     self.collapse_if_needed(offset_fn)
 
-  def _add_unbuffered_weighted(self, elements, offset_fn):
-    # type: (List, Any) -> None
+  def _add_unbuffered_weighted(self, elements: List, offset_fn: Any) -> None:
 
     """
     Add elements with weights to the unbuffered list, creating new buffers and
@@ -609,8 +603,7 @@ class _QuantileState(object):
 
     self.collapse_if_needed(offset_fn)
 
-  def finalize(self):
-    # type: () -> None
+  def finalize(self) -> None:
 
     """
     Creates a new buffer using all unbuffered elements. Called before
@@ -641,8 +634,7 @@ class _QuantileState(object):
               self.unbuffered_elements, weights=[1], weighted=False))
     self.unbuffered_elements = []
 
-  def collapse_if_needed(self, offset_fn):
-    # type: (Any) -> None
+  def collapse_if_needed(self, offset_fn: Any) -> None:
 
     """
     Checks if summary has too many buffers and collapses some of them until the
@@ -658,8 +650,7 @@ class _QuantileState(object):
       heapq.heappush(self.buffers, _collapse(to_collapse, offset_fn, self.spec))
 
 
-def _collapse(buffers, offset_fn, spec):
-  # type: (List[_QuantileBuffer], Any, _QuantileSpec) -> _QuantileBuffer
+def _collapse(buffers: List[_QuantileBuffer], offset_fn: Any, spec: _QuantileSpec) -> _QuantileBuffer:
 
   """
   Approximates elements from multiple buffers and produces a single buffer.
@@ -687,8 +678,7 @@ def _collapse(buffers, offset_fn, spec):
       new_elements, new_weights, spec.weighted, new_level, min_val, max_val)
 
 
-def _interpolate(buffers, count, step, offset, spec):
-  # type: (List[_QuantileBuffer], int, float, float, _QuantileSpec) -> Tuple[List, List, Any, Any]
+def _interpolate(buffers: List[_QuantileBuffer], count: int, step: float, offset: float, spec: _QuantileSpec) -> Tuple[List, List, Any, Any]:
 
   """
   Emulates taking the ordered union of all elements in buffers, repeated
@@ -816,13 +806,13 @@ class ApproximateQuantilesCombineFn(CombineFn):
   # non-optimal. The impact is logarithmic with respect to this value, so this
   # default should be fine for most uses.
   _MAX_NUM_ELEMENTS = 1e9
-  _qs = None  # type: _QuantileState
+  _qs: _QuantileState = None
 
   def __init__(
       self,
-      num_quantiles,  # type: int
-      buffer_size,  # type: int
-      num_buffers,  # type: int
+      num_quantiles: int,
+      buffer_size: int,
+      num_buffers: int,
       key=None,
       reverse=False,
       weighted=False,
@@ -848,14 +838,13 @@ class ApproximateQuantilesCombineFn(CombineFn):
   @classmethod
   def create(
       cls,
-      num_quantiles,  # type: int
+      num_quantiles: int,
       epsilon=None,
       max_num_elements=None,
       key=None,
       reverse=False,
       weighted=False,
-      input_batched=False):
-    # type: (...) -> ApproximateQuantilesCombineFn
+      input_batched=False) -> ApproximateQuantilesCombineFn:
 
     """
     Creates an approximate quantiles combiner with the given key and desired
@@ -906,8 +895,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
         weighted=weighted,
         input_batched=input_batched)
 
-  def _offset(self, new_weight):
-    # type: (int) -> float
+  def _offset(self, new_weight: int) -> float:
 
     """
     If the weight is even, we must round up or down. Alternate between these
@@ -920,8 +908,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
       return (new_weight + self._offset_jitter) / 2
 
   # TODO(BEAM-7746): Signature incompatible with supertype
-  def create_accumulator(self):  # type: ignore[override]
-    # type: () -> _QuantileState
+  def create_accumulator(self) -> _QuantileState:  # type: ignore[override]
     self._qs = _QuantileState(
         unbuffered_elements=[],
         unbuffered_weights=[],
@@ -936,8 +923,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     quantile_state.add_unbuffered([element], self._offset)
     return quantile_state
 
-  def _add_inputs(self, quantile_state, elements):
-    # type: (_QuantileState, List) -> _QuantileState
+  def _add_inputs(self, quantile_state: _QuantileState, elements: List) -> _QuantileState:
 
     """
     Add a batch of elements to the collection being summarized by quantile

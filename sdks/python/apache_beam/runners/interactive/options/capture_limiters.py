@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Module to condition how Interactive Beam stops capturing data.
 
 For internal use only; no backwards-compatibility guarantees.
@@ -32,8 +33,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 class Limiter:
   """Limits an aspect of the caching layer."""
-  def is_triggered(self):
-    # type: () -> bool
+  def is_triggered(self) -> bool:
 
     """Returns True if the limiter has triggered, and caching should stop."""
     raise NotImplementedError
@@ -43,8 +43,7 @@ class ElementLimiter(Limiter):
   """A `Limiter` that limits reading from cache based on some property of an
   element.
   """
-  def update(self, e):
-    # type: (Any) -> None
+  def update(self, e: Any) -> None:
 
     """Update the internal state based on some property of an element.
 
@@ -57,7 +56,7 @@ class SizeLimiter(Limiter):
   """Limits the cache size to a specified byte limit."""
   def __init__(
       self,
-      size_limit  # type: int
+      size_limit: int
   ):
     self._size_limit = size_limit
 
@@ -75,7 +74,7 @@ class DurationLimiter(Limiter):
   """Limits the duration of the capture."""
   def __init__(
       self,
-      duration_limit  # type: datetime.timedelta
+      duration_limit: datetime.timedelta
   ):
     self._duration_limit = duration_limit
     self._timer = threading.Timer(duration_limit.total_seconds(), self._trigger)

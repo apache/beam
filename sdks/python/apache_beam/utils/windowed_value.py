@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Core windowing data structures.
 
 This module is experimental. No backwards-compatibility guarantees.
@@ -120,18 +121,15 @@ class PaneInfo(object):
     return self._timing
 
   @property
-  def index(self):
-    # type: () -> int
+  def index(self) -> int:
     return self._index
 
   @property
-  def nonspeculative_index(self):
-    # type: () -> int
+  def nonspeculative_index(self) -> int:
     return self._nonspeculative_index
 
   @property
-  def encoded_byte(self):
-    # type: () -> int
+  def encoded_byte(self) -> int:
     return self._encoded_byte
 
   def __repr__(self):
@@ -165,8 +163,7 @@ class PaneInfo(object):
                       self._nonspeculative_index)
 
 
-def _construct_well_known_pane_infos():
-  # type: () -> Dict[int, PaneInfo]
+def _construct_well_known_pane_infos() -> Dict[int, PaneInfo]:
   pane_infos = []
   for timing in (PaneInfoTiming.EARLY,
                  PaneInfoTiming.ON_TIME,
@@ -202,18 +199,17 @@ class WindowedValue(object):
 
   def __init__(self,
                value,
-               timestamp,  # type: TimestampTypes
-               windows,  # type: Tuple[BoundedWindow, ...]
-               pane_info=PANE_INFO_UNKNOWN  # type: PaneInfo
-              ):
-    # type: (...) -> None
+               timestamp: TimestampTypes,
+               windows: Tuple[BoundedWindow, ...],
+               pane_info: PaneInfo = PANE_INFO_UNKNOWN
+              ) -> None:
     # For performance reasons, only timestamp_micros is stored by default
     # (as a C int). The Timestamp object is created on demand below.
     self.value = value
     if isinstance(timestamp, int):
       self.timestamp_micros = timestamp * 1000000
       if TYPE_CHECKING:
-        self.timestamp_object = None  # type: Optional[Timestamp]
+        self.timestamp_object: Optional[Timestamp] = None
     else:
       self.timestamp_object = (
           timestamp
@@ -223,8 +219,7 @@ class WindowedValue(object):
     self.pane_info = pane_info
 
   @property
-  def timestamp(self):
-    # type: () -> Timestamp
+  def timestamp(self) -> Timestamp:
     if self.timestamp_object is None:
       self.timestamp_object = Timestamp(0, self.timestamp_micros)
     return self.timestamp_object
@@ -250,8 +245,7 @@ class WindowedValue(object):
             (hash(self.windows) & 0xFFFFFFFFFFFFF) + 11 *
             (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
-  def with_value(self, new_value):
-    # type: (Any) -> WindowedValue
+  def with_value(self, new_value: Any) -> WindowedValue:
 
     """Creates a new WindowedValue with the same timestamps and windows as this.
 
@@ -287,10 +281,9 @@ except TypeError:
 class _IntervalWindowBase(object):
   """Optimized form of IntervalWindow storing only microseconds for endpoints.
   """
-  def __init__(self, start, end):
-    # type: (TimestampTypes, TimestampTypes) -> None
+  def __init__(self, start: TimestampTypes, end: TimestampTypes) -> None:
     if start is not None:
-      self._start_object = Timestamp.of(start)  # type: Optional[Timestamp]
+      self._start_object: Optional[Timestamp] = Timestamp.of(start)
       try:
         self._start_micros = self._start_object.micros
       except OverflowError:
@@ -302,7 +295,7 @@ class _IntervalWindowBase(object):
       self._start_object = None
 
     if end is not None:
-      self._end_object = Timestamp.of(end)  # type: Optional[Timestamp]
+      self._end_object: Optional[Timestamp] = Timestamp.of(end)
       try:
         self._end_micros = self._end_object.micros
       except OverflowError:
@@ -314,15 +307,13 @@ class _IntervalWindowBase(object):
       self._end_object = None
 
   @property
-  def start(self):
-    # type: () -> Timestamp
+  def start(self) -> Timestamp:
     if self._start_object is None:
       self._start_object = Timestamp(0, self._start_micros)
     return self._start_object
 
   @property
-  def end(self):
-    # type: () -> Timestamp
+  def end(self) -> Timestamp:
     if self._end_object is None:
       self._end_object = Timestamp(0, self._end_micros)
     return self._end_object

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """
 The classes in this file are interfaces for metrics. They are not intended
 to be subclassed or created directly by users. To work with and access metrics,
@@ -49,8 +50,7 @@ class MetricName(object):
   allows grouping related metrics together and also prevents collisions
   between multiple metrics of the same name.
   """
-  def __init__(self, namespace, name, urn=None, labels=None):
-    # type: (Optional[str], Optional[str], Optional[str], Optional[Dict[str, str]]) -> None
+  def __init__(self, namespace: Optional[str], name: Optional[str], urn: Optional[str] = None, labels: Optional[Dict[str, str]] = None) -> None:
 
     """Initializes ``MetricName``.
 
@@ -103,8 +103,7 @@ class MetricName(object):
 
 class Metric(object):
   """Base interface of a metric object."""
-  def __init__(self, metric_name):
-    # type: (MetricName) -> None
+  def __init__(self, metric_name: MetricName) -> None:
     self.metric_name = metric_name
 
 

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """DirectRunner, executing on the local machine.
 
 The DirectRunner is a runner implementation that executes the entire
@@ -393,8 +394,7 @@ class _DirectReadFromPubSub(PTransform):
     self._source = source
 
   def _infer_output_coder(
-      self, unused_input_type=None, unused_input_coder=None):
-    # type: (...) -> typing.Optional[coders.Coder]
+      self, unused_input_type=None, unused_input_coder=None) -> typing.Optional[coders.Coder]:
     return coders.BytesCoder()
 
   def get_windowing(self, unused_inputs):

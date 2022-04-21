@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Syntax & semantics for type-hinting custom-functions/PTransforms in the SDK.
 
 This module defines type-hinting objects and the corresponding syntax for
@@ -1172,7 +1173,7 @@ WindowedValue = WindowedTypeConstraint
 # There is a circular dependency between defining this mapping
 # and using it in normalize().  Initialize it here and populate
 # it below.
-_KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
+_KNOWN_PRIMITIVE_TYPES: typing.Dict[type, typing.Any] = {}
 
 
 def normalize(x, none_as_type=False):

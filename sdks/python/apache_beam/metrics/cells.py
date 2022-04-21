@@ -17,6 +17,7 @@
 
 # cython: language_level=3
 
+from __future__ import annotations
 """
 This file contains metric cell classes. A metric cell is used to accumulate
 in-memory changes to a metric. It represents a specific metric in a single
@@ -80,8 +81,7 @@ class MetricCell(object):
   def to_runner_api_monitoring_info_impl(self, name, transform_id):
     raise NotImplementedError
 
-  def reset(self):
-    # type: () -> None
+  def reset(self) -> None:
     raise NotImplementedError
 
   def __reduce__(self):
@@ -89,8 +89,7 @@ class MetricCell(object):
 
 
 class MetricCellFactory(object):
-  def __call__(self):
-    # type: () -> MetricCell
+  def __call__(self) -> MetricCell:
     raise NotImplementedError
 
 
@@ -109,12 +108,10 @@ class CounterCell(MetricCell):
     super().__init__(*args)
     self.value = CounterAggregator.identity_element()
 
-  def reset(self):
-    # type: () -> None
+  def reset(self) -> None:
     self.value = CounterAggregator.identity_element()
 
-  def combine(self, other):
-    # type: (CounterCell) -> CounterCell
+  def combine(self, other: CounterCell) -> CounterCell:
     result = CounterCell()
     result.inc(self.value + other.value)
     return result
@@ -138,8 +135,7 @@ class CounterCell(MetricCell):
       with self._lock:
         self.value += value
 
-  def get_cumulative(self):
-    # type: () -> int
+  def get_cumulative(self) -> int:
     with self._lock:
       return self.value
 
@@ -173,12 +169,10 @@ class DistributionCell(MetricCell):
     super().__init__(*args)
     self.data = DistributionAggregator.identity_element()
 
-  def reset(self):
-    # type: () -> None
+  def reset(self) -> None:
     self.data = DistributionAggregator.identity_element()
 
-  def combine(self, other):
-    # type: (DistributionCell) -> DistributionCell
+  def combine(self, other: DistributionCell) -> DistributionCell:
     result = DistributionCell()
     result.data = self.data.combine(other.data)
     return result
@@ -203,8 +197,7 @@ class DistributionCell(MetricCell):
     if ivalue > self.data.max:
       self.data.max = ivalue
 
-  def get_cumulative(self):
-    # type: () -> DistributionData
+  def get_cumulative(self) -> DistributionData:
     with self._lock:
       return self.data.get_cumulative()
 
@@ -235,8 +228,7 @@ class GaugeCell(MetricCell):
   def reset(self):
     self.data = GaugeAggregator.identity_element()
 
-  def combine(self, other):
-    # type: (GaugeCell) -> GaugeCell
+  def combine(self, other: GaugeCell) -> GaugeCell:
     result = GaugeCell()
     result.data = self.data.combine(other.data)
     return result
@@ -244,8 +236,7 @@ class GaugeCell(MetricCell):
   def set(self, value):
     self.update(value)
 
-  def update(self, value):
-    # type: (SupportsInt) -> None
+  def update(self, value: SupportsInt) -> None:
     value = int(value)
     with self._lock:
       # Set the value directly without checking timestamp, because
@@ -253,8 +244,7 @@ class GaugeCell(MetricCell):
       self.data.value = value
       self.data.timestamp = time.time()
 
-  def get_cumulative(self):
-    # type: () -> GaugeData
+  def get_cumulative(self) -> GaugeData:
     with self._lock:
       return self.data.get_cumulative()
 
@@ -269,49 +259,40 @@ class GaugeCell(MetricCell):
 
 class DistributionResult(object):
   """The result of a Distribution metric."""
-  def __init__(self, data):
-    # type: (DistributionData) -> None
+  def __init__(self, data: DistributionData) -> None:
     self.data = data
 
-  def __eq__(self, other):
-    # type: (object) -> bool
+  def __eq__(self, other: object) -> bool:
     if isinstance(other, DistributionResult):
       return self.data == other.data
     else:
       return False
 
-  def __hash__(self):
-    # type: () -> int
+  def __hash__(self) -> int:
     return hash(self.data)
 
-  def __repr__(self):
-    # type: () -> str
+  def __repr__(self) -> str:
     return 'DistributionResult(sum={}, count={}, min={}, max={})'.format(
         self.sum, self.count, self.min, self.max)
 
   @property
-  def max(self):
-    # type: () -> Optional[int]
+  def max(self) -> Optional[int]:
     return self.data.max if self.data.count else None
 
   @property
-  def min(self):
-    # type: () -> Optional[int]
+  def min(self) -> Optional[int]:
     return self.data.min if self.data.count else None
 
   @property
-  def count(self):
-    # type: () -> Optional[int]
+  def count(self) -> Optional[int]:
     return self.data.count
 
   @property
-  def sum(self):
-    # type: () -> Optional[int]
+  def sum(self) -> Optional[int]:
     return self.data.sum
 
   @property
-  def mean(self):
-    # type: () -> Optional[float]
+  def mean(self) -> Optional[float]:
 
     """Returns the float mean of the distribution.
 
@@ -323,19 +304,16 @@ class DistributionResult(object):
 
 
 class GaugeResult(object):
-  def __init__(self, data):
-    # type: (GaugeData) -> None
+  def __init__(self, data: GaugeData) -> None:
     self.data = data
 
-  def __eq__(self, other):
-    # type: (object) -> bool
+  def __eq__(self, other: object) -> bool:
     if isinstance(other, GaugeResult):
       return self.data == other.data
     else:
       return False
 
-  def __hash__(self):
-    # type: () -> int
+  def __hash__(self) -> int:
     return hash(self.data)
 
   def __repr__(self):
@@ -343,13 +321,11 @@ class GaugeResult(object):
         self.value, self.timestamp)
 
   @property
-  def value(self):
-    # type: () -> Optional[int]
+  def value(self) -> Optional[int]:
     return self.data.value
 
   @property
-  def timestamp(self):
-    # type: () -> Optional[int]
+  def timestamp(self) -> Optional[int]:
     return self.data.timestamp
 
 
@@ -363,33 +339,27 @@ class GaugeData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the GaugeCell that contains it.
   """
-  def __init__(self, value, timestamp=None):
-    # type: (Optional[int], Optional[int]) -> None
+  def __init__(self, value: Optional[int], timestamp: Optional[int] = None) -> None:
     self.value = value
     self.timestamp = timestamp if timestamp is not None else 0
 
-  def __eq__(self, other):
-    # type: (object) -> bool
+  def __eq__(self, other: object) -> bool:
     if isinstance(other, GaugeData):
       return self.value == other.value and self.timestamp == other.timestamp
     else:
       return False
 
-  def __hash__(self):
-    # type: () -> int
+  def __hash__(self) -> int:
     return hash((self.value, self.timestamp))
 
-  def __repr__(self):
-    # type: () -> str
+  def __repr__(self) -> str:
     return '<GaugeData(value={}, timestamp={})>'.format(
         self.value, self.timestamp)
 
-  def get_cumulative(self):
-    # type: () -> GaugeData
+  def get_cumulative(self) -> GaugeData:
     return GaugeData(self.value, timestamp=self.timestamp)
 
-  def combine(self, other):
-    # type: (Optional[GaugeData]) -> GaugeData
+  def combine(self, other: Optional[GaugeData]) -> GaugeData:
     if other is None:
       return self
 
@@ -399,8 +369,7 @@ class GaugeData(object):
       return self
 
   @staticmethod
-  def singleton(value, timestamp=None):
-    # type: (Optional[int], Optional[int]) -> GaugeData
+  def singleton(value: Optional[int], timestamp: Optional[int] = None) -> GaugeData:
     return GaugeData(value, timestamp=timestamp)
 
 
@@ -414,8 +383,7 @@ class DistributionData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the DistributionCell that contains it.
   """
-  def __init__(self, sum, count, min, max):
-    # type: (int, int, int, int) -> None
+  def __init__(self, sum: int, count: int, min: int, max: int) -> None:
     if count:
       self.sum = sum
       self.count = count
@@ -427,8 +395,7 @@ class DistributionData(object):
       # Avoid Wimplicitly-unsigned-literal caused by -2**63.
       self.max = -self.min - 1
 
-  def __eq__(self, other):
-    # type: (object) -> bool
+  def __eq__(self, other: object) -> bool:
     if isinstance(other, DistributionData):
       return (
           self.sum == other.sum and self.count == other.count and
@@ -436,21 +403,17 @@ class DistributionData(object):
     else:
       return False
 
-  def __hash__(self):
-    # type: () -> int
+  def __hash__(self) -> int:
     return hash((self.sum, self.count, self.min, self.max))
 
-  def __repr__(self):
-    # type: () -> str
+  def __repr__(self) -> str:
     return 'DistributionData(sum={}, count={}, min={}, max={})'.format(
         self.sum, self.count, self.min, self.max)
 
-  def get_cumulative(self):
-    # type: () -> DistributionData
+  def get_cumulative(self) -> DistributionData:
     return DistributionData(self.sum, self.count, self.min, self.max)
 
-  def combine(self, other):
-    # type: (Optional[DistributionData]) -> DistributionData
+  def combine(self, other: Optional[DistributionData]) -> DistributionData:
     if other is None:
       return self
 
@@ -461,8 +424,7 @@ class DistributionData(object):
         self.max if self.max > other.max else other.max)
 
   @staticmethod
-  def singleton(value):
-    # type: (int) -> DistributionData
+  def singleton(value: int) -> DistributionData:
     return DistributionData(value, 1, value, value)
 
 
@@ -470,8 +432,7 @@ class MetricAggregator(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Base interface for aggregating metric data during pipeline execution."""
-  def identity_element(self):
-    # type: () -> Any
+  def identity_element(self) -> Any:
 
     """Returns the identical element of an Aggregation.
 
@@ -480,12 +441,10 @@ class MetricAggregator(object):
     """
     raise NotImplementedError
 
-  def combine(self, x, y):
-    # type: (Any, Any) -> Any
+  def combine(self, x: Any, y: Any) -> Any:
     raise NotImplementedError
 
-  def result(self, x):
-    # type: (Any) -> Any
+  def result(self, x: Any) -> Any:
     raise NotImplementedError
 
 
@@ -497,16 +456,13 @@ class CounterAggregator(MetricAggregator):
   Values aggregated should be ``int`` objects.
   """
   @staticmethod
-  def identity_element():
-    # type: () -> int
+  def identity_element() -> int:
     return 0
 
-  def combine(self, x, y):
-    # type: (SupportsInt, SupportsInt) -> int
+  def combine(self, x: SupportsInt, y: SupportsInt) -> int:
     return int(x) + int(y)
 
-  def result(self, x):
-    # type: (SupportsInt) -> int
+  def result(self, x: SupportsInt) -> int:
     return int(x)
 
 
@@ -518,16 +474,13 @@ class DistributionAggregator(MetricAggregator):
   Values aggregated should be ``DistributionData`` objects.
   """
   @staticmethod
-  def identity_element():
-    # type: () -> DistributionData
+  def identity_element() -> DistributionData:
     return DistributionData(0, 0, 2**63 - 1, -2**63)
 
-  def combine(self, x, y):
-    # type: (DistributionData, DistributionData) -> DistributionData
+  def combine(self, x: DistributionData, y: DistributionData) -> DistributionData:
     return x.combine(y)
 
-  def result(self, x):
-    # type: (DistributionData) -> DistributionResult
+  def result(self, x: DistributionData) -> DistributionResult:
     return DistributionResult(x.get_cumulative())
 
 
@@ -539,15 +492,12 @@ class GaugeAggregator(MetricAggregator):
   Values aggregated should be ``GaugeData`` objects.
   """
   @staticmethod
-  def identity_element():
-    # type: () -> GaugeData
+  def identity_element() -> GaugeData:
     return GaugeData(0, timestamp=0)
 
-  def combine(self, x, y):
-    # type: (GaugeData, GaugeData) -> GaugeData
+  def combine(self, x: GaugeData, y: GaugeData) -> GaugeData:
     result = x.combine(y)
     return result
 
-  def result(self, x):
-    # type: (GaugeData) -> GaugeResult
+  def result(self, x: GaugeData) -> GaugeResult:
     return GaugeResult(x.get_cumulative())

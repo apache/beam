@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Module to convert Python's native typing types to Beam types."""
 
 # pytype: skip-file
@@ -159,7 +160,7 @@ def is_forward_ref(typ):
 
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
-_type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
+_type_var_cache: typing.Dict[int, typehints.TypeVariable] = {}
 
 
 def convert_to_beam_type(typ):

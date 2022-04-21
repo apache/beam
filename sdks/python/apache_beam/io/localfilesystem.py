@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Local File system implementation for accessing files on disk."""
 
 # pytype: skip-file
@@ -147,8 +148,7 @@ class LocalFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
 
     """Returns a write channel for the given file path.
 
@@ -166,8 +166,7 @@ class LocalFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
 
     """Returns a read channel for the given file path.
 

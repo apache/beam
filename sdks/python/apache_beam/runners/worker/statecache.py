@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """A module for caching state reads/writes in Beam applications."""
 # pytype: skip-file
 # mypy: disallow-untyped-defs
@@ -49,15 +50,13 @@ class Metrics(object):
   """Metrics container for state cache metrics."""
 
   # A set of all registered metrics
-  ALL_METRICS = set()  # type: Set[Hashable]
+  ALL_METRICS: Set[Hashable] = set()
   PREFIX = "beam:metric:statecache:"
 
-  def __init__(self):
-    # type: () -> None
+  def __init__(self) -> None:
     self._context = threading.local()
 
-  def initialize(self):
-    # type: () -> None
+  def initialize(self) -> None:
 
     """Needs to be called once per thread to initialize the local metrics cache.
     """
@@ -65,17 +64,14 @@ class Metrics(object):
       return  # Already initialized
     self._context.metrics = collections.defaultdict(int)
 
-  def count(self, name):
-    # type: (str) -> None
+  def count(self, name: str) -> None:
     self._context.metrics[name] += 1
 
-  def hit_miss(self, total_name, hit_miss_name):
-    # type: (str, str) -> None
+  def hit_miss(self, total_name: str, hit_miss_name: str) -> None:
     self._context.metrics[total_name] += 1
     self._context.metrics[hit_miss_name] += 1
 
-  def get_monitoring_infos(self, cache_size, cache_capacity):
-    # type: (int, int) -> List[metrics_pb2.MonitoringInfo]
+  def get_monitoring_infos(self, cache_size: int, cache_capacity: int) -> List[metrics_pb2.MonitoringInfo]:
 
     """Returns the metrics scoped to the current bundle."""
     metrics = self._context.metrics
@@ -106,17 +102,14 @@ class Metrics(object):
     return gauges + counters
 
   @staticmethod
-  def counter_hit_miss(total_name, hit_name, miss_name):
-    # type: (str, str, str) -> Callable[[CallableT], CallableT]
+  def counter_hit_miss(total_name: str, hit_name: str, miss_name: str) -> Callable[[CallableT], CallableT]:
 
     """Decorator for counting function calls and whether
        the return value equals None (=miss) or not (=hit)."""
     Metrics.ALL_METRICS.update([total_name, hit_name, miss_name])
 
-    def decorator(function):
-      # type: (CallableT) -> CallableT
-      def reporter(self, *args, **kwargs):
-        # type: (StateCache, Any, Any) -> Any
+    def decorator(function: CallableT) -> CallableT:
+      def reporter(self: StateCache, *args: Any, **kwargs: Any) -> Any:
         value = function(self, *args, **kwargs)
         if value is None:
           self._metrics.hit_miss(total_name, miss_name)
@@ -129,16 +122,13 @@ class Metrics(object):
     return decorator
 
   @staticmethod
-  def counter(metric_name):
-    # type: (str) -> Callable[[CallableT], CallableT]
+  def counter(metric_name: str) -> Callable[[CallableT], CallableT]:
 
     """Decorator for counting function calls."""
     Metrics.ALL_METRICS.add(metric_name)
 
-    def decorator(function):
-      # type: (CallableT) -> CallableT
-      def reporter(self, *args, **kwargs):
-        # type: (StateCache, Any, Any) -> Any
+    def decorator(function: CallableT) -> CallableT:
+      def reporter(self: StateCache, *args: Any, **kwargs: Any) -> Any:
         self._metrics.count(metric_name)
         return function(self, *args, **kwargs)
 
@@ -167,8 +157,7 @@ class StateCache(object):
   :arg max_entries The maximum number of entries to store in the cache.
   TODO Memory-based caching: https://issues.apache.org/jira/browse/BEAM-8297
   """
-  def __init__(self, max_entries):
-    # type: (int) -> None
+  def __init__(self, max_entries: int) -> None:
     _LOGGER.info('Creating state cache with size %s', max_entries)
     self._missing = None
     self._cache = self.LRUCache[Tuple[bytes, Optional[bytes]],
@@ -177,52 +166,43 @@ class StateCache(object):
     self._metrics = Metrics()
 
   @Metrics.counter_hit_miss("get", "hit", "miss")
-  def get(self, state_key, cache_token):
-    # type: (bytes, Optional[bytes]) -> Any
+  def get(self, state_key: bytes, cache_token: Optional[bytes]) -> Any:
     assert cache_token and self.is_cache_enabled()
     with self._lock:
       return self._cache.get((state_key, cache_token))
 
   @Metrics.counter("put")
-  def put(self, state_key, cache_token, value):
-    # type: (bytes, Optional[bytes], Any) -> None
+  def put(self, state_key: bytes, cache_token: Optional[bytes], value: Any) -> None:
     assert cache_token and self.is_cache_enabled()
     with self._lock:
       return self._cache.put((state_key, cache_token), value)
 
   @Metrics.counter("clear")
-  def clear(self, state_key, cache_token):
-    # type: (bytes, Optional[bytes]) -> None
+  def clear(self, state_key: bytes, cache_token: Optional[bytes]) -> None:
     assert cache_token and self.is_cache_enabled()
     with self._lock:
       self._cache.put((state_key, cache_token), [])
 
   @Metrics.counter("evict")
-  def evict(self, state_key, cache_token):
-    # type: (bytes, Optional[bytes]) -> None
+  def evict(self, state_key: bytes, cache_token: Optional[bytes]) -> None:
     assert self.is_cache_enabled()
     with self._lock:
       self._cache.evict((state_key, cache_token))
 
-  def evict_all(self):
-    # type: () -> None
+  def evict_all(self) -> None:
     with self._lock:
       self._cache.evict_all()
 
-  def initialize_metrics(self):
-    # type: () -> None
+  def initialize_metrics(self) -> None:
     self._metrics.initialize()
 
-  def is_cache_enabled(self):
-    # type: () -> bool
+  def is_cache_enabled(self) -> bool:
     return self._cache._max_entries > 0
 
-  def size(self):
-    # type: () -> int
+  def size(self) -> int:
     return len(self._cache)
 
-  def get_monitoring_infos(self):
-    # type: () -> List[metrics_pb2.MonitoringInfo]
+  def get_monitoring_infos(self) -> List[metrics_pb2.MonitoringInfo]:
 
     """Retrieves the monitoring infos and resets the counters."""
     with self._lock:
@@ -231,34 +211,28 @@ class StateCache(object):
     return self._metrics.get_monitoring_infos(size, capacity)
 
   class LRUCache(Generic[KT, VT]):
-    def __init__(self, max_entries, default_entry):
-      # type: (int, VT) -> None
+    def __init__(self, max_entries: int, default_entry: VT) -> None:
       self._max_entries = max_entries
       self._default_entry = default_entry
-      self._cache = collections.OrderedDict(
-      )  # type: collections.OrderedDict[KT, VT]
+      self._cache: collections.OrderedDict[KT, VT] = collections.OrderedDict(
+      )
 
-    def get(self, key):
-      # type: (KT) -> VT
+    def get(self, key: KT) -> VT:
       value = self._cache.pop(key, self._default_entry)
       if value != self._default_entry:
         self._cache[key] = value
       return value
 
-    def put(self, key, value):
-      # type: (KT, VT) -> None
+    def put(self, key: KT, value: VT) -> None:
       self._cache[key] = value
       while len(self._cache) > self._max_entries:
         self._cache.popitem(last=False)
 
-    def evict(self, key):
-      # type: (KT) -> None
+    def evict(self, key: KT) -> None:
       self._cache.pop(key, self._default_entry)
 
-    def evict_all(self):
-      # type: () -> None
+    def evict_all(self) -> None:
       self._cache.clear()
 
-    def __len__(self):
-      # type: () -> int
+    def __len__(self) -> int:
       return len(self._cache)

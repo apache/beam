@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """A library of basic combiner PTransform subclasses."""
 
 # pytype: skip-file
@@ -363,7 +364,7 @@ class _MergeTopPerBundle(core.DoFn):
         return False
 
     if self._compare or self._key:
-      heapc = []  # type: List[cy_combiners.ComparableValue]
+      heapc: List[cy_combiners.ComparableValue] = []
       for bundle in bundles:
         if not heapc:
           heapc = [

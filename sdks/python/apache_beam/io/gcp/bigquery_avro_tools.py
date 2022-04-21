@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Tools used tool work with Avro files in the context of BigQuery.
 
 Classes, constants and functions in this file are experimental and have no
@@ -63,8 +64,7 @@ BIG_QUERY_TO_AVRO_TYPES = {
 
 
 def get_record_schema_from_dict_table_schema(
-    schema_name, table_schema, namespace="apache_beam.io.gcp.bigquery"):
-  # type: (Text, Dict[Text, Any], Text) -> Dict[Text, Any]
+    schema_name: Text, table_schema: Dict[Text, Any], namespace: Text = "apache_beam.io.gcp.bigquery") -> Dict[Text, Any]:
 
   """Convert a table schema into an Avro schema.
 
@@ -90,8 +90,7 @@ def get_record_schema_from_dict_table_schema(
   }
 
 
-def table_field_to_avro_field(table_field, namespace):
-  # type: (Dict[Text, Any], str) -> Dict[Text, Any]
+def table_field_to_avro_field(table_field: Dict[Text, Any], namespace: str) -> Dict[Text, Any]:
 
   """Convert a BigQuery field to an avro field.
 

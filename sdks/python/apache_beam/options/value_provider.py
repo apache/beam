@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """A ValueProvider abstracts the notion of fetching a value that may or
 may not be currently available.
 
@@ -95,7 +96,7 @@ class RuntimeValueProvider(ValueProvider):
   at graph construction time.
   """
   runtime_options = None
-  experiments = set()  # type: Set[str]
+  experiments: Set[str] = set()
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Utilities to be used in  Interactive Beam.
 """
 
@@ -97,13 +98,12 @@ class bidict(dict):
     return value, inverse_value
 
 def to_element_list(
-    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]]
-    coder,  # type: Coder
-    include_window_info,  # type: bool
-    n=None,  # type: int
-    include_time_events=False, # type: bool
-):
-  # type: (...) -> List[WindowedValue]
+    reader: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]],
+    coder: Coder,
+    include_window_info: bool,
+    n: int = None,
+    include_time_events: bool = False,
+) -> List[WindowedValue]:
 
   """Returns an iterator that properly decodes the elements from the reader.
   """
@@ -142,8 +142,7 @@ def to_element_list(
       count += 1
 
 
-def elements_to_df(elements, include_window_info=False, element_type=None):
-  # type: (List[WindowedValue], bool, Any) -> DataFrame
+def elements_to_df(elements: List[WindowedValue], include_window_info: bool = False, element_type: Any = None) -> DataFrame:
 
   """Parses the given elements into a Dataframe.
 
@@ -183,8 +182,7 @@ def elements_to_df(elements, include_window_info=False, element_type=None):
   return final_df
 
 
-def register_ipython_log_handler():
-  # type: () -> None
+def register_ipython_log_handler() -> None:
 
   """Adds the IPython handler to a dummy parent logger (named
   'apache_beam.runners.interactive') of all interactive modules' loggers so that
@@ -240,8 +238,7 @@ class IPythonLogHandler(logging.Handler):
       pass  # NOOP when dependencies are not available.
 
 
-def obfuscate(*inputs):
-  # type: (*Any) -> str
+def obfuscate(*inputs: Any) -> str:
 
   """Obfuscates any inputs into a hexadecimal string."""
   str_inputs = [str(input) for input in inputs]
@@ -260,8 +257,7 @@ class ProgressIndicator(object):
   spinner_removal_template = """
             $("#{id}").remove();"""
 
-  def __init__(self, enter_text, exit_text):
-    # type: (str, str) -> None
+  def __init__(self, enter_text: str, exit_text: str) -> None:
 
     self._id = 'progress_indicator_{}'.format(obfuscate(id(self)))
     self._enter_text = enter_text
@@ -301,8 +297,7 @@ class ProgressIndicator(object):
           'or notebook environment: %s' % e)
 
 
-def progress_indicated(func):
-  # type: (Callable[..., Any]) -> Callable[..., Any]
+def progress_indicated(func: Callable[..., Any]) -> Callable[..., Any]:
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
@@ -314,8 +309,7 @@ def progress_indicated(func):
   return run_within_progress_indicator
 
 
-def as_json(func):
-  # type: (Callable[..., Any]) -> Callable[..., str]
+def as_json(func: Callable[..., Any]) -> Callable[..., str]:
 
   """A decorator convert python objects returned by callables to json
   string.
@@ -474,8 +468,7 @@ def create_var_in_main(name: str,
   return name, value
 
 
-def assert_bucket_exists(bucket_name):
-  # type: (str) -> None
+def assert_bucket_exists(bucket_name: str) -> None:
 
   """Asserts whether the specified GCS bucket with the name
   bucket_name exists.

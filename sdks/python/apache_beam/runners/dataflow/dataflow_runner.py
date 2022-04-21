@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """A runner implementation that submits a job for remote execution.
 
 The runner will create a JSON description of the job graph and then submit it
@@ -110,21 +111,21 @@ class DataflowRunner(PipelineRunner):
 
   # These overrides should be applied before the proto representation of the
   # graph is created.
-  _PTRANSFORM_OVERRIDES = [
+  _PTRANSFORM_OVERRIDES: List[PTransformOverride] = [
       CombineValuesPTransformOverride(),
       NativeReadPTransformOverride(),
-  ]  # type: List[PTransformOverride]
+  ]
 
-  _JRH_PTRANSFORM_OVERRIDES = [
+  _JRH_PTRANSFORM_OVERRIDES: List[PTransformOverride] = [
       JrhReadPTransformOverride(),
-  ]  # type: List[PTransformOverride]
+  ]
 
   # These overrides should be applied after the proto representation of the
   # graph is created.
-  _NON_PORTABLE_PTRANSFORM_OVERRIDES = [
+  _NON_PORTABLE_PTRANSFORM_OVERRIDES: List[PTransformOverride] = [
       CreatePTransformOverride(),
       ReadPTransformOverride(),
-  ]  # type: List[PTransformOverride]
+  ]
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -260,8 +261,7 @@ class DataflowRunner(PipelineRunner):
     runner.last_error_msg = last_error_msg
 
   @staticmethod
-  def _only_element(iterable):
-    # type: (Iterable[T]) -> T
+  def _only_element(iterable: Iterable[T]) -> T:
     element, = iterable
     return element
 

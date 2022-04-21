@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 import logging
 import threading
 import time
@@ -40,11 +41,11 @@ class ElementStream:
   """A stream of elements from a given PCollection."""
   def __init__(
       self,
-      pcoll,  # type: beam.pvalue.PCollection
-      var,  # type: str
-      cache_key,  # type: str
-      max_n,  # type: int
-      max_duration_secs  # type: float
+      pcoll: beam.pvalue.PCollection,
+      var: str,
+      cache_key: str,
+      max_n: int,
+      max_duration_secs: float
       ):
     self._pcoll = pcoll
     self._cache_key = cache_key
@@ -58,46 +59,39 @@ class ElementStream:
     self._done = False
 
   @property
-  def var(self):
-    # type: () -> str
+  def var(self) -> str:
 
     """Returns the variable named that defined this PCollection."""
     return self._var
 
   @property
-  def pcoll(self):
-    # type: () -> beam.pvalue.PCollection
+  def pcoll(self) -> beam.pvalue.PCollection:
 
     """Returns the PCollection that supplies this stream with data."""
     return self._pcoll
 
   @property
-  def cache_key(self):
-    # type: () -> str
+  def cache_key(self) -> str:
 
     """Returns the cache key for this stream."""
     return self._cache_key
 
-  def display_id(self, suffix):
-    # type: (str) -> str
+  def display_id(self, suffix: str) -> str:
 
     """Returns a unique id able to be displayed in a web browser."""
     return utils.obfuscate(self._cache_key, suffix)
 
-  def is_computed(self):
-    # type: () -> boolean
+  def is_computed(self) -> boolean:
 
     """Returns True if no more elements will be recorded."""
     return self._pcoll in ie.current_env().computed_pcollections
 
-  def is_done(self):
-    # type: () -> boolean
+  def is_done(self) -> boolean:
 
     """Returns True if no more new elements will be yielded."""
     return self._done
 
-  def read(self, tail=True):
-    # type: (boolean) -> Any
+  def read(self, tail: boolean = True) -> Any:
 
     """Reads the elements currently recorded."""
 
@@ -154,11 +148,11 @@ class Recording:
   """A group of PCollections from a given pipeline run."""
   def __init__(
       self,
-      user_pipeline,  # type: beam.Pipeline
-      pcolls,  # type: List[beam.pvalue.PCollection]
-      result,  # type: beam.runner.PipelineResult
-      max_n,  # type: int
-      max_duration_secs,  # type: float
+      user_pipeline: beam.Pipeline,
+      pcolls: List[beam.pvalue.PCollection],
+      result: beam.runner.PipelineResult,
+      max_n: int,
+      max_duration_secs: float,
       ):
     self._user_pipeline = user_pipeline
     self._result = result
@@ -188,8 +182,7 @@ class Recording:
     self._mark_computed.daemon = True
     self._mark_computed.start()
 
-  def _mark_all_computed(self):
-    # type: () -> None
+  def _mark_all_computed(self) -> None:
 
     """Marks all the PCollections upon a successful pipeline run."""
     if not self._result:
@@ -216,39 +209,33 @@ class Recording:
     if self._result.state is PipelineState.DONE and self._set_computed:
       ie.current_env().mark_pcollection_computed(self._pcolls)
 
-  def is_computed(self):
-    # type: () -> boolean
+  def is_computed(self) -> boolean:
 
     """Returns True if all PCollections are computed."""
     return all(s.is_computed() for s in self._streams.values())
 
-  def stream(self, pcoll):
-    # type: (beam.pvalue.PCollection) -> ElementStream
+  def stream(self, pcoll: beam.pvalue.PCollection) -> ElementStream:
 
     """Returns an ElementStream for a given PCollection."""
     return self._streams[pcoll]
 
-  def computed(self):
-    # type: () -> None
+  def computed(self) -> None:
 
     """Returns all computed ElementStreams."""
     return {p: s for p, s in self._streams.items() if s.is_computed()}
 
-  def uncomputed(self):
-    # type: () -> None
+  def uncomputed(self) -> None:
 
     """Returns all uncomputed ElementStreams."""
     return {p: s for p, s in self._streams.items() if not s.is_computed()}
 
-  def cancel(self):
-    # type: () -> None
+  def cancel(self) -> None:
 
     """Cancels the recording."""
     with self._result_lock:
       self._result.cancel()
 
-  def wait_until_finish(self):
-    # type: () -> None
+  def wait_until_finish(self) -> None:
 
     """Waits until the pipeline is done and returns the final state.
 
@@ -261,8 +248,7 @@ class Recording:
     self._mark_computed.join()
     return self._result.state
 
-  def describe(self):
-    # type: () -> dict[str, int]
+  def describe(self) -> dict[str, int]:
 
     """Returns a dictionary describing the cache and recording."""
     cache_manager = ie.current_env().get_cache_manager(self._user_pipeline)
@@ -274,17 +260,15 @@ class Recording:
 
 class RecordingManager:
   """Manages recordings of PCollections for a given pipeline."""
-  def __init__(self, user_pipeline, pipeline_var=None, test_limiters=None):
-    # type: (beam.Pipeline, str, list[Limiter]) -> None
+  def __init__(self, user_pipeline: beam.Pipeline, pipeline_var: str = None, test_limiters: list[Limiter] = None) -> None:
 
-    self.user_pipeline = user_pipeline  # type: beam.Pipeline
-    self.pipeline_var = pipeline_var if pipeline_var else ''  # type: str
-    self._recordings = set()  # type: set[Recording]
-    self._start_time_sec = 0  # type: float
+    self.user_pipeline: beam.Pipeline = user_pipeline
+    self.pipeline_var: str = pipeline_var if pipeline_var else ''
+    self._recordings: set[Recording] = set()
+    self._start_time_sec: float = 0
     self._test_limiters = test_limiters if test_limiters else []
 
-  def _watch(self, pcolls):
-    # type: (List[beam.pvalue.PCollection]) -> None
+  def _watch(self, pcolls: List[beam.pvalue.PCollection]) -> None:
 
     """Watch any pcollections not being watched.
 
@@ -314,8 +298,7 @@ class RecordingManager:
         ie.current_env().watch(
             {'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
-  def _clear(self):
-    # type: () -> None
+  def _clear(self) -> None:
 
     """Clears the recording of all non-source PCollections."""
 
@@ -338,16 +321,14 @@ class RecordingManager:
     for pc in pcolls:
       cache_manager.clear('full', pc)
 
-  def clear(self):
-    # type: () -> None
+  def clear(self) -> None:
 
     """Clears all cached PCollections for this RecordingManager."""
     cache_manager = ie.current_env().get_cache_manager(self.user_pipeline)
     if cache_manager:
       cache_manager.cleanup()
 
-  def cancel(self):
-    # type: (None) -> None
+  def cancel(self: None) -> None:
 
     """Cancels the current background recording job."""
 
@@ -361,8 +342,7 @@ class RecordingManager:
     # evict the BCJ after they complete.
     ie.current_env().evict_background_caching_job(self.user_pipeline)
 
-  def describe(self):
-    # type: () -> dict[str, int]
+  def describe(self) -> dict[str, int]:
 
     """Returns a dictionary describing the cache and recording."""
 
@@ -384,8 +364,7 @@ class RecordingManager:
         'pipeline_var': self.pipeline_var
     }
 
-  def record_pipeline(self):
-    # type: () -> bool
+  def record_pipeline(self) -> bool:
 
     """Starts a background caching job for this RecordingManager's pipeline."""
 
@@ -413,8 +392,7 @@ class RecordingManager:
       return True
     return False
 
-  def record(self, pcolls, max_n, max_duration):
-    # type: (List[beam.pvalue.PCollection], int, Union[int,str]) -> Recording
+  def record(self, pcolls: List[beam.pvalue.PCollection], max_n: int, max_duration: Union[int,str]) -> Recording:
 
     """Records the given PCollections."""
 
@@ -470,8 +448,7 @@ class RecordingManager:
 
     return recording
 
-  def read(self, pcoll_name, pcoll, max_n, max_duration_secs):
-    # type: (str, beam.pvalue.PValue, int, float) -> Union[None, ElementStream]
+  def read(self, pcoll_name: str, pcoll: beam.pvalue.PValue, max_n: int, max_duration_secs: float) -> Union[None, ElementStream]:
 
     """Reads an ElementStream of a computed PCollection.
 

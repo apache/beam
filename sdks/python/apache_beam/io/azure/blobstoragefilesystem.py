@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Azure Blob Storage Implementation for accesing files on
 Azure Blob Storage.
 """
@@ -144,8 +145,7 @@ class BlobStorageFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
 
     """Returns a write channel for the given file path.
 
@@ -162,8 +162,7 @@ class BlobStorageFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
 
     """Returns a read channel for the given file path.
 

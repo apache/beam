@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 r"""Utilities for relating schema-aware PCollections and dataframe transforms.
 
 Imposes a mapping between native Python typings (specifically those compatible
@@ -147,8 +148,7 @@ class BatchRowsAsDataFrame(beam.PTransform):
     return pcoll | self._batch_elements_transform | beam.Map(construct)
 
 
-def generate_proxy(element_type):
-  # type: (type) -> pd.DataFrame
+def generate_proxy(element_type: type) -> pd.DataFrame:
 
   """Generate a proxy pandas object for the given PCollection element_type.
 
@@ -170,8 +170,7 @@ def generate_proxy(element_type):
     return proxy
 
 
-def element_type_from_dataframe(proxy, include_indexes=False):
-  # type: (pd.DataFrame, bool) -> type
+def element_type_from_dataframe(proxy: pd.DataFrame, include_indexes: bool = False) -> type:
 
   """Generate an element_type for an element-wise PCollection from a proxy
   pandas object. Currently only supports converting the element_type for

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 """A module that allows running existing pandas doctests with Beam dataframes.
 
 This module hooks into the doctesting framework by providing a custom
@@ -146,7 +147,7 @@ class _InMemoryResultRecorder(object):
   """
 
   # Class-level value to survive pickling.
-  _ALL_RESULTS = {}  # type: Dict[str, List[Any]]
+  _ALL_RESULTS: Dict[str, List[Any]] = {}
 
   def __init__(self):
     self._id = id(self)

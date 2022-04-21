@@ -17,6 +17,7 @@
 
 # cython: language_level=3
 
+from __future__ import annotations
 """
 This module is for internal use only; no backwards-compatibility guarantees.
 
@@ -167,10 +168,9 @@ class _TypedMetricName(object):
   """Like MetricName, but also stores the cell type of the metric."""
   def __init__(
       self,
-      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
-      metric_name  # type: Union[str, MetricName]
-  ):
-    # type: (...) -> None
+      cell_type: Union[Type[MetricCell], MetricCellFactory],
+      metric_name: Union[str, MetricName]
+  ) -> None:
     self.cell_type = cell_type
     self.metric_name = metric_name
     if isinstance(metric_name, str):
@@ -194,23 +194,22 @@ class _TypedMetricName(object):
     return _TypedMetricName, (self.cell_type, self.metric_name)
 
 
-_DEFAULT = None  # type: Any
+_DEFAULT: Any = None
 
 
 class MetricUpdater(object):
   """A callable that updates the metric as quickly as possible."""
   def __init__(
       self,
-      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
-      metric_name,  # type: Union[str, MetricName]
+      cell_type: Union[Type[MetricCell], MetricCellFactory],
+      metric_name: Union[str, MetricName],
       default_value=None,
       process_wide=False):
     self.process_wide = process_wide
     self.typed_metric_name = _TypedMetricName(cell_type, metric_name)
     self.default_value = default_value
 
-  def __call__(self, value=_DEFAULT):
-    # type: (Any) -> None
+  def __call__(self, value: Any = _DEFAULT) -> None:
     if value is _DEFAULT:
       if self.default_value is _DEFAULT:
         raise ValueError(
@@ -239,36 +238,31 @@ class MetricsContainer(object):
   def __init__(self, step_name):
     self.step_name = step_name
     self.lock = threading.Lock()
-    self.metrics = {}  # type: Dict[_TypedMetricName, MetricCell]
+    self.metrics: Dict[_TypedMetricName, MetricCell] = {}
 
-  def get_counter(self, metric_name):
-    # type: (MetricName) -> CounterCell
+  def get_counter(self, metric_name: MetricName) -> CounterCell:
     return cast(
         CounterCell,
         self.get_metric_cell(_TypedMetricName(CounterCell, metric_name)))
 
-  def get_distribution(self, metric_name):
-    # type: (MetricName) -> DistributionCell
+  def get_distribution(self, metric_name: MetricName) -> DistributionCell:
     return cast(
         DistributionCell,
         self.get_metric_cell(_TypedMetricName(DistributionCell, metric_name)))
 
-  def get_gauge(self, metric_name):
-    # type: (MetricName) -> GaugeCell
+  def get_gauge(self, metric_name: MetricName) -> GaugeCell:
     return cast(
         GaugeCell,
         self.get_metric_cell(_TypedMetricName(GaugeCell, metric_name)))
 
-  def get_metric_cell(self, typed_metric_name):
-    # type: (_TypedMetricName) -> MetricCell
+  def get_metric_cell(self, typed_metric_name: _TypedMetricName) -> MetricCell:
     cell = self.metrics.get(typed_metric_name, None)
     if cell is None:
       with self.lock:
         cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type()
     return cell
 
-  def get_cumulative(self):
-    # type: () -> MetricUpdates
+  def get_cumulative(self) -> MetricUpdates:
 
     """Return MetricUpdates with cumulative values of all metrics in container.
 
@@ -300,8 +294,7 @@ class MetricsContainer(object):
         cell in self.metrics.items()
     ]
 
-  def to_runner_api_monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+  def to_runner_api_monitoring_infos(self, transform_id: str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
 
     """Returns a list of MonitoringInfos for the metrics in this container."""
     with self.lock:
@@ -316,8 +309,7 @@ class MetricsContainer(object):
         for mi in all_metrics if mi is not None
     }
 
-  def reset(self):
-    # type: () -> None
+  def reset(self) -> None:
     for metric in self.metrics.values():
       metric.reset()
 
@@ -337,11 +329,10 @@ class MetricUpdates(object):
   """
   def __init__(
       self,
-      counters=None,  # type: Optional[Dict[MetricKey, int]]
-      distributions=None,  # type: Optional[Dict[MetricKey, DistributionData]]
-      gauges=None  # type: Optional[Dict[MetricKey, GaugeData]]
-  ):
-    # type: (...) -> None
+      counters: Optional[Dict[MetricKey, int]] = None,
+      distributions: Optional[Dict[MetricKey, DistributionData]] = None,
+      gauges: Optional[Dict[MetricKey, GaugeData]] = None
+  ) -> None:
 
     """Create a MetricUpdates object.
 

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Shared class.
 
 Shared is a helper class for managing a single instance of an object
@@ -111,10 +112,9 @@ class _SharedControlBlock(object):
 
   def acquire(
       self,
-      constructor_fn,  # type: Callable[[], Any]
-      tag=None  # type: Any
-  ):
-    # type: (...) -> Any
+      constructor_fn: Callable[[], Any],
+      tag: Any = None
+  ) -> Any:
 
     """Acquire a reference to the object this shared control block manages.
 
@@ -209,17 +209,15 @@ class _SharedMap(object):
     # to keep it alive
     self._keepalive = (None, None)
 
-  def make_key(self):
-    # type: (...) -> Text
+  def make_key(self) -> Text:
     return str(uuid.uuid1())
 
   def acquire(
       self,
-      key,  # type: Text
-      constructor_fn,  # type: Callable[[], Any]
-      tag=None  # type: Any
-  ):
-    # type: (...) -> Any
+      key: Text,
+      constructor_fn: Callable[[], Any],
+      tag: Any = None
+  ) -> Any:
 
     """Acquire a reference to a Shared object.
 
@@ -282,10 +280,9 @@ class Shared(object):
 
   def acquire(
       self,
-      constructor_fn,  # type: Callable[[], Any]
-      tag=None  # type: Any
-  ):
-    # type: (...) -> Any
+      constructor_fn: Callable[[], Any],
+      tag: Any = None
+  ) -> Any:
 
     """Acquire a reference to the object associated with this Shared handle.
 

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 import random
 from typing import Any
 from typing import Iterable
@@ -32,8 +33,7 @@ class Partitioning(object):
   def __repr__(self):
     return self.__class__.__name__
 
-  def is_subpartitioning_of(self, other):
-    # type: (Partitioning) -> bool
+  def is_subpartitioning_of(self, other: Partitioning) -> bool:
 
     """Returns whether self is a sub-partition of other.
 
@@ -48,8 +48,7 @@ class Partitioning(object):
   def __le__(self, other):
     return not self.is_subpartitioning_of(other)
 
-  def partition_fn(self, df, num_partitions):
-    # type: (Frame, int) -> Iterable[Tuple[Any, Frame]]
+  def partition_fn(self, df: Frame, num_partitions: int) -> Iterable[Tuple[Any, Frame]]:
 
     """A callable that actually performs the partitioning of a Frame df.
 

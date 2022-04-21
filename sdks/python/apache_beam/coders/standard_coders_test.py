@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
 # pytype: skip-file
@@ -275,7 +276,7 @@ class StandardCodersTest(unittest.TestCase):
   # Used when --fix is passed.
 
   fix = False
-  to_fix = {}  # type: Dict[Tuple[int, bytes], bytes]
+  to_fix: Dict[Tuple[int, bytes], bytes] = {}
 
   @classmethod
   def tearDownClass(cls):

@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+from __future__ import annotations
 import json
 import logging
 import math
@@ -67,7 +68,7 @@ RECORDS = [{
 
 class AvroBase(object):
 
-  _temp_files = []  # type: List[str]
+  _temp_files: List[str] = []
 
   def __init__(self, methodName='runTest'):
     super().__init__(methodName)

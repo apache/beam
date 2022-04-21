@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Support for Apache Beam triggers.
 
 Triggers control when in processing time windows get emitted.
@@ -183,8 +184,7 @@ class DataLossReason(Flag):
 # to `reason & flag == flag`
 
 
-def _IncludesMayFinish(reason):
-  # type: (DataLossReason) -> bool
+def _IncludesMayFinish(reason: DataLossReason) -> bool:
   return reason & DataLossReason.MAY_FINISH == DataLossReason.MAY_FINISH
 
 
@@ -269,8 +269,7 @@ class TriggerFn(metaclass=ABCMeta):
     """Clear any state and timers used by this TriggerFn."""
     pass
 
-  def may_lose_data(self, unused_windowing):
-    # type: (core.Windowing) -> DataLossReason
+  def may_lose_data(self, unused_windowing: core.Windowing) -> DataLossReason:
 
     """Returns whether or not this trigger could cause data loss.
 

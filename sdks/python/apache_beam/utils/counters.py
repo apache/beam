@@ -19,6 +19,7 @@
 # cython: overflowcheck=True
 # cython: language_level=3
 
+from __future__ import annotations
 """Counters collect the progress of the Worker for reporting to the service.
 
 For internal use only; no backwards-compatibility guarantees.
@@ -48,8 +49,7 @@ IOTargetName = namedtuple(
     'IOTargetName', ['requesting_step_name', 'input_index'])
 
 
-def side_input_id(step_name, input_index):
-  # type: (str, int) -> IOTargetName
+def side_input_id(step_name: str, input_index: int) -> IOTargetName:
 
   """Create an IOTargetName that identifies the reading of a side input.
 
@@ -65,8 +65,7 @@ def side_input_id(step_name, input_index):
   return IOTargetName(step_name, input_index)
 
 
-def shuffle_id(step_name):
-  # type: (str) -> IOTargetName
+def shuffle_id(step_name: str) -> IOTargetName:
 
   """Create an IOTargetName that identifies a GBK step.
 
@@ -166,8 +165,7 @@ class Counter(object):
   # TODO(BEAM-4045): Generalize distribution counter if necessary.
   DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
-  def __init__(self, name, combine_fn):
-    # type: (CounterName, core.CombineFn) -> None
+  def __init__(self, name: CounterName, combine_fn: core.CombineFn) -> None:
 
     """Creates a Counter object.
 
@@ -203,8 +201,7 @@ class Counter(object):
 
 class AccumulatorCombineFnCounter(Counter):
   """Counter optimized for a mutating accumulator that holds all the logic."""
-  def __init__(self, name, combine_fn):
-    # type: (CounterName, cy_combiners.AccumulatorCombineFn) -> None
+  def __init__(self, name: CounterName, combine_fn: cy_combiners.AccumulatorCombineFn) -> None:
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
     super().__init__(name, combine_fn)
     self.reset()
@@ -220,13 +217,12 @@ class AccumulatorCombineFnCounter(Counter):
 class CounterFactory(object):
   """Keeps track of unique counters."""
   def __init__(self):
-    self.counters = {}  # type: Dict[CounterName, Counter]
+    self.counters: Dict[CounterName, Counter] = {}
 
     # Lock to be acquired when accessing the counters map.
     self._lock = threading.Lock()
 
-  def get_counter(self, name, combine_fn):
-    # type: (CounterName, core.CombineFn) -> Counter
+  def get_counter(self, name: CounterName, combine_fn: core.CombineFn) -> Counter:
 
     """Returns a counter with the requested name.
 

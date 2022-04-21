@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Nexmark launcher.
 
 The Nexmark suite is a series of queries (streaming pipelines) performed
@@ -338,8 +339,7 @@ class NexmarkLauncher(object):
     return perf
 
   @staticmethod
-  def log_performance(perf):
-    # type: (NexmarkPerf) -> None
+  def log_performance(perf: NexmarkPerf) -> None:
     logging.info(
         'input event count: %d, output event count: %d' %
         (perf.event_count, perf.result_count))

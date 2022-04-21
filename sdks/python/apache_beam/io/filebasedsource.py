@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """A framework for developing sources for new file types.
 
 To create a source for a new file type a sub-class of :class:`FileBasedSource`
@@ -132,8 +133,7 @@ class FileBasedSource(iobase.BoundedSource):
     }
 
   @check_accessible(['_pattern'])
-  def _get_concat_source(self):
-    # type: () -> concat_source.ConcatSource
+  def _get_concat_source(self) -> concat_source.ConcatSource:
     if self._concat_source is None:
       pattern = self._pattern.get()
 
@@ -364,8 +364,8 @@ class _ExpandIntoRanges(DoFn):
 class _ReadRange(DoFn):
   def __init__(
       self,
-      source_from_file,  # type: Union[str, iobase.BoundedSource]
-      with_filename=False  # type: bool
+      source_from_file: Union[str, iobase.BoundedSource],
+      with_filename: bool = False
     ) -> None:
     self._source_from_file = source_from_file
     self._with_filename = with_filename
@@ -399,12 +399,12 @@ class ReadAllFiles(PTransform):
   """
 
   def __init__(self,
-               splittable,  # type: bool
+               splittable: bool,
                compression_type,
-               desired_bundle_size,  # type: int
-               min_bundle_size,  # type: int
-               source_from_file,  # type: Callable[[str], iobase.BoundedSource]
-               with_filename=False  # type: bool
+               desired_bundle_size: int,
+               min_bundle_size: int,
+               source_from_file: Callable[[str], iobase.BoundedSource],
+               with_filename: bool = False
               ):
     """
     Args:

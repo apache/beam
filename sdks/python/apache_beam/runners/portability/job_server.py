@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
 import atexit
 import shutil
 import signal
@@ -48,8 +49,7 @@ class ExternalJobServer(JobServer):
     self._endpoint = endpoint
     self._timeout = timeout
 
-  def start(self):
-    # type: () -> beam_job_api_pb2_grpc.JobServiceStub
+  def start(self) -> beam_job_api_pb2_grpc.JobServiceStub:
     channel = grpc.insecure_channel(self._endpoint)
     grpc.channel_ready_future(channel).result(timeout=self._timeout)
     return beam_job_api_pb2_grpc.JobServiceStub(channel)
@@ -59,8 +59,7 @@ class ExternalJobServer(JobServer):
 
 
 class EmbeddedJobServer(JobServer):
-  def start(self):
-    # type: () -> local_job_service.LocalJobServicer
+  def start(self) -> local_job_service.LocalJobServicer:
     return local_job_service.LocalJobServicer()
 
   def stop(self):

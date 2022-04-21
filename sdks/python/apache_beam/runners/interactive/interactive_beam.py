@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Module of Interactive Beam features that can be used in notebook.
 
 The purpose of the module is to reduce the learning curve of Interactive Beam
@@ -268,8 +269,7 @@ class Recordings():
   from all defined unbounded sources for that PCollection's pipeline. The
   following methods allow for introspection into that background recording job.
   """
-  def describe(self, pipeline=None):
-    # type: (Optional[beam.Pipeline]) -> dict[str, Any]
+  def describe(self, pipeline: Optional[beam.Pipeline] = None) -> dict[str, Any]:
 
     """Returns a description of all the recordings for the given pipeline.
 
@@ -287,8 +287,7 @@ class Recordings():
       return description[pipeline]
     return description
 
-  def clear(self, pipeline):
-    # type: (beam.Pipeline) -> bool
+  def clear(self, pipeline: beam.Pipeline) -> bool:
 
     """Clears all recordings of the given pipeline. Returns True if cleared."""
 
@@ -303,8 +302,7 @@ class Recordings():
     ie.current_env().cleanup(pipeline)
     return True
 
-  def stop(self, pipeline):
-    # type: (beam.Pipeline) -> None
+  def stop(self, pipeline: beam.Pipeline) -> None:
 
     """Stops the background source recording of the given pipeline."""
 
@@ -312,8 +310,7 @@ class Recordings():
         pipeline, create_if_absent=True)
     recording_manager.cancel()
 
-  def record(self, pipeline):
-    # type: (beam.Pipeline) -> bool
+  def record(self, pipeline: beam.Pipeline) -> bool:
 
     """Starts a background source recording job for the given pipeline. Returns
     True if the recording job was started.
@@ -553,12 +550,11 @@ def watch(watchable):
 
 @progress_indicated
 def show(
-    *pcolls,
-    include_window_info=False,
-    visualize_data=False,
-    n='inf',
-    duration='inf'):
-  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None
+    *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
+    include_window_info: bool = False,
+    visualize_data: bool = False,
+    n: Union[int, str] = 'inf',
+    duration: Union[int, str] = 'inf') -> None:
 
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.

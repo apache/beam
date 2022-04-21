@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """FileSystems interface class for accessing the correct filesystem"""
 
 # pytype: skip-file
@@ -88,8 +89,7 @@ class FileSystems(object):
     return match_result.groupdict()['scheme']
 
   @staticmethod
-  def get_filesystem(path):
-    # type: (str) -> FileSystems
+  def get_filesystem(path: str) -> FileSystems:
 
     """Get the correct filesystem for the specified path
     """
@@ -119,8 +119,7 @@ class FileSystems(object):
       raise BeamIOError('Unable to get the Filesystem', {path: e})
 
   @staticmethod
-  def join(basepath, *paths):
-    # type: (str, *str) -> str
+  def join(basepath: str, *paths: str) -> str:
 
     """Join two or more pathname components for the filesystem
 
@@ -207,8 +206,7 @@ class FileSystems(object):
   def create(
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
 
     """Returns a write channel for the given file path.
 
@@ -227,8 +225,7 @@ class FileSystems(object):
   def open(
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
 
     """Returns a read channel for the given file path.
 

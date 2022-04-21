@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Utilities for managing watermarks for a pipeline execution by FnApiRunner."""
 
 from __future__ import absolute_import
@@ -102,8 +103,7 @@ class WatermarkManager(object):
         w = min(w, min(i._produced_watermark for i in self.side_inputs))
       return w
 
-  def __init__(self, stages):
-    # type: (List[translations.Stage]) -> None
+  def __init__(self, stages: List[translations.Stage]) -> None:
     self._pcollections_by_name: Dict[Union[str, translations.TimerFamilyId],
                                      WatermarkManager.PCollectionNode] = {}
     self._stages_by_name: Dict[str, WatermarkManager.StageNode] = {}
@@ -189,12 +189,10 @@ class WatermarkManager(object):
             'Stage %s has no main inputs. '
             'At least one main input is necessary.' % s.name)
 
-  def get_stage_node(self, name):
-    # type: (str) -> StageNode
+  def get_stage_node(self, name: str) -> StageNode:
     return self._stages_by_name[name]
 
-  def get_pcoll_node(self, name):
-    # type: (str) -> PCollectionNode
+  def get_pcoll_node(self, name: str) -> PCollectionNode:
     return self._pcollections_by_name[name]
 
   def set_pcoll_watermark(self, name, watermark):

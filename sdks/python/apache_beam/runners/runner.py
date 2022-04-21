@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """PipelineRunner, an abstract base runner object."""
 
 # pytype: skip-file
@@ -53,8 +54,7 @@ _RUNNER_MAP['pythonrpcdirectrunner'] = (
 _LOGGER = logging.getLogger(__name__)
 
 
-def create_runner(runner_name):
-  # type: (str) -> PipelineRunner
+def create_runner(runner_name: str) -> PipelineRunner:
 
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -113,10 +113,9 @@ class PipelineRunner(object):
   """
 
   def run(self,
-          transform,  # type: PTransform
-          options=None  # type: Optional[PipelineOptions]
-         ):
-    # type: (...) -> PipelineResult
+          transform: PTransform,
+          options: Optional[PipelineOptions] = None
+         ) -> PipelineResult:
 
     """Run the given transform or callable with this runner.
 
@@ -127,10 +126,9 @@ class PipelineRunner(object):
     return result
 
   def run_async(self,
-                transform,  # type: PTransform
-                options=None  # type: Optional[PipelineOptions]
-               ):
-    # type: (...) -> PipelineResult
+                transform: PTransform,
+                options: Optional[PipelineOptions] = None
+               ) -> PipelineResult:
 
     """Run the given transform or callable with this runner.
 
@@ -152,10 +150,9 @@ class PipelineRunner(object):
 
   def run_pipeline(
       self,
-      pipeline,  # type: Pipeline
-      options  # type: PipelineOptions
-  ):
-    # type: (...) -> PipelineResult
+      pipeline: Pipeline,
+      options: PipelineOptions
+  ) -> PipelineResult:
 
     """Execute the entire pipeline or the sub-DAG reachable from a node.
 
@@ -164,9 +161,9 @@ class PipelineRunner(object):
     raise NotImplementedError
 
   def apply(self,
-            transform,  # type: PTransform
-            input,  # type: Optional[pvalue.PValue]
-            options  # type: PipelineOptions
+            transform: PTransform,
+            input: Optional[pvalue.PValue],
+            options: PipelineOptions
            ):
     """Runner callback for a pipeline.apply call.
 
@@ -188,17 +185,15 @@ class PipelineRunner(object):
 
   def visit_transforms(
       self,
-      pipeline,  # type: Pipeline
-      options  # type: PipelineOptions
-  ):
-    # type: (...) -> None
+      pipeline: Pipeline,
+      options: PipelineOptions
+  ) -> None:
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
 
     class RunVisitor(PipelineVisitor):
-      def __init__(self, runner):
-        # type: (PipelineRunner) -> None
+      def __init__(self, runner: PipelineRunner) -> None:
         self.runner = runner
 
       def visit_transform(self, transform_node):
@@ -215,8 +210,8 @@ class PipelineRunner(object):
     return transform.expand(input)
 
   def run_transform(self,
-                    transform_node,  # type: AppliedPTransform
-                    options  # type: PipelineOptions
+                    transform_node: AppliedPTransform,
+                    options: PipelineOptions
                    ):
     """Runner callback for a pipeline.run call.
 

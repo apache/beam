@@ -20,6 +20,7 @@
 
 # pytype: skip-file
 
+from __future__ import annotations
 import collections
 import time
 from functools import reduce
@@ -169,8 +170,7 @@ def create_labels(ptransform=None, namespace=None, name=None, pcollection=None):
   return labels
 
 
-def int64_user_counter(namespace, name, metric, ptransform=None):
-  # type: (...) -> metrics_pb2.MonitoringInfo
+def int64_user_counter(namespace, name, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
 
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
@@ -186,8 +186,7 @@ def int64_user_counter(namespace, name, metric, ptransform=None):
       USER_COUNTER_URN, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_counter(urn, metric, ptransform=None, pcollection=None, labels=None):
-  # type: (...) -> metrics_pb2.MonitoringInfo
+def int64_counter(urn, metric, ptransform=None, pcollection=None, labels=None) -> metrics_pb2.MonitoringInfo:
 
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
@@ -204,8 +203,7 @@ def int64_counter(urn, metric, ptransform=None, pcollection=None, labels=None):
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_user_distribution(namespace, name, metric, ptransform=None):
-  # type: (...) -> metrics_pb2.MonitoringInfo
+def int64_user_distribution(namespace, name, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
 
   """Return the distribution monitoring info for the URN, metric and labels.
 
@@ -221,8 +219,7 @@ def int64_user_distribution(namespace, name, metric, ptransform=None):
       USER_DISTRIBUTION_URN, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_distribution(urn, metric, ptransform=None, pcollection=None):
-  # type: (...) -> metrics_pb2.MonitoringInfo
+def int64_distribution(urn, metric, ptransform=None, pcollection=None) -> metrics_pb2.MonitoringInfo:
 
   """Return a distribution monitoring info for the URN, metric and labels.
 
@@ -238,8 +235,7 @@ def int64_distribution(urn, metric, ptransform=None, pcollection=None):
   return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_user_gauge(namespace, name, metric, ptransform=None):
-  # type: (...) -> metrics_pb2.MonitoringInfo
+def int64_user_gauge(namespace, name, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
 
   """Return the gauge monitoring info for the URN, metric and labels.
 
@@ -263,8 +259,7 @@ def int64_user_gauge(namespace, name, metric, ptransform=None):
       USER_GAUGE_URN, LATEST_INT64_TYPE, payload, labels)
 
 
-def int64_gauge(urn, metric, ptransform=None):
-  # type: (...) -> metrics_pb2.MonitoringInfo
+def int64_gauge(urn, metric, ptransform=None) -> metrics_pb2.MonitoringInfo:
 
   """Return the gauge monitoring info for the URN, metric and labels.
 
@@ -287,8 +282,7 @@ def int64_gauge(urn, metric, ptransform=None):
   return create_monitoring_info(urn, LATEST_INT64_TYPE, payload, labels)
 
 
-def create_monitoring_info(urn, type_urn, payload, labels=None):
-  # type: (...) -> metrics_pb2.MonitoringInfo
+def create_monitoring_info(urn, type_urn, payload, labels=None) -> metrics_pb2.MonitoringInfo:
 
   """Return the gauge monitoring info for the URN, type, metric and labels.
 
@@ -323,8 +317,7 @@ def is_user_monitoring_info(monitoring_info_proto):
   return monitoring_info_proto.urn in USER_METRIC_URNS
 
 
-def extract_metric_result_map_value(monitoring_info_proto):
-  # type: (...) -> Union[None, int, DistributionResult, GaugeResult]
+def extract_metric_result_map_value(monitoring_info_proto) -> Union[None, int, DistributionResult, GaugeResult]:
 
   """Returns the relevant GaugeResult, DistributionResult or int value.
 
@@ -362,14 +355,13 @@ def get_step_name(monitoring_info_proto):
   return monitoring_info_proto.labels.get(PTRANSFORM_LABEL)
 
 
-def to_key(monitoring_info_proto):
-  # type: (metrics_pb2.MonitoringInfo) -> FrozenSet[Hashable]
+def to_key(monitoring_info_proto: metrics_pb2.MonitoringInfo) -> FrozenSet[Hashable]:
 
   """Returns a key based on the URN and labels.
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
   """
-  key_items = list(monitoring_info_proto.labels.items())  # type: List[Hashable]
+  key_items: List[Hashable] = list(monitoring_info_proto.labels.items())
   key_items.append(monitoring_info_proto.urn)
   return frozenset(key_items)
 

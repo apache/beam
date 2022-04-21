@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 """Simple utility PTransforms.
 """
 
@@ -777,8 +778,7 @@ class Reshuffle(PTransform):
           'If `num_buckets` is set, it has to be an '
           'integer greater than 0, got %s' % num_buckets)
 
-  def expand(self, pcoll):
-    # type: (pvalue.PValue) -> pvalue.PCollection
+  def expand(self, pcoll: pvalue.PValue) -> pvalue.PCollection:
     return (
         pcoll | 'AddRandomKeys' >>
         Map(lambda t: (random.randrange(0, self.num_buckets), t)
@@ -787,8 +787,7 @@ class Reshuffle(PTransform):
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             Tuple[int, T]).with_output_types(T))
 
-  def to_runner_api_parameter(self, unused_context):
-    # type: (PipelineContext) -> Tuple[str, None]
+  def to_runner_api_parameter(self, unused_context: PipelineContext) -> Tuple[str, None]:
     return common_urns.composites.RESHUFFLE.urn, None
 
   @staticmethod
@@ -877,8 +876,8 @@ class GroupIntoBatches(PTransform):
 
   def to_runner_api_parameter(
       self,
-      unused_context  # type: PipelineContext
-  ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
+      unused_context: PipelineContext
+  ) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]:
     return (
         common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn,
         self.params.get_payload())
@@ -937,8 +936,8 @@ class GroupIntoBatches(PTransform):
 
     def to_runner_api_parameter(
         self,
-        unused_context  # type: PipelineContext
-    ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
+        unused_context: PipelineContext
+    ) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]:
       return (
           common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn,
           self.params.get_payload())
@@ -987,7 +986,7 @@ class _GroupIntoBatchesParams:
 
   @staticmethod
   def parse_payload(
-      proto  # type: beam_runner_api_pb2.GroupIntoBatchesPayload
+      proto: beam_runner_api_pb2.GroupIntoBatchesPayload
   ):
     return proto.batch_size, proto.max_buffering_duration_millis / 1000
 
