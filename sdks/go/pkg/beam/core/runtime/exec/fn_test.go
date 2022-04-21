@@ -209,15 +209,14 @@ func TestInvoke(t *testing.T) {
 
 			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
 
-			switch test.ExpectedError != nil {
-			case true:
+			if test.ExpectedError != nil {
 				if err == nil {
 					t.Fatalf("Invoke(%v, %v) succeeded when it should have failed, want %v", fn.Fn.Name(), test.Args, test.ExpectedError)
 				}
 				if err != test.ExpectedError {
 					t.Errorf("Invoke(%v, %v) returned unexpected error, got %v, want %v", fn.Fn.Name(), test.Args, err, test.ExpectedError)
 				}
-			default:
+			} else {
 				if val != nil && val.Elm != test.Expected {
 					t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
 				}
