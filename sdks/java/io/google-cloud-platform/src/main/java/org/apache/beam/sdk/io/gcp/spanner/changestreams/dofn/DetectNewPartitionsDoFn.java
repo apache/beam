@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-import io.opencensus.common.Scope;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DetectNewPartitionsAction;
@@ -55,7 +52,6 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
 
   private static final long serialVersionUID = 1523712495885011374L;
   private static final Duration DEFAULT_RESUME_DURATION = Duration.millis(100L);
-  private static final Tracer TRACER = Tracing.getTracer();
 
   private final Duration resumeDuration;
   private final DaoFactory daoFactory;
@@ -139,12 +135,6 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
-    try (Scope scope =
-        TRACER
-            .spanBuilder("DetectNewPartitionsDoFn.processElement")
-            .setRecordEvents(true)
-            .startScopedSpan()) {
-      return detectNewPartitionsAction.run(tracker, receiver, watermarkEstimator);
-    }
+    return detectNewPartitionsAction.run(tracker, receiver, watermarkEstimator);
   }
 }
