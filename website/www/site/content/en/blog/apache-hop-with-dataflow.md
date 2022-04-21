@@ -47,11 +47,11 @@ For this example, we are going to use the pipeline located in `config/projects/s
 
 Let's start by opening Apache Hop. In the directory where you have unzipped the client, run
 
-`./hop/hop-gui.sh` 
+`./hop/hop-gui.sh`
 
 (or `./hop/hop-gui.bat` if you are on Windows).
 
-Once we are in Hop, let's open the pipeline. 
+Once we are in Hop, let's open the pipeline.
 
 We first switch from the project `default` to the project `samples`. Locate the `projects` box in the top left corner of the window, and select the project `samples`:
 
@@ -139,7 +139,7 @@ In the `samples` project, there are already several configurations created:
 
 The `local` configuration is the one used to run the pipeline using Hop. For instance, this is the configuration that we used when we examined the previews of the output of different steps.
 
-The `Direct` configuration uses the direct runner of Apache Beam. Let's examine what it looks like. There are two tabs in the Pipeline Run Configurations: main and variables. 
+The `Direct` configuration uses the direct runner of Apache Beam. Let's examine what it looks like. There are two tabs in the Pipeline Run Configurations: main and variables.
 
 For the direct runner, the main tab has the following options:
 
@@ -213,7 +213,7 @@ We have again the Main and the Variables tab. We will need to change some values
     alt="Apache Hop Variables tab">
 
 
-Those are Google Cloud Storage (GCS) locations that belong to the author of that sample project. We need to change them to point to our own GCS bucket. 
+Those are Google Cloud Storage (GCS) locations that belong to the author of that sample project. We need to change them to point to our own GCS bucket.
 
 
 ## Project setup in Google Cloud
@@ -264,7 +264,7 @@ gcloud auth application-default login
 
 That will open a tab in your web browser asking to confirm the authentication. Once you have confirmed, any application in your system that needs to access Google Cloud Platform will use those credentials for that access.
 
-We need also to create a service account for the Dataflow job, with certain permissions. Create the service account with 
+We need also to create a service account for the Dataflow job, with certain permissions. Create the service account with
 
 
 ```
@@ -362,7 +362,7 @@ Let's go now to the _Main_ tab, because there are some other options that we nee
 
 For project id, set your project id (the same one you see when you run `gcloud config list`).
 
-For service account, use the address of the Service Account we have created. If you don't remember, you can find it under S[ervice Accounts in the Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts). 
+For service account, use the address of the Service Account we have created. If you don't remember, you can find it under S[ervice Accounts in the Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts).
 
 For staging and temp locations, use the same bucket that we have just created. Change the bucket address in the paths, and leave the same "binaries" and "tmp" locations that are already set in the configuration.
 
@@ -424,7 +424,7 @@ gs://ihr-apache-hop-blog/output/input-process-output-00002-of-00003.csv
 
 In my case, the job has generated three files, but the actual number will vary from run to run.
 
-Let's explore the first lines of those files: 
+Let's explore the first lines of those files:
 
 
 ```
@@ -451,4 +451,4 @@ We have run this job with a small data sample, but we could have run the same jo
 
  Apache Hop is a visual development environment for Beam pipelines, that allows us to run the pipelines locally, inspect the data, debug, unit test and many other capabilities. Once we are happy with a pipeline that has run locally, we can deploy the same visual pipeline in the cloud by just setting the necessary parameters for using Dataflow.
 
-If you want to know more about Apache Hop, don't miss [the Beam Summit talk delivered by the author of Hop](https://www.youtube.com/watch?v=sZSIbcPtebI), and don't forget to check out the [getting started guide](https://hop.apache.org/manual/latest/getting-started/index.html). 
+If you want to know more about Apache Hop, don't miss [the Beam Summit talk delivered by the author of Hop](https://www.youtube.com/watch?v=sZSIbcPtebI), and don't forget to check out the [getting started guide](https://hop.apache.org/manual/latest/getting-started/index.html).
