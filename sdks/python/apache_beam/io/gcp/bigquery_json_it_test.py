@@ -20,19 +20,20 @@ Integration tests for BigQuery's JSON data type
 """
 
 import argparse
-import logging
-import unittest
-import pytest
 import json
+import logging
 import time
-
+import unittest
 from random import randint
+
+import pytest
+
 import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.io.gcp.internal.clients import bigquery
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,7 +80,6 @@ class BigQueryJsonIT(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
-    cls.args = cls.test_pipeline.get_full_options_as_args()
 
   def run_test_write(self, options):
     rows_to_write = []
@@ -103,7 +103,7 @@ class BigQueryJsonIT(unittest.TestCase):
 
     known_args, pipeline_args = parser.parse_known_args(options)
 
-    with beam.Pipeline(argv=self.args) as p:
+    with beam.Pipeline(argv=pipeline_args) as p:
       _ = (
           p
           | "Create rows with JSON data" >> beam.Create(rows_to_write)
@@ -167,12 +167,12 @@ class BigQueryJsonIT(unittest.TestCase):
 
     if known_args.query:
       json_query_data = self.generate_query_data()
-      with beam.Pipeline(argv=self.args) as p:
+      with beam.Pipeline(argv=pipeline_args) as p:
         data = p | 'Read rows' >> ReadFromBigQuery(
             query=known_args.query, method=method, use_standard_sql=True)
         assert_that(data, equal_to(json_query_data))
     else:
-      with beam.Pipeline(argv=self.args) as p:
+      with beam.Pipeline(argv=pipeline_args) as p:
         _ = p | 'Read rows' >> ReadFromBigQuery(
             table=known_args.input,
             method=method,
@@ -231,21 +231,21 @@ class BigQueryJsonIT(unittest.TestCase):
         'gdp': '58559.675',
         'city_name': '\"Los Angeles\"',
         'landmark_name': '\"Golden Gate Bridge\"'
-      },
-      {
-        'country_code': 'aus',
-        'past_leader': '\"Kevin Rudd\"',
-        'gdp': '58043.581',
-        'city_name': '\"Melbourne\"',
-        'landmark_name': '\"Great Barrier Reef\"'
-      },
-      {
-        'country_code': 'special',
-        'past_leader': '\"!@#$%^&*()_+\"',
-        'gdp': '421.7',
-        'city_name': '\"Bikini Bottom\"',
-        'landmark_name': "\"Willy Wonka's Factory\""
-      }]
+    },
+                       {
+                           'country_code': 'aus',
+                           'past_leader': '\"Kevin Rudd\"',
+                           'gdp': '58043.581',
+                           'city_name': '\"Melbourne\"',
+                           'landmark_name': '\"Great Barrier Reef\"'
+                       },
+                       {
+                           'country_code': 'special',
+                           'past_leader': '\"!@#$%^&*()_+\"',
+                           'gdp': '421.7',
+                           'city_name': '\"Bikini Bottom\"',
+                           'landmark_name': "\"Willy Wonka's Factory\""
+                       }]
     return JSON_QUERY_DATA
 
   def generate_data(self):
