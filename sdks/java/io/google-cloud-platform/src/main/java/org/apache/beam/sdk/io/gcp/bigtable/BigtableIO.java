@@ -413,10 +413,12 @@ public class BigtableIO {
      * <p>When we have a builder, we initialize the value. When they call the method then we
      * override the value
      */
-    @Experimental(Kind.UNSPECIFIED)
-    public Read withMaxBufferElementCount(int maxBufferElementCount) {
+    @Experimental(Kind.SOURCE_SINK)
+    public Read withMaxBufferElementCount(Integer maxBufferElementCount) {
+      System.out.println(maxBufferElementCount);
+      checkArgument(maxBufferElementCount != null, "maxBufferElementCount can not be null");
       checkArgument(
-          maxBufferElementCount <= 0, "maxBufferElementCount can not be zero or negative");
+          maxBufferElementCount > 0, "maxBufferElementCount can not be zero or negative");
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(
@@ -1287,8 +1289,9 @@ public class BigtableIO {
       return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
     }
 
-    public int getMaxBufferElementCount() {
-      return readOptions.getMaxBufferElementCount();
+    public @Nullable Integer getMaxBufferElementCount() {
+      Integer bufferLimit = readOptions.getMaxBufferElementCount();
+      return bufferLimit != null ? bufferLimit : null;
     }
 
     public ValueProvider<String> getTableId() {

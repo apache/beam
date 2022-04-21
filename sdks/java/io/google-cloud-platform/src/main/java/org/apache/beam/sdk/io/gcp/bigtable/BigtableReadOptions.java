@@ -43,7 +43,7 @@ abstract class BigtableReadOptions implements Serializable {
   abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
 
   /** Returns the size limit for reading segements. */
-  abstract int getMaxBufferElementCount();
+  abstract @Nullable Integer getMaxBufferElementCount();
 
   abstract Builder toBuilder();
 
@@ -56,14 +56,14 @@ abstract class BigtableReadOptions implements Serializable {
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
 
-    abstract Builder setMaxBufferElementCount(int maxBufferElementCount);
+    abstract Builder setMaxBufferElementCount(Integer maxBufferElementCount);
 
     abstract Builder setKeyRanges(ValueProvider<List<ByteKeyRange>> keyRanges);
 
     abstract BigtableReadOptions build();
   }
 
-  BigtableReadOptions setMaxBufferElementCount(int maxBufferElementCount) {
+  BigtableReadOptions setMaxBufferElementCount(Integer maxBufferElementCount) {
     return toBuilder().setMaxBufferElementCount(maxBufferElementCount).build();
   }
 
@@ -89,9 +89,10 @@ abstract class BigtableReadOptions implements Serializable {
     if (getRowFilter() != null && getRowFilter().isAccessible()) {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
     }
-    if (getMaxBufferElementCount() <= 0) {
+    if (getMaxBufferElementCount() != null) {
+      checkArgument(getMaxBufferElementCount() != null, "maxBufferElementCount can not be null");
       checkArgument(
-          getMaxBufferElementCount() <= 0, "maxBufferElementCount can not be zero or negative");
+          getMaxBufferElementCount() > 0, "maxBufferElementCount can not be zero or negative");
     }
 
     if (getKeyRanges() != null && getKeyRanges().isAccessible()) {

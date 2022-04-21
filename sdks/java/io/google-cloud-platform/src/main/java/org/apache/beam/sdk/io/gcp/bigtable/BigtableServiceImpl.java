@@ -85,10 +85,8 @@ import org.slf4j.LoggerFactory;
 class BigtableServiceImpl implements BigtableService {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
   private static final int DEFAULT_SEGMENT_SIZE = 100;
-  private static final long RECOMMENDED_ROW_SIZE_IN_MEGABYTES = 100 * 1024 * 1024;
-  // Default byte limit is the recommended 100MB rows with the default batch size
-  private static final long DEFAULT_BYTE_LIMIT =
-      (long) DEFAULT_SEGMENT_SIZE * RECOMMENDED_ROW_SIZE_IN_MEGABYTES;
+  // Default byte limit is a percentage of the JVM's free memory
+  private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .8;
 
   public BigtableServiceImpl(BigtableOptions options) {
     this.options = options;
@@ -245,22 +243,21 @@ class BigtableServiceImpl implements BigtableService {
     private ByteString lastFetchedRow;
     private boolean lastFillComplete;
     private boolean byteLimitReached;
+    private long bufferByteLimit;
 
     private final int segmentLimit;
-    private final long bufferByteLimit;
     private final int segmentWaterMark;
     private final String tableName;
 
     @VisibleForTesting
     BigtableSegmentReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
-      if (source.getMaxBufferElementCount() != 0) {
+      if (source.getMaxBufferElementCount() != null && source.getMaxBufferElementCount() != 0) {
         this.segmentLimit = source.getMaxBufferElementCount();
-        this.bufferByteLimit = (long) segmentLimit * RECOMMENDED_ROW_SIZE_IN_MEGABYTES;
       } else {
         this.segmentLimit = DEFAULT_SEGMENT_SIZE;
-        this.bufferByteLimit = DEFAULT_BYTE_LIMIT;
       }
+      this.bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * Runtime.getRuntime().freeMemory());
       // Asynchronously refill buffer when there is 10% of the elements are left
       this.segmentWaterMark = segmentLimit / 10;
       tableName = session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
@@ -339,7 +336,7 @@ class BigtableServiceImpl implements BigtableService {
 
     private SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> startNextSegmentRead() {
       SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> f = SettableFuture.create();
-
+      bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * Runtime.getRuntime().freeMemory());
       // TODO(diegomez): Remove atomic ScanHandler for simpler StreamObserver/Future implementation
       AtomicReference<ScanHandler> atomic = new AtomicReference<>();
       ScanHandler handler;
