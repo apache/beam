@@ -75,7 +75,7 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		if sdf.IsStatefulWatermarkEstimating() {
 			weT = typex.New(sdf.WatermarkEstimatorStateT())
 		}
-		rc, err = inferCoder(typex.New(typex.KVType, restT, weT))
+		rc, err = inferCoder(typex.NewKV(restT, weT))
 		if err != nil {
 			return nil, addParDoCtx(err, s)
 		}
