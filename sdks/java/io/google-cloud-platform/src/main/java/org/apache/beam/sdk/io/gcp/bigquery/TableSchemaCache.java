@@ -184,10 +184,12 @@ public class TableSchemaCache {
   @Nullable
   public TableSchema putSchemaIfAbsent(TableReference tableReference, TableSchema tableSchema) {
     final String key = tableKey(tableReference);
-    @Nullable
-    SchemaHolder existing =
-        runUnderMonitor(() -> this.cachedSchemas.putIfAbsent(key, SchemaHolder.of(tableSchema, 0)));
-    return existing != null ? existing.getTableSchema() : null;
+    Optional<SchemaHolder> existing =
+        runUnderMonitor(
+            () ->
+                Optional.ofNullable(
+                    this.cachedSchemas.putIfAbsent(key, SchemaHolder.of(tableSchema, 0))));
+    return existing.map(SchemaHolder::getTableSchema).orElse(null);
   }
 
   public void refreshSchema(TableReference tableReference, DatasetService datasetService) {
