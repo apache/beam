@@ -1,0 +1,290 @@
+{{define "StructWrappersAndFuncs_StartFinishBundle"}}
+{{$funcName := "unknown"}}{{$structName := "unknown"}}{{if (eq .func "startBundle")}}{{$funcName = "startBundle"}}{{$structName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$funcName = "finishBundle"}}{{$structName = "FinishBundle"}}{{end}}
+	{{$funcName}}In := -1
+	{{$funcName}}Out := -1
+    var {{$funcName}}Wrapper func(fn interface{}) reflectx.Func
+	{{$funcName}}Method := reflect.ValueOf(doFn).MethodByName("{{$structName}}")
+	if {{$funcName}}Method.IsValid() {
+		{{$funcName}}In = {{$funcName}}Method.Type().NumIn()
+		{{$funcName}}Out = {{$funcName}}Method.Type().NumOut()
+	    switch {
+{{range $funcIn := upto 8}}
+    case {{$funcName}}In == {{$funcIn}}:
+            switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $.processElementIn)}}{{if $possibleCombos}}
+            case {{$funcName}}Out == {{$funcOut}}:
+{{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$funcName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
+                    {{$funcName}}Caller := func(fn interface{}) reflectx.Func {
+                        f := fn.(func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})
+                        return &caller{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}{fn: f}
+                    }
+                    reflectx.RegisterFunc(reflect.TypeOf((*func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})(nil)).Elem(), {{$funcName}}Caller)
+                    {{$funcRegister := (makeStructRegisterEntry $funcName $structName $funcCombo (list))}}{{if $funcOut}}{{$funcRegister = (makeStructRegisterEntry $funcName $structName $funcCombo (list "error"))}}{{end}}
+                    {{$funcName}}Wrapper = func(fn interface{}) reflectx.Func {
+                        return {{$funcRegister}}
+                    }
+                } {{end}}{{end}}{{end}}
+            default:
+                panic("Invalid signature for {{$structName}}")
+            }
+{{end}}
+        default:
+            panic("Invalid signature for {{$structName}}")
+        }
+    }
+{{end}}
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Code generated from registration.tmpl. DO NOT EDIT.
+
+package beam
+
+import (
+	"context"
+	"reflect"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+)
+{{$processElementMaxOut := 5}}{{$processElementMaxIn := 9}}{{$startFinishBundleOutRange := 2}}{{$startFinishBundleInRange := 8}}{{range $processElementOut := upto $processElementMaxOut}}{{range $processElementIn := upto $processElementMaxIn}}
+type DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} interface {
+    ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+
+type caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} struct {
+    fn func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call(args []interface{}) []interface{} {
+    {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}} := {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}args[{{$in}}].(I{{$in}}){{end}})
+	return []interface{}{ {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}}{{end}} }
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}interface{}{{end}}){{end}} {
+    {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}{{end}})
+}
+
+func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
+    processElementCaller := func(fn interface{}) reflectx.Func {
+		f := fn.(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})
+		return &caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}{fn: f}
+	}
+	reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})(nil)).Elem(), processElementCaller)
+    processElementWrapper := func(fn interface{}) reflectx.Func {
+        return reflectx.MakeFunc(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}} {
+            {{if $processElementOut}}return {{end}}fn.(DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}).ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
+        })
+    }{{template "StructWrappersAndFuncs_StartFinishBundle" (dict "processElementIn" $processElementIn "processElementOut" $processElementOut "func" "startBundle")}}{{template "StructWrappersAndFuncs_StartFinishBundle" (dict "processElementIn" $processElementIn "processElementOut" $processElementOut "func" "finishBundle")}}
+    var setupWrapper func(fn interface{}) reflectx.Func
+    if _, ok := doFn.(setup0x0); ok {
+        setupCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func())
+            return &caller0x0{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+
+        setupWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func() {
+                fn.(setup0x0).Setup()
+            })
+        }
+    } else if _, ok := doFn.(setup1x0); ok {
+        setupCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func(context.Context))
+            return &caller1x0[context.Context]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
+
+        setupWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func(a0 context.Context) {
+                fn.(setup1x0).Setup(a0)
+            })
+        }
+    } else if _, ok := doFn.(setup0x1); ok {
+        setupCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func() error)
+            return &caller0x1[error]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
+
+        setupWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func() error {
+                return fn.(setup0x1).Setup()
+            })
+        }
+    } else if _, ok := doFn.(setup1x1); ok {
+        setupCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func(context.Context) error)
+            return &caller1x1[context.Context, error]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
+
+        setupWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func(a0 context.Context) error {
+                return fn.(setup1x1).Setup(a0)
+            })
+        }
+    }
+    var teardownWrapper func(fn interface{}) reflectx.Func
+    if _, ok := doFn.(teardown0x0); ok {
+        teardownCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func())
+            return &caller0x0{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
+
+        teardownWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func() {
+                fn.(teardown0x0).Teardown()
+            })
+        }
+    } else if _, ok := doFn.(teardown1x0); ok {
+        teardownCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func(context.Context))
+            return &caller1x0[context.Context]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
+
+        teardownWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func(a0 context.Context) {
+                fn.(teardown1x0).Teardown(a0)
+            })
+        }
+    } else if _, ok := doFn.(teardown0x1); ok {
+        teardownCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func() error)
+            return &caller0x1[error]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
+
+        teardownWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func() error {
+                return fn.(teardown0x1).Teardown()
+            })
+        }
+    } else if _, ok := doFn.(teardown1x1); ok {
+        teardownCaller := func(fn interface{}) reflectx.Func {
+            f := fn.(func(context.Context) error)
+            return &caller1x1[context.Context, error]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
+
+        teardownWrapper = func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func(a0 context.Context) error {
+                return fn.(teardown1x1).Teardown(a0)
+            })
+        }
+    }
+    wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+        m := map[string]reflectx.Func{}
+        if processElementWrapper != nil {
+            m["ProcessElement"] = processElementWrapper(fn)
+        }
+        if startBundleWrapper != nil {
+            m["StartBundle"] = startBundleWrapper(fn)
+        }
+        if finishBundleWrapper != nil {
+            m["FinishBundle"] = finishBundleWrapper(fn)
+        }
+        if setupWrapper != nil {
+            m["Setup"] = setupWrapper(fn)
+        }
+        if teardownWrapper != nil {
+            m["Teardown"] = teardownWrapper(fn)
+        }
+        
+        return m
+    }
+    reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
+}
+
+func RegisterDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
+    registerDoFnTypes(doFn)
+    registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut false)}}(doFn)
+}{{end}}{{end}}
+
+{{range $startFinishBundleOut := upto $startFinishBundleOutRange}}{{range $startFinishBundleIn := upto $startFinishBundleInRange}}
+type startBundle{{$startFinishBundleIn}}x{{$startFinishBundleOut}}{{(genericTypingRepresentation $startFinishBundleIn $startFinishBundleOut true)}} interface {
+    StartBundle({{range $in := upto $startFinishBundleIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $startFinishBundleOut}} ({{range $out := upto $startFinishBundleOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+
+type finishBundle{{$startFinishBundleIn}}x{{$startFinishBundleOut}}{{(genericTypingRepresentation $startFinishBundleIn $startFinishBundleOut true)}} interface {
+    FinishBundle({{range $in := upto $startFinishBundleIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $startFinishBundleOut}} ({{range $out := upto $startFinishBundleOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+{{end}}{{end}}
+type setup0x0 interface {
+	Setup()
+}
+
+type setup1x0 interface {
+	Setup(ctx context.Context)
+}
+
+type setup0x1 interface {
+	Setup() error
+}
+
+type setup1x1 interface {
+	Setup(ctx context.Context) error
+}
+
+type teardown0x0 interface {
+	Teardown()
+}
+
+type teardown1x0 interface {
+	Teardown(ctx context.Context)
+}
+
+type teardown0x1 interface {
+	Teardown() error
+}
+
+type teardown1x1 interface {
+	Teardown(ctx context.Context) error
+}
+
+func registerDoFnTypes(doFn interface{}) {
+   // Register the doFn
+   runtime.RegisterType(reflect.TypeOf(doFn).Elem())
+   schema.RegisterType(reflect.TypeOf(doFn).Elem())
+  
+   // Register all types in the DoFn
+   fn := reflect.ValueOf(doFn).MethodByName("ProcessElement").Type()
+   for i := 0; i < fn.NumIn(); i++ {
+       in := reflectx.SkipPtr(fn.In(i))
+       if in.Kind() == reflect.Struct {
+           runtime.RegisterType(in)
+           schema.RegisterType(in)
+       }
+   }
+   for i := 0; i < fn.NumOut(); i++ {
+       out := reflectx.SkipPtr(fn.Out(i))
+       if out.Kind() == reflect.Struct {
+           runtime.RegisterType(out)
+           schema.RegisterType(out)
+       }
+   }
+}
