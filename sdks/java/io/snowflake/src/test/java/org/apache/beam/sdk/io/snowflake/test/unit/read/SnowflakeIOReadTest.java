@@ -111,7 +111,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("staging bucket name cannot be empty");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeServices)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStorageIntegrationName(options.getStorageIntegrationName())
@@ -144,7 +144,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("storage integration cannot be empty");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeServices)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStorageIntegrationName(ValueProvider.StaticValueProvider.of(null))
@@ -209,7 +209,7 @@ public class SnowflakeIOReadTest implements Serializable {
     thrown.expectMessage("table or query is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeServices)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .withStagingBucketName(options.getStagingBucketName())
             .withStorageIntegrationName(options.getStorageIntegrationName())
