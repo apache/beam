@@ -2190,6 +2190,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               'A schema must be provided when writing to BigQuery using '
               'Avro based file loads')
 
+      if self.schema and 'JSON' in str(self.schema):
+        raise ValueError(
+            'Found JSON type in table schema. JSON data '
+            'insertion is currently not supported with '
+            'FILE_LOADS write method.')
+
       from apache_beam.io.gcp import bigquery_file_loads
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads
