@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.MoreObjects;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.util.concurrent.ExecutionException;
@@ -74,10 +75,10 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
 
       {
         tableSchema = getSchema(destination);
+        TableReference tableReference = getTable(destination).getTableReference();
         if (tableSchema == null) {
           // If the table already exists, then try and fetch the schema from the existing
           // table.
-          TableReference tableReference = getTable(destination).getTableReference();
           tableSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
           if (tableSchema == null) {
             if (createDisposition == CreateDisposition.CREATE_NEVER) {
@@ -95,7 +96,14 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
                       + "using a create disposition of CREATE_IF_NEEDED.");
             }
           }
+        } else {
+          // Make sure we register this schema with the cache, unless there's already a more
+          // up-to-date schema.
+          tableSchema =
+              MoreObjects.firstNonNull(
+                  SCHEMA_CACHE.putSchemaIfAbsent(tableReference, tableSchema), tableSchema);
         }
+
         descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
         descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
       }

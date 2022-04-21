@@ -177,6 +177,19 @@ public class TableSchemaCache {
     return schemaHolder.map(SchemaHolder::getTableSchema).orElse(null);
   }
 
+  /**
+   * Registers schema for a table if one is not already present. If a schema is already in the
+   * cache, returns the existing schema, otherwise returns null.
+   */
+  @Nullable
+  public TableSchema putSchemaIfAbsent(TableReference tableReference, TableSchema tableSchema) {
+    final String key = tableKey(tableReference);
+    @Nullable
+    SchemaHolder existing =
+        runUnderMonitor(() -> this.cachedSchemas.putIfAbsent(key, SchemaHolder.of(tableSchema, 0)));
+    return existing != null ? existing.getTableSchema() : null;
+  }
+
   public void refreshSchema(TableReference tableReference, DatasetService datasetService) {
     int targetVersion =
         runUnderMonitor(
@@ -186,13 +199,11 @@ public class TableSchemaCache {
                     "Cannot call refreshSchema after the object has been stopped!");
               }
               String key = tableKey(tableReference);
-              SchemaHolder schemaHolder = cachedSchemas.get(key);
-              if (schemaHolder == null) {
-                throw new RuntimeException("Can't refresh unknown schema!");
-              }
-              tablesToRefresh.put(key, Refresh.of(datasetService, schemaHolder.getVersion() + 1));
+              @Nullable SchemaHolder schemaHolder = cachedSchemas.get(key);
+              int nextVersion = schemaHolder != null ? schemaHolder.getVersion() + 1 : 0;
+              tablesToRefresh.put(key, Refresh.of(datasetService, nextVersion));
               // Wait at least until the next version.
-              return schemaHolder.getVersion() + 1;
+              return nextVersion;
             });
     waitForRefresh(tableReference, targetVersion);
   }
@@ -236,11 +247,9 @@ public class TableSchemaCache {
               .entrySet()
               .removeIf(
                   entry -> {
-                    SchemaHolder schemaHolder = cachedSchemas.get(entry.getKey());
-                    if (schemaHolder == null) {
-                      throw new RuntimeException("Unexpected null schema for " + entry.getKey());
-                    }
-                    return schemaHolder.getVersion() >= entry.getValue().getTargetVersion();
+                    @Nullable SchemaHolder schemaHolder = cachedSchemas.get(entry.getKey());
+                    return schemaHolder != null
+                        && schemaHolder.getVersion() >= entry.getValue().getTargetVersion();
                   });
         } finally {
           tableUpdateMonitor.leave();
@@ -271,10 +280,11 @@ public class TableSchemaCache {
       if (timeRemaining.getMillis() > 0) {
         Thread.sleep(timeRemaining.getMillis());
       }
-    } catch (InterruptedException e) {
-      runUnderMonitor(() -> this.stopped = true);
-      return;
-    } catch (IOException e) {
+    } catch (Exception e) {
+      // Since this is a daemon thread, don't exit until it is explicitly shut down. Exiting early
+      // can cause the
+      // pipeline to stall.
+      LOG.error("Caught exception: " + e);
     }
     this.refreshExecutor.submit(this::refreshThread);
   }
