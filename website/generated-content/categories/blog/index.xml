@@ -1361,7 +1361,7 @@ See the &lt;a href="/get-started/downloads/#2290-2021-04-15">download page&lt;/a
 &lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
 &lt;ul>
 &lt;li>DataFrame API now supports pandas 1.2.x (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11531">BEAM-11531&lt;/a>).&lt;/li>
-&lt;li>Multiple DataFrame API bugfixes (&lt;a href="https://issues.apache/jira/browse/BEAM-12071">BEAM-12071&lt;/a>, &lt;a href="https://issues.apache/jira/browse/BEAM-11929">BEAM-11929&lt;/a>)&lt;/li>
+&lt;li>Multiple DataFrame API bugfixes (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12071">BEAM-12071&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-11929">BEAM-11929&lt;/a>)&lt;/li>
 &lt;li>DDL supported in SQL transforms (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11850">BEAM-11850&lt;/a>)&lt;/li>
 &lt;li>Upgrade Flink runner to Flink version 1.12.2 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11941">BEAM-11941&lt;/a>)&lt;/li>
 &lt;/ul>
@@ -2815,7 +2815,9 @@ alt="Beam Summit Digital 2020, August 24-28">&lt;/p>
 &lt;ol>
 &lt;li>Submit a proposal to talk. Please check out the &lt;strong>&lt;a href="https://sessionize.com/beam-digital-summit-2020/">Call for Papers&lt;/a>&lt;/strong> and submit a talk. The deadline for submissions is &lt;em>June 15th&lt;/em>!&lt;/li>
 &lt;li>Register to join as an attendee. Registration is now open at the &lt;strong>&lt;a href="https://crowdcast.io/e/beamsummit">registration page&lt;/a>&lt;/strong>. Registration is free!&lt;/li>
-&lt;li>Consider sponsoring the event. If your company is interested in engaging with members of the community please check out our &lt;a href="https://drive.google.com/open?id=1EbijvZKpkWwWyMryLY9sJfyZzZk1k44v">sponsoring prospectus&lt;/a>.&lt;/li>
+&lt;/ol>
+&lt;!--- 3. Consider sponsoring the event. If your company is interested in engaging with members of the community please check out our sponsoring prospectus.--->
+&lt;ol start="3">
 &lt;li>Help us get the word out. Please make sure to let your colleagues and friends in the data engineering field (and beyond!) know about the Beam Summit.&lt;/li>
 &lt;/ol>
 &lt;h2 id="follow-up-and-more-information">Follow up and more information&lt;/h2>
@@ -3994,7 +3996,7 @@ limitations under the License.
 &lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>
 &lt;p>Keep an eye out for a meetup in &lt;a href="https://www.meetup.com/Paris-Apache-Beam-Meetup">Paris&lt;/a>.&lt;/p>
 &lt;p>If you are interested in starting your own meetup, feel free &lt;a href="https://beam.apache.org/community/contact-us">to reach out&lt;/a>! Good places to start include our Slack channel, the dev and user mailing lists, or the Apache Beam Twitter.&lt;/p>
-&lt;p>Even if you can’t travel to these meetups, you can stay informed on the happenings of the community. The talks and sessions from previous conferences and meetups are archived on the &lt;a href="https://www.youtube.com/c/ApacheBeamYT">Apache Beam YouTube channel&lt;/a>. If you want your session added to the channel, don’t hesitate to get in touch! And in case you want to attend the next Beam event in style, you can also order your swag on the &lt;a href="https://store-beam.myshopify.com">Beam swag store&lt;/a>&lt;/p>
+&lt;p>Even if you can’t travel to these meetups, you can stay informed on the happenings of the community. The talks and sessions from previous conferences and meetups are archived on the &lt;a href="https://www.youtube.com/c/ApacheBeamYT">Apache Beam YouTube channel&lt;/a>. If you want your session added to the channel, don’t hesitate to get in touch!&lt;/p>
 &lt;h2 id="summits">Summits&lt;/h2>
 &lt;p>The first summit of the year will be held in Berlin:&lt;/p>
 &lt;p>&lt;img src="https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&amp;auto=compress&amp;rect=0%2C115%2C2666%2C1333&amp;s=2680f5036dcad9177b027cce026c0224" alt="Beam Summit Europe Banner" >&lt;/p>

@@ -8728,7 +8728,7 @@ package.&lt;/p>
 Structs and pointers to structs default using Beam Schema Row encoding.
 However, users can build and register custom coders with &lt;code>beam.RegisterCoder&lt;/code>.
 You can find available Coder functions in the
-&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coders">coder&lt;/a>
+&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder">coder&lt;/a>
 package.&lt;/p>
 &lt;blockquote>
 &lt;p>Note that coders do not necessarily have a 1:1 relationship with types. For
@@ -14368,7 +14368,7 @@ export BEAM_WORKDIR=$PWD
 git checkout origin/release-$BEAM_SDK_VERSION
 &lt;/code>&lt;/pre>&lt;ol start="2">
 &lt;li>
-&lt;p>Customize the &lt;code>Dockerfile&lt;/code> for a given language, typically &lt;code>sdks/&amp;lt;language&amp;gt;/container/Dockerfile&lt;/code> directory (e.g. the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">Dockerfile for Python&lt;/a>. If you&amp;rsquo;re adding dependencies from &lt;a href="https://pypi.org/">PyPI&lt;/a>, use &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt">&lt;code>base_image_requirements.txt&lt;/code>&lt;/a> instead.&lt;/p>
+&lt;p>Customize the &lt;code>Dockerfile&lt;/code> for a given language, typically &lt;code>sdks/&amp;lt;language&amp;gt;/container/Dockerfile&lt;/code> directory (e.g. the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">Dockerfile for Python&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Return to the root Beam directory and run the Gradle &lt;code>docker&lt;/code> target for your image.&lt;/p>
@@ -16835,7 +16835,7 @@ a string, or use a
 &lt;a href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/index.html?com/google/api/services/bigquery/model/TableReference.html">TableReference&lt;/a>
 &lt;/span>
 &lt;span class="language-py">
-&lt;a href="https://github.com/googleapis/google-cloud-python/blob/master/bigquery/google/cloud/bigquery/table.py#L153">TableReference&lt;/a>
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html#table-references">TableReference&lt;/a>
 &lt;/span>
 object.&lt;/p>
 &lt;h4 id="using-a-string">Using a string&lt;/h4>
