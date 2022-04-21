@@ -371,9 +371,13 @@ type giwesInvoker struct {
 }
 
 func newGetInitialWatermarkEstimatorStateInvoker(fn *funcx.Fn) (*giwesInvoker, error) {
+	args := []interface{}{}
+	if fn != nil {
+		args = make([]interface{}, len(fn.Param))
+	}
 	n := &giwesInvoker{
 		fn:   fn,
-		args: make([]interface{}, len(fn.Param)),
+		args: args,
 	}
 	if err := n.initCallFn(); err != nil {
 		return nil, errors.WithContext(err, "sdf GetInitialWatermarkEstimatorState invoker")
@@ -382,6 +386,13 @@ func newGetInitialWatermarkEstimatorStateInvoker(fn *funcx.Fn) (*giwesInvoker, e
 }
 
 func (n *giwesInvoker) initCallFn() error {
+	// If no GetWatermarkEstimatorState function is defined, we'll use a default implementation that just returns false as the state.
+	if n.fn == nil {
+		n.call = func(rest interface{}, elms *FullValue) interface{} {
+			return false
+		}
+		return nil
+	}
 	// Expects a signature of the form:
 	// (typex.EventTime, restrictionTracker, key?, value) interface{}
 	switch fnT := n.fn.Fn.(type) {
@@ -439,9 +450,13 @@ type gwesInvoker struct {
 }
 
 func newGetWatermarkEstimatorStateInvoker(fn *funcx.Fn) (*gwesInvoker, error) {
+	args := []interface{}{}
+	if fn != nil {
+		args = make([]interface{}, len(fn.Param))
+	}
 	n := &gwesInvoker{
 		fn:   fn,
-		args: make([]interface{}, len(fn.Param)),
+		args: args,
 	}
 	if err := n.initCallFn(); err != nil {
 		return nil, errors.WithContext(err, "sdf GetWatermarkEstimatorState invoker")
@@ -450,6 +465,13 @@ func newGetWatermarkEstimatorStateInvoker(fn *funcx.Fn) (*gwesInvoker, error) {
 }
 
 func (n *gwesInvoker) initCallFn() error {
+	// If no GetWatermarkEstimatorState function is defined, we'll use a default implementation that just returns false as the state.
+	if n.fn == nil {
+		n.call = func(we sdf.WatermarkEstimator) interface{} {
+			return false
+		}
+		return nil
+	}
 	// Expects a signature of the form:
 	// (state) sdf.WatermarkEstimator
 	switch fnT := n.fn.Fn.(type) {
