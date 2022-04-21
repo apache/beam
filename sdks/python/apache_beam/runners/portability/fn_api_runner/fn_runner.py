@@ -782,8 +782,7 @@ class FnApiRunner(runner.PipelineRunner):
       for (consuming_stage_name, consuming_transform) in \
           runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
                                                                    []):
-        buffer = runner_execution_context.pcoll_buffers.get(
-            buffer_id, ListBuffer(None))
+        buffer = runner_execution_context.pcoll_buffers.get(buffer_id, None)
 
         if (buffer_id in runner_execution_context.pcoll_buffers and
             buffer_id not in buffers_to_clean):
@@ -808,7 +807,7 @@ class FnApiRunner(runner.PipelineRunner):
         # MAX_TIMESTAMP for the downstream stage.
         runner_execution_context.queues.watermark_pending_inputs.enque(
             ((consuming_stage_name, timestamp.MAX_TIMESTAMP),
-             DataInput({consuming_transform: buffer}, {})))
+             DataInput({consuming_transform: buffer}, {})))  # type: ignore
 
     for bid in buffers_to_clean:
       if bid in runner_execution_context.pcoll_buffers:
@@ -1140,7 +1139,7 @@ class BundleManager(object):
     assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
-    for byte_stream in byte_streams:
+    for byte_stream in (byte_streams or []):
       data_out.write(byte_stream)
     data_out.close()
 
@@ -1177,7 +1176,7 @@ class BundleManager(object):
     # type: (...) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     read_transform_id, buffer_data = only_element(inputs.items())
-    byte_stream = b''.join(buffer_data)
+    byte_stream = b''.join(buffer_data or [])
     num_elements = len(
         list(
             self.bundle_context_manager.get_input_coder_impl(
