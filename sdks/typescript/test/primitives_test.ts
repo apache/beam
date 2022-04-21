@@ -90,7 +90,6 @@ describe("primitives module", function () {
     });
 
     it("runs a map with singleton side input", async function () {
-      //             await new PortableRunner("localhost:3333").run((root) => {
       await new DirectRunner().run((root) => {
         const input = root.apply(new beam.Create([1, 2, 1]));
         const sideInput = root.apply(new beam.Create([4]));

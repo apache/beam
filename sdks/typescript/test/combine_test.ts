@@ -33,7 +33,6 @@ import {
 
 describe("Apache Beam combiners", function () {
   it("runs wordcount with a countPerKey transform and asserts the result", async function () {
-    //         await new PortableRunner('localhost:3333').run(
     await new DirectRunner().run((root) => {
       const lines = root.apply(
         new beam.Create([
