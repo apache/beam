@@ -1339,7 +1339,7 @@ A committer can manually trigger the &lt;a href="https://ci-beam.apache.org/job/
 &lt;p>This pull request is against the &lt;code>apache/beam-site&lt;/code> repo, on the &lt;code>release-docs&lt;/code> branch (&lt;a href="https://github.com/apache/beam-site/pull/603">example&lt;/a>).
 It is created by &lt;code>build_release_candidate.sh&lt;/code> (see above).&lt;/p>
 &lt;p>&lt;strong>PR 2: apache/beam&lt;/strong>&lt;/p>
-&lt;p>This pull request is against the &lt;code>apache/beam&lt;/code> repo, on the &lt;code>master&lt;/code> branch (&lt;a href="https://github.com/apache/beam/pull/15068">example&lt;/a>).&lt;/p>
+&lt;p>This pull request is against the &lt;code>apache/beam&lt;/code> repo, on the &lt;code>master&lt;/code> branch (&lt;a href="https://github.com/apache/beam/pull/17378">example&lt;/a>).&lt;/p>
 &lt;ul>
 &lt;li>Update &lt;code>CHANGES.md&lt;/code> to update release date and remove template.&lt;/li>
 &lt;li>Update release version in &lt;code>website/www/site/config.toml&lt;/code>.&lt;/li>
@@ -1348,6 +1348,8 @@ It is created by &lt;code>build_release_candidate.sh&lt;/code> (see above).&lt;/
 &lt;li>Download links will not work until the release is finalized.&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>Update links to prior releases to point to &lt;a href="https://archive.apache.org">https://archive.apache.org&lt;/a> (see
+example PR).&lt;/li>
 &lt;li>Update &lt;code>website/www/site/static/.htaccess&lt;/code> to redirect to the new version.&lt;/li>
 &lt;li>Create the Blog post:&lt;/li>
 &lt;/ul>
@@ -1811,8 +1813,7 @@ Ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assistance if you n
 &lt;h4 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/h4>
 &lt;p>Copy the source release from the &lt;code>dev&lt;/code> repository to the &lt;code>release&lt;/code> repository at &lt;code>dist.apache.org&lt;/code> using Subversion.&lt;/p>
 &lt;p>Make sure the last release&amp;rsquo;s artifacts have been copied from &lt;code>dist.apache.org&lt;/code> to &lt;code>archive.apache.org&lt;/code>.
-This should happen automatically: &lt;a href="https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E">dev@ thread&lt;/a> with context.
-The release manager should also make sure to update these links on the website (&lt;a href="https://github.com/apache/beam/pull/11727">example&lt;/a>).&lt;/p>
+This should happen automatically: &lt;a href="https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E">dev@ thread&lt;/a> with context.&lt;/p>
 &lt;h4 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA&lt;/h4>
 &lt;p>In JIRA, inside &lt;a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions">version management&lt;/a>, hover over the current release and a settings menu will appear.
 Click &lt;code>Release&lt;/code>, and select today’s date.&lt;/p>
