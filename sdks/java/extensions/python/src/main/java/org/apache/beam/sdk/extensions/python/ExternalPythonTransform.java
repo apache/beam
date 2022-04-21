@@ -268,20 +268,31 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
     Row argsRow = buildOrGetArgsRow();
     Row kwargsRow = buildOrGetKwargsRow();
     try {
-      Schema payloadSchema =
-          Schema.of(
-              Schema.Field.of("constructor", Schema.FieldType.STRING),
-              Schema.Field.of("args", Schema.FieldType.row(argsRow.getSchema())),
-              Schema.Field.of("kwargs", Schema.FieldType.row(kwargsRow.getSchema())));
+      Schema.Builder schemaBuilder = Schema.builder();
+      schemaBuilder.addStringField("constructor");
+      if (argsRow.getValues().size() > 0) {
+        schemaBuilder.addRowField("args", argsRow.getSchema());
+      }
+      if (kwargsRow.getValues().size() > 0) {
+        schemaBuilder.addRowField("kwargs", kwargsRow.getSchema());
+      }
+      Schema payloadSchema = schemaBuilder.build();
       payloadSchema.setUUID(UUID.randomUUID());
-      Row payloadRow =
-          Row.withSchema(payloadSchema).addValues(fullyQualifiedName, argsRow, kwargsRow).build();
+      Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
+      payloadRowBuilder.addValue(fullyQualifiedName);
+      if (argsRow.getValues().size() > 0) {
+        payloadRowBuilder.addValue(argsRow);
+      }
+      if (kwargsRow.getValues().size() > 0) {
+        payloadRowBuilder.addValue(kwargsRow);
+      }
       ExternalTransforms.ExternalConfigurationPayload payload =
           ExternalTransforms.ExternalConfigurationPayload.newBuilder()
               .setSchema(SchemaTranslation.schemaToProto(payloadSchema, true))
               .setPayload(
                   ByteString.copyFrom(
-                      CoderUtils.encodeToByteArray(RowCoder.of(payloadSchema), payloadRow)))
+                      CoderUtils.encodeToByteArray(
+                          RowCoder.of(payloadSchema), payloadRowBuilder.build())))
               .build();
       if (expansionPort > 0) {
         PythonService.waitForPort(expansionHost, expansionPort, 15000);
