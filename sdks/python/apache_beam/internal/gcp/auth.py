@@ -183,9 +183,13 @@ class _Credentials(object):
           'Impersonation credentials not yet set. \n' + str(traceback_str))
     """Adds impersonation credentials if the client species them."""
     if cls._impersonate_service_account:
+      # TODO (remove log)
+      _LOGGER.warning('cls._impersonate_service_account:' + str(cls._impersonate_service_account))
       impersonate_accounts = cls._impersonate_service_account.split(',')
       target_principal = impersonate_accounts[-1]
-      delegate_to = impersonate_accounts[0,:]
+      delegate_to = impersonate_accounts[0:-1]
+      # TODO (remove log)
+      _LOGGER.warning('Setting Impersonation Credentials Target PRINCIPAL:' + str(target_principal) + ' -- Delegate To:' + str(delegate_to))
       credentials = impersonated_credentials.Credentials(
           source_credentials=credentials,
           target_principal=target_principal,
