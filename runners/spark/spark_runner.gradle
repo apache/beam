@@ -189,6 +189,8 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
   hadoopVersions.each { kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    // Force paranamer 2.8 to avoid issues when using Scala 2.12
+    "hadoopVersion$kv.key" "com.thoughtworks.paranamer:paranamer:2.8"
   }
 }
 
