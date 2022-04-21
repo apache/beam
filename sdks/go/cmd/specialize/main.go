@@ -205,7 +205,7 @@ var funcMap template.FuncMap = map[string]interface{}{
 	"add":                                    add,
 	"mult":                                   mult,
 	"dict":                                   dict,
-	"list": 								  list,
+	"list":                                   list,
 	"genericTypingRepresentation":            genericTypingRepresentation,
 	"possibleBundleLifecycleParameterCombos": possibleBundleLifecycleParameterCombos,
 	"makeStructRegisterEntry":                makeStructRegisterEntry,

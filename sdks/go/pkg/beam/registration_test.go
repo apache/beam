@@ -180,7 +180,7 @@ func (fn *CompleteDoFn2x1) Teardown() error {
 	return nil
 }
 
-type PartialDoFn1x0 struct {	
+type PartialDoFn1x0 struct {
 }
 
 func (fn *PartialDoFn1x0) ProcessElement(emit func(int)) {

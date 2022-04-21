@@ -61,7 +61,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 {{$processElementMaxOut := 5}}{{$processElementMaxIn := 9}}{{$startFinishBundleOutRange := 2}}{{$startFinishBundleInRange := 8}}{{range $processElementOut := upto $processElementMaxOut}}{{range $processElementIn := upto $processElementMaxIn}}
-type DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} interface {
+type doFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} interface {
     ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
 }
 
@@ -86,7 +86,7 @@ func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepre
     {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}{{end}})
 }
 
-func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
+func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn doFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
     processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})
 		return &caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}{fn: f}
@@ -94,7 +94,7 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
 	reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})(nil)).Elem(), processElementCaller)
     processElementWrapper := func(fn interface{}) reflectx.Func {
         return reflectx.MakeFunc(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}} {
-            {{if $processElementOut}}return {{end}}fn.(DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}).ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
+            {{if $processElementOut}}return {{end}}fn.(doFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}).ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
         })
     }{{template "StructWrappersAndFuncs_StartFinishBundle" (dict "processElementIn" $processElementIn "processElementOut" $processElementOut "func" "startBundle")}}{{template "StructWrappersAndFuncs_StartFinishBundle" (dict "processElementIn" $processElementIn "processElementOut" $processElementOut "func" "finishBundle")}}
     var setupWrapper func(fn interface{}) reflectx.Func
@@ -220,7 +220,9 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
     reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-func RegisterDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
+// RegisterDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} registers your DoFn to optimize execution at runtime.
+{{if (or $processElementIn $processElementOut)}}// DoFn input and output parameter types should be provided in order as the generic constraints.
+{{end}}func RegisterDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn doFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
     registerDoFnTypes(doFn)
     registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut false)}}(doFn)
 }{{end}}{{end}}
