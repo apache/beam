@@ -53,7 +53,6 @@ class CountElements extends beam.PTransform<
 
 describe("wordcount", function () {
   it("wordcount", async function () {
-    //         await new PortableRunner('localhost:3333').run(
     await new DirectRunner().run((root) => {
       const lines = root.apply(
         new beam.Create([
