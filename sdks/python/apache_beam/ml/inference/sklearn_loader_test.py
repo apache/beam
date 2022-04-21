@@ -153,7 +153,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   def test_bad_input_type_raises(self):
     with tempfile.NamedTemporaryFile() as file:
-      with self.assertRaises(TypeError):
+      with self.assertRaisesRegex(TypeError, 'Unsupported serialization type.'):
         model_loader = SklearnModelLoader(
             model_uri=file.name, serialization=None)
         model_loader.load_model()
