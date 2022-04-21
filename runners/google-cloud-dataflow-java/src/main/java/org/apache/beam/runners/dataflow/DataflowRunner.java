@@ -197,9 +197,9 @@ import org.slf4j.LoggerFactory;
 })
 public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
-  /** Experiment to "disable unbounded pcollection checks turning batch into streaming". */
-  public static final String DISABLE_UNBOUNDED_PCOLLECTION_CHECKS_TURNING_BATCH_INTO_STREAMING =
-      "disable_unbounded_pcollection_checks_turning_batch_into_streaming";
+  /** Experiment to "unsafely attempt to process unbounded data in batch mode". */
+  public static final String UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE =
+      "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
   /** Provided configuration options. */
@@ -1508,7 +1508,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (options.isStreaming()) {
         return true;
       } else if (hasExperiment(
-          options, DISABLE_UNBOUNDED_PCOLLECTION_CHECKS_TURNING_BATCH_INTO_STREAMING)) {
+          options, UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE)) {
         LOG.info(
             "Turning a batch pipeline into streaming due to unbounded PCollection(s) has been avoided! "
                 + "Unbounded PCollection(s): {}",
