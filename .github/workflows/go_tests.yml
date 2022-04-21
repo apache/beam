@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 2
       - uses: actions/setup-go@v2
         with:
-          go-version: '1.16'
+          go-version: '1.18'
       - name: Delete old coverage
         run: "cd sdks/go/pkg && rm -rf .coverage || :"
       - name: Run coverage
