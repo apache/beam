@@ -641,12 +641,14 @@ It is created by `build_release_candidate.sh` (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/15068)).
+This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/17378)).
 
 * Update `CHANGES.md` to update release date and remove template.
 * Update release version in `website/www/site/config.toml`.
 * Add new release in `website/www/site/content/en/get-started/downloads.md`.
   * Download links will not work until the release is finalized.
+* Update links to prior releases to point to https://archive.apache.org (see
+  example PR).
 * Update `website/www/site/static/.htaccess` to redirect to the new version.
 * Create the Blog post:
 
@@ -1181,7 +1183,6 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
-The release manager should also make sure to update these links on the website ([example](https://github.com/apache/beam/pull/11727)).
 
 #### Mark the version as released in JIRA
 
