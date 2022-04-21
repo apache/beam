@@ -412,6 +412,12 @@ func (rt *splitTestRTracker) IsDone() bool {
 	return rt.rt.IsDone()
 }
 
+func (rt *splitTestRTracker) IsBounded() bool {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	return rt.rt.IsBounded()
+}
+
 func (rt *splitTestRTracker) GetRestriction() interface{} {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()

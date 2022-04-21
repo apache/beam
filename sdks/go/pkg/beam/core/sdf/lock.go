@@ -80,3 +80,11 @@ func (rt *LockRTracker) GetRestriction() interface{} {
 	defer rt.Mu.Unlock()
 	return rt.Rt.GetRestriction()
 }
+
+// IsBounded locks a mutex for thread safety, and then delegates to the
+// underlying tracker's IsBounded().
+func (rt *LockRTracker) IsBounded() bool {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.IsBounded()
+}

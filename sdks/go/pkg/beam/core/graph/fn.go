@@ -167,6 +167,7 @@ const (
 	splitRestrictionName         = "SplitRestriction"
 	restrictionSizeName          = "RestrictionSize"
 	createTrackerName            = "CreateTracker"
+	truncateRestrictionName      = "TruncateRestriction"
 
 	createWatermarkEstimatorName = "CreateWatermarkEstimator"
 
@@ -197,6 +198,10 @@ var requiredSdfNames = []string{
 	splitRestrictionName,
 	restrictionSizeName,
 	createTrackerName,
+}
+
+var optionalSdfNames = []string{
+	truncateRestrictionName,
 }
 
 var watermarkEstimationNames = []string{
@@ -306,6 +311,17 @@ func (f *SplittableDoFn) Name() string {
 // RestrictionT returns the restriction type from the SDF.
 func (f *SplittableDoFn) RestrictionT() reflect.Type {
 	return f.CreateInitialRestrictionFn().Ret[0].T
+}
+
+// HasTruncateRestriction returns whether the DoFn implements a custom truncate restriction function.
+func (f *SplittableDoFn) HasTruncateRestriction() bool {
+	_, ok := f.methods[truncateRestrictionName]
+	return ok
+}
+
+// TruncateRestrictionFn returns the "TruncateRestriction" function, if present.
+func (f *SplittableDoFn) TruncateRestrictionFn() *funcx.Fn {
+	return f.methods[truncateRestrictionName]
 }
 
 // IsWatermarkEstimating returns whether the DoFn implements a custom watermark estimator.

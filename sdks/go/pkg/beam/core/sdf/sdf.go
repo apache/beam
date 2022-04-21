@@ -87,6 +87,10 @@ type RTracker interface {
 	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
 	// is unavailable for some reason.
 	GetRestriction() interface{}
+
+	// IsBounded returns the boundedness of the current restriction. If the current restriction represents a
+	// finite amount of work, it should return sdf.Bounded. Otherwise, it should return sdf.Unbounded.
+	IsBounded() bool
 }
 
 // WatermarkEstimator is an interface used to represent a user defined watermark estimator.

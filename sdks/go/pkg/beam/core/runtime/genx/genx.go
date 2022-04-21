@@ -112,6 +112,11 @@ func handleDoFn(fn *graph.DoFn, c cache) {
 	c.pullMethod(sdf.RestrictionSizeFn())
 	c.pullMethod(sdf.SplitRestrictionFn())
 	c.regType(sdf.RestrictionT())
+
+	if sdf.HasTruncateRestriction() {
+		c.pullMethod(sdf.TruncateRestrictionFn())
+	}
+
 	if !sdf.IsWatermarkEstimating() {
 		return
 	}

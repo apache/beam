@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 // This file contains invokers for SDF methods. These invokers are based off
@@ -347,6 +348,87 @@ func (n *cweInvoker) Invoke() sdf.WatermarkEstimator {
 // Reset zeroes argument entries in the cached slice to allow values to be
 // garbage collected after the bundle ends.
 func (n *cweInvoker) Reset() {
+	for i := range n.args {
+		n.args[i] = nil
+	}
+}
+
+// trInvoker is an invoker for TruncateRestriction.
+type trInvoker struct {
+	fn   *funcx.Fn
+	args []interface{}
+	call func(elms *FullValue, rest interface{}) (pair interface{})
+}
+
+var offsetrangeTracker = reflect.TypeOf((*offsetrange.Tracker)(nil)).Elem()
+
+// var growableOffsetRangeTracker = reflect.TypeOf((*growable_offsetrange.Tracker)(nil))
+
+func DefaultTruncateRestriction(restTracker interface{}) (newRest interface{}) {
+	switch restTracker.(type) {
+	case *offsetrange.Tracker:
+		return restTracker.(*offsetrange.Tracker).GetRestriction().(offsetrange.Restriction) // since offsetrange has a bounded restriction
+	default:
+		return nil
+	}
+}
+
+func newTruncateRestrictionInvoker(fn *funcx.Fn) (*trInvoker, error) {
+	n := &trInvoker{
+		fn:   fn,
+		args: make([]interface{}, len(fn.Param)),
+	}
+	if err := n.initCallFn(); err != nil {
+		return nil, errors.WithContext(err, "sdf TruncateRestriction invoker")
+	}
+	return n, nil
+}
+
+func (n *trInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (key?, value, restriction) []restriction
+	// TODO(BEAM-9643): Link to full documentation.
+	switch fnT := n.fn.Fn.(type) {
+	case reflectx.Func2x1:
+		n.call = func(elms *FullValue, rest interface{}) interface{} {
+			return fnT.Call2x1(elms.Elm, rest)
+		}
+	case reflectx.Func3x1:
+		n.call = func(elms *FullValue, rest interface{}) interface{} {
+			return fnT.Call3x1(elms.Elm, elms.Elm2, rest)
+		}
+	default:
+		switch len(n.fn.Param) {
+		case 2:
+			n.call = func(elms *FullValue, rest interface{}) interface{} {
+				n.args[0] = elms.Elm
+				n.args[1] = rest
+				return n.fn.Fn.Call(n.args)[0]
+			}
+		case 3:
+			n.call = func(elms *FullValue, rest interface{}) interface{} {
+				n.args[0] = elms.Elm
+				n.args[1] = elms.Elm2
+				n.args[2] = rest
+				return n.fn.Fn.Call(n.args)[0]
+			}
+		default:
+			return errors.Errorf("TruncateRestriction fn %v has unexpected number of parameters: %v",
+				n.fn.Fn.Name(), len(n.fn.Param))
+		}
+	}
+	return nil
+}
+
+// Invoke calls TruncateRestriction given a FullValue containing an element and
+// the associated restriction tracker, and returns a truncated restriction.
+func (n *trInvoker) Invoke(elms *FullValue, rt interface{}) (rest interface{}) {
+	return n.call(elms, rt)
+}
+
+// Reset zeroes argument entries in the cached slice to allow values to be
+// garbage collected after the bundle ends.
+func (n *trInvoker) Reset() {
 	for i := range n.args {
 		n.args[i] = nil
 	}
