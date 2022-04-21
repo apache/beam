@@ -56,6 +56,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
   private String fullyQualifiedName;
+  private String expansionHost;
   private int expansionPort;
 
   // We preseve the order here since Schema's care about order of fields but the order will not
@@ -65,8 +66,10 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Object @NonNull [] argsArray;
   private @Nullable Row providedKwargsRow;
 
-  private ExternalPythonTransform(String fullyQualifiedName, int expansionPort) {
+  private ExternalPythonTransform(
+      String fullyQualifiedName, String expansionHost, int expansionPort) {
     this.fullyQualifiedName = fullyQualifiedName;
+    this.expansionHost = expansionHost;
     this.expansionPort = expansionPort;
     this.kwargsMap = new TreeMap<>();
     argsArray = new Object[] {};
@@ -82,7 +85,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    */
   public static <InputT extends PInput, OutputT extends POutput>
       ExternalPythonTransform<InputT, OutputT> from(String tranformName) {
-    return new ExternalPythonTransform<InputT, OutputT>(tranformName, 0);
+    return new ExternalPythonTransform<>(tranformName, "localhost", 0);
   }
 
   /**
@@ -95,8 +98,9 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @return A {@link ExternalPythonTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      ExternalPythonTransform<InputT, OutputT> from(String tranformName, int expansionPort) {
-    return new ExternalPythonTransform<InputT, OutputT>(tranformName, expansionPort);
+      ExternalPythonTransform<InputT, OutputT> from(
+          String tranformName, String expansionHost, int expansionPort) {
+    return new ExternalPythonTransform<>(tranformName, expansionHost, expansionPort);
   }
 
   /**
@@ -280,8 +284,8 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
                       CoderUtils.encodeToByteArray(RowCoder.of(payloadSchema), payloadRow)))
               .build();
       if (expansionPort > 0) {
-        PythonService.waitForPort("localhost", expansionPort, 15000);
-        return apply(input, expansionPort, payload);
+        PythonService.waitForPort(expansionHost, expansionPort, 15000);
+        return apply(input, expansionHost, expansionPort, payload);
       } else {
         port = PythonService.findAvailablePort();
         PythonService service =
@@ -293,7 +297,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
                 "*");
         try (AutoCloseable p = service.start()) {
           PythonService.waitForPort("localhost", port, 15000);
-          return apply(input, port, payload);
+          return apply(input, "localhost", port, payload);
         }
       }
     } catch (RuntimeException exn) {
@@ -304,12 +308,15 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
   }
 
   private OutputT apply(
-      InputT input, int port, ExternalTransforms.ExternalConfigurationPayload payload) {
+      InputT input,
+      String host,
+      int port,
+      ExternalTransforms.ExternalConfigurationPayload payload) {
     PTransform<PInput, PCollectionTuple> transform =
-        External.<PInput, Object>of(
+        External.of(
                 "beam:transforms:python:fully_qualified_named",
                 payload.toByteArray(),
-                "localhost:" + port)
+                host + ":" + port)
             .withMultiOutputs();
     PCollectionTuple outputs;
     if (input instanceof PCollection) {
