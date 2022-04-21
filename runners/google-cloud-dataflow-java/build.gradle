@@ -151,7 +151,15 @@ def legacyPipelineOptions = [
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-  "--workerHarnessContainerImage=",
+  "--workerHarnessContainerImage=gcr.io/dataflow-build/kileysok/beam-java8-latest-batch:latest",
+]
+def legacyPipelineStreamingOptions = [
+        "--runner=TestDataflowRunner",
+        "--project=${dataflowProject}",
+        "--region=${dataflowRegion}",
+        "--tempRoot=${dataflowValidatesTempRoot}",
+        "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+        "--workerHarnessContainerImage=gcr.io/dataflow-build/kileysok/beam-java8-latest-streaming:latest",
 ]
 
 def runnerV2PipelineOptions = [
@@ -381,7 +389,7 @@ task validatesRunnerStreaming {
   description "Validates Dataflow runner forcing streaming mode"
   dependsOn(createLegacyWorkerValidatesRunnerTest(
     name: 'validatesRunnerLegacyWorkerTestStreaming',
-    pipelineOptions: legacyPipelineOptions + ['--streaming=true'],
+    pipelineOptions: legacyPipelineStreamingOptions + ['--streaming=true'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesMapState',
