@@ -18,8 +18,8 @@
 # This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
-
 from __future__ import annotations
+
 from typing import Optional
 
 from apache_beam.runners import common

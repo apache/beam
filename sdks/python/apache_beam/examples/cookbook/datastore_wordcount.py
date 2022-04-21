@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A word-counting workflow that uses Google Cloud Datastore.
 
 This example shows how to use ``datastoreio`` to read from and write to
@@ -55,6 +54,7 @@ The following options must be provided to run this pipeline in read-write mode:
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import argparse
 import logging

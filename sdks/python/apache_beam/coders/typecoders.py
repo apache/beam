@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Type coders registration.
 
 This module contains functionality to define and use coders for custom classes.
@@ -66,6 +65,7 @@ See apache_beam.typehints.decorators module for more details.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 from typing import Any
 from typing import Dict
 from typing import Iterable

@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A profiler context manager based on cProfile.Profile and guppy.hpy objects.
 
 For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: check-untyped-defs
 
 import cProfile

@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
 """A module that allows running existing pandas doctests with Beam dataframes.
 
 This module hooks into the doctesting framework by providing a custom
@@ -37,6 +36,7 @@ The (novel) sequence of events when running a doctest is as follows.
   4. The comparison is then done on the sorted lines of the expected and actual
      values.
 """
+from __future__ import annotations
 
 import collections
 import contextlib

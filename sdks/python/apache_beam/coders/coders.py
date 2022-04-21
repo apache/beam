@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Collection of useful coders.
 
 Only those coders listed in __all__ are part of the public API of this module.
@@ -36,6 +35,7 @@ encoded.
 
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import base64
 import pickle

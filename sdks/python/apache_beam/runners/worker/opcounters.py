@@ -18,10 +18,10 @@
 # cython: language_level=3
 # cython: profile=True
 
-from __future__ import annotations
 """Counters collect the progress of the Worker for reporting to the service."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import math
 import random

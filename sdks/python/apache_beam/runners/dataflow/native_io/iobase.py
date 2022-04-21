@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Dataflow native sources and sinks.
 
 For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING

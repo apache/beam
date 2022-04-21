@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Google Cloud PubSub sources and sinks.
 
 Cloud Pub/Sub sources and sinks are currently supported only in streaming
@@ -25,6 +24,7 @@ This API is currently under development and is subject to change.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import re
 from typing import Any

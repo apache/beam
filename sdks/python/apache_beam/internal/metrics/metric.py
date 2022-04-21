@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 Metrics API classes for internal use only.
 
@@ -24,6 +23,7 @@ Users should use apache_beam.metrics.metric package instead.
 For internal use only. No backwards compatibility guarantees.
 """
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import datetime

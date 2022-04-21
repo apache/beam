@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Environments concepts.
 
 For internal use only. No backwards compatibility guarantees."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import json
 import logging

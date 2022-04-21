@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A library of basic combiner PTransform subclasses."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import copy
 import heapq

@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Code for communicating with the Workers."""
 
 # mypy: disallow-untyped-defs
+from __future__ import annotations
 
 import collections
 import contextlib

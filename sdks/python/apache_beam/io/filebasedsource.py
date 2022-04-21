@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A framework for developing sources for new file types.
 
 To create a source for a new file type a sub-class of :class:`FileBasedSource`
@@ -28,6 +27,7 @@ For an example implementation of :class:`FileBasedSource` see
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import Callable
 from typing import Union

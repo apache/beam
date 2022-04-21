@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Tests for the Observable mixin class."""
 # pytype: skip-file
+from __future__ import annotations
 
 import logging
 import unittest

@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A module for defining resource requirements for execution of transforms.
 
 Pipeline authors can use resource hints to provide additional information to
@@ -25,6 +24,7 @@ or globally via --resource_hint pipeline option.
 
 See also: PTransforms.with_resource_hints().
 """
+from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING

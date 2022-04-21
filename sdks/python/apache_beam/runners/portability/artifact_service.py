@@ -14,13 +14,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Implementation of an Artifact{Staging,Retrieval}Service.
 
 The staging service here can be backed by any beam filesystem.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import concurrent.futures
 import hashlib

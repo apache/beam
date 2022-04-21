@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Support for Apache Beam triggers.
 
 Triggers control when in processing time windows get emitted.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import copy

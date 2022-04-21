@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Module to control how Interactive Beam captures data from sources for
 deterministic replayable PCollection evaluation and pipeline runs.
 
@@ -23,6 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import logging
 from datetime import timedelta

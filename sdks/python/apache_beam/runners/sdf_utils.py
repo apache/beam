@@ -16,8 +16,8 @@
 #
 
 # pytype: skip-file
-
 from __future__ import annotations
+
 """Common utility class to help SDK harness to execute an SDF. """
 
 import logging

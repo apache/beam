@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 Worker pool entry point.
 
@@ -29,6 +28,7 @@ This entry point is used by the Python SDK container in worker pool mode.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import argparse
 import atexit

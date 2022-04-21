@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """For internal use only; no backwards-compatibility guarantees."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 # TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
 # import abc

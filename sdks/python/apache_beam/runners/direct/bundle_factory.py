@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A factory that creates UncommittedBundles."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import Iterable
 from typing import Iterator

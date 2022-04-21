@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Tests for schemas."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import typing
 import unittest

@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """An evaluator of a specific application of a transform."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import atexit
 import collections

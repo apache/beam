@@ -17,13 +17,13 @@
 # cython: profile=True
 # cython: language_level=3
 
-from __future__ import annotations
 """Worker operations executor.
 
 For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 import sys
 import threading
 import traceback

@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Pipeline transformations for the FnApiRunner.
 """
 # pytype: skip-file
 # mypy: check-untyped-defs
+from __future__ import annotations
 
 import collections
 import copy

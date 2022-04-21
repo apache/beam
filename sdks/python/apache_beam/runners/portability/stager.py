@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Support for installing custom code and required dependencies.
 
 Workflows, with the exception of very simple ones, are organized in multiple
@@ -47,6 +46,7 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import glob
 import hashlib

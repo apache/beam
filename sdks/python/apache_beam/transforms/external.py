@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Defines Transform whose expansion is implemented elsewhere.
 
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import contextlib
 import copy

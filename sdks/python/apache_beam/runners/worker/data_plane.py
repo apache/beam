@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Implementation of ``DataChannel``s to communicate across the data plane."""
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import abc

@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Module to condition how Interactive Beam stops capturing data.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from __future__ import annotations
 
 import threading
 

@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """``PTransforms`` for manipulating files in Apache Beam.
 
 Provides reading ``PTransform``\\s, ``MatchFiles``,
@@ -88,6 +87,7 @@ parameter can be anything, as long as elements can be grouped by it.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import logging

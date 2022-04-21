@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A PipelineRunner using the SDK harness.
 """
 # pytype: skip-file
+from __future__ import annotations
 # mypy: check-untyped-defs
 
 import contextlib

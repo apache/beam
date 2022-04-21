@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A runner implementation that submits a job for remote execution.
 
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import base64
 import logging

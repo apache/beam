@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A module for caching state reads/writes in Beam applications."""
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import collections

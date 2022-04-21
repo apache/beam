@@ -17,7 +17,6 @@
 
 # cython: language_level=3
 
-from __future__ import annotations
 """
 This module is for internal use only; no backwards-compatibility guarantees.
 
@@ -34,6 +33,7 @@ Available classes:
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import threading
 from typing import TYPE_CHECKING

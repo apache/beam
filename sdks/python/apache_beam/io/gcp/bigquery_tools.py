@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Tools used by BigQuery sources and sinks.
 
 Classes, constants and functions in this file are experimental and have no
@@ -27,6 +26,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import datetime
 import decimal

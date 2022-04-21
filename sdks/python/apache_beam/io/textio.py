@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A source and a sink for reading from and writing to text files."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import logging
 from functools import partial

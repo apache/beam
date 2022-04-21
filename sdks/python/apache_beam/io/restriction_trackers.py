@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import Tuple
 

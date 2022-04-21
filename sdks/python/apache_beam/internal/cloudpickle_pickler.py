@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Pickler for values, functions, and classes.
 
 For internal use only. No backwards compatibility guarantees.
@@ -27,6 +26,7 @@ dump_session and load_session are no-ops.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import base64
 import bz2

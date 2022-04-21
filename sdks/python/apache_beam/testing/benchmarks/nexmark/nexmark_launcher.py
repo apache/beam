@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Nexmark launcher.
 
 The Nexmark suite is a series of queries (streaming pipelines) performed
@@ -59,6 +58,7 @@ Usage
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import argparse
 import logging

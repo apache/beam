@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """GCS file system implementation for accessing files on GCS."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import BinaryIO  # pylint: disable=unused-import
 

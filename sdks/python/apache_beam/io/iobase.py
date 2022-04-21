@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Sources and sinks.
 
 A Source manages record-oriented data input from a particular kind of source
@@ -31,6 +30,7 @@ the sink.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import logging
 import math

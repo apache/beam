@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """The TestStream implementation for the DirectRunner
 
 The DirectRunner implements TestStream as the _TestStream class which is used
@@ -25,6 +24,7 @@ tagged PCollection.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import itertools
 import logging

@@ -19,13 +19,13 @@
 # cython: overflowcheck=True
 # cython: language_level=3
 
-from __future__ import annotations
 """Counters collect the progress of the Worker for reporting to the service.
 
 For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import threading
 from collections import namedtuple

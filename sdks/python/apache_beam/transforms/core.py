@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import concurrent.futures
 import copy

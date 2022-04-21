@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Local File system implementation for accessing files on disk."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import io
 import os

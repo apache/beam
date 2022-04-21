@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Tools used tool work with Avro files in the context of BigQuery.
 
 Classes, constants and functions in this file are experimental and have no
@@ -23,6 +22,7 @@ backwards compatibility guarantees.
 
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
+from __future__ import annotations
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types

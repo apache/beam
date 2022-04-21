@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """SDK harness for executing Python Fns via the Fn API."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import base64
 import bisect

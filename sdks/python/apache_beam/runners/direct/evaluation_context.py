@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """EvaluationContext tracks global state, triggers and watermarks."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import threading

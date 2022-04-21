@@ -16,8 +16,8 @@
 #
 
 # pytype: skip-file
-
 from __future__ import annotations
+
 import atexit
 import shutil
 import signal

@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 Utility functions used for integrating Metrics API into load tests pipelines.
 
@@ -29,6 +28,7 @@ Currently it is possible to have following metrics types:
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import json
 import logging

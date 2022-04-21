@@ -18,8 +18,8 @@
 # This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
-
 from __future__ import annotations
+
 import contextlib
 import threading
 from typing import TYPE_CHECKING

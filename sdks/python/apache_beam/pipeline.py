@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Pipeline, the top-level Beam object.
 
 A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG
@@ -46,6 +45,7 @@ Typical usage::
 """
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import abc

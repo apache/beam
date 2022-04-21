@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 The classes in this file are interfaces for metrics. They are not intended
 to be subclassed or created directly by users. To work with and access metrics,
@@ -34,6 +33,7 @@ Available classes:
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import Dict
 from typing import Optional

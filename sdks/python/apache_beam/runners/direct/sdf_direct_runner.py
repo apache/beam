@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """This module contains Splittable DoFn logic that is specific to DirectRunner.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import uuid
 from threading import Lock

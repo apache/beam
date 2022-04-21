@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Utilities for the Nexmark suite.
 
 The Nexmark suite is a series of queries (streaming pipelines) performed
@@ -34,6 +33,7 @@ To run a process for a certain duration, define in the code:
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import json
 import logging

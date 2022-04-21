@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Simple utility PTransforms.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import contextlib

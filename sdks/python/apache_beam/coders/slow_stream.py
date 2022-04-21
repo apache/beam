@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A pure Python implementation of stream.pyx.
 
 For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import struct
 from typing import List

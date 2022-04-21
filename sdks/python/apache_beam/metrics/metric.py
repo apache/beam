@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 User-facing classes for Metrics API.
 
@@ -26,6 +25,7 @@ and displayed as part of their pipeline execution.
     metric objects such as counters, distributions, etc.
 """
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import logging

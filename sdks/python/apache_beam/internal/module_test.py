@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Module used to define functions and classes used by the coder unit tests."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import re
 import sys

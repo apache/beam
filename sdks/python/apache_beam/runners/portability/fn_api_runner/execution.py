@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Set of utilities for execution of a pipeline by the FnApiRunner."""
 
 # mypy: disallow-untyped-defs
+from __future__ import annotations
 
 import collections
 import copy

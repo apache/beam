@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """PipelineRunner, an abstract base runner object."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import importlib
 import logging

@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 r"""Utilities for relating schema-aware PCollections and dataframe transforms.
 
 Imposes a mapping between native Python typings (specifically those compatible
@@ -50,6 +49,7 @@ types may be given special consideration.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import Any
 from typing import NamedTuple

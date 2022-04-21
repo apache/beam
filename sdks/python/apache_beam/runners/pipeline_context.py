@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Utility class for serializing pipelines via the runner API.
 
 For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 from typing import TYPE_CHECKING

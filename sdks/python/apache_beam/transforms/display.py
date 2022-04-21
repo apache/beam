@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 :class:`DisplayData`, its classes, interfaces and methods.
 
@@ -38,6 +37,7 @@ Available classes:
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import calendar
 import inspect

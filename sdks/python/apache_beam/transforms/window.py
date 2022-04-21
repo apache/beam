@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Windowing concepts.
 
 A WindowInto transform logically divides up or groups the elements of a
@@ -49,6 +48,7 @@ WindowFn.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import abc
 from functools import total_ordering

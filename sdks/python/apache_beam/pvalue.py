@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """PValue, PCollection: one node of a dataflow graph.
 
 A node of a dataflow processing graph is a PValue. Currently, there is only
@@ -26,6 +25,7 @@ produced when the pipeline gets executed.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import itertools

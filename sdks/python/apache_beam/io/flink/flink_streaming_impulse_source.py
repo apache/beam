@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 A PTransform that provides an unbounded, streaming source of empty byte arrays.
 
 This can only be used with the flink runner.
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import json
 from typing import Any

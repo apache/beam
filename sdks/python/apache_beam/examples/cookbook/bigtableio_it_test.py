@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Integration tests for bigtableio."""
 # pytype: skip-file
+from __future__ import annotations
 
 import datetime
 import logging

@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 # pytype: skip-file
-
 from __future__ import annotations
+
 import concurrent.futures
 import itertools
 import logging

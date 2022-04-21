@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """FileSystems interface class for accessing the correct filesystem"""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import re
 from typing import BinaryIO  # pylint: disable=unused-import

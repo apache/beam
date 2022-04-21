@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """A ValueProvider abstracts the notion of fetching a value that may or
 may not be currently available.
 
@@ -24,6 +23,7 @@ runtime, for example.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 from functools import wraps
 from typing import Set

@@ -16,9 +16,9 @@
 #
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: check-untyped-defs
 
-from __future__ import annotations
 import atexit
 import functools
 import itertools

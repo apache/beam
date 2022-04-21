@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Utilities to be used in  Interactive Beam.
 """
+from __future__ import annotations
 
 import functools
 import hashlib

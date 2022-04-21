@@ -17,7 +17,6 @@
 
 # cython: language_level=3
 
-from __future__ import annotations
 """This module has all statistic related transforms.
 
 This ApproximateUnique class will be deprecated [1]. PLease look into using
@@ -30,6 +29,7 @@ ns/zetasketch/HllCount.html
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import hashlib
 import heapq

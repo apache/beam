@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Syntax & semantics for type-hinting custom-functions/PTransforms in the SDK.
 
 This module defines type-hinting objects and the corresponding syntax for
@@ -65,6 +64,7 @@ In addition, type-hints can be used to implement run-time type-checking via the
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import copy
 import logging

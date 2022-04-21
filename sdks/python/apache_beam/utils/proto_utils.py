@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """For internal use only; no backwards-compatibility guarantees."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import Type
 from typing import TypeVar

@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 performance summary for a run of nexmark query
 """
 
+from __future__ import annotations
 
 class NexmarkPerf(object):
   def __init__(

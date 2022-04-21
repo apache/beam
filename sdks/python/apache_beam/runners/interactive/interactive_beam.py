@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Module of Interactive Beam features that can be used in notebook.
 
 The purpose of the module is to reduce the learning curve of Interactive Beam
@@ -31,6 +30,7 @@ this module in your notebook or application code.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import logging
 from collections import defaultdict

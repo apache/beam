@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Core windowing data structures.
 
 This module is experimental. No backwards-compatibility guarantees.
@@ -30,6 +29,7 @@ This module is experimental. No backwards-compatibility guarantees.
 # cython: language_level=3
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from typing import Any

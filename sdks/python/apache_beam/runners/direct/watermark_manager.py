@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Manages watermarks of PCollections and AppliedPTransforms."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import threading
 from typing import TYPE_CHECKING

@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Module to convert Python's native typing types to Beam types."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import logging

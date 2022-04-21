@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Unit tests for the PTransform and descendants."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import operator

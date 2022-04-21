@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Azure Blob Storage Implementation for accesing files on
 Azure Blob Storage.
 """
+from __future__ import annotations
 
 from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import BeamIOError

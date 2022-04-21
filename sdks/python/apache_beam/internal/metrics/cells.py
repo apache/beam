@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 This file contains internal metric cell classes. A metric cell is used to
 accumulate in-memory changes to a metric. It represents a specific metric
@@ -25,6 +24,7 @@ For internal use only. No backwards compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from typing import Optional

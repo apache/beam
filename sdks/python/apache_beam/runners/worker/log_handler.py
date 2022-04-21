@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Beam fn API log handler."""
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import logging

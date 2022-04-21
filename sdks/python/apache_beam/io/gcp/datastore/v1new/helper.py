@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 Cloud Datastore client and test functions.
 
@@ -23,6 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import os
 import uuid

@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Type hinting decorators allowing static or runtime type-checking for the SDK.
 
 This module defines decorators which utilize the type-hints defined in
@@ -79,6 +78,7 @@ defined, or before importing a module containing type-hinted functions.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import inspect
 import itertools

@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Unit tests for the Beam State and Timer API interfaces."""
 # pytype: skip-file
+from __future__ import annotations
 
 import unittest
 from typing import Any

@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """PTransform and descendants.
 
 A PTransform is an object describing (not executing) a computation. The actual
@@ -36,6 +35,7 @@ FlatMap processing functions.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import copy
 import itertools

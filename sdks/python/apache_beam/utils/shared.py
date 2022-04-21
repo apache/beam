@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Shared class.
 
 Shared is a helper class for managing a single instance of an object
@@ -91,6 +90,8 @@ constructor::
                    RainbowTableLookupFn(), reverse_hash_table))
 
 """
+from __future__ import annotations
+
 import threading
 import uuid
 import weakref

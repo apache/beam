@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """ Support for mapping python types to proto Schemas and back again.
 
 Imposes a mapping between common Python types and Beam portable schemas
@@ -54,6 +53,7 @@ any backwards-compatibility guarantee.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 from typing import Any
 from typing import ByteString

@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """File system abstraction for file-based sources and sinks.
 
 Note to implementors:
@@ -24,6 +23,7 @@ Note to implementors:
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import abc
 import bz2

@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """For rendering pipeline graph in HTML-compatible format.
 
 This module is experimental. No backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import abc
 import os

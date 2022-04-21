@@ -16,8 +16,8 @@
 #
 
 # pytype: skip-file
-
 from __future__ import annotations
+
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
 from apache_beam.coders.coder_impl import RowCoderImpl

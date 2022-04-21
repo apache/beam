@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """An executor that schedules and executes applied ptransforms."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import itertools

@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Pipeline options obtained from command line parsing."""
 
 # pytype: skip-file
+from __future__ import annotations
 
 import argparse
 import json

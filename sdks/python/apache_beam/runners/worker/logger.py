@@ -17,10 +17,10 @@
 
 # cython: language_level=3
 
-from __future__ import annotations
 """Python worker logging."""
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import contextlib

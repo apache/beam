@@ -16,9 +16,9 @@
 #
 
 # pytype: skip-file
-
-
 from __future__ import annotations
+
+
 class ShardedKey(object):
   """
   A sharded key consisting of a user key and an opaque shard id represented by

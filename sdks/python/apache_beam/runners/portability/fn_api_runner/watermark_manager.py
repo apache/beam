@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Utilities for managing watermarks for a pipeline execution by FnApiRunner."""
 
 from __future__ import absolute_import
+from __future__ import annotations
 
 from typing import Dict
 from typing import List

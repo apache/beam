@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Internal side input transforms and implementations.
 
 For internal use only; no backwards-compatibility guarantees.
@@ -26,6 +25,7 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING

@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """
 Beam Datastore types.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import copy
 from typing import Iterable

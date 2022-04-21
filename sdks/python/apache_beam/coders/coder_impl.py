@@ -17,7 +17,6 @@
 
 # cython: language_level=3
 
-from __future__ import annotations
 """Coder implementations.
 
 The actual encode/decode implementations are split off from coders to
@@ -32,6 +31,7 @@ can use compiled Impls even if the main program does not (or vice versa).
 For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import enum
 import itertools

@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Utility functions for efficiently processing with the job API
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import json
 import logging

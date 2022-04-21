@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Client Interceptor to inject worker_id"""
 # pytype: skip-file
+from __future__ import annotations
 
 import collections
 import os

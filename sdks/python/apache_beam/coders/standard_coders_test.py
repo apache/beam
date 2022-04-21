@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
 # pytype: skip-file
+from __future__ import annotations
 
 import json
 import logging

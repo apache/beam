@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """Utility functions used throughout the package.
 
 For internal use only. No backwards compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import logging
 import threading

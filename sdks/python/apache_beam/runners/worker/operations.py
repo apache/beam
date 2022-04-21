@@ -18,10 +18,10 @@
 # cython: language_level=3
 # cython: profile=True
 
-from __future__ import annotations
 """Worker operations executor."""
 
 # pytype: skip-file
+from __future__ import annotations
 # pylint: disable=super-with-arguments
 
 import collections

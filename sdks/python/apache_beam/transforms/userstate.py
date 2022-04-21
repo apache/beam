@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """User-facing interfaces for the Beam State and Timer APIs.
 
 Experimental; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 # mypy: disallow-untyped-defs
 
 import collections

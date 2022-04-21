@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
 """DirectRunner, executing on the local machine.
 
 The DirectRunner is a runner implementation that executes the entire
@@ -23,6 +22,7 @@ graph of transformations belonging to a pipeline on the local machine.
 """
 
 # pytype: skip-file
+from __future__ import annotations
 
 import itertools
 import logging
