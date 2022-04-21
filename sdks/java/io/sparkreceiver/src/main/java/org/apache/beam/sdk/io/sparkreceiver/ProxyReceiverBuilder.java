@@ -24,7 +24,7 @@ import org.apache.commons.lang.ClassUtils;
 import org.apache.spark.streaming.receiver.Receiver;
 
 /**
- * Class for building proxy for {@link Receiver} that uses Apache Beam mechanisms instead of Spark
+ * Class for building an instance for {@link Receiver} that uses Apache Beam mechanisms instead of Spark
  * environment.
  */
 @SuppressWarnings({

@@ -55,9 +55,9 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
       curRecord = record;
       recordsRead++;
       curPosition++;
-      if (recordsRead % 100 == 0) {
-        LOG.info("[{}], records read = {}", source.getId(), recordsRead);
-      }
+//      if (recordsRead % 100 == 0) {
+//        LOG.info("[{}], records read = {}", source.getId(), recordsRead);
+//      }
       return true;
     }
   }

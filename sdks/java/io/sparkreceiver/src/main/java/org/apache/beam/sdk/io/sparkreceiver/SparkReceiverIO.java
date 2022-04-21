@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Streaming sources and sinks from <a href="https://github.com/data-integrations">CDAP</a> plugins.
+ * Streaming sources for Spark {@link Receiver}.
  */
 @SuppressWarnings("rawtypes")
 public class SparkReceiverIO {
@@ -44,7 +44,7 @@ public class SparkReceiverIO {
     return new AutoValue_SparkReceiverIO_Read.Builder<V>().build();
   }
 
-  /** A {@link PTransform} to read from CDAP streaming source. */
+  /** A {@link PTransform} to read from Spark {@link Receiver}. */
   @AutoValue
   @AutoValue.CopyAnnotations
   @SuppressWarnings({"UnnecessaryParentheses", "UnusedVariable", "rawtypes"})

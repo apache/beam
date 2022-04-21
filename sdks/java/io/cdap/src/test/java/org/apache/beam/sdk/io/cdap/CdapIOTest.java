@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
+import static org.junit.Assert.*;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -32,12 +34,12 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.context.StreamingSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSource;
@@ -60,8 +62,16 @@ import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStre
 import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -75,8 +85,6 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.*;
-
 /** Test class for {@link CdapIO}. */
 @SuppressWarnings("ModifiedButNotUsed")
 @RunWith(JUnit4.class)
@@ -86,6 +94,9 @@ public class CdapIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(CdapIOTest.class);
   private static final Gson GSON = new GsonBuilder().create();
+
+  private static final String HUBSPOT_CONTACTS_OUTPUT_TXT =
+      "src/test/resources/hubspot-contacts-output.txt";
 
   private static final ImmutableMap<String, Object> TEST_SALESFORCE_PARAMS_MAP =
       ImmutableMap.<String, Object>builder()
@@ -303,7 +314,7 @@ public class CdapIOTest {
   }
 
   @Test
-  public void testReadFromHubspotStreaming() throws IOException {
+  public void testReadFromHubspotStreaming() {
     HubspotStreamingSourceConfig pluginConfig =
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
             .withParams(TEST_HUBSPOT_PARAMS_MAP)
@@ -324,27 +335,26 @@ public class CdapIOTest {
 
     PCollection<KV<NullWritable, String>> input =
         p.apply(reader)
-                .setCoder(KvCoder.of(
-                        NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()));
+            .setCoder(
+                KvCoder.of(
+                    NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()));
 
-    PAssert.that(input)
-        .satisfies(
-            (map) -> {
-              long numOfCorrectRecords = 0;
-              for (KV<NullWritable, String> record : map) {
-                assertFalse(StringUtils.isEmpty(record.getValue()));
-                numOfCorrectRecords++;
-              }
-              assertEquals(NUM_OF_TEST_HUBSPOT_CONTACTS, numOfCorrectRecords);
-              return null;
-            });
+    input
+        .apply(
+            "globalwindow",
+            Window.<KV<NullWritable, String>>into(new GlobalWindows())
+                .triggering(
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane()
+                            .plusDelayOf(Duration.standardSeconds(30))))
+                .discardingFiredPanes())
+        .apply(
+            MapElements.into(TypeDescriptor.of(String.class)).via(
+                    (SerializableFunction<KV<NullWritable, String>, String>) KV::getValue))
+        .apply(
+            "Write to file", TextIO.write().withWindowedWrites().to(HUBSPOT_CONTACTS_OUTPUT_TXT));
 
-    PipelineResult readResult = p.run();
-    PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(10));
-
-    if (readState == null) {
-      readResult.cancel();
-    }
+    p.run().waitUntilFinish(Duration.standardSeconds(30));
   }
 
   @Test

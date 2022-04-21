@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -104,7 +105,7 @@ class SparkReceiverUnboundedSource<V> extends UnboundedSource<V, SparkReceiverCh
     this.id = id;
     this.minOffset = minOffset;
     this.maxOffset = maxOffset;
-    this.availableRecordsQueue = new PriorityQueue<>();
+    this.availableRecordsQueue = new PriorityBlockingQueue<>();
     this.receiver = receiver;
   }
 

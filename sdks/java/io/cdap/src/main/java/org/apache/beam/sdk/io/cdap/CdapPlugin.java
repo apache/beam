@@ -23,7 +23,6 @@ import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.batch.BatchContext;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
-
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -33,8 +32,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
@@ -160,7 +157,8 @@ public class CdapPlugin<T extends SubmitterLifecycle> implements Serializable {
     }
     if (!isUnbounded) {
       try {
-        this.formatClass = Class.forName(context.getInputFormatProvider().getInputFormatClassName());
+        this.formatClass =
+            Class.forName(context.getInputFormatProvider().getInputFormatClassName());
       } catch (ClassNotFoundException e) {
         LOG.error("Can not get format class by name", e);
         throw new IllegalStateException("Can not get format class by name");
@@ -170,7 +168,7 @@ public class CdapPlugin<T extends SubmitterLifecycle> implements Serializable {
       getHadoopConf().setClass(format.valueClass, valueClass, Object.class);
 
       for (Map.Entry<String, String> entry :
-              context.getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
+          context.getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
         getHadoopConf().set(entry.getKey(), entry.getValue());
       }
     }

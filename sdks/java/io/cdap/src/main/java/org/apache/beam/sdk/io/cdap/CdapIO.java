@@ -23,9 +23,6 @@ import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
 import org.apache.beam.sdk.io.sparkreceiver.CdapPluginMappingUtils;
 import org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO;
@@ -36,7 +33,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -132,8 +128,7 @@ public class CdapIO {
                 .withSparkReceiver(sparkReceiver)
                 .withValueCoder(getValueCoder())
                 .withValueClass(getValueClass());
-        PCollection<V> values = input.apply(reader)
-                .setCoder(getValueCoder());
+        PCollection<V> values = input.apply(reader).setCoder(getValueCoder());
         return values.apply(
             MapElements.via(
                 new SimpleFunction<V, KV<K, V>>() {

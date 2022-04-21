@@ -80,7 +80,7 @@ public class HubspotReceiver extends Receiver<String> {
             && hubspotPagesIterator.hasNext()) {
           store(hubspotPagesIterator.next().toString());
         } else {
-          Integer minutesToSleep = config.getPullFrequency().getMinutesValue();
+          Integer minutesToSleep = 1;
           LOG.debug(String.format("Waiting for '%d' minutes to pull.", minutesToSleep));
           Thread.sleep(TimeUnit.MINUTES.toMillis(minutesToSleep));
 
