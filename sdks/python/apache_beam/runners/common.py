@@ -293,16 +293,6 @@ class DoFnSignature(object):
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
 
-  @property
-  def input_batch_converter(self) -> Optional[BatchConverter]:
-    return self.do_fn.input_batch_converter if hasattr(
-        self.do_fn, 'input_batch_converter') else None
-
-  @property
-  def output_batch_converter(self) -> Optional[BatchConverter]:
-    return self.do_fn.output_batch_converter if hasattr(
-        self.do_fn, 'output_batch_converter') else None
-
   def get_restriction_provider(self):
     # type: () -> RestrictionProvider
     return self.process_method.restriction_provider
@@ -394,7 +384,7 @@ class DoFnInvoker(object):
   represented by a given DoFnSignature."""
 
   def __init__(self,
-               output_processor,  # type: OutputProcessor
+               output_processor,  # type: _OutputProcessor
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
@@ -1241,7 +1231,7 @@ class DoFnRunner:
     else:
       per_element_output_counter = None
 
-    # TODO: output processor assumes DoFns are batch-to-batch or
+    # TODO(BEAM-14293): output processor assumes DoFns are batch-to-batch or
     # element-to-element, @yields_batches and @yields_elements will break this
     # assumption.
     output_processor = _OutputProcessor(
@@ -1495,15 +1485,8 @@ class _OutputProcessor(OutputProcessor):
         #if (windowed_input_element is not None and
         #    len(windowed_input_element.windows) != 1):
         #  windowed_value.windows *= len(windowed_input_element.windows)
-      # TODO: TimestampedBatch
-      #elif isinstance(result, TimestampedValue):
-      #  assign_context = WindowFn.AssignContext(result.timestamp, result.value)
-      #  windowed_value = WindowedValue(
-      #      result.value,
-      #      result.timestamp,
-      #      self.window_fn.assign(assign_context))
-      #  if len(windowed_input_element.windows) != 1:
-      #    windowed_value.windows *= len(windowed_input_element.windows)
+      # TODO(BEAM-14292): Add TimestampedBatch, an analogue for TimestampedValue
+      # and handle it here (see TimestampedValue logic in process_outputs).
       else:
         # TODO: This should error unless the DoFn was defined with
         # @DoFn.yields_batches(output_aligned_with_input=True)
