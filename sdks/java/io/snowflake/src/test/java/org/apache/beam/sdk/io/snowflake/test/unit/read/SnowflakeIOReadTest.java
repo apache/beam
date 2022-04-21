@@ -32,7 +32,6 @@ import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
 import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -106,23 +105,6 @@ public class SnowflakeIOReadTest implements Serializable {
   }
 
   @Test
-  public void testConfigIsMissingStagingBucketNameValue() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("staging bucket name cannot be empty");
-
-    pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
-            .withDataSourceConfiguration(dataSourceConfiguration)
-            .fromTable(FAKE_TABLE)
-            .withStorageIntegrationName(options.getStorageIntegrationName())
-            .withStagingBucketName(ValueProvider.StaticValueProvider.of(null))
-            .withCsvMapper(getCsvMapper())
-            .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
-
-    pipeline.run();
-  }
-
-  @Test
   public void testConfigIsMissingStorageIntegration() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("withStorageIntegrationName() is required");
@@ -131,23 +113,6 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.<GenericRecord>read(snowflakeServices)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
-            .withStagingBucketName(options.getStagingBucketName())
-            .withCsvMapper(getCsvMapper())
-            .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testConfigIsMissingStorageIntegrationValue() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("storage integration cannot be empty");
-
-    pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
-            .withDataSourceConfiguration(dataSourceConfiguration)
-            .fromTable(FAKE_TABLE)
-            .withStorageIntegrationName(ValueProvider.StaticValueProvider.of(null))
             .withStagingBucketName(options.getStagingBucketName())
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
@@ -198,23 +163,6 @@ public class SnowflakeIOReadTest implements Serializable {
             .withStagingBucketName(options.getStagingBucketName())
             .withStorageIntegrationName(options.getStorageIntegrationName())
             .withCsvMapper(getCsvMapper())
-            .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testConfigIsMissingFromTableOrFromQueryValue() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("table or query is required");
-
-    pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService)
-            .withDataSourceConfiguration(dataSourceConfiguration)
-            .withStagingBucketName(options.getStagingBucketName())
-            .withStorageIntegrationName(options.getStorageIntegrationName())
-            .withCsvMapper(getCsvMapper())
-            .fromTable(ValueProvider.StaticValueProvider.of(null))
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
     pipeline.run();
