@@ -76,7 +76,7 @@
     text-align: center;
     width: 100%;
     overflow: hidden;
-    height: 544px;
+    height: 600px;
     margin: 76px 0 20px 0;
     padding: 55px 20px 24px 20px;
     border-radius: 16px;
@@ -87,17 +87,28 @@
     .quote-text {
       @extend .component-quote;
 
-      min-height: 230px;
-      height: 230px;
-      margin: 88px 0 20px 0;
+      min-height: 260px;
+      height: 260px;
+      margin: 40px 0 20px 0;
+      overflow: hidden;
     }
 
     img {
       display: block;
       max-height: 118px;
     }
-  }
 
+    .quote-card-link {
+      color: #E74D1A;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      span {
+        padding-right: 10px;
+      }
+    }
+  }
 }
 
 @media (max-width: $tablet) {
@@ -137,4 +148,28 @@
 .swiper-slide {
   -webkit-backface-visibility: hidden;
   -webkit-transform: translate3d(0, 0, 0);
+
+  .case-study-row-button-container {
+    display: none;
+  }
+
+  .quote-card-link-container {
+    display: block;
+  }
+
+  &:last-child {
+    .quote-text {
+      display: flex;
+      align-items: center;
+    }
+
+    .quote-card-link-container {
+      display: none;
+    }
+
+    .case-study-row-button-container {
+      display: block;
+      margin: 0;
+    }
+  }
 }
