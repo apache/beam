@@ -54,9 +54,7 @@ public class ProvidedSparkContextTest {
   private static final String PROVIDED_CONTEXT_EXCEPTION =
       "The provided Spark context was not created or was stopped";
 
-  @ClassRule
-  public static SparkContextOptionsRule contextRule =
-      new SparkContextOptionsRule(TestSparkRunner.class);
+  @ClassRule public static SparkContextOptionsRule contextRule = new SparkContextOptionsRule();
 
   /** Provide a context and call pipeline run. */
   @Test

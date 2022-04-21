@@ -94,7 +94,6 @@ if (copySourceBase) {
 }
 
 test {
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
   systemProperty "spark.sql.shuffle.partitions", "4"
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
@@ -285,10 +284,6 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
-  }
-  filter {
-    // BEAM-11653 MetricsSinkTest is failing with Spark 3
-    excludeTestsMatching 'org.apache.beam.runners.spark.aggregators.metrics.sink.SparkMetricsSinkTest'
   }
 }
 

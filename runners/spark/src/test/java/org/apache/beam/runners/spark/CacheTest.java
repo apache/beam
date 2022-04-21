@@ -54,7 +54,7 @@ public class CacheTest {
    */
   @Test
   public void cacheCandidatesUpdaterTest() {
-    SparkPipelineOptions options = contextRule.createPipelineOptions(TestSparkRunner.class);
+    SparkPipelineOptions options = contextRule.createPipelineOptions();
     Pipeline pipeline = Pipeline.create(options);
     PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
 
@@ -91,7 +91,7 @@ public class CacheTest {
 
   @Test
   public void shouldCacheTest() {
-    SparkPipelineOptions options = contextRule.createPipelineOptions(TestSparkRunner.class);
+    SparkPipelineOptions options = contextRule.createPipelineOptions();
     options.setCacheDisabled(true);
     Pipeline pipeline = Pipeline.create(options);
 

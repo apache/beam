@@ -18,24 +18,20 @@
 package org.apache.beam.runners.spark;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.values.KV;
 
 public class SparkContextOptionsRule extends SparkContextRule {
 
-  private Class<? extends PipelineRunner<?>> runner;
   private @Nullable SparkContextOptions contextOptions = null;
 
-  public SparkContextOptionsRule(
-      Class<? extends PipelineRunner<?>> runner, KV<String, String>... sparkConfig) {
+  public SparkContextOptionsRule(KV<String, String>... sparkConfig) {
     super(sparkConfig);
-    this.runner = runner;
   }
 
   @Override
   protected void before() throws Throwable {
     super.before();
-    contextOptions = createPipelineOptions(runner);
+    contextOptions = createPipelineOptions();
   }
 
   public SparkContextOptions getOptions() {

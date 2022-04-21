@@ -23,9 +23,9 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -56,27 +56,26 @@ public class SparkContextRule extends ExternalResource implements Serializable {
     return sparkContext;
   }
 
-  public SparkContextOptions createPipelineOptions(
-      Class<? extends PipelineRunner<?>> runner, String... options) {
-    PipelineOptions opts = PipelineOptionsFactory.fromArgs(options).create();
-    opts.as(SparkPipelineOptions.class).setRunner(runner);
-    return configurePipelineOptions(opts);
+  public SparkContextOptions createPipelineOptions() {
+    return configure(TestPipeline.testingPipelineOptions());
   }
 
-  public SparkContextOptions configurePipelineOptions(PipelineOptions opts) {
+  public SparkContextOptions configure(PipelineOptions opts) {
     SparkContextOptions ctxOpts = opts.as(SparkContextOptions.class);
     ctxOpts.setUsesProvidedSparkContext(true);
-    ctxOpts.setProvidedSparkContext(sparkContext);
+    ctxOpts.setProvidedSparkContext(getSparkContext());
     return ctxOpts;
   }
 
   @Override
   protected void before() throws Throwable {
     sparkContext = new JavaSparkContext(sparkConf);
+    SparkContextFactory.setProvidedSparkContext(sparkContext);
   }
 
   @Override
   protected void after() {
+    SparkContextFactory.clearProvidedSparkContext();
     getSparkContext().stop();
   }
 }

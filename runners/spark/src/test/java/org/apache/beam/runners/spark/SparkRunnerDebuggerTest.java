@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
@@ -61,7 +62,8 @@ public class SparkRunnerDebuggerTest {
 
   @Test
   public void debugBatchPipeline() {
-    PipelineOptions options = contextRule.createPipelineOptions(SparkRunnerDebugger.class);
+    PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
+    options.setRunner(SparkRunnerDebugger.class);
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> lines =
@@ -105,7 +107,8 @@ public class SparkRunnerDebuggerTest {
 
   @Test
   public void debugStreamingPipeline() {
-    PipelineOptions options = contextRule.createPipelineOptions(SparkRunnerDebugger.class);
+    PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
+    options.setRunner(SparkRunnerDebugger.class);
     options.as(TestSparkPipelineOptions.class).setForceStreaming(true);
     Pipeline pipeline = Pipeline.create(options);
 

@@ -22,8 +22,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
 
 import java.util.List;
-import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkContextRule;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.Dataset;
@@ -65,7 +65,8 @@ public class TrackStreamingSourcesTest {
 
   @Test
   public void testTrackSingle() {
-    SparkContextOptions options = sparkContext.createPipelineOptions(SparkRunner.class);
+    SparkPipelineOptions options = sparkContext.createPipelineOptions();
+    options.setRunner(SparkRunner.class);
     JavaSparkContext jsc = sparkContext.getSparkContext();
     JavaStreamingContext jssc =
         new JavaStreamingContext(
@@ -85,7 +86,8 @@ public class TrackStreamingSourcesTest {
 
   @Test
   public void testTrackFlattened() {
-    SparkContextOptions options = sparkContext.createPipelineOptions(SparkRunner.class);
+    SparkPipelineOptions options = sparkContext.createPipelineOptions();
+    options.setRunner(SparkRunner.class);
     JavaSparkContext jsc = sparkContext.getSparkContext();
     JavaStreamingContext jssc =
         new JavaStreamingContext(

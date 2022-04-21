@@ -61,7 +61,8 @@ public class SparkPipelineStateTest implements Serializable {
 
   private Pipeline createPipeline(
       boolean isStreaming, @Nullable SimpleFunction<String, String> mapFun) {
-    SparkContextOptions options = contextRule.createPipelineOptions(SparkRunner.class);
+    SparkContextOptions options = contextRule.createPipelineOptions();
+    options.setRunner(SparkRunner.class);
     options.setStreaming(isStreaming);
 
     Pipeline pipeline = Pipeline.create(options);

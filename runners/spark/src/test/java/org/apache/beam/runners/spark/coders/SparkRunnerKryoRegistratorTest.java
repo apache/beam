@@ -23,7 +23,6 @@ import static org.junit.Assert.fail;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
 import org.apache.beam.runners.spark.SparkContextRule;
-import org.apache.beam.runners.spark.TestSparkRunner;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -109,7 +108,7 @@ public class SparkRunnerKryoRegistratorTest {
   }
 
   private static void runSimplePipelineWithSparkContextOptions(SparkContextRule context) {
-    Pipeline p = Pipeline.create(context.createPipelineOptions(TestSparkRunner.class));
+    Pipeline p = Pipeline.create(context.createPipelineOptions());
     p.apply(Create.of("a")); // some operation to trigger pipeline construction
     p.run().waitUntilFinish();
   }
