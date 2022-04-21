@@ -73,6 +73,7 @@
 ## Deprecations
 
 * Flink 1.11 is no longer supported ([BEAM-14139](https://issues.apache.org/jira/browse/BEAM-14139)).
+* Python 3.6 is no longer supported ([BEAM-13657](https://issues.apache.org/jira/projects/BEAM/issues/BEAM-13657)).
 
 ## Bugfixes
 
