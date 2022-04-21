@@ -56,27 +56,27 @@ Once we are in Hop, let's open the pipeline.
 We first switch from the project `default` to the project `samples`. Locate the `projects` box in the top left corner of the window, and select the project `samples`:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image1.png"
+    src="/images/blog/apache-hop/image18.png"
     alt="Apache Hop projects">
 
 
 Now we click the open button:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image2.png"
+    src="/images/blog/apache-hop/image4.png"
     alt="Apache Hop open project">
 
 Select the pipeline `input-process-output.hpl` in the `beam/pipelines` subdirectory:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image3.png"
+    src="/images/blog/apache-hop/image12.png"
     alt="Apache Hop select pipeline">
 
 
 You should see a graph like the following in the main window of Hop:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image4.png"
+    src="/images/blog/apache-hop/image17.png"
     alt="Apache Hop main window">
 
 
@@ -89,14 +89,14 @@ It is always a good idea to test the pipeline locally before submitting it to Da
 Click in the `Customers` input transform and then in _Preview Output_ in the dialog box that opens after selecting the transform:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image5.png"
+    src="/images/blog/apache-hop/image10.png"
     alt="Apache Hop Customers preview">
 
 
 Now select the option _Quick launch_ and you will see some of the input data:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image6.png"
+    src="/images/blog/apache-hop/image24.png"
     alt="Apache Hop input data">
 
 
@@ -107,7 +107,7 @@ If we repeat the process right after the `Only CA` transform, we will see that a
 The next transform selects only some of the columns of the input data and reorders the columns. Let's have a look. Click  the transform and then _Preview Output_:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image7.png"
+    src="/images/blog/apache-hop/image15.png"
     alt="Apache Hop preview output">
 
 
@@ -126,14 +126,14 @@ The column `id` is now the first, and we see only a subset of the input columns.
 Let's run the pipeline. To run the pipeline, we need to specify a runner configuration. This is done through the Metadata tool of Apache Hop:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image9.png"
+    src="/images/blog/apache-hop/image6.png"
     alt="Apache Hop runner configuration">
 
 
 In the `samples` project, there are already several configurations created:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image10.png"
+    src="/images/blog/apache-hop/image9.png"
     alt="Apache Hop configurations">
 
 
@@ -144,7 +144,7 @@ The `Direct` configuration uses the direct runner of Apache Beam. Let's examine 
 For the direct runner, the main tab has the following options:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image11.png"
+    src="/images/blog/apache-hop/image28.png"
     alt="Apache Hop direct runner">
 
 
@@ -153,7 +153,7 @@ We can change the number of workers settings to match our number of CPUs, or eve
 In the variables tab, we find the configuration parameters for the pipeline itself (not for the runner): \
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image12.png"
+    src="/images/blog/apache-hop/image14.png"
     alt="Apache Hop variables tab">
 
 
@@ -162,11 +162,11 @@ For this pipeline, only the `DATA_INPUT` and `DATA_OUTPUT` variables are used. T
 If you go to the Beam transforms in the input and output nodes of the pipeline, you will see how these variables are used there:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image13.png"
+    src="/images/blog/apache-hop/image29.png"
     alt="Apache Hop variables">
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image14.png"
+    src="/images/blog/apache-hop/image11.png"
     alt="Apache Hop variables">
 
 
@@ -175,21 +175,21 @@ Since those variables are correctly set up to point to the location of data in t
 For that, we need to go back to the pipeline view (arrow button just above the Metadata tool), and click the run button (the small "play" button in the toolbar). Then choose the Direct pipeline run configuration, and click the _Launch_ button:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image15.png"
+    src="/images/blog/apache-hop/image20.png"
     alt="Apache Hop launch">
 
 
 How do you know if the job has finished or not? You can check the logs at the bottom of the main window for that. You should see something like this:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image16.png"
+    src="/images/blog/apache-hop/image19.png"
     alt="Apache Hop completed job">
 
 
 If we go to the location set by `DATA_OUTPUT`, in our case `config/projects/samples/beam/output`, we should see some output files there. In my case, I see these files:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image17.png"
+    src="/images/blog/apache-hop/image26.png"
     alt="Apache Hop output files">
 
 The number of files depends on the number of workers that you have set in the run configuration.
@@ -202,14 +202,14 @@ Great, so the pipeline works locally. It is time to run it in the cloud!
 Let's have a look at the Dataflow Pipeline Run Configuration. Go to the metadata tool, then to Pipeline Run Configuration and select Dataflow:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image18.png"
+    src="/images/blog/apache-hop/image30.png"
     alt="Apache Hop Pipeline Run Configuration">
 
 
 We have again the Main and the Variables tab. We will need to change some values in both. Let's start with the Variables. Click the Variables tab, and you should see the following values:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image19.png"
+    src="/images/blog/apache-hop/image3.png"
     alt="Apache Hop Variables tab">
 
 
@@ -299,14 +299,14 @@ Now let's give permissions to our user to impersonate that service account. For 
 Click on the _Permissions_ tab and then in the _Grant Access_ button:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image20.png"
+    src="/images/blog/apache-hop/image21.png"
     alt="Apache Hop Permissions">
 
 
 Give your user the role _Service Account User_:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image21.png"
+    src="/images/blog/apache-hop/image13.png"
     alt="Apache Hop Service Account User">
 
 
@@ -318,14 +318,14 @@ You are now all set to be able to run Dataflow with that service account and you
 Before we can run a pipeline in Dataflow, we need to generate the JAR package for the pipeline code. For that, you have to go to the _Tools_ menu (in the menu bar), and choose the option _Generate a Hop fat jar_. Click ok in the dialog, and then select a location and filename for the jar, and click _Save_:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image22.png"
+    src="/images/blog/apache-hop/image5.png"
     alt="Apache Hop Tools menu">
 
 
 It will take some minutes to generate the file:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image23.png"
+    src="/images/blog/apache-hop/image22.png"
     alt="Apache Hop generate file">
 
 
@@ -334,7 +334,7 @@ We are ready to run the pipeline in Dataflow. Or almost :).
 Go the pipeline editor, click the play button, and select _DataFlow_ as Pipeline run configuration, and then click the play button on the right side:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image24.png"
+    src="/images/blog/apache-hop/image7.png"
     alt="Apache Hop pipeline editor">
 
 
@@ -343,7 +343,7 @@ That will open the Dataflow Pipeline Run Configuration, where we can change the 
 Click on the _Variables_ tab and modify only the `DATA_INPUT` and `DATA_OUTPUT` variables.
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image25.png"
+    src="/images/blog/apache-hop/image2.png"
     alt="Apache Hop Variables tab">
 
 
@@ -373,7 +373,7 @@ Also, depending on your network configuration, you may want to check the box of 
 For the fat jar location, use the _Browse _button on the right side, and locate the JAR that we generated above. In summary, my _Main_ options look like these (your project id and locations will be different):
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image26.png"
+    src="/images/blog/apache-hop/image27.png"
     alt="Apache Hop variables">
 
 
@@ -384,7 +384,7 @@ When you are ready, click on the _Ok _button and then _Launch_ to trigger the pi
 In the logging window, you should see a line like the following:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image27.png"
+    src="/images/blog/apache-hop/image16.png"
     alt="Apache Hop logging window">
 
 
@@ -393,21 +393,21 @@ In the logging window, you should see a line like the following:
 If everything has gone well, you should now see a job running at https://console.cloud.google.com/dataflow/jobs.
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image28.png"
+    src="/images/blog/apache-hop/image1.png"
     alt="Dataflow job list">
 
 
 If for some reason the job has failed, open the failed job page, check the _Logs _at the bottom, and click the error icon to find why the pipeline has failed. It is normally because we have set some wrong option in your configuration:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image29.png"
+    src="/images/blog/apache-hop/image25.png"
     alt="Dataflow Logs">
 
 
 When the pipeline starts running, you should see the graph of the pipeline in the job page:
 
 <img class="center-block"
-    src="/images/blog/apache-hop/image30.png"
+    src="/images/blog/apache-hop/image23.png"
     alt="Dataflow pipeline graph">
 
 
