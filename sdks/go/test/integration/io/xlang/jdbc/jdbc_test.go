@@ -85,7 +85,7 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 			break
 		}
 		if r.Count() == maxRetryCount {
-			t.Fatalf("failed to start container: %v", err)
+			t.Fatalf("failed to start container with %v retries: %v", maxRetryCount, err)
 		}
 	}
 
