@@ -417,8 +417,7 @@ public class BigtableIO {
     public Read withMaxBufferElementCount(Integer maxBufferElementCount) {
       System.out.println(maxBufferElementCount);
       checkArgument(maxBufferElementCount != null, "maxBufferElementCount can not be null");
-      checkArgument(
-          maxBufferElementCount > 0, "maxBufferElementCount can not be zero or negative");
+      checkArgument(maxBufferElementCount > 0, "maxBufferElementCount can not be zero or negative");
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(

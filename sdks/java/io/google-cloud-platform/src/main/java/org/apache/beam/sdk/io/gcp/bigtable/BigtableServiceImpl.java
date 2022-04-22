@@ -257,7 +257,8 @@ class BigtableServiceImpl implements BigtableService {
       } else {
         this.segmentLimit = DEFAULT_SEGMENT_SIZE;
       }
-      this.bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * Runtime.getRuntime().freeMemory());
+      this.bufferByteLimit =
+          (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * Runtime.getRuntime().freeMemory());
       // Asynchronously refill buffer when there is 10% of the elements are left
       this.segmentWaterMark = segmentLimit / 10;
       tableName = session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
