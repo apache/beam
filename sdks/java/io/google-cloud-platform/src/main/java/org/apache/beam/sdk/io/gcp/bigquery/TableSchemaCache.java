@@ -88,6 +88,7 @@ public class TableSchemaCache {
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setThreadFactory(MoreExecutors.platformThreadFactory())
+                .setDaemon(true)
                 .setNameFormat("BigQuery table schema refresh thread")
                 .build());
     this.minSchemaRefreshFrequency = minSchemaRefreshFrequency;

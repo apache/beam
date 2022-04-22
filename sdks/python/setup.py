@@ -221,7 +221,7 @@ INTERACTIVE_BEAM_TEST = [
     'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=96,<97',
+    'chromedriver-binary>=100,<101',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]
@@ -257,7 +257,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.6'
+python_requires = '>=3.7'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 10:
   warnings.warn(
@@ -331,7 +331,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
