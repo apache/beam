@@ -98,7 +98,7 @@ public class AvroUtilsTest {
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
-    Iterable iterable = new RandomData(avroSchema, 10);
+    Iterable iterable = new RandomData(avroSchema, 10, true);
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     for (GenericRecord record : records) {
