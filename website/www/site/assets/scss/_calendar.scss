@@ -18,11 +18,12 @@
 @import "media";
 
 .calendar {
-  padding: 20px 30px 30px;
+  padding: 15px 30px 15px;
 
   .calendar-title {
     @extend .component-title;
 
+    margin-top: 15px;
     text-align: center;
   }
 
@@ -30,7 +31,7 @@
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    margin-top: 84px;
+    margin-top: 30px;
 
     a {
       text-decoration: none;

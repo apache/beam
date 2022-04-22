@@ -18,7 +18,7 @@
 @import "media";
 
 .logos {
-  padding: 20px 30px 30px;
+  padding: 15px 30px 15px;
 
   .logos-title {
     @extend .component-title;
@@ -31,7 +31,7 @@
     justify-content: space-between;
     width: 100%;
     max-width: 1111px;
-    margin: 70px auto 60px;
+    margin: 30px auto 0;
 
     .logos-logo {
       line-height: 0;
