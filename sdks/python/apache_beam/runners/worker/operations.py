@@ -278,8 +278,10 @@ class GeneralPurposeConsumerSet(ConsumerSet):
           self.element_consumers.append(consumer)
         else:
           # As a last resort, explode and rebatch
-          other_batch_consumers[consumer.get_input_batch_converter()].append(
-              consumer)
+          consumer_batch_converter = consumer.get_input_batch_converter()
+          # This consumer supports batches, it must have a batch converter
+          assert consumer_batch_converter is not None
+          other_batch_consumers[consumer_batch_converter].append(consumer)
 
     self.other_batch_consumers: Dict[BatchConverter, List[Operation]] = dict(
         other_batch_consumers)
