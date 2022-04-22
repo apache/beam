@@ -270,6 +270,29 @@ class PayloadTransform(ptransform.PTransform):
     return PayloadTransform(payload.decode('ascii'))
 
 
+@ptransform.PTransform.register_urn('map_to_union_types', None)
+class MapToUnionTypesTransform(ptransform.PTransform):
+  class CustomDoFn(beam.DoFn):
+    def process(self, element):
+      if element == 1:
+        return ['1']
+      elif element == 2:
+        return [2]
+      else:
+        return [3.0]
+
+  def expand(self, pcoll):
+    return pcoll | beam.ParDo(self.CustomDoFn())
+
+  def to_runner_api_parameter(self, unused_context):
+    return b'map_to_union_types', None
+
+  @staticmethod
+  def from_runner_api_parameter(
+      unused_ptransform, unused_payload, unused_context):
+    return MapToUnionTypesTransform()
+
+
 @ptransform.PTransform.register_urn('fib', bytes)
 class FibTransform(ptransform.PTransform):
   def __init__(self, level):

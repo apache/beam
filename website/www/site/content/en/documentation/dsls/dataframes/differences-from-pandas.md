@@ -18,7 +18,7 @@ limitations under the License.
 
 # Differences from pandas
 
-The Apache Beam DataFrame API aims to be a drop-in replacement for pandas, but there are a few differences to be aware of. This page describes divergences between the Beam and pandas APIs and provides tips for working with the Beam DataFrame API.
+The Apache Beam DataFrame API aims to be a drop-in replacement for pandas, but there are a few differences to be aware of. This page describes divergences between the Beam and pandas APIs and provides tips for working with the Beam DataFrame API. See the [`apache_beam.dataframe.frames` API reference](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html) for a full reference for which operations and arguments are supported in the Beam DataFrame API.
 
 ## Working with pandas sources
 
@@ -32,9 +32,13 @@ For an example of using sources and sinks with the DataFrame API, see [taxiride.
 
 ## Classes of unsupported operations
 
-The sections below describe classes of operations that are not supported, or not yet supported, by the Beam DataFrame API. Workarounds are suggested, where applicable.
+The sections below describe classes of operations that are not yet supported, or supported with caveats, by the Beam DataFrame API. Workarounds are suggested where applicable.
 
 ### Non-parallelizable operations
+
+Examples:
+[`DeferredDataFrame.quantile`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.quantile),
+[`DeferredDataFrame.mode`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.mode)
 
 To support distributed processing, Beam invokes DataFrame operations on subsets of data in parallel. Some DataFrame operations can’t be parallelized, and these operations raise a [NonParallelOperation](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.expressions.html#apache_beam.dataframe.expressions.NonParallelOperation) error by default.
 
@@ -51,19 +55,41 @@ Note that this collects the entire input dataset on a single node, so there’s 
 
 ### Operations that produce non-deferred columns
 
+Examples:
+[`DeferredDataFrame.pivot`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.pivot),
+[`DeferredDataFrame.transpose`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.transpose),
+[`DeferredSeries.factorize`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredSeries.factorize)
+
 Beam DataFrame operations are deferred, but the schemas of the resulting DataFrames are not, meaning that result columns must be computable without access to the data. Some DataFrame operations can’t support this usage, so they can’t be implemented. These operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
 
+<!-- TODO(BEAM-12169): Document the use of categorical columns as a workaround -->
 Currently there’s no workaround for this issue. But in the future, Beam Dataframe may support non-deferred column operations on categorical columns. This work is being tracked in [BEAM-12169](https://issues.apache.org/jira/browse/BEAM-12169).
 
 ### Operations that produce non-deferred values or plots
 
-Because Beam operations are deferred, it’s infeasible to implement DataFrame APIs that produce non-deferred values or plots. If invoked, these operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
+Examples:
+[`DeferredSeries.to_list`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredSeries.to_list),
+[`DeferredSeries.array`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredSeries.array),
+[`DeferredDataFrame.plot`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.plot)
+
+It’s infeasible to implement DataFrame operations that produce non-deferred values or plots because Beam is a deferred API. If these operations are invoked, they will raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
+
+These operations may be supported in the future through a tighter integration
+with Interactive Beam. To track progress on this issue, follow
+[BEAM-14211](https://issues.apache.org/jira/browse/BEAM-14211). If you think we
+should prioritize this work you can also [contact
+us](https://beam.apache.org/community/contact-us/) to let us know.
 
 **Workaround**
 
 If you’re using [Interactive Beam](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.runners.interactive.interactive_beam.html), you can use `collect` to bring a dataset into local memory and then perform these operations.
 
 ### Order-sensitive operations
+
+Examples:
+[`DeferredDataFrame.head`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.head),
+[`DeferredSeries.diff`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredSeries.diff),
+[`DeferredDataFrame.interpolate`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.interpolate)
 
 Beam PCollections are inherently unordered, so pandas operations that are sensitive to the ordering of rows are not supported. These operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
 
@@ -73,7 +99,7 @@ Order-sensitive operations may be supported in the future. To track progress on 
 
 If you’re using [Interactive Beam](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.runners.interactive.interactive_beam.html), you can use `collect` to bring a dataset into local memory and then perform these operations.
 
-Alternatively, there may be ways to rewrite your code so that it’s not order sensitive. For example, pandas users often call the order-sensitive [head](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.head.html) operation to peek at data, but if you just want to view a subset of elements, you can also use `sample`, which doesn’t require you to collect the data first. Similarly, you could use `nlargest` instead of `sort_values(...).head`.
+Alternatively, there may be ways to rewrite your code so that it’s not order sensitive. For example, pandas users often call the order-sensitive [`head`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.head.html) operation to peek at data, but if you just want to view a subset of elements, you can also use [`sample`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.sample.html), which doesn’t require you to collect the data first. Similarly, you could use `nlargest` instead of `sort_values(...).`.
 
 ### Operations that produce deferred scalars
 

@@ -27,10 +27,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link RestrictionTracker} for claiming positions in a {@link TimestampRange} in a
@@ -45,12 +49,20 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Timestamp>
     implements HasProgress {
 
+  private static final Logger LOG = LoggerFactory.getLogger(TimestampRangeTracker.class);
   protected TimestampRange range;
   protected @Nullable Timestamp lastAttemptedPosition;
   protected @Nullable Timestamp lastClaimedPosition;
+  protected Supplier<Timestamp> timeSupplier;
 
   public TimestampRangeTracker(TimestampRange range) {
     this.range = checkNotNull(range);
+    this.timeSupplier = () -> Timestamp.now();
+  }
+
+  @VisibleForTesting
+  public void setTimeSupplier(Supplier<Timestamp> timeSupplier) {
+    this.timeSupplier = timeSupplier;
   }
 
   /**
@@ -182,43 +194,36 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
   }
 
   /**
-   * Returns the progress made within the restriction so far. This progress is returned in a
-   * normalized fashion from the interval [0, 1]. Zero means no work indicates no work (completed or
-   * remaining), while 1 indicates all work (completed or remaining).
+   * Returns the progress made within the restriction so far. If lastAttemptedPosition is null, the
+   * start of the range is used as the completed work; otherwise, lastAttemptedPosition will be
+   * used. The time gap between lastAttemptedPosition and now is used as the remaining work. In this
+   * way, when the time gap becomes large, we will have more backlog to process and we should add
+   * more resources.
    *
-   * <p>If no position was attempted, it will return {@code workCompleted} as 0 and {@code
-   * workRemaining} as 1. If a position was attempted, it will return the fraction of work completed
-   * and work remaining based on the offset the position represents in the restriction range. If the
-   * last position attempted was greater than the end of the restriction range, it will return
-   * {@code workCompleted} as 1 and {@code workRemaining} as 0.
-   *
-   * @return work completed and work remaining as fractions between [0, 1]
+   * @return work completed and work remaining in seconds.
    */
   @Override
   public Progress getProgress() {
-    final BigDecimal fromInNanos = toNanos(range.getFrom());
-    final BigDecimal toInNanos = toNanos(range.getTo());
-    final BigDecimal totalWork = toInNanos.subtract(fromInNanos, DECIMAL128);
-
-    if (lastAttemptedPosition == null) {
-      final double workCompleted = 0D;
-      final double workRemaining = 1D;
-
-      return Progress.from(workCompleted, workRemaining);
+    final BigDecimal now = BigDecimal.valueOf(timeSupplier.get().getSeconds());
+    BigDecimal current;
+    if (lastClaimedPosition == null) {
+      current = BigDecimal.valueOf(range.getFrom().getSeconds());
     } else {
-      final BigDecimal currentInNanos = toNanos(lastAttemptedPosition);
-      final BigDecimal workRemainingInNanos =
-          toInNanos.subtract(currentInNanos, DECIMAL128).max(BigDecimal.ZERO);
-
-      final double workCompleted =
-          totalWork
-              .subtract(workRemainingInNanos, DECIMAL128)
-              .divide(totalWork, DECIMAL128)
-              .doubleValue();
-      final double workRemaining = workRemainingInNanos.divide(totalWork, DECIMAL128).doubleValue();
-
-      return Progress.from(workCompleted, workRemaining);
+      current = BigDecimal.valueOf(lastClaimedPosition.getSeconds());
     }
+    // The remaining work must be greater than 0. Otherwise, it will cause an issue
+    // that the watermark does not advance.
+    final BigDecimal workRemaining = now.subtract(current).max(BigDecimal.ONE);
+
+    LOG.debug(
+        "Reported progress - current:"
+            + current.doubleValue()
+            + " now:"
+            + now.doubleValue()
+            + " workRemaining:"
+            + workRemaining.doubleValue());
+
+    return Progress.from(current.doubleValue(), workRemaining.doubleValue());
   }
 
   @Override

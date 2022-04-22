@@ -81,10 +81,7 @@ func TestRegisterDoFn(t *testing.T) {
 			return toKey(a) == toKey(b)
 		}),
 		cmpopts.SortSlices(func(a, b reflect.Type) bool {
-			if toKey(a) < toKey(b) {
-				return true
-			}
-			return false
+			return toKey(a) < toKey(b)
 		}),
 	}
 

@@ -63,7 +63,6 @@ import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.OutputReference;
@@ -74,7 +73,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.SpannerChangeStreamOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -407,8 +405,6 @@ public class DataflowPipelineTranslator {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
       }
       AutoscalingSettings settings = new AutoscalingSettings();
-      // TODO: Remove this once autoscaling is supported for SpannerIO.readChangeStream
-      assertSpannerChangeStreamsNoAutoScaling(options);
       if (options.getAutoscalingAlgorithm() != null) {
         settings.setAlgorithm(options.getAutoscalingAlgorithm().getAlgorithm());
       }
@@ -607,29 +603,6 @@ public class DataflowPipelineTranslator {
       } else {
         return parents.peekFirst().toAppliedPTransform(getPipeline());
       }
-    }
-
-    // TODO: Remove this once the autoscaling is supported for Spanner change streams
-    private void assertSpannerChangeStreamsNoAutoScaling(DataflowPipelineOptions options) {
-      if (isSpannerChangeStream(options) && !isAutoScalingAlgorithmNone(options)) {
-        throw new IllegalArgumentException(
-            "Autoscaling is not supported for SpannerIO.readChangeStreams. Please disable it by specifying the autoscaling algorithm as NONE.");
-      }
-    }
-
-    private boolean isSpannerChangeStream(DataflowPipelineOptions options) {
-      try {
-        final SpannerChangeStreamOptions spannerOptions =
-            options.as(SpannerChangeStreamOptions.class);
-        final String metadataTable = spannerOptions.getMetadataTable();
-        return metadataTable != null && !metadataTable.isEmpty();
-      } catch (Exception e) {
-        return false;
-      }
-    }
-
-    private boolean isAutoScalingAlgorithmNone(DataflowPipelineOptions options) {
-      return AutoscalingAlgorithmType.NONE.equals(options.getAutoscalingAlgorithm());
     }
   }
 

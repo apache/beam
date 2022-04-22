@@ -1138,14 +1138,14 @@ func TestAsSplittableUnit(t *testing.T) {
 					if got, ok := ow["output1"]; !ok {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has no watermark for ouptput1, want: %v",
 							test.in, test.want)
-					} else if got.AsTime() != test.want {
+					} else if !got.AsTime().Equal(test.want) {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect watermark for output1: got: %v, want: %v",
 							test.in, got.AsTime(), test.want)
 					}
 					if got, ok := ow["output2"]; !ok {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has no watermark for ouptput2, want: %v",
 							test.in, test.want)
-					} else if got.AsTime() != test.want {
+					} else if !got.AsTime().Equal(test.want) {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect watermark for output2: got: %v, want: %v",
 							test.in, got.AsTime(), test.want)
 					}

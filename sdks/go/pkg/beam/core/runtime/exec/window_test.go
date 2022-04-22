@@ -104,6 +104,13 @@ func TestAssignWindow(t *testing.T) {
 				window.IntervalWindow{Start: -60000, End: 120000},
 			},
 		},
+		{
+			window.NewSessions(time.Minute),
+			60000,
+			[]typex.Window{
+				window.IntervalWindow{Start: 60000, End: 120000},
+			},
+		},
 	}
 
 	for _, test := range tests {
