@@ -69,7 +69,8 @@ public class BigQueryIOJsonIT {
   private static PipelineOptions testOptions = TestPipeline.testingPipelineOptions();
 
   static {
-    testOptions.setTempLocation("gs://bigqueryio-json-it-temp/java-tmp");
+    TestPipelineOptions opt = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    testOptions.setTempLocation(opt.getTempRoot() + "/java-tmp");
   }
 
   @Rule public final transient TestPipeline p = TestPipeline.fromOptions(testOptions);
