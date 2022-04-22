@@ -31,7 +31,6 @@ import (
 type BeamFnWorkerStatusServicer struct {
 	fnpb.UnimplementedBeamFnWorkerStatusServer
 	response chan string
-	lis      *bufconn.Listener
 }
 
 func (w *BeamFnWorkerStatusServicer) WorkerStatus(b fnpb.BeamFnWorkerStatus_WorkerStatusServer) error {
