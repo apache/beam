@@ -153,7 +153,6 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
-  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_bad_file_raises(self):
     with self.assertRaises(RuntimeError):
       with TestPipeline() as pipeline:
@@ -164,6 +163,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
             SklearnModelLoader(model_uri='/var/bad_file_name'))
         pipeline.run()
 
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_bad_input_type_raises(self):
     with self.assertRaisesRegex(TypeError, 'Unsupported serialization type'):
       with tempfile.NamedTemporaryFile() as file:
