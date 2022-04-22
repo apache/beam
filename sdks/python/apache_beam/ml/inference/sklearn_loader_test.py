@@ -17,7 +17,9 @@
 
 # pytype: skip-file
 
+import os
 import pickle
+import shutil
 import sys
 import tempfile
 import unittest
@@ -60,6 +62,12 @@ def build_model():
 
 
 class SkLearnRunInferenceTest(unittest.TestCase):
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+
   def test_predict_output(self):
     fake_model = FakeModel()
     inference_runner = SklearnInferenceRunner()
@@ -105,7 +113,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         inference_runner.get_num_bytes(batched_examples_float))
 
   def test_pipeline_pickled(self):
-    with tempfile.NamedTemporaryFile() as file:
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
       pickle.dump(build_model(), file)
       file.flush()
       with TestPipeline() as pipeline:
@@ -114,7 +123,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         pcoll = pipeline | 'start' >> beam.Create(examples)
         #TODO(BEAM-14305) Test against the public API.
         actual = pcoll | base.RunInference(
-            SklearnModelLoader(model_uri=file.name))
+            SklearnModelLoader(model_uri=temp_file_name))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
             api.PredictionResult(numpy.array([1, 1]), 1)
@@ -123,7 +132,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
             actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   def test_pipeline_joblib(self):
-    with tempfile.NamedTemporaryFile() as file:
+    temp_file_name = self.tmpdir + os.sep + 'joblib_file'
+    with open(temp_file_name, 'wb') as file:
       joblib.dump(build_model(), file)
       file.flush()
       with TestPipeline() as pipeline:
@@ -131,9 +141,10 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         #TODO(BEAM-14305) Test against the public API.
+
         actual = pcoll | base.RunInference(
             SklearnModelLoader(
-                model_uri=file.name, model_file_type=ModelFileType.JOBLIB))
+                model_uri=temp_file_name, model_file_type=ModelFileType.JOBLIB))
         expected = [
             api.PredictionResult(numpy.array([0, 0]), 0),
             api.PredictionResult(numpy.array([1, 1]), 1)
