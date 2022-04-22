@@ -142,12 +142,16 @@ def getNexmarkArgs = {
         nexmarkArgsList.add("--skipQueries=LOCAL_ITEM_SUGGESTION,AVERAGE_PRICE_FOR_CATEGORY,AVERAGE_SELLING_PRICE_BY_SELLER,HIGHEST_BID,WINNING_BIDS,SESSION_SIDE_INPUT_JOIN,BOUNDED_SIDE_INPUT_JOIN") // 3, 4, 6, 7, 9, 13, 14, 15
       }
     } else {
+      if (nexmarkArgsList.contains("--streaming=true")) {
+        nexmarkArgsList.add("--sdkContainerImage=gcr.io/dataflow-build/kileysok/beam-java8-latest-streaming:latest")
+      } else {
+        nexmarkArgsList.add("--sdkContainerImage=gcr.io/dataflow-build/kileysok/beam-java8-latest-batch:latest")
+      }
       def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
       // Provide job with a customizable worker jar.
       // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
       // More context and discussions can be found in PR#6694.
       nexmarkArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
-      nexmarkArgsList.add('--workerHarnessContainerImage=')
 
       def nexmarkProfile =  project.findProperty(nexmarkProfilingProperty) ?: ""
       if (nexmarkProfile.equals("true")) {
