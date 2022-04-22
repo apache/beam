@@ -338,6 +338,7 @@ class BigtableServiceImpl implements BigtableService {
     private SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> startNextSegmentRead() {
       SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> f = SettableFuture.create();
       bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * Runtime.getRuntime().freeMemory());
+      System.out.println("Current Byte Limit inside of startNextsegementRead(): "+bufferByteLimit);
       // TODO(diegomez): Remove atomic ScanHandler for simpler StreamObserver/Future implementation
       AtomicReference<ScanHandler> atomic = new AtomicReference<>();
       ScanHandler handler;
@@ -360,6 +361,7 @@ class BigtableServiceImpl implements BigtableService {
                                   .mapToLong(c -> c.getQualifier().size() + c.getValue().size())
                                   .sum();
                       if (currentByteSize > bufferByteLimit) {
+                        System.out.println("REACHED: Current Byte Size has exceeded buffer Byte Limit");
                         byteLimitReached = true;
                         atomic.get().cancel();
                         return;
