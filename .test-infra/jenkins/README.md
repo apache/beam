@@ -19,6 +19,8 @@
 
 > **PLEASE update this file if you add new job or change name/trigger phrase in groovy files.**
 
+Updating this only for trigger PerformanceTests.
+
 ## Beam Jenkins
 
 Beam Jenkins overview page: [link](https://ci-beam.apache.org/)
