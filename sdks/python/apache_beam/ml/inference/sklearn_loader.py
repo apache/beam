@@ -24,10 +24,10 @@ from typing import List
 
 import numpy
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import PredictionResult
 from apache_beam.ml.inference.base import InferenceRunner
 from apache_beam.ml.inference.base import ModelLoader
-from apache_beam.io.filesystems import FileSystems
 
 try:
   import joblib
