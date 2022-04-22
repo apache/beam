@@ -18,8 +18,9 @@
 # pytype: skip-file
 
 import datetime
-import pytz
 import time
+
+import pytz
 
 from apache_beam.io.aws.clients.s3 import messages
 
