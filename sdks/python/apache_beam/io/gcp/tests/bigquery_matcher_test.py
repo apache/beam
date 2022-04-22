@@ -23,7 +23,6 @@ import logging
 import unittest
 
 import mock
-import pytest
 from hamcrest import assert_that as hc_assert_that
 
 from apache_beam.io.gcp import bigquery_tools
