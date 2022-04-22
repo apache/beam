@@ -31,7 +31,7 @@ from apache_beam.io.filesystems import FileSystems
 
 try:
   import joblib
-catch ImportError:
+except ImportError:
   # joblib is an optional dependency.
   pass
 
@@ -70,7 +70,7 @@ class SklearnModelLoader(ModelLoader):
       return pickle.load(file)
     elif self._model_file_type == ModelFileType.JOBLIB:
       if not joblib:
-        raise raise ImportError('Loading with joblib requests but joblib is not available.')
+        raise ImportError('Joblib not available in SklearnModelLoader.')
       return joblib.load(file)
     raise TypeError('Unsupported serialization type.')
 

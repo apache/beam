@@ -107,7 +107,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
   def test_pipeline_pickled(self):
     with tempfile.NamedTemporaryFile() as file:
       pickle.dump(build_model(), file)
-      file.close()
+      file.flush()
       with TestPipeline() as pipeline:
         examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
@@ -125,7 +125,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
   def test_pipeline_joblib(self):
     with tempfile.NamedTemporaryFile() as file:
       joblib.dump(build_model(), file)
-      file.close()
+      file.flush()
       with TestPipeline() as pipeline:
         examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
@@ -152,10 +152,10 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         pipeline.run()
 
   def test_bad_input_type_raises(self):
-    with tempfile.NamedTemporaryFile() as file:
-      with self.assertRaisesRegex(TypeError, 'Unsupported serialization type.'):
+    with self.assertRaisesRegex(TypeError, 'Unsupported serialization type'):
+      with tempfile.NamedTemporaryFile() as file:
         model_loader = SklearnModelLoader(
-            model_uri=file.name, serialization=None)
+            model_uri=file.name, model_file_type=None)
         model_loader.load_model()
 
 
