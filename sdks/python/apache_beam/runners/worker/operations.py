@@ -127,24 +127,133 @@ class ConsumerSet(Receiver):
             coder,
             producer_type_hints)
 
-    return ConsumerSet(
+    return GeneralPurposeConsumerSet(
         counter_factory,
         step_name,
         output_index,
-        consumers,
         coder,
-        producer_batch_converter,
-        producer_type_hints)
+        producer_type_hints,
+        consumers,
+        producer_batch_converter)
 
   def __init__(self,
                counter_factory,
                step_name,  # type: str
                output_index,
-               consumers,  # type: List[Operation]
+               consumers,
                coder,
-               producer_batch_converter,
                producer_type_hints
                ):
+    self.opcounter = opcounters.OperationCounters(
+        counter_factory,
+        step_name,
+        coder,
+        output_index,
+        producer_type_hints=producer_type_hints)
+    # Used in repr.
+    self.step_name = step_name
+    self.output_index = output_index
+    self.coder = coder
+    self.consumers = consumers
+
+  def try_split(self, fraction_of_remainder):
+    # type: (...) -> Optional[Any]
+    # TODO(SDF): Consider supporting splitting each consumer individually.
+    # This would never come up in the existing SDF expansion, but might
+    # be useful to support fused SDF nodes.
+    # This would require dedicated delivery of the split results to each
+    # of the consumers separately.
+    return None
+
+  def current_element_progress(self):
+    # type: () -> Optional[iobase.RestrictionProgress]
+
+    """Returns the progress of the current element.
+
+    This progress should be an instance of
+    apache_beam.io.iobase.RestrictionProgress, or None if progress is unknown.
+    """
+    # TODO(SDF): Could implement this as a weighted average, if it becomes
+    # useful to split on.
+    return None
+
+  def update_counters_start(self, windowed_value):
+    # type: (WindowedValue) -> None
+    self.opcounter.update_from(windowed_value)
+
+  def update_counters_finish(self):
+    # type: () -> None
+    self.opcounter.update_collect()
+
+  def __repr__(self):
+    return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
+        self.__class__.__name__,
+        self.step_name,
+        self.output_index,
+        self.coder,
+        len(self.consumers))
+
+
+class SingletonElementConsumerSet(ConsumerSet):
+  """ConsumerSet representing a single consumer that can only process elements
+  (not batches)."""
+  def __init__(self,
+               counter_factory,
+               step_name,
+               output_index,
+               consumer,  # type: Operation
+               coder,
+               producer_type_hints
+               ):
+    super().__init__(
+        counter_factory,
+        step_name,
+        output_index,
+        [consumer],
+        coder,
+        producer_type_hints)
+    self.consumer = consumer
+
+  def receive(self, windowed_value):
+    # type: (WindowedValue) -> None
+    self.update_counters_start(windowed_value)
+    self.consumer.process(windowed_value)
+    self.update_counters_finish()
+
+  def receive_batch(self, windowed_batch):
+    raise AssertionError(
+        "SingletonElementConsumerSet.receive_batch is not implemented")
+
+  def flush(self):
+    # SingletonElementConsumerSet has no buffer to flush
+    pass
+
+  def try_split(self, fraction_of_remainder):
+    # type: (...) -> Optional[Any]
+    return self.consumer.try_split(fraction_of_remainder)
+
+  def current_element_progress(self):
+    return self.consumer.current_element_progress()
+
+class GeneralPurposeConsumerSet(ConsumerSet):
+  """ConsumerSet implementation that handles all combinations of possible edges.
+  """
+  def __init__(self,
+               counter_factory,
+               step_name,  # type: str
+               output_index,
+               coder,
+               producer_type_hints,
+               consumers,  # type: List[Operation]
+               producer_batch_converter):
+    super().__init__(
+        counter_factory,
+        step_name,
+        output_index,
+        consumers,
+        coder,
+        producer_type_hints)
+
     self.producer_batch_converter = producer_batch_converter
 
     consumers_by_batch_converter: Dict[
@@ -166,16 +275,6 @@ class ConsumerSet(Receiver):
         self.passthrough_batch_consumers or self.other_batch_consumers)
     self._batched_elements: List[Any] = []
 
-    self.opcounter = opcounters.OperationCounters(
-        counter_factory,
-        step_name,
-        coder,
-        output_index,
-        producer_type_hints=producer_type_hints)
-    # Used in repr.
-    self.step_name = step_name
-    self.output_index = output_index
-    self.coder = coder
 
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
@@ -230,81 +329,6 @@ class ConsumerSet(Receiver):
       cython.cast(Operation, consumer).process_batch(windowed_batch)
 
     self._batched_elements = []
-
-  def try_split(self, fraction_of_remainder):
-    # type: (...) -> Optional[Any]
-    # TODO(SDF): Consider supporting splitting each consumer individually.
-    # This would never come up in the existing SDF expansion, but might
-    # be useful to support fused SDF nodes.
-    # This would require dedicated delivery of the split results to each
-    # of the consumers separately.
-    return None
-
-  def current_element_progress(self):
-    # type: () -> Optional[iobase.RestrictionProgress]
-
-    """Returns the progress of the current element.
-
-    This progress should be an instance of
-    apache_beam.io.iobase.RestrictionProgress, or None if progress is unknown.
-    """
-    # TODO(SDF): Could implement this as a weighted average, if it becomes
-    # useful to split on.
-    return None
-
-  def update_counters_start(self, windowed_value):
-    # type: (WindowedValue) -> None
-    self.opcounter.update_from(windowed_value)
-
-  def update_counters_finish(self):
-    # type: () -> None
-    self.opcounter.update_collect()
-
-  def __repr__(self):
-    return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
-        self.__class__.__name__,
-        self.step_name,
-        self.output_index,
-        self.coder,
-        len(self.consumers))
-
-
-class SingletonElementConsumerSet(ConsumerSet):
-  """ConsumerSet representing a single consumer that can only process elements
-  (not batches)."""
-  def __init__(self,
-               counter_factory,
-               step_name,
-               output_index,
-               consumer,  # type: Operation
-               coder,
-               producer_type_hints
-               ):
-    super().__init__(
-        counter_factory,
-        step_name,
-        output_index, [consumer],
-        coder,
-        None,
-        producer_type_hints)
-    self.consumer = consumer
-
-  def receive(self, windowed_value):
-    # type: (WindowedValue) -> None
-    self.update_counters_start(windowed_value)
-    self.consumer.process(windowed_value)
-    self.update_counters_finish()
-
-  def receive_batch(self, windowed_batch):
-    raise AssertionError(
-        "SingletonElementConsumerSet.receive_batch is not implemented")
-
-  def try_split(self, fraction_of_remainder):
-    # type: (...) -> Optional[Any]
-    return self.consumer.try_split(fraction_of_remainder)
-
-  def current_element_progress(self):
-    return self.consumer.current_element_progress()
 
 
 class Operation(object):
@@ -650,7 +674,7 @@ class _TaggedReceivers(dict):
     self._step_name = step_name
 
   def __missing__(self, tag):
-    self[tag] = receiver = ConsumerSet(
+    self[tag] = receiver = ConsumerSet.create(
         self._counter_factory, self._step_name, tag, [], None, None, None)
     return receiver
 

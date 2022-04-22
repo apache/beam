@@ -18,6 +18,7 @@
 cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
+from apache_beam.utils.windowed_value cimport WindowedBatch
 from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
 
 from libc.stdint cimport int64_t
@@ -28,6 +29,8 @@ cdef type TaggedOutput, TimestampedValue
 
 cdef class Receiver(object):
   cpdef receive(self, WindowedValue windowed_value)
+  cpdef receive_batch(self, WindowedBatch windowed_batch)
+  cpdef flush(self)
 
 
 cdef class MethodWrapper(object):
