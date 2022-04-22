@@ -1227,13 +1227,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.withType(Test) {
           useJUnit()
           executable = "${java17Home}/bin/java"
-          // TODO (BEAM-13735) Enable tests once ZetaSql fixes Java 17 constructor issue
-          filter {
-            excludeTestsMatching 'org.apache.beam.sdk.extensions.sql.zetasql.*'
-            excludeTestsMatching 'org.apache.beam.sdk.nexmark.queries.SqlQueryTest$SqlQueryTestZetaSql'
-            excludeTestsMatching 'org.apache.beam.sdk.nexmark.queries.sql.SqlBoundedSideInputJoinTest$SqlBoundedSideInputJoinTestZetaSql'
-            excludeTestsMatching 'org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2Test$SqlQuery2TestZetaSql'
-          }
         }
       }
       if (configuration.shadowClosure) {

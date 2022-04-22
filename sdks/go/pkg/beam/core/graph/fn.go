@@ -1024,7 +1024,7 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 		return errors.SetTopLevelMsgf(err, "unexpected number of return values in method %v. "+
 			"got: %v, want: %v. Check that the signature conforms to the expected signature for %v.",
 			createWatermarkEstimatorName, len(method.Ret), returnNum, createWatermarkEstimatorName)
-	} else if method.Ret[0].T.Implements(watermarkEstimatorT) == false {
+	} else if !method.Ret[0].T.Implements(watermarkEstimatorT) {
 		err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.WatermarkEstimator",
 			createWatermarkEstimatorName, 0, method.Ret[0].T)
 		return errors.SetTopLevelMsgf(err, "invalid output type in method %v, "+
