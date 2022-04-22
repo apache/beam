@@ -19,6 +19,7 @@
 
 import os
 import pickle
+import platform
 import shutil
 import sys
 import tempfile
