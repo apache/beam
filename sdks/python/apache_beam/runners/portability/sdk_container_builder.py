@@ -251,7 +251,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
       build.options.machineType = self._cloud_build_machine_type
     build.steps = []
     step = cloudbuild.BuildStep()
-    step.name = 'gcr.io/kaniko-project/executor:latest'
+    step.name = 'gcr.io/kaniko-project/executor:v1.8.1'
     step.args = ['--destination=' + container_image_name, '--cache=true']
     step.dir = SOURCE_FOLDER
 
@@ -267,7 +267,6 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.timeout = '7200s'
 
     now = time.time()
-    # operation = client.create_build(project_id=project_id, build=build)
     request = cloudbuild.CloudbuildProjectsBuildsCreateRequest(
         projectId=project_id, build=build)
     build = self._cloudbuild_client.projects_builds.Create(request)

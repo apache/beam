@@ -629,6 +629,22 @@ class SetupTest(unittest.TestCase):
     self.assertIn('prebuild_sdk_container_base_image', errors[0])
     self.assertIn('sdk_container_image', errors[0])
 
+  def test_prebuild_sdk_container_option_conflicts(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--prebuild_sdk_container_engine=local_docker',
+        '--disable_sdk_container_prebuild',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1)
+    self.assertIn(
+        '--prebuild_sdk_container_engine is not allowed to be used'
+        ' along with --disable_sdk_container_prebuild.',
+        errors[0])
+
   def test_prebuild_sdk_container_base_allowed_if_matches_custom_image(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([

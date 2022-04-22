@@ -1172,13 +1172,23 @@ class SetupOptions(PipelineOptions):
             'environment. This may speed up pipeline execution. To enable, '
             'select the Docker build engine: local_docker using '
             'locally-installed Docker or cloud_build for using Google Cloud '
-            'Build (requires a GCP project with Cloud Build API enabled). You '
-            'can also subclass SdkContainerImageBuilder and use that to build '
-            'in other environments.'))
+            'Build (requires a GCP project with Cloud Build API enabled). By '
+            'default, DataflowRunner set it to cloud_build to pre-build the '
+            'SDK container image on Google Cloud Build, when the job is '
+            'eligible (has additional dependencies from any of '
+            '[--requirements_file, --extra_packages, --setup_file, '
+            '--sdk_location] to install and the Google Cloud project has Cloud '
+            'Build API enabled). You can also subclass SdkContainerImageBuilder'
+            ' and use that to build in other environments.'))
     parser.add_argument(
         '--prebuild_sdk_container_base_image',
         default=None,
         help=('Deprecated. Use --sdk_container_image instead.'))
+    parser.add_argument(
+        '--disable_sdk_container_prebuild',
+        default=False,
+        action='store_true',
+        help=('Disables the SDK container image pre-building workflow.'))
     parser.add_argument(
         '--cloud_build_machine_type',
         default=None,

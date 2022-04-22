@@ -265,6 +265,12 @@ class PipelineOptionsValidator(object):
               'Don\'t use the deprecated option '
               '--prebuild_sdk_container_base_image. Use --sdk_container_image '
               'instead.'))
+    if (view.prebuild_sdk_container_engine and
+        view.disable_sdk_container_prebuild):
+      errors.extend(
+          self._validate_error(
+              '--prebuild_sdk_container_engine is not allowed to be used along'
+              ' with --disable_sdk_container_prebuild.'))
     return errors
 
   def validate_num_workers(self, view):
