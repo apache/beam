@@ -113,7 +113,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         sys.getsizeof(batched_examples_float[0]) * 3,
         inference_runner.get_num_bytes(batched_examples_float))
 
-  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-10929')
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_pipeline_pickled(self):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
@@ -132,7 +132,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
-  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-10929')
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_pipeline_joblib(self):
     temp_file_name = self.tmpdir + os.sep + 'joblib_file'
     with open(temp_file_name, 'wb') as file:
@@ -153,6 +153,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
+  @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_bad_file_raises(self):
     with self.assertRaises(RuntimeError):
       with TestPipeline() as pipeline:
