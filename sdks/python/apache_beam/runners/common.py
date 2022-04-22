@@ -237,6 +237,10 @@ class BatchingPreference(Enum):
     return self in (self.BATCH_REQUIRED, self.DO_NOT_CARE)
 
   @property
+  def supports_elements(self) -> bool:
+    return self in (self.BATCH_FORBIDDEN, self.DO_NOT_CARE)
+
+  @property
   def requires_batches(self) -> bool:
     return self == self.BATCH_REQUIRED
 

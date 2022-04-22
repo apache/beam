@@ -256,20 +256,31 @@ class GeneralPurposeConsumerSet(ConsumerSet):
 
     self.producer_batch_converter = producer_batch_converter
 
-    consumers_by_batch_converter: Dict[
-        Optional[BatchConverter], List[Operation]] = {
-            batch_converter: list(consumer_subset)
-            for batch_converter,
-            consumer_subset in itertools.groupby(
-                consumers, key=lambda c: c.get_input_batch_converter())
-        }
+    # Partition consumers into three groups:
+    # - consumers that will be passed elements
+    # - consumers that will be passed batches (where their input batch type
+    #   matches the output of the producer)
+    # - consumers that will be passed converted batches
+    self.element_consumers: List[Operation] = []
+    self.passthrough_batch_consumers: List[Operation] = []
+    other_batch_consumers: DefaultDict[BatchConverter, List[Operation]] = collections.defaultdict(lambda: [])
 
-    self.element_consumers = consumers_by_batch_converter.pop(None, [])
-    self.passthrough_batch_consumers = consumers_by_batch_converter.pop(
-        self.producer_batch_converter, [])
+    for consumer in consumers:
+      if not consumer.get_batching_preference().supports_batches:
+        self.element_consumers.append(consumer)
+      elif (consumer.get_input_batch_converter() ==
+            self.producer_batch_converter):
+        self.passthrough_batch_consumers.append(consumer)
+      else:
+        # Batch consumer with a mismatched batch type
+        if consumer.get_batching_preference().supports_elements:
+          # Pass it elements if we can
+          self.element_consumers.append(consumer)
+        else:
+          # As a last resort, explode and rebatch
+          other_batch_consumers[consumer.get_input_batch_converter()].append(consumer)
 
-    # TODO: Pass elements for these mismatches if possible
-    self.other_batch_consumers = consumers_by_batch_converter
+    self.other_batch_consumers: Dict[BatchConverter, List[Operation]] = dict(other_batch_consumers)
 
     self.has_batch_consumers = (
         self.passthrough_batch_consumers or self.other_batch_consumers)
