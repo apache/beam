@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -232,13 +233,12 @@ public class TimestampRangeTrackerTest {
 
     final TimestampRange range = TimestampRange.of(from, to);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(position.getSeconds() + 10, 0));
 
     tracker.tryClaim(position);
     final Progress progress = tracker.getProgress();
 
     assertEquals(position.getSeconds(), progress.getWorkCompleted(), DELTA);
-    assertEquals(10D, progress.getWorkRemaining(), DELTA);
+    assertEquals(to.getSeconds() - position.getSeconds(), progress.getWorkRemaining(), DELTA);
   }
 
   @Test
@@ -247,8 +247,6 @@ public class TimestampRangeTrackerTest {
     final Timestamp to = Timestamp.now();
     final TimestampRange range = TimestampRange.of(from, to);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
-
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(to.getSeconds(), 0));
 
     final Progress progress = tracker.getProgress();
     assertEquals(0D, progress.getWorkCompleted(), DELTA);
@@ -263,8 +261,6 @@ public class TimestampRangeTrackerTest {
     final TimestampRange range = TimestampRange.of(from, to);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(to.getSeconds(), 0));
-
     tracker.tryClaim(position);
     final Progress progress = tracker.getProgress();
 
@@ -275,13 +271,12 @@ public class TimestampRangeTrackerTest {
   }
 
   @Test
-  public void testGetProgressReturnsWorkCompletedAsOneWhenRangeEndHasBeenAttempted() {
+  public void testGetProgressReturnsWorkCompletedWhenRangeEndHasBeenAttempted() {
     final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
     final Timestamp to = Timestamp.ofTimeSecondsAndNanos(101, 0);
     final TimestampRange range = TimestampRange.of(from, to);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(to.getSeconds(), 0));
     tracker.tryClaim(Timestamp.ofTimeSecondsAndNanos(100, 0));
     tracker.tryClaim(Timestamp.ofTimeSecondsAndNanos(101, 0));
     final Progress progress = tracker.getProgress();
@@ -293,14 +288,13 @@ public class TimestampRangeTrackerTest {
   }
 
   @Test
-  public void testGetProgressReturnsWorkCompletedAsOneWhenPastRangeEndHasBeenAttempted() {
+  public void testGetProgressReturnsWorkCompletedWhenPastRangeEndHasBeenAttempted() {
     final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
     final Timestamp to = Timestamp.ofTimeSecondsAndNanos(101, 0);
     final Timestamp position = Timestamp.ofTimeSecondsAndNanos(101, 0);
     final TimestampRange range = TimestampRange.of(from, to);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
-    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(position.getSeconds(), 0));
     tracker.tryClaim(position);
     final Progress progress = tracker.getProgress();
 
@@ -308,5 +302,22 @@ public class TimestampRangeTrackerTest {
     assertEquals(0D, progress.getWorkCompleted(), DELTA);
     assertTrue(progress.getWorkRemaining() >= 0);
     assertEquals(101D, progress.getWorkRemaining(), DELTA);
+  }
+
+  @Test
+  public void testGetProgressForStreaming() {
+    final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
+    final Timestamp position = Timestamp.ofTimeSecondsAndNanos(101, 0);
+    final TimestampRange range = TimestampRange.of(from, MAX_INCLUSIVE_END_AT);
+    final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
+
+    tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(position.getSeconds() + 10, 0));
+    tracker.tryClaim(position);
+    final Progress progress = tracker.getProgress();
+
+    assertTrue(progress.getWorkCompleted() >= 0);
+    assertEquals(101D, progress.getWorkCompleted(), DELTA);
+    assertTrue(progress.getWorkRemaining() >= 0);
+    assertEquals(10D, progress.getWorkRemaining(), DELTA);
   }
 }

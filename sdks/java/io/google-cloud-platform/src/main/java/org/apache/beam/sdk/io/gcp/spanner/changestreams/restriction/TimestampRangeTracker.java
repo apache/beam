@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import static java.math.MathContext.DECIMAL128;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toTimestamp;
@@ -204,7 +205,13 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
    */
   @Override
   public Progress getProgress() {
-    final BigDecimal now = BigDecimal.valueOf(timeSupplier.get().getSeconds());
+    BigDecimal end;
+    if (range.getTo().compareTo(MAX_INCLUSIVE_END_AT) == 0) {
+      // Use now() as the end timestamp.
+      end = BigDecimal.valueOf(timeSupplier.get().getSeconds());
+    } else {
+      end = BigDecimal.valueOf(range.getTo().getSeconds());
+    }
     BigDecimal current;
     if (lastClaimedPosition == null) {
       current = BigDecimal.valueOf(range.getFrom().getSeconds());
@@ -213,13 +220,13 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
     }
     // The remaining work must be greater than 0. Otherwise, it will cause an issue
     // that the watermark does not advance.
-    final BigDecimal workRemaining = now.subtract(current).max(BigDecimal.ONE);
+    final BigDecimal workRemaining = end.subtract(current).max(BigDecimal.ONE);
 
     LOG.debug(
         "Reported progress - current:"
             + current.doubleValue()
-            + " now:"
-            + now.doubleValue()
+            + " end:"
+            + end.doubleValue()
             + " workRemaining:"
             + workRemaining.doubleValue());
 
