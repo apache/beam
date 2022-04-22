@@ -116,41 +116,39 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
       pickle.dump(build_model(), file)
-      file.flush()
-      with TestPipeline() as pipeline:
-        examples = [numpy.array([0, 0]), numpy.array([1, 1])]
+    with TestPipeline() as pipeline:
+      examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
-        pcoll = pipeline | 'start' >> beam.Create(examples)
-        #TODO(BEAM-14305) Test against the public API.
-        actual = pcoll | base.RunInference(
-            SklearnModelLoader(model_uri=temp_file_name))
-        expected = [
-            api.PredictionResult(numpy.array([0, 0]), 0),
-            api.PredictionResult(numpy.array([1, 1]), 1)
-        ]
-        assert_that(
-            actual, equal_to(expected, equals_fn=_compare_prediction_result))
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      #TODO(BEAM-14305) Test against the public API.
+      actual = pcoll | base.RunInference(
+          SklearnModelLoader(model_uri=temp_file_name))
+      expected = [
+          api.PredictionResult(numpy.array([0, 0]), 0),
+          api.PredictionResult(numpy.array([1, 1]), 1)
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   def test_pipeline_joblib(self):
     temp_file_name = self.tmpdir + os.sep + 'joblib_file'
     with open(temp_file_name, 'wb') as file:
       joblib.dump(build_model(), file)
-      file.flush()
-      with TestPipeline() as pipeline:
-        examples = [numpy.array([0, 0]), numpy.array([1, 1])]
+    with TestPipeline() as pipeline:
+      examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
-        pcoll = pipeline | 'start' >> beam.Create(examples)
-        #TODO(BEAM-14305) Test against the public API.
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      #TODO(BEAM-14305) Test against the public API.
 
-        actual = pcoll | base.RunInference(
-            SklearnModelLoader(
-                model_uri=temp_file_name, model_file_type=ModelFileType.JOBLIB))
-        expected = [
-            api.PredictionResult(numpy.array([0, 0]), 0),
-            api.PredictionResult(numpy.array([1, 1]), 1)
-        ]
-        assert_that(
-            actual, equal_to(expected, equals_fn=_compare_prediction_result))
+      actual = pcoll | base.RunInference(
+          SklearnModelLoader(
+              model_uri=temp_file_name, model_file_type=ModelFileType.JOBLIB))
+      expected = [
+          api.PredictionResult(numpy.array([0, 0]), 0),
+          api.PredictionResult(numpy.array([1, 1]), 1)
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_prediction_result))
 
   def test_bad_file_raises(self):
     with self.assertRaises(RuntimeError):
