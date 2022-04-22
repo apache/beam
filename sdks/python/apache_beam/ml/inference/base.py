@@ -41,6 +41,7 @@ from typing import List
 from typing import TypeVar
 
 import apache_beam as beam
+from apache_beam.transforms import resources
 from apache_beam.utils import shared
 
 try:
@@ -56,7 +57,7 @@ _SECOND_TO_MICROSECOND = 1_000_000
 T = TypeVar('T')
 
 
-class InferenceRunner():
+class InferenceRunner:
   """Implements running inferences for a framework."""
   def run_inference(self, batch: List[Any], model: Any) -> Iterable[Any]:
     """Runs inferences on a batch of examples and returns an Iterable of Predictions."""
@@ -83,14 +84,29 @@ class ModelLoader(Generic[T]):
 
 
 class RunInference(beam.PTransform):
-  """An extensible transform for running inferences."""
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  """An extensible transform for running inferences.
+  Args:
+      model_loader: An implementation of InferenceRunner.
+      clock: A clock implementing get_current_time_in_microseconds.
+      close_to_resource: A string representing the resource location hints.
+  """
+  def __init__(self,
+               model_loader: ModelLoader,
+               clock:_Clock=None,
+               close_to_resource:str=None):
     self._model_loader = model_loader
     self._clock = clock
+    self._close_to_resource = close_to_resource
 
   # TODO(BEAM-14208): Add batch_size back off in the case there
   # are functional reasons large batch sizes cannot be handled.
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
+    # TODO(BEAM-13690): Do this unconditionally one resolved.
+    if resources.ResourceHint.is_registered('close_to_resources') and self._close_to_resource:
+      pcoll |= (
+          'CloseToResources' >> beam.Map(lambda x: x).with_resource_hints(
+              close_to_resources=self._close_to_resource))
+
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
