@@ -28,6 +28,7 @@ import static org.junit.Assert.fail;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -284,6 +285,7 @@ public class AvroCoderTest {
     // Kryo instantiation
     Kryo kryo = new Kryo();
     kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+    kryo.addDefaultSerializer(AvroCoder.SerializableSchemaSupplier.class, JavaSerializer.class);
 
     // Serialization of object without any memoization
     ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
