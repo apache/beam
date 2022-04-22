@@ -24,7 +24,6 @@
 # pylint: disable=super-with-arguments
 
 import collections
-import itertools
 import logging
 import threading
 from typing import TYPE_CHECKING
@@ -208,8 +207,7 @@ class SingletonElementConsumerSet(ConsumerSet):
     super().__init__(
         counter_factory,
         step_name,
-        output_index,
-        [consumer],
+        output_index, [consumer],
         coder,
         producer_type_hints)
     self.consumer = consumer
@@ -234,6 +232,7 @@ class SingletonElementConsumerSet(ConsumerSet):
 
   def current_element_progress(self):
     return self.consumer.current_element_progress()
+
 
 class GeneralPurposeConsumerSet(ConsumerSet):
   """ConsumerSet implementation that handles all combinations of possible edges.
@@ -263,7 +262,8 @@ class GeneralPurposeConsumerSet(ConsumerSet):
     # - consumers that will be passed converted batches
     self.element_consumers: List[Operation] = []
     self.passthrough_batch_consumers: List[Operation] = []
-    other_batch_consumers: DefaultDict[BatchConverter, List[Operation]] = collections.defaultdict(lambda: [])
+    other_batch_consumers: DefaultDict[
+        BatchConverter, List[Operation]] = collections.defaultdict(lambda: [])
 
     for consumer in consumers:
       if not consumer.get_batching_preference().supports_batches:
@@ -278,14 +278,15 @@ class GeneralPurposeConsumerSet(ConsumerSet):
           self.element_consumers.append(consumer)
         else:
           # As a last resort, explode and rebatch
-          other_batch_consumers[consumer.get_input_batch_converter()].append(consumer)
+          other_batch_consumers[consumer.get_input_batch_converter()].append(
+              consumer)
 
-    self.other_batch_consumers: Dict[BatchConverter, List[Operation]] = dict(other_batch_consumers)
+    self.other_batch_consumers: Dict[BatchConverter, List[Operation]] = dict(
+        other_batch_consumers)
 
     self.has_batch_consumers = (
         self.passthrough_batch_consumers or self.other_batch_consumers)
     self._batched_elements: List[Any] = []
-
 
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
