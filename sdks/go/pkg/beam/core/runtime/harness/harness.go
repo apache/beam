@@ -36,13 +36,26 @@ import (
 	"google.golang.org/grpc"
 )
 
+// StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
+type StatusAddress string
+
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
-func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
+func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options ...interface{}) error {
 	hooks.DeserializeHooksFromOptions(ctx)
+
+	statusEndpoint := ""
+	for _, option := range options {
+		switch option := option.(type) {
+		case StatusAddress:
+			statusEndpoint = string(option)
+		default:
+			return errors.Errorf("unknown type %T, value %v in error call", option, option)
+		}
+	}
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
 	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
@@ -98,22 +111,34 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
+	// if the runner supports worker status api then expose SDK harness status
+	if statusEndpoint != "" {
+		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint)
+		if err != nil {
+			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
+		} else {
+			if err := statusHandler.start(ctx); err == nil {
+				defer statusHandler.stop(ctx)
+			}
+		}
+	}
+
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
 	ctrl := &control{
-		lookupDesc:  lookupDesc,
-		descriptors: make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
-		plans:       make(map[bundleDescriptorID][]*exec.Plan),
-		active:      make(map[instructionID]*exec.Plan),
-		inactive:    newCircleBuffer(),
-		metStore:    make(map[instructionID]*metrics.Store),
-		failed:      make(map[instructionID]error),
-		data:        &DataChannelManager{},
-		state:       &StateChannelManager{},
-		cache:       &sideCache,
+		lookupDesc:           lookupDesc,
+		descriptors:          make(map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor),
+		plans:                make(map[bundleDescriptorID][]*exec.Plan),
+		active:               make(map[instructionID]*exec.Plan),
+		awaitingFinalization: make(map[instructionID]awaitingFinalization),
+		inactive:             newCircleBuffer(),
+		metStore:             make(map[instructionID]*metrics.Store),
+		failed:               make(map[instructionID]error),
+		data:                 &DataChannelManager{},
+		state:                &StateChannelManager{},
+		cache:                &sideCache,
 	}
-
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -126,7 +151,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			atomic.AddInt32(&shutdown, 1)
 			close(respc)
 			wg.Wait()
-
 			if err == io.EOF {
 				recordFooter()
 				return nil
@@ -222,11 +246,19 @@ func (c *circleBuffer) Contains(instID instructionID) bool {
 	return ok
 }
 
+type awaitingFinalization struct {
+	expiration time.Time
+	plan       *exec.Plan
+	bdID       bundleDescriptorID
+}
+
 type control struct {
 	lookupDesc  func(bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error)
 	descriptors map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor // protected by mu
 	// plans that are candidates for execution.
 	plans map[bundleDescriptorID][]*exec.Plan // protected by mu
+	// plans that are awaiting bundle finalization.
+	awaitingFinalization map[instructionID]awaitingFinalization //protected by mu
 	// plans that are actively being executed.
 	// a plan can only be in one of these maps at any time.
 	active map[instructionID]*exec.Plan // protected by mu
@@ -338,14 +370,36 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.cache.CompleteBundle(tokens...)
 
 		mons, pylds := monitoring(plan, store)
+		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()
 		// Mark the instruction as failed.
 		if err != nil {
 			c.failed[instID] = err
 		} else {
-			// Non failure plans can be re-used.
-			c.plans[bdID] = append(c.plans[bdID], plan)
+			// Non failure plans should either be moved to the finalized state
+			// or to plans so they can be re-used.
+			expiration := plan.GetExpirationTime()
+			if time.Now().Before(expiration) {
+				// TODO(BEAM-10976) - we can be a little smarter about data structures here by
+				// by storing plans awaiting finalization in a heap. That way when we expire plans
+				// here its O(1) instead of O(n) (though adding/finalizing will still be O(logn))
+				requiresFinalization = true
+				c.awaitingFinalization[instID] = awaitingFinalization{
+					expiration: expiration,
+					plan:       plan,
+					bdID:       bdID,
+				}
+				// Move any plans that have exceeded their expiration back into the re-use pool
+				for id, af := range c.awaitingFinalization {
+					if time.Now().After(af.expiration) {
+						c.plans[af.bdID] = append(c.plans[af.bdID], af.plan)
+						delete(c.awaitingFinalization, id)
+					}
+				}
+			} else {
+				c.plans[bdID] = append(c.plans[bdID], plan)
+			}
 		}
 		delete(c.active, instID)
 		if removed, ok := c.inactive.Insert(instID); ok {
@@ -362,9 +416,35 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{
 				ProcessBundle: &fnpb.ProcessBundleResponse{
-					MonitoringData:  pylds,
-					MonitoringInfos: mons,
+					MonitoringData:       pylds,
+					MonitoringInfos:      mons,
+					RequiresFinalization: requiresFinalization,
 				},
+			},
+		}
+
+	case req.GetFinalizeBundle() != nil:
+		msg := req.GetFinalizeBundle()
+
+		ref := instructionID(msg.GetInstructionId())
+
+		af, ok := c.awaitingFinalization[ref]
+		if !ok {
+			return fail(ctx, instID, "finalize bundle failed for instruction %v: couldn't find plan in finalizing map", ref)
+		}
+
+		if time.Now().Before(af.expiration) {
+			if err := af.plan.Finalize(); err != nil {
+				return fail(ctx, instID, "finalize bundle failed for instruction %v using plan %v : %v", ref, af.bdID, err)
+			}
+		}
+		c.plans[af.bdID] = append(c.plans[af.bdID], af.plan)
+		delete(c.awaitingFinalization, ref)
+
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_FinalizeBundle{
+				FinalizeBundle: &fnpb.FinalizeBundleResponse{},
 			},
 		}
 
@@ -447,9 +527,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			for i, r := range sr.RS {
 				rRoots[i] = &fnpb.DelayedBundleApplication{
 					Application: &fnpb.BundleApplication{
-						TransformId: sr.TId,
-						InputId:     sr.InId,
-						Element:     r,
+						TransformId:      sr.TId,
+						InputId:          sr.InId,
+						Element:          r,
+						OutputWatermarks: sr.OW,
 					},
 				}
 			}
@@ -506,6 +587,13 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, ref instructionID) (*exec.Plan, *metrics.Store, *fnpb.InstructionResponse) {
 	c.mu.Lock()
 	plan, ok := c.active[ref]
+	if !ok {
+		var af awaitingFinalization
+		af, ok = c.awaitingFinalization[ref]
+		if ok {
+			plan = af.plan
+		}
+	}
 	err := c.failed[ref]
 	store := c.metStore[ref]
 	defer c.mu.Unlock()

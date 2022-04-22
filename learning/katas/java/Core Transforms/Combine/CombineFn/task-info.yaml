@@ -22,7 +22,7 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/combine/combinefn/Task.java
   visible: true
   placeholders:
-  - offset: 1962
+  - offset: 2154
     length: 1173
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/combine/combinefn/TaskTest.java

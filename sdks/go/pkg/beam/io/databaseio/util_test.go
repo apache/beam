@@ -27,7 +27,6 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 
 	type User struct {
 		ID          int
-		local       bool
 		DateOfBirth time.Time
 		NameTest    string `column:"name"`
 		Random      float64
@@ -81,7 +80,6 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 func Test_writerRecordMapperProvider(t *testing.T) {
 	type User struct {
 		ID          int
-		local       bool
 		DateOfBirth time.Time
 		NameTest    string `column:"name"`
 		Random      float64

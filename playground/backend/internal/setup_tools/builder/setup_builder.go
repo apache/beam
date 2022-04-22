@@ -59,7 +59,7 @@ func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valRe
 		WithPreparer().
 		WithSdkPreparers(prep).
 		ExecutorBuilder
-	return &builder, err
+	return &builder, nil
 }
 
 // Compiler return executor with set args for compiler

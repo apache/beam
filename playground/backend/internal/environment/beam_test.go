@@ -33,7 +33,7 @@ func TestBeamEnvs_PreparedModDir(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "get path to prepared directory of the go.mod",
+			name: "Get path to prepared directory of the go.mod",
 			fields: fields{
 				ApacheBeamSdk:  0,
 				ExecutorConfig: nil,
@@ -51,6 +51,45 @@ func TestBeamEnvs_PreparedModDir(t *testing.T) {
 			}
 			if got := b.PreparedModDir(); got != tt.want {
 				t.Errorf("PreparedModDir() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBeamEnvs_NumOfParallelJobs(t *testing.T) {
+	numOfParallelJobs := 2
+	type fields struct {
+		ApacheBeamSdk     playground.Sdk
+		ExecutorConfig    *ExecutorConfig
+		preparedModDir    string
+		numOfParallelJobs int
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   int
+	}{
+		{
+			name: "Get the number of parallel jobs",
+			fields: fields{
+				ApacheBeamSdk:     0,
+				ExecutorConfig:    nil,
+				preparedModDir:    "",
+				numOfParallelJobs: numOfParallelJobs,
+			},
+			want: numOfParallelJobs,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &BeamEnvs{
+				ApacheBeamSdk:     tt.fields.ApacheBeamSdk,
+				ExecutorConfig:    tt.fields.ExecutorConfig,
+				preparedModDir:    tt.fields.preparedModDir,
+				numOfParallelJobs: tt.fields.numOfParallelJobs,
+			}
+			if got := b.NumOfParallelJobs(); got != tt.want {
+				t.Errorf("NumOfParallelJobs() = %v, want %v", got, tt.want)
 			}
 		})
 	}

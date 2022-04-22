@@ -217,6 +217,25 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
 
   /**
+   * If true, save a JFR profile when GC thrashing is first detected. The profile will run for the
+   * amount of time set by --jfrRecordingDurationSec, or 60 seconds by default.
+   *
+   * <p>Note, JFR profiles are only supported on java 9 and up.
+   */
+  @Description(
+      "If true, save a JFR profile before killing a thread or process "
+          + "which is GC thrashing or out of memory.  Only available on java 9 or up")
+  boolean getRecordJfrOnGcThrashing();
+
+  void setRecordJfrOnGcThrashing(boolean value);
+
+  @Default.Integer(60)
+  @Description("The duration of the JFR recording taken if --recordJfrOnGcThrashing is set.")
+  int getJfrRecordingDurationSec();
+
+  void setJfrRecordingDurationSec(int value);
+
+  /**
    * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
    * percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after
    * sustained periods of thrashing.

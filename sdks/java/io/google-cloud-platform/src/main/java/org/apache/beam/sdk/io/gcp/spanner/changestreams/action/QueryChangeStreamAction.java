@@ -26,9 +26,10 @@ import io.opencensus.common.Scope;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -39,7 +40,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -78,6 +80,8 @@ public class QueryChangeStreamAction {
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
+  private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator throughputEstimator;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -91,6 +95,8 @@ public class QueryChangeStreamAction {
    * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
+   * @param metrics metrics gathering class
+   * @param throughputEstimator an estimator to calculate local throughput.
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -99,7 +105,9 @@ public class QueryChangeStreamAction {
       PartitionMetadataMapper partitionMetadataMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
-      ChildPartitionsRecordAction childPartitionsRecordAction) {
+      ChildPartitionsRecordAction childPartitionsRecordAction,
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -107,6 +115,8 @@ public class QueryChangeStreamAction {
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
+    this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
   }
 
   /**
@@ -149,32 +159,13 @@ public class QueryChangeStreamAction {
   @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
+    final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
     final Timestamp endTimestamp = partition.getEndTimestamp();
-
-    /*
-     * FIXME(b/202802422): Workaround until the backend is fixed.
-     * The change stream API returns invalid argument if we try to use a child partition start
-     * timestamp for a previously returned query. If we split at that exact time, we won't be able
-     * to obtain the child partition on the residual restriction, since it will start at the child
-     * partition start time.
-     * To circumvent this, we always start querying one microsecond before the restriction start
-     * time, and ignore any records that are before the restriction start time. This way the child
-     * partition should be returned within the query.
-     */
-    final Timestamp restrictionStartTimestamp =
-        Timestamp.ofTimeMicroseconds(tracker.currentRestriction().getFrom());
-    final Timestamp previousStartTimestamp =
-        Timestamp.ofTimeMicroseconds(
-            TimestampConverter.timestampToMicros(restrictionStartTimestamp) - 1);
-    final boolean isFirstRun =
-        restrictionStartTimestamp.compareTo(partition.getStartTimestamp()) == 0;
-    final Timestamp startTimestamp =
-        isFirstRun ? restrictionStartTimestamp : previousStartTimestamp;
 
     try (Scope scope =
         TRACER.spanBuilder("QueryChangeStreamAction").setRecordEvents(true).startScopedSpan()) {
@@ -196,6 +187,7 @@ public class QueryChangeStreamAction {
           changeStreamDao.changeStreamQuery(
               token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
+        metrics.incQueryCounter();
         while (resultSet.next()) {
           final List<ChangeStreamRecord> records =
               changeStreamRecordMapper.toChangeStreamRecords(
@@ -203,10 +195,6 @@ public class QueryChangeStreamAction {
 
           Optional<ProcessContinuation> maybeContinuation;
           for (final ChangeStreamRecord record : records) {
-            if (record.getRecordTimestamp().compareTo(restrictionStartTimestamp) < 0) {
-              continue;
-            }
-
             if (record instanceof DataChangeRecord) {
               maybeContinuation =
                   dataChangeRecordAction.run(
@@ -230,6 +218,14 @@ public class QueryChangeStreamAction {
               LOG.error("[" + token + "] Unknown record type " + record.getClass());
               throw new IllegalArgumentException("Unknown record type " + record.getClass());
             }
+
+            // The size of a record is represented by the number of bytes needed for the
+            // string representation of the record. Here, we only try to achieve an estimate
+            // instead of an accurate throughput.
+            this.throughputEstimator.update(
+                record.getRecordTimestamp(),
+                record.toString().getBytes(StandardCharsets.UTF_8).length);
+
             if (maybeContinuation.isPresent()) {
               LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
               bundleFinalizer.afterBundleCommit(
@@ -239,12 +235,17 @@ public class QueryChangeStreamAction {
             }
           }
         }
-
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
             updateWatermarkCallback(token, watermarkEstimator));
 
       } catch (SpannerException e) {
+        /*
+        If there is a split when a partition is supposed to be finished, the residual will try
+        to perform a change stream query for an out of range interval. We ignore this error
+        here, and the residual should be able to claim the end of the timestamp range, finishing
+        the partition.
+        */
         if (isTimestampOutOfRange(e)) {
           LOG.debug(
               "["
@@ -260,11 +261,11 @@ public class QueryChangeStreamAction {
       }
     }
 
-    final long endMicros = TimestampConverter.timestampToMicros(endTimestamp);
     LOG.debug("[" + token + "] change stream completed successfully");
-    if (tracker.tryClaim(endMicros)) {
+    if (tracker.tryClaim(endTimestamp)) {
       LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
+      metrics.decActivePartitionReadCounter();
       LOG.info("[" + token + "] Partition finished");
     }
     return ProcessContinuation.stop();
@@ -277,7 +278,7 @@ public class QueryChangeStreamAction {
       LOG.debug("[" + token + "] Updating current watermark to " + watermark);
       try {
         partitionMetadataDao.updateWatermark(
-            token, TimestampConverter.timestampFromMillis(watermark.getMillis()));
+            token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
           LOG.debug("[" + token + "] Unable to update the current watermark, partition NOT FOUND");

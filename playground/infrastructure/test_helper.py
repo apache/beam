@@ -177,7 +177,8 @@ def test__get_example(mock_get_name):
       "description": "Description",
       "multifile": "False",
       "categories": [""],
-      "pipeline_options": "--option option"
+      "pipeline_options": "--option option",
+      "context_line": 1
   },
                    "")
 
@@ -189,7 +190,8 @@ def test__get_example(mock_get_name):
       filepath="/root/filepath.java",
       code="data",
       status=STATUS_UNSPECIFIED,
-      tag=Tag("Name", "Description", "False", [""], "--option option"),
+      tag=Tag(
+          "Name", "Description", "False", [""], "--option option", False, 1),
       link="https://github.com/apache/beam/blob/master/root/filepath.java")
   mock_get_name.assert_called_once_with("filepath.java")
 
@@ -245,7 +247,8 @@ def test__validate_with_all_fields():
       "description": "Description",
       "multifile": "true",
       "categories": ["category"],
-      "pipeline_options": "--option option"
+      "pipeline_options": "--option option",
+      "context_line": 1
   }
   assert _validate(tag, ["category"]) is True
 
@@ -269,7 +272,7 @@ async def test__update_example_status(
       code="code",
       output="output",
       status=STATUS_UNSPECIFIED,
-      tag={"pipeline_options": "--key value"},
+      tag=Tag(**{"pipeline_options": "--key value"}),
       link="link")
 
   mock_grpc_client_run_code.return_value = "pipeline_id"

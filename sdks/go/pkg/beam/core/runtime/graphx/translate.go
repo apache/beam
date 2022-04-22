@@ -18,6 +18,7 @@ package graphx
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -29,7 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Model constants for interfacing with a Beam runner.
@@ -65,7 +66,8 @@ const (
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 
-	URNRequiresSplittableDoFn = "beam:requirement:pardo:splittable_dofn:v1"
+	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
+	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
 
 	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
 	URNArtifactGoWorker = "beam:artifact:type:go_worker_binary:v1"
@@ -221,6 +223,7 @@ func (m *marshaller) getRequirements() []string {
 			reqs = append(reqs, req)
 		}
 	}
+	sort.Strings(reqs)
 	return reqs
 }
 
@@ -444,6 +447,9 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			}
 			payload.RestrictionCoderId = coderId
 			m.requirements[URNRequiresSplittableDoFn] = true
+		}
+		if _, ok := edge.Edge.DoFn.ProcessElementFn().BundleFinalization(); ok {
+			m.requirements[URNRequiresBundleFinalization] = true
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 		annotations = edge.Edge.DoFn.Annotations()
@@ -776,7 +782,8 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	}
 	// We need to preserve the old windowing/triggering here
 	// for re-instatement after the GBK.
-	preservedWSId := m.pcollections[origInput].GetWindowingStrategyId()
+	preservedWSID := m.pcollections[origInput].GetWindowingStrategyId()
+	preservedCoderID, coderPayloads := m.marshalReshuffleCodersForPCollection(origInput)
 
 	// Get the windowing strategy from before:
 	postReify := fmt.Sprintf("%v_%v_reifyts", nodeID(in.From), id)
@@ -834,6 +841,10 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Urn: URNReshuffleInput,
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleInput,
+				Reshuffle: &v1pb.ReshufflePayload{
+					CoderId:       preservedCoderID,
+					CoderPayloads: coderPayloads,
+				},
 			})),
 		},
 	}
@@ -875,7 +886,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 	if err != nil {
 		return handleErr(err)
 	}
-	m.pcollections[outPCol].WindowingStrategyId = preservedWSId
+	m.pcollections[outPCol].WindowingStrategyId = preservedWSID
 
 	outputID := fmt.Sprintf("%v_unreify", id)
 	outputPayload := &pipepb.ParDoPayload{
@@ -883,6 +894,10 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 			Urn: URNReshuffleOutput,
 			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleOutput,
+				Reshuffle: &v1pb.ReshufflePayload{
+					CoderId:       preservedCoderID,
+					CoderPayloads: coderPayloads,
+				},
 			})),
 		},
 	}
@@ -910,6 +925,28 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		EnvironmentId: m.addDefaultEnv(),
 	}
 	return reshuffleID, nil
+}
+
+func (m *marshaller) marshalReshuffleCodersForPCollection(pcolID string) (string, map[string][]byte) {
+	preservedCoderId := m.pcollections[pcolID].GetCoderId()
+
+	cps := map[string][]byte{}
+	cs := []string{preservedCoderId}
+	for cs != nil {
+		var next []string
+		for _, cid := range cs {
+			c := m.coders.coders[cid]
+			cps[cid] = protox.MustEncode(c)
+			for _, newCid := range c.GetComponentCoderIds() {
+				if _, ok := cps[newCid]; !ok {
+					next = append(next, c.GetComponentCoderIds()...)
+				}
+			}
+		}
+		cs = next
+	}
+
+	return preservedCoderId, cps
 }
 
 func (m *marshaller) addNode(n *graph.Node) (string, error) {
@@ -1161,7 +1198,7 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNFixedWindowsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.FixedWindowsPayload{
-					Size: ptypes.DurationProto(w.Size),
+					Size: durationpb.New(w.Size),
 				},
 			),
 		}, nil
@@ -1170,8 +1207,8 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNSlidingWindowsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.SlidingWindowsPayload{
-					Size:   ptypes.DurationProto(w.Size),
-					Period: ptypes.DurationProto(w.Period),
+					Size:   durationpb.New(w.Size),
+					Period: durationpb.New(w.Period),
 				},
 			),
 		}, nil
@@ -1180,7 +1217,7 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNSessionsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.SessionWindowsPayload{
-					GapSize: ptypes.DurationProto(w.Gap),
+					GapSize: durationpb.New(w.Gap),
 				},
 			),
 		}, nil

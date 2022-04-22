@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -56,14 +54,14 @@ public class InstantCoder extends AtomicCoder<Instant> {
     // This deliberately utilizes the well-defined underflow for {@code long} values.
     // See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
     long shiftedMillis = value.getMillis() - Long.MIN_VALUE;
-    new DataOutputStream(outStream).writeLong(shiftedMillis);
+    BitConverters.writeBigEndianLong(shiftedMillis, outStream);
   }
 
   @Override
   public Instant decode(InputStream inStream) throws CoderException, IOException {
     long shiftedMillis;
     try {
-      shiftedMillis = new DataInputStream(inStream).readLong();
+      shiftedMillis = BitConverters.readBigEndianLong(inStream);
     } catch (EOFException | UTFDataFormatException exn) {
       // These exceptions correspond to decoding problems, so change
       // what kind of exception they're branded as.

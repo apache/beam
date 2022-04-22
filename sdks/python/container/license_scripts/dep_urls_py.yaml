@@ -145,5 +145,7 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/PAIR-code/what-if-tool/master/LICENSE"
   timeloop:
     license: "https://raw.githubusercontent.com/sankalpjonn/timeloop/master/LICENSE"
+  torch:
+    license: "https://raw.githubusercontent.com/pytorch/pytorch/master/LICENSE"
   wget:
     license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"

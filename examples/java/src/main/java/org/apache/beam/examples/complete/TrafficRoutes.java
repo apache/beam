@@ -17,6 +17,20 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TrafficRoutes
+//   description: An example that analyzes traffic sensor data using SlidingWindows.
+//     For each window, it calculates the average speed over the window for some small set
+//     of predefined 'routes', and looks for 'slowdowns' in those routes. It writes its
+//     results to a BigQuery table.
+//   multifile: true
+//   context_line: 97
+//   categories:
+//     - Combiners
+//     - Streaming
+//     - Options
+//     - Windowing
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -379,8 +393,6 @@ public class TrafficRoutes {
   public static void main(String[] args) throws IOException {
     TrafficRoutesOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(TrafficRoutesOptions.class);
-
-    options.setBigQuerySchema(FormatStatsFn.getSchema());
 
     runTrafficRoutes(options);
   }

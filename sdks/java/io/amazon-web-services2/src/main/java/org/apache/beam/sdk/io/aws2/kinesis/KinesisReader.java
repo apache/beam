@@ -117,7 +117,15 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public void close() throws IOException {
-    shardReadersPool.stop();
+    try {
+      try (AutoCloseable c = kinesis) {
+        shardReadersPool.stop();
+      }
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
   }
 
   @Override

@@ -86,7 +86,7 @@ configurations.all {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
-task validatesRunner(type: Test) {
+tasks.register("validatesRunner", Test) {
   group = "Verification"
   description "Validates Samza runner"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([

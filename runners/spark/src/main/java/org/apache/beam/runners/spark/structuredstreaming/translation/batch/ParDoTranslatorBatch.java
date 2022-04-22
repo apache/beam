@@ -68,7 +68,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<InputT>, PCollectionTuple> transform, AbstractTranslationContext context) {
+      PTransform<PCollection<InputT>, PCollectionTuple> transform,
+      AbstractTranslationContext context) {
     String stepName = context.getCurrentTransform().getFullName();
 
     // Check for not supported advanced features

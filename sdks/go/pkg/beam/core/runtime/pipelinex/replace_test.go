@@ -16,6 +16,7 @@
 package pipelinex
 
 import (
+	"fmt"
 	"testing"
 
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -307,6 +308,29 @@ func TestComputeInputOutput(t *testing.T) {
 				t.Errorf("computeInputOutput(%v)\ndiff: %v", test.in, diff)
 			}
 		})
+	}
+}
+
+func BenchmarkComputeInputOutput(b *testing.B) {
+	in := make(map[string]*pipepb.PTransform)
+	// Build a long chain of composite transforms.
+	for i := 0; i < 3000; i++ {
+		compositeID := fmt.Sprintf("x%d", i)
+		primitiveID := fmt.Sprintf("y%d", i)
+		in[compositeID] = &pipepb.PTransform{
+			UniqueName:    compositeID,
+			Subtransforms: []string{primitiveID},
+		}
+		in[primitiveID] = &pipepb.PTransform{
+			UniqueName: primitiveID,
+			Inputs:     map[string]string{"i0": fmt.Sprintf("p%d", i)},
+			Outputs:    map[string]string{"i0": fmt.Sprintf("p%d", i+1)},
+		}
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		computeCompositeInputOutput(in)
 	}
 }
 

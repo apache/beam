@@ -34,7 +34,6 @@ from collections.abc import Iterable
 from pathlib import PurePath
 
 import apache_beam as beam
-from apache_beam.pipeline import Pipeline
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import runner
 from apache_beam.runners.direct import direct_runner
@@ -44,6 +43,7 @@ from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlChain
 from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
 from apache_beam.runners.interactive.utils import assert_bucket_exists
+from apache_beam.runners.interactive.utils import detect_pipeline_runner
 from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -170,10 +170,8 @@ class InteractiveEnvironment(object):
     self._test_stream_service_controllers = {}
     self._cached_source_signature = {}
     self._tracked_user_pipelines = UserPipelineTracker()
-    # TODO(victorhc): remove the cluster instantiation after the
-    # interactive_beam.clusters class has been enabled.
-    from apache_beam.runners.interactive.interactive_beam import Clusters
-    self.clusters = Clusters()
+    from apache_beam.runners.interactive.interactive_beam import clusters
+    self.clusters = clusters
 
     # Tracks the computation completeness of PCollections. PCollections tracked
     # here don't need to be re-computed when data introspection is needed.
@@ -286,7 +284,8 @@ class InteractiveEnvironment(object):
       # we don't need to clean it up here.
       if cache_manager and pipeline_id not in self._recording_managers:
         cache_manager.cleanup()
-    self.clusters.cleanup()
+    # TODO(BEAM-14330): uncomment this once tests are refactored.
+    # self.clusters.cleanup()
 
   def cleanup(self, pipeline=None):
     """Cleans up cached states for the given pipeline. Noop if the given
@@ -384,7 +383,7 @@ class InteractiveEnvironment(object):
           category=DeprecationWarning)
 
     cache_manager = self._cache_managers.get(str(id(pipeline)), None)
-    pipeline_runner = self._detect_pipeline_runner(pipeline)
+    pipeline_runner = detect_pipeline_runner(pipeline)
     if not cache_manager and create_if_absent:
       cache_root = self.options.cache_root
       if cache_root:
@@ -725,14 +724,3 @@ class InteractiveEnvironment(object):
     bucket_name = cache_dir_path.parts[1]
     assert_bucket_exists(bucket_name)
     return 'gs://{}/{}'.format('/'.join(cache_dir_path.parts[1:]), id(pipeline))
-
-  def _detect_pipeline_runner(self, pipeline):
-    if isinstance(pipeline, Pipeline):
-      from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
-      if isinstance(pipeline.runner, InteractiveRunner):
-        pipeline_runner = pipeline.runner._underlying_runner
-      else:
-        pipeline_runner = pipeline.runner
-    else:
-      pipeline_runner = None
-    return pipeline_runner

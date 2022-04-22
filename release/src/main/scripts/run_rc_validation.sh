@@ -83,7 +83,7 @@ HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
 BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
-declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.6" "python3.8")
+declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.8")
 
 echo ""
 echo "====================Checking Environment & Variables================="
@@ -507,10 +507,6 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
     echo "* Skipping Kafka cluster setup"
   fi
 
-  echo "-----------------------Building expansion service jar------------------------"
-  ./gradlew sdks:java:io:expansion-service:shadowJar
-  ./gradlew sdks:java:extensions:sql:expansion-service:shadowJar
-
   # Run Python XLang pipelines under multiple versions of Python
   cd ${LOCAL_BEAM_DIR}
   for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
@@ -530,6 +526,8 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       BOOTSTRAP_SERVERS="$(kubectl get svc outside-0 -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):32400"
       echo "BOOTSTRAP_SERVERS=${BOOTSTRAP_SERVERS}"
       KAFKA_TAXI_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      KAFKA_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-io-expansion-service/${RELEASE_VER}/beam-sdks-java-io-expansion-service-${RELEASE_VER}.jar
+
       bq mk --project_id=${USER_GCP_PROJECT} ${KAFKA_TAXI_DF_DATASET}
       echo "export BOOTSTRAP_SERVERS=${BOOTSTRAP_SERVERS}" >> ~/.bashrc
       echo "export KAFKA_TAXI_DF_DATASET=${KAFKA_TAXI_DF_DATASET}" >> ~/.bashrc
@@ -550,13 +548,14 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       --num_workers 5 \
       --temp_location=${USER_GCS_BUCKET}/temp/ \
       --with_metadata \
+      --beam_services=\"{\\\"sdks:java:io:expansion-service:shadowJar\\\": \\\"${KAFKA_EXPANSION_SERVICE_JAR}\\\"}\" \
       --sdk_location apache-beam-${RELEASE_VER}.zip; \
       exec bash"
 
       echo "***************************************************************"
-      echo "* Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
-      echo "* Sleeping for 10 mins"
-      sleep 10m
+      echo "* Please wait for at least 20 mins to let Dataflow job be launched and results get populated."
+      echo "* Sleeping for 20 mins"
+      sleep 20m
       echo "* How to verify results:"
       echo "* 1. Goto your Dataflow job console and check whether there is any error."
       echo "* 2. Check whether ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi has data, retrieving BigQuery data as below: "
@@ -575,6 +574,8 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
     if [[ "$python_xlang_sql_taxi_dataflow" = true ]]; then
       SQL_TAXI_TOPIC=${USER}_python_validations_$(date +%m%d)_$RANDOM
       SQL_TAXI_SUBSCRIPTION=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      SQL_EXPANSION_SERVICE_JAR=${REPO_URL}/org/apache/beam/beam-sdks-java-extensions-sql-expansion-service/${RELEASE_VER}/beam-sdks-java-extensions-sql-expansion-service-${RELEASE_VER}.jar
+
       gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SQL_TAXI_TOPIC}
       gcloud pubsub subscriptions create --project=${USER_GCP_PROJECT} --topic=${SQL_TAXI_TOPIC} ${SQL_TAXI_SUBSCRIPTION}
       echo "export SQL_TAXI_TOPIC=${SQL_TAXI_TOPIC}" >> ~/.bashrc
@@ -592,13 +593,14 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
       --num_workers 5 \
       --temp_location=${USER_GCS_BUCKET}/temp/ \
       --output_topic projects/${USER_GCP_PROJECT}/topics/${SQL_TAXI_TOPIC} \
+      --beam_services=\"{\\\":sdks:java:extensions:sql:expansion-service:shadowJar\\\": \\\"${SQL_EXPANSION_SERVICE_JAR}\\\"}\" \
       --sdk_location apache-beam-${RELEASE_VER}.zip; \
       exec bash"
 
       echo "***************************************************************"
-      echo "* Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
-      echo "* Sleeping for 10 mins"
-      sleep 10m
+      echo "* Please wait for at least 20 mins to let Dataflow job be launched and results get populated."
+      echo "* Sleeping for 20 mins"
+      sleep 20m
       echo "* How to verify results:"
       echo "* 1. Goto your Dataflow job console and check whether there is any error."
       echo "* 2. Check whether your ${SQL_TAXI_SUBSCRIPTION} subscription has data below:"

@@ -50,6 +50,7 @@ class SDKSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
+      button: true,
       label: AppLocalizations.of(context)!.selectSdkDropdown,
       child: AppDropdownButton(
         buttonText: Text(
@@ -68,7 +69,7 @@ class SDKSelector extends StatelessWidget {
                       close();
                       setSdk(value);
                       setExample(
-                        state.defaultExamplesMap![value] ??
+                        state.defaultExamplesMap[value] ??
                             ExampleModel(
                               name: kEmptyExampleName,
                               path: '',

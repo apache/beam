@@ -44,6 +44,7 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
+from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
 from apache_beam.utils import thread_pool_executor
@@ -73,13 +74,14 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     inline calls rather than GRPC (for speed) or launch completely separate
     subprocesses for the runner and worker(s).
     """
-  def __init__(self, staging_dir=None):
+  def __init__(self, staging_dir=None, beam_job_type=None):
     super().__init__()
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
     self._artifact_service = artifact_service.ArtifactStagingService(
         artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
     self._artifact_staging_endpoint = None  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
+    self._beam_job_type = beam_job_type or BeamJob
 
   def create_beam_job(self,
                       preparation_id,  # stype: str
@@ -98,7 +100,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
         beam_provision_api_pb2.ProvisionInfo(pipeline_options=options),
         self._staging_dir,
         job_name=job_name)
-    return BeamJob(
+    return self._beam_job_type(
         preparation_id,
         pipeline,
         options,
@@ -266,18 +268,19 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._run_thread.start()
 
   def _run_job(self):
-    self.set_state(beam_job_api_pb2.JobState.RUNNING)
     with JobLogHandler(self._log_queues) as log_handler:
       self._update_dependencies()
       try:
         start = time.time()
-        result = fn_runner.FnApiRunner(
-            provision_info=self._provision_info).run_via_runner_api(
-                self._pipeline_proto)
+        self.result = self._invoke_runner()
+        self.result.wait_until_finish()
         _LOGGER.info(
-            'Successfully completed job in %s seconds.', time.time() - start)
-        self.set_state(beam_job_api_pb2.JobState.DONE)
-        self.result = result
+            'Completed job in %s seconds with state %s.',
+            time.time() - start,
+            self.result.state)
+        self.set_state(
+            portable_runner.PipelineResult.pipeline_state_to_runner_api_state(
+                self.result.state))
       except:  # pylint: disable=bare-except
         self._log_queues.put(
             beam_job_api_pb2.JobMessage(
@@ -288,6 +291,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         _LOGGER.exception('Error running pipeline.')
         self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
+
+  def _invoke_runner(self):
+    self.set_state(beam_job_api_pb2.JobState.RUNNING)
+    return fn_runner.FnApiRunner(
+        provision_info=self._provision_info).run_via_runner_api(
+            self._pipeline_proto)
 
   def _update_dependencies(self):
     try:
