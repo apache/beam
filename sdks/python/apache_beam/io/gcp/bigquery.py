@@ -285,6 +285,7 @@ from typing import Union
 import fastavro
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery_schema_tools
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
@@ -2513,6 +2514,11 @@ class ReadFromBigQuery(PTransform):
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
+
+  def get_pcoll_from_schema(table_schema):
+    pcoll_val = apache_beam.io.gcp.bigquery_schema_tools.\
+        produce_pcoll_with_schema(table_schema)
+    return beam.Map(lambda values: pcoll_val(**values))
 
 
 class ReadFromBigQueryRequest:
