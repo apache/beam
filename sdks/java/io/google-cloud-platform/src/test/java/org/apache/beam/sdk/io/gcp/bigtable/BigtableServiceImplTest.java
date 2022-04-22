@@ -83,6 +83,8 @@ public class BigtableServiceImplTest {
   private static final String TABLE_ID = "table";
 
   private static final int MINI_BATCH_ROW_LIMIT = 100;
+  private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .8;
+  private static final long DEFAULT_ROW_SIZE = 1024 * 1024 * 256;
 
   private static final BigtableTableName TABLE_NAME =
       new BigtableInstanceName(PROJECT_ID, INSTANCE_ID).toTableName(TABLE_ID);
@@ -292,26 +294,6 @@ public class BigtableServiceImplTest {
     underTest.close();
 
     verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
-  }
-
-  public Answer<ScanHandler> mockReadRowsAnswer(List<FlatRow> rows) {
-    return new Answer<ScanHandler>() {
-      @Override
-      public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
-        StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
-        new Thread() {
-          @Override
-          public void run() {
-            for (int i = 0; i < rows.size(); i++) {
-              flatRowObserver.onNext(rows.get(i));
-            }
-            flatRowObserver.onCompleted();
-          }
-        }.start();
-
-        return scanHandler;
-      }
-    };
   }
 
   /**
@@ -543,13 +525,24 @@ public class BigtableServiceImplTest {
     verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
   }
 
-  // This test needs to fixed to remove flakiness of hard set values
-  // Going to fix before submittion and working on getting this reviewed overall
+  /**
+   * This test checks that the buffer will not fill up once the byte limit is reached. It will
+   * cancel the ScanHandler after reached the limit. This test completes one fill and contains one
+   * Row after the first buffer has been completed. The test cheaks the current free memory in the
+   * JVM and uses a percent of it to mock the original behavior.
+   *
+   * @throws IOException
+   */
   @Test
   public void testReadByteLimitBuffer() throws IOException {
     List<FlatRow> expectedFirstRangeRows = new ArrayList<>();
-    // Max amount of memory allowed in a Row
-    byte[] largeMemory = new byte[1024 * 1024 * 256];
+    // Max amount of memory allowed in a Row (256MB)
+    byte[] largeMemory = new byte[(int) DEFAULT_ROW_SIZE];
+    long currentByteLimit =
+        (long) (Runtime.getRuntime().freeMemory() * DEFAULT_BYTE_LIMIT_PERCENTAGE);
+    int numOfRowsInsideBuffer = (int) (currentByteLimit / DEFAULT_ROW_SIZE) + 1;
+    System.out.println(currentByteLimit);
+    System.out.println(numOfRowsInsideBuffer);
     FlatRow.Builder largeRow =
         FlatRow.newBuilder()
             .addCell(
@@ -558,7 +551,7 @@ public class BigtableServiceImplTest {
                 System.currentTimeMillis(),
                 ByteString.copyFrom(largeMemory));
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < numOfRowsInsideBuffer + 1; i++) {
       expectedFirstRangeRows.add(
           largeRow.withRowKey(ByteString.copyFromUtf8("b" + String.format("%05d", i))).build());
     }
@@ -571,13 +564,14 @@ public class BigtableServiceImplTest {
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
 
     when(mockBigtableDataClient.readFlatRows(any(ReadRowsRequest.class), any()))
-        .thenAnswer(mockReadRowsAnswer(expectedFirstRangeRows.subList(0, 3)))
-        .thenAnswer(mockReadRowsAnswer(expectedFirstRangeRows.subList(3, 5)))
-        .thenAnswer(mockReadRowsAnswer(new ArrayList<>()));
+        .thenAnswer(mockReadRowsAnswer(expectedFirstRangeRows.subList(0, numOfRowsInsideBuffer)))
+        .thenAnswer(
+            mockReadRowsAnswer(
+                expectedFirstRangeRows.subList(
+                    numOfRowsInsideBuffer, expectedFirstRangeRows.size())));
 
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
-
     underTest.start();
     Assert.assertEquals(
         FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
@@ -592,10 +586,7 @@ public class BigtableServiceImplTest {
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
-    // I need to figure out at what point this will break off with 256MB rows and a 200MB limit
-    // I need to ask Igor what the amount for the byte buffer should be
-
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
   }
 
   /**
@@ -649,5 +640,25 @@ public class BigtableServiceImplTest {
     MetricsContainerImpl container =
         (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
     assertEquals(count, (long) container.getCounter(name).getCumulative());
+  }
+
+  public Answer<ScanHandler> mockReadRowsAnswer(List<FlatRow> rows) {
+    return new Answer<ScanHandler>() {
+      @Override
+      public ScanHandler answer(InvocationOnMock invocationOnMock) throws Throwable {
+        StreamObserver<FlatRow> flatRowObserver = invocationOnMock.getArgument(1);
+        new Thread() {
+          @Override
+          public void run() {
+            for (int i = 0; i < rows.size(); i++) {
+              flatRowObserver.onNext(rows.get(i));
+            }
+            flatRowObserver.onCompleted();
+          }
+        }.start();
+
+        return scanHandler;
+      }
+    };
   }
 }
