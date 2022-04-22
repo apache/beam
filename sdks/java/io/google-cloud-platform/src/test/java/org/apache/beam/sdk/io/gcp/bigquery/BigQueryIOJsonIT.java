@@ -289,10 +289,6 @@ public class BigQueryIOJsonIT {
       bigqueryIO = bigqueryIO.from(options.getInputTable());
     }
 
-    if (options.getReadMethod() == TypedRead.Method.EXPORT) {
-      options.setTempLocation("gs://bigqueryio-json-it-temp/java-tmp");
-    }
-
     PCollection<TableRow> jsonRows = p.apply("Read rows", bigqueryIO);
 
     if (!options.getInputQuery().isEmpty()) {
