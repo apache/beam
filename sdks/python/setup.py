@@ -219,7 +219,7 @@ INTERACTIVE_BEAM_TEST = [
     'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=96,<97',
+    'chromedriver-binary>=100,<101',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]
