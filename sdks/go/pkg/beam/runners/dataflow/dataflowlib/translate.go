@@ -47,10 +47,6 @@ const (
 	windowIntoKind = "Bucket"
 
 	sideInputKind = "CollectionToSingleton"
-
-	// Support for Dataflow native I/O, such as PubSub.
-	readKind  = "ParallelRead"
-	writeKind = "ParallelWrite"
 )
 
 // translate translates a pipeline into a sequence of Dataflow steps. The step
@@ -146,8 +142,7 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 			ref := x.pcollections[t.Inputs[key]]
 			c := x.translateCoder(pcol, pcol.CoderId)
 
-			var outputInfo output
-			outputInfo = output{
+			outputInfo := output{
 				UserName:   "i0",
 				OutputName: "i0",
 				Encoding:   graphx.WrapIterable(c),

@@ -23,9 +23,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java',
     gradleTask: ':javaPreCommit',
     gradleSwitches: [
-      '-PretryFlakyTest=true',
       '-PdisableSpotlessCheck=true'
     ], // spotless checked in separate pre-commit
+    timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
@@ -40,11 +40,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     )
 builder.build {
   publishers {
-    archiveJunit('**/build/test-results/**/*.xml') {
-      testDataPublishers {
-        publishFlakyTestsReport()
-      }
-    }
+    archiveJunit('**/build/test-results/**/*.xml')
     recordIssues {
       tools {
         errorProne()
@@ -52,10 +48,8 @@ builder.build {
         checkStyle {
           pattern('**/build/reports/checkstyle/*.xml')
         }
-        configure { node ->
-          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
-            pattern('**/build/reports/spotbugs/*.xml')
-          }
+        spotBugs {
+          pattern('**/build/reports/spotbugs/*.xml')
         }
       }
       enabledForFailure(true)

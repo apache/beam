@@ -23,32 +23,33 @@ module github.com/apache/beam/sdks/v2
 go 1.16
 
 require (
-	cloud.google.com/go/bigquery v1.17.0
-	cloud.google.com/go/datastore v1.5.0
-	cloud.google.com/go/pubsub v1.11.0-beta.schemas
-	cloud.google.com/go/storage v1.15.0
+	cloud.google.com/go/bigquery v1.28.0
+	cloud.google.com/go/compute v1.5.0 // indirect
+	cloud.google.com/go/datastore v1.6.0
+	cloud.google.com/go/iam v0.2.0 // indirect
+	cloud.google.com/go/pubsub v1.18.0
+	cloud.google.com/go/storage v1.21.0
 	github.com/docker/go-connections v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/go-cmp v0.5.6
-	github.com/google/martian/v3 v3.2.1 // indirect
+	github.com/google/go-cmp v0.5.7
 	github.com/google/uuid v1.3.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.4
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nightlyone/lockfile v1.0.0
-	github.com/spf13/cobra v1.2.1
+	github.com/proullon/ramsql v0.0.0-20211120092837-c8d0a408b939
+	github.com/spf13/cobra v1.3.0
 	github.com/testcontainers/testcontainers-go v0.12.0
-	golang.org/x/net v0.0.0-20211108170745-6635138e15ea
-	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3
-	golang.org/x/text v0.3.6
-	google.golang.org/api v0.45.0
-	google.golang.org/genproto v0.0.0-20210728212813-7823e685a01f
-	google.golang.org/grpc v1.39.0
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
+	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
+	golang.org/x/text v0.3.7
+	google.golang.org/api v0.70.0
+	google.golang.org/genproto v0.0.0-20220302033224-9aa15565e42a
+	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect

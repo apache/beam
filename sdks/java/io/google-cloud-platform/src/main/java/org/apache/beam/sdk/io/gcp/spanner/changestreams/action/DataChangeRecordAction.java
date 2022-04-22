@@ -25,11 +25,10 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -82,7 +81,7 @@ public class DataChangeRecordAction {
   public Optional<ProcessContinuation> run(
       PartitionMetadata partition,
       DataChangeRecord record,
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
@@ -99,8 +98,7 @@ public class DataChangeRecordAction {
 
       final Timestamp commitTimestamp = record.getCommitTimestamp();
       final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
-      final long commitMicros = TimestampConverter.timestampToMicros(commitTimestamp);
-      if (!tracker.tryClaim(commitMicros)) {
+      if (!tracker.tryClaim(commitTimestamp)) {
         LOG.debug(
             "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
         return Optional.of(ProcessContinuation.stop());

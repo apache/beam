@@ -30,7 +30,7 @@ import (
 )
 
 // NewClient creates a new GCS client with default application credentials, and supplied
-// OAuth scope. The OAuth scopes are defined in https://godoc.org/cloud.google.com/go/storage#pkg-constants.
+// OAuth scope. The OAuth scopes are defined in https://pkg.go.dev/cloud.google.com/go/storage#pkg-constants.
 func NewClient(ctx context.Context, scope string) (*storage.Client, error) {
 	return storage.NewClient(ctx, option.WithScopes(scope))
 }

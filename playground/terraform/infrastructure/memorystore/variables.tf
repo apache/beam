@@ -31,30 +31,44 @@ variable "terraform_state_bucket_name" {
   default     = "beam_playground_terraform"
 }
 
-variable "redis_region" {
+variable "region" {
   description = "Region of Redis"
   default     = "us-central1"
 }
 
-variable "redis_name" {
+variable "name" {
   description = "Name of Redis"
   default     = "playground-backend-cache"
 }
 
-variable "redis_tier" {
-  description = "Tier of Redis"
+variable "tier" {
+  description = "Tier of Redis. For tired 'STANDARD_HA' need set read_replicas_mode "
   default     = "STANDARD_HA"
 }
 
-variable "redis_replica_count" {
+variable "replicas_mode" {
+  description = "If enabled read endpoint will be provided and the instance can scale up and down the number of replicas"
+  default     = "READ_REPLICAS_ENABLED"
+}
+
+variable "network" {
+  description = "Network of Redis"
+  default     = "default"
+}
+
+variable "subnetwork" {
+  description = "GCP subnetwork within which resources are provisioned"
+}
+
+variable "replica_count" {
   type        = number
   description = "Redis's replica count"
   default     = 1
 }
 
-variable "redis_memory_size_gb" {
+variable "memory_size_gb" {
   type        = number
-  description = "Size of Redis memory"
+  description = "Size of Redis memory,  if set 'read replica' it must be from 5GB to 100GB."
   default     = 5
 }
 
@@ -63,15 +77,3 @@ variable "display_name" {
   description = "Display name for Redis service"
 }
 
-variable "read_replicas_mode" {
-  description = "Read replica mode. Can only be specified when trying to create the instance."
-  default     = "READ_REPLICAS_ENABLED"
-}
-
-variable "network" {
-  description = "GCP network within which resources are provisioned"
-}
-
-variable "subnetwork" {
-  description = "GCP subnetwork within which resources are provisioned"
-}

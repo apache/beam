@@ -33,7 +33,6 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
@@ -164,24 +163,6 @@ func (b *builder) build() (*Plan, error) {
 	return NewPlan(b.desc.GetId(), b.units)
 }
 
-func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, error) {
-	if w, exists := b.windowing[id]; exists {
-		return w, nil
-	}
-
-	ws, ok := b.desc.GetWindowingStrategies()[id]
-	if !ok {
-		return nil, errors.Errorf("windowing strategy %v not found", id)
-	}
-	wfn, err := unmarshalWindowFn(ws.GetWindowFn())
-	if err != nil {
-		return nil, err
-	}
-	w := &window.WindowingStrategy{Fn: wfn}
-	b.windowing[id] = w
-	return w, nil
-}
-
 func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 	switch urn := wfn.GetUrn(); urn {
 	case graphx.URNGlobalWindowsWindowFn:
@@ -192,10 +173,11 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
-		size, err := ptypes.Duration(payload.GetSize())
-		if err != nil {
+		sizePB := payload.GetSize()
+		if err := sizePB.CheckValid(); err != nil {
 			return nil, err
 		}
+		size := sizePB.AsDuration()
 		return window.NewFixedWindows(size), nil
 
 	case graphx.URNSlidingWindowsWindowFn:
@@ -203,14 +185,18 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
-		period, err := ptypes.Duration(payload.GetPeriod())
-		if err != nil {
+		periodPB := payload.GetPeriod()
+		if err := periodPB.CheckValid(); err != nil {
 			return nil, err
 		}
-		size, err := ptypes.Duration(payload.GetSize())
-		if err != nil {
+		period := periodPB.AsDuration()
+
+		sizePB := payload.GetSize()
+		if err := sizePB.CheckValid(); err != nil {
 			return nil, err
 		}
+		size := sizePB.AsDuration()
+
 		return window.NewSlidingWindows(period, size), nil
 
 	case graphx.URNSessionsWindowFn:
@@ -218,10 +204,11 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
-		gap, err := ptypes.Duration(payload.GetGapSize())
-		if err != nil {
+		gapPB := payload.GetGapSize()
+		if err := gapPB.CheckValid(); err != nil {
 			return nil, err
 		}
+		gap := gapPB.AsDuration()
 		return window.NewSessions(gap), nil
 
 	default:
@@ -238,24 +225,28 @@ func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, err
 		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
-		size, err := ptypes.Duration(payload.GetSize())
-		if err != nil {
+		sizePB := payload.GetSize()
+		if err := sizePB.CheckValid(); err != nil {
 			return nil, err
 		}
+		size := sizePB.AsDuration()
 		return &windowMapper{wfn: window.NewFixedWindows(size)}, nil
 	case graphx.URNWindowMappingSliding:
 		var payload pipepb.SlidingWindowsPayload
 		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
-		period, err := ptypes.Duration(payload.GetPeriod())
-		if err != nil {
+		periodPB := payload.GetPeriod()
+		if err := periodPB.CheckValid(); err != nil {
 			return nil, err
 		}
-		size, err := ptypes.Duration(payload.GetSize())
-		if err != nil {
+		period := periodPB.AsDuration()
+
+		sizePB := payload.GetSize()
+		if err := sizePB.CheckValid(); err != nil {
 			return nil, err
 		}
+		size := sizePB.AsDuration()
 		return &windowMapper{wfn: window.NewSlidingWindows(period, size)}, nil
 	default:
 		return nil, fmt.Errorf("unsupported window mapping fn URN %v", urn)
@@ -495,7 +486,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 					u = n
 					if urn == urnProcessSizedElementsAndRestrictions {
-						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to}
+						outputs := make([]string, len(transform.GetOutputs()))
+						i := 0
+						for out := range transform.GetOutputs() {
+							outputs[i] = out
+							i++
+						}
+						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to, outputs: outputs}
 					} else if dofn.IsSplittable() {
 						u = &SdfFallback{PDo: n}
 					}
@@ -563,7 +560,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				// strip unexpected length prefix coder.
 				valCoder = valCoder.Components[0]
 			}
-			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.GetInject().GetN()), ValueEncoder: MakeElementEncoder(valCoder), Out: out[0]}
 
 		case graphx.URNExpand:
 			var pid string
@@ -589,11 +586,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 
 		case graphx.URNReshuffleInput:
-			c, w, err := b.makeCoderForPCollection(from)
+			_, w, err := b.makeCoderForPCollection(from)
 			if err != nil {
 				return nil, err
 			}
-			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+			preservedCoderID := tp.GetReshuffle().GetCoderId()
+			pc, err := unmarshalReshuffleCoders(preservedCoderID, tp.GetReshuffle().GetCoderPayloads())
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(pc, w), Out: out[0]}
 
 		case graphx.URNReshuffleOutput:
 			var pid string
@@ -602,11 +604,16 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, id := range transform.GetOutputs() {
 				pid = id
 			}
-			c, w, err := b.makeCoderForPCollection(pid)
+			_, w, err := b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}
-			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
+			preservedCoderID := tp.GetReshuffle().GetCoderId()
+			pc, err := unmarshalReshuffleCoders(preservedCoderID, tp.GetReshuffle().GetCoderPayloads())
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(pc, w), Out: out[0]}
 
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", &tp)
@@ -655,6 +662,19 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 	b.links[id] = u
 	b.units = append(b.units, u)
 	return u, nil
+}
+
+func unmarshalReshuffleCoders(mainID string, payloads map[string][]byte) (*coder.Coder, error) {
+	m := map[string]*pipepb.Coder{}
+	for id, v := range payloads {
+		pc := &pipepb.Coder{}
+		if err := proto.Unmarshal(v, pc); err != nil {
+			return nil, err
+		}
+		m[id] = pc
+	}
+	um := graphx.NewCoderUnmarshaller(m)
+	return um.Coder(mainID)
 }
 
 // unmarshalKeyedValues converts a map {"i1": "b", ""i0": "a"} into an ordered list of

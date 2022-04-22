@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
@@ -28,6 +30,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -56,9 +59,17 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getEmulatorHost();
 
+  public abstract @Nullable ValueProvider<Boolean> getIsLocalChannelProvider();
+
   public abstract @Nullable ValueProvider<Duration> getCommitDeadline();
 
   public abstract @Nullable ValueProvider<Duration> getMaxCumulativeBackoff();
+
+  public abstract @Nullable RetrySettings getExecuteStreamingSqlRetrySettings();
+
+  public abstract @Nullable RetrySettings getCommitRetrySettings();
+
+  public abstract @Nullable ImmutableSet<Code> getRetryableCodes();
 
   public abstract @Nullable ValueProvider<RpcPriority> getRpcPriority();
 
@@ -117,9 +128,18 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setEmulatorHost(ValueProvider<String> emulatorHost);
 
+    abstract Builder setIsLocalChannelProvider(ValueProvider<Boolean> isLocalChannelProvider);
+
     abstract Builder setCommitDeadline(ValueProvider<Duration> commitDeadline);
 
     abstract Builder setMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff);
+
+    abstract Builder setExecuteStreamingSqlRetrySettings(
+        RetrySettings executeStreamingSqlRetrySettings);
+
+    abstract Builder setCommitRetrySettings(RetrySettings commitRetrySettings);
+
+    abstract Builder setRetryableCodes(ImmutableSet<Code> retryableCodes);
 
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
@@ -128,63 +148,107 @@ public abstract class SpannerConfig implements Serializable {
     public abstract SpannerConfig build();
   }
 
+  /** Specifies the Cloud Spanner project ID. */
   public SpannerConfig withProjectId(ValueProvider<String> projectId) {
     return toBuilder().setProjectId(projectId).build();
   }
 
+  /** Specifies the Cloud Spanner project ID. */
   public SpannerConfig withProjectId(String projectId) {
     return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
   }
 
+  /** Specifies the Cloud Spanner instance ID. */
   public SpannerConfig withInstanceId(ValueProvider<String> instanceId) {
     return toBuilder().setInstanceId(instanceId).build();
   }
 
+  /** Specifies the Cloud Spanner instance ID. */
   public SpannerConfig withInstanceId(String instanceId) {
     return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
   }
 
+  /** Specifies the Cloud Spanner database ID. */
   public SpannerConfig withDatabaseId(ValueProvider<String> databaseId) {
     return toBuilder().setDatabaseId(databaseId).build();
   }
 
+  /** Specifies the Cloud Spanner database ID. */
   public SpannerConfig withDatabaseId(String databaseId) {
     return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
   }
 
+  /** Specifies the Cloud Spanner host. */
   public SpannerConfig withHost(ValueProvider<String> host) {
     return toBuilder().setHost(host).build();
   }
 
+  /** Specifies the Cloud Spanner host, when an emulator is used. */
   public SpannerConfig withEmulatorHost(ValueProvider<String> emulatorHost) {
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
+  /**
+   * Specifies whether a local channel provider should be used. This should be set to True when an
+   * emulator is used.
+   */
+  public SpannerConfig withIsLocalChannelProvider(ValueProvider<Boolean> isLocalChannelProvider) {
+    return toBuilder().setIsLocalChannelProvider(isLocalChannelProvider).build();
+  }
+
+  /** Specifies the commit deadline. This is overridden if the CommitRetrySettings is specified. */
   public SpannerConfig withCommitDeadline(Duration commitDeadline) {
     return withCommitDeadline(ValueProvider.StaticValueProvider.of(commitDeadline));
   }
 
+  /** Specifies the commit deadline. This is overridden if the CommitRetrySettings is specified. */
   public SpannerConfig withCommitDeadline(ValueProvider<Duration> commitDeadline) {
     return toBuilder().setCommitDeadline(commitDeadline).build();
   }
 
+  /** Specifies the maximum cumulative backoff. */
   public SpannerConfig withMaxCumulativeBackoff(Duration maxCumulativeBackoff) {
     return withMaxCumulativeBackoff(ValueProvider.StaticValueProvider.of(maxCumulativeBackoff));
   }
 
+  /** Specifies the maximum cumulative backoff. */
   public SpannerConfig withMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff) {
     return toBuilder().setMaxCumulativeBackoff(maxCumulativeBackoff).build();
   }
 
+  /**
+   * Specifies the ExecuteStreamingSql retry settings. If not set, the default timeout is set to 2
+   * hours.
+   */
+  public SpannerConfig withExecuteStreamingSqlRetrySettings(
+      RetrySettings executeStreamingSqlRetrySettings) {
+    return toBuilder()
+        .setExecuteStreamingSqlRetrySettings(executeStreamingSqlRetrySettings)
+        .build();
+  }
+
+  /** Specifies the commit retry settings. Setting this overrides the commit deadline. */
+  public SpannerConfig withCommitRetrySettings(RetrySettings commitRetrySettings) {
+    return toBuilder().setCommitRetrySettings(commitRetrySettings).build();
+  }
+
+  /** Specifies the errors that will be retried by the client library for all operations. */
+  public SpannerConfig withRetryableCodes(ImmutableSet<Code> retryableCodes) {
+    return toBuilder().setRetryableCodes(retryableCodes).build();
+  }
+
+  /** Specifies the service factory to create instance of Spanner. */
   @VisibleForTesting
   SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
   }
 
+  /** Specifies the RPC priority. */
   public SpannerConfig withRpcPriority(RpcPriority rpcPriority) {
     return withRpcPriority(ValueProvider.StaticValueProvider.of(rpcPriority));
   }
 
+  /** Specifies the RPC priority. */
   public SpannerConfig withRpcPriority(ValueProvider<RpcPriority> rpcPriority) {
     return toBuilder().setRpcPriority(rpcPriority).build();
   }

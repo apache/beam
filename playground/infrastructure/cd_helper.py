@@ -103,11 +103,46 @@ class CDHelper:
     """
     self._storage_client = storage.Client()
     self._bucket = self._storage_client.bucket(Config.BUCKET_NAME)
+
     for example in tqdm(examples):
       file_names = self._write_to_local_fs(example)
+
+      if example.tag.default_example:
+        default_example_path = str(Path([*file_names].pop()).parent)
+        cloud_path = self._write_default_example_path_to_local_fs(
+          default_example_path)
+
+        self._upload_blob(
+          source_file=os.path.join(Config.TEMP_FOLDER, cloud_path),
+          destination_blob_name=cloud_path)
+
       for cloud_file_name, local_file_name in file_names.items():
         self._upload_blob(
             source_file=local_file_name, destination_blob_name=cloud_file_name)
+
+  def _write_default_example_path_to_local_fs(self, path: str) -> str:
+    """
+    Write default example path to the file (in temp folder)
+
+    Args:
+        path: path of the default example
+
+    Returns: name of the file
+
+    """
+    sdk = Path(path).parts[0]
+    cloud_path = os.path.join(sdk, Config.DEFAULT_PRECOMPILED_OBJECT)
+
+    path_to_file = os.path.join(Config.TEMP_FOLDER, sdk)
+    Path(path_to_file).mkdir(parents=True, exist_ok=True)
+
+    local_path = os.path.join(path_to_file, Config.DEFAULT_PRECOMPILED_OBJECT)
+
+    content = json.dumps({sdk: path})
+    with open(local_path, "w", encoding="utf-8") as file:
+      file.write(content)
+
+    return cloud_path
 
   def _write_to_local_fs(self, example: Example):
     """

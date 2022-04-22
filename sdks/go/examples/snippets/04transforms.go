@@ -21,8 +21,10 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -86,6 +88,22 @@ func CreateAndSplit(s beam.Scope, input []stringPair) beam.PCollection {
 }
 
 // [END cogroupbykey_input_helpers]
+
+type splittableDoFn struct{}
+
+// [START bundlefinalization_simplecallback]
+
+func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalization) {
+	// ... produce output ...
+
+	bf.RegisterCallback(5*time.Minute, func() error {
+		// ... perform a side effect ...
+
+		return nil
+	})
+}
+
+// [END bundlefinalization_simplecallback]
 
 // [START cogroupbykey_output_helpers]
 
@@ -393,12 +411,29 @@ func applyMultipleOut(s beam.Scope, words beam.PCollection) (belows, aboves, mar
 	return below, above, marked, length, mixedMarked
 }
 
-func extractWordsFn(line string, emitWords func(string)) {
+// [START model_paneinfo]
+
+func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
+	if pn.Timing == typex.PaneEarly || pn.Timing == typex.PaneOnTime {
+		// ... perform operation ...
+	}
+	if pn.Timing == typex.PaneLate {
+		// ... perform operation ...
+	}
+	if pn.IsFirst {
+		// ... perform operation ...
+	}
+	if pn.IsLast {
+		// ... perform operation ...
+	}
+
 	words := strings.Split(line, " ")
 	for _, w := range words {
 		emitWords(w)
 	}
 }
+
+// [END model_paneinfo]
 
 func init() {
 	beam.RegisterFunction(extractWordsFn)

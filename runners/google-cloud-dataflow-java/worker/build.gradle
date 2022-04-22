@@ -97,7 +97,7 @@ dependencies {
   implementation library.java.proto_google_common_protos
   shadow library.java.vendored_guava_26_0_jre
   implementation library.java.slf4j_api
-  implementation "io.opencensus:opencensus-api:0.28.0"
+  implementation "io.opencensus:opencensus-api:0.31.0"
   implementation "javax.servlet:javax.servlet-api:3.1.0"
 
   // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.

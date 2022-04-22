@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -25,20 +26,23 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-type testInt int32
+var errGeneric = errors.New("generic error")
 
 // TestInvoke verifies the the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
-		Fn                  interface{}
-		Opt                 *MainInput
-		Args                []interface{}
-		Expected, Expected2 interface{}
-		ExpectedTime        typex.EventTime
+		Fn                   interface{}
+		Opt                  *MainInput
+		Args                 []interface{}
+		Expected, Expected2  interface{}
+		ExpectedTime         typex.EventTime
+		ExpectedContinuation sdf.ProcessContinuation
+		ExpectedError        error
 	}{
 		{
 			// Void function
@@ -158,6 +162,31 @@ func TestInvoke(t *testing.T) {
 			Opt:      &MainInput{Key: FullValue{Elm: "basketball", Elm2: []typex.T{23}}},
 			Expected: "basketball", Expected2: 1,
 		},
+		{
+			// ret1() error check
+			Fn:            func(a int) error { return errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret2() error check
+			Fn:            func(a int) (int, error) { return 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret3() error check
+			Fn:            func(a int) (typex.EventTime, int, error) { return 0, 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret4() error check
+			Fn:            func(a int) (typex.EventTime, string, int, error) { return 0, "", 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		// TODO(BEAM-11104): Add unit test cases for ProcessContinuations once they are enabled for use.
 	}
 
 	for i, test := range tests {
@@ -178,20 +207,77 @@ func TestInvoke(t *testing.T) {
 				test.ExpectedTime = ts
 			}
 
-			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
-			if err != nil {
-				t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
-			}
-			if val != nil && val.Elm != test.Expected {
-				t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
-			}
-			if val != nil && val.Elm2 != test.Expected2 {
-				t.Errorf("Elm2: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm2, test.Expected2)
-			}
-			if val != nil && val.Timestamp != test.ExpectedTime {
-				t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
+
+			if test.ExpectedError != nil {
+				if err == nil {
+					t.Fatalf("Invoke(%v, %v) succeeded when it should have failed, want %v", fn.Fn.Name(), test.Args, test.ExpectedError)
+				}
+				if err != test.ExpectedError {
+					t.Errorf("Invoke(%v, %v) returned unexpected error, got %v, want %v", fn.Fn.Name(), test.Args, err, test.ExpectedError)
+				}
+			} else {
+				if val != nil && val.Elm != test.Expected {
+					t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
+				}
+				if val != nil && val.Elm2 != test.Expected2 {
+					t.Errorf("Elm2: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm2, test.Expected2)
+				}
+				if val != nil && val.Timestamp != test.ExpectedTime {
+					t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+				}
+				if val != nil && val.Continuation != test.ExpectedContinuation {
+					t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Continuation, test.ExpectedContinuation)
+				}
 			}
 		})
+	}
+}
+
+func TestRegisterCallback(t *testing.T) {
+	bf := bundleFinalizer{
+		callbacks:         []bundleFinalizationCallback{},
+		lastValidCallback: time.Now(),
+	}
+	testVar := 0
+	bf.RegisterCallback(500*time.Minute, func() error {
+		testVar += 5
+		return nil
+	})
+	bf.RegisterCallback(2*time.Minute, func() error {
+		testVar = 25
+		return nil
+	})
+	callbackErr := errors.New("Callback error")
+	bf.RegisterCallback(2*time.Minute, func() error {
+		return callbackErr
+	})
+
+	// We can't do exact equality since this relies on real time, we'll give it a broad range
+	if bf.lastValidCallback.Before(time.Now().Add(400*time.Minute)) || bf.lastValidCallback.After(time.Now().Add(600*time.Minute)) {
+		t.Errorf("RegisterCallback() lastValidCallback set to %v, want about 500 minutes", bf.lastValidCallback)
+	}
+	if got, want := len(bf.callbacks), 3; got != want {
+		t.Fatalf("Callbacks in bundleFinalizer does not match number of calls to RegisterCallback(), got %v callbacks, want %v", got, want)
+	}
+
+	callbackIdx := 0
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned unexpected error: %v", callbackIdx, err)
+	}
+	if got, want := testVar, 5; got != want {
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
+	}
+	callbackIdx = 1
+	if err := bf.callbacks[callbackIdx].callback(); err != nil {
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want nil", callbackIdx, err)
+	}
+	if got, want := testVar, 25; got != want {
+		t.Errorf("RegisterCallback() callback at index %v set testvar to %v, want %v", callbackIdx, got, want)
+	}
+	callbackIdx = 2
+	if err := bf.callbacks[2].callback(); err != callbackErr {
+		t.Errorf("RegisterCallback() callback at index %v returned error %v, want %v", callbackIdx, err, callbackErr)
 	}
 }
 
@@ -314,7 +400,7 @@ func BenchmarkInvoke(b *testing.B) {
 		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
 		b.Run(fmt.Sprintf("SingleInvoker_%s", test.Name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -323,7 +409,7 @@ func BenchmarkInvoke(b *testing.B) {
 		b.Run(fmt.Sprintf("CachedInvoker_%s", test.Name), func(b *testing.B) {
 			inv := newInvoker(fn)
 			for i := 0; i < b.N; i++ {
-				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, test.Args...)
+				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -393,7 +479,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {
-		args := make([]reflect.Value, 1, 1)
+		args := make([]reflect.Value, 1)
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
@@ -403,7 +489,7 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 func BenchmarkReflectCallReuseArgs(b *testing.B) {
 	fn := reflect.ValueOf(inc)
 	n := reflect.ValueOf(0)
-	args := make([]reflect.Value, 1, 1)
+	args := make([]reflect.Value, 1)
 	for i := 0; i < b.N; i++ {
 		args[0] = n
 		n = fn.Call(args)[0]
@@ -416,7 +502,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -427,7 +513,7 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -453,7 +539,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -464,7 +550,7 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)

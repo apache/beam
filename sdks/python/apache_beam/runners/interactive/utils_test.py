@@ -31,13 +31,15 @@ import pytest
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
+from apache_beam.runners.portability.flink_runner import FlinkRunner
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -55,9 +57,6 @@ else:
 
 
 class MockBuckets():
-  def __init__(self):
-    pass
-
   def Get(self, path):
     if path == 'test-bucket-not-found':
       raise HttpNotFoundError({'status': 404}, {}, '')
@@ -161,14 +160,14 @@ class ToElementListTest(unittest.TestCase):
 
     def reader():
       element_payload = [
-          TestStreamPayload.TimestampedElement(
+          beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
               encoded_element=coder.encode(
                   WindowedValueHolder(WindowedValue(e, 0, []))),
               timestamp=Timestamp.of(0).micros) for e in range(10)
       ]
 
-      event = TestStreamPayload.Event(
-          element_event=TestStreamPayload.Event.AddElements(
+      event = beam_runner_api_pb2.TestStreamPayload.Event(
+          element_event=beam_runner_api_pb2.TestStreamPayload.Event.AddElements(
               elements=element_payload))
       yield event
 
@@ -409,6 +408,23 @@ class BidictTest(unittest.TestCase):
     value, inverse_value = bd.pop('foo')
     self.assertEqual(value, 'bar')
     self.assertEqual(inverse_value, 'foo')
+
+
+class PipelineUtilTest(unittest.TestCase):
+  def test_detect_pipeline_underlying_runner(self):
+    p = beam.Pipeline(InteractiveRunner(underlying_runner=FlinkRunner()))
+    pipeline_runner = utils.detect_pipeline_runner(p)
+    self.assertTrue(isinstance(pipeline_runner, FlinkRunner))
+
+  def test_detect_pipeline_no_underlying_runner(self):
+    p = beam.Pipeline(InteractiveRunner())
+    pipeline_runner = utils.detect_pipeline_runner(p)
+    from apache_beam.runners.direct.direct_runner import DirectRunner
+    self.assertTrue(isinstance(pipeline_runner, DirectRunner))
+
+  def test_detect_pipeline_no_runner(self):
+    pipeline_runner = utils.detect_pipeline_runner(None)
+    self.assertEqual(pipeline_runner, None)
 
 
 if __name__ == '__main__':

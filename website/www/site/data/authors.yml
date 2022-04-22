@@ -21,6 +21,7 @@ aljoscha:
 altay:
   name: Ahmet Altay
   email: altay@apache.org
+  twitter: iridium77
 angoenka:
   name: Ankur Goenka
   email: goenka@apache.org
@@ -208,7 +209,6 @@ yifanzou:
   name: Yifan Zou
   email: yifanzou@apache.org
   twitter:
-
 arturkhanin:
   name: Artur Khanin
   email: artur.khanin@akvelon.com
@@ -221,3 +221,9 @@ alexkosolapov:
   name: Alex Kosolapov
   email: alex.kosolapov@akvelon.com
   twitter:
+hermannb:
+  name: Brittany Hermann
+  email: hermannb@google.com
+iht:
+  name: Israel Herraiz
+  email: ihr@google.com

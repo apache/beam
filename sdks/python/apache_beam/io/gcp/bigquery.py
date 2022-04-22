@@ -277,6 +277,7 @@ import logging
 import random
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -657,6 +658,14 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+# TODO(BEAM-14331): remove the serialization restriction in transform
+# implementation once InteractiveRunner can work without runner api roundtrips.
+@dataclass
+class _BigQueryExportResult:
+  coder: beam.coders.Coder
+  paths: List[str]
+
+
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
@@ -705,7 +714,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.flatten_results = flatten_results
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
-    self.split_result = None
+    self.export_result = None
     self.options = pipeline_options
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
@@ -789,7 +798,7 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
-  def _create_source(self, path, schema):
+  def _create_source(self, path, coder):
     if not self.use_json_exports:
       return create_avro_source(path)
     else:
@@ -798,10 +807,10 @@ class _CustomBigQuerySource(BoundedSource):
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=self.coder(schema))
+          coder=coder)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    if self.split_result is None:
+    if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
               self.temp_dataset.datasetId if self.temp_dataset else None))
@@ -814,15 +823,15 @@ class _CustomBigQuerySource(BoundedSource):
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
-      # Sources to be created lazily within a generator as they're output.
-      self.split_result = (
-          self._create_source(metadata.path, schema)
-          for metadata in metadata_list)
+      self.export_result = _BigQueryExportResult(
+          coder=self.coder(schema),
+          paths=[metadata.path for metadata in metadata_list])
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
-    for source in self.split_result:
+    for path in self.export_result.paths:
+      source = self._create_source(path, self.export_result.coder)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
 
@@ -1081,7 +1090,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
         'use_legacy_sql': self.use_legacy_sql,
         'use_native_datetime': self.use_native_datetime,
         'selected_fields': str(self.selected_fields),
-        'row_restriction': str(self.row_restriction)
+        'row_restriction': str(self.row_restriction),
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
@@ -1796,6 +1807,7 @@ class _StreamToBigQuery(PTransform):
       retry_strategy,
       additional_bq_parameters,
       ignore_insert_ids,
+      ignore_unknown_columns,
       with_auto_sharding,
       test_client=None):
     self.table_reference = table_reference
@@ -1811,6 +1823,7 @@ class _StreamToBigQuery(PTransform):
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
     self.ignore_insert_ids = ignore_insert_ids
+    self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
 
   class InsertIdPrefixFn(DoFn):
@@ -1836,6 +1849,7 @@ class _StreamToBigQuery(PTransform):
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
+        ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding)
 
     def _add_random_shard(element):
@@ -2002,6 +2016,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         data to BigQuery: https://cloud.google.com/bigquery/docs/loading-data.
         DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
         FILE_LOADS on Batch pipelines.
+        Note: FILE_LOADS currently does not support BigQuery's JSON data type:
+        https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
         Default is to retry always. This means that whenever there are rows
@@ -2168,6 +2184,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           retry_strategy=self.insert_retry_strategy,
           additional_bq_parameters=self.additional_bq_parameters,
           ignore_insert_ids=self._ignore_insert_ids,
+          ignore_unknown_columns=self._ignore_unknown_columns,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client)
 
@@ -2266,14 +2283,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   @PTransform.register_urn('beam:transform:write_to_big_query:v0', bytes)
   def from_runner_api(unused_ptransform, payload, context):
     from apache_beam.internal import pickler
-    from apache_beam.portability.api.beam_runner_api_pb2 import SideInput
+    from apache_beam.portability.api import beam_runner_api_pb2
 
     config = pickler.loads(payload)
 
     def deserialize(side_inputs):
       deserialized_side_inputs = {}
       for k, v in side_inputs.items():
-        side_input = SideInput()
+        side_input = beam_runner_api_pb2.SideInput()
         side_input.ParseFromString(v)
         deserialized_side_inputs[k] = side_input
 

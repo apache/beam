@@ -43,7 +43,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 		{
 			// Test case with calling newJavaLifeCycle method with correct pipelineId and workingDir.
 			// As a result, want to receive an expected java life cycle.
-			name: "newJavaLifeCycle",
+			name: "NewJavaLifeCycle",
 			args: args{
 				pipelineId:      pipelineId,
 				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
@@ -97,9 +97,20 @@ func Test_executableName(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with calling sourceFileName method with empty directory.
+			// As a result, want to receive an error.
+			name:    "Directory is empty",
+			prepare: func() {},
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
 			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
 			// As a result, want to receive a name that should be executed
-			name: "get executable name",
+			name: "Get executable name",
 			prepare: func() {
 				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
 				filePath := filepath.Join(compiled, "temp.class")
@@ -117,7 +128,7 @@ func Test_executableName(t *testing.T) {
 		{
 			// Test case with calling sourceFileName method with wrong directory.
 			// As a result, want to receive an error.
-			name:    "directory doesn't exist",
+			name:    "Directory doesn't exist",
 			prepare: func() {},
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelineId.String()),
