@@ -43,8 +43,6 @@ BIG_QUERY_TO_PYTHON_TYPES = {
 
 
 def produce_pcoll_with_schema(the_table_schema):
-  #type: (TableSchema) -> type
-
   """Convert a schema of type TableSchema into a pcollection element.
       Args:
         the_table_schema: A BQ schema of type TableSchema
