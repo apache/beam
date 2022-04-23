@@ -491,34 +491,25 @@ class TestReadFromBigQuery(unittest.TestCase):
     schema = beam.io.gcp.internal.clients.bigquery.TableSchema(
         fields=[
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[],
-                mode="REQUIRED",
-                name="event_timestamp",
-                type="TIMESTAMP"),
+                name="event_timestamp", type="TIMESTAMP", mode="REQUIRED"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[], mode="NULLABLE", name="ride_id", type="STRING"),
+                name="ride_id", type="STRING", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[], mode="NULLABLE", name="point_idx", type="INTEGER"),
+                name="point_idx", type="INTEGER", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[], mode="NULLABLE", name="latitude", type="FLOAT"),
+                name="latitude", type="FLOAT", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[], mode="NULLABLE", name="timestamp", type="STRING"),
+                name="timestamp", type="STRING", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[], mode="NULLABLE", name="meter_reading", type="FLOAT"),
+                name="meter_reading", type="FLOAT", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[],
-                mode="NULLABLE",
-                name="meter_increment",
-                type="FLOAT"),
+                name="meter_increment", type="FLOAT", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[], mode="NULLABLE", name="ride_status", type="STRING"),
+                name="ride_status", type="STRING", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[],
-                mode="NULLABLE",
-                name="passenger_count",
-                type="INTEGER"),
+                name="passenger_count", type="INTEGER", mode="NULLABLE"),
             beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                fields=[], mode="NULLABLE", name="longitude", type="FLOAT")
+                name="longitude", type="FLOAT", mode="NULLABLE")
         ])
     self.assertEqual(table, schema)
 
