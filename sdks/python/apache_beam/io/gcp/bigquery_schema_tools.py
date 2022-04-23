@@ -20,12 +20,14 @@ Classes, constants and functions in this file are experimental and have no
 backwards compatibility guarantees.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
+
 from typing import Optional
 from typing import Sequence
 
 import numpy as np
 
 import apache_beam as beam
+from apache_beam.io.gcp.internal.clients import bigquery
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
@@ -43,12 +45,14 @@ BIG_QUERY_TO_PYTHON_TYPES = {
 
 
 def produce_pcoll_with_schema(the_table_schema):
+  #type: (bigquery.TableSchema) -> type
+
   """Convert a schema of type TableSchema into a pcollection element.
       Args:
         the_table_schema: A BQ schema of type TableSchema
       Returns:
-        usertype: type that can be used to work with pCollections.
-      """
+        type: type that can be used to work with pCollections.
+  """
 
   the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
       the_table_schema)
