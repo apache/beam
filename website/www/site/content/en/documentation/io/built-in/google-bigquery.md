@@ -793,6 +793,9 @@ BigQueryIO.writeTableRows()
 # The SDK for Python does not support the BigQuery Storage API.
 {{< /highlight >}}
 
+If you want `BigQueryIO.Write` to use the Storage Write API by default, use the
+[`UseStorageWriteApi` option](https://github.com/apache/beam/blob/2c18ce0ccd7705473aa9ecc443dcdbe223dd9449/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.java#L82-L86).
+
 If your pipeline needs to create the table (in case it doesn’t exist and you
 specified the create disposition as `CREATE_IF_NEEDED`), you must provide a
 table schema. The API uses the schema to validate data and convert it to a
