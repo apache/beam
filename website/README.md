@@ -75,6 +75,8 @@ If you're developing the site, you should know a little bit about Hugo and Docsy
 
 ## Troubleshooting
 
+Apple Silicon:
+
 ### Hugo server does not reload static files
 
 The Hugo dev server waits for changes in site content, static files, configuration, and other resources. On change, the server rebuilds and reloads the site in your browser. If you're making changes to static files, and those changes are detected by the server but don't appear in the browser, you may have a caching issue.
