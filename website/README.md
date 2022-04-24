@@ -75,7 +75,9 @@ If you're developing the site, you should know a little bit about Hugo and Docsy
 
 ## Troubleshooting
 
-Apple Silicon:
+To fix the Docker Error 255 during the Website launch on Apple Silicon:
+- Open website/Dockerfile
+- Replace "FROM debian:stretch-slim" with "FROM --platform=linux/amd64 debian:stretch-slim"
 
 ### Hugo server does not reload static files
 
