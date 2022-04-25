@@ -541,8 +541,8 @@ public class BigtableServiceImplTest {
     long currentByteLimit =
         (long) (Runtime.getRuntime().freeMemory() * DEFAULT_BYTE_LIMIT_PERCENTAGE);
     int numOfRowsInsideBuffer = (int) (currentByteLimit / DEFAULT_ROW_SIZE) + 1;
-    System.out.println("CurrentByteLimit inside of test method: "+currentByteLimit);
-    System.out.println("Num Of Rows Inside Of Buffer (start):"+numOfRowsInsideBuffer);
+    System.out.println("CurrentByteLimit inside of test method: " + currentByteLimit);
+    System.out.println("Num Of Rows Inside Of Buffer (start):" + numOfRowsInsideBuffer);
     FlatRow.Builder largeRow =
         FlatRow.newBuilder()
             .addCell(
@@ -576,7 +576,7 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
     for (int i = 0; i < expectedFirstRangeRows.size() - 1; i++) {
-      System.out.println("Step: "+i);
+      System.out.println("Step: " + i);
       underTest.advance();
       Assert.assertEquals(
           FlatRowConverter.convert(expectedFirstRangeRows.get(i + 1)), underTest.getCurrentRow());
