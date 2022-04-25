@@ -52,58 +52,16 @@
 
 ## I/Os
 
-* JMSIO gains the ability to map any kind of input to any subclass of javax.jms.Message
+* JmsIO gains the ability to map any kind of input to any subclass of `javax.jms.Message` ([BEAM-16308](https://issues.apache.org/jira/browse/BEAM-16308)).
   * To have the same behavior as before, a valueMapper with a TextMessageMapper must be set at JmsIO.Write initialization like this:
 ```java
   JmsIO.<String>write()
         .withConnectionFactory(jmsConnectionFactory)
-        .withCoder(SerializableCoder.of(String.class))
         .withValueMapper(new TextMessageMapper());
 ```
-* JMSIO introduces the ability to write to dynamic topics.
-  * A topicNameMapper must be set to extract the topic name from the input,
-  * A valueMapper must be set to extract the value from the input.
-
-1. For instance let's create a topicNameMapper. Employee Event is a Map.
-
-```java
-        String topic = "company/%s/employee/%s";
-        // Get a topic name formatted like this:
-        // company/%s/employee/%s
-        // Vehicle name is a map containing the vehicle brand and the VIN
-        SerializableFunction<CompanyEvent, String> topicNameMapper =
-        (e ->
-        String.format(
-        topic,
-        e.get(COMPANY_NAME.fieldName()).toString().toLowerCase(),
-        e.get(EMPLOYEE.fieldName()).toString().toLowerCase()));
-}
-```
-
-2. Let's create a valueMapper that will return a javax.jms.Message:
-
-```java
-      SerializableBiFunction<EmployeeEvent, Session, Message> valueMapper = (e, s) -> {
-        try {
-          TextMessage msg = s.createTextMessage();
-          msg.setText(Mapper.MAPPER.toJson(e));
-          return msg;
-        } catch (JMSException ex) {
-          throw new JmsIOException("Error!!", ex);
-        }
-    };
-```
-
-3. We now have to inject those two functions into the JmsIO.Write class:
-
-```java
-  JmsIO.<EmployeeEvent>write()
-        .withConnectionFactory(jmsConnectionFactory)
-        .withTopicNameMapper(topicNameMapper)
-        .withCoder(SerializableCoder.of(EmployeeEvent.class))
-        .withValueMapper(valueMapper);
-
-```
+* JmsIO introduces the ability to write to dynamic topics (Java) ([BEAM-16308](https://issues.apache.org/jira/browse/BEAM-16308)).
+  * A `topicNameMapper` must be set to extract the topic name from the input value.
+  * A `valueMapper` must be set to convert the input value to JMS message.
 
 # [2.38.0] - Unreleased
 

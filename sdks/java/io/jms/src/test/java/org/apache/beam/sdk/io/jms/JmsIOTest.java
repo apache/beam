@@ -265,8 +265,6 @@ public class JmsIOTest {
     for (int i = 0; i < 100; i++) {
       data.add("Message " + i);
     }
-    String messageOne = "Message 1";
-    String messageTwo = "Message 2";
 
     WriteJmsResult<String> output =
         pipeline
@@ -279,7 +277,7 @@ public class JmsIOTest {
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
 
-    PAssert.that(output.getFailedMessages()).containsInAnyOrder(messageOne, messageTwo);
+    PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 1", "Message 2");
 
     pipeline.run();
 
@@ -292,7 +290,6 @@ public class JmsIOTest {
       count++;
     }
     assertEquals(98, count);
-    assertTrue(output.getPipeline().equals(pipeline));
   }
 
   @Test
@@ -303,7 +300,7 @@ public class JmsIOTest {
     MessageConsumer consumerOne = session.createConsumer(session.createTopic("Topic_One"));
     MessageConsumer consumerTwo = session.createConsumer(session.createTopic("Topic_Two"));
     ArrayList<TestEvent> data = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 50; i++) {
       data.add(new TestEvent("Topic_One", "Message One " + i));
     }
     for (int i = 0; i < 100; i++) {
@@ -334,7 +331,7 @@ public class JmsIOTest {
     while (consumerOne.receive(1000) != null) {
       count++;
     }
-    assertEquals(100, count);
+    assertEquals(50, count);
 
     count = 0;
     while (consumerTwo.receive(1000) != null) {
@@ -667,7 +664,7 @@ public class JmsIOTest {
     @Override
     public Message apply(String value, Session session) {
       try {
-        if (value.equals("Message " + 1) || value.equals("Message " + 2)) {
+        if (value.equals("Message 1") || value.equals("Message 2")) {
           throw new JMSException("Error!!");
         }
         TextMessage msg = session.createTextMessage();

@@ -675,7 +675,7 @@ public class JmsIO {
      * acts as a producer on the queue.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withTopic(String)}. The user has to
-     * specify a destination: queue or topic or topicNameMapper.
+     * specify a destination: queue, topic, or topicNameMapper.
      *
      * <p>For instance:
      *
@@ -697,7 +697,7 @@ public class JmsIO {
      * as a publisher on the topic.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)}. The user has to
-     * specify a destination: queue or topic or topicNameMapper.
+     * specify a destination: queue, topic, or topicNameMapper.
      *
      * <p>For instance:
      *
@@ -735,10 +735,14 @@ public class JmsIO {
      * that takes {@code EventT} object as a parameter, and returns the topic name depending of the content
      * of the event object.
      *
-     * <p>For instance:
+     * <p>For example:
      * <pre>{@code
-     * SerializableFunction<SomeEventObject, String> topicNameMapper = (e -> return "the topic name");
-     *
+     * SerializableFunction<CompanyEvent, String> topicNameMapper =
+     *   (event ->
+     *    String.format(
+     *    "company/%s/employee/%s",
+     *    event.getCompanyName(),
+     *    event.getEmployeeId()));
      * }</pre>
      *
      * <pre>{@code
@@ -774,7 +778,6 @@ public class JmsIO {
      *
      * <pre>{@code
      * .apply(JmsIO.write().withValueMapper(valueNapper)
-     *
      * }</pre>
      *
      * @param valueMapper The function returning the {@link javax.jms.Message}

@@ -18,6 +18,10 @@
 package org.apache.beam.sdk.io.jms;
 
 public class JmsIOException extends RuntimeException {
+  public JmsIOException(String message) {
+    super(message);
+  }
+
   public JmsIOException(String message, Throwable cause) {
     super(message, cause);
   }
