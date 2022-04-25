@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
 import org.apache.beam.runners.core.construction.External;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -46,6 +47,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -56,8 +59,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
   private String fullyQualifiedName;
-  private String expansionHost;
-  private int expansionPort;
+  private String expansionService;
 
   // We preseve the order here since Schema's care about order of fields but the order will not
   // matter when applying kwargs at the Python side.
@@ -66,11 +68,9 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Object @NonNull [] argsArray;
   private @Nullable Row providedKwargsRow;
 
-  private ExternalPythonTransform(
-      String fullyQualifiedName, String expansionHost, int expansionPort) {
+  private ExternalPythonTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
-    this.expansionHost = expansionHost;
-    this.expansionPort = expansionPort;
+    this.expansionService = expansionService;
     this.kwargsMap = new TreeMap<>();
     argsArray = new Object[] {};
   }
@@ -85,22 +85,21 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    */
   public static <InputT extends PInput, OutputT extends POutput>
       ExternalPythonTransform<InputT, OutputT> from(String tranformName) {
-    return new ExternalPythonTransform<>(tranformName, "localhost", 0);
+    return new ExternalPythonTransform<>(tranformName, "");
   }
 
   /**
    * Instantiates a cross-language wrapper for a Python transform with a given transform name.
    *
    * @param tranformName fully qualified transform name.
-   * @param expansionPort port number for externally launched expansion service
+   * @param expansionService address and port number for externally launched expansion service
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
    * @return A {@link ExternalPythonTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      ExternalPythonTransform<InputT, OutputT> from(
-          String tranformName, String expansionHost, int expansionPort) {
-    return new ExternalPythonTransform<>(tranformName, expansionHost, expansionPort);
+      ExternalPythonTransform<InputT, OutputT> from(String tranformName, String expansionService) {
+    return new ExternalPythonTransform<>(tranformName, expansionService);
   }
 
   /**
@@ -262,43 +261,53 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
     return generateSchemaDirectly(fieldValues, fieldNames);
   }
 
-  @Override
-  public OutputT expand(InputT input) {
-    int port;
+  @VisibleForTesting
+  ExternalTransforms.ExternalConfigurationPayload generatePayload() {
     Row argsRow = buildOrGetArgsRow();
     Row kwargsRow = buildOrGetKwargsRow();
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addStringField("constructor");
+    if (argsRow.getValues().size() > 0) {
+      schemaBuilder.addRowField("args", argsRow.getSchema());
+    }
+    if (kwargsRow.getValues().size() > 0) {
+      schemaBuilder.addRowField("kwargs", kwargsRow.getSchema());
+    }
+    Schema payloadSchema = schemaBuilder.build();
+    payloadSchema.setUUID(UUID.randomUUID());
+    Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
+    payloadRowBuilder.addValue(fullyQualifiedName);
+    if (argsRow.getValues().size() > 0) {
+      payloadRowBuilder.addValue(argsRow);
+    }
+    if (kwargsRow.getValues().size() > 0) {
+      payloadRowBuilder.addValue(kwargsRow);
+    }
     try {
-      Schema.Builder schemaBuilder = Schema.builder();
-      schemaBuilder.addStringField("constructor");
-      if (argsRow.getValues().size() > 0) {
-        schemaBuilder.addRowField("args", argsRow.getSchema());
-      }
-      if (kwargsRow.getValues().size() > 0) {
-        schemaBuilder.addRowField("kwargs", kwargsRow.getSchema());
-      }
-      Schema payloadSchema = schemaBuilder.build();
-      payloadSchema.setUUID(UUID.randomUUID());
-      Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
-      payloadRowBuilder.addValue(fullyQualifiedName);
-      if (argsRow.getValues().size() > 0) {
-        payloadRowBuilder.addValue(argsRow);
-      }
-      if (kwargsRow.getValues().size() > 0) {
-        payloadRowBuilder.addValue(kwargsRow);
-      }
-      ExternalTransforms.ExternalConfigurationPayload payload =
-          ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-              .setSchema(SchemaTranslation.schemaToProto(payloadSchema, true))
-              .setPayload(
-                  ByteString.copyFrom(
-                      CoderUtils.encodeToByteArray(
-                          RowCoder.of(payloadSchema), payloadRowBuilder.build())))
-              .build();
-      if (expansionPort > 0) {
-        PythonService.waitForPort(expansionHost, expansionPort, 15000);
-        return apply(input, expansionHost, expansionPort, payload);
+      return ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+          .setSchema(SchemaTranslation.schemaToProto(payloadSchema, true))
+          .setPayload(
+              ByteString.copyFrom(
+                  CoderUtils.encodeToByteArray(
+                      RowCoder.of(payloadSchema), payloadRowBuilder.build())))
+          .build();
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public OutputT expand(InputT input) {
+    try {
+      ExternalTransforms.ExternalConfigurationPayload payload = generatePayload();
+      if (!Strings.isNullOrEmpty(expansionService)) {
+        PythonService.waitForPort(
+            Iterables.get(Splitter.on(':').split(expansionService), 0),
+            Integer.parseInt(Iterables.get(Splitter.on(':').split(expansionService), 1)),
+            15000);
+        return apply(input, expansionService, payload);
       } else {
-        port = PythonService.findAvailablePort();
+        int port = PythonService.findAvailablePort();
         PythonService service =
             new PythonService(
                 "apache_beam.runners.portability.expansion_service_main",
@@ -308,11 +317,9 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
                 "*");
         try (AutoCloseable p = service.start()) {
           PythonService.waitForPort("localhost", port, 15000);
-          return apply(input, "localhost", port, payload);
+          return apply(input, String.format("localhost:%s", port), payload);
         }
       }
-    } catch (RuntimeException exn) {
-      throw exn;
     } catch (Exception exn) {
       throw new RuntimeException(exn);
     }
@@ -320,14 +327,13 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
 
   private OutputT apply(
       InputT input,
-      String host,
-      int port,
+      String expansionService,
       ExternalTransforms.ExternalConfigurationPayload payload) {
     PTransform<PInput, PCollectionTuple> transform =
         External.of(
                 "beam:transforms:python:fully_qualified_named",
                 payload.toByteArray(),
-                host + ":" + port)
+                expansionService)
             .withMultiOutputs();
     PCollectionTuple outputs;
     if (input instanceof PCollection) {
