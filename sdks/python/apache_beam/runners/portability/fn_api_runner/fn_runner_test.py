@@ -33,6 +33,7 @@ import uuid
 from typing import Any
 from typing import Dict
 from typing import Iterator
+from typing import List
 from typing import Tuple
 
 import hamcrest  # pylint: disable=ungrouped-imports
@@ -124,26 +125,27 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to(['aax', 'bcbcx']))
 
   def test_batch_pardo(self):
-    class MultiplyDoFn(beam.DoFn):
-      def process_batch(self, batch: np.ndarray, *unused_args,
-                        **unused_kwargs) -> Iterator[np.ndarray]:
-        assert isinstance(batch, np.ndarray)
-        yield batch * 2
-
-      # infer_output_type must be defined (when there's no process method),
-      # otherwise we don't know the input type is the same as output type.
-      def infer_output_type(self, input_type):
-        return input_type
-
     with self.create_pipeline() as p:
       res = (
           p
           | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
               np.int64)
-          | beam.ParDo(MultiplyDoFn())
+          | beam.ParDo(ArrayMultiplyDoFn())
           | beam.Map(lambda x: x * 3))
 
       assert_that(res, equal_to([6, 12, 18]))
+
+  def test_batch_rebatch_pardos(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.ParDo(ListPlusOneDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([9, 15, 21]))
 
   @retry(stop=stop_after_attempt(3))
   def test_pardo_side_outputs(self):
@@ -2155,6 +2157,30 @@ class ExpectingSideInputsFn(beam.DoFn):
     if not all(list(s) for s in side_inputs):
       raise ValueError(f'Missing data in side input {side_inputs}')
     yield self._name
+
+
+class ArrayMultiplyDoFn(beam.DoFn):
+  def process_batch(self, batch: np.ndarray, *unused_args,
+                    **unused_kwargs) -> Iterator[np.ndarray]:
+    assert isinstance(batch, np.ndarray)
+    yield batch * 2
+
+  # infer_output_type must be defined (when there's no process method),
+  # otherwise we don't know the input type is the same as output type.
+  def infer_output_type(self, input_type):
+    return input_type
+
+
+class ListPlusOneDoFn(beam.DoFn):
+  def process_batch(self, batch: List[np.int64], *unused_args,
+                    **unused_kwargs) -> Iterator[List[np.int64]]:
+    assert isinstance(batch, list)
+    yield [element + 1 for element in batch]
+
+  # infer_output_type must be defined (when there's no process method),
+  # otherwise we don't know the input type is the same as output type.
+  def infer_output_type(self, input_type):
+    return input_type
 
 
 if __name__ == '__main__':
