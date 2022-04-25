@@ -25,5 +25,6 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 class ReshuffleTranslatorBatch<K, InputT> implements TransformTranslator<Reshuffle<K, InputT>> {
 
   @Override
-  public void translateTransform(Reshuffle<K, InputT> transform, AbstractTranslationContext context) {}
+  public void translateTransform(
+      Reshuffle<K, InputT> transform, AbstractTranslationContext context) {}
 }
