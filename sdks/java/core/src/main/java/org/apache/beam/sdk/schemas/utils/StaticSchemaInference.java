@@ -24,8 +24,10 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -79,6 +81,9 @@ public class StaticSchemaInference {
           .put(BigDecimal.class, FieldType.DECIMAL)
           .build();
 
+  /** A HashSet containing the non-primitive schemas within another schema, to prevent circular references. */
+  private static Set<Class> alreadyVisitedSchemas = new HashSet<Class>();
+
   /**
    * Infer a schema from a Java class.
    *
@@ -91,6 +96,7 @@ public class StaticSchemaInference {
     Schema.Builder builder = Schema.builder();
     for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(clazz)) {
       Schema.FieldType fieldType = fieldFromType(type.getType(), fieldValueTypeSupplier);
+      alreadyVisitedSchemas.remove(clazz);
       if (type.isNullable()) {
         builder.addNullableField(type.getName(), fieldType);
       } else {
@@ -163,7 +169,12 @@ public class StaticSchemaInference {
         throw new RuntimeException("Cannot infer schema from unparameterized collection.");
       }
     } else {
-      return FieldType.row(schemaFromClass(type.getRawType(), fieldValueTypeSupplier));
+      Class clazz = type.getRawType();
+      if(alreadyVisitedSchemas.contains(clazz)){
+        throw new RuntimeException("Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
+      }
+      alreadyVisitedSchemas.add(clazz);
+      return FieldType.row(schemaFromClass(clazz, fieldValueTypeSupplier));
     }
   }
 }
