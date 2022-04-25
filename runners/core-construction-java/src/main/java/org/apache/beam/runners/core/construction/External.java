@@ -94,7 +94,7 @@ public class External {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex());
+        urn, payload, apiDesc, DEFAULT, getFreshNamespaceIndex(), ImmutableMap.of());
   }
 
   @VisibleForTesting
@@ -103,7 +103,7 @@ public class External {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
     return new SingleOutputExpandableTransform<>(
-        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex());
+        urn, payload, apiDesc, clientFactory, getFreshNamespaceIndex(), ImmutableMap.of());
   }
 
   /** Expandable transform for output type of PCollection. */
@@ -114,8 +114,9 @@ public class External {
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
-        Integer namespaceIndex) {
-      super(urn, payload, endpoint, clientFactory, namespaceIndex);
+        Integer namespaceIndex,
+        Map<String, Coder> outputCoders) {
+      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
     }
 
     @Override
@@ -126,12 +127,22 @@ public class External {
 
     public MultiOutputExpandableTransform<InputT> withMultiOutputs() {
       return new MultiOutputExpandableTransform<>(
-          getUrn(), getPayload(), getEndpoint(), getClientFactory(), getNamespaceIndex());
+          getUrn(),
+          getPayload(),
+          getEndpoint(),
+          getClientFactory(),
+          getNamespaceIndex(),
+          getOutputCoders());
     }
 
-    public <T> SingleOutputExpandableTransform<InputT, T> withOutputType() {
+    public SingleOutputExpandableTransform<InputT, OutputT> withOutputCoder(Coder outputCoder) {
       return new SingleOutputExpandableTransform<>(
-          getUrn(), getPayload(), getEndpoint(), getClientFactory(), getNamespaceIndex());
+          getUrn(),
+          getPayload(),
+          getEndpoint(),
+          getClientFactory(),
+          getNamespaceIndex(),
+          ImmutableMap.of("0", outputCoder));
     }
   }
 
@@ -143,8 +154,9 @@ public class External {
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
-        Integer namespaceIndex) {
-      super(urn, payload, endpoint, clientFactory, namespaceIndex);
+        Integer namespaceIndex,
+        Map<String, Coder> outputCoders) {
+      super(urn, payload, endpoint, clientFactory, namespaceIndex, outputCoders);
     }
 
     @Override
@@ -157,6 +169,16 @@ public class External {
       }
       return pCollectionTuple;
     }
+
+    public MultiOutputExpandableTransform<InputT> withOutputCoder(Map<String, Coder> outputCoders) {
+      return new MultiOutputExpandableTransform<>(
+          getUrn(),
+          getPayload(),
+          getEndpoint(),
+          getClientFactory(),
+          getNamespaceIndex(),
+          outputCoders);
+    }
   }
 
   /** Base Expandable Transform which calls ExpansionService to expand itself. */
@@ -167,6 +189,7 @@ public class External {
     private final Endpoints.ApiServiceDescriptor endpoint;
     private final ExpansionServiceClientFactory clientFactory;
     private final Integer namespaceIndex;
+    private final Map<String, Coder> outputCoders;
 
     private transient RunnerApi.@Nullable Components expandedComponents;
     private transient RunnerApi.@Nullable PTransform expandedTransform;
@@ -179,12 +202,14 @@ public class External {
         byte[] payload,
         Endpoints.ApiServiceDescriptor endpoint,
         ExpansionServiceClientFactory clientFactory,
-        Integer namespaceIndex) {
+        Integer namespaceIndex,
+        Map<String, Coder> outputCoders) {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
       this.clientFactory = clientFactory;
       this.namespaceIndex = namespaceIndex;
+      this.outputCoders = outputCoders;
     }
 
     @Override
@@ -225,9 +250,23 @@ public class External {
         }
       }
 
+      ExpansionApi.ExpansionRequest.Builder requestBuilder =
+          ExpansionApi.ExpansionRequest.newBuilder();
+      requestBuilder.putAllOutputCoderRequests(
+          outputCoders.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey,
+                      kv -> {
+                        try {
+                          return components.registerCoder(kv.getValue());
+                        } catch (IOException e) {
+                          throw new RuntimeException(e);
+                        }
+                      })));
       RunnerApi.Components originalComponents = components.toComponents();
       ExpansionApi.ExpansionRequest request =
-          ExpansionApi.ExpansionRequest.newBuilder()
+          requestBuilder
               .setComponents(originalComponents)
               .setTransform(ptransformBuilder.build())
               .setNamespace(getNamespace())
@@ -433,6 +472,10 @@ public class External {
 
     Integer getNamespaceIndex() {
       return namespaceIndex;
+    }
+
+    Map<String, Coder> getOutputCoders() {
+      return outputCoders;
     }
   }
 }
