@@ -338,10 +338,6 @@ task("python39SickbayPostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
 
-task("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
-}
-
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
