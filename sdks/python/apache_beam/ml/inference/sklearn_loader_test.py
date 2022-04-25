@@ -165,7 +165,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_bad_input_type_raises(self):
-    with self.assertRaisesRegex(TypeError, 'Unsupported serialization type'):
+    with self.assertRaisesRegex(AssertionError, 'Unsupported serialization type'):
       with tempfile.NamedTemporaryFile() as file:
         model_loader = SklearnModelLoader(
             model_uri=file.name, model_file_type=None)
