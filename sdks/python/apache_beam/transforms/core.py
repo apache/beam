@@ -713,7 +713,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       # for declaring input type
       raise TypeError(
           f"{self.__class__.__name__}.process_batch() does not have a type "
-          "annotation on it's first parameter. This is reqired for "
+          "annotation on its first parameter. This is required for "
           "process_batch implementations.")
     return typehints.native_type_compatibility.convert_to_beam_type(input_type)
 
