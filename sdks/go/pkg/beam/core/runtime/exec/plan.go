@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
@@ -260,6 +261,8 @@ type SplitResult struct {
 	RS   [][]byte // Residual splits. If an element is split, these are the encoded residuals.
 	TId  string   // Transform ID of the transform receiving the split elements.
 	InId string   // Input ID of the input the split elements are received from.
+
+	OW map[string]*timestamppb.Timestamp // Map of outputs to output watermark for the plan being split
 }
 
 // Split takes a set of potential split indexes, and if successful returns

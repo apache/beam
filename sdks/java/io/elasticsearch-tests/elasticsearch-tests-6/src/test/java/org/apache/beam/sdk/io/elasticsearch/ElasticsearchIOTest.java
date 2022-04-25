@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.crea
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.deleteIndex;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.setDefaultTemplate;
 
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,13 +37,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-/*
-Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
-Cannot have @BeforeClass @AfterClass with ESIntegTestCase
-*/
-
 /** Tests for {@link ElasticsearchIO} version 6. */
-@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class ElasticsearchIOTest implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;

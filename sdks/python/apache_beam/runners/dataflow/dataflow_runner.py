@@ -145,7 +145,8 @@ class DataflowRunner(PipelineRunner):
     return 's%s' % self._unique_step_id
 
   @staticmethod
-  def poll_for_job_completion(runner, result, duration):
+  def poll_for_job_completion(
+      runner, result, duration, state_update_callback=None):
     """Polls for the specified job to finish running (successfully or not).
 
     Updates the result with the new job information before returning.
@@ -157,6 +158,9 @@ class DataflowRunner(PipelineRunner):
         If it is set to :data:`None`, it will wait indefinitely until the job
         is finished.
     """
+    if result.state == PipelineState.DONE:
+      return
+
     last_message_time = None
     current_seen_messages = set()
 
@@ -188,6 +192,8 @@ class DataflowRunner(PipelineRunner):
       # an initialized 'currentState' field.
       if response.currentState is not None:
         if response.currentState != last_job_state:
+          if state_update_callback:
+            state_update_callback(response.currentState)
           _LOGGER.info('Job %s is in state %s', job_id, response.currentState)
           last_job_state = response.currentState
         if str(response.currentState) != 'JOB_STATE_RUNNING':
@@ -387,7 +393,7 @@ class DataflowRunner(PipelineRunner):
   def _check_for_unsupported_features_on_non_portable_worker(self, pipeline):
     pipeline.visit(self.combinefn_visitor())
 
-  def run_pipeline(self, pipeline, options):
+  def run_pipeline(self, pipeline, options, pipeline_proto=None):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Label goog-dataflow-notebook if job is started from notebook.
     if is_in_notebook():
@@ -409,7 +415,7 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     debug_options = options.view_as(DebugOptions)
-    if pipeline.contains_external_transforms:
+    if pipeline_proto or pipeline.contains_external_transforms:
       if not apiclient._use_unified_worker(options):
         _LOGGER.info(
             'Automatically enabling Dataflow Runner v2 since the '
@@ -428,51 +434,57 @@ class DataflowRunner(PipelineRunner):
       self._check_for_unsupported_features_on_non_portable_worker(pipeline)
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    pipeline.visit(
-        self.side_input_visitor(
-            apiclient._use_unified_worker(options),
-            apiclient._use_fnapi(options),
-            deterministic_key_coders=not options.view_as(
-                TypeOptions).allow_non_deterministic_key_coders))
+    if pipeline:
+      pipeline.visit(
+          self.side_input_visitor(
+              apiclient._use_unified_worker(options),
+              apiclient._use_fnapi(options),
+              deterministic_key_coders=not options.view_as(
+                  TypeOptions).allow_non_deterministic_key_coders))
 
-    # Performing configured PTransform overrides.  Note that this is currently
-    # done before Runner API serialization, since the new proto needs to contain
-    # any added PTransforms.
-    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+      # Performing configured PTransform overrides.  Note that this is currently
+      # done before Runner API serialization, since the new proto needs to
+      # contain any added PTransforms.
+      pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
-    from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
-    from apache_beam.runners.dataflow.ptransform_overrides import GroupIntoBatchesWithShardedKeyPTransformOverride
-    pipeline.replace_all([
-        WriteToBigQueryPTransformOverride(pipeline, options),
-        GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)
-    ])
+      from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
+      from apache_beam.runners.dataflow.ptransform_overrides import GroupIntoBatchesWithShardedKeyPTransformOverride
+      pipeline.replace_all([
+          WriteToBigQueryPTransformOverride(pipeline, options),
+          GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)
+      ])
 
-    if use_fnapi and not apiclient._use_unified_worker(options):
-      pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
+      if use_fnapi and not apiclient._use_unified_worker(options):
+        pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
 
-    from apache_beam.transforms import environments
-    if options.view_as(SetupOptions).prebuild_sdk_container_engine:
-      # if prebuild_sdk_container_engine is specified we will build a new sdk
-      # container image with dependencies pre-installed and use that image,
-      # instead of using the inferred default container image.
-      self._default_environment = (
-          environments.DockerEnvironment.from_options(options))
-      options.view_as(WorkerOptions).sdk_container_image = (
-          self._default_environment.container_image)
+    if pipeline_proto:
+      self.proto_pipeline = pipeline_proto
+
     else:
-      self._default_environment = (
-          environments.DockerEnvironment.from_container_image(
-              apiclient.get_container_image_from_options(options),
-              artifacts=environments.python_sdk_dependencies(options),
-              resource_hints=environments.resource_hints_from_options(options)))
+      from apache_beam.transforms import environments
+      if options.view_as(SetupOptions).prebuild_sdk_container_engine:
+        # if prebuild_sdk_container_engine is specified we will build a new sdk
+        # container image with dependencies pre-installed and use that image,
+        # instead of using the inferred default container image.
+        self._default_environment = (
+            environments.DockerEnvironment.from_options(options))
+        options.view_as(WorkerOptions).sdk_container_image = (
+            self._default_environment.container_image)
+      else:
+        self._default_environment = (
+            environments.DockerEnvironment.from_container_image(
+                apiclient.get_container_image_from_options(options),
+                artifacts=environments.python_sdk_dependencies(options),
+                resource_hints=environments.resource_hints_from_options(
+                    options)))
 
-    # This has to be performed before pipeline proto is constructed to make sure
-    # that the changes are reflected in the portable job submission path.
-    self._adjust_pipeline_for_dataflow_v2(pipeline)
+      # This has to be performed before pipeline proto is constructed to make
+      # sure that the changes are reflected in the portable job submission path.
+      self._adjust_pipeline_for_dataflow_v2(pipeline)
 
-    # Snapshot the pipeline in a portable proto.
-    self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
-        return_context=True, default_environment=self._default_environment)
+      # Snapshot the pipeline in a portable proto.
+      self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
+          return_context=True, default_environment=self._default_environment)
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.
@@ -555,13 +567,15 @@ class DataflowRunner(PipelineRunner):
 
     self.job = apiclient.Job(options, self.proto_pipeline)
 
-    # Dataflow Runner v1 requires output type of the Flatten to be the same as
-    # the inputs, hence we enforce that here. Dataflow Runner v2 does not
-    # require this.
-    pipeline.visit(self.flatten_input_visitor())
+    # TODO: Consider skipping these for all use_portable_job_submission jobs.
+    if pipeline:
+      # Dataflow Runner v1 requires output type of the Flatten to be the same as
+      # the inputs, hence we enforce that here. Dataflow Runner v2 does not
+      # require this.
+      pipeline.visit(self.flatten_input_visitor())
 
-    # Trigger a traversal of all reachable nodes.
-    self.visit_transforms(pipeline, options)
+      # Trigger a traversal of all reachable nodes.
+      self.visit_transforms(pipeline, options)
 
     test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
@@ -1562,11 +1576,12 @@ class DataflowPipelineResult(PipelineResult):
   def has_job(self):
     return self._job is not None
 
-  def _get_job_state(self):
+  @staticmethod
+  def api_jobstate_to_pipeline_state(api_jobstate):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     # Ordered by the enum values. Values that may be introduced in
-    # future versions of Dataflow API are considered UNRECOGNIZED by the SDK.
+    # future versions of Dataflow API are considered UNRECOGNIZED by this SDK.
     api_jobstate_map = defaultdict(
         lambda: PipelineState.UNRECOGNIZED,
         {
@@ -1581,11 +1596,16 @@ class DataflowPipelineResult(PipelineResult):
             values_enum.JOB_STATE_DRAINED: PipelineState.DRAINED,
             values_enum.JOB_STATE_PENDING: PipelineState.PENDING,
             values_enum.JOB_STATE_CANCELLING: PipelineState.CANCELLING,
+            values_enum.JOB_STATE_RESOURCE_CLEANING_UP: PipelineState.
+            RESOURCE_CLEANING_UP,
         })
 
     return (
-        api_jobstate_map[self._job.currentState]
-        if self._job.currentState else PipelineState.UNKNOWN)
+        api_jobstate_map[api_jobstate]
+        if api_jobstate else PipelineState.UNKNOWN)
+
+  def _get_job_state(self):
+    return self.api_jobstate_to_pipeline_state(self._job.currentState)
 
   @property
   def state(self):
@@ -1630,6 +1650,8 @@ class DataflowPipelineResult(PipelineResult):
       assert duration or terminated, (
           'Job did not reach to a terminal state after waiting indefinitely.')
 
+      # TODO(BEAM-14291): Also run this check if wait_until_finish was called
+      # after the pipeline completed.
       if terminated and self.state != PipelineState.DONE:
         # TODO(BEAM-1290): Consider converting this to an error log based on
         # theresolution of the issue.
@@ -1637,6 +1659,7 @@ class DataflowPipelineResult(PipelineResult):
             'Dataflow pipeline failed. State: %s, Error:\n%s' %
             (self.state, getattr(self._runner, 'last_error_msg', None)),
             self)
+
     return self.state
 
   def cancel(self):

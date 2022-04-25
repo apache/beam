@@ -1100,6 +1100,18 @@ tree, [2]
 Thus, `GroupByKey` represents a transform from a multimap (multiple keys to
 individual values) to a uni-map (unique keys to collections of values).
 
+<span class="language-java">Using `GroupByKey` is straightforward:</span>
+
+{{< highlight java >}}
+// The input PCollection.
+ PCollection<KV<String, String>> mapped = ...;
+
+// Apply GroupByKey to the PCollection mapped.
+// Save the result as the PCollection reduced.
+PCollection<KV<String, Iterable<String>>> reduced =
+ mapped.apply(GroupByKey.<String, String>create());
+{{< /highlight >}}
+
 ##### 4.2.2.1 GroupByKey and unbounded PCollections {#groupbykey-and-unbounded-pcollections}
 
 If you are using unbounded `PCollection`s, you must use either [non-global
@@ -3971,7 +3983,7 @@ Standard Go types like `int`, `int64` `float64`, `[]byte`, and `string` and more
 Structs and pointers to structs default using Beam Schema Row encoding.
 However, users can build and register custom coders with `beam.RegisterCoder`.
 You can find available Coder functions in the
-[coder](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coders)
+[coder](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder)
 package.
 {{< /paragraph >}}
 
@@ -6535,7 +6547,7 @@ use case.
 {{< /highlight >}}
 
 {{< highlight go >}}
-This is not supported yet, see BEAM-10976.
+{{< code_sample "sdks/go/examples/snippets/04transforms.go" bundlefinalization_simplecallback >}}
 {{< /highlight >}}
 
 ## 13. Multi-language pipelines {#multi-language-pipelines}
