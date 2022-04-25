@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.extensions.python;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -116,6 +120,38 @@ public class ExternalPythonTransformTest implements Serializable {
 
     Row receivedRow = transform.buildOrGetArgsRow();
     assertEquals(expectedRow, receivedRow);
+  }
+
+  @Test
+  public void generatePayloadWithoutKwargs() throws Exception {
+    ExternalPythonTransform<?, ?> transform =
+        ExternalPythonTransform
+            .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
+                "DummyTransform")
+            .withArgs("aaa", "bbb", 11, 12L, 15.6, true);
+    ExternalTransforms.ExternalConfigurationPayload payload = transform.generatePayload();
+
+    Schema schema = SchemaTranslation.schemaFromProto(payload.getSchema());
+    assertTrue(schema.hasField("args"));
+    assertFalse(schema.hasField("kwargs"));
+  }
+
+  @Test
+  public void generatePayloadWithoutArgs() {
+    ExternalPythonTransform<?, ?> transform =
+        ExternalPythonTransform
+            .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
+                "DummyTransform")
+            .withKwarg("stringField1", "aaa")
+            .withKwarg("stringField2", "bbb")
+            .withKwarg("intField", 11)
+            .withKwarg("longField", 12L)
+            .withKwarg("doubleField", 15.6)
+            .withKwarg("boolField", true);
+    ExternalTransforms.ExternalConfigurationPayload payload = transform.generatePayload();
+    Schema schema = SchemaTranslation.schemaFromProto(payload.getSchema());
+    assertFalse(schema.hasField("args"));
+    assertTrue(schema.hasField("kwargs"));
   }
 
   static class CustomType {
