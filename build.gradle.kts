@@ -309,6 +309,18 @@ task("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
 }
 
+task("python36SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitSickbay")
+}
+
+task("python37SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
+}
+
+task("python38SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitSickbay")
+}
+
 task("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
