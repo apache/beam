@@ -12,11 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// This module contains all Go code used for Beam's SDKs. This file is placed
-// in this directory in order to cover the go code required for Java and Python
-// containers, as well as the entire Go SDK. Placing this file in the repository
-// root is not possible because it causes conflicts with a pre-existing vendor
-// directory.
+
 package parquetio
 
 import (

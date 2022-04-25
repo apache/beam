@@ -12,11 +12,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// This module contains all Go code used for Beam's SDKs. This file is placed
-// in this directory in order to cover the go code required for Java and Python
-// containers, as well as the entire Go SDK. Placing this file in the repository
-// root is not possible because it causes conflicts with a pre-existing vendor
-// directory.
+
+// Package parquetio contains transforms for reading and writing parquet files
 package parquetio
 
 import (
@@ -39,10 +36,17 @@ func init() {
 }
 
 // Read reads a set of files and returns lines as a PCollection<elem>
-// based on the internal avro schema of the file.
-// A type - reflect.TypeOf( YourType{} ) -  with
-// JSON tags can be defined or if you wish to return the raw JSON string,
-// use - reflect.TypeOf("") -
+// based on type of a parquetStruct (struct with parquet tags).
+// For example:
+// type Student struct {
+//   Name    string  `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+//   Age     int32   `parquet:"name=age, type=INT32, encoding=PLAIN"`
+//   Id      int64   `parquet:"name=id, type=INT64"`
+//   Weight  float32 `parquet:"name=weight, type=FLOAT"`
+//   Sex     bool    `parquet:"name=sex, type=BOOLEAN"`
+//   Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
+//   Ignored int32   //without parquet tag and won't write
+// }
 func Read(s beam.Scope, glob string, t reflect.Type) beam.PCollection {
 	s = s.Scope("parquetio.Read")
 	filesystem.ValidateScheme(glob)
@@ -117,6 +121,19 @@ func (a *parquetReadFn) ProcessElement(ctx context.Context, filename string, emi
 
 	return nil
 }
+
+// Write writes a PCollection<parquetStruct> to .parquet file.
+// Write expects a type t of struct with parquet tags
+// For example:
+// type Student struct {
+//   Name    string  `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+//   Age     int32   `parquet:"name=age, type=INT32, encoding=PLAIN"`
+//   Id      int64   `parquet:"name=id, type=INT64"`
+//   Weight  float32 `parquet:"name=weight, type=FLOAT"`
+//   Sex     bool    `parquet:"name=sex, type=BOOLEAN"`
+//   Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
+//   Ignored int32   //without parquet tag and won't write
+// }
 
 func Write(s beam.Scope, filename string, t reflect.Type, col beam.PCollection) {
 	s = s.Scope("parquetio.Write")
