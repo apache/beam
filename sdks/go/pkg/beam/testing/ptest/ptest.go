@@ -76,6 +76,7 @@ func getRunner() string {
 	return r
 }
 
+// DefaultRunner returns the default runner name for the test file.
 func DefaultRunner() string {
 	return defaultRunner
 }

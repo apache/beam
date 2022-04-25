@@ -136,7 +136,7 @@ intersphinx_mapping = {
   'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
-  'numpy': ('http://docs.scipy.org/doc/numpy', None),
+  'numpy': ('https://numpy.org/doc/stable', None),
   'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }
 
@@ -179,6 +179,7 @@ ignore_identifiers = [
   'apache_beam.pvalue.DoOutputsTuple',
   'apache_beam.pvalue.PValue',
   'apache_beam.runners.direct.executor.CallableTask',
+  'apache_beam.runners.portability.local_job_service.BeamJob',
   'apache_beam.testing.synthetic_pipeline._Random',
   'apache_beam.transforms.combiners.CombinerWithoutDefaults',
   'apache_beam.transforms.core.CallableWrapperCombineFn',

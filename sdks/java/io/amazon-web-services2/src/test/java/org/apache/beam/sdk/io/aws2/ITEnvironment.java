@@ -18,9 +18,8 @@
 package org.apache.beam.sdk.io.aws2;
 
 import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
+import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
-import java.net.URI;
-import java.util.function.Consumer;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.rules.ExternalResource;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -50,7 +50,7 @@ import software.amazon.awssdk.regions.Region;
  * <pre>{@code
  * ./gradlew :sdks:java:io:amazon-web-services2:integrationTest \
  *   --info \
- *   --tests "org.apache.beam.sdk.io.aws2.s3.S3FileSystemIT" \
+ *   --tests "org.apache.beam.sdk.io.aws2.s3.testing.S3FileSystemIT" \
  *   -DintegrationTestPipelineOptions='["--awsRegion=eu-central-1","--useLocalstack=false"]'
  * }</pre>
  *
@@ -79,43 +79,29 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
     void setLocalstackLogLevel(String level);
   }
 
-  private final Service service;
   private final OptionsT options;
   private final LocalStackContainer localstack;
 
-  public ITEnvironment(Service service, Class<OptionsT> optionsClass) {
-    this(service, optionsClass, o -> {});
-  }
-
-  public ITEnvironment(
-      Service service, Class<OptionsT> optionsClass, Consumer<OptionsT> optionsMutator) {
-    this(service, optionsClass, optionsMutator, new String[0]);
-  }
-
   public ITEnvironment(Service service, Class<OptionsT> optionsClass, String... env) {
-    this(service, optionsClass, o -> {}, env);
+    this(new Service[] {service}, optionsClass, env);
   }
 
-  public ITEnvironment(
-      Service service,
-      Class<OptionsT> optionsClass,
-      Consumer<OptionsT> optionsMutator,
-      String... env) {
-    this.service = service;
+  public ITEnvironment(Service[] services, Class<OptionsT> optionsClass, String... env) {
     localstack =
         new LocalStackContainer(DockerImageName.parse(LOCALSTACK).withTag(LOCALSTACK_VERSION))
-            .withServices(service)
+            .withServices(services)
             .withStartupAttempts(3);
 
     PipelineOptionsFactory.register(optionsClass);
     options = testingPipelineOptions().as(optionsClass);
-    optionsMutator.accept(options);
 
     localstack.setEnv(ImmutableList.copyOf(env));
+
     if (options.getLocalstackLogLevel() != null) {
       localstack
           .withEnv("LS_LOG", options.getLocalstackLogLevel())
-          .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger(service.name())));
+          .withLogConsumer(
+              new Slf4jLogConsumer(LoggerFactory.getLogger(StringUtils.join(services))));
     }
   }
 
@@ -126,11 +112,11 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
   public <BuilderT extends AwsClientBuilder<BuilderT, ClientT>, ClientT> ClientT buildClient(
       BuilderT builder) {
     if (options.getEndpoint() != null) {
-      builder.endpointOverride(URI.create(options.getEndpoint()));
+      builder.endpointOverride(options.getEndpoint());
     }
     return builder
         .credentialsProvider(options.getAwsCredentialsProvider())
-        .region(Region.of(options.getAwsRegion()))
+        .region(options.getAwsRegion())
         .build();
   }
 
@@ -153,8 +139,8 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
   /** Necessary setup for localstack environment. */
   private void startLocalstack() {
     localstack.start();
-    options.setEndpoint(localstack.getEndpointOverride(service).toString());
-    options.setAwsRegion(localstack.getRegion());
+    options.setEndpoint(localstack.getEndpointOverride(S3)); // service irrelevant
+    options.setAwsRegion(Region.of(localstack.getRegion()));
     options.setAwsCredentialsProvider(
         StaticCredentialsProvider.create(
             AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())));

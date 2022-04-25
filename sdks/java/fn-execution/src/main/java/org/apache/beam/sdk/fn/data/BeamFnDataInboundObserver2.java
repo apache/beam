@@ -62,6 +62,19 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
   private final Map<String, Map<String, EndpointStatus<TimerEndpoint<?>>>>
       transformIdToTimerFamilyIdToTimerEndpoint;
   private final CancellableQueue<BeamFnApi.Elements> queue;
+  // We use a custom exception for closing to avoid the expense of stack trace generation.
+  protected static class CloseException extends Exception {
+    private CloseException() {
+      super(
+          "Inbound observer closed.",
+          null,
+          /*enableSuppression=*/ false,
+          /*writableStackTrace=*/ false);
+    }
+
+    public static final CloseException INSTANCE = new CloseException();
+  }
+
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
@@ -94,7 +107,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
 
   @Override
   public void close() throws Exception {
-    queue.cancel(new IllegalStateException("Inbound observer closed."));
+    queue.cancel(CloseException.INSTANCE);
   }
 
   /**

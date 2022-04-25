@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.fn;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -112,9 +114,12 @@ public class CancellableQueue<T extends @NonNull Object> {
    * queue clears the exception.
    */
   public void cancel(Exception exception) {
+    checkNotNull(exception);
     lock.lock();
     try {
-      cancellationException = exception;
+      if (cancellationException == null) {
+        cancellationException = exception;
+      }
       notEmpty.signalAll();
       notFull.signalAll();
     } finally {

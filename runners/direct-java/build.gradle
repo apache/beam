@@ -72,13 +72,13 @@ dependencies {
     implementation project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_36_0
+  shadow library.java.vendored_grpc_1_43_2
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
-  compileOnly library.java.hamcrest
+  provided library.java.hamcrest
   permitUnusedDeclared library.java.hamcrest
-  compileOnly library.java.junit
+  provided library.java.junit
   permitUnusedDeclared library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":runners:core-java", configuration: "testRuntimeMigration")
@@ -93,7 +93,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_36_0
+  permitUnusedDeclared library.java.vendored_grpc_1_43_2
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
   examplesJavaIntegrationTest project(project.path)
@@ -209,13 +209,15 @@ task examplesIntegrationTest(type: Test) {
   ]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
-  // TODO (BEAM-12572) Fix integration Tests to run with DirectRunner
   include '**/*IT.class'
-  exclude '**/WindowedWordCountIT.class' // Timeouts
-  exclude '**/TopWikipediaSessionsIT.class' // OOM Exception
-  exclude '**/TfIdfIT.class' // Timeouts
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    filter{
+      // TODO (BEAM-14019) Fix integration Tests to run with DirectRunner: Timeout error
+      excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
+    }
+  }
 }

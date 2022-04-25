@@ -56,7 +56,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
@@ -481,6 +481,25 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 
+  private static class ScopedReadStateSupplier implements Supplier<Closeable> {
+    private final ExecutionState readState;
+    private final @Nullable ExecutionStateTracker stateTracker;
+
+    ScopedReadStateSupplier(
+        DataflowOperationContext operationContext, ExecutionStateTracker stateTracker) {
+      this.readState = operationContext.newExecutionState("windmill-read");
+      this.stateTracker = stateTracker;
+    }
+
+    @Override
+    public Closeable get() {
+      if (stateTracker == null) {
+        return null;
+      }
+      return stateTracker.enterState(readState);
+    }
+  }
+
   class StepContext extends DataflowExecutionContext.DataflowStepContext
       implements StreamingModeStepContext {
 
@@ -493,23 +512,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     public StepContext(DataflowOperationContext operationContext) {
       super(operationContext.nameContext());
-      this.stateFamily =
-          StreamingModeExecutionContext.this.getStateFamily(operationContext.nameContext());
+      this.stateFamily = getStateFamily(operationContext.nameContext());
 
       this.scopedReadStateSupplier =
-          new Supplier<Closeable>() {
-            private ExecutionState readState = operationContext.newExecutionState("windmill-read");
-
-            @Override
-            public Closeable get() {
-              ExecutionStateTracker tracker =
-                  StreamingModeExecutionContext.this.getExecutionStateTracker();
-              if (tracker == null) {
-                return null;
-              }
-              return tracker.enterState(readState);
-            }
-          };
+          new ScopedReadStateSupplier(operationContext, getExecutionStateTracker());
     }
 
     /** Update the {@code stateReader} used by this {@code StepContext}. */

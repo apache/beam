@@ -91,6 +91,9 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 				if strings.HasPrefix(eid, "go") {
 					continue
 				}
+				if strings.HasPrefix(e.External.ExpansionAddr, autoJavaNamespace) {
+					continue
+				}
 				deps := env.GetDependencies()
 				resolvedArtifacts, err := artifact.Materialize(ctx, e.External.ExpansionAddr, deps, "", tmpPath)
 				if err != nil {
@@ -126,4 +129,37 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 		}
 	}
 	return paths, nil
+}
+
+// UpdateArtifactTypeFromFileToURL changes the type of the artifact from FILE to URL
+// when the file path contains the suffix element ("://") of the URI scheme.
+func UpdateArtifactTypeFromFileToURL(edges []*graph.MultiEdge) {
+	for _, e := range edges {
+		if e.Op == graph.External && e.External != nil {
+			components, err := graphx.ExpandedComponents(e.External.Expanded)
+			if err != nil {
+				panic(errors.WithContextf(err,
+					"updating URL artifacts type for edge %v", e.Name()))
+			}
+			envs := components.Environments
+			for _, env := range envs {
+				deps := env.GetDependencies()
+				var resolvedDeps []*pipepb.ArtifactInformation
+				for _, a := range deps {
+					path, sha256 := artifact.MustExtractFilePayload(a)
+					if strings.Contains(path, "://") {
+						a.TypeUrn = "beam:artifact:type:url:v1"
+						a.TypePayload = protox.MustEncode(
+							&pipepb.ArtifactUrlPayload{
+								Url:    path,
+								Sha256: sha256,
+							},
+						)
+					}
+					resolvedDeps = append(resolvedDeps, a)
+				}
+				env.Dependencies = resolvedDeps
+			}
+		}
+	}
 }

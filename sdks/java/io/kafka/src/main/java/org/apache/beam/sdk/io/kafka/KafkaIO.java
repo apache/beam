@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -55,6 +56,8 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation;
+import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementationCompatibilityResult;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -468,6 +471,19 @@ import org.slf4j.LoggerFactory;
  *   );
  * }</pre>
  *
+ * <p>To produce Avro values you can use class {@link
+ * io.confluent.kafka.serializers.KafkaAvroSerializer}. To make this class work with {@link
+ * KafkaIO#write()} and method withValueSerializer() make sure to erase the generic types by casting
+ * to (Class) as shown in the following example:
+ *
+ * <pre>{@code
+ * KafkaIO.<Long, String>write()
+ *   ...
+ *   .withValueSerializer((Class)KafkaAvroSerializer.class)
+ *   .withProducerConfigUpdates( <Map with schema registry configuration details> )
+ *   ...
+ * }</pre>
+ *
  * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
@@ -763,11 +779,11 @@ public class KafkaIO {
               continue;
             }
             if (returnType.equals(byte[].class)) {
-              return ByteArrayCoder.of();
+              return NullableCoder.of(ByteArrayCoder.of());
             } else if (returnType.equals(Integer.class)) {
-              return VarIntCoder.of();
+              return NullableCoder.of(VarIntCoder.of());
             } else if (returnType.equals(Long.class)) {
-              return VarLongCoder.of();
+              return NullableCoder.of(VarLongCoder.of());
             } else {
               throw new RuntimeException("Couldn't infer Coder from " + deserializer);
             }
@@ -1290,23 +1306,23 @@ public class KafkaIO {
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
 
+      final KafkaIOReadImplementationCompatibilityResult compatibility =
+          KafkaIOReadImplementationCompatibility.getCompatibility(this);
+
       // For read from unbounded in a bounded manner, we actually are not going through Read or SDF.
       if (ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
           || ExperimentalOptions.hasExperiment(
               input.getPipeline().getOptions(), "use_deprecated_read")
-          || getMaxNumRecords() < Long.MAX_VALUE
-          || getMaxReadTime() != null
-          || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
-        checkArgument(
-            getStopReadTime() == null,
-            "stopReadTime is set but it is only supported via SDF implementation.");
+          || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
+          || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
+              && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
     }
 
-    private boolean runnerRequiresLegacyRead(PipelineOptions options) {
+    private boolean runnerPrefersLegacyRead(PipelineOptions options) {
       // Only Dataflow runner requires sdf read at this moment. For other non-portable runners, if
       // it doesn't specify use_sdf_read, it will use legacy read regarding to performance concern.
       // TODO(BEAM-10670): Remove this special check when we address performance issue.
@@ -1354,16 +1370,28 @@ public class KafkaIO {
       }
     }
 
-    private static class ReadFromKafkaViaUnbounded<K, V>
+    private abstract static class AbstractReadFromKafka<K, V>
         extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
       Read<K, V> kafkaRead;
       Coder<K> keyCoder;
       Coder<V> valueCoder;
 
-      ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
+      AbstractReadFromKafka(
+          Read<K, V> kafkaRead,
+          Coder<K> keyCoder,
+          Coder<V> valueCoder,
+          KafkaIOReadImplementation implementation) {
+        KafkaIOReadImplementationCompatibility.getCompatibility(kafkaRead)
+            .checkSupport(implementation);
         this.kafkaRead = kafkaRead;
         this.keyCoder = keyCoder;
         this.valueCoder = valueCoder;
+      }
+    }
+
+    static class ReadFromKafkaViaUnbounded<K, V> extends AbstractReadFromKafka<K, V> {
+      ReadFromKafkaViaUnbounded(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
+        super(kafkaRead, keyCoder, valueCoder, KafkaIOReadImplementation.LEGACY);
       }
 
       @Override
@@ -1391,16 +1419,9 @@ public class KafkaIO {
       }
     }
 
-    static class ReadFromKafkaViaSDF<K, V>
-        extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
-      Read<K, V> kafkaRead;
-      Coder<K> keyCoder;
-      Coder<V> valueCoder;
-
+    static class ReadFromKafkaViaSDF<K, V> extends AbstractReadFromKafka<K, V> {
       ReadFromKafkaViaSDF(Read<K, V> kafkaRead, Coder<K> keyCoder, Coder<V> valueCoder) {
-        this.kafkaRead = kafkaRead;
-        this.keyCoder = keyCoder;
-        this.valueCoder = valueCoder;
+        super(kafkaRead, keyCoder, valueCoder, KafkaIOReadImplementation.SDF);
       }
 
       @Override
@@ -1701,15 +1722,17 @@ public class KafkaIO {
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         Coder keyCoder = Read.Builder.resolveCoder(keyDeserializer);
-        if (!(keyCoder instanceof ByteArrayCoder)) {
+        if (!(keyCoder instanceof NullableCoder
+            && keyCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports keys of type byte[]");
+              "ExternalWithMetadata transform only supports keys of type nullable(byte[])");
         }
         Class valueDeserializer = resolveClass(config.valueDeserializer);
         Coder valueCoder = Read.Builder.resolveCoder(valueDeserializer);
-        if (!(valueCoder instanceof ByteArrayCoder)) {
+        if (!(valueCoder instanceof NullableCoder
+            && valueCoder.getCoderArguments().get(0) instanceof ByteArrayCoder)) {
           throw new RuntimeException(
-              "ExternalWithMetadata transform only supports values of type byte[]");
+              "ExternalWithMetadata transform only supports values of type nullable(byte[])");
         }
 
         return readBuilder.build().externalWithMetadata();

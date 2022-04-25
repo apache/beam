@@ -26,13 +26,13 @@ import tempfile
 import typing
 import unittest
 
+import mock
+
 import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.portability.api.external_transforms_pb2 import BuilderMethod
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
-from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupPayload
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
@@ -47,6 +47,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
+from apache_beam.utils.subprocess_server import JavaJarServer
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -58,7 +59,7 @@ except ImportError:
 
 
 def get_payload(cls):
-  payload = ExternalConfigurationPayload()
+  payload = external_transforms_pb2.ExternalConfigurationPayload()
   payload.ParseFromString(cls._payload)
   return payload
 
@@ -252,6 +253,36 @@ class ExternalTransformTest(unittest.TestCase):
               'payload', b's', expansion_service.ExpansionServiceServicer()))
       assert_that(res, equal_to(['as', 'bbs']))
 
+  def test_output_coder(self):
+    external_transform = beam.ExternalTransform(
+        'map_to_union_types',
+        None,
+        expansion_service.ExpansionServiceServicer()).with_output_types(int)
+    with beam.Pipeline() as p:
+      res = (p | beam.Create([2, 2], reshuffle=False) | external_transform)
+      assert_that(res, equal_to([2, 2]))
+    context = pipeline_context.PipelineContext(
+        external_transform._expanded_components)
+    self.assertEqual(len(external_transform._expanded_transform.outputs), 1)
+    for _, pcol_id in external_transform._expanded_transform.outputs.items():
+      pcol = context.pcollections.get_by_id(pcol_id)
+      self.assertEqual(pcol.element_type, int)
+
+  def test_no_output_coder(self):
+    external_transform = beam.ExternalTransform(
+        'map_to_union_types',
+        None,
+        expansion_service.ExpansionServiceServicer())
+    with beam.Pipeline() as p:
+      res = (p | beam.Create([2, 2], reshuffle=False) | external_transform)
+      assert_that(res, equal_to([2, 2]))
+    context = pipeline_context.PipelineContext(
+        external_transform._expanded_components)
+    self.assertEqual(len(external_transform._expanded_transform.outputs), 1)
+    for _, pcol_id in external_transform._expanded_transform.outputs.items():
+      pcol = context.pcollections.get_by_id(pcol_id)
+      self.assertEqual(pcol.element_type, typehints.Any)
+
   def test_nested(self):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
@@ -429,8 +460,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     payload_builder.with_constructor('abc', 123, str_field='def', int_field=456)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
-    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
+    self.assertTrue(
+        isinstance(
+            payload_from_bytes, external_transforms_pb2.JavaClassLookupPayload))
     self.assertFalse(payload_from_bytes.constructor_method)
     self._verify_row(
         payload_from_bytes.constructor_schema,
@@ -447,8 +480,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         'dummy_constructor_method', 'abc', 123, str_field='def', int_field=456)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
-    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
+    self.assertTrue(
+        isinstance(
+            payload_from_bytes, external_transforms_pb2.JavaClassLookupPayload))
     self.assertEqual(
         'dummy_constructor_method', payload_from_bytes.constructor_method)
     self._verify_row(
@@ -469,8 +504,10 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         'builder_method2', 'abc3', 3456, str_field2='abc4', int_field2=4567)
     payload_bytes = payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
-    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
+    self.assertTrue(
+        isinstance(
+            payload_from_bytes, external_transforms_pb2.JavaClassLookupPayload))
     self._verify_row(
         payload_from_bytes.constructor_schema,
         payload_from_bytes.constructor_payload, {
@@ -481,7 +518,8 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         })
     self.assertEqual(2, len(payload_from_bytes.builder_methods))
     builder_method = payload_from_bytes.builder_methods[0]
-    self.assertTrue(isinstance(builder_method, BuilderMethod))
+    self.assertTrue(
+        isinstance(builder_method, external_transforms_pb2.BuilderMethod))
     self.assertEqual('builder_method1', builder_method.name)
 
     self._verify_row(
@@ -495,7 +533,8 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
         })
 
     builder_method = payload_from_bytes.builder_methods[1]
-    self.assertTrue(isinstance(builder_method, BuilderMethod))
+    self.assertTrue(
+        isinstance(builder_method, external_transforms_pb2.BuilderMethod))
     self.assertEqual('builder_method2', builder_method.name)
     self._verify_row(
         builder_method.schema,
@@ -519,7 +558,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
     payload_bytes = constructor_transform._payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
     self.assertEqual('org.pkg.MyTransform', payload_from_bytes.class_name)
     self._verify_row(
         payload_from_bytes.constructor_schema,
@@ -535,7 +574,7 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
     payload_bytes = constructor_transform._payload_builder.payload()
     payload_from_bytes = proto_utils.parse_Bytes(
-        payload_bytes, JavaClassLookupPayload)
+        payload_bytes, external_transforms_pb2.JavaClassLookupPayload)
     self.assertEqual('of', payload_from_bytes.constructor_method)
     self._verify_row(
         payload_from_bytes.constructor_schema,
@@ -552,6 +591,72 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
 class JavaJarExpansionServiceTest(unittest.TestCase):
   def test_classpath(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+        # Touch some files for globing.
+        with open('a1.jar', 'w') as _:
+          pass
+
+        service = JavaJarExpansionService(
+            'main.jar', classpath=['a*.jar', 'b.jar'])
+        self.assertEqual(
+            service._default_args(),
+            ['{{PORT}}', '--filesToStage=main.jar,a1.jar,b.jar'])
+
+      finally:
+        os.chdir(oldwd)
+
+  @mock.patch.object(JavaJarServer, 'local_jar')
+  def test_classpath_with_url(self, local_jar):
+    def _side_effect_fn(path):
+      return path[path.rindex('/') + 1:]
+
+    local_jar.side_effect = _side_effect_fn
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+
+        service = JavaJarExpansionService(
+            'main.jar', classpath=['https://dummy_path/dummyjar.jar'])
+
+        self.assertEqual(
+            service._default_args(),
+            ['{{PORT}}', '--filesToStage=main.jar,dummyjar.jar'])
+      finally:
+        os.chdir(oldwd)
+
+  @mock.patch.object(JavaJarServer, 'local_jar')
+  def test_classpath_with_gradle_artifact(self, local_jar):
+    def _side_effect_fn(path):
+      return path[path.rindex('/') + 1:]
+
+    local_jar.side_effect = _side_effect_fn
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+
+        service = JavaJarExpansionService(
+            'main.jar', classpath=['dummy_group:dummy_artifact:dummy_version'])
+
+        self.assertEqual(
+            service._default_args(),
+            [
+                '{{PORT}}',
+                '--filesToStage=main.jar,dummy_artifact-dummy_version.jar'
+            ])
+      finally:
+        os.chdir(oldwd)
+
+  def test_classpath_with_glob(self):
     with tempfile.TemporaryDirectory() as temp_dir:
       try:
         # Avoid having to prefix everything in our test strings.

@@ -27,13 +27,19 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 class ExampleState with ChangeNotifier {
   final ExampleRepository _exampleRepository;
   Map<SDK, List<CategoryModel>>? sdkCategories;
-  Map<SDK, ExampleModel>? defaultExamplesMap;
+  Map<SDK, ExampleModel> defaultExamplesMap = {};
+  ExampleModel? defaultExample;
   bool isSelectorOpened = false;
 
   ExampleState(this._exampleRepository);
 
   init() {
     _loadCategories();
+  }
+
+  setSdkCategories(Map<SDK, List<CategoryModel>> map) {
+    sdkCategories = map;
+    notifyListeners();
   }
 
   List<CategoryModel>? getCategories(SDK sdk) {
@@ -52,8 +58,20 @@ class ExampleState with ChangeNotifier {
     );
   }
 
+  Future<ExampleModel> getExample(String path, SDK sdk) async {
+    return await _exampleRepository.getExample(
+      GetExampleRequestWrapper(path, sdk),
+    );
+  }
+
   Future<String> getExampleLogs(String id, SDK sdk) async {
     return await _exampleRepository.getExampleLogs(
+      GetExampleRequestWrapper(id, sdk),
+    );
+  }
+
+  Future<String> getExampleGraph(String id, SDK sdk) async {
+    return await _exampleRepository.getExampleGraph(
       GetExampleRequestWrapper(id, sdk),
     );
   }
@@ -65,20 +83,22 @@ class ExampleState with ChangeNotifier {
     final exampleData = await Future.wait([
       getExampleSource(example.path, sdk),
       getExampleOutput(example.path, sdk),
-      getExampleLogs(example.path, sdk)
+      getExampleLogs(example.path, sdk),
+      getExampleGraph(example.path, sdk)
     ]);
     example.setSource(exampleData[0]);
     example.setOutputs(exampleData[1]);
     example.setLogs(exampleData[2]);
+    example.setGraph(exampleData[3]);
     return example;
   }
 
-  _loadCategories() async {
-    sdkCategories = await _exampleRepository.getListOfExamples(
-      GetListOfExamplesRequestWrapper(sdk: null, category: null),
-    );
-    await _loadDefaultExamples(sdkCategories);
-    notifyListeners();
+  _loadCategories() {
+    _exampleRepository
+        .getListOfExamples(
+          GetListOfExamplesRequestWrapper(sdk: null, category: null),
+        )
+        .then((map) => setSdkCategories(map));
   }
 
   changeSelectorVisibility() {
@@ -86,18 +106,30 @@ class ExampleState with ChangeNotifier {
     notifyListeners();
   }
 
-  _loadDefaultExamples(sdkCategories) async {
-    defaultExamplesMap = {};
-    List<MapEntry<SDK, ExampleModel>> entries = [];
-    for (SDK sdk in SDK.values) {
-      ExampleModel? defaultExample = sdkCategories![sdk]?.first.examples.first;
-      if (defaultExample != null) {
-        // load source and output async
-        loadExampleInfo(defaultExample, sdk);
-        entries.add(MapEntry(sdk, defaultExample));
-      }
+  loadDefaultExamples() async {
+    if (defaultExamplesMap.isNotEmpty) {
+      return;
     }
-    defaultExamplesMap?.addEntries(entries);
+
+    List<MapEntry<SDK, ExampleModel>> defaultExamples = [];
+
+    for (var value in SDK.values) {
+      defaultExamples.add(
+        MapEntry(
+          value,
+          await _exampleRepository.getDefaultExample(
+            // First parameter is an empty string, because we don't need path to get the default example.
+            GetExampleRequestWrapper('', value),
+          ),
+        ),
+      );
+    }
+
+    defaultExamplesMap.addEntries(defaultExamples);
+    for (var entry in defaultExamplesMap.entries) {
+      loadExampleInfo(entry.value, entry.key)
+          .then((value) => defaultExamplesMap[entry.key] = value);
+    }
     notifyListeners();
   }
 }

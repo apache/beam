@@ -1,9 +1,8 @@
 ---
 title:  "Scio"
-categories:
-  - Open Source
 icon: /images/logos/powered-by/scio.png
 hasNav: true
+cardDescription: "Scio is a Scala API for Apache Beam and Google Cloud Dataflow inspired by Apache Spark and Scalding."
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

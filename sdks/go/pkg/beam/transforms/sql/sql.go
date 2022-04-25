@@ -94,6 +94,9 @@ func ExpansionAddr(addr string) Option {
 //      sql.Input("t", in),
 //      sql.OutputType(reflect.TypeOf(int64(0))))
 //  // `out` is a PCollection<int64> with a single element 3.
+//
+// If an expansion service address is not provided as an option, one will be
+// automatically started for the transform.
 func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	o := &options{
 		inputs: make(map[string]beam.PCollection),
@@ -108,7 +111,6 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	payload := beam.CrossLanguagePayload(&sqlx.ExpansionPayload{
 		Query:   query,
 		Dialect: o.dialect,
-		Options: o.customs,
 	})
 
 	expansionAddr := sqlx.DefaultExpansionAddr

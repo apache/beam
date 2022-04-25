@@ -18,7 +18,7 @@
 #   name: GroupByKey
 #   description: Task from katas that groups words by its first letter.
 #   multifile: false
-#   pipeline_options:
+#   context_line: 29
 #   categories:
 #     - Combiners
 

@@ -47,8 +47,8 @@ import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareH
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
-  private static Stream<String> readPrettyBundles(String version) {
-    Path resourceDir = Paths.get("build", "resources", "test", version);
+  private static Stream<String> readPrettyBundles(String resourcesPath) {
+    Path resourceDir = Paths.get("build", "resources", "test", resourcesPath);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();
@@ -73,6 +73,8 @@ class FhirIOTestUtil {
       readPrettyBundles("STU3").collect(Collectors.toList());
   static final List<String> R4_PRETTY_BUNDLES =
       readPrettyBundles("R4").collect(Collectors.toList());
+  static final List<String> BUNDLE_PARSE_TEST_PRETTY_BUNDLES =
+      readPrettyBundles("BUNDLE_PARSE_TEST").collect(Collectors.toList());
 
   static final Map<String, List<String>> BUNDLES;
 
@@ -81,6 +83,7 @@ class FhirIOTestUtil {
     m.put("DSTU2", DSTU2_PRETTY_BUNDLES);
     m.put("STU3", STU3_PRETTY_BUNDLES);
     m.put("R4", R4_PRETTY_BUNDLES);
+    m.put("BUNDLE_PARSE_TEST", BUNDLE_PARSE_TEST_PRETTY_BUNDLES);
     BUNDLES = Collections.unmodifiableMap(m);
   }
 

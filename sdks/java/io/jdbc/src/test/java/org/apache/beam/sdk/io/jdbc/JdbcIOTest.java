@@ -21,6 +21,7 @@ import static java.sql.JDBCType.NULL;
 import static java.sql.JDBCType.NUMERIC;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
@@ -68,6 +69,7 @@ import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.LogicalTypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -78,12 +80,15 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.hamcrest.Description;
@@ -434,7 +439,6 @@ public class JdbcIOTest implements Serializable {
             JdbcIO.<TestRow>readWithPartitions()
                 .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class))
                 .withTable(READ_TABLE_NAME)
                 .withNumPartitions(1)
                 .withPartitionColumn("id")
@@ -451,7 +455,6 @@ public class JdbcIOTest implements Serializable {
             JdbcIO.<TestRow>readWithPartitions()
                 .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class))
                 .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
                 .withNumPartitions(10)
                 .withPartitionColumn("id")
@@ -469,30 +472,11 @@ public class JdbcIOTest implements Serializable {
         JdbcIO.<TestRow>readWithPartitions()
             .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-            .withCoder(SerializableCoder.of(TestRow.class))
             .withTable(READ_TABLE_NAME)
             .withNumPartitions(0)
             .withPartitionColumn("id")
             .withLowerBound(0L)
             .withUpperBound(1000L));
-    pipeline.run();
-  }
-
-  @Test
-  public void testNumPartitionsMoreThanTotalRows() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "The specified number of partitions is more than the difference between upper bound and lower bound");
-    pipeline.apply(
-        JdbcIO.<TestRow>readWithPartitions()
-            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
-            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-            .withCoder(SerializableCoder.of(TestRow.class))
-            .withTable(READ_TABLE_NAME)
-            .withNumPartitions(200)
-            .withPartitionColumn("id")
-            .withLowerBound(0L)
-            .withUpperBound(100L));
     pipeline.run();
   }
 
@@ -505,7 +489,6 @@ public class JdbcIOTest implements Serializable {
         JdbcIO.<TestRow>readWithPartitions()
             .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-            .withCoder(SerializableCoder.of(TestRow.class))
             .withTable(READ_TABLE_NAME)
             .withNumPartitions(5)
             .withPartitionColumn("id")
@@ -783,7 +766,7 @@ public class JdbcIOTest implements Serializable {
                         preparedStatement.setString(1, TestRow.getNameForSeed(1))));
 
     String writeTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_WITH_READ_ROWS");
-    DatabaseTestHelper.createTableForRowWithSchema(DATA_SOURCE, writeTableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, writeTableName);
     try {
       rows.apply(
           JdbcIO.<Row>write()
@@ -835,7 +818,7 @@ public class JdbcIOTest implements Serializable {
     final int rowsToAdd = 10;
 
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_NON_ROW");
-    DatabaseTestHelper.createTableForRowWithSchema(DATA_SOURCE, tableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
     try {
       List<RowWithSchema> data = getRowsWithSchemaToWrite(rowsToAdd);
 
@@ -1286,5 +1269,40 @@ public class JdbcIOTest implements Serializable {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, firstTableName);
       DatabaseTestHelper.deleteTable(DATA_SOURCE, secondTableName);
     }
+  }
+
+  @Test
+  public void testPartitioningDateTime() {
+    PCollection<KV<DateTime, DateTime>> ranges =
+        pipeline
+            .apply(Create.of(KV.of(10L, KV.of(new DateTime(0), DateTime.now()))))
+            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptor.of(DateTime.class))));
+
+    PAssert.that(ranges.apply(Count.globally()))
+        .satisfies(
+            new SerializableFunction<Iterable<Long>, Void>() {
+              @Override
+              public Void apply(Iterable<Long> input) {
+                // We must have exactly least one element
+                Long count = input.iterator().next();
+                // The implementation for range partitioning relies on millis from epoch.
+                // We allow off-by-one differences because we can have slight differences
+                // in integers when computing strides, and advancing through timestamps.
+                assertThat(Double.valueOf(count), closeTo(10, 1));
+                return null;
+              }
+            });
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPartitioningLongs() {
+    PCollection<KV<Long, Long>> ranges =
+        pipeline
+            .apply(Create.of(KV.of(10L, KV.of(0L, 12346789L))))
+            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.longs())));
+
+    PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
+    pipeline.run().waitUntilFinish();
   }
 }

@@ -19,6 +19,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
@@ -201,6 +202,59 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfCreateTrackerReturn{}},
 			{dfn: &BadSdfMismatchedRTracker{}},
 			{dfn: &BadSdfMissingRTracker{}},
+		}
+		for _, test := range tests {
+			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				if cfn, err := NewDoFn(test.dfn); err != nil {
+					t.Logf("NewDoFn with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
+				}
+				// If validation fails with unknown main inputs, then it should
+				// always fail for any known number of main inputs, so test them
+				// all. Error messages won't necessarily match.
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+					t.Logf("NewDoFn(NumMainInputs(MainSingle)) with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+				}
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+					t.Logf("NewDoFn(NumMainInputs(MainKv)) with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
+				}
+			})
+		}
+	})
+}
+
+func TestNewDoFnWatermarkEstimating(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		tests := []struct {
+			dfn  interface{}
+			main mainInputs
+		}{
+			{dfn: &GoodWatermarkEstimating{}, main: MainSingle},
+		}
+
+		for _, test := range tests {
+			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				// Valid DoFns should pass validation with and without KV info.
+				if _, err := NewDoFn(test.dfn); err != nil {
+					t.Fatalf("NewDoFn with Watermark Estimation failed: %v", err)
+				}
+				if _, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
+					t.Fatalf("NewDoFn(NumMainInputs(%v)) with Watermark Estimation failed: %v", test.main, err)
+				}
+			})
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		tests := []struct {
+			dfn interface{}
+		}{
+			{dfn: &BadWatermarkEstimatingNonSdf{}},
+			{dfn: &BadWatermarkEstimatingCreateWatermarkEstimatorReturnType{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -687,6 +741,40 @@ func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) int {
 	return 0
 }
 
+type WatermarkEstimatorT struct{}
+
+func (e WatermarkEstimatorT) CurrentWatermark() time.Time {
+	return time.Now()
+}
+
+type GoodWatermarkEstimating struct {
+	*GoodDoFn
+}
+
+func (fn *GoodWatermarkEstimating) CreateInitialRestriction(int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodWatermarkEstimating) SplitRestriction(int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodWatermarkEstimating) RestrictionSize(int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodWatermarkEstimating) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodWatermarkEstimating) ProcessElement(*RTrackerT, int) int {
+	return 0
+}
+
+func (fn *GoodWatermarkEstimating) CreateWatermarkEstimator() WatermarkEstimatorT {
+	return WatermarkEstimatorT{}
+}
+
 // Examples of incorrect SDF signatures.
 // Examples with missing methods.
 
@@ -828,6 +916,14 @@ func (fn *BadSdfRestTCreateTracker) CreateTracker(BadRestT) *RTrackerT {
 	return &RTrackerT{}
 }
 
+type BadWatermarkEstimatingNonSdf struct {
+	*GoodDoFn
+}
+
+func (fn *BadWatermarkEstimatingNonSdf) CreateWatermarkEstimator() WatermarkEstimatorT {
+	return WatermarkEstimatorT{}
+}
+
 // Examples of other type validation that needs to be done.
 
 type BadSdfRestSizeReturn struct {
@@ -866,6 +962,14 @@ type BadSdfMismatchedRTracker struct {
 
 func (fn *BadSdfMismatchedRTracker) ProcessElement(*OtherRTrackerT, int) int {
 	return 0
+}
+
+type BadWatermarkEstimatingCreateWatermarkEstimatorReturnType struct {
+	*GoodWatermarkEstimating
+}
+
+func (fn *BadWatermarkEstimatingCreateWatermarkEstimatorReturnType) CreateWatermarkEstimator() int {
+	return 5
 }
 
 // Examples of correct CombineFn signatures

@@ -60,8 +60,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <h3>Reading from Kudu</h3>
  *
  * <p>{@code KuduIO} provides a source to read and returns a bounded collection of entities as
- * {@code PCollection&lt;T&gt;}. An entity is built by parsing a Kudu {@link RowResult} using the
- * provided {@link SerializableFunction}.
+ * {@code PCollection<T>}. An entity is built by parsing a Kudu {@link RowResult} using the provided
+ * {@link SerializableFunction}.
  *
  * <p>The following example illustrates various options for configuring the IO:
  *

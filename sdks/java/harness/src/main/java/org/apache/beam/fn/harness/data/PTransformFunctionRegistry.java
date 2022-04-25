@@ -32,7 +32,7 @@ import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -102,10 +102,10 @@ public class PTransformFunctionRegistry {
     SimpleExecutionState state =
         new SimpleExecutionState(this.executionStateName, executionTimeUrn, labelsMetadata);
     executionStates.register(state);
+    MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
 
     ThrowingRunnable wrapped =
         () -> {
-          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
           try (Closeable metricCloseable = MetricsEnvironment.scopedMetricsContainer(container)) {
             try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
               runnable.run();

@@ -143,9 +143,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString.Output;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString.Output;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -2693,14 +2693,14 @@ public class StreamingDataflowWorkerTest {
 
     MockWork m1 = new MockWork(1);
     assertTrue(computationState.activateWork(key1, m1));
-    Mockito.verify(mockExecutor).execute(m1);
+    Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
     computationState.completeWork(key1, 1);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
     MockWork m2 = new MockWork(2);
     assertTrue(computationState.activateWork(key1, m2));
-    Mockito.verify(mockExecutor).execute(m2);
+    Mockito.verify(mockExecutor).execute(m2, m2.getWorkItem().getSerializedSize());
     MockWork m3 = new MockWork(3);
     assertTrue(computationState.activateWork(key1, m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2708,19 +2708,19 @@ public class StreamingDataflowWorkerTest {
     // Verify another key is a separate queue.
     MockWork m4 = new MockWork(4);
     assertTrue(computationState.activateWork(key2, m4));
-    Mockito.verify(mockExecutor).execute(m4);
+    Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());
     computationState.completeWork(key2, 4);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     computationState.completeWork(key1, 2);
-    Mockito.verify(mockExecutor).forceExecute(m3);
+    Mockito.verify(mockExecutor).forceExecute(m3, m3.getWorkItem().getSerializedSize());
     computationState.completeWork(key1, 3);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify duplicate work dropped.
     MockWork m5 = new MockWork(5);
     computationState.activateWork(key1, m5);
-    Mockito.verify(mockExecutor).execute(m5);
+    Mockito.verify(mockExecutor).execute(m5, m5.getWorkItem().getSerializedSize());
     assertFalse(computationState.activateWork(key1, m5));
     Mockito.verifyNoMoreInteractions(mockExecutor);
     computationState.completeWork(key1, 5);
@@ -2743,14 +2743,14 @@ public class StreamingDataflowWorkerTest {
 
     MockWork m1 = new MockWork(1);
     assertTrue(computationState.activateWork(key1Shard1, m1));
-    Mockito.verify(mockExecutor).execute(m1);
+    Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
     computationState.completeWork(key1Shard1, 1);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
     MockWork m2 = new MockWork(2);
     assertTrue(computationState.activateWork(key1Shard1, m2));
-    Mockito.verify(mockExecutor).execute(m2);
+    Mockito.verify(mockExecutor).execute(m2, m2.getWorkItem().getSerializedSize());
     MockWork m3 = new MockWork(3);
     assertTrue(computationState.activateWork(key1Shard1, m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2760,7 +2760,7 @@ public class StreamingDataflowWorkerTest {
     assertFalse(computationState.activateWork(key1Shard1, m4));
     Mockito.verifyNoMoreInteractions(mockExecutor);
     assertTrue(computationState.activateWork(key1Shard2, m4));
-    Mockito.verify(mockExecutor).execute(m4);
+    Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());
 
     // Verify duplicate work dropped
     assertFalse(computationState.activateWork(key1Shard2, m4));

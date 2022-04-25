@@ -41,7 +41,7 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.jackson_annotations
     implementation library.java.joda_time
-    implementation library.java.vendored_grpc_1_36_0
+    implementation library.java.vendored_grpc_1_43_2
     implementation library.java.slf4j_api
     implementation "org.mortbay.jetty:jetty-util:6.1.26"
     implementation "org.twister2:comms-api-java:$twister2_version"
@@ -68,7 +68,7 @@ dependencies {
     }
 }
 
-task validatesRunnerBatch(type: Test) {
+def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     group = "Verification"
     def pipelineOptions = JsonOutput.toJson([
             "--runner=Twister2TestRunner",
@@ -93,12 +93,15 @@ task validatesRunnerBatch(type: Test) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        // Feature unsupported by this runner
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
     }
 
     maxHeapSize = '6g'
 }
 
-task validatesRunner {
+tasks.register("validatesRunner") {
     group = "Verification"
     description "Validates Twister2 Runner"
     dependsOn validatesRunnerBatch

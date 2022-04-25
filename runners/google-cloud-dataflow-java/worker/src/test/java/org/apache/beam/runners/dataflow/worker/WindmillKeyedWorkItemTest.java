@@ -40,14 +40,13 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WindmillKeyedWorkItem}. */
@@ -73,8 +72,6 @@ public class WindmillKeyedWorkItemTest {
       new IntervalWindow(new Instant(10), new Instant(20));
   private static final StateNamespace STATE_NAMESPACE_2 =
       StateNamespaces.window(WINDOW_CODER, WINDOW_2);
-
-  @Mock private StreamingModeExecutionContext mockContext;
 
   @Before
   public void setUp() {

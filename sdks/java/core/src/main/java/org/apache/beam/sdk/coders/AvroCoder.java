@@ -774,7 +774,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     AvroCoder<?> that = (AvroCoder<?>) other;
     return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
         && Objects.equals(this.typeDescriptor, that.typeDescriptor)
-        && Objects.equals(this.useReflectApi, that.useReflectApi);
+        && this.useReflectApi == that.useReflectApi;
   }
 
   @Override

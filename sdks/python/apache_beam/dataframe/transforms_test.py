@@ -353,7 +353,7 @@ class TransformTest(unittest.TestCase):
 class FusionTest(unittest.TestCase):
   @staticmethod
   def fused_stages(p):
-    return p.result.metrics().query(
+    return p.result.monitoring_metrics().query(
         metrics.MetricsFilter().with_name(
             fn_runner.FnApiRunner.NUM_FUSED_STAGES_COUNTER)
     )['counters'][0].result

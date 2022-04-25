@@ -44,7 +44,7 @@ func TestDynamicSplit(t *testing.T) {
 		name string
 		// driver is a function determining how the processing and splitting
 		// threads are created and coordinated.
-		driver func(*Plan, DataContext, *splitTestSdf) (error, splitResult)
+		driver func(*Plan, DataContext, *splitTestSdf) (splitResult, error)
 	}{
 		{
 			// Complete a split before beginning processing.
@@ -81,7 +81,7 @@ func TestDynamicSplit(t *testing.T) {
 			dc := DataContext{Data: &TestDataManager{R: pr}}
 
 			// Call driver to coordinate processing & splitting threads.
-			procRes, splitRes := test.driver(plan, dc, sdf)
+			splitRes, procRes := test.driver(plan, dc, sdf)
 
 			// Validate we get a valid split result, aside from split elements.
 			if splitRes.err != nil {
@@ -141,7 +141,7 @@ func TestDynamicSplit(t *testing.T) {
 
 // nonBlockingDriver performs a split before starting processing, so no thread
 // is forced to wait on a mutex.
-func nonBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes error, splitRes splitResult) {
+func nonBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (splitRes splitResult, procRes error) {
 	// Begin processing pipeline.
 	procResCh := make(chan error)
 	go processPlan(plan, dc, procResCh)
@@ -161,12 +161,12 @@ func nonBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes e
 	<-rt.endClaim
 	procRes = <-procResCh
 
-	return procRes, splitRes
+	return splitRes, procRes
 }
 
 // splitBlockingDriver blocks on a split request so that the SDF attempts to
 // claim while the split is occurring.
-func splitBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes error, splitRes splitResult) {
+func splitBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (splitRes splitResult, procRes error) {
 	// Begin processing pipeline.
 	procResCh := make(chan error)
 	go processPlan(plan, dc, procResCh)
@@ -190,12 +190,12 @@ func splitBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes
 	<-rt.endClaim
 	procRes = <-procResCh
 
-	return procRes, splitRes
+	return splitRes, procRes
 }
 
 // claimBlockingDriver blocks on a claim request so that the SDF attempts to
 // split while the claim is occurring.
-func claimBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes error, splitRes splitResult) {
+func claimBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (splitRes splitResult, procRes error) {
 	// Begin processing pipeline.
 	procResCh := make(chan error)
 	go processPlan(plan, dc, procResCh)
@@ -219,7 +219,7 @@ func claimBlockingDriver(plan *Plan, dc DataContext, sdf *splitTestSdf) (procRes
 	<-rt.endClaim // Delay the claim end so we don't process too much before splitting.
 	procRes = <-procResCh
 
-	return procRes, splitRes
+	return splitRes, procRes
 }
 
 // createElm creates the element for our test pipeline.

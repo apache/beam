@@ -27,5 +27,8 @@ dependencies {
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
   testImplementation library.java.postgres
+  testImplementation library.java.testcontainers_mysql
+  testImplementation library.java.testcontainers_postgresql
+  testImplementation 'com.zaxxer:HikariCP-java6:2.3.13'
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
 }

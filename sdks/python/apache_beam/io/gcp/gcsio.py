@@ -642,6 +642,7 @@ class GcsDownloader(Downloader):
       service_call_metric.call('ok')
     except HttpError as e:
       service_call_metric.call(e)
+      raise
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)

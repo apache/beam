@@ -18,7 +18,7 @@
 #   name: Map
 #   description: Task from katas to implement a simple map function that multiplies all input elements by 5.
 #   multifile: false
-#   pipeline_options:
+#   context_line: 29
 #   categories:
 #     - Core Transforms
 

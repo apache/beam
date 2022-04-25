@@ -190,7 +190,14 @@ class FileBasedCacheManager(CacheManager):
 
   def size(self, *labels):
     if self.exists(*labels):
-      return sum(os.path.getsize(path) for path in self._match(*labels))
+      matched_path = self._match(*labels)
+      # if any matched path has a gs:// prefix, it must be cached on GCS
+      if 'gs://' in matched_path[0]:
+        from apache_beam.io.gcp import gcsio
+        return sum(
+            sum(gcsio.GcsIO().list_prefix(path).values())
+            for path in matched_path)
+      return sum(os.path.getsize(path) for path in matched_path)
     return 0
 
   def exists(self, *labels):
@@ -264,7 +271,12 @@ class FileBasedCacheManager(CacheManager):
         self._path(*labels), coder=self.load_pcoder(*labels))
 
   def cleanup(self):
-    if filesystems.FileSystems.exists(self._cache_dir):
+    if self._cache_dir.startswith('gs://'):
+      from apache_beam.io.gcp import gcsfilesystem
+      from apache_beam.options.pipeline_options import PipelineOptions
+      fs = gcsfilesystem.GCSFileSystem(PipelineOptions())
+      fs.delete([self._cache_dir + '/full/'])
+    elif filesystems.FileSystems.exists(self._cache_dir):
       filesystems.FileSystems.delete([self._cache_dir])
     self._saved_pcoders = {}
 

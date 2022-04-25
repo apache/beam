@@ -24,9 +24,11 @@
 #   description: An example that counts words in Shakespeare's works.
 #   multifile: false
 #   pipeline_options: --output output.txt
+#   context_line: 44
 #   categories:
 #     - Combiners
 #     - Options
+#     - Quickstart
 
 import argparse
 import logging

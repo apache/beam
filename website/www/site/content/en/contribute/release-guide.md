@@ -246,7 +246,7 @@ Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apac
 All Runners which publish data should be checked for the following, in both *batch* and *streaming* mode:
 
 - [ParDo](http://metrics.beam.apache.org/d/MOi-kf3Zk/pardo-load-tests) and [GBK](http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-test): Runtime, latency, checkpoint duration
-- [Nexmark](http://metrics.beam.apache.org/d/ahuaA_zGz/nexmark): Query runtime for all queries
+- [Nexmark](http://metrics.beam.apache.org/d/ahudA_zGz/nexmark): Query runtime for all queries
 - [IO](http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow): Runtime
 
 If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
@@ -344,11 +344,15 @@ There are 2 ways to perform this verification, either running automation script(
      ```
      cd beam/release/src/main/scripts && ./verify_release_build.sh
      ```
-  1. Trigger `beam_Release_Gradle_Build` and all PostCommit Jenkins jobs from PR (which is created by previous step).
+  1. Trigger `beam_Release_Gradle_Build` and all Jenkins PostCommit jobs from the PR created by the previous step.
      You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
      Or manually add one trigger phrase per PR comment.
      See `COMMENTS_TO_ADD` in [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
-     for full list of phrases.
+     for full list of phrases. Please note that this list of phrases can get
+     out of date, it's your responsibility to run _all_ PostCommits, not just
+     the ones listed there.
+     [BEAM-13951](https://issues.apache.org/jira/browse/BEAM-13951) has
+     directions for updating this list using the Jenkins API.
 
 * **Tasks included in the script**
   1. Installs ```hub``` with your agreement and setup local git repo;
@@ -580,7 +584,7 @@ See the source of the script for more details, or to run commands manually in ca
       1. Select repository `orgapachebeam-NNNN`.
       1. Click the Close button.
       1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
-      1. Review all staged artifacts on https://repository.apache.org/content/repositories/orgapachebeam-NNNN/.
+      1. Review all staged artifacts on `https://repository.apache.org/content/repositories/orgapachebeam-NNNN/`.
          They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
          Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
          Carefully review any new artifacts.
@@ -637,12 +641,14 @@ It is created by `build_release_candidate.sh` (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/15068)).
+This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/17378)).
 
 * Update `CHANGES.md` to update release date and remove template.
 * Update release version in `website/www/site/config.toml`.
 * Add new release in `website/www/site/content/en/get-started/downloads.md`.
   * Download links will not work until the release is finalized.
+* Update links to prior releases to point to https://archive.apache.org (see
+  example PR).
 * Update `website/www/site/static/.htaccess` to redirect to the new version.
 * Create the Blog post:
 
@@ -1177,7 +1183,6 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
-The release manager should also make sure to update these links on the website ([example](https://github.com/apache/beam/pull/11727)).
 
 #### Mark the version as released in JIRA
 

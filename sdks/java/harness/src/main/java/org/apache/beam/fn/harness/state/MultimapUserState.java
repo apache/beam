@@ -42,7 +42,7 @@ import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
@@ -317,7 +317,8 @@ public class MultimapUserState<K, V> {
     }
 
     if (isCleared) {
-      // This will clear all keys and values since values is a sub-cache of keys.
+      // This will clear all keys and values since values is a sub-cache of keys. Note this
+      // takes ownership of pendingAddKeys. This object is no longer used after it has been closed.
       persistedKeys.clearAndAppend(pendingAddsKeys);
 
       // Since the map was cleared we can add all the values that are pending since we know
@@ -325,6 +326,8 @@ public class MultimapUserState<K, V> {
       for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
         CachingStateIterable<V> iterable =
             getPersistedValues(entry.getKey(), entry.getValue().getKey());
+        // Note this takes ownership of the list but this object is no longer used after it has
+        // been closed.
         iterable.clearAndAppend(entry.getValue().getValue());
       }
     } else {

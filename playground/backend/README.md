@@ -67,7 +67,7 @@ The full list of commands can be found [here](https://pkg.go.dev/cmd/go).
 
 These environment variables should be set to run the backend locally:
 
-- `BEAM_SDK` - is the SDK which backend could process (`SDK_GO` / `SDK_JAVA` / `SDK_PYTHON` / `SDK_SCIO`)
+- `BEAM_SDK` - is the SDK which backend could process (`SDK_GO` / `SDK_JAVA` / `SDK_PYTHON` / `SDK_SCIO` / `SDK_UNSPECIFIED`)
 - `APP_WORK_DIR` - is the directory where all folders will be placed to process each code processing request
 - `PREPARED_MOD_DIR` - is the directory where prepared go.mod and go.sum files are placed. It is used only for Go SDK
 
@@ -105,3 +105,12 @@ One more way to run the server is to run it locally how it is described above.
 To call the server from another client – models and client code should be generated using the
 `playground/api/v1/api.proto` file. More information about generating models and client's code using `.proto`
 files for each language can be found [here](https://grpc.io/docs/languages/).
+
+## Running the Beam Code
+### RunCode representation
+The following diagram represents the execution of beam code at the server:
+![RunCode](RunCodeDiagram.png)
+
+### Validators/preparators representation
+To clarify which validators and preparators used with the code:
+![](ValidatorsPreparators.png)

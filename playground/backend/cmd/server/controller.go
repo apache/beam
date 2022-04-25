@@ -50,7 +50,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InvalidArgumentError("Error during preparing", "Incorrect sdk. Want to receive %s, but the request contains %s", controller.env.BeamSdkEnvs.ApacheBeamSdk.String(), info.Sdk.String())
 	}
 	switch info.Sdk {
-	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
+	case pb.Sdk_SDK_UNSPECIFIED:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
@@ -226,6 +226,21 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	return &pb.GetCompileOutputResponse{Output: compileOutput}, nil
 }
 
+//GetGraph is returning graph of execution for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetGraph(ctx context.Context, info *pb.GetGraphRequest) (*pb.GetGraphResponse, error) {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	errorMessage := "Error during getting graph output"
+	if err != nil {
+		logger.Errorf("%s: GetGraph(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError(errorMessage, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	graph, err := code_processing.GetGraph(ctx, controller.cacheService, pipelineId, errorMessage)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetGraphResponse{Graph: graph}, nil
+}
+
 // Cancel is setting cancel flag to stop code processing
 func (controller *playgroundController) Cancel(ctx context.Context, info *pb.CancelRequest) (*pb.CancelResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
@@ -240,29 +255,37 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 	return &pb.CancelResponse{}, nil
 }
 
-// GetPrecompiledObjects returns the list of examples
+// GetPrecompiledObjects returns the catalog with examples
+// Tries to get the whole catalog from the cache
+// - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
+// - If SDK or category is specified in the request, gets the catalog from the cache and filters it by SDK and category
 func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
-	bucket := cloud_bucket.New()
-	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, info.Sdk, info.Category)
+	catalog, err := utils.GetCatalogFromCacheOrStorage(ctx, controller.cacheService, controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
-		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
+		logger.Errorf("GetPrecompiledObjects(): error during getting catalog: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 	}
-	response := pb.GetPrecompiledObjectsResponse{SdkCategories: make([]*pb.Categories, 0)}
-	for sdkName, categories := range *sdkToCategories {
-		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
-		for categoryName, precompiledObjects := range categories {
-			utils.PutPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
-		}
-		response.SdkCategories = append(response.SdkCategories, &sdkCategory)
+	return &pb.GetPrecompiledObjectsResponse{
+		SdkCategories: utils.FilterCatalog(catalog, info.Sdk, info.Category),
+	}, nil
+}
+
+// GetPrecompiledObject returns precompiled object from the bucket
+func (controller *playgroundController) GetPrecompiledObject(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectResponse, error) {
+	cb := cloud_bucket.New()
+	precompiledObject, err := cb.GetPrecompiledObject(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
+	if err != nil {
+		return nil, errors.InternalError("Error during getting Precompiled Object", "Error with cloud connection")
 	}
-	return &response, nil
+	return &pb.GetPrecompiledObjectResponse{
+		PrecompiledObject: precompiledObject,
+	}, nil
 }
 
 // GetPrecompiledObjectCode returns the code of the specific example
 func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
 	cd := cloud_bucket.New()
-	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
+	codeString, err := cd.GetPrecompiledObjectCode(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectCode(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's code", "Error with cloud connection")
@@ -274,7 +297,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 // GetPrecompiledObjectOutput returns the output of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectOutputRequest) (*pb.GetPrecompiledObjectOutputResponse, error) {
 	cd := cloud_bucket.New()
-	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath())
+	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's output", "Error with cloud connection")
@@ -286,11 +309,39 @@ func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.C
 // GetPrecompiledObjectLogs returns the logs of the compiled and run example
 func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Context, info *pb.GetPrecompiledObjectLogsRequest) (*pb.GetPrecompiledObjectLogsResponse, error) {
 	cd := cloud_bucket.New()
-	logs, err := cd.GetPrecompiledObjectLogs(ctx, info.GetCloudPath())
+	logs, err := cd.GetPrecompiledObjectLogs(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectLogs(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's logs", "Error with cloud connection")
 	}
 	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
+	return &response, nil
+}
+
+// GetPrecompiledObjectGraph returns the graph of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Context, info *pb.GetPrecompiledObjectGraphRequest) (*pb.GetPrecompiledObjectGraphResponse, error) {
+	cb := cloud_bucket.New()
+	logs, err := cb.GetPrecompiledObjectGraph(ctx, info.GetCloudPath(), controller.env.ApplicationEnvs.BucketName())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectGraph(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Precompiled Object's graph", "Error with cloud connection")
+	}
+	response := pb.GetPrecompiledObjectGraphResponse{Graph: logs}
+	return &response, nil
+}
+
+// GetDefaultPrecompiledObject returns the default precompile object for sdk.
+func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.Context, info *pb.GetDefaultPrecompiledObjectRequest) (*pb.GetDefaultPrecompiledObjectResponse, error) {
+	switch info.Sdk {
+	case pb.Sdk_SDK_UNSPECIFIED:
+		logger.Errorf("GetDefaultPrecompiledObject(): unimplemented sdk: %s\n", info.Sdk)
+		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
+	}
+	precompiledObject, err := utils.GetDefaultPrecompiledObject(ctx, info.Sdk, controller.cacheService, controller.env.ApplicationEnvs.BucketName())
+	if err != nil {
+		logger.Errorf("GetDefaultPrecompiledObject(): error during getting catalog: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
+	}
+	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: precompiledObject}
 	return &response, nil
 }

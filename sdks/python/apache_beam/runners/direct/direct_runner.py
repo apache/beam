@@ -173,8 +173,7 @@ class _GroupAlsoByWindowDoFn(DoFn):
     key_type, windowed_value_iter_type = trivial_inference.key_value_types(
         input_type)
     value_type = windowed_value_iter_type.inner_type.inner_type
-    return typehints.Iterable[typehints.KV[key_type,
-                                           typehints.Iterable[value_type]]]
+    return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def start_bundle(self):
     # pylint: disable=wrong-import-order, wrong-import-position

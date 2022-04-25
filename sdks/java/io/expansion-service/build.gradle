@@ -35,9 +35,6 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:io:kafka")
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
-  // Include postgres so it can be used with external JDBC
-  implementation library.java.postgres
-  permitUnusedDeclared library.java.postgres // BEAM-11761
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 }

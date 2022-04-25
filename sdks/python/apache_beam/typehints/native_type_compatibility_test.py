@@ -196,10 +196,6 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     test_cases = [
         ('bare union', typing.Union),
     ]
-    if sys.version_info < (3, 7):
-      test_cases += [
-          ('bare generator', typing.Generator),
-      ]
     for test_case in test_cases:
       description = test_case[0]
       typing_type = test_case[1]

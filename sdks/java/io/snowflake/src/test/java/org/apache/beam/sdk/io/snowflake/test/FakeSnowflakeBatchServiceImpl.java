@@ -29,11 +29,10 @@ import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeBatchServiceConfig;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 
 /** Fake implementation of {@link SnowflakeService} used in tests. */
-public class FakeSnowflakeBatchServiceImpl
-    implements SnowflakeService<SnowflakeBatchServiceConfig> {
+public class FakeSnowflakeBatchServiceImpl implements SnowflakeServices.BatchService {
 
   @Override
   public void write(SnowflakeBatchServiceConfig config) throws Exception {

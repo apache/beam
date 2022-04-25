@@ -20,31 +20,42 @@ package org.apache.beam.sdk.io.aws2.options;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import org.apache.beam.sdk.annotations.Internal;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 /** Utilities for working with AWS Serializables. */
+@Internal
 public class AwsSerializableUtils {
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  public static String serializeAwsCredentialsProvider(
-      AwsCredentialsProvider awsCredentialsProvider) {
-    ObjectMapper om = new ObjectMapper();
-    om.registerModule(new AwsModule());
-    try {
-      return om.writeValueAsString(awsCredentialsProvider);
-    } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("AwsCredentialsProvider can not be serialized to Json", e);
-    }
+  static {
+    MAPPER.registerModule(new AwsModule());
+  }
+
+  public static String serializeAwsCredentialsProvider(AwsCredentialsProvider credentialsProvider) {
+    return serialize(credentialsProvider);
   }
 
   public static AwsCredentialsProvider deserializeAwsCredentialsProvider(
-      String awsCredentialsProviderSerialized) {
-    ObjectMapper om = new ObjectMapper();
-    om.registerModule(new AwsModule());
+      String serializedCredentialsProvider) {
+    return deserialize(serializedCredentialsProvider, AwsCredentialsProvider.class);
+  }
+
+  static String serialize(Object object) {
     try {
-      return om.readValue(awsCredentialsProviderSerialized, AwsCredentialsProvider.class);
+      return MAPPER.writeValueAsString(object);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException(
+          object.getClass().getSimpleName() + " can not be serialized to Json", e);
+    }
+  }
+
+  static <T> T deserialize(String serializedObject, Class<T> clazz) {
+    try {
+      return MAPPER.readValue(serializedObject, clazz);
     } catch (IOException e) {
       throw new IllegalArgumentException(
-          "AwsCredentialsProvider can not be deserialized from Json", e);
+          clazz.getSimpleName() + " can not be deserialized from Json", e);
     }
   }
 }

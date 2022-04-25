@@ -54,6 +54,8 @@ import os
 import shutil
 import sys
 import tempfile
+from distutils.version import StrictVersion
+from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -82,6 +84,8 @@ from apache_beam.utils import retry
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
+# One of the choices for user to use for requirements cache during staging
+SKIP_REQUIREMENTS_CACHE = 'skip'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,7 +166,7 @@ class Stager(object):
                            temp_dir,  # type: str
                            build_setup_args=None,  # type: Optional[List[str]]
                            pypi_requirements=None, # type: Optional[List[str]]
-                           populate_requirements_cache=None,  # type: Optional[str]
+                           populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
                            skip_prestaged_dependencies=False, # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
@@ -197,14 +201,18 @@ class Stager(object):
     resources = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
 
     setup_options = options.view_as(SetupOptions)
+    use_beam_default_container = options.view_as(
+        WorkerOptions).sdk_container_image is None
+
+    pickler.set_library(setup_options.pickle_library)
 
     # We can skip boot dependencies: apache beam sdk, python packages from
     # requirements.txt, python packages from extra_packages and workflow tarball
     # if we know we are using a dependency pre-installed sdk container image.
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
-          os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
-          if setup_options.requirements_cache is None else
+          os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
+          (setup_options.requirements_cache is None) else
           setup_options.requirements_cache)
       if not os.path.exists(requirements_cache_path):
         os.makedirs(requirements_cache_path)
@@ -221,10 +229,20 @@ class Stager(object):
                 setup_options.requirements_file, REQUIREMENTS_FILE))
         # Populate cache with packages from the requirement file option and
         # stage the files in the cache.
-        (
-            populate_requirements_cache if populate_requirements_cache else
-            Stager._populate_requirements_cache)(
-                setup_options.requirements_file, requirements_cache_path)
+        if not use_beam_default_container:
+          _LOGGER.warning(
+              'When using a custom container image, prefer installing'
+              ' additional PyPI dependencies directly into the image,'
+              ' instead of specifying them via runtime options, '
+              'such as --requirements_file. ')
+
+        if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
+          (
+              populate_requirements_cache if populate_requirements_cache else
+              Stager._populate_requirements_cache)(
+                  setup_options.requirements_file,
+                  requirements_cache_path,
+                  setup_options.requirements_cache_only_sources)
 
       if pypi_requirements:
         tf = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -233,12 +251,16 @@ class Stager(object):
         resources.append(Stager._create_file_pip_requirements_artifact(tf.name))
         # Populate cache with packages from PyPI requirements and stage
         # the files in the cache.
-        (
-            populate_requirements_cache if populate_requirements_cache else
-            Stager._populate_requirements_cache)(
-                tf.name, requirements_cache_path)
+        if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
+          (
+              populate_requirements_cache if populate_requirements_cache else
+              Stager._populate_requirements_cache)(
+                  tf.name,
+                  requirements_cache_path,
+                  setup_options.requirements_cache_only_sources)
 
-      if setup_options.requirements_file is not None or pypi_requirements:
+      if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE) and (
+          setup_options.requirements_file is not None or pypi_requirements):
         for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
           resources.append(
               Stager._create_file_stage_to_artifact(pkg, os.path.basename(pkg)))
@@ -341,9 +363,11 @@ class Stager(object):
       pickled_session_file = os.path.join(
           temp_dir, names.PICKLED_MAIN_SESSION_FILE)
       pickler.dump_session(pickled_session_file)
-      resources.append(
-          Stager._create_file_stage_to_artifact(
-              pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
+      # for pickle_library: cloudpickle, dump_session is no op
+      if os.path.exists(pickled_session_file):
+        resources.append(
+            Stager._create_file_stage_to_artifact(
+                pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
     worker_options = options.view_as(WorkerOptions)
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
@@ -394,7 +418,7 @@ class Stager(object):
       build_setup_args=None,  # type: Optional[List[str]]
       temp_dir=None,  # type: Optional[str]
       pypi_requirements=None,  # type: Optional[List[str]]
-      populate_requirements_cache=None,  # type: Optional[str]
+      populate_requirements_cache=None, # type: Optional[Callable[[str, str, bool], None]]
       staging_location=None  # type: Optional[str]
       ):
     """For internal use only; no backwards-compatibility guarantees.
@@ -640,7 +664,7 @@ class Stager(object):
     return python_bin
 
   @staticmethod
-  def remove_dependency_from_requirements(
+  def _remove_dependency_from_requirements(
           requirements_file,  # type: str
           dependency_to_remove,  # type: str
           temp_directory_path):
@@ -660,9 +684,30 @@ class Stager(object):
     return tmp_requirements_filename
 
   @staticmethod
+  def _get_platform_for_default_sdk_container():
+    """
+    Get the platform for apache beam SDK container based on Pip version.
+
+    Note: pip is still expected to download compatible wheel of a package
+    with platform tag manylinux1 if the package on PyPI doesn't
+    have (manylinux2014) or (manylinux2010) wheels.
+    Reference: https://www.python.org/dev/peps/pep-0599/#id21
+    """
+
+    # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
+    # addressed, download wheel based on glibc version in Beam's Python
+    # Base image
+    pip_version = pkg_resources.get_distribution('pip').version
+    if StrictVersion(pip_version) >= StrictVersion('19.3'):
+      return 'manylinux2014_x86_64'
+    else:
+      return 'manylinux2010_x86_64'
+
+  @staticmethod
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
-  def _populate_requirements_cache(requirements_file, cache_dir):
+  def _populate_requirements_cache(
+      requirements_file, cache_dir, populate_cache_with_sdists=False):
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
     # It will get the packages downloaded in the order they are presented in
@@ -671,10 +716,11 @@ class Stager(object):
     # The apache-beam dependency  is excluded from requirements cache population
     # because we  stage the SDK separately.
     with tempfile.TemporaryDirectory() as temp_directory:
-      tmp_requirements_filepath = Stager.remove_dependency_from_requirements(
+      tmp_requirements_filepath = Stager._remove_dependency_from_requirements(
           requirements_file=requirements_file,
           dependency_to_remove='apache-beam',
           temp_directory_path=temp_directory)
+
       cmd_args = [
           Stager._get_python_executable(),
           '-m',
@@ -686,10 +732,25 @@ class Stager(object):
           tmp_requirements_filepath,
           '--exists-action',
           'i',
-          # Download from PyPI source distributions.
-          '--no-binary',
-          ':all:'
+          '--no-deps'
       ]
+
+      if populate_cache_with_sdists:
+        cmd_args.extend(['--no-binary', ':all:'])
+      else:
+        language_implementation_tag = 'cp'
+        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
+        abi_tag = 'cp%d%d%s' % (
+            sys.version_info[0], sys.version_info[1], abi_suffix)
+        platform_tag = Stager._get_platform_for_default_sdk_container()
+        cmd_args.extend([
+            '--implementation',
+            language_implementation_tag,
+            '--abi',
+            abi_tag,
+            '--platform',
+            platform_tag
+        ])
       _LOGGER.info('Executing command: %s', cmd_args)
       processes.check_output(cmd_args, stderr=processes.STDOUT)
 

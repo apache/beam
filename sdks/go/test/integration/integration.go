@@ -37,8 +37,11 @@ package integration
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
+	// common runner flag.
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
@@ -61,21 +64,27 @@ var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
 	"TestKafkaIO.*",
-	// Triggers are not yet supported
+	"TestDebeziumIO_BasicRead",
+	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
+	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
+	"TestPanes",
 	// The direct runner does not support the TestStream primitive
 	"TestTestStream.*",
 	// (BEAM-13075): The direct runner does not support windowed side inputs
 	"TestValidateWindowedSideInputs",
 	// (BEAM-13075): The direct runner does not currently support multimap side inputs
 	"TestParDoMultiMapSideInput",
+	"TestLargeWordcount_Loopback",
 }
 
 var portableFilters = []string{
 	// The portable runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
 }
@@ -83,10 +92,9 @@ var portableFilters = []string{
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
-	// TODO(BEAM-12815): Test fails: "Insufficient number of network buffers".
+	// TODO(BEAM-12815): Test fails on post commits: "Insufficient number of network buffers".
 	"TestXLang_Multi",
-	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
-	"TestTestStream.*Sequence.*",
+	"TestDebeziumIO_BasicRead",
 	// Triggers are not yet supported
 	"TestTrigger.*",
 }
@@ -97,8 +105,9 @@ var samzaFilters = []string{
 	"TestReshuffleKV",
 	// The Samza runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
 }
@@ -110,19 +119,30 @@ var sparkFilters = []string{
 	"TestParDoKVSideInput",
 	// The Spark runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
+	// [BEAM-13921]: Spark doesn't support side inputs to executable stages
+	"TestDebeziumIO_BasicRead",
 }
 
 var dataflowFilters = []string{
+	// The Dataflow runner doesn't work with tests using testcontainers locally.
+	"TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_PostgresReadWrite",
+	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
+	// Dataflow doesn't support any test that requires loopback.
+	// Eg. For FileIO examples.
+	".*Loopback.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
@@ -145,6 +165,8 @@ func CheckFilters(t *testing.T) {
 			t.Skipf("Test %v is currently sickbayed on all runners", n)
 		}
 	}
+	// TODO(lostluck): Improve default job names.
+	*jobopts.JobName = fmt.Sprintf("go-%v", strings.ToLower(n))
 
 	// Test for runner-specific skipping second.
 	var filters []string

@@ -134,16 +134,17 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class DynamoDBIO {
   public static <T> Read<T> read() {
-    return new AutoValue_DynamoDBIO_Read.Builder().build();
+    return new AutoValue_DynamoDBIO_Read.Builder<T>().build();
   }
 
   public static <T> Write<T> write() {
-    return new AutoValue_DynamoDBIO_Write.Builder().setDeduplicateKeys(new ArrayList<>()).build();
+    return new AutoValue_DynamoDBIO_Write.Builder<T>()
+        .setDeduplicateKeys(new ArrayList<>())
+        .build();
   }
 
   /** Read data from DynamoDB and return ScanResult. */
@@ -213,7 +214,9 @@ public final class DynamoDBIO {
     }
 
     public Read<List<Map<String, AttributeValue>>> items() {
-      return withScanResultMapperFn(new DynamoDBIO.Read.ItemsMapper())
+      // safe cast as both mapper and coder are updated accordingly
+      Read<List<Map<String, AttributeValue>>> self = (Read<List<Map<String, AttributeValue>>>) this;
+      return self.withScanResultMapperFn(new DynamoDBIO.Read.ItemsMapper())
           .withCoder(ListCoder.of(MapCoder.of(StringUtf8Coder.of(), AttributeValueCoder.of())));
     }
 
@@ -232,15 +235,13 @@ public final class DynamoDBIO {
           "TotalSegments is required with withScanRequestFn() and greater zero");
 
       PCollection<Read<T>> splits =
-          (PCollection<Read<T>>)
-              input.apply("Create", Create.of(this)).apply("Split", ParDo.of(new SplitFn()));
+          input.apply("Create", Create.of(this)).apply("Split", ParDo.of(new SplitFn<>()));
       splits.setCoder(SerializableCoder.of(new TypeDescriptor<Read<T>>() {}));
 
       PCollection<T> output =
-          (PCollection<T>)
-              splits
-                  .apply("Reshuffle", Reshuffle.viaRandomKey())
-                  .apply("Read", ParDo.of(new ReadFn()));
+          splits
+              .apply("Reshuffle", Reshuffle.viaRandomKey())
+              .apply("Read", ParDo.of(new ReadFn<>()));
       output.setCoder(getCoder());
       return output;
     }
@@ -277,7 +278,7 @@ public final class DynamoDBIO {
       }
     }
 
-    static final class ItemsMapper<T>
+    static final class ItemsMapper
         implements SerializableFunction<ScanResult, List<Map<String, AttributeValue>>> {
       @Override
       public List<Map<String, AttributeValue>> apply(@Nullable ScanResult scanResult) {
@@ -479,10 +480,10 @@ public final class DynamoDBIO {
 
       private static final int BATCH_SIZE = 25;
       private transient AmazonDynamoDB client;
-      private final DynamoDBIO.Write spec;
+      private final DynamoDBIO.Write<T> spec;
       private Map<KV<String, Map<String, AttributeValue>>, KV<String, WriteRequest>> batch;
 
-      WriteFn(DynamoDBIO.Write spec) {
+      WriteFn(DynamoDBIO.Write<T> spec) {
         this.spec = spec;
       }
 
@@ -511,7 +512,7 @@ public final class DynamoDBIO {
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         final KV<String, WriteRequest> writeRequest =
-            (KV<String, WriteRequest>) spec.getWriteItemMapperFn().apply(context.element());
+            spec.getWriteItemMapperFn().apply(context.element());
         batch.put(
             KV.of(writeRequest.getKey(), extractDeduplicateKeyValues(writeRequest.getValue())),
             writeRequest);

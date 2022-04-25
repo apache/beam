@@ -51,8 +51,8 @@ public class HistogramCell
 
   @Override
   public void reset() {
-    dirty.afterModification();
     value.clear();
+    dirty.reset();
   }
 
   /** Increment the corresponding histogram bucket count for the value by 1. */

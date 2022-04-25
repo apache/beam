@@ -18,7 +18,7 @@
 #   name: SideOutput
 #   description: Task from katas to implement additional output to your ParDo for numbers bigger than 100.
 #   multifile: false
-#   pipeline_options:
+#   context_line: 31
 #   categories:
 #     - Filtering
 #     - Multiple Outputs

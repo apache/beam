@@ -18,7 +18,9 @@ limitations under the License.
 
 # Python multi-language pipelines quickstart
 
-This page provides a high-level overview of creating multi-language pipelines with the Apache Beam SDK for Python. For a more comprehensive treatment of the topic, see [Apache Beam Programming Guide: Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines).
+This page provides a high-level overview of creating multi-language pipelines with the Apache Beam SDK for Python. For a more comprehensive treatment of the topic, see [Multi-language pipelines](/documentation/programming-guide/#multi-language-pipelines).
+
+The code shown in this quickstart is available in a [collection of runnable examples](https://github.com/apache/beam/tree/master/examples/multi-language).
 
 To build and run a multi-language Python pipeline, you need a Python environment with the Beam SDK installed. If you don’t have an environment set up, first complete the [Apache Beam Python SDK Quickstart](/get-started/quickstart-py/).
 
@@ -26,7 +28,7 @@ A *multi-language pipeline* is a pipeline that’s built in one Beam SDK languag
 
 ## Create a cross-language transform
 
-Here's a simple Java transform that adds a prefix to an input string:
+Here's a simple Java transform, [JavaPrefix](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaPrefix.java), that adds a prefix to an input string:
 
 ```java
 public class JavaPrefix extends PTransform<PCollection<String>, PCollection<String>> {
@@ -59,7 +61,7 @@ To make this available as a cross-language transform, you have to add a config o
 
 > **Note:** Starting with Beam 2.34.0, Python SDK users can use some Java transforms without writing additional Java code. To learn more, see [Creating cross-language Java transforms](/documentation/programming-guide/#1311-creating-cross-language-java-transforms).
 
-The config object is a simple Java object (POJO) that has fields required by the transform.
+The config object is a simple Java object (POJO) that has fields required by the transform. Here's an example, [JavaPrefixConfiguration](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaPrefixConfiguration.java):
 
 ```java
 public class JavaPrefixConfiguration {
@@ -72,7 +74,7 @@ public class JavaPrefixConfiguration {
 }
 ```
 
-The builder class must implement [ExternalTransformBuilder](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ExternalTransformBuilder.html) and override `buildExternal`, which uses the config object.
+The builder class, implemented below as [JavaPrefixBuilder](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaPrefixBuilder.java), must implement [ExternalTransformBuilder](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ExternalTransformBuilder.html) and override `buildExternal`, which uses the config object.
 
 ```java
 public class JavaPrefixBuilder implements
@@ -101,7 +103,7 @@ public class JavaPrefixRegistrar implements ExternalTransformRegistrar {
 }
 ```
 
-The registrar must implement [ExternalTransformRegistrar](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/expansion/ExternalTransformRegistrar.html), which has one method, `knownBuilderInstances`. This returns a map that maps a unique URN to an instance of your builder. You can use the [AutoService](https://github.com/google/auto/tree/master/service) annotation to register this class with the expansion service.
+As shown here in [JavaPrefixRegistrar](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaPrefixRegistrar.java), the registrar must implement [ExternalTransformRegistrar](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/expansion/ExternalTransformRegistrar.html), which has one method, `knownBuilderInstances`. This returns a map that maps a unique URN to an instance of your builder. You can use the [AutoService](https://github.com/google/auto/tree/master/service) annotation to register this class with the expansion service.
 
 ## Choose an expansion service
 
@@ -109,11 +111,19 @@ When building a job for a multi-language pipeline, Beam uses an [expansion servi
 
 In most cases, you can use the default Java [ExpansionService](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/expansion/service/ExpansionService.html). The service takes a single parameter, which specifies the port of the expansion service. The address is then provided by the Python pipeline.
 
-When you start the expansion service, you need to add dependencies to the classpath. You can use more than one JAR, but it’s often easier to create a single shaded JAR. Both Python and Java dependencies will be staged for the runner by the Python SDK.
+Before running your multi-language pipeline, you need to build the Java cross-language transform and start the expansion service. When you start the expansion service, you need to add dependencies to the classpath. You can use more than one JAR, but it’s often easier to create a single shaded JAR. Both Python and Java dependencies will be staged for the runner by the Python SDK.
+
+The steps for running the expansion service will vary depending on your build tooling. Assuming you've built a JAR named **java-prefix-bundled-0.1.jar**, you can start the service with a command like the following, where `12345` is the port on which the expansion service will run:
+
+```
+java -jar java-prefix-bundled-0.1.jar 12345
+```
+
+For instructions on running an example expansion service, see [this README](https://github.com/apache/beam/blob/master/examples/multi-language/README.md).
 
 ## Create a Python pipeline
 
-Your Python pipeline can now use the [ExternalTransform](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) API to configure your cross-language transform. Here’s an example:
+Your Python pipeline can now use the [ExternalTransform](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform) API to configure your cross-language transform. Here’s an example from [addprefix.py](https://github.com/apache/beam/blob/master/examples/multi-language/python/addprefix.py):
 
 ```py
 with beam.Pipeline(options=pipeline_options) as p:
@@ -168,13 +178,7 @@ For arbitrary structured types (for example, an arbitrary Java object), use `ROW
 
 ## Run the pipeline
 
-Before running your multi-language pipeline, you need to build the Java cross-language transform and start the expansion service. The steps will vary depending on your build tooling. Assuming you've built a JAR named **java-prefix-bundled-0.1.jar**, you can start the service with a command like the following, where `12345` is the port on which the expansion service will run:
-
-```
-java -jar java-prefix-bundled-0.1.jar 12345
-```
-
-The exact commands for running the Python pipeline will also vary based on your environment. Assuming that your pipeline is coded in a file named **addprefix.py**, the steps should be similar to those below.
+The exact commands for running the Python pipeline will vary based on your environment. Assuming that your pipeline is coded in a file named **addprefix.py**, the steps should be similar to those below. For more information, see [the comments in addprefix.py](https://github.com/apache/beam/blob/41d585f82b10195f758d14e3a54076ea1f05aa75/examples/multi-language/python/addprefix.py#L18-L40).
 
 ### Run with direct runner
 

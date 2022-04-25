@@ -246,6 +246,7 @@ Render:
 ```
 
 The purpose of adding classes or programming languages (java, py or go) in code highlighting is to activate the language switching feature.
+If you want highlighting for a code block that should *not* be affected by language switching - that is, if you want to a highlight a code block, and you don't want the block to go away when a different language is selected - use ` ``` `. For example: ` ```java // Java code here...``` `.
 
 ### Adding class to markdown text
 

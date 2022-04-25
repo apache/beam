@@ -17,8 +17,10 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -896,6 +898,64 @@ func TestAsSplittableUnit(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("WatermarkEstimation", func(t *testing.T) {
+		tests := []struct {
+			name string
+			fn   *graph.DoFn
+			in   FullValue
+			want time.Time
+		}{
+			{
+				name: "SingleElem",
+				fn:   dfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &VetRestriction{ID: "Sdf"},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				want: time.Date(2022, time.January, 1, 1, 0, 0, 0, time.UTC),
+			},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				capt := &CaptureNode{UID: 2}
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{capt}}
+				node := &ProcessSizedElementsAndRestrictions{PDo: n, outputs: []string{"output1", "output2"}}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: test.in}}, Out: node}
+				units := []Unit{root, node, capt}
+				constructAndExecutePlan(t, units)
+
+				ow := node.GetOutputWatermark()
+				if ow == nil {
+					t.Errorf("ProcessSizedElementsAndRestrictions(%v), got: nil, want: output watermarks", test.in)
+				} else if got, want := len(ow), 2; got != want {
+					t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect number of watermarks, got: %v, want: %v",
+						test.in, len(ow), 2)
+				} else {
+					if got, ok := ow["output1"]; !ok {
+						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has no watermark for ouptput1, want: %v",
+							test.in, test.want)
+					} else if !got.AsTime().Equal(test.want) {
+						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect watermark for output1: got: %v, want: %v",
+							test.in, got.AsTime(), test.want)
+					}
+					if got, ok := ow["output2"]; !ok {
+						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has no watermark for ouptput2, want: %v",
+							test.in, test.want)
+					} else if !got.AsTime().Equal(test.want) {
+						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect watermark for output2: got: %v, want: %v",
+							test.in, got.AsTime(), test.want)
+					}
+				}
+			})
+		}
+	})
 }
 
 // TestMultiWindowProcessing tests that ProcessSizedElementsAndRestrictions
@@ -940,9 +1000,12 @@ func TestMultiWindowProcessing(t *testing.T) {
 	// while processing is blocked (to validate processing) and a second time
 	// it's done (to validate final outputs).
 	done := make(chan struct{})
+	errchan := make(chan string, 1)
 	go func() {
+		defer close(errchan)
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
-			t.Fatalf("execute failed: %v", err)
+			errchan <- fmt.Sprintf("execute failed: %v", err)
+			return
 		}
 		done <- struct{}{}
 	}()
@@ -980,6 +1043,10 @@ func TestMultiWindowProcessing(t *testing.T) {
 	node.SU <- su
 	wsdf.block <- struct{}{}
 	<-done
+
+	for msg := range errchan {
+		t.Fatal(msg)
+	}
 
 	gotOut := capt.Elements
 	wantOut := []FullValue{{ // Only 3 windows, 4th should be gone after split.

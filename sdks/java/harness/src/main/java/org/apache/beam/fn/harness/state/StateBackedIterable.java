@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -42,7 +43,7 @@ import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterators;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -79,7 +80,7 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
     this.prefix = prefix;
     this.suffix =
         StateFetchingIterators.readAllAndDecodeStartingFrom(
-            cache, beamFnStateClient, request, elemCoder);
+            Caches.subCache(cache, stateKey), beamFnStateClient, request, elemCoder);
   }
 
   @Override

@@ -36,25 +36,23 @@ class AutocompleteTest(unittest.TestCase):
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
   KINGLEAR_HASH_SUM = 268011785062540
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
+  EXPECTED_PREFIXES = [
+      ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
+      ('to', ((3, 'to'), )),
+      ('th', ((2, 'this'), (1, 'that'))),
+      ('thi', ((2, 'this'), )),
+      ('this', ((2, 'this'), )),
+      ('tha', ((1, 'that'), )),
+      ('that', ((1, 'that'), )),
+  ]
 
-  @pytest.mark.examples_postcommit
   def test_top_prefixes(self):
     with TestPipeline() as p:
       words = p | beam.Create(self.WORDS)
       result = words | autocomplete.TopPerPrefix(5)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      assert_that(
-          result,
-          equal_to([
-              ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
-              ('to', ((3, 'to'), )),
-              ('th', ((2, 'this'), (1, 'that'))),
-              ('thi', ((2, 'this'), )),
-              ('this', ((2, 'this'), )),
-              ('tha', ((1, 'that'), )),
-              ('that', ((1, 'that'), )),
-          ]))
+      assert_that(result, equal_to(self.EXPECTED_PREFIXES))
 
   @pytest.mark.it_postcommit
   def test_autocomplete_it(self):

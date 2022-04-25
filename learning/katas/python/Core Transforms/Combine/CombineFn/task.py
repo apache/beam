@@ -18,7 +18,7 @@
 #   name: CombineFn
 #   description: Task from katas averaging.
 #   multifile: false
-#   pipeline_options:
+#   context_line: 30
 #   categories:
 #     - Combiners
 

@@ -152,7 +152,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -1618,10 +1618,7 @@ public class DataflowRunnerTest implements Serializable {
     assertTrue(transform.translated);
   }
 
-  @Test
-  public void testSdkHarnessConfiguration() throws IOException {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+  private void verifySdkHarnessConfiguration(DataflowPipelineOptions options) throws IOException {
     Pipeline p = Pipeline.create(options);
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)));
@@ -1676,6 +1673,20 @@ public class DataflowRunnerTest implements Serializable {
                 Collectors.toMap(
                     SdkHarnessContainerImage::getEnvironmentId,
                     SdkHarnessContainerImage::getContainerImage)));
+  }
+
+  @Test
+  public void testSdkHarnessConfigurationRunnerV2() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+    this.verifySdkHarnessConfiguration(options);
+  }
+
+  @Test
+  public void testSdkHarnessConfigurationPrime() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setDataflowServiceOptions(ImmutableList.of("enable_prime"));
+    this.verifySdkHarnessConfiguration(options);
   }
 
   private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {

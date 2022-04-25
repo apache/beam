@@ -22,8 +22,6 @@
 import json
 import unittest
 
-import pytest
-
 import apache_beam as beam
 from apache_beam.examples.complete import top_wikipedia_sessions
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -70,7 +68,6 @@ class ComputeTopSessionsTest(unittest.TestCase):
       'user3 : [3024.0, 6624.0) : 1 : [0.0, 2592000.0)',
   ]
 
-  @pytest.mark.examples_postcommit
   def test_compute_top_sessions(self):
     with TestPipeline() as p:
       edits = p | beam.Create(self.EDITS)

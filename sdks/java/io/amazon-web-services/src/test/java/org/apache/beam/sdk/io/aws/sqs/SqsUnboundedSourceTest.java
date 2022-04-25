@@ -44,7 +44,8 @@ public class SqsUnboundedSourceTest {
     SqsUnboundedSource source =
         new SqsUnboundedSource(
             SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
-            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)),
+            SqsMessageCoder.of());
     CoderProperties.coderSerializable(source.getCheckpointMarkCoder());
   }
 }

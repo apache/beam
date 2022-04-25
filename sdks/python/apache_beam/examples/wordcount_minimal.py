@@ -51,12 +51,14 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 #   description: An example that counts words in Shakespeare's works.
 #   multifile: false
 #   pipeline_options: --output output.txt
+#   context_line: 74
 #   categories:
 #     - IO
 #     - Core Transforms
 #     - Flatten
 #     - Options
 #     - Combiners
+#     - Quickstart
 
 import argparse
 import logging

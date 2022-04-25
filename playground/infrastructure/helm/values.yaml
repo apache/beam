@@ -16,8 +16,9 @@
 replicaCount: 1
 
 image:
-  repository_java: beam_playground-backend
+  repository_java: beam_playground-backend-java
   repository_go: beam_playground-backend-go
+  repository_router: beam_playground-backend-router
   repository_python: beam_playground-backend-python
   pullPolicy: Always
   tag: "pre-beta-demo"

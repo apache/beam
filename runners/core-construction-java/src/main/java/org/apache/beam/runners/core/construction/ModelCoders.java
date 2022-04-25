@@ -26,7 +26,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
@@ -67,6 +67,8 @@ public class ModelCoders {
 
   public static final String SHARDED_KEY_CODER_URN = getUrn(StandardCoders.Enum.SHARDED_KEY);
 
+  public static final String NULLABLE_CODER_URN = getUrn(StandardCoders.Enum.NULLABLE);
+
   static {
     checkState(
         STATE_BACKED_ITERABLE_CODER_URN.equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE)));
@@ -90,7 +92,8 @@ public class ModelCoders {
           ROW_CODER_URN,
           PARAM_WINDOWED_VALUE_CODER_URN,
           STATE_BACKED_ITERABLE_CODER_URN,
-          SHARDED_KEY_CODER_URN);
+          SHARDED_KEY_CODER_URN,
+          NULLABLE_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

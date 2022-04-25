@@ -16,6 +16,9 @@
 package primitives
 
 import (
+	"flag"
+	"fmt"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
@@ -155,4 +158,27 @@ func splitByName(key string, vals []string, a, j, d func(string)) {
 	for _, val := range vals {
 		emitter(val)
 	}
+}
+
+// ParDoPipelineOptions creates a pipeline with flag options to validate
+// that a DoFn can access them as PipelineOptions.
+func ParDoPipelineOptions() *beam.Pipeline {
+	// Setup some fake flags
+	flag.String("A", "", "Flag for testing.")
+	flag.String("B", "", "Flag for testing.")
+	flag.String("C", "", "Flag for testing.")
+	flag.CommandLine.Parse([]string{"--A=123", "--B=456", "--C=789"})
+
+	p, s := beam.NewPipelineWithRoot()
+
+	emitted := beam.ParDo(s, emitPipelineOptions, beam.Impulse(s))
+	passert.Equals(s, emitted, "A: 123", "B: 456", "C: 789")
+
+	return p
+}
+
+func emitPipelineOptions(_ []byte, emit func(string)) {
+	emit(fmt.Sprintf("%s: %s", "A", beam.PipelineOptions.Get("A")))
+	emit(fmt.Sprintf("%s: %s", "B", beam.PipelineOptions.Get("B")))
+	emit(fmt.Sprintf("%s: %s", "C", beam.PipelineOptions.Get("C")))
 }

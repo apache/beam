@@ -70,4 +70,7 @@ public interface Cache<K, V> {
 
   /** Removes the mapping for a key from the cache if it is present. */
   void remove(K key);
+
+  /** Returns a string containing caching statistics. */
+  String describeStats();
 }

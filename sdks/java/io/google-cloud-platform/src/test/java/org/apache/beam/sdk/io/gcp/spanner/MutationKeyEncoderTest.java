@@ -20,9 +20,12 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Value;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -114,6 +117,54 @@ public class MutationKeyEncoderTest {
   }
 
   @Test
+  public void pgBigintKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder(Dialect.POSTGRESQL);
+
+    builder.addColumn("test", "key", "bigint");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "bigint");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(1L)
+                .set("keydesc")
+                .to(0L)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2L)
+                .set("keydesc")
+                .to((Long) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2L)
+                .set("keydesc")
+                .to(10L)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2L)
+                .set("keydesc")
+                .to(9L)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to((Long) null)
+                .set("keydesc")
+                .to(0L)
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
   public void float64Keys() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
 
@@ -121,6 +172,54 @@ public class MutationKeyEncoderTest {
     builder.addKeyPart("test", "key", false);
 
     builder.addColumn("test", "keydesc", "FLOAT64");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(1.0)
+                .set("keydesc")
+                .to(0.)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to((Long) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to(10.)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to(9.)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(2.)
+                .set("keydesc")
+                .to(0.)
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void pgDoublePrecisionKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder(Dialect.POSTGRESQL);
+
+    builder.addColumn("test", "key", "double precision");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "double precision");
     builder.addKeyPart("test", "keydesc", true);
 
     SpannerSchema schema = builder.build();
@@ -210,6 +309,54 @@ public class MutationKeyEncoderTest {
   }
 
   @Test
+  public void pgCharacterVaryingKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder(Dialect.POSTGRESQL);
+
+    builder.addColumn("test", "key", "character varying");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "character varying");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("bc")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to((String) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("z")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("y")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("a")
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
   public void bytesKeys() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
 
@@ -217,6 +364,54 @@ public class MutationKeyEncoderTest {
     builder.addKeyPart("test", "key", false);
 
     builder.addColumn("test", "keydesc", "BYTES");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("abc"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("zzz"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to((ByteArray) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("zzzz"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("ssss"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(ByteArray.fromBase64("xxx"))
+                .set("keydesc")
+                .to(ByteArray.fromBase64("aaa"))
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void pgByteaKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder(Dialect.POSTGRESQL);
+
+    builder.addColumn("test", "key", "bytea");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "bytea");
     builder.addKeyPart("test", "keydesc", true);
 
     SpannerSchema schema = builder.build();
@@ -354,6 +549,54 @@ public class MutationKeyEncoderTest {
   }
 
   @Test
+  public void pgTimestamptzKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder(Dialect.POSTGRESQL);
+
+    builder.addColumn("test", "key", "timestamp with time zone");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "timestamp with time zone");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(10000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(50000))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to((Timestamp) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(90000))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(50000))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Timestamp.ofTimeMicroseconds(20000))
+                .set("keydesc")
+                .to(Timestamp.ofTimeMicroseconds(10000))
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
   public void boolKeys() throws Exception {
     SpannerSchema.Builder builder = SpannerSchema.builder();
 
@@ -396,6 +639,198 @@ public class MutationKeyEncoderTest {
                 .to((Boolean) null)
                 .set("boolkeydesc")
                 .to(false)
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void pgBooleanKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder(Dialect.POSTGRESQL);
+
+    builder.addColumn("test", "boolkey", "boolean");
+    builder.addKeyPart("test", "boolkey", false);
+
+    builder.addColumn("test", "boolkeydesc", "boolean");
+    builder.addKeyPart("test", "boolkeydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to(true)
+                .set("boolkeydesc")
+                .to(false)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to(true)
+                .set("boolkeydesc")
+                .to(true)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to(false)
+                .set("boolkeydesc")
+                .to(false)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to(false)
+                .set("boolkeydesc")
+                .to(true)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("boolkey")
+                .to((Boolean) null)
+                .set("boolkeydesc")
+                .to(false)
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void numericKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "NUMERIC");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "NUMERIC");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(new BigDecimal("1.00"))
+                .set("keydesc")
+                .to(new BigDecimal("0.00"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(new BigDecimal("2.00"))
+                .set("keydesc")
+                .to((BigDecimal) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(new BigDecimal("2.00"))
+                .set("keydesc")
+                .to(new BigDecimal("9.00"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(new BigDecimal("2.00"))
+                .set("keydesc")
+                .to(new BigDecimal("10.00"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to((BigDecimal) null)
+                .set("keydesc")
+                .to(new BigDecimal("0.00"))
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void pgNumericKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder(Dialect.POSTGRESQL);
+
+    builder.addColumn("test", "key", "numeric");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "numeric");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.pgNumeric("1.00"))
+                .set("keydesc")
+                .to(Value.pgNumeric("0.00"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.pgNumeric("2.00"))
+                .set("keydesc")
+                .to(Value.pgNumeric((String) null))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.pgNumeric("2.00"))
+                .set("keydesc")
+                .to(Value.pgNumeric("9.00"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.pgNumeric("2.00"))
+                .set("keydesc")
+                .to(Value.pgNumeric("10.00"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.pgNumeric((String) null))
+                .set("keydesc")
+                .to(Value.pgNumeric("0.00"))
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void jsonKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "JSON");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "JSON");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.json("{\"val\":1.00}"))
+                .set("keydesc")
+                .to(Value.json("{\"val\":0.00}"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.json("{\"val\":2.00}"))
+                .set("keydesc")
+                .to(Value.json((String) null))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.json("{\"val\":2.00}"))
+                .set("keydesc")
+                .to(Value.json("{\"val\":9.00}"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.json("{\"val\":2.00}"))
+                .set("keydesc")
+                .to(Value.json("{\"val\":10.00}"))
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(Value.json((String) null))
+                .set("keydesc")
+                .to(Value.json("{\"val\":0.00}"))
                 .build());
 
     verifyEncodedOrdering(schema, sortedMutations);

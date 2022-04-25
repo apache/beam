@@ -67,7 +67,13 @@ public class S3FileSystemIT {
 
   @ClassRule
   public static ITEnvironment<S3ITOptions> env =
-      new ITEnvironment<>(S3, S3ITOptions.class, S3ClientFixFix::set);
+      new ITEnvironment<S3ITOptions>(S3, S3ITOptions.class) {
+        @Override
+        protected void before() {
+          super.before();
+          options().setS3ClientFactoryClass(S3ClientFixFix.class);
+        }
+      };
 
   @Rule public TestPipeline pipelineWrite = env.createTestPipeline();
   @Rule public TestPipeline pipelineRead = env.createTestPipeline();
@@ -111,10 +117,6 @@ public class S3FileSystemIT {
   // Fix duplicated Content-Length header due to case-sensitive handling of header names
   // https://github.com/aws/aws-sdk-java/issues/2503
   private static class S3ClientFixFix extends DefaultS3ClientBuilderFactory {
-    private static void set(S3Options s3Options) {
-      s3Options.setS3ClientFactoryClass(S3ClientFixFix.class);
-    }
-
     @Override
     public AmazonS3ClientBuilder createBuilder(S3Options s3Options) {
       return super.createBuilder(s3Options)

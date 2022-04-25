@@ -29,6 +29,7 @@ class CommonJobProperties {
   static String checkoutDir = 'src'
   final static String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
   final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
+  final static String JAVA_17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
   final static String PYTHON = pythonTestProperties.DEFAULT_INTERPRETER
 
   // Sets common top-level job properties for main repository jobs.
@@ -218,7 +219,7 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
-      String buildSchedule = '0 */6 * * *',
+      String buildSchedule = 'H H/6 * * *',
       notifyAddress = 'builds@beam.apache.org',
       triggerOnCommit = false,
       emailIndividuals = false) {

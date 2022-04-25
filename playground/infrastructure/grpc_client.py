@@ -16,7 +16,7 @@
 """
 Module contains the client to communicate with GRPC test Playground server
 """
-
+import logging
 import uuid
 
 import grpc
@@ -27,6 +27,7 @@ from config import Config
 
 class GRPCClient:
   """GRPCClient is gRPC client for sending a request to the backend."""
+
   def __init__(self):
     self._channel = grpc.aio.insecure_channel(Config.SERVER_ADDRESS)
     self._stub = api_pb2_grpc.PlaygroundServiceStub(self._channel)
@@ -128,6 +129,28 @@ class GRPCClient:
     request = api_pb2.GetCompileOutputRequest(pipeline_uuid=pipeline_uuid)
     response = await self._stub.GetCompileOutput(request)
     return response.output
+
+  async def get_graph(self, pipeline_uuid: str, example_filepath: str) -> str:
+    """
+    Get the graph of pipeline execution.
+
+    Args:
+        pipeline_uuid: uuid of the pipeline
+        example_filepath: path to the file of the example
+
+    Returns:
+        graph: contain the graph of pipeline execution as a string
+    """
+    self._verify_pipeline_uuid(pipeline_uuid)
+    request = api_pb2.GetGraphRequest(pipeline_uuid=pipeline_uuid)
+    try:
+      response = await self._stub.GetGraph(request)
+      if response.graph == "":
+        logging.warning("Graph for %s wasn't generated", example_filepath)
+      return response.graph
+    except grpc.RpcError:
+      logging.warning("Graph for %s wasn't generated", example_filepath)
+      return ""
 
   def _verify_pipeline_uuid(self, pipeline_uuid):
     """

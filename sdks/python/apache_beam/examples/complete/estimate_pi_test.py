@@ -22,8 +22,6 @@
 import logging
 import unittest
 
-import pytest
-
 from apache_beam.examples.complete import estimate_pi
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
@@ -40,7 +38,6 @@ def in_between(lower, upper):
   return _in_between
 
 
-@pytest.mark.examples_postcommit
 class EstimatePiTest(unittest.TestCase):
   def test_basics(self):
     with TestPipeline() as p:

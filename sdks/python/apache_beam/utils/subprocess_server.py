@@ -153,7 +153,7 @@ class SubprocessServer(object):
 
 class JavaJarServer(SubprocessServer):
 
-  APACHE_REPOSITORY = 'https://repo.maven.apache.org/maven2'
+  MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
@@ -198,7 +198,7 @@ class JavaJarServer(SubprocessServer):
       artifact_id,
       group_id,
       version,
-      repository=APACHE_REPOSITORY,
+      repository=MAVEN_CENTRAL_REPOSITORY,
       classifier=None,
       appendix=None):
     return '/'.join([
@@ -249,7 +249,7 @@ class JavaJarServer(SubprocessServer):
           artifact_id,
           cls.BEAM_GROUP_ID,
           version,
-          cls.APACHE_REPOSITORY,
+          cls.MAVEN_CENTRAL_REPOSITORY,
           appendix=appendix)
 
   @classmethod

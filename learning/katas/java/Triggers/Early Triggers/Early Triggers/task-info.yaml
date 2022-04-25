@@ -24,7 +24,7 @@ files:
 - name: src/org/apache/beam/learning/katas/triggers/earlytriggers/Task.java
   visible: true
   placeholders:
-  - offset: 1970
+  - offset: 2166
     length: 461
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/triggers/earlytriggers/TaskTest.java

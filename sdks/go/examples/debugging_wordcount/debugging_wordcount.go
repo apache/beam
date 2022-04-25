@@ -46,10 +46,12 @@ package main
 //   description: An example that counts words in Shakespeare's works includes regex filter("Flourish|stomach").
 //   multifile: false
 //   pipeline_options: --output output.txt
+//   context_line: 83
 //   categories:
 //     - Options
 //     - Filtering
 //     - Debugging
+//     - Quickstart
 
 import (
 	"context"

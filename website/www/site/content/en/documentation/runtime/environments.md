@@ -42,11 +42,11 @@ For optimal user experience, we also recommend you use the latest released versi
 
 ### Building and pushing custom containers
 
-Beam [SDK container images](https://hub.docker.com/search?q=apache%2Fbeam&type=image) are built from Dockerfiles checked into the [Github](https://github.com/apache/beam) repository and published to Docker Hub for every release. You can build customized containers in one of two ways:
+Beam [SDK container images](https://hub.docker.com/search?q=apache%2Fbeam&type=image) are built from Dockerfiles checked into the [Github](https://github.com/apache/beam) repository and published to Docker Hub for every release. You can build customized containers in one of three ways:
 
 1. **[Writing a new](#writing-new-dockerfiles) Dockerfile based on a released container image**. This is sufficient for simple additions to the image, such as adding artifacts or environment variables.
 2. **[Modifying](#modifying-dockerfiles) a source Dockerfile in [Beam](https://github.com/apache/beam)**. This method requires building from Beam source but allows for greater customization of the container (including replacement of artifacts or base OS/language versions).
-
+3. **[Modifying](#modify-existing-base-image) an existing container image to make it compatible with Apache Beam Runners**. This method is used when users start from an existing image, and configure the image to be compatible with Apache Beam Runners.
 #### Writing a new Dockerfile based on an existing published container image {#writing-new-dockerfiles}
 
 1. Create a new Dockerfile that designates a base image using the [FROM instruction](https://docs.docker.com/engine/reference/builder/#from).
@@ -102,7 +102,7 @@ This method requires building image artifacts from Beam source. For additional i
   git checkout origin/release-$BEAM_SDK_VERSION
   ```
 
-2. Customize the `Dockerfile` for a given language, typically `sdks/<language>/container/Dockerfile` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile). If you're adding dependencies from [PyPI](https://pypi.org/), use [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) instead.
+2. Customize the `Dockerfile` for a given language, typically `sdks/<language>/container/Dockerfile` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile).
 
 3. Return to the root Beam directory and run the Gradle `docker` target for your image.
 
@@ -112,10 +112,12 @@ This method requires building image artifacts from Beam source. For additional i
   # The default repository of each SDK
   ./gradlew :sdks:java:container:java8:docker
   ./gradlew :sdks:java:container:java11:docker
+  ./gradlew :sdks:java:container:java17:docker
   ./gradlew :sdks:go:container:docker
   ./gradlew :sdks:python:container:py36:docker
   ./gradlew :sdks:python:container:py37:docker
   ./gradlew :sdks:python:container:py38:docker
+  ./gradlew :sdks:python:container:py39:docker
 
   # Shortcut for building all Python SDKs
   ./gradlew :sdks:python:container buildAll
@@ -128,9 +130,11 @@ This method requires building image artifacts from Beam source. For additional i
   REPOSITORY                         TAG                  DIGEST                   IMAGE ID         CREATED           SIZE
   apache/beam_java8_sdk              latest               sha256:...               ...              1 min ago         ...
   apache/beam_java11_sdk             latest               sha256:...               ...              1 min ago         ...
+  apache/beam_java17_sdk             latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.6_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.7_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.8_sdk          latest               sha256:...               ...              1 min ago         ...
+  apache/beam_python3.9_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_go_sdk                 latest               sha256:...               ...              1 min ago         ...
   ```
 
@@ -168,6 +172,48 @@ creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_
 
 By default, no licenses/notices are added to the docker images.
 
+#### Modifying an existing container image to make it compatible with Apache Beam Runners {#modify-existing-base-image}
+Beam offers a way to provide your own custom container image. The easiest way to build a new custom image that is compatible with Apache Beam Runners is to use a [multi-stage build](https://docs.docker.com/develop/develop-images/multistage-build/) process. This copies over the necessary artifacts from a default Apache Beam base image to build your custom container image.
+
+1. Copy necessary artifacts from Apache Beam base image to your image.
+  ```
+  # This can be any container image,
+ FROM python:3.7-bullseye
+
+ # Install SDK. (needed for Python SDK)
+ RUN pip install --no-cache-dir apache-beam[gcp]==2.35.0
+
+ # Copy files from official SDK image, including script/dependencies.
+ COPY --from=apache/beam_python3.7_sdk:2.35.0 /opt/apache/beam /opt/apache/beam
+
+ # Perform any additional customizations if desired
+
+ # Set the entrypoint to Apache Beam SDK launcher.
+ ENTRYPOINT ["/opt/apache/beam/boot"]
+
+  ```
+>**NOTE**: This example assumes necessary dependencies (in this case, Python 3.7 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
+>The version specified in the `RUN` instruction must match the version used to launch the pipeline.<br>
+>**Make sure that the Python or Java runtime version specified in the base image is the same as the version used to run the pipeline.**
+
+
+2. [Build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker.
+  ```
+    export BASE_IMAGE="apache/beam_python3.7_sdk:2.25.0"
+    export IMAGE_NAME="myremoterepo/mybeamsdk"
+    export TAG="latest"
+
+    # Optional - pull the base image into your local Docker daemon to ensure
+    # you have the most up-to-date version of the base image locally.
+    docker pull "${BASE_IMAGE}"
+
+    docker build -f Dockerfile -t "${IMAGE_NAME}:${TAG}" .
+ ```
+
+3. If your runner is running remotely, retag the image and [push](https://docs.docker.com/engine/reference/commandline/push/) the image to your repository.
+  ```
+  docker push "${IMAGE_NAME}:${TAG}"
+  ```
 
 ## Running pipelines with custom container images {#running-pipelines}
 

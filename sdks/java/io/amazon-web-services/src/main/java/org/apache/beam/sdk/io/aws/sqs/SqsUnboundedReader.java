@@ -41,7 +41,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,6 +64,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BucketingFunction;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.EvictingQueue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
@@ -77,6 +77,9 @@ import org.slf4j.LoggerFactory;
 })
 class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
   private static final Logger LOG = LoggerFactory.getLogger(SqsUnboundedReader.class);
+
+  /** Request time attribute in {@link Message#getMessageAttributes()}. */
+  static final String REQUEST_TIME = "requestTimeMsSinceEpoch";
 
   /** Maximum number of messages to pull from SQS per request. */
   public static final int MAX_NUMBER_OF_MESSAGES = 10;
@@ -667,8 +670,10 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
     // Capture the received messages.
     for (Message message : messages) {
-      // The Message class does not contain request time.
-      setRequestTimeMsSinceEpoch(message, requestTimeMsSinceEpoch);
+      // Keep request time as message attribute for later usage
+      MessageAttributeValue reqTime =
+          new MessageAttributeValue().withStringValue(Long.toString(requestTimeMsSinceEpoch));
+      message.setMessageAttributes(ImmutableMap.of(REQUEST_TIME, reqTime));
       messagesNotYetRead.add(message);
       notYetReadBytes += message.getBody().getBytes(UTF_8).length;
       inFlight.put(
@@ -677,12 +682,11 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
               message.getReceiptHandle(), requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
       numReceived++;
       numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
-      minReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message).getMillis());
-      maxReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message).getMillis());
-      minUnreadTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message).getMillis());
+
+      long timestampMillis = getTimestamp(message).getMillis();
+      minReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, timestampMillis);
+      maxReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, timestampMillis);
+      minUnreadTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, timestampMillis);
     }
   }
 
@@ -933,22 +937,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
             message.getAttributes().get(MessageSystemAttributeName.SentTimestamp.toString())));
   }
 
-  /**
-   * Since SQS Message instances does not hold the request timestamp, store a new message attribute
-   * as the given {@code requestTimeMsSinceEpoch}.
-   */
-  private void setRequestTimeMsSinceEpoch(
-      final Message message, final long requestTimeMsSinceEpoch) {
-    Map<String, MessageAttributeValue> attributes = new HashMap<>();
-    attributes.put(
-        "requestTimeMsSinceEpoch",
-        new MessageAttributeValue().withStringValue(Long.toString(requestTimeMsSinceEpoch)));
-    message.setMessageAttributes(attributes);
-  }
-
   /** Extract the request timestamp from the given {@code message}. */
   private Long getRequestTimeMsSinceEpoch(final Message message) {
-    return Long.parseLong(
-        message.getMessageAttributes().get("requestTimeMsSinceEpoch").getStringValue());
+    return Long.parseLong(message.getMessageAttributes().get(REQUEST_TIME).getStringValue());
   }
 }

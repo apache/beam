@@ -1,0 +1,44 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "Patient"
+      },
+      "resource": {
+        "name": [
+          {
+            "use": "official",
+            "given": [
+              "John"
+            ]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1973-01-21",
+        "resourceType": "Patient"
+      }
+    },
+    {
+      "request": {
+        "method": "PUT",
+        "url": "Patient"
+      },
+      "resource": {
+        "name": [
+          {
+            "use": "official",
+            "given": [
+              "Alice"
+            ]
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1970-01-01",
+        "resourceType": "Patient"
+      }
+    }
+  ]
+}

@@ -230,6 +230,13 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 		expansionAddr = addr
 		ns, config = parseAddr(addr)
 	}
+	// Check this after hardoverrides and URN overrides so those can point to automated expansion
+	// themselves.
+	if ns == autoJavaNamespace {
+		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
+		// We strip it manually in the HandlerFunc.
+		return QueryAutomatedExpansionService, expansionAddr
+	}
 
 	// Now that overrides have been handled, we can look up if there's a handler, and return that.
 	if h, ok := r.handlers[ns]; ok {
@@ -242,8 +249,11 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 
 const (
 	// Separator is the canonical separator between a namespace and optional configuration.
-	Separator             = ":"
+	Separator = ":"
+	// ClasspathSeparator is the canonical separator between a classpath namespace config string from other namespace-configuration string.
+	ClasspathSeparator    = ";"
 	hardOverrideNamespace = "hardoverride"
+	autoJavaNamespace     = "autojava"
 )
 
 // Require takes an expansionAddr and requires cross language expansion
@@ -257,9 +267,38 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
+// ExpansionServiceOption provides an option for xlangx.UseAutomatedJavaExpansionService()
+type ExpansionServiceOption func(*string)
+
+// AddClasspaths is an expansion service option for xlangx.UseAutomatedExpansionService
+// that accepts a classpaths slice and creates a tagged  expansion address string
+// suffixed with classpath separator and classpaths provided.
+func AddClasspaths(classpaths []string) ExpansionServiceOption {
+	return func(expansionAddress *string) {
+		*expansionAddress += ClasspathSeparator + strings.Join(classpaths, " ")
+	}
+}
+
+// UseAutomatedJavaExpansionService takes a gradle target and creates a
+// tagged string to indicate that it should be used to start up an
+// automated expansion service for a cross-language expansion.
+//
+// Intended for use by cross language wrappers to permit spinning
+// up an expansion service for a user if no expansion service address
+// is provided.
+func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServiceOption) string {
+	expansionAddress := autoJavaNamespace + Separator + gradleTarget
+
+	for _, opt := range opts {
+		opt(&expansionAddress)
+	}
+	return expansionAddress
+}
+
 // restricted namespaces to prevent some awkward edge cases.
 var restricted = map[string]struct{}{
 	hardOverrideNamespace: {}, // Special handler for overriding.
+	autoJavaNamespace:     {}, // Special handler for automated Java expansion services.
 	"localhost":           {},
 	"http":                {},
 	"https":               {},
@@ -271,6 +310,14 @@ var restricted = map[string]struct{}{
 // and config string if any.
 func parseAddr(expansionAddr string) (ns, config string) {
 	split := strings.SplitN(expansionAddr, Separator, 2)
+	if len(split) == 1 {
+		return expansionAddr, ""
+	}
+	return split[0], split[1]
+}
+
+func parseClasspath(expansionAddr string) (string, string) {
+	split := strings.SplitN(expansionAddr, ClasspathSeparator, 2)
 	if len(split) == 1 {
 		return expansionAddr, ""
 	}

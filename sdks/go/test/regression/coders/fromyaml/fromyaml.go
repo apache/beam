@@ -88,6 +88,10 @@ func (s *Spec) testStandardCoder() (err error) {
 		log.Printf("skipping unimplemented coder urn: %v", s.Coder.Urn)
 		return nil
 	}
+	if s.Coder.Urn == "beam:coder:state_backed_iterable:v1" {
+		log.Printf("skipping unimplemented test coverage for beam:coder:state_backed_iterable:v1. BEAM-13801")
+		return nil
+	}
 	for _, c := range filteredCases {
 		if strings.Contains(s.Coder.Payload, c.filter) {
 			log.Printf("skipping coder case. Unsupported in the Go SDK for now: %v Payload: %v", c.reason, s.Coder.Payload)
@@ -213,6 +217,19 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 			pass = false
 		}
 		return pass
+
+	case "beam:coder:nullable:v1":
+		if elem.Elm == nil || eg.Value == nil {
+			got, want = elem.Elm, eg.Value
+		} else {
+			got = string(elem.Elm.([]byte))
+			switch egv := eg.Value.(type) {
+			case string:
+				want = egv
+			case []byte:
+				want = string(egv)
+			}
+		}
 
 	case "beam:coder:iterable:v1":
 		pass := true

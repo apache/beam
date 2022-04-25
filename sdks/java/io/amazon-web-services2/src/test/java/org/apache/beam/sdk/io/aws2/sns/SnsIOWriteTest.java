@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Set;
 import java.util.stream.StreamSupport;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,6 +48,7 @@ public class SnsIOWriteTest implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
+  @Ignore("Deprecated SnsIO.writeAsync doesn't wait for future responses.")
   public void shouldReturnResponseOnPublishSuccess() {
     String testMessage1 = "test1";
     String testMessage2 = "test2";
@@ -86,6 +87,7 @@ public class SnsIOWriteTest implements Serializable {
   }
 
   @Test
+  @Ignore("Deprecated SnsIO.writeAsync doesn't wait for future responses.")
   public void shouldReturnResponseOnPublishFailure() {
     String testMessage1 = "test1";
     String testMessage2 = "test2";
@@ -121,42 +123,34 @@ public class SnsIOWriteTest implements Serializable {
   }
 
   @Test
-  @SuppressWarnings("MissingFail")
+  @Ignore("Deprecated SnsIO.writeAsync doesn't fail on failure status code.")
   public void shouldThrowIfThrowErrorOptionSet() {
-    String testMessage1 = "test1";
-
     pipeline
-        .apply(Create.of(testMessage1))
+        .apply(Create.of("test1"))
         .apply(
             SnsIO.<String>writeAsync()
                 .withCoder(StringUtf8Coder.of())
                 .withPublishRequestFn(createPublishRequestFn())
                 .withSnsClientProvider(
                     () -> MockSnsAsyncClient.withStatusCode(FAILURE_STATUS_CODE)));
-    try {
-      pipeline.run().waitUntilFinish();
-    } catch (final Pipeline.PipelineExecutionException e) {
-      assertThrows(IOException.class, () -> e.getCause().getClass());
-    }
+
+    assertThatThrownBy(() -> pipeline.run().waitUntilFinish())
+        .isInstanceOf(Pipeline.PipelineExecutionException.class);
   }
 
   @Test
-  @SuppressWarnings("MissingFail")
+  @Ignore("Deprecated SnsIO.writeAsync doesn't propagate async failures.")
   public void shouldThrowIfThrowErrorOptionSetOnInternalException() {
-    String testMessage1 = "test1";
-
     pipeline
-        .apply(Create.of(testMessage1))
+        .apply(Create.of("test1"))
         .apply(
             SnsIO.<String>writeAsync()
                 .withCoder(StringUtf8Coder.of())
                 .withPublishRequestFn(createPublishRequestFn())
                 .withSnsClientProvider(MockSnsAsyncExceptionClient::create));
-    try {
-      pipeline.run().waitUntilFinish();
-    } catch (final Pipeline.PipelineExecutionException e) {
-      assertThrows(IOException.class, () -> e.getCause().getClass());
-    }
+
+    assertThatThrownBy(() -> pipeline.run().waitUntilFinish())
+        .isInstanceOf(Pipeline.PipelineExecutionException.class);
   }
 
   private SerializableFunction<String, PublishRequest> createPublishRequestFn() {

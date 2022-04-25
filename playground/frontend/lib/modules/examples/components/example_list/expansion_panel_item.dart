@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/examples/components/example_list/example_item_actions.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
@@ -59,16 +60,21 @@ class ExpansionPanelItem extends StatelessWidget {
             color: Colors.transparent,
             margin: const EdgeInsets.only(left: kXxlSpacing),
             height: kContainerHeight,
-            child: Row(
-              children: [
-                // Wrapped with Row for better user interaction and positioning
-                Text(
-                  example.name,
-                  style: example == selectedExample
-                      ? const TextStyle(fontWeight: FontWeight.bold)
-                      : const TextStyle(),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.only(right: kLgSpacing),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Wrapped with Row for better user interaction and positioning
+                  Text(
+                    example.name,
+                    style: example == selectedExample
+                        ? const TextStyle(fontWeight: FontWeight.bold)
+                        : const TextStyle(),
+                  ),
+                  ExampleItemActions(parentContext: context, example: example),
+                ],
+              ),
             ),
           ),
         ),

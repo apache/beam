@@ -36,6 +36,7 @@ dependencies {
   implementation project(":runners:java-job-service")
   implementation project(path: ":sdks:java:harness", configuration: "shadow")
   implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest
 
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest
@@ -88,14 +89,14 @@ void execBackgroundInVirtualenv(String... args) {
   }
 }
 
-task installBeamPythonInVirtualenv {
+def installBeamPythonInVirtualenv = tasks.register("installBeamPythonInVirtualenv") {
   dependsOn setupVirtualenv
   doLast {
     execInVirtualenv "pip", "install", "-e", "."
   }
 }
 
-task startLocalJobService {
+def startLocalJobService = tasks.register("startLocalJobService") {
   dependsOn installBeamPythonInVirtualenv
 
   doLast {
@@ -117,7 +118,7 @@ task stopLocalJobService {
   }
 }
 
-startLocalJobService.finalizedBy stopLocalJobService
+startLocalJobService.configure{finalizedBy stopLocalJobService}
 
 /**
  * Runs Java ValidatesRunner tests against the Universal Local Runner (ULR) aka local_job_service_main

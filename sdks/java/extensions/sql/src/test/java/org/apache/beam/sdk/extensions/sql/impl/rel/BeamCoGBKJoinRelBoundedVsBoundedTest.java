@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,6 +48,30 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
               Schema.FieldType.INT32, "price")
           .addRows(1, 2, 3, 2, 3, 3, 3, 4, 5);
 
+  public static final TestBoundedTable ORDER_DETAILS1_WITH_ARRAY =
+      TestBoundedTable.of(
+              Schema.FieldType.INT32,
+              "order_id",
+              Schema.FieldType.INT32,
+              "site_id",
+              Schema.FieldType.INT32,
+              "price",
+              FieldType.array(FieldType.STRING).withNullable(true),
+              "f_stringArr")
+          .addRows(
+              1,
+              2,
+              3,
+              Arrays.asList("111", "222", "333"),
+              2,
+              3,
+              3,
+              Arrays.asList("222", "333", "333"),
+              3,
+              4,
+              5,
+              Arrays.asList("333", "444", "555"));
+
   public static final TestBoundedTable ORDER_DETAILS2 =
       TestBoundedTable.of(
               Schema.FieldType.INT32, "order_id",
@@ -56,6 +82,7 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
   @BeforeClass
   public static void prepare() {
     registerTable("ORDER_DETAILS1", ORDER_DETAILS1);
+    registerTable("ORDER_DETAILS1_WITH_ARRAY", ORDER_DETAILS1_WITH_ARRAY);
     registerTable("ORDER_DETAILS2", ORDER_DETAILS2);
   }
 
@@ -63,7 +90,7 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
   public void testInnerJoin() throws Exception {
     String sql =
         "SELECT *  "
-            + "FROM ORDER_DETAILS1 o1"
+            + "FROM ORDER_DETAILS1_WITH_ARRAY o1"
             + " JOIN ORDER_DETAILS2 o2"
             + " on "
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
@@ -76,11 +103,12 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
                         .addField("order_id", Schema.FieldType.INT32)
                         .addField("site_id", Schema.FieldType.INT32)
                         .addField("price", Schema.FieldType.INT32)
+                        .addNullableField("f_stringArr", FieldType.array(FieldType.STRING))
                         .addField("order_id0", Schema.FieldType.INT32)
                         .addField("site_id0", Schema.FieldType.INT32)
                         .addField("price0", Schema.FieldType.INT32)
                         .build())
-                .addRows(2, 3, 3, 1, 2, 3)
+                .addRows(2, 3, 3, Arrays.asList("222", "333", "333"), 1, 2, 3)
                 .getRows());
     pipeline.run();
   }

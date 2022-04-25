@@ -23,7 +23,6 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
 import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
@@ -44,9 +43,6 @@ import org.apache.beam.sdk.values.PCollection;
  * size. To make it more interesting we instead choose bids for every {@code skipFactor}'th auction.
  */
 public class SqlQuery2 extends NexmarkQueryTransform<AuctionPrice> {
-
-  private static final String QUERY_TEMPLATE =
-      "SELECT auction, price FROM PCOLLECTION WHERE MOD(auction, %d) = 0";
 
   private final long skipFactor;
   private final Class<? extends QueryPlanner> plannerClass;
@@ -69,9 +65,12 @@ public class SqlQuery2 extends NexmarkQueryTransform<AuctionPrice> {
   public PCollection<AuctionPrice> expand(PCollection<Event> allEvents) {
     return allEvents
         .apply(Filter.by(NexmarkQueryUtil.IS_BID))
-        .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID))
+        .apply(getName() + ".SelectEvent", new SelectEvent(Event.Type.BID))
         .apply(
-            SqlTransform.query(String.format(QUERY_TEMPLATE, skipFactor))
+            SqlTransform.query(
+                    String.format(
+                        "SELECT auction, price FROM PCOLLECTION WHERE MOD(auction, %d) = 0",
+                        skipFactor))
                 .withQueryPlannerClass(plannerClass))
         .apply(Convert.fromRows(AuctionPrice.class));
   }

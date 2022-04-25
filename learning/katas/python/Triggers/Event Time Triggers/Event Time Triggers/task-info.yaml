@@ -22,8 +22,8 @@ files:
 - name: task.py
   visible: true
   placeholders:
-  - offset: 1288
-    length: 343
+  - offset: 1355
+    length: 392
     placeholder_text: TODO()
 - name: generate_event.py
   visible: true

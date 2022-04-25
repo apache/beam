@@ -25,12 +25,12 @@ from apache_beam.io import WriteToText
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.options.pipeline_options import PipelineOptions
 
-"""A multi-language pipeline that counts words.
+"""A Python multi-language pipeline that counts words.
 
 This pipeline reads an input text file and counts the words using the Java SDK
-transform 'Count.perElement()'.
+transform `Count.perElement()`.
 
-Example commands for executing the program.
+Example commands for executing the program:
 
 DirectRunner:
 $ python javacount.py --runner DirectRunner --environment_type=DOCKER --input <INPUT FILE> --output output --expansion_service_port <PORT>
