@@ -231,11 +231,13 @@ func (n *TruncateSizedRestriction) ID() UnitID {
 
 // Up performs one-time setup for this executor.
 func (n *TruncateSizedRestriction) Up(ctx context.Context) error {
-	fn := (*graph.SplittableDoFn)(n.Fn).TruncateRestrictionFn()
+	fn := (*graph.SplittableDoFn)(n.Fn).CreateTrackerFn()
 	var err error
 	if n.ctInv, err = newCreateTrackerInvoker(fn); err != nil {
 		return errors.WithContextf(err, "%v", n)
 	}
+
+	fn = (*graph.SplittableDoFn)(n.Fn).TruncateRestrictionFn()
 	if fn != nil {
 		if n.truncateInv, err = newTruncateRestrictionInvoker(fn); err != nil {
 			return err
@@ -285,13 +287,13 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 	if n.truncateInv == nil {
 		newRest = DefaultTruncateRestriction(rt)
 	} else {
-		newRest = n.truncateInv.Invoke(mainElm, rt)
+		newRest = n.truncateInv.Invoke(rt, mainElm)
 	}
 	size := n.sizeInv.Invoke(mainElm, newRest)
 	output := &FullValue{}
 	output.Timestamp = elm.Timestamp
 	output.Windows = elm.Windows
-	output.Elm = &FullValue{Elm: &FullValue{Elm: mainElm, Elm2: newRest}}
+	output.Elm = &FullValue{Elm: mainElm, Elm2: newRest}
 	output.Elm2 = size
 
 	if err = n.Out.ProcessElement(ctx, output, values...); err != nil {

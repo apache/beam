@@ -191,6 +191,7 @@ var doFnNames = []string{
 	restrictionSizeName,
 	createTrackerName,
 	createWatermarkEstimatorName,
+	truncateRestrictionName,
 }
 
 var requiredSdfNames = []string{

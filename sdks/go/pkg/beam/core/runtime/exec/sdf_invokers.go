@@ -278,8 +278,8 @@ func (n *ctInvoker) initCallFn() error {
 		}
 	default:
 		if len(n.fn.Param) != 1 {
-			return errors.Errorf("CreateTracker fn %v has unexpected number of parameters: %v",
-				n.fn.Fn.Name(), len(n.fn.Param))
+			return errors.Errorf("CreateTracker fn %v has unexpected number of parameters: %v, %v",
+				n.fn.Fn.Name(), len(n.fn.Param), n.fn.String())
 		}
 		n.call = func(rest interface{}) sdf.RTracker {
 			n.args[0] = rest
@@ -391,25 +391,25 @@ func (n *trInvoker) initCallFn() error {
 	switch fnT := n.fn.Fn.(type) {
 	case reflectx.Func2x1:
 		n.call = func(elms *FullValue, rest interface{}) interface{} {
-			return fnT.Call2x1(elms.Elm, rest)
+			return fnT.Call2x1(rest, elms.Elm)
 		}
 	case reflectx.Func3x1:
 		n.call = func(elms *FullValue, rest interface{}) interface{} {
-			return fnT.Call3x1(elms.Elm, elms.Elm2, rest)
+			return fnT.Call3x1(rest, elms.Elm, elms.Elm2)
 		}
 	default:
 		switch len(n.fn.Param) {
 		case 2:
 			n.call = func(elms *FullValue, rest interface{}) interface{} {
-				n.args[0] = elms.Elm
-				n.args[1] = rest
+				n.args[0] = rest
+				n.args[1] = elms.Elm
 				return n.fn.Fn.Call(n.args)[0]
 			}
 		case 3:
 			n.call = func(elms *FullValue, rest interface{}) interface{} {
-				n.args[0] = elms.Elm
-				n.args[1] = elms.Elm2
-				n.args[2] = rest
+				n.args[1] = elms.Elm
+				n.args[2] = elms.Elm2
+				n.args[0] = rest
 				return n.fn.Fn.Call(n.args)[0]
 			}
 		default:
@@ -422,7 +422,7 @@ func (n *trInvoker) initCallFn() error {
 
 // Invoke calls TruncateRestriction given a FullValue containing an element and
 // the associated restriction tracker, and returns a truncated restriction.
-func (n *trInvoker) Invoke(elms *FullValue, rt interface{}) (rest interface{}) {
+func (n *trInvoker) Invoke(rt interface{}, elms *FullValue) (rest interface{}) {
 	return n.call(elms, rt)
 }
 
