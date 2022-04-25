@@ -77,8 +77,8 @@ class WindowedValueTest(unittest.TestCase):
 
 
 WINDOWED_BATCH_INSTANCES = [
-    windowed_value.WindowedBatch(None, [3, 4, 5], [(), (), ()]),
-    windowed_value.WindowedBatch(
+    windowed_value.ConcreteWindowedBatch(None, [3, 4, 5], [(), (), ()]),
+    windowed_value.ConcreteWindowedBatch(
         None, [6, 7, 8], [(), (), ()],
         [
             windowed_value.PaneInfo(
@@ -93,7 +93,7 @@ WINDOWED_BATCH_INSTANCES = [
 
 class WindowedBatchTest(unittest.TestCase):
   def test_timestamps(self):
-    wb = windowed_value.WindowedBatch(
+    wb = windowed_value.ConcreteWindowedBatch(
         None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
     self.assertEqual(
         wb.timestamps,
@@ -109,27 +109,27 @@ class WindowedBatchTest(unittest.TestCase):
   def test_with_values(self):
     pane_info = windowed_value.PaneInfo(
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
-    wb = windowed_value.WindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
-                                      pane_info)
+    wb = windowed_value.ConcreteWindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
+                                              pane_info)
     self.assertEqual(
         wb.with_values(['baz', 'foo']),
-        windowed_value.WindowedBatch(['baz', 'foo'], [3, 6], [(), ()],
-                                     pane_info))
+        windowed_value.ConcreteWindowedBatch(['baz', 'foo'], [3, 6], [(), ()],
+                                             pane_info))
 
   @parameterized.expand(itertools.combinations(WINDOWED_BATCH_INSTANCES, 2))
   def test_inequality(self, left_wb, right_wb):
     self.assertNotEqual(left_wb, right_wb)
 
   def test_equals_different_type(self):
-    wb = windowed_value.WindowedBatch(
+    wb = windowed_value.ConcreteWindowedBatch(
         None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
     self.assertNotEqual(wb, object())
 
   def test_as_windowed_values(self):
     pane_info = windowed_value.PaneInfo(
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
-    wb = windowed_value.WindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
-                                      pane_info)
+    wb = windowed_value.ConcreteWindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
+                                              pane_info)
 
     self.assertEqual(
         list(wb.as_windowed_values(iter)),
@@ -150,8 +150,8 @@ class WindowedBatchTest(unittest.TestCase):
     self.assertEqual(
         windowed_value.WindowedBatch.from_windowed_values(
             windowed_values, produce_fn=list),
-        windowed_value.WindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
-                                     [pane_info, pane_info]))
+        windowed_value.ConcreteWindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
+                                             [pane_info, pane_info]))
 
 
 @parameterized_class(('wb', ), [(wb, ) for wb in WINDOWED_BATCH_INSTANCES])

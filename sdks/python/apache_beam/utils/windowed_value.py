@@ -294,7 +294,33 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
 
 class WindowedBatch(object):
   """A batch of N windowed values, each having a value, a timestamp and set of
-  windows.
+  windows."""
+  def with_values(self, new_values):
+    # type: (Any) -> WindowedBatch
+
+    """Creates a new WindowedBatch with the same timestamps and windows as this.
+
+    This is the fasted way to create a new WindowedValue.
+    """
+    raise NotImplementedError
+
+  def as_windowed_values(self, explode_fn: Callable) -> Iterable[WindowedValue]:
+    raise NotImplementedError
+
+  @staticmethod
+  def from_windowed_values(
+      windowed_values: Sequence[WindowedValue], *,
+      produce_fn: Callable) -> 'WindowedBatch':
+    # TODO: Combine equivalent pane/windows?
+    return ConcreteWindowedBatch(
+        produce_fn([wv.value for wv in windowed_values]),
+        [wv.timestamp
+         for wv in windowed_values], [wv.windows for wv in windowed_values],
+        [wv.pane_info for wv in windowed_values])
+
+
+class ConcreteWindowedBatch(WindowedBatch):
+  """A concrete WindowedBatch where all event-time is stored independently.
 
   Attributes:
     values: The underlying values of the windowed batch.
@@ -359,17 +385,6 @@ class WindowedBatch(object):
                                                     self._pane_infos_iter()):
       yield create(value, timestamp, windows, pane_info)
 
-  @staticmethod
-  def from_windowed_values(
-      windowed_values: Sequence[WindowedValue], *,
-      produce_fn: Callable) -> 'WindowedBatch':
-    # TODO: Combine equivalent pane/windows?
-    return WindowedBatch(
-        produce_fn([wv.value for wv in windowed_values]),
-        [wv.timestamp
-         for wv in windowed_values], [wv.windows for wv in windowed_values],
-        [wv.pane_info for wv in windowed_values])
-
   def _pane_infos_iter(self):
     if isinstance(self.pane_infos, PaneInfo):
       return itertools.repeat(self.pane_infos, len(self.timestamps_micros))
@@ -377,7 +392,7 @@ class WindowedBatch(object):
       return self.pane_infos
 
   def __eq__(self, other):
-    if isinstance(other, WindowedBatch):
+    if isinstance(other, ConcreteWindowedBatch):
       return (
           type(self) == type(other) and
           self.timestamps_micros == other.timestamps_micros and
@@ -399,7 +414,7 @@ class WindowedBatch(object):
 
 def create_batch(
     values, timestamps_micros, windows, pane_infos=PANE_INFO_UNKNOWN):
-  wb = WindowedBatch.__new__(WindowedBatch)
+  wb = ConcreteWindowedBatch.__new__(ConcreteWindowedBatch)
   wb.values = values
   wb.timestamps_micros = timestamps_micros
   wb.windows = windows
