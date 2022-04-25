@@ -252,7 +252,7 @@ func (n *invoker) ret1(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime,
 // ret2 handles processing of a pair of return values.
 func (n *invoker) ret2(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, r0, r1 interface{}) (*FullValue, error) {
 	switch {
-	case n.outErrIdx == 2:
+	case n.outErrIdx == 1:
 		if r1 != nil {
 			return nil, r1.(error)
 		}
