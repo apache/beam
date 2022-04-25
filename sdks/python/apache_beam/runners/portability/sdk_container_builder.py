@@ -251,7 +251,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
       build.options.machineType = self._cloud_build_machine_type
     build.steps = []
     step = cloudbuild.BuildStep()
-    step.name = 'gcr.io/kaniko-project/executor:v1.8.1'
+    step.name = 'gcr.io/kaniko-project/executor:latest'
     step.args = ['--destination=' + container_image_name, '--cache=true']
     step.dir = SOURCE_FOLDER
 
