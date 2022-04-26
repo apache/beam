@@ -22,6 +22,7 @@ dataproc_cluster_manager."""
 import unittest
 from unittest.mock import patch
 
+from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
 from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 
@@ -69,6 +70,15 @@ class MockFileIO:
 @unittest.skipIf(not _dataproc_imported, 'dataproc package was not imported.')
 class DataprocClusterManagerTest(unittest.TestCase):
   """Unit test for DataprocClusterManager"""
+  def setUp(self):
+    self.patcher = patch(
+        'apache_beam.runners.interactive.interactive_environment.current_env')
+    self.m_env = self.patcher.start()
+    self.m_env().clusters = ib.Clusters()
+
+  def tearDown(self):
+    self.patcher.stop()
+
   @patch(
       'google.cloud.dataproc_v1.ClusterControllerClient.create_cluster',
       side_effect=MockException(409))

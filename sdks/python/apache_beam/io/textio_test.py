@@ -54,6 +54,9 @@ class DummyCoder(coders.Coder):
   def decode(self, x):
     return (x * 2).decode('utf-8')
 
+  def to_type_hint(self):
+    return str
+
 
 class EOL(object):
   LF = 1
