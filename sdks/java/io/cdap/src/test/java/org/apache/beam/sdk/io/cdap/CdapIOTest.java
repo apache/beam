@@ -43,9 +43,13 @@ import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
+import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
+import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
+import io.cdap.plugin.zendesk.source.batch.util.ZendeskBatchSourceConstants;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -54,15 +58,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.context.StreamingSourceContextImpl;
-import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSource;
-import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSourceConfig;
-import org.apache.beam.sdk.io.cdap.github.batch.GithubFormatProvider;
-import org.apache.beam.sdk.io.cdap.github.batch.GithubInputFormat;
-import org.apache.beam.sdk.io.cdap.github.common.model.impl.Branch;
-import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskBatchSource;
-import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskBatchSourceConfig;
-import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskInputFormat;
-import org.apache.beam.sdk.io.cdap.zendesk.batch.util.ZendeskBatchSourceConstants;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -79,7 +74,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -111,15 +105,6 @@ public class CdapIOTest {
           .put("password", "password")
           .put("loginUrl", "https://www.google.com")
           .put("referenceName", "oldReference")
-          .build();
-
-  private static final ImmutableMap<String, Object> TEST_GITHUB_PARAMS_MAP =
-      ImmutableMap.<String, Object>builder()
-          .put("authorizationToken", System.getenv("GITHUB_TOKEN"))
-          .put("repoOwner", System.getenv("GITHUB_REPO_OWNER"))
-          .put("repoName", System.getenv("GITHUB_REPO_NAME"))
-          .put("datasetName", "Branches")
-          .put("hostname", "https://api.github.com")
           .build();
 
   private static final ImmutableMap<String, Object> TEST_ZENDESK_PARAMS_MAP =
@@ -165,49 +150,6 @@ public class CdapIOTest {
     public JsonElement decode(InputStream inStream) throws IOException {
       return JsonParser.parseString(STRING_CODER.decode(inStream));
     }
-  }
-
-  @Test
-  public void testReadFromGithub() {
-
-    GithubBatchSourceConfig pluginConfig =
-        new ConfigWrapper<>(GithubBatchSourceConfig.class)
-            .withParams(TEST_GITHUB_PARAMS_MAP)
-            .build();
-
-    CdapIO.Read<Text, Branch> reader =
-        CdapIO.<Text, Branch>read()
-            .withCdapPluginClass(GithubBatchSource.class)
-            .withPluginConfig(pluginConfig)
-            .withKeyClass(Text.class)
-            .withValueClass(Branch.class);
-
-    assertNotNull(reader.getPluginConfig());
-    assertNotNull(reader.getCdapPlugin());
-    assertFalse(reader.getCdapPlugin().isUnbounded());
-    assertEquals(BatchSourceContextImpl.class, reader.getCdapPlugin().getContext().getClass());
-
-    List<KV<Text, Branch>> inputs = new ArrayList<>();
-    inputs.add(KV.of(null, new Branch("master", false)));
-
-    PCollection<KV<Text, Branch>> input =
-        p.apply(reader)
-            .setCoder(
-                KvCoder.of(
-                    NullableCoder.of(WritableCoder.of(Text.class)),
-                    SerializableCoder.of(Branch.class)));
-
-    PAssert.that(input).containsInAnyOrder(inputs);
-    p.run();
-
-    assertEquals(GithubInputFormat.class, reader.getCdapPlugin().formatClass);
-
-    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConf();
-    String configJson = hadoopConf.get(GithubFormatProvider.PROPERTY_CONFIG_JSON);
-    GithubBatchSourceConfig configFromJson =
-        GSON.fromJson(configJson, GithubBatchSourceConfig.class);
-
-    assertEquals(pluginConfig.getAuthorizationToken(), configFromJson.getAuthorizationToken());
   }
 
   @Test

@@ -114,7 +114,7 @@ public class CdapPlugin<T extends SubmitterLifecycle> implements Serializable {
       format = Format.OUTPUT;
     } else {
       format = Format.INPUT;
-      context = new StreamingSourceContextImpl();
+      context = new BatchSourceContextImpl();
     }
   }
 
