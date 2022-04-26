@@ -142,6 +142,7 @@ class ProtoSchemaTranslator {
   /** Option prefix for options on fields. */
   public static final String SCHEMA_OPTION_FIELD_PREFIX = "beam:option:proto:field:";
 
+  /** A HashSet containing the non-primitive schemas within another schema, to prevent circular references. */
   private static Set<Descriptors.Descriptor> alreadyVisitedSchemas = new HashSet<Descriptors.Descriptor>();
 
   /** Attach a proto field number to a type. */
