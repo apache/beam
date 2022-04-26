@@ -2917,7 +2917,7 @@ public class BigQueryIO {
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
           // Batch load jobs currently support JSON data insertion only with CSV files
           checkArgument(
-              !getJsonSchema().get().contains("JSON"),
+              !getJsonSchema().get().contains("\"type\":\"JSON\""),
               "Found JSON type in TableSchema. JSON data insertion is currently "
                   + "not supported with batch loads.");
         }
