@@ -20,7 +20,10 @@
 
 import Committers as committers
 
-job('beam_SeedJob') {
+job('beam_SeedJob') {stringParam(
+        'ghprbPullId',
+        '',
+        'Pull Request ID (eg: 4001) that you want to build against.')
   description('Automatically configures all Apache Beam Jenkins projects based' +
       ' on Jenkins DSL groovy files checked into the code repository.')
 
@@ -63,6 +66,10 @@ job('beam_SeedJob') {
         'sha1',
         'master',
         'Commit id or refname (eg: origin/pr/4001/head) you want to build against.')
+    stringParam(
+        'ghprbPullId',
+        '',
+        'Pull Request ID (eg: 4001) that you want to build against.')
   }
 
   wrappers {
