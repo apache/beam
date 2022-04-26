@@ -23,8 +23,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.SerializableBiConsumer;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -33,10 +33,7 @@ public class MetadataDynamicCoder extends StructuredCoder<MatchResult.Metadata> 
 
   private static final MetadataCoder V1_CODER = MetadataCoder.of();
 
-  private List<Coder<?>> coders = new ArrayList<>();
-  private List<SerializableFunction<? super MatchResult.Metadata, ?>> getters = new ArrayList<>();
-  private List<SerializableBiConsumer<? super MatchResult.Metadata.Builder, ?>> setters =
-      new ArrayList<>();
+  private List<MetadataFieldCoderDescription> fieldCoders = new ArrayList<>();
 
   public MetadataDynamicCoder() {}
 
@@ -44,35 +41,35 @@ public class MetadataDynamicCoder extends StructuredCoder<MatchResult.Metadata> 
       Coder<T> coder,
       SerializableFunction<? super MatchResult.Metadata, T> getter,
       SerializableBiConsumer<? super MatchResult.Metadata.Builder, T> setter) {
-    coders.add(coder);
-    getters.add(getter);
-    setters.add(setter);
+    MetadataFieldCoderDescription metadataFieldCoderDescription =
+        new MetadataFieldCoderDescription(coder, getter, setter);
+    fieldCoders.add(metadataFieldCoderDescription);
     return this;
   }
 
   @Override
-  public void encode(MatchResult.Metadata metadata, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(MatchResult.Metadata metadata, OutputStream outStream) throws IOException {
     V1_CODER.encode(metadata, outStream);
-    for (int i = 0; i < coders.size(); i++) {
-      SerializableFunction<? super MatchResult.Metadata, ?> getter = getters.get(i);
-      Coder coder = coders.get(i);
+    for (MetadataFieldCoderDescription fieldCoderDescription : fieldCoders) {
+      SerializableFunction<? super MatchResult.Metadata, ?> getter =
+          fieldCoderDescription.getGetter();
+      Coder coder = fieldCoderDescription.getCoder();
       try {
         coder.encode(getter.apply(metadata), outStream);
       } catch (IOException e) {
         throw new RuntimeException(
-            "Failed to encode " + getter.toString() + " with coder " + coder.getClass());
+            "Failed to encode " + getter + " with coder " + coder.getClass());
       }
     }
   }
 
   @Override
-  public MatchResult.Metadata decode(InputStream inStream) throws CoderException, IOException {
+  public MatchResult.Metadata decode(InputStream inStream) throws IOException {
     MatchResult.Metadata.Builder builder = V1_CODER.decodeBuilder(inStream);
 
-    for (int i = 0; i < coders.size(); i++) {
-      Coder coder = coders.get(i);
-      BiConsumer setter = setters.get(i);
+    for (MetadataFieldCoderDescription metadataFieldCoderDescription : fieldCoders) {
+      Coder coder = metadataFieldCoderDescription.getCoder();
+      BiConsumer setter = metadataFieldCoderDescription.getSetter();
 
       try {
         setter.accept(builder, coder.decode(inStream));
@@ -85,7 +82,9 @@ public class MetadataDynamicCoder extends StructuredCoder<MatchResult.Metadata> 
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return coders;
+    return fieldCoders.stream()
+        .map(MetadataFieldCoderDescription::getCoder)
+        .collect(Collectors.toList());
   }
 
   @Override
