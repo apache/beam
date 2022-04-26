@@ -70,6 +70,7 @@ dependencies {
     implementation project(":sdks:java:io:hadoop-format")
     implementation project(":sdks:java:io:sparkreceiver")
     testImplementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
+    testImplementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit

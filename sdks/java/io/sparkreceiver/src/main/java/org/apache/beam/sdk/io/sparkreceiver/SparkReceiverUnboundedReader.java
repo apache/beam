@@ -26,8 +26,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded reader to read from CDAP plugin. Each reader consumes records from the {@link
@@ -53,11 +51,11 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
       return false;
     } else {
       curRecord = record;
-      recordsRead++;
+      //      recordsRead++;
       curPosition++;
-//      if (recordsRead % 100 == 0) {
-//        LOG.info("[{}], records read = {}", source.getId(), recordsRead);
-//      }
+      //      if (recordsRead % 100 == 0) {
+      //        LOG.info("[{}], records read = {}", source.getId(), recordsRead);
+      //      }
       return true;
     }
   }
@@ -101,7 +99,7 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUnboundedReader.class);
+  //  private static final Logger LOG = LoggerFactory.getLogger(SparkReceiverUnboundedReader.class);
 
   //  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
   //  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
@@ -113,7 +111,7 @@ public class SparkReceiverUnboundedReader<V> extends UnboundedSource.UnboundedRe
   private V curRecord;
   private String curOffset;
   private Integer curPosition = 0;
-  private int recordsRead = 0;
+  //  private int recordsRead = 0;
   private AtomicBoolean closed = new AtomicBoolean(false);
 
   /** watermark before any records have been read. */

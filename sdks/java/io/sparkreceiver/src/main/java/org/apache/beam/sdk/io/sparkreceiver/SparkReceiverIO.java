@@ -32,9 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Streaming sources for Spark {@link Receiver}.
- */
+/** Streaming sources for Spark {@link Receiver}. */
 @SuppressWarnings("rawtypes")
 public class SparkReceiverIO {
 

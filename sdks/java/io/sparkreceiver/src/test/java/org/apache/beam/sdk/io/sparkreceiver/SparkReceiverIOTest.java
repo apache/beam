@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.sparkreceiver;
 
+import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
+import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
+import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
+import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.common.BaseHubspotConfig;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;

@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -26,6 +30,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
+import io.cdap.plugin.hubspot.common.SourceHubspotConfig;
+import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
+import io.cdap.plugin.hubspot.source.batch.HubspotInputFormat;
+import io.cdap.plugin.hubspot.source.batch.HubspotInputFormatProvider;
+import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSource;
+import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
+import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
 import java.io.IOException;
@@ -47,24 +59,15 @@ import org.apache.beam.sdk.io.cdap.github.batch.GithubBatchSourceConfig;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubFormatProvider;
 import org.apache.beam.sdk.io.cdap.github.batch.GithubInputFormat;
 import org.apache.beam.sdk.io.cdap.github.common.model.impl.Branch;
-import org.apache.beam.sdk.io.cdap.hubspot.common.BaseHubspotConfig;
-import org.apache.beam.sdk.io.cdap.hubspot.common.SourceHubspotConfig;
-import org.apache.beam.sdk.io.cdap.hubspot.source.batch.HubspotBatchSource;
-import org.apache.beam.sdk.io.cdap.hubspot.source.batch.HubspotInputFormat;
-import org.apache.beam.sdk.io.cdap.hubspot.source.batch.HubspotInputFormatProvider;
 import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskBatchSource;
 import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskBatchSourceConfig;
 import org.apache.beam.sdk.io.cdap.zendesk.batch.ZendeskInputFormat;
 import org.apache.beam.sdk.io.cdap.zendesk.batch.util.ZendeskBatchSourceConstants;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSource;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.PullFrequency;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -349,8 +352,8 @@ public class CdapIOTest {
                             .plusDelayOf(Duration.standardSeconds(30))))
                 .discardingFiredPanes())
         .apply(
-            MapElements.into(TypeDescriptor.of(String.class)).via(
-                    (SerializableFunction<KV<NullWritable, String>, String>) KV::getValue))
+            MapElements.into(TypeDescriptor.of(String.class))
+                .via((SerializableFunction<KV<NullWritable, String>, String>) KV::getValue))
         .apply(
             "Write to file", TextIO.write().withWindowedWrites().to(HUBSPOT_CONTACTS_OUTPUT_TXT));
 

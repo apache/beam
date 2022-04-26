@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.sparkreceiver;
 
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
+import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceReceiver;
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.lang.reflect.InvocationTargetException;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotReceiver;
-import org.apache.beam.sdk.io.sparkreceiver.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import org.apache.spark.streaming.receiver.Receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
