@@ -194,6 +194,16 @@ class BigQueryJsonIT(unittest.TestCase):
 
     self.run_test_write(options)
 
+  @pytest.mark.it_postcomit
+  def test_file_loads_write(self):
+    extra_opts = {
+        'output': f"{PROJECT}:{DATASET_ID}.{STREAMING_TEST_TABLE}",
+        'write_method': "FILE_LOADS"
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+    with self.assertRaises(ValueError):
+      self.run_test_write(options)
+
   # Schema for writing to BigQuery
   def generate_schema(self):
     from apache_beam.io.gcp.internal.clients.bigquery import TableFieldSchema
