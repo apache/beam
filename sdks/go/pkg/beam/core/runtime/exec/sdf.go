@@ -314,6 +314,11 @@ func (n *TruncateSizedRestriction) Down(_ context.Context) error {
 	return nil
 }
 
+// String outputs a human-readable description of this transform.
+func (n *TruncateSizedRestriction) String() string {
+	return fmt.Sprintf("SDF.TruncateSizedRestriction[%v] UID:%v Out:%v", path.Base(n.Fn.Name()), n.UID, IDs(n.Out))
+}
+
 // ProcessSizedElementsAndRestrictions is an executor for the expanded SDF step
 // of the same name. It is the final step of the expanded SDF. It sets up and
 // invokes the user's SDF methods, similar to exec.ParDo but with slight

@@ -278,8 +278,8 @@ func (n *ctInvoker) initCallFn() error {
 		}
 	default:
 		if len(n.fn.Param) != 1 {
-			return errors.Errorf("CreateTracker fn %v has unexpected number of parameters: %v, %v",
-				n.fn.Fn.Name(), len(n.fn.Param), n.fn.String())
+			return errors.Errorf("CreateTracker fn %v has unexpected number of parameters: %v",
+				n.fn.Fn.Name(), len(n.fn.Param))
 		}
 		n.call = func(rest interface{}) sdf.RTracker {
 			n.args[0] = rest
