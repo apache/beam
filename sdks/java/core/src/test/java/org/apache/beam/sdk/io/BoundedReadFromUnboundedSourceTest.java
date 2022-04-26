@@ -75,7 +75,6 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable {
   }
 
   @Test(timeout = 15000L)
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-6354")
   @Category(NeedsRunner.class)
   public void testTimeBound() throws Exception {
     test(false, true);
