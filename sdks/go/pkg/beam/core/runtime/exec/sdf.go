@@ -537,7 +537,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 // behavior is identical). A single restriction split will occur and all windows
 // present in the unsplit element will be present in both the resulting primary
 // and residual.
-func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeState interface{}, rWeState interface{}) ([]*FullValue, []*FullValue, error) {
+func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeState, rWeState interface{}) ([]*FullValue, []*FullValue, error) {
 	if n.rt.IsDone() { // Not an error, but not splittable.
 		return []*FullValue{}, []*FullValue{}, nil
 	}

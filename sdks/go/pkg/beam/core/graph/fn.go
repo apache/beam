@@ -330,7 +330,7 @@ func (f *SplittableDoFn) WatermarkEstimatorT() reflect.Type {
 	return f.CreateWatermarkEstimatorFn().Ret[0].T
 }
 
-// IsWatermarkEstimating returns whether the DoFn implements custom watermark state.
+// IsStatefulWatermarkEstimating returns whether the DoFn implements custom watermark state.
 func (f *SplittableDoFn) IsStatefulWatermarkEstimating() bool {
 	_, ok := f.methods[watermarkEstimatorStateName]
 	return ok
