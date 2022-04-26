@@ -37,9 +37,10 @@ class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
   __hash__ = None  # type: ignore[assignment]
 
-  def __init__(self, path, mode='', type='FILE', mtime=int(time.time() * 1000)):
+  def __init__(self, path, mode='', type='FILE', mtime=None):
     io.BytesIO.__init__(self)
-
+    if mtime is None:
+      mtime = int(time.time() * 1000)
     self.stat = {'path': path, 'mode': mode, 'type': type, 'mtime': mtime}
     self.saved_data = None
 
@@ -540,7 +541,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     url = self.fs.join(self.tmpdir, 'f1')
     with self.fs.create(url) as f:
       f.write(b'Hello')
-    tolerance = 5 * 60  # 5 mins
+    tolerance = 60  # 1 min
     result = self.fs.last_updated(url)
     self.assertAlmostEqual(result, time.time(), delta=tolerance)
 
