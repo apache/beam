@@ -38,7 +38,6 @@ import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Builder;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
@@ -176,7 +175,7 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
       return OneOfType.create(fields.collect(Collectors.toList())).getOneOfSchema();
     } else {
       return fields
-          .reduce(Schema.builder(), Builder::addField, ThriftSchema::throwingCombiner)
+          .reduce(Schema.builder(), Schema.Builder::addField, ThriftSchema::throwingCombiner)
           .build();
     }
   }
@@ -246,7 +245,7 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
       return FieldValueTypeInformation.forSetter(factoryMethods.get(0), "");
     } else {
       try {
-        return FieldValueTypeInformation.forField(type.getDeclaredField(fieldName));
+        return FieldValueTypeInformation.forField(type.getDeclaredField(fieldName), 0);
       } catch (NoSuchFieldException e) {
         throw new IllegalArgumentException(e);
       }

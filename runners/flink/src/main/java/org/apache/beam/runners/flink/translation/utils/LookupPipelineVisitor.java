@@ -44,7 +44,7 @@ public class LookupPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-    if ((node.getTransform()) != null) {
+    if (node.getTransform() != null) {
       final AppliedPTransform<?, ?, ?> applied = node.toAppliedPTransform(getPipeline());
       lookupTable.put(applied.getTransform(), applied);
     }

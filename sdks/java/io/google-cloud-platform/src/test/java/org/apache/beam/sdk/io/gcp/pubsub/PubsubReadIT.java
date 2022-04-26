@@ -30,13 +30,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Integration test for PubsubIO. */
 @RunWith(JUnit4.class)
 public class PubsubReadIT {
-  private static final Logger LOG = LoggerFactory.getLogger(PubsubReadIT.class);
 
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();

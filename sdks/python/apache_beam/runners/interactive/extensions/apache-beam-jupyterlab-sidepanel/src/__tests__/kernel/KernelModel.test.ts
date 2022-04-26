@@ -13,8 +13,7 @@
 /**
  * Tests for KernelModel module.
  *
- * Non camelcase fields are nbformat fields used in notebooks. Lint is ignored
- * for them.
+ * Non camelcase fields are nbformat fields used in notebooks.
  */
 
 import { KernelModel } from '../../kernel/KernelModel';
@@ -22,14 +21,14 @@ import { KernelModel } from '../../kernel/KernelModel';
 const fakeSessionContext = {
   session: {
     kernel: {
-      requestExecute: function(): object {
+      requestExecute: function (): Record<string, unknown> {
         return {
-          onIOPub: function(): void {
+          onIOPub: function (): void {
             // do nothing
           }
         };
       },
-      interrupt: function(): void {
+      interrupt: function (): void {
         // do nothing
       }
     }
@@ -52,7 +51,6 @@ it('handles execute result from IOPub channel', () => {
   kernelModel.execute('any code');
   kernelModel.future.onIOPub({
     header: {
-      // eslint-disable-next-line @typescript-eslint/camelcase
       msg_type: 'execute_result'
     },
     content: {
@@ -88,7 +86,6 @@ it('handles display data from IOPub channel', () => {
   const kernelModel = new KernelModel(fakeSessionContext as any);
   kernelModel.execute('any code');
   const displayData = {
-    // eslint-disable-next-line @typescript-eslint/camelcase
     output_type: 'display_data',
     data: {
       'text/html': '<div></div>',
@@ -101,7 +98,6 @@ it('handles display data from IOPub channel', () => {
 
   kernelModel.future.onIOPub({
     header: {
-      // eslint-disable-next-line @typescript-eslint/camelcase
       msg_type: 'display_data'
     },
     content: displayData
@@ -113,7 +109,6 @@ it('handles display update from IOPub channel', () => {
   const kernelModel = new KernelModel(fakeSessionContext as any);
   kernelModel.execute('any code');
   const updateDisplayData = {
-    // eslint-disable-next-line @typescript-eslint/camelcase
     output_type: 'update_display_data',
     data: {
       'text/html': '<div id="abc"></div>',
@@ -125,7 +120,6 @@ it('handles display update from IOPub channel', () => {
   };
   kernelModel.future.onIOPub({
     header: {
-      // eslint-disable-next-line @typescript-eslint/camelcase
       msg_type: 'update_display_data'
     },
     content: updateDisplayData

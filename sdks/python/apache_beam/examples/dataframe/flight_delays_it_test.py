@@ -35,6 +35,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@unittest.skip('BEAM-14336')
 class FlightDelaysTest(unittest.TestCase):
   EXPECTED = {
       '2012-12-23': [
@@ -100,6 +101,7 @@ class FlightDelaysTest(unittest.TestCase):
   def tearDown(self):
     FileSystems.delete([self.outdir + '/'])
 
+  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_flight_delays(self):
     flight_delays.run_flight_delay_pipeline(

@@ -131,7 +131,7 @@ public abstract class RecommendationAIWriteUserEvent
         throws IOException, ExecutionException, InterruptedException {
       EventStoreName parent = EventStoreName.of(projectId, "global", catalogName, eventStore);
       UserEvent.Builder userEventBuilder = UserEvent.newBuilder();
-      JsonFormat.parser().merge((new JSONObject(context.element())).toString(), userEventBuilder);
+      JsonFormat.parser().merge(new JSONObject(context.element()).toString(), userEventBuilder);
       UserEvent userEvent = userEventBuilder.build();
 
       try (UserEventServiceClient userEventServiceClient = UserEventServiceClient.create()) {

@@ -41,10 +41,8 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -149,7 +147,7 @@ public class Main {
         appendPerf(options.getPerfFilename(), configuration, perf);
         actual.put(configuration, perf);
         // Summarize what we've run so far.
-        saveSummary(null, configurations, actual, baseline, start, options);
+        saveSummary(null, configurations, actual, baseline, start);
       }
 
       final ImmutableMap<String, String> schema =
@@ -160,14 +158,6 @@ public class Main {
               .put("numResults", "integer")
               .build();
 
-      if (options.getExportSummaryToBigQuery()) {
-        savePerfsToBigQuery(
-            BigQueryResultsPublisher.create(options.getBigQueryDataset(), schema),
-            options,
-            actual,
-            start);
-      }
-
       if (options.getExportSummaryToInfluxDB()) {
         final long timestamp = start.getMillis() / 1000; // seconds
         savePerfsToInfluxDB(options, schema, actual, timestamp);
@@ -176,7 +166,7 @@ public class Main {
     } finally {
       if (options.getMonitorJobs()) {
         // Report overall performance.
-        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start, options);
+        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start);
         saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
       }
 
@@ -184,23 +174,6 @@ public class Main {
     }
     if (!successful) {
       throw new RuntimeException("Execution was not successful");
-    }
-  }
-
-  @VisibleForTesting
-  static void savePerfsToBigQuery(
-      BigQueryResultsPublisher publisher,
-      NexmarkOptions options,
-      Map<NexmarkConfiguration, NexmarkPerf> perfs,
-      Instant start) {
-
-    for (Map.Entry<NexmarkConfiguration, NexmarkPerf> entry : perfs.entrySet()) {
-      String queryName =
-          NexmarkUtils.fullQueryName(
-              options.getQueryLanguage(), entry.getKey().query.getNumberOrName());
-      String tableName = NexmarkUtils.tableName(options, queryName, 0L, null);
-
-      publisher.publish(entry.getValue(), tableName, start.getMillis());
     }
   }
 
@@ -329,8 +302,7 @@ public class Main {
       Iterable<NexmarkConfiguration> configurations,
       Map<NexmarkConfiguration, NexmarkPerf> actual,
       @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline,
-      Instant start,
-      NexmarkOptions options) {
+      Instant start) {
 
     List<String> lines = new ArrayList<>();
 

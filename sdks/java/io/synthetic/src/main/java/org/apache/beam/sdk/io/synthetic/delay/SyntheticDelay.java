@@ -62,9 +62,9 @@ public class SyntheticDelay {
         long sleepMillis = 0;
         for (long i = 0; i < delay.getMillis(); i++) {
           if (rnd.nextDouble() < cpuUtilizationInMixedDelay) {
-            delay(new Duration(1), 0.0, SyntheticOptions.DelayType.CPU, rnd);
+            delay(Duration.millis(1), 0.0, SyntheticOptions.DelayType.CPU, rnd);
           } else {
-            sleepMillis += delay(new Duration(1), 0.0, SyntheticOptions.DelayType.SLEEP, rnd);
+            sleepMillis += delay(Duration.millis(1), 0.0, SyntheticOptions.DelayType.SLEEP, rnd);
           }
         }
         return sleepMillis;

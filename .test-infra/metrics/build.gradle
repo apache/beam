@@ -22,13 +22,21 @@ plugins {
   id 'com.avast.gradle.docker-compose'
   id 'org.ajoberstar.grgit'
 }
+
+ext {
+  cluster = 'metrics'
+  zone='us-central1-a'
+  projectName='apache-beam-testing'
+  kubeConfigPath='/home/jenkins/.kube/config'
+}
+
 applyGroovyNature()
 
 repositories { mavenCentral() }
 
 dependencies {
-  testCompile library.groovy.groovy_all
-  testCompile library.java.junit
+  testImplementation library.groovy.groovy_all
+  testImplementation library.java.junit
 }
 
 task testMetricsStack {
@@ -51,8 +59,23 @@ dockerCompose {
 
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task validateConfiguration(type: Exec) {
-  commandLine 'sh', '-c', 'kubectl apply --dry-run=true -Rf kubernetes'
+task getClusterCredentials(type: Exec) {
+  commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
+}
+
+task removeKubeConfig(type: Exec) {
+  commandLine 'sh', '-c', "rm ${kubeConfigPath}"
+}
+
+
+task validateK8sConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+}
+
+task validateConfiguration {
+  dependsOn getClusterCredentials
+  dependsOn validateK8sConfiguration
+  finalizedBy removeKubeConfig
 }
 
 task preCommit {
@@ -95,11 +118,6 @@ task deploy {
       // Build new images and force Kubernetes to re-pull images for Grafana deployment.
       exec {
         commandLine './build_and_publish_containers.sh', 'true', "${project.lastCommitId}"
-      }
-
-      exec {
-        executable 'sh'
-        args '-c', 'kubectl apply -f kubernetes/beamgrafana-deploy.yaml'
       }
 
       exec {

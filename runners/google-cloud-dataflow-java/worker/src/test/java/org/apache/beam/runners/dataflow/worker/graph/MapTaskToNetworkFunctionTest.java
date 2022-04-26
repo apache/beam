@@ -281,7 +281,7 @@ public class MapTaskToNetworkFunctionTest {
     InstructionOutputNode pgbkOutputNode = getOnlySuccessor(network, pgbkNode);
     assertEquals(pgbkOutput, pgbkOutputNode.getInstructionOutput());
 
-    ParallelInstructionNode writeNode = getOnlySuccessor(network, pgbkOutputNode);
+    getOnlySuccessor(network, pgbkOutputNode);
     assertNotNull(write);
   }
 

@@ -36,6 +36,7 @@ from apache_beam.testing.test_stream import TestStream
     '[interactive] dependency is not installed.')
 class PipelineFragmentTest(unittest.TestCase):
   def setUp(self):
+    ie.new_env()
     # Assume a notebook frontend is connected to the mocked ipython kernel.
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
@@ -147,22 +148,22 @@ class PipelineFragmentTest(unittest.TestCase):
 
       @beam.ptransform_fn
       def Bar(pcoll):
-        return pcoll | beam.Map(lambda n: n)
+        return pcoll | beam.Map(lambda n: 2 * n)
 
       @beam.ptransform_fn
       def Foo(pcoll):
-        p1 = pcoll | beam.Map(lambda n: n)
+        p1 = pcoll | beam.Map(lambda n: 3 * n)
         p2 = pcoll | beam.Map(str)
-        bar = pcoll | Bar()
+        bar = p1 | Bar()
         return {'pc1': p1, 'pc2': p2, 'bar': bar}
 
       res = init | Foo()
+      ib.watch(res)
 
-    ib.watch(locals())
-    pc = res['pc1']
+    pc = res['bar']
 
     result = pf.PipelineFragment([pc]).run()
-    self.assertEqual([0, 1, 2, 3, 4], list(result.get(pc)))
+    self.assertEqual([0, 6, 12, 18, 24], list(result.get(pc)))
 
 
 if __name__ == '__main__':

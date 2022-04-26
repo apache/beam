@@ -30,8 +30,6 @@ public class CodeStyleTestClass {
   /** Fake Class. */
   public static class MyClass {
 
-    private static final String MY_CONSTANT = "";
-
     MyClass() {}
 
     public @Nullable MyClass myMethod(List<?>... sideInputs) {

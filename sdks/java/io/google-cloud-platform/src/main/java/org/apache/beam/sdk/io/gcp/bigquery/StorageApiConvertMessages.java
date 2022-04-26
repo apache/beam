@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import java.io.IOException;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -29,48 +33,78 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class StorageApiConvertMessages<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<DestinationT, ElementT>>, PCollection<KV<DestinationT, byte[]>>> {
+        PCollection<KV<DestinationT, ElementT>>,
+        PCollection<KV<DestinationT, StorageApiWritePayload>>> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
+  private final BigQueryServices bqServices;
 
   public StorageApiConvertMessages(
-      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations) {
+      StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+      BigQueryServices bqServices) {
     this.dynamicDestinations = dynamicDestinations;
+    this.bqServices = bqServices;
   }
 
   @Override
-  public PCollection<KV<DestinationT, byte[]>> expand(
+  public PCollection<KV<DestinationT, StorageApiWritePayload>> expand(
       PCollection<KV<DestinationT, ElementT>> input) {
     String operationName = input.getName() + "/" + getName();
 
     return input.apply(
         "Convert to message",
-        ParDo.of(new ConvertMessagesDoFn<>(dynamicDestinations, operationName))
+        ParDo.of(new ConvertMessagesDoFn<>(dynamicDestinations, bqServices, operationName))
             .withSideInputs(dynamicDestinations.getSideInputs()));
   }
 
   public static class ConvertMessagesDoFn<DestinationT, ElementT>
-      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, byte[]>> {
+      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, StorageApiWritePayload>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
+    private final BigQueryServices bqServices;
+    private transient @Nullable DatasetService datasetServiceInternal = null;
 
     ConvertMessagesDoFn(
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+        BigQueryServices bqServices,
         String operationName) {
       this.dynamicDestinations = dynamicDestinations;
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
+      this.bqServices = bqServices;
+    }
+
+    private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
+      if (datasetServiceInternal == null) {
+        datasetServiceInternal =
+            bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return datasetServiceInternal;
+    }
+
+    @Teardown
+    public void onTeardown() {
+      try {
+        if (datasetServiceInternal != null) {
+          datasetServiceInternal.close();
+          datasetServiceInternal = null;
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @ProcessElement
     public void processElement(
         ProcessContext c,
+        PipelineOptions pipelineOptions,
         @Element KV<DestinationT, ElementT> element,
-        OutputReceiver<KV<DestinationT, byte[]>> o)
+        OutputReceiver<KV<DestinationT, StorageApiWritePayload>> o)
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       MessageConverter<ElementT> messageConverter =
-          messageConverters.get(element.getKey(), dynamicDestinations);
-      o.output(
-          KV.of(element.getKey(), messageConverter.toMessage(element.getValue()).toByteArray()));
+          messageConverters.get(
+              element.getKey(), dynamicDestinations, getDatasetService(pipelineOptions));
+      StorageApiWritePayload payload = messageConverter.toMessage(element.getValue());
+      o.output(KV.of(element.getKey(), payload));
     }
   }
 }

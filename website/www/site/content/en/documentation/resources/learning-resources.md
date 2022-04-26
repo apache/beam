@@ -76,6 +76,16 @@ If you have additional material that you would like to see here, please let us k
 *   **[Timely and Stateful Processing](https://beam.apache.org/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.
 
+## Books {#books}
+
+### Building Big Data Pipelines with Apache Beam
+
+**[Building Big Data Pipelines with Apache Beam](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930)** by Jan Lukavský, Packt. (January 2022). A general description of the Apache Beam model including gradually built examples that help create solid understanding of the subject. In the first part the book explains concepts using Java SDK, then SQL DSL and Portability layer with focus on Python SDK. The last part of the book is dedicated to more advanced topics like IO connectors using Splittable DoFn and description of how a typical runner executes Pipeline.
+
+###  Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing
+
+**[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://learning.oreilly.com/library/view/streaming-systems/9781491983867/)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
+
 ## Interactive Labs {#interactive-labs}
 
 ### Java
@@ -87,8 +97,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Python
 
-*   **[Python Qwik Start](https://qwiklabs.com/focuses/1100?locale=en&parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
-*   **[NDVI from Landsat Images](https://qwiklabs.com/focuses/1849?locale=en&parent=catalog)** (45m) - Process Landsat satellite data in a distributed environment to compute the [Normalized Difference Vegetation Index](https://en.wikipedia.org/wiki/Normalized_difference_vegetation_index) (NDVI).
+*   **[Python Qwik Start](https://www.qwiklabs.com/focuses/1098?parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
 *   **[Simulate historic flights](https://qwiklabs.com/focuses/1159?locale=en&parent=catalog)** (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.
 
 ## Beam Katas {#beam-katas}
@@ -131,11 +140,17 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 *   **[Snippets](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/cookbook)** - Commonly-used data analysis patterns such as how to use [BigQuery](https://cloud.google.com/bigquery), [Datastore](https://cloud.google.com/datastore/), coders, combiners, filters, custom PTransforms, etc.
 *   **[Complete Examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete)** - End-to-end example pipelines such as an auto complete, getting mobile gaming statistics, calculating the [Julia set](https://en.wikipedia.org/wiki/Julia_set), solving distributing optimization tasks, estimating PI, calculating the Term Frequency-Inverse Document Frequency ([TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)), getting the top Wikipedia sessions, etc.
 
+### Beam Playground
+
+* [Beam Playground](https://play.beam.apache.org) is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
+    You can try the available Apache Beam examples at [Beam Playground](https://play.beam.apache.org).
+* Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog [here](https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples).
+
 ## API Reference {#api-reference}
 
 *   **[Java API Reference](https://beam.apache.org/documentation/sdks/javadoc/)** - Official API Reference for the Java SDK.
 *   **[Python API Reference](https://beam.apache.org/documentation/sdks/pydoc/)** - Official API Reference for the Python SDK.
-*   **[Go API Reference](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam)** - Official API Reference for the Go SDK.
+*   **[Go API Reference](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam)** - Official API Reference for the Go SDK.
 
 ## Feedback and Suggestions {#feedback-and-suggestions}
 

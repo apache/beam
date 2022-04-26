@@ -1093,11 +1093,6 @@ public class ContextualTextIOTest {
       assertEquals("ContextualTextIO.Read", ContextualTextIO.read().from("somefile").toString());
     }
 
-    private ContextualTextIOSource prepareSource(byte[] data, boolean hasRFC4180Multiline)
-        throws IOException {
-      return ContextualTextIOTest.prepareSource(tempFolder, data, null, hasRFC4180Multiline);
-    }
-
     private ContextualTextIOSource prepareSource(byte[] data) throws IOException {
       return ContextualTextIOTest.prepareSource(tempFolder, data, null, false);
     }

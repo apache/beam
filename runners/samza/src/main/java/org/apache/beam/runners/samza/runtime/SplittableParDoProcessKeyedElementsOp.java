@@ -74,7 +74,6 @@ public class SplittableParDoProcessKeyedElementsOp<
   private final SplittableParDoViaKeyedWorkItems.ProcessElements<
           InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       processElements;
-  private final String transformFullName;
   private final String transformId;
   private final IsBounded isBounded;
 
@@ -95,7 +94,6 @@ public class SplittableParDoProcessKeyedElementsOp<
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
-    this.transformFullName = transformFullName;
     this.transformId = transformId;
     this.isBounded = isBounded;
 
@@ -148,6 +146,7 @@ public class SplittableParDoProcessKeyedElementsOp<
     DoFnInvokers.tryInvokeSetupFor(processFn, pipelineOptions);
     processFn.setStateInternalsFactory(stateInternalsFactory);
     processFn.setTimerInternalsFactory(timerInternalsFactory);
+    processFn.setSideInputReader(NullSideInputReader.empty());
     processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             processElements.getFn(),

@@ -54,7 +54,8 @@ public class SqsUnboundedReaderTest {
     source =
         new SqsUnboundedSource(
             SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
-            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)),
+            SqsMessageCoder.of());
   }
 
   private void setupMessages(List<String> messages) {
@@ -66,7 +67,8 @@ public class SqsUnboundedReaderTest {
     source =
         new SqsUnboundedSource(
             SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
-            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)),
+            SqsMessageCoder.of());
   }
 
   @Test
@@ -89,7 +91,7 @@ public class SqsUnboundedReaderTest {
     setupOneMessage();
     UnboundedSource.UnboundedReader<Message> reader =
         source.createReader(pipeline.getOptions(), null);
-    AmazonSQS sqsClient = source.getSqs();
+    AmazonSQS sqsClient = embeddedSqsRestServer.getClient();
     assertTrue(reader.start());
     assertEquals(DATA, reader.getCurrent().getBody());
     String receiptHandle = reader.getCurrent().getReceiptHandle();

@@ -164,11 +164,12 @@ public interface HealthcareApiClient {
   /**
    * Read fhir resource http body.
    *
-   * @param resourceId the resource
+   * @param resourceName the resource name, in format
+   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}
    * @return the http body
    * @throws IOException the io exception
    */
-  HttpBody readFhirResource(String resourceId) throws IOException;
+  HttpBody readFhirResource(String resourceName) throws IOException;
 
   /**
    * Search fhir resource http body.
@@ -184,6 +185,19 @@ public interface HealthcareApiClient {
       String resourceType,
       @Nullable Map<String, Object> parameters,
       String pageToken)
+      throws IOException;
+
+  /**
+   * Fhir get patient everythhing http body.
+   *
+   * @param resourceName the resource name, in format
+   *     projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}
+   * @param filters optional request filters
+   * @return the http body
+   * @throws IOException
+   */
+  HttpBody getPatientEverything(
+      String resourceName, @Nullable Map<String, Object> filters, String pageToken)
       throws IOException;
 
   /**

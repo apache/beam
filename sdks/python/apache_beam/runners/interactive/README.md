@@ -84,24 +84,13 @@ a quick reference). For a more general and complete getting started guide, see
 *   Install [GraphViz](https://www.graphviz.org/download/) with your favorite
     system package manager.
 
--   Install [JupyterLab](https://jupyter.org/install.html). You can use
-    either **conda** or **pip**.
-
-    * conda
-        ```bash
-        conda install -c conda-forge jupyterlab
-        ```
-    * pip
-        ```bash
-        pip install jupyterlab
-        ```
-
--   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
+*   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
     (optional but recommended)
 
     ```bash
     python3 -m venv /path/to/beam_venv_dir
     source /path/to/beam_venv_dir/bin/activate
+    pip install --upgrade pip setuptools wheel
     ```
 
     If you are using shells other than bash (e.g. fish, csh), check
@@ -114,6 +103,18 @@ a quick reference). For a more general and complete getting started guide, see
     which python  # This sould point to beam_venv_dir/bin/python
     ```
 
+*   Install [JupyterLab](https://jupyter.org/install.html). You can use
+    either **conda** or **pip**.
+
+    * conda
+        ```bash
+        conda install -c conda-forge jupyterlab
+        ```
+    * pip
+        ```bash
+        pip install jupyterlab
+        ```
+
 *   Set up Apache Beam Python. **Make sure the virtual environment is activated
     when you run `setup.py`**
 
@@ -123,7 +124,7 @@ a quick reference). For a more general and complete getting started guide, see
     python setup.py install
     ```
 
--   Install an IPython kernel for the virtual environment you've just created.
+*   Install an IPython kernel for the virtual environment you've just created.
     **Make sure the virtual environment is activate when you do this.** You can
     skip this step if not using venv.
 
@@ -139,7 +140,7 @@ a quick reference). For a more general and complete getting started guide, see
     jupyter kernelspec list
     ```
 
--   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
+*   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
     from pre-lab jupyter notebooks.
 
     All jupyter labextensions need nodejs
@@ -243,6 +244,12 @@ credential settings.
     p = beam.Pipeline(runner=runner)
     ```
 
+*   Alternatively, you may configure a cache directory to be used by all interactive pipelines through using the `cache_root` option under interactive_beam. If the cache directory is specified this way, no additional parameters are required to be passed in during pipeline instantiation.
+
+*   ```python
+    ib.options.cache_root = 'gs://bucket-name/dir'
+    ```
+
 ### Portability across Execution Platforms
 
 The platform where the pipeline is executed is decided by the underlying runner
@@ -260,6 +267,23 @@ You can choose to run Interactive Beam on Flink with the following settings.
 
     ```python
     p = beam.Pipeline(interactive_runner.InteractiveRunner(underlying_runner=flink_runner.FlinkRunner()))
+    ```
+
+*   Alternatively, if the runtime environment is configured with a Google Cloud project, you can run Interactive Beam with Flink on Cloud Dataproc. To do so, configure the pipeline with a Google Cloud project. If using dev versioned Beam built from source code, it is necessary to specify an `environment_config` option to configure a containerized Beam SDK (you can choose a released container or build one yourself).
+
+*   ```python
+    ib.options.cache_root = 'gs://bucket-name/dir'
+    options = PipelineOptions([
+    # The project can be attained simply from running the following commands:
+    # import google.auth
+    # project = google.auth.default()[1]
+    '--project={}'.format(project),
+    # The following environment_config only needs to be used when using a development kernel.
+    # Users do not need to use the 2.35.0 SDK, but the chosen release must be compatible with
+    # the Flink version used by the Dataproc image used by Interactive Beam. The current Flink
+    # version used is 1.12.5.
+    '--environment_config=apache/beam_python3.7_sdk:2.35.0',
+    ])
     ```
 
 **Note**: This guide and

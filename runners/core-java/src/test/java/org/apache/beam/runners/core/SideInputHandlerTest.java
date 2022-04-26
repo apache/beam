@@ -83,7 +83,7 @@ public class SideInputHandlerTest {
     long view1WindowSize = 100;
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
     PCollectionView<Iterable<String>> view1 =
-        pc.apply(Window.into(FixedWindows.of(new Duration(view1WindowSize))))
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(view1WindowSize))))
             .apply(View.asIterable());
 
     // Unused, just to have a non-trivial handler set up
@@ -121,7 +121,7 @@ public class SideInputHandlerTest {
     long view1WindowSize = 100;
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
     PCollectionView<Iterable<String>> view =
-        pc.apply(Window.into(FixedWindows.of(new Duration(view1WindowSize))))
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(view1WindowSize))))
             .apply(View.asIterable());
 
     // new input should completely replace old input
@@ -162,7 +162,7 @@ public class SideInputHandlerTest {
     PCollectionView<Iterable<String>> view1 =
         Pipeline.create()
             .apply(Create.of("1"))
-            .apply(Window.into(FixedWindows.of(new Duration(view1WindowSize))))
+            .apply(Window.into(FixedWindows.of(Duration.millis(view1WindowSize))))
             .apply(View.asIterable());
 
     SideInputHandler sideInputHandler =
@@ -205,9 +205,11 @@ public class SideInputHandlerTest {
     PCollectionView<Iterable<String>> view2;
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
     view1 =
-        pc.apply(Window.into(FixedWindows.of(new Duration(windowSize)))).apply(View.asIterable());
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(windowSize))))
+            .apply(View.asIterable());
     view2 =
-        pc.apply(Window.into(FixedWindows.of(new Duration(windowSize)))).apply(View.asIterable());
+        pc.apply(Window.into(FixedWindows.of(Duration.millis(windowSize))))
+            .apply(View.asIterable());
 
     SideInputHandler sideInputHandler =
         new SideInputHandler(

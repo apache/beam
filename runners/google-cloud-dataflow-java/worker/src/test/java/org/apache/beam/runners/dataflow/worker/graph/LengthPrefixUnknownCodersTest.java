@@ -92,7 +92,6 @@ public class LengthPrefixUnknownCodersTest {
   private static final String MERGE_BUCKETS_DO_FN = "MergeBucketsDoFn";
   private ParallelInstruction instruction;
   private InstructionOutputNode instructionOutputNode;
-  private MutableNetwork<Node, Edge> network;
   @Mock private RemoteGrpcPortNode grpcPortNode;
 
   @Before

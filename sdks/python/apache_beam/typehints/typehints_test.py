@@ -218,6 +218,7 @@ class UnionHintTestCase(TypeHintTestCase):
         Union[int, Tuple[Any, Any]], Union[Tuple[int, Any], Tuple[Any, int]])
     self.assertCompatible(Union[int, SuperClass], SubClass)
     self.assertCompatible(Union[int, float, SuperClass], Union[int, SubClass])
+    self.assertCompatible(int, Union[()])
 
     self.assertNotCompatible(Union[int, SubClass], SuperClass)
     self.assertNotCompatible(
@@ -268,6 +269,44 @@ class UnionHintTestCase(TypeHintTestCase):
         typehints.Union[typehints.Union[()], typehints.Union[()]])
     self.assertEqual(int, typehints.Union[typehints.Union[()], int])
 
+  def test_match_type_variables(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    self.assertEqual(
+        typehints.Union[A, int].match_type_variables(str), {A: str})
+    self.assertEqual(typehints.Union[A, int].match_type_variables(int), {})
+    self.assertEqual(typehints.Union[A, B, int].match_type_variables(str), {})
+    # We could do better here, but most importantly we don't want to
+    # incorrectly infer A is a float.
+    self.assertEqual(
+        typehints.Tuple[A, typehints.Union[A, B, int]].match_type_variables(
+            typehints.Tuple[str, float]), {A: str})
+
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, B]].match_type_variables(
+            typehints.Tuple[Any, int]), {})
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, A]].match_type_variables(
+            typehints.Tuple[Any, int]), {A: int})
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, B]].match_type_variables(
+            typehints.Tuple[str, int]), {A: int})
+
+  def test_bind_type_variables(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    hint = typehints.Union[A, B, int]
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: float
+        }),
+        typehints.Union[str, float, int])
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: int
+        }), typehints.Union[str, int])
+    self.assertEqual(hint.bind_type_variables({A: int, B: int}), int)
+
 
 class OptionalHintTestCase(TypeHintTestCase):
   def test_getitem_sequence_not_allowed(self):
@@ -280,6 +319,14 @@ class OptionalHintTestCase(TypeHintTestCase):
   def test_getitem_proxy_to_union(self):
     hint = typehints.Optional[int]
     self.assertTrue(isinstance(hint, typehints.UnionHint.UnionConstraint))
+
+  def test_is_optional(self):
+    hint1 = typehints.Optional[int]
+    self.assertTrue(typehints.is_nullable(hint1))
+    hint2 = typehints.UnionConstraint({int, bytes})
+    self.assertFalse(typehints.is_nullable(hint2))
+    hint3 = typehints.UnionConstraint({int, bytes, type(None)})
+    self.assertFalse(typehints.is_nullable(hint3))
 
 
 class TupleHintTestCase(TypeHintTestCase):
@@ -1081,7 +1128,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     # Must re-define since the conditional is in the (maybe)wrapper.
     @check_type_hints
     @with_input_types(a=int)
-    def int_to_str(a):
+    def int_to_str(a):  # pylint: disable=function-redefined
       return str(a)
 
     # With run-time type checking enabled once again the same call-atttempt
@@ -1102,7 +1149,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     # Must re-define since the conditional is in the (maybe)wrapper.
     @check_type_hints
     @with_output_types(str)
-    def int_to_str(a):
+    def int_to_str(a):  # pylint: disable=function-redefined
       return a
 
     # With type-checking enabled once again we should get a TypeCheckError here.
@@ -1134,7 +1181,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     @check_type_hints
     @with_output_types(str)
     @with_input_types(a=str)
-    def to_lower(a):
+    def to_lower(a):  # pylint: disable=function-redefined
       return 9
 
     # Modified function now has an invalid return type.
@@ -1158,7 +1205,7 @@ class CombinedReturnsAndTakesTestCase(TypeHintTestCase):
     @check_type_hints
     @with_output_types(typehints.List[typehints.Tuple[int, int]])
     @with_input_types(it=typehints.List[int])
-    def expand_ints(it):
+    def expand_ints(it):  # pylint: disable=function-redefined
       return [str(i) for i in it]
 
     # Modified function now has invalid return type.

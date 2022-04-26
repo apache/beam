@@ -49,9 +49,9 @@ type DataContext struct {
 type SideCache interface {
 	// QueryCache checks the cache for a ReStream corresponding to the transform and
 	// side input being used.
-	QueryCache(transformID, sideInputID string) ReStream
+	QueryCache(ctx context.Context, transformID, sideInputID string, win, key []byte) ReStream
 	// SetCache places a ReStream into the cache for a transform and side input.
-	SetCache(transformID, sideInputID string, input ReStream)
+	SetCache(ctx context.Context, transformID, sideInputID string, win, key []byte, input ReStream) ReStream
 }
 
 // DataManager manages external data byte streams. Each data stream can be
@@ -65,8 +65,10 @@ type DataManager interface {
 
 // StateReader is the interface for reading side input data.
 type StateReader interface {
-	// OpenSideInput opens a byte stream for reading iterable side input.
-	OpenSideInput(ctx context.Context, id StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error)
+	// OpenIterableSideInput opens a byte stream for reading iterable side input.
+	OpenIterableSideInput(ctx context.Context, id StreamID, sideInputID string, w []byte) (io.ReadCloser, error)
+	// OpenMultiMapSideInput opens a byte stream for reading multimap side input.
+	OpenMultiMapSideInput(ctx context.Context, id StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error)
 	// OpenIterable opens a byte stream for reading unwindowed iterables from the runner.
 	OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error)
 	// GetSideInputCache returns the SideInputCache being used at the harness level.

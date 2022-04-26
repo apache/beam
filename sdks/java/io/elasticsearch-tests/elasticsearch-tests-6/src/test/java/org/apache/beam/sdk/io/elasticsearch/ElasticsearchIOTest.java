@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.crea
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.deleteIndex;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.setDefaultTemplate;
 
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,19 +32,12 @@ import org.elasticsearch.client.RestClient;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-/*
-Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
-Cannot have @BeforeClass @AfterClass with ESIntegTestCase
-*/
-
 /** Tests for {@link ElasticsearchIO} version 6. */
-@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class ElasticsearchIOTest implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
@@ -83,7 +75,6 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-5172")
   @Test
   public void testSizes() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
@@ -134,6 +125,18 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteWithErrorsReturned() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithErrorsReturned();
+  }
+
+  @Test
+  public void testWriteWithErrorsReturnedAllowedErrors() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithErrorsReturnedAllowedErrors();
+  }
+
+  @Test
   public void testWriteWithMaxBatchSize() throws Exception {
     elasticsearchIOTestCommon.testWriteWithMaxBatchSize();
   }
@@ -143,7 +146,6 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testWriteWithMaxBatchSizeBytes();
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-5172")
   @Test
   public void testSplit() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
@@ -246,5 +248,22 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
     elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
+  }
+
+  @Test
+  public void testDocToBulkAndBulkIO() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testDocToBulkAndBulkIO();
+  }
+
+  @Test
+  public void testDocumentCoder() throws Exception {
+    elasticsearchIOTestCommon.testDocumentCoder();
+  }
+
+  @Test
+  public void testPDone() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testPipelineDone();
   }
 }

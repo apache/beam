@@ -32,14 +32,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.CorrelationId;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Join;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.CorrelationId;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Join;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
@@ -195,7 +195,7 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
     String lhsSelect = org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*";
     String rhsSelect = org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*";
     PCollection<Row> selected =
-        (!swapped)
+        !swapped
             ? joined.apply(Select.<Row>fieldNames(lhsSelect, rhsSelect).withOutputSchema(schema))
             : joined.apply(Select.<Row>fieldNames(rhsSelect, lhsSelect).withOutputSchema(schema));
     return selected;

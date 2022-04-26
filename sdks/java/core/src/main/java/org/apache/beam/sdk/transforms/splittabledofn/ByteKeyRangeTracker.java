@@ -153,14 +153,14 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
         key,
         lastAttemptedKey);
     checkArgument(
-        key.compareTo(range.getStartKey()) > -1,
+        key.compareTo(range.getStartKey()) >= 0,
         "Trying to claim key %s before start of the range %s",
         key,
         range);
 
     lastAttemptedKey = key;
     // No respective checkArgument for i < range.to() - it's ok to try claiming keys beyond
-    if (!range.getEndKey().isEmpty() && key.compareTo(range.getEndKey()) > -1) {
+    if (!range.getEndKey().isEmpty() && key.compareTo(range.getEndKey()) >= 0) {
       return false;
     }
     lastClaimedKey = key;

@@ -1017,7 +1017,7 @@ public class WatermarkManagerTest implements Serializable {
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
     Instant startTime = clock.now();
-    clock.set(startTime.plus(250L));
+    clock.set(startTime.plus(Duration.millis(250L)));
     // We're held based on the past timer
     assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(greaterThan(startTime)));
     assertThat(
@@ -1051,7 +1051,7 @@ public class WatermarkManagerTest implements Serializable {
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
-    clock.set(startTime.plus(500L));
+    clock.set(startTime.plus(Duration.millis(500L)));
     assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(greaterThan(clock.now())));
     // filtered should be held to the time at which the filteredTimerResult fired
     assertThat(

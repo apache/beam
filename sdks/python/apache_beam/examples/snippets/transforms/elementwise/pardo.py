@@ -96,7 +96,7 @@ def pardo_dofn_methods(test=None):
   class DoFnMethods(beam.DoFn):
     def __init__(self):
       print('__init__')
-      self.window = beam.window.GlobalWindow()
+      self.window = beam.transforms.window.GlobalWindow()
 
     def setup(self):
       print('setup')

@@ -374,7 +374,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     private final TimerInternals.TimerDataCoderV2 timerDataCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
     private final SerializablePipelineOptions options;
-    private final IterableCoder<WindowedValue<InputT>> itrWvCoder;
     private final String logPrefix;
     private final Coder<WindowedValue<KV<K, Iterable<InputT>>>> wvKvIterCoder;
 
@@ -391,7 +390,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       this.timerDataCoder = timerDataCoderOf(windowingStrategy);
       this.windowingStrategy = windowingStrategy;
       this.options = options;
-      this.itrWvCoder = IterableCoder.of(wvCoder);
       this.logPrefix = logPrefix;
       this.wvKvIterCoder =
           windowedValueKeyValueCoderOf(

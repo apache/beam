@@ -71,7 +71,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -394,7 +394,6 @@ public class FlinkBatchPortablePipelineTranslator
           context,
           outputMap.get(collectionId),
           outputCoders.get(collectionId),
-          transform.getTransform().getUniqueName(),
           collectionId);
     }
     if (outputs.isEmpty()) {
@@ -568,7 +567,6 @@ public class FlinkBatchPortablePipelineTranslator
       BatchTranslationContext context,
       int unionTag,
       Coder<WindowedValue<?>> outputCoder,
-      String transformName,
       String collectionId) {
     TypeInformation<WindowedValue<?>> outputType =
         new CoderTypeInformation<>(outputCoder, context.getPipelineOptions());

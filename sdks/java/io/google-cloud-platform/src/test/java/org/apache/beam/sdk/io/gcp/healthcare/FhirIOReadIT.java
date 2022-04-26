@@ -70,7 +70,7 @@ public class FhirIOReadIT {
     this.version = version;
     long testTime = System.currentTimeMillis();
     this.fhirStoreName =
-        "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+        "FHIR_store_" + version + "_write_it_" + testTime + "_" + new SecureRandom().nextInt(32);
     this.project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
@@ -83,7 +83,7 @@ public class FhirIOReadIT {
             + "-notifications-"
             + testTime
             + "-"
-            + (new SecureRandom().nextInt(32));
+            + new SecureRandom().nextInt(32);
     this.pubsubSubscription = pubsubTopic.replaceAll("topic", "subscription");
     pipelineOptions = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
   }

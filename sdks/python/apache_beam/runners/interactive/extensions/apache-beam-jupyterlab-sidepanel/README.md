@@ -17,14 +17,18 @@
 
 # apache-beam-jupyterlab-sidepanel
 
-A side panel providing information and controls to run Apache Beam notebooks interactively.
-
+Includes two different side panels:
+* The Inspector side panel provides information and controls to run Apache Beam notebooks interactively.
+* The Clusters side panel displays all Dataproc clusters managed by Interactive Beam and provides controls to configure cluster usage.
 
 ## Requirements
 
-* JupyterLab >= 2.0
+| JupyterLab version | Extension version |
+| ------------------ | ----------------- |
+| v3                 | v2.0.0            |
+| v2                 | v1.0.0            |
 
-## Install (WIP)
+## Install
 
 ```bash
 jupyter labextension install apache-beam-jupyterlab-sidepanel

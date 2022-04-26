@@ -219,30 +219,6 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     return Objects.hash(schema, typeDescriptor, toRowFunction, fromRowFunction);
   }
 
-  private static RowIdentity identity() {
-    return new RowIdentity();
-  }
-
-  private static class RowIdentity implements SerializableFunction<Row, Row> {
-    @Override
-    public Row apply(Row input) {
-      return input;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(getClass());
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      return o != null && getClass() == o.getClass();
-    }
-  }
-
   @Override
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return this.typeDescriptor;

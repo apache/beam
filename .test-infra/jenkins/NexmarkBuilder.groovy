@@ -27,6 +27,7 @@ import NexmarkDatabaseProperties
 class NexmarkBuilder {
   final static String DEFAULT_JAVA_RUNTIME_VERSION = "1.8";
   final static String JAVA_11_RUNTIME_VERSION = "11";
+  final static String JAVA_17_RUNTIME_VERSION = "17";
 
   private static Map<String, Object> defaultOptions = [
     'manageResources': false,
@@ -98,9 +99,12 @@ class NexmarkBuilder {
 
 
   static void suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options, List<String> jobSpecificSwitches, String javaRuntimeVersion) {
+
     if (javaRuntimeVersion == JAVA_11_RUNTIME_VERSION) {
       java11Suite(context, title, runner, sdk, options, jobSpecificSwitches)
-    } else {
+    } else if (javaRuntimeVersion == JAVA_17_RUNTIME_VERSION) {
+      java17Suite(context, title, runner, sdk, options, jobSpecificSwitches)
+    } else if(javaRuntimeVersion == DEFAULT_JAVA_RUNTIME_VERSION){
       java8Suite(context, title, runner, sdk, options, jobSpecificSwitches)
     }
   }
@@ -136,6 +140,29 @@ class NexmarkBuilder {
         commonJobProperties.setGradleSwitches(delegate)
         switches("-PcompileAndRunTestsWithJava11")
         switches("-Pjava11Home=${commonJobProperties.JAVA_11_HOME}")
+        switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
+        switches("-Pnexmark.args=\"${parseOptions(options)}\"")
+        if (jobSpecificSwitches != null) {
+          jobSpecificSwitches.each {
+            switches(it)
+          }
+        }
+      }
+    }
+  }
+
+  static void java17Suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options, List<String> jobSpecificSwitches) {
+    InfluxDBCredentialsHelper.useCredentials(context)
+    context.steps {
+      shell("echo \"*** RUN ${title} with Java 17***\"")
+
+      // Run with Java 17
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':sdks:java:testing:nexmark:run')
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-PcompileAndRunTestsWithJava17")
+        switches("-Pjava17Home=${commonJobProperties.JAVA_17_HOME}")
         switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
         if (jobSpecificSwitches != null) {

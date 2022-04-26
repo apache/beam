@@ -703,8 +703,8 @@ capability-matrix-snapshot:
               l2:
               l3:
             - class: dataflow
-              l1: "Partially"
-              l2: Only Dataflow Runner V2 supports this.
+              l1: "Yes"
+              l2: fully supported
               l3: ""
             - class: flink
               l1: "Partially"

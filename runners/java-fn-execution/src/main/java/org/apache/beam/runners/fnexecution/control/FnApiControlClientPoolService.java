@@ -28,10 +28,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.server.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,11 +81,6 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   public StreamObserver<BeamFnApi.InstructionResponse> control(
       StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
     final String workerId = headerAccessor.getSdkWorkerId();
-    if (Strings.isNullOrEmpty(workerId)) {
-      // TODO(BEAM-4149): Enforce proper worker id.
-      LOG.warn("No worker_id header provided in control request");
-    }
-
     LOG.info("Beam Fn Control client connected with id {}", workerId);
     FnApiControlClient newClient =
         FnApiControlClient.forRequestObserver(workerId, requestObserver, processBundleDescriptors);

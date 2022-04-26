@@ -205,7 +205,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
 
   def test_get_cache_manager_creates_cache_manager_if_absent(self):
     env = ie.InteractiveEnvironment()
-    dummy_pipeline = 'dummy'
+    dummy_pipeline = beam.Pipeline()
     self.assertIsNone(env.get_cache_manager(dummy_pipeline))
     self.assertIsNotNone(
         env.get_cache_manager(dummy_pipeline, create_if_absent=True))
@@ -334,6 +334,25 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     env.sql_chain[p2] = chain
     with self.assertRaises(ValueError):
       env.get_sql_chain(p2, set_user_pipeline=True)
+
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment.'
+      'assert_bucket_exists',
+      return_value=None)
+  def test_get_gcs_cache_dir_valid_path(self, mock_assert_bucket_exists):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    cache_root = 'gs://test-cache-dir/'
+    actual_cache_dir = env._get_gcs_cache_dir(p, cache_root)
+    expected_cache_dir = 'gs://test-cache-dir/{}'.format(id(p))
+    self.assertEqual(actual_cache_dir, expected_cache_dir)
+
+  def test_get_gcs_cache_dir_invalid_path(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    cache_root = 'gs://'
+    with self.assertRaises(ValueError):
+      env._get_gcs_cache_dir(p, cache_root)
 
 
 if __name__ == '__main__':

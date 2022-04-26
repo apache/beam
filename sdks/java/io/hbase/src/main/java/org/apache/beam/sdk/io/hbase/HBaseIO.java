@@ -300,7 +300,7 @@ public class HBaseIO {
      * article</a>.
      */
     private Object writeReplace() {
-      return new SerializationProxy(this);
+      return new Read.SerializationProxy(this);
     }
 
     private static class SerializationProxy implements Serializable {
@@ -676,7 +676,7 @@ public class HBaseIO {
      * article</a>.
      */
     private Object writeReplace() {
-      return new SerializationProxy(this);
+      return new Write.SerializationProxy(this);
     }
 
     private static class SerializationProxy implements Serializable {
@@ -716,7 +716,6 @@ public class HBaseIO {
       HBaseWriterFn(Write write) {
         checkNotNull(write.tableId, "tableId");
         checkNotNull(write.configuration, "configuration");
-        this.write = write;
       }
 
       @Setup
@@ -760,7 +759,6 @@ public class HBaseIO {
         builder.delegate(Write.this);
       }
 
-      private final Write write;
       private long recordsWritten;
 
       private transient Connection connection;

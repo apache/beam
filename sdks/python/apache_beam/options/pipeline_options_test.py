@@ -31,10 +31,13 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
+from apache_beam.options.pipeline_options import _BeamArgumentParser
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PipelineOptionsTest(unittest.TestCase):
@@ -505,7 +508,7 @@ class PipelineOptionsTest(unittest.TestCase):
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
 
-    class TestRedefinedOptions(PipelineOptions):
+    class TestRedefinedOptions(PipelineOptions):  # pylint: disable=function-redefined
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
@@ -646,6 +649,53 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(
         options.get_all_options()['dataflow_service_options'], None)
+
+  def test_options_store_false_with_different_dest(self):
+    parser = _BeamArgumentParser()
+    for cls in PipelineOptions.__subclasses__():
+      cls._add_argparse_args(parser)
+
+    actions = parser._actions.copy()
+    options_to_flags = {}
+    options_diff_dest_store_true = {}
+
+    for i in range(len(actions)):
+      flag_names = actions[i].option_strings
+      option_name = actions[i].dest
+
+      if isinstance(actions[i].const, bool):
+        for flag_name in flag_names:
+          flag_name = flag_name.strip('-')
+          if flag_name != option_name:
+            # Capture flags which has store_action=True and has a
+            # different dest. This behavior would be confusing.
+            if actions[i].const:
+              options_diff_dest_store_true[flag_name] = option_name
+              continue
+            # check the flags like no_use_public_ips
+            # default is None, action is {True, False}
+            if actions[i].default is None:
+              options_to_flags[option_name] = flag_name
+
+    self.assertEqual(
+        len(options_diff_dest_store_true),
+        0,
+        _LOGGER.error(
+            "There should be no flags that have a dest "
+            "different from flag name and action as "
+            "store_true. It would be confusing "
+            "to the user. Please specify the dest as the "
+            "flag_name instead."))
+    from apache_beam.options.pipeline_options import (
+        _FLAG_THAT_SETS_FALSE_VALUE)
+
+    self.assertDictEqual(
+        _FLAG_THAT_SETS_FALSE_VALUE,
+        options_to_flags,
+        "If you are adding a new boolean flag with default=None,"
+        " with different dest/option_name from the flag name, please add "
+        "the dest and the flag name to the map "
+        "_FLAG_THAT_SETS_FALSE_VALUE in PipelineOptions.py")
 
 
 if __name__ == '__main__':

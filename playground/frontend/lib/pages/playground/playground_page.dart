@@ -17,48 +17,83 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/components/logo/logo_component.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_button.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
-import 'package:provider/provider.dart';
-import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
-import 'package:playground/modules/output/components/output_area.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground/modules/actions/components/new_example_action.dart';
+import 'package:playground/modules/actions/components/reset_action.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown.dart';
+import 'package:playground/modules/examples/example_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector.dart';
-import 'package:playground/components/logo/logo_component.dart';
+import 'package:playground/modules/shortcuts/components/shortcuts_manager.dart';
+import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:playground/pages/playground/components/close_listener_nonweb.dart'
+    if (dart.library.html) 'package:playground/pages/playground/components/close_listener.dart';
+import 'package:playground/pages/playground/components/more_actions.dart';
+import 'package:playground/pages/playground/components/playground_page_body.dart';
+import 'package:playground/pages/playground/components/playground_page_footer.dart';
+import 'package:playground/pages/playground/states/examples_state.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:provider/provider.dart';
 
 class PlaygroundPage extends StatelessWidget {
   const PlaygroundPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return PlaygroundPageProviders(
-      child: Scaffold(
-        appBar: AppBar(
-          title: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: kLgSpacing,
+    return CloseListener(
+      child: ShortcutsManager(
+        shortcuts: globalShortcuts,
+        child: Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            title: Consumer<PlaygroundState>(
+              builder: (context, state, child) {
+                return Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: kXlSpacing,
+                  children: [
+                    const Logo(),
+                    Consumer<ExampleState>(
+                      builder: (context, state, child) {
+                        return ExampleSelector(
+                          changeSelectorVisibility:
+                              state.changeSelectorVisibility,
+                          isSelectorOpened: state.isSelectorOpened,
+                        );
+                      },
+                    ),
+                    SDKSelector(
+                      sdk: state.sdk,
+                      setSdk: (newSdk) {
+                        AnalyticsService.get(context)
+                            .trackSelectSdk(state.sdk, newSdk);
+                        state.setSdk(newSdk);
+                      },
+                      setExample: state.setExample,
+                    ),
+                    PipelineOptionsDropdown(
+                      pipelineOptions: state.pipelineOptions,
+                      setPipelineOptions: state.setPipelineOptions,
+                    ),
+                    const NewExampleAction(),
+                    ResetAction(reset: state.reset),
+                  ],
+                );
+              },
+            ),
+            actions: const [ToggleThemeButton(), MoreActions()],
+          ),
+          body: Column(
             children: [
-              const Logo(),
-              Consumer<PlaygroundState>(
-                builder: (context, state, child) {
-                  return SDKSelector(
-                    sdk: state.sdk,
-                    setSdk: state.setSdk,
-                  );
-                },
+              const Expanded(child: PlaygroundPageBody()),
+              Semantics(
+                container: true,
+                child: const PlaygroundPageFooter(),
               ),
             ],
           ),
-          actions: const [ToggleThemeButton()],
-        ),
-        body: Column(
-          children: [
-            const Expanded(child: CodeTextAreaWrapper()),
-            Container(
-                height: kLgSpacing, color: Theme.of(context).backgroundColor),
-            const Expanded(child: OutputArea()),
-          ],
         ),
       ),
     );

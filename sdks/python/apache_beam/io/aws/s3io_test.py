@@ -777,6 +777,22 @@ class TestS3IO(unittest.TestCase):
     for (object_name, size) in objects:
       self.aws.delete(self.TEST_DATA_PATH + object_name)
 
+  def test_midsize_file(self):
+    file_name = self.TEST_DATA_PATH + 'midsized'
+    file_size = 6 * 1024 * 1024
+    self._insert_random_file(self.aws.client, file_name, file_size)
+    with self.aws.open(file_name, 'r') as f:
+      self.assertEqual(len(f.read()), file_size)
+    self.aws.delete(file_name)
+
+  def test_zerosize_file(self):
+    file_name = self.TEST_DATA_PATH + 'zerosized'
+    file_size = 0
+    self._insert_random_file(self.aws.client, file_name, file_size)
+    with self.aws.open(file_name, 'r') as f:
+      self.assertEqual(len(f.read()), file_size)
+    self.aws.delete(file_name)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

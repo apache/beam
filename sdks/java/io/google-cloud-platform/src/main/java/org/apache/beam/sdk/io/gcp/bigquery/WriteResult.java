@@ -42,15 +42,26 @@ public final class WriteResult implements POutput {
   private final TupleTag<BigQueryInsertError> failedInsertsWithErrTag;
   private final PCollection<BigQueryInsertError> failedInsertsWithErr;
   private final PCollection<TableRow> successfulInserts;
+  private final TupleTag<TableDestination> successfulBatchInsertsTag;
+  private final PCollection<TableDestination> successfulBatchInserts;
 
   /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
   static WriteResult in(
       Pipeline pipeline,
       TupleTag<TableRow> failedInsertsTag,
       PCollection<TableRow> failedInserts,
-      @Nullable PCollection<TableRow> successfulInserts) {
+      @Nullable PCollection<TableRow> successfulInserts,
+      @Nullable TupleTag<TableDestination> successfulBatchInsertsTag,
+      @Nullable PCollection<TableDestination> successfulBatchInserts) {
     return new WriteResult(
-        pipeline, failedInsertsTag, failedInserts, null, null, successfulInserts);
+        pipeline,
+        failedInsertsTag,
+        failedInserts,
+        null,
+        null,
+        successfulInserts,
+        successfulBatchInsertsTag,
+        successfulBatchInserts);
   }
 
   static WriteResult withExtendedErrors(
@@ -59,16 +70,24 @@ public final class WriteResult implements POutput {
       PCollection<BigQueryInsertError> failedInserts,
       PCollection<TableRow> successfulInserts) {
     return new WriteResult(
-        pipeline, null, null, failedInsertsTag, failedInserts, successfulInserts);
+        pipeline, null, null, failedInsertsTag, failedInserts, successfulInserts, null, null);
   }
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
+    ImmutableMap.Builder<TupleTag<?>, PValue> output = ImmutableMap.builder();
+
     if (failedInsertsTag != null) {
-      return ImmutableMap.of(failedInsertsTag, failedInserts);
+      output.put(failedInsertsTag, failedInserts);
     } else {
-      return ImmutableMap.of(failedInsertsWithErrTag, failedInsertsWithErr);
+      output.put(failedInsertsWithErrTag, failedInsertsWithErr);
     }
+
+    if (successfulBatchInserts != null) {
+      output.put(successfulBatchInsertsTag, successfulBatchInserts);
+    }
+
+    return output.build();
   }
 
   private WriteResult(
@@ -77,17 +96,45 @@ public final class WriteResult implements POutput {
       PCollection<TableRow> failedInserts,
       TupleTag<BigQueryInsertError> failedInsertsWithErrTag,
       PCollection<BigQueryInsertError> failedInsertsWithErr,
-      PCollection<TableRow> successfulInserts) {
+      PCollection<TableRow> successfulInserts,
+      TupleTag<TableDestination> successfulInsertsTag,
+      PCollection<TableDestination> successfulBatchInserts) {
     this.pipeline = pipeline;
     this.failedInsertsTag = failedInsertsTag;
     this.failedInserts = failedInserts;
     this.failedInsertsWithErrTag = failedInsertsWithErrTag;
     this.failedInsertsWithErr = failedInsertsWithErr;
     this.successfulInserts = successfulInserts;
+    this.successfulBatchInsertsTag = successfulInsertsTag;
+    this.successfulBatchInserts = successfulBatchInserts;
   }
 
   /**
-   * Returns a {@link PCollection} containing the {@link TableRow}s that didn't made it to BQ.
+   * Returns a {@link PCollection} containing the {@link TableDestination}s that were successfully
+   * loaded using the batch load API.
+   */
+  public PCollection<TableDestination> getSuccessfulTableLoads() {
+    checkArgument(
+        successfulBatchInsertsTag != null,
+        "Cannot use getSuccessfulTableLoads because this WriteResult was not "
+            + "configured to produce them.  Note: only batch loads produce successfulTableLoads.");
+
+    return successfulBatchInserts;
+  }
+
+  /**
+   * Returns a {@link PCollection} containing the {@link TableRow}s that were written to BQ via the
+   * streaming insert API.
+   */
+  public PCollection<TableRow> getSuccessfulInserts() {
+    checkArgument(
+        successfulInserts != null,
+        "Retrieving successful inserts is only supported for streaming inserts.");
+    return successfulInserts;
+  }
+
+  /**
+   * Returns a {@link PCollection} containing the {@link TableRow}s that didn't make it to BQ.
    *
    * <p>Only use this method if you haven't enabled {@link
    * BigQueryIO.Write#withExtendedErrorInfo()}. Otherwise use {@link
@@ -101,19 +148,11 @@ public final class WriteResult implements POutput {
     return failedInserts;
   }
 
-  /** Returns a {@link PCollection} containing the {@link TableRow}s that were written to BQ. */
-  public PCollection<TableRow> getSuccessfulInserts() {
-    checkArgument(
-        successfulInserts != null,
-        "Retrieving successful inserts is only supported for streaming inserts.");
-    return successfulInserts;
-  }
-
   /**
    * Returns a {@link PCollection} containing the {@link BigQueryInsertError}s with detailed error
    * information.
    *
-   * <p>Only use this method if you have enabled {@link BigQueryIO.Write#withExtendedErrorInfo()}. *
+   * <p>Only use this method if you have enabled {@link BigQueryIO.Write#withExtendedErrorInfo()}.
    * Otherwise use {@link WriteResult#getFailedInserts()}
    */
   public PCollection<BigQueryInsertError> getFailedInsertsWithErr() {

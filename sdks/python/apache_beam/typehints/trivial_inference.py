@@ -227,6 +227,9 @@ def element_type(hint):
     return hint.inner_type
   elif isinstance(hint, typehints.TupleHint.TupleConstraint):
     return typehints.Union[hint.tuple_types]
+  elif isinstance(hint,
+                  typehints.UnionHint.UnionConstraint) and not hint.union_types:
+    return hint
   return Any
 
 
@@ -238,6 +241,9 @@ def key_value_types(kv_type):
   if (isinstance(kv_type, typehints.TupleHint.TupleConstraint) and
       len(kv_type.tuple_types) == 2):
     return kv_type.tuple_types
+  elif isinstance(
+      kv_type, typehints.UnionHint.UnionConstraint) and not kv_type.union_types:
+    return kv_type, kv_type
   return Any, Any
 
 
@@ -456,6 +462,9 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
             args = [args]
           elif isinstance(args, typehints.TupleConstraint):
             args = list(args._inner_types())
+          elif isinstance(args, typehints.SequenceTypeConstraint):
+            args = [element_type(args)] * len(
+                inspect.getfullargspec(_callable.value).args)
           return_type = infer_return_type(
               _callable.value, args, debug=debug, depth=depth - 1)
       else:

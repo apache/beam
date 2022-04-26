@@ -164,21 +164,6 @@ func ptImpulse(output string) *pipepb.PTransform {
 	}
 }
 
-func pt(inputs []string, outputs ...string) *pipepb.PTransform {
-	ins := make(map[string]string)
-	for i, in := range inputs {
-		ins[fmt.Sprintf("i%d", i)] = in
-	}
-	outs := make(map[string]string)
-	for i, out := range outputs {
-		outs[fmt.Sprintf("i%d", i)] = out
-	}
-	return &pipepb.PTransform{
-		Inputs:  ins,
-		Outputs: outs,
-	}
-}
-
 func ptNoSide(input string, outputs ...string) *pipepb.PTransform {
 	outs := make(map[string]string)
 	for i, o := range outputs {
@@ -227,5 +212,14 @@ func validateSortForTest(t *testing.T, xforms map[string]*pipepb.PTransform, sor
 	}
 	if len(missingPCollections) != 0 {
 		t.Log(sorted)
+	}
+}
+
+func TestBoolToBounded(t *testing.T) {
+	if got, want := BoolToBounded(false), pipepb.IsBounded_UNBOUNDED; got != want {
+		t.Errorf("BoolToBounded(false) = %v, want %v", got, want)
+	}
+	if got, want := BoolToBounded(true), pipepb.IsBounded_BOUNDED; got != want {
+		t.Errorf("BoolToBounded(true) = %v, want %v", got, want)
 	}
 }

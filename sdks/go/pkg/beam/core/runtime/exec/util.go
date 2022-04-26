@@ -72,7 +72,7 @@ func MultiStartBundle(ctx context.Context, id string, data DataContext, list ...
 	return nil
 }
 
-// MultiFinishBundle calls StartBundle on multiple nodes. Convenience function.
+// MultiFinishBundle calls FinishBundle on multiple nodes. Convenience function.
 func MultiFinishBundle(ctx context.Context, list ...Node) error {
 	for _, n := range list {
 		if err := n.FinishBundle(ctx); err != nil {

@@ -17,6 +17,7 @@
 
 import logging
 import threading
+import time
 import unittest
 
 import grpc
@@ -24,9 +25,11 @@ import mock
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.runners.worker.worker_status import heap_dump
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils.counters import CounterName
 
 
 class BeamFnStatusServicer(beam_fn_api_pb2_grpc.BeamFnWorkerStatusServicer):
@@ -82,6 +85,44 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     for response in self.test_status_service.response_received:
       self.assertIsNotNone(response.error)
     self.fn_status_handler.close()
+
+  def test_log_lull_in_bundle_processor(self):
+    def get_state_sampler_info_for_lull(lull_duration_s):
+      return statesampler.StateSamplerInfo(
+          CounterName('progress-msecs', 'stage_name', 'step_name'),
+          1,
+          lull_duration_s * 1e9,
+          threading.current_thread())
+
+    now = time.time()
+    with mock.patch('logging.Logger.warning') as warn_mock:
+      with mock.patch('time.time') as time_mock:
+        time_mock.return_value = now
+        sampler_info = get_state_sampler_info_for_lull(21 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info)
+
+        processing_template = warn_mock.call_args[0][1]
+        step_name_template = warn_mock.call_args[0][2]
+        traceback = warn_mock.call_args = warn_mock.call_args[0][3]
+
+        self.assertIn('progress-msecs', processing_template)
+        self.assertIn('step_name', step_name_template)
+        self.assertIn('test_log_lull_in_bundle_processor', traceback)
+
+      with mock.patch('time.time') as time_mock:
+        time_mock.return_value = now + 6 * 60  # 6 minutes
+        sampler_info = get_state_sampler_info_for_lull(21 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info)
+
+      with mock.patch('time.time') as time_mock:
+        time_mock.return_value = now + 21 * 60  # 21 minutes
+        sampler_info = get_state_sampler_info_for_lull(10 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info)
+
+      with mock.patch('time.time') as time_mock:
+        time_mock.return_value = now + 42 * 60  # 21 minutes after previous one
+        sampler_info = get_state_sampler_info_for_lull(21 * 60)
+        self.fn_status_handler._log_lull_sampler_info(sampler_info)
 
 
 class HeapDumpTest(unittest.TestCase):

@@ -88,8 +88,6 @@ public class TFRecordIOIT {
   private static final String RUN_TIME = "run_time";
 
   private static String filenamePrefix;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static Integer numberOfTextLines;
   private static Integer datasetSize;
   private static String expectedHash;
@@ -108,8 +106,6 @@ public class TFRecordIOIT {
     numberOfTextLines = options.getNumberOfRecords();
     compressionType = Compression.valueOf(options.getCompressionType());
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     settings =
         InfluxDBSettings.builder()
             .withHost(options.getInfluxHost())
@@ -184,7 +180,6 @@ public class TFRecordIOIT {
         MetricsReader.ofResults(readResults, TFRECORD_NAMESPACE)
             .readAll(getReadMetricSuppliers(uuid, timestamp)));
 
-    IOITMetrics.publish(bigQueryDataset, bigQueryTable, results);
     IOITMetrics.publishToInflux(uuid, timestamp, results, settings);
   }
 

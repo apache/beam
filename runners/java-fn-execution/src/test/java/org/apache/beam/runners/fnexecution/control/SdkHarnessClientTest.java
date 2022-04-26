@@ -83,7 +83,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
@@ -114,7 +114,6 @@ public class SdkHarnessClientTest {
 
   private SdkHarnessClient sdkHarnessClient;
   private ProcessBundleDescriptor descriptor;
-  private String inputPCollection;
   private static final String SDK_GRPC_READ_TRANSFORM = "read";
   private static final String SDK_GRPC_WRITE_TRANSFORM = "write";
 
@@ -165,9 +164,6 @@ public class SdkHarnessClientTest {
         .putTransforms(SDK_GRPC_READ_TRANSFORM, readNode.toPTransform())
         .putTransforms(SDK_GRPC_WRITE_TRANSFORM, writeNode.toPTransform());
     descriptor = pbdBuilder.build();
-
-    inputPCollection =
-        getOnlyElement(descriptor.getTransformsOrThrow("read").getOutputsMap().values());
   }
 
   @Test
@@ -182,7 +178,7 @@ public class SdkHarnessClientTest {
                     FullWindowedValueCoder.of(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
                 SDK_GRPC_READ_TRANSFORM));
 
-    BundleProcessor processor1 = sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
+    sdkHarnessClient.getProcessor(descriptor1, remoteInputs);
 
     verify(fnApiControlClient).registerProcessBundleDescriptor(descriptor1);
   }

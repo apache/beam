@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.nullValue;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -75,10 +76,10 @@ public class InMemoryTimerInternalsTest {
     underTest.advanceInputWatermark(new Instant(0));
     underTest.setTimer(NS1, ID1, "", earlyTimestamp, earlyTimestamp, TimeDomain.EVENT_TIME);
     underTest.setTimer(NS1, ID1, "", laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME);
-    underTest.advanceInputWatermark(earlyTimestamp.plus(1L));
+    underTest.advanceInputWatermark(earlyTimestamp.plus(Duration.millis(1L)));
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
-    underTest.advanceInputWatermark(laterTimestamp.plus(1L));
+    underTest.advanceInputWatermark(laterTimestamp.plus(Duration.millis(1L)));
     assertThat(
         underTest.removeNextEventTimer(),
         equalTo(TimerData.of(ID1, "", NS1, laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME)));

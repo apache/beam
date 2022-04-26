@@ -62,6 +62,7 @@ import org.apache.beam.sdk.nexmark.queries.Query10;
 import org.apache.beam.sdk.nexmark.queries.Query11;
 import org.apache.beam.sdk.nexmark.queries.Query12;
 import org.apache.beam.sdk.nexmark.queries.Query13;
+import org.apache.beam.sdk.nexmark.queries.Query14;
 import org.apache.beam.sdk.nexmark.queries.Query1Model;
 import org.apache.beam.sdk.nexmark.queries.Query2;
 import org.apache.beam.sdk.nexmark.queries.Query2Model;
@@ -113,7 +114,6 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.LoggerFactory;
 
 /** Run a single Nexmark query using a given configuration. */
 @SuppressWarnings({
@@ -121,8 +121,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
-
-  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);
 
   /** Command line parameter value for query language. */
   private static final String SQL = "sql";
@@ -1417,6 +1415,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.PORTABILITY_BATCH,
             new NexmarkQuery(configuration, new Query13(configuration)))
+        .put(
+            NexmarkQueryName.RESHUFFLE, new NexmarkQuery(configuration, new Query14(configuration)))
         .build();
   }
 

@@ -43,10 +43,10 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,7 +54,6 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
-import org.mockito.Mock;
 
 /** Tests for {@link FnHarness}. */
 @RunWith(JUnit4.class)
@@ -70,8 +69,8 @@ public class FnHarnessTest {
           .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
           .build();
 
-  private static @Mock Runnable onStartupMock = mock(Runnable.class);
-  private static @Mock Consumer<PipelineOptions> beforeProcessingMock = mock(Consumer.class);
+  private static Runnable onStartupMock = mock(Runnable.class);
+  private static Consumer<PipelineOptions> beforeProcessingMock = mock(Consumer.class);
 
   @Rule
   public Timeout timeout =

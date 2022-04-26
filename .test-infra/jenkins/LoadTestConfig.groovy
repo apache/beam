@@ -42,7 +42,6 @@ import static java.util.Objects.requireNonNull
  *     pipelineOptions {
  *         python()
  *         jobName 'Any job name'
- *         publishToBigQuery true
  *         //other fields
  *     }
  *     specificParameters([
@@ -109,11 +108,8 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
    *         jobName                  [String]
    *         appName                  [String]
    *         project                  [String]
-   *         publishToBigQuery        [boolean]
    *         metricsDataset (python)  [String]
    *         metricsTable (python)    [String]
-   *         bigQueryDataset (java)   [String]
-   *         bigQueryTable (java)     [String]
    *         numWorkers               [int]
    *         parallelism              [int]
    *         tempLocation             [String]
@@ -255,11 +251,8 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
 
     //required
     private String _project
-    private String _publishToBigQuery
 
     //java required
-    private String _bigQueryDataset
-    private String _bigQueryTable
     private String _appName
     private SourceOptions _sourceOptions
 
@@ -272,10 +265,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
     //internal usage
     private SDK i_sdk
     private Runner i_runner
-    private static final i_required = [
-      "_project",
-      "_publishToBigQuery"
-    ]
+    private static final i_required = ["_project"]
     private static final i_dataflowRequired = [
       "_numWorkers",
       "_tempLocation",
@@ -289,8 +279,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
       "_parallelism"
     ]
     private static final i_javaRequired = [
-      "_bigQueryDataset",
-      "_bigQueryTable",
       "_sourceOptions",
       "_appName"
     ]
@@ -317,7 +305,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
     void appName(final String name) { _appName = name }
     void project(final String project) { _project = project }
     void tempLocation(final String location) { _tempLocation = location }
-    void publishToBigQuery(final boolean publish) { _publishToBigQuery = publish }
     void metricsDataset(final String dataset) { _metricsDataset = dataset }
     void metricsTable(final String table) { _metricsTable = table }
     void inputOptions(final InputOptions options) { _inputOptions = options }
@@ -328,8 +315,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
     void environmentType(final String type) { _environmentType = type }
     void environmentConfig(final String config) { _environmentConfig = config }
     void parallelism(final int parallelism) { _parallelism = parallelism }
-    void bigQueryDataset(final String dataset) { _bigQueryDataset = dataset }
-    void bigQueryTable(final String table) { _bigQueryTable = table }
     void streaming(final boolean isStreaming) { _streaming = isStreaming }
     void sourceOptions(final Closure cl = {}) { _sourceOptions = makeSourceOptions(cl) }
     void coSourceOptions(final Closure cl = {}) { _coSourceOptions = makeSourceOptions(cl) }
@@ -449,7 +434,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
         _appName: _appName,
         _project: _project,
         _tempLocation: _tempLocation,
-        _publishToBigQuery: _publishToBigQuery,
         _metricsDataset: _metricsDataset,
         _metricsTable: _metricsTable,
         _numWorkers: _numWorkers,
@@ -461,8 +445,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
         _environmentType: _environmentType,
         _environmentConfig: _environmentConfig,
         _parallelism: _parallelism,
-        _bigQueryDataset: _bigQueryDataset,
-        _bigQueryTable: _bigQueryTable,
         _streaming: _streaming,
         _sourceOptions: _sourceOptions,
         _coSourceOptions: _coSourceOptions,

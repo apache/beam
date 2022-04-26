@@ -181,7 +181,7 @@ public abstract class RecommendationAIImportUserEvents
       ArrayList<UserEvent> userEvents = new ArrayList<>();
       for (GenericJson element : c.element().getValue()) {
         UserEvent.Builder userEventBuilder = UserEvent.newBuilder();
-        JsonFormat.parser().merge((new JSONObject(element)).toString(), userEventBuilder);
+        JsonFormat.parser().merge(new JSONObject(element).toString(), userEventBuilder);
         userEvents.add(userEventBuilder.build());
       }
       UserEventInlineSource userEventInlineSource =

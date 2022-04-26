@@ -22,6 +22,7 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -32,8 +33,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public final class SnowflakeTransformRegistrar implements ExternalTransformRegistrar {
-  public static final String READ_URN = "beam:external:java:snowflake:read:v1";
-  public static final String WRITE_URN = "beam:external:java:snowflake:write:v1";
+  public static final String READ_URN = "beam:transform:org.apache.beam:snowflake_read:v1";
+  public static final String WRITE_URN = "beam:transform:org.apache.beam:snowflake_write:v1";
 
   @Override
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {

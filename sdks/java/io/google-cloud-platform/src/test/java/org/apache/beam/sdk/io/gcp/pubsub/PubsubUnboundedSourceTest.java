@@ -410,7 +410,7 @@ public class PubsubUnboundedSourceTest {
     assertThat(source.getSubscription(), nullValue());
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    List<PubsubSource> splits = (new PubsubSource(source)).split(3, options);
+    List<PubsubSource> splits = new PubsubSource(source).split(3, options);
     // We have at least one returned split
     assertThat(splits, hasSize(greaterThan(0)));
     for (PubsubSource split : splits) {

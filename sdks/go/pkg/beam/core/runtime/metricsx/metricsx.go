@@ -28,67 +28,131 @@ import (
 
 // FromMonitoringInfos extracts metrics from monitored states and
 // groups them into counters, distributions and gauges.
-func FromMonitoringInfos(attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) *metrics.Results {
-	ac, ad, ag := groupByType(attempted)
-	cc, cd, cg := groupByType(committed)
+func FromMonitoringInfos(p *pipepb.Pipeline, attempted []*pipepb.MonitoringInfo, committed []*pipepb.MonitoringInfo) *metrics.Results {
+	ac, ad, ag, am, ap := groupByType(p, attempted)
+	cc, cd, cg, cm, cp := groupByType(p, committed)
 
-	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg))
+	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), metrics.MergeGauges(ag, cg), metrics.MergeMsecs(am, cm), metrics.MergePCols(ap, cp))
 }
 
-func groupByType(minfos []*pipepb.MonitoringInfo) (
+func groupByType(p *pipepb.Pipeline, minfos []*pipepb.MonitoringInfo) (
 	map[metrics.StepKey]int64,
 	map[metrics.StepKey]metrics.DistributionValue,
-	map[metrics.StepKey]metrics.GaugeValue) {
+	map[metrics.StepKey]metrics.GaugeValue,
+	map[metrics.StepKey]metrics.MsecValue,
+	map[metrics.StepKey]metrics.PColValue) {
 	counters := make(map[metrics.StepKey]int64)
 	distributions := make(map[metrics.StepKey]metrics.DistributionValue)
 	gauges := make(map[metrics.StepKey]metrics.GaugeValue)
+	msecs := make(map[metrics.StepKey]metrics.MsecValue)
+	pcols := make(map[metrics.StepKey]metrics.PColValue)
+
+	// extract pcol for a PTransform into a map from pipeline proto.
+	pcolToTransform := make(map[string]string)
+
+	for _, transform := range p.GetComponents().GetTransforms() {
+		outputs := transform.GetOutputs()
+		for o, pid := range outputs {
+			pcolToTransform[pid] = fmt.Sprintf("%s.%s", transform.GetUniqueName(), o)
+		}
+	}
+
+	var errs []error
 
 	for _, minfo := range minfos {
-		key, err := extractKey(minfo)
+		key, err := extractKey(minfo, pcolToTransform)
 		if err != nil {
-			log.Println(err)
+			errs = append(errs, err)
 			continue
 		}
 
 		r := bytes.NewReader(minfo.GetPayload())
-
-		switch minfo.GetType() {
-		case "beam:metrics:sum_int64:v1":
+		switch minfo.GetUrn() {
+		case UrnToString(UrnUserSumInt64):
 			value, err := extractCounterValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			counters[key] = value
-		case "beam:metrics:distribution_int64:v1":
+		case UrnToString(UrnUserDistInt64):
 			value, err := extractDistributionValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			distributions[key] = value
 		case
-			"beam:metrics:latest_int64:v1",
-			"beam:metrics:top_n_int64:v1",
-			"beam:metrics:bottom_n_int64:v1":
+			UrnToString(UrnUserLatestMsInt64),
+			UrnToString(UrnUserTopNInt64),
+			UrnToString(UrnUserBottomNInt64):
 			value, err := extractGaugeValue(r)
 			if err != nil {
-				log.Println(err)
+				errs = append(errs, err)
 				continue
 			}
 			gauges[key] = value
+		case
+			UrnToString(UrnStartBundle),
+			UrnToString(UrnProcessBundle),
+			UrnToString(UrnFinishBundle),
+			UrnToString(UrnTransformTotalTime):
+			value, err := extractMsecValue(r)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			v := msecs[key]
+			switch minfo.GetUrn() {
+			case UrnToString(UrnStartBundle):
+				v.Start = value
+			case UrnToString(UrnProcessBundle):
+				v.Process = value
+			case UrnToString(UrnFinishBundle):
+				v.Finish = value
+			case UrnToString(UrnTransformTotalTime):
+				v.Total = value
+			}
+			msecs[key] = v
+		case UrnToString(UrnElementCount):
+			value, err := extractCounterValue(r)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			v := pcols[key]
+			v.ElementCount = value
+			pcols[key] = v
+		case UrnToString(UrnSampledByteSize):
+			value, err := extractDistributionValue(r)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			v := pcols[key]
+			v.SampledByteSize = value
+			pcols[key] = v
+		case UrnToString(UrnDataChannelReadIndex):
+			// Ignore runtime progress metrics.
 		default:
-			log.Println("unknown metric type")
+			log.Println("unknown metric type", minfo.GetUrn())
 		}
 	}
-	return counters, distributions, gauges
+	if len(errs) > 0 {
+		log.Printf("Warning: %v errors during metrics processing: %v\n", len(errs), errs)
+	}
+	return counters, distributions, gauges, msecs, pcols
 }
 
-func extractKey(mi *pipepb.MonitoringInfo) (metrics.StepKey, error) {
+func extractKey(mi *pipepb.MonitoringInfo, pcolToTransform map[string]string) (metrics.StepKey, error) {
 	labels := newLabels(mi.GetLabels())
 	stepName := labels.Transform()
+
+	if v, ok := pcolToTransform[labels.PCollection()]; ok {
+		stepName = v
+	}
 	if stepName == "" {
-		return metrics.StepKey{}, fmt.Errorf("Failed to deduce Step from MonitoringInfo: %v", mi)
+		return metrics.StepKey{}, fmt.Errorf("failed to deduce Step from MonitoringInfo: %v", mi)
 	}
 	return metrics.StepKey{Step: stepName, Name: labels.Name(), Namespace: labels.Namespace()}, nil
 }
@@ -99,6 +163,14 @@ func extractCounterValue(reader *bytes.Reader) (int64, error) {
 		return -1, err
 	}
 	return value, nil
+}
+
+func extractMsecValue(reader *bytes.Reader) (time.Duration, error) {
+	value, err := coder.DecodeVarInt(reader)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(value) * time.Millisecond, nil
 }
 
 func extractDistributionValue(reader *bytes.Reader) (metrics.DistributionValue, error) {
@@ -118,8 +190,15 @@ func extractGaugeValue(reader *bytes.Reader) (metrics.GaugeValue, error) {
 }
 
 func newLabels(miLabels map[string]string) *metrics.Labels {
-	labels := metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"])
-	return &labels
+	if miLabels["PTRANSFORM"] != "" {
+		labels := metrics.UserLabels(miLabels["PTRANSFORM"], miLabels["NAMESPACE"], miLabels["NAME"])
+		return &labels
+	}
+	if miLabels["PCOLLECTION"] != "" {
+		labels := metrics.PCollectionLabels(miLabels["PCOLLECTION"])
+		return &labels
+	}
+	return &metrics.Labels{}
 }
 
 func decodeMany(reader *bytes.Reader, size int) ([]int64, error) {

@@ -53,32 +53,33 @@ import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadSettings;
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.FlushRowsRequest;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsRequest;
-import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.BigQueryWriteClient;
-import com.google.cloud.bigquery.storage.v1beta2.BigQueryWriteSettings;
-import com.google.cloud.bigquery.storage.v1beta2.CreateWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsRequest;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoSchema;
-import com.google.cloud.bigquery.storage.v1beta2.StreamWriterV2;
-import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
+import com.google.cloud.bigquery.storage.v1.StreamWriter;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -90,22 +91,20 @@ import io.grpc.Status.Code;
 import io.grpc.protobuf.ProtoUtils;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -129,6 +128,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -144,14 +147,15 @@ import org.slf4j.LoggerFactory;
 class BigQueryServicesImpl implements BigQueryServices {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
-  // How frequently to log while polling.
-  private static final Duration POLLING_LOG_GAP = Duration.standardMinutes(10);
-
   // The maximum number of retries to execute a BigQuery RPC.
   private static final int MAX_RPC_RETRIES = 9;
 
   // The initial backoff for executing a BigQuery RPC.
   private static final Duration INITIAL_RPC_BACKOFF = Duration.standardSeconds(1);
+
+  // The approximate maximum payload of rows for an insertAll request.
+  // We set it to 9MB, which leaves room for request overhead.
+  private static final Integer MAX_BQ_ROW_PAYLOAD = 9 * 1024 * 1024;
 
   // The initial backoff for polling the status of a BigQuery job.
   private static final Duration INITIAL_JOB_STATUS_POLL_BACKOFF = Duration.standardSeconds(1);
@@ -161,6 +165,8 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
   private static final String QUOTA_EXCEEDED = "quotaExceeded";
+
+  private static final String NO_ROWS_PRESENT = "No rows present in the request.";
 
   protected static final Map<String, String> API_METRIC_LABEL =
       ImmutableMap.of(
@@ -481,7 +487,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final Counter throttlingMsecs =
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
-    private ExecutorService executor;
+    private BoundedExecutorService executor;
+    private final BigQueryIOMetadata bqIOMetadata;
 
     @VisibleForTesting
     DatasetServiceImpl(
@@ -493,6 +500,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -509,6 +517,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -519,6 +528,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -811,6 +821,111 @@ class BigQueryServicesImpl implements BigQueryServices {
           ALWAYS_RETRY);
     }
 
+    static class InsertBatchofRowsCallable implements Callable<List<InsertErrors>> {
+      private final TableReference ref;
+      private final Boolean skipInvalidRows;
+      private final Boolean ignoreUnkownValues;
+      private final Bigquery client;
+      private final FluentBackoff rateLimitBackoffFactory;
+      private final List<TableDataInsertAllRequest.Rows> rows;
+      private final AtomicLong maxThrottlingMsec;
+      private final Sleeper sleeper;
+
+      InsertBatchofRowsCallable(
+          TableReference ref,
+          Boolean skipInvalidRows,
+          Boolean ignoreUnknownValues,
+          Bigquery client,
+          FluentBackoff rateLimitBackoffFactory,
+          List<TableDataInsertAllRequest.Rows> rows,
+          AtomicLong maxThrottlingMsec,
+          Sleeper sleeper) {
+        this.ref = ref;
+        this.skipInvalidRows = skipInvalidRows;
+        this.ignoreUnkownValues = ignoreUnknownValues;
+        this.client = client;
+        this.rateLimitBackoffFactory = rateLimitBackoffFactory;
+        this.rows = rows;
+        this.maxThrottlingMsec = maxThrottlingMsec;
+        this.sleeper = sleeper;
+      }
+
+      @Override
+      public List<TableDataInsertAllResponse.InsertErrors> call() throws Exception {
+        TableDataInsertAllRequest content = new TableDataInsertAllRequest();
+        content.setRows(rows);
+        content.setSkipInvalidRows(skipInvalidRows);
+        content.setIgnoreUnknownValues(ignoreUnkownValues);
+
+        final Bigquery.Tabledata.InsertAll insert =
+            client
+                .tabledata()
+                .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content)
+                .setPrettyPrint(false);
+
+        // A backoff for rate limit exceeded errors.
+        BackOff backoff1 = BackOffAdapter.toGcpBackOff(rateLimitBackoffFactory.backoff());
+        long totalBackoffMillis = 0L;
+        while (true) {
+          ServiceCallMetric serviceCallMetric = BigQueryUtils.writeCallMetric(ref);
+          try {
+            List<TableDataInsertAllResponse.InsertErrors> response =
+                insert.execute().getInsertErrors();
+            if (response == null || response.isEmpty()) {
+              serviceCallMetric.call("ok");
+            } else {
+              for (TableDataInsertAllResponse.InsertErrors insertErrors : response) {
+                for (ErrorProto insertError : insertErrors.getErrors()) {
+                  serviceCallMetric.call(insertError.getReason());
+                }
+              }
+            }
+            return response;
+          } catch (IOException e) {
+            GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
+            if (errorInfo == null) {
+              serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
+              throw e;
+            }
+            serviceCallMetric.call(errorInfo.getReason());
+            /**
+             * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
+             * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
+             * GoogleCloudDataproc/hadoop-connectors
+             */
+            if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
+                && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
+              if (ApiErrorExtractor.INSTANCE.badRequest(e)
+                  && e.getMessage().contains(NO_ROWS_PRESENT)) {
+                LOG.error(
+                    "No rows present in the request error likely caused by BigQuery Insert"
+                        + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
+                        + " or 0 to disable timeouts",
+                    e.getCause());
+              }
+              throw e;
+            }
+            LOG.info(
+                String.format(
+                    "BigQuery insertAll error, retrying: %s",
+                    ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+            try {
+              long nextBackOffMillis = backoff1.nextBackOffMillis();
+              if (nextBackOffMillis == BackOff.STOP) {
+                throw e;
+              }
+              sleeper.sleep(nextBackOffMillis);
+              totalBackoffMillis += nextBackOffMillis;
+              final long totalBackoffMillisSoFar = totalBackoffMillis;
+              maxThrottlingMsec.getAndUpdate(current -> Math.max(current, totalBackoffMillisSoFar));
+            } catch (InterruptedException interrupted) {
+              throw new IOException("Interrupted while waiting before retrying insertAll");
+            }
+          }
+        }
+      }
+    }
+
     @VisibleForTesting
     <T> long insertAll(
         TableReference ref,
@@ -831,7 +946,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (executor == null) {
         this.executor =
             new BoundedExecutorService(
-                options.as(GcsOptions.class).getExecutorService(),
+                MoreExecutors.listeningDecorator(options.as(GcsOptions.class).getExecutorService()),
                 options.as(BigQueryOptions.class).getInsertBundleParallelism());
       }
       if (insertIdList != null && rowList.size() != insertIdList.size()) {
@@ -865,104 +980,95 @@ class BigQueryServicesImpl implements BigQueryServices {
         // Store the longest throttled time across all parallel threads
         final AtomicLong maxThrottlingMsec = new AtomicLong();
 
-        for (int i = 0; i < rowsToPublish.size(); ++i) {
-          TableRow row = rowsToPublish.get(i).getValue();
-          TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
-          if (idsToPublish != null) {
-            out.setInsertId(idsToPublish.get(i));
-          }
-          out.setJson(row.getUnknownKeys());
-          rows.add(out);
-
+        int rowIndex = 0;
+        while (rowIndex < rowsToPublish.size()) {
+          TableRow row = rowsToPublish.get(rowIndex).getValue();
+          long nextRowSize = 0L;
           try {
-            dataSize += TableRowJsonCoder.of().getEncodedElementByteSize(row);
+            nextRowSize = TableRowJsonCoder.of().getEncodedElementByteSize(row);
           } catch (Exception ex) {
             throw new RuntimeException("Failed to convert the row to JSON", ex);
           }
 
-          if (dataSize >= maxRowBatchSize
-              || rows.size() >= maxRowsPerBatch
-              || i == rowsToPublish.size() - 1) {
-            TableDataInsertAllRequest content = new TableDataInsertAllRequest();
-            content.setRows(rows);
-            content.setSkipInvalidRows(skipInvalidRows);
-            content.setIgnoreUnknownValues(ignoreUnkownValues);
+          // The following scenario must be *extremely* rare.
+          // If this row's encoding by itself is larger than the maximum row payload, then it's
+          // impossible to insert into BigQuery, and so we send it out through the dead-letter
+          // queue.
+          if (nextRowSize >= MAX_BQ_ROW_PAYLOAD) {
+            InsertErrors error =
+                new InsertErrors()
+                    .setErrors(ImmutableList.of(new ErrorProto().setReason("row-too-large")));
+            // We verify whether the retryPolicy parameter expects us to retry. If it does, then
+            // it will return true. Otherwise it will return false.
+            Boolean isRetry = retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error));
+            if (isRetry) {
+              throw new RuntimeException(
+                  String.format(
+                      "We have observed a row that is %s bytes in size. BigQuery supports"
+                          + " request sizes up to 10MB, and this row is too large. "
+                          + " You may change your retry strategy to unblock this pipeline, and "
+                          + " the row will be output as a failed insert.",
+                      nextRowSize));
+            } else {
+              errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
+              failedIndices.add(rowIndex);
+              rowIndex++;
+              continue;
+            }
+          }
 
-            final Bigquery.Tabledata.InsertAll insert =
-                client
-                    .tabledata()
-                    .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content)
-                    .setPrettyPrint(false);
-
-            // Create final reference (which cannot change).
-            // So the lamba expression can refer to rowsInsertedForRequest to use on error.
+          // If adding the next row will push the request above BQ row limits, or
+          // if the current batch of elements is larger than the targeted request size,
+          // we immediately go and issue the data insertion.
+          if (dataSize + nextRowSize >= MAX_BQ_ROW_PAYLOAD
+              || dataSize >= maxRowBatchSize
+              || rows.size() + 1 > maxRowsPerBatch) {
+            // If the row does not fit into the insert buffer, then we take the current buffer,
+            // issue the insert call, and we retry adding the same row to the troublesome buffer.
+            // Add a future to insert the current batch into BQ.
             futures.add(
                 executor.submit(
-                    () -> {
-                      // A backoff for rate limit exceeded errors.
-                      BackOff backoff1 =
-                          BackOffAdapter.toGcpBackOff(rateLimitBackoffFactory.backoff());
-                      long totalBackoffMillis = 0L;
-                      while (true) {
-                        ServiceCallMetric serviceCallMetric = BigQueryUtils.writeCallMetric(ref);
-                        try {
-                          List<TableDataInsertAllResponse.InsertErrors> response =
-                              insert.execute().getInsertErrors();
-                          if (response == null || response.isEmpty()) {
-                            serviceCallMetric.call("ok");
-                          } else {
-                            for (TableDataInsertAllResponse.InsertErrors insertErrors : response) {
-                              for (ErrorProto insertError : insertErrors.getErrors()) {
-                                serviceCallMetric.call(insertError.getReason());
-                              }
-                            }
-                          }
-                          return response;
-                        } catch (IOException e) {
-                          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
-                          if (errorInfo == null) {
-                            serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
-                            throw e;
-                          }
-                          serviceCallMetric.call(errorInfo.getReason());
-                          /**
-                           * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
-                           * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
-                           * GoogleCloudDataproc/hadoop-connectors
-                           */
-                          if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
-                              && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
-                            throw e;
-                          }
-                          LOG.info(
-                              String.format(
-                                  "BigQuery insertAll error, retrying: %s",
-                                  ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
-                          try {
-                            long nextBackOffMillis = backoff1.nextBackOffMillis();
-                            if (nextBackOffMillis == BackOff.STOP) {
-                              throw e;
-                            }
-                            sleeper.sleep(nextBackOffMillis);
-                            totalBackoffMillis += nextBackOffMillis;
-                            final long totalBackoffMillisSoFar = totalBackoffMillis;
-                            maxThrottlingMsec.getAndUpdate(
-                                current -> Math.max(current, totalBackoffMillisSoFar));
-                          } catch (InterruptedException interrupted) {
-                            throw new IOException(
-                                "Interrupted while waiting before retrying insertAll");
-                          }
-                        }
-                      }
-                    }));
+                    new InsertBatchofRowsCallable(
+                        ref,
+                        skipInvalidRows,
+                        ignoreUnkownValues,
+                        client,
+                        rateLimitBackoffFactory,
+                        rows,
+                        maxThrottlingMsec,
+                        sleeper)));
             strideIndices.add(strideIndex);
-
             retTotalDataSize += dataSize;
-
-            dataSize = 0L;
-            strideIndex = i + 1;
+            strideIndex = rowIndex;
             rows = new ArrayList<>();
+            dataSize = 0L;
           }
+          // If the row fits into the insert buffer, then we add it to the buffer to be inserted
+          // later, and we move onto the next row.
+          TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
+          if (idsToPublish != null) {
+            out.setInsertId(idsToPublish.get(rowIndex));
+          }
+          out.setJson(row.getUnknownKeys());
+          rows.add(out);
+          rowIndex++;
+          dataSize += nextRowSize;
+        }
+
+        if (rows.size() > 0) {
+          futures.add(
+              executor.submit(
+                  new InsertBatchofRowsCallable(
+                      ref,
+                      skipInvalidRows,
+                      ignoreUnkownValues,
+                      client,
+                      rateLimitBackoffFactory,
+                      rows,
+                      maxThrottlingMsec,
+                      sleeper)));
+          strideIndices.add(strideIndex);
+          retTotalDataSize += dataSize;
         }
 
         try {
@@ -1067,13 +1173,14 @@ class BigQueryServicesImpl implements BigQueryServices {
           successfulRows);
     }
 
-    protected GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
+    protected static GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
       if (!(e instanceof GoogleJsonResponseException)) {
         return null;
       }
-      GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
-      GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
-      return errorInfo;
+      return Optional.ofNullable(((GoogleJsonResponseException) e).getDetails())
+          .flatMap(error -> Optional.ofNullable(error.getErrors()))
+          .flatMap(infos -> Optional.ofNullable(Iterables.getFirst(infos, null)))
+          .orElse(null);
     }
 
     @Override
@@ -1115,8 +1222,16 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
-      StreamWriterV2 streamWriter =
-          StreamWriterV2.newBuilder(streamName).setWriterSchema(protoSchema).build();
+
+      StreamWriter streamWriter =
+          StreamWriter.newBuilder(streamName)
+              .setWriterSchema(protoSchema)
+              .setTraceId(
+                  "Dataflow:"
+                      + (bqIOMetadata.getBeamJobId() != null
+                          ? bqIOMetadata.getBeamJobId()
+                          : options.getJobName()))
+              .build();
       return new StreamAppendClient() {
         private int pins = 0;
         private boolean closed = false;
@@ -1462,140 +1577,27 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-  private static class BoundedExecutorService implements ExecutorService {
-    private final ExecutorService executor;
+  private static class BoundedExecutorService {
+    private final ListeningExecutorService taskExecutor;
+    private final ListeningExecutorService taskSubmitExecutor;
     private final Semaphore semaphore;
-    private final int parallelism;
 
-    BoundedExecutorService(ExecutorService executor, int parallelism) {
-      this.executor = executor;
-      this.parallelism = parallelism;
+    BoundedExecutorService(ListeningExecutorService taskExecutor, int parallelism) {
+      this.taskExecutor = taskExecutor;
+      this.taskSubmitExecutor =
+          MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
       this.semaphore = new Semaphore(parallelism);
     }
 
-    @Override
-    public void shutdown() {
-      executor.shutdown();
-    }
-
-    @Override
-    public List<Runnable> shutdownNow() {
-      List<Runnable> runnables = executor.shutdownNow();
-      // try to release permits as many as possible before returning semaphored runnables.
-      synchronized (this) {
-        if (semaphore.availablePermits() <= parallelism) {
-          semaphore.release(Integer.MAX_VALUE - parallelism);
-        }
-      }
-      return runnables;
-    }
-
-    @Override
-    public boolean isShutdown() {
-      return executor.isShutdown();
-    }
-
-    @Override
-    public boolean isTerminated() {
-      return executor.isTerminated();
-    }
-
-    @Override
-    public boolean awaitTermination(long l, TimeUnit timeUnit) throws InterruptedException {
-      return executor.awaitTermination(l, timeUnit);
-    }
-
-    @Override
     public <T> Future<T> submit(Callable<T> callable) {
-      return executor.submit(new SemaphoreCallable<>(callable));
-    }
-
-    @Override
-    public <T> Future<T> submit(Runnable runnable, T t) {
-      return executor.submit(new SemaphoreRunnable(runnable), t);
-    }
-
-    @Override
-    public Future<?> submit(Runnable runnable) {
-      return executor.submit(new SemaphoreRunnable(runnable));
-    }
-
-    @Override
-    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> collection)
-        throws InterruptedException {
-      return executor.invokeAll(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()));
-    }
-
-    @Override
-    public <T> List<Future<T>> invokeAll(
-        Collection<? extends Callable<T>> collection, long l, TimeUnit timeUnit)
-        throws InterruptedException {
-      return executor.invokeAll(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()),
-          l,
-          timeUnit);
-    }
-
-    @Override
-    public <T> T invokeAny(Collection<? extends Callable<T>> collection)
-        throws InterruptedException, ExecutionException {
-      return executor.invokeAny(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()));
-    }
-
-    @Override
-    public <T> T invokeAny(Collection<? extends Callable<T>> collection, long l, TimeUnit timeUnit)
-        throws InterruptedException, ExecutionException, TimeoutException {
-      return executor.invokeAny(
-          collection.stream().map(SemaphoreCallable::new).collect(Collectors.toList()),
-          l,
-          timeUnit);
-    }
-
-    @Override
-    public void execute(Runnable runnable) {
-      executor.execute(new SemaphoreRunnable(runnable));
-    }
-
-    private class SemaphoreRunnable implements Runnable {
-      private final Runnable runnable;
-
-      SemaphoreRunnable(Runnable runnable) {
-        this.runnable = runnable;
-      }
-
-      @Override
-      public void run() {
-        try {
-          semaphore.acquire();
-        } catch (InterruptedException e) {
-          throw new RuntimeException("semaphore acquisition interrupted. task canceled.");
-        }
-        try {
-          runnable.run();
-        } finally {
-          semaphore.release();
-        }
-      }
-    }
-
-    private class SemaphoreCallable<V> implements Callable<V> {
-      private final Callable<V> callable;
-
-      SemaphoreCallable(Callable<V> callable) {
-        this.callable = callable;
-      }
-
-      @Override
-      public V call() throws Exception {
-        semaphore.acquire();
-        try {
-          return callable.call();
-        } finally {
-          semaphore.release();
-        }
-      }
+      return Futures.submitAsync(
+          () -> {
+            semaphore.acquire();
+            ListenableFuture<T> listenableFuture = taskExecutor.submit(callable);
+            listenableFuture.addListener(semaphore::release, MoreExecutors.directExecutor());
+            return listenableFuture;
+          },
+          taskSubmitExecutor);
     }
   }
 }

@@ -220,7 +220,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='LEGACY').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_environment_override_translation_sdk_container_image(self):
@@ -240,7 +240,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='FOO').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_remote_runner_translation(self):
@@ -514,16 +514,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         remote_runner.job.options.view_as(DebugOptions).experiments)
     self.assertIn('beam_fn_api', experiments_for_job)
     self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
-
-  def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
-    remote_runner = DataflowRunner()
-
-    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
-      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-
-    self.assertTrue(
-        remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
-            'use_fastavro', False))
 
   def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
     remote_runner = DataflowRunner()

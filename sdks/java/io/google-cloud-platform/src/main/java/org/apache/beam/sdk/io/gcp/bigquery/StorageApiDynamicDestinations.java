@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Message;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -30,10 +30,28 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Base dynamicDestinations class used by the Storage API sink. */
 abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinations<T, DestinationT> {
-  public interface MessageConverter<T> {
-    Descriptor getSchemaDescriptor();
+  /** Container object that contains a proto descriptor along with its deterministic hash. */
+  public static class DescriptorWrapper {
+    public final Descriptor descriptor;
+    public final long hash;
 
-    Message toMessage(T element);
+    public DescriptorWrapper(Descriptor descriptor, long hash) {
+      this.descriptor = descriptor;
+      this.hash = hash;
+    }
+
+    @Override
+    public String toString() {
+      return "Descriptor: " + descriptor.getFullName() + " hash: " + hash;
+    }
+  }
+
+  public interface MessageConverter<T> {
+    DescriptorWrapper getSchemaDescriptor();
+
+    void refreshSchema(long expectedHash) throws Exception;
+
+    StorageApiWritePayload toMessage(T element) throws Exception;
   }
 
   private DynamicDestinations<T, DestinationT> inner;
@@ -42,8 +60,8 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
     this.inner = inner;
   }
 
-  public abstract MessageConverter<T> getMessageConverter(DestinationT destination)
-      throws Exception;
+  public abstract MessageConverter<T> getMessageConverter(
+      DestinationT destination, DatasetService datasetService) throws Exception;
 
   @Override
   public DestinationT getDestination(ValueInSingleWindow<T> element) {

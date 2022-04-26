@@ -95,11 +95,9 @@ public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
                 clientPool.getSource())
             // The EmbeddedEnvironmentFactory can only create Java environments, regardless of the
             // Environment that's passed to it.
-            .createEnvironment(Environment.getDefaultInstance(), "unusedWorkerId")
+            .createEnvironment(Environment.getDefaultInstance(), "embedded_worker")
             .getInstructionRequestHandler();
 
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Worker ids cannot currently be set by
-    // the harness. All clients have the implicit empty id for now.
     client = SdkHarnessClient.usingFnApiClient(requestHandler, dataServer.getService());
   }
 

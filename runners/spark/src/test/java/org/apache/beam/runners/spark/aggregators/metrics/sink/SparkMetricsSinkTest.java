@@ -83,8 +83,7 @@ public class SparkMetricsSinkTest {
         CreateStream.of(
                 StringUtf8Coder.of(),
                 Duration.millis(
-                    (pipeline.getOptions().as(SparkPipelineOptions.class))
-                        .getBatchIntervalMillis()))
+                    pipeline.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis()))
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant)
             .nextBatch(

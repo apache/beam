@@ -43,6 +43,7 @@ The release process consists of several steps:
 
 1. Decide to release
 1. Prepare for the release
+1. Update base image dependencies for Python container images
 1. Investigate performance regressions
 1. Create a release branch
 1. Verify release branch
@@ -134,11 +135,11 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
   This will list your GPG keys. One of these should reflect your Apache account, for example:
 
       --------------------------------------------------
-      pub   2048R/845E6689 2016-02-23
+      pub   rsa4096/845E6689845E6689 2016-02-23
       uid                  Nomen Nescio <anonymous@apache.org>
-      sub   2048R/BA4D50BE 2016-02-23
+      sub   rsa4096/BA4D50BEBA4D50BE 2016-02-23
 
-  Here, the key ID is the 8-digit hex string in the `pub` line: `845E6689`.
+  Here, the key ID is the 16-digit hex string in the `pub` line: `845E6689845E6689`.
 
 #### Access to Apache Nexus repository
 
@@ -230,7 +231,14 @@ If you are not a PMC, please ask for help in dev@ mailing list.
 **********
 
 
-## 3. Investigate performance regressions
+## 3. Update base image dependencies for Python container images
+
+See instructions at: https://s.apache.org/beam-python-requirements-generate
+
+Ideally, do the update at least a week before the release cut, so that any issues
+related to the update have time to surface.
+
+## 4. Investigate performance regressions
 
 Check the Beam load tests for possible performance regressions.
 Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apache.org).
@@ -238,7 +246,7 @@ Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apac
 All Runners which publish data should be checked for the following, in both *batch* and *streaming* mode:
 
 - [ParDo](http://metrics.beam.apache.org/d/MOi-kf3Zk/pardo-load-tests) and [GBK](http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-test): Runtime, latency, checkpoint duration
-- [Nexmark](http://metrics.beam.apache.org/d/ahuaA_zGz/nexmark): Query runtime for all queries
+- [Nexmark](http://metrics.beam.apache.org/d/ahudA_zGz/nexmark): Query runtime for all queries
 - [IO](http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow): Runtime
 
 If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
@@ -247,7 +255,7 @@ The release manager oversees these just like any other JIRA issue marked with th
 
 The mailing list should be informed to allow fixing the regressions in the course of the release.
 
-## 4. Create a release branch in apache/beam repository
+## 5. Create a release branch in apache/beam repository
 
 Attention: Only committer has permission to create release branch in apache/beam.
 
@@ -316,7 +324,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 **********
 
 
-## 5. Verify release branch
+## 6. Verify release branch
 
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
@@ -336,11 +344,15 @@ There are 2 ways to perform this verification, either running automation script(
      ```
      cd beam/release/src/main/scripts && ./verify_release_build.sh
      ```
-  1. Trigger `beam_Release_Gradle_Build` and all PostCommit Jenkins jobs from PR (which is created by previous step).
+  1. Trigger `beam_Release_Gradle_Build` and all Jenkins PostCommit jobs from the PR created by the previous step.
      You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
      Or manually add one trigger phrase per PR comment.
      See `COMMENTS_TO_ADD` in [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
-     for full list of phrases.
+     for full list of phrases. Please note that this list of phrases can get
+     out of date, it's your responsibility to run _all_ PostCommits, not just
+     the ones listed there.
+     [BEAM-13951](https://issues.apache.org/jira/browse/BEAM-13951) has
+     directions for updating this list using the Jenkins API.
 
 * **Tasks included in the script**
   1. Installs ```hub``` with your agreement and setup local git repo;
@@ -361,29 +373,8 @@ There are some projects that don't produce the artifacts, e.g. `beam-test-tools`
 To triage the failures and narrow things down you may want to look at `settings.gradle.kts` and run the build only for the projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
 
 #### (Alternative) Run release build manually (locally)
-* **Pre-installation for python build**
-  1. Install pip
-
-      ```
-      curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-      python get-pip.py
-      ```
-  1. Install virtualenv
-
-      ```
-      pip install --upgrade virtualenv
-      ```
-  1. Cython
-
-      ```
-      sudo pip install cython
-      sudo apt-get install gcc
-      sudo apt-get install python-dev
-      sudo apt-get install python3-dev
-      sudo apt-get install python3.5-dev
-      sudo apt-get install python3.6-dev
-      sudo apt-get install python3.7-dev
-      ```
+You will need to have Python interpreters for all supported Python minor
+versions to run Python tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
 
 * **Run gradle release build**
 
@@ -435,7 +426,7 @@ Afterwards, this list can be refined and updated by the release manager and the 
 **********
 
 
-## 6. Triage release-blocking issues in JIRA
+## 7. Triage release-blocking issues in JIRA
 
 There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
 We track them by assigning the blocked release to the issue's `Fix version` field before the issue is resolved.
@@ -496,7 +487,7 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 **********
 
 
-## 7. Build a release candidate
+## 8. Build a release candidate
 
 ### Checklist before proceeding
 
@@ -538,7 +529,7 @@ The final state of the repository should match this diagram:
       ./beam/release/src/main/scripts/choose_rc_commit.sh \
           --release "${RELEASE_VERSION}" \
           --rc "${RC_NUM}" \
-	  --commit "${COMMIT_REF}" \
+          --commit "${COMMIT_REF}" \
           --clone \
           --push-tag
 
@@ -555,7 +546,7 @@ See the source of the script for more details, or to run commands manually in ca
 
 * **Usage**
 
-      ./beam/release/src/main/scripts/build_release_candidate.sh
+      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}"
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.
@@ -579,12 +570,12 @@ See the source of the script for more details, or to run commands manually in ca
           Please note that dependencies for the SDKs with different Python versions vary.
           Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
@@ -593,7 +584,7 @@ See the source of the script for more details, or to run commands manually in ca
       1. Select repository `orgapachebeam-NNNN`.
       1. Click the Close button.
       1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
-      1. Review all staged artifacts on https://repository.apache.org/content/repositories/orgapachebeam-NNNN/.
+      1. Review all staged artifacts on `https://repository.apache.org/content/repositories/orgapachebeam-NNNN/`.
          They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
          Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
          Carefully review any new artifacts.
@@ -630,7 +621,7 @@ See the source of the script for more details or to run commands manually in cas
 **********
 
 
-## 8. Prepare documents
+## 9. Prepare documents
 
 ### Propose pull requests for website updates
 
@@ -650,12 +641,14 @@ It is created by `build_release_candidate.sh` (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/15068)).
+This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/17378)).
 
 * Update `CHANGES.md` to update release date and remove template.
 * Update release version in `website/www/site/config.toml`.
 * Add new release in `website/www/site/content/en/get-started/downloads.md`.
   * Download links will not work until the release is finalized.
+* Update links to prior releases to point to https://archive.apache.org (see
+  example PR).
 * Update `website/www/site/static/.htaccess` to redirect to the new version.
 * Create the Blog post:
 
@@ -666,7 +659,7 @@ See [beam-2.31.0.md](https://github.com/apache/beam/commit/a32a75ed0657c122c6625
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
 - Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
-__Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
+__Tip__: Use git log to find contributors to the releases. (e.g: `git fetch origin --tags; git log --pretty='%aN' ^v2.10.0 v2.11.0-RC1 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
 
 __NOTE__: Make sure to include any breaking changes, even to `@Experimental` features,
@@ -748,7 +741,7 @@ docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 **********
 
 
-## 9. Vote and validate release candidate
+## 10. Vote and validate release candidate
 
 Once you have built and individually reviewed the release candidate, please share it for the community-wide review.
 Please review foundation-wide [voting guidelines](http://www.apache.org/foundation/voting.html) for more information.
@@ -775,8 +768,8 @@ Here’s an email template; please adjust as you see fit.
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
-    * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and pypy[8].
+    * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
     * Docker images published to Docker Hub [10].
 
@@ -810,6 +803,9 @@ All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validat
 Since there are a bunch of tests, we recommend you running validations using automation script.
 In case of script failure, you can still run all of them manually.
 
+You may need to have Python interpreters for all supported Python minor
+versions to run all of the tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
+
 #### Run validations using run_rc_validation.sh
 * **Script:** [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
 
@@ -822,8 +818,6 @@ In case of script failure, you can still run all of them manually.
       ```
 
 * **Tasks included**
-  1. Run Java quickstart with Direct Runner, Flink local runner, Spark local runner and Dataflow runner.
-  1. Run Java Mobile Games(UserScore, HourlyTeamScore, Leaderboard) with Dataflow runner.
   1. Create a PR to trigger python validation job, including
      * Python quickstart in batch and streaming mode with direct runner and Dataflow runner.
      * Python Mobile Games(UserScore, HourlyTeamScore) with direct runner and Dataflow runner.
@@ -837,6 +831,12 @@ In case of script failure, you can still run all of them manually.
 * **Tasks you need to do manually**
   1. Check whether validations succeed by following console output instructions.
   1. Terminate streaming jobs and java injector.
+  1. Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
+    1. Log in to Jenkins.
+    1. Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
+    1. Click "Build with Parameters".
+    1. Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
+    1. Click "Build".
   1. Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
   1. Vote in the release thread.
 
@@ -921,14 +921,12 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     unzip apache-beam-2.5.0-source-release.zip
     python setup.py sdist
     ```
-  * **Setup virtualenv**
+  * **Setup virtual environment**
 
     ```
-    pip install --upgrade pip
-    pip install --upgrade setuptools
-    pip install --upgrade virtualenv
-    virtualenv beam_env
-     . beam_env/bin/activate
+    python3 -m venv beam_env
+    . ./beam_env/bin/activate
+    pip install --upgrade pip setuptools wheel
     ```
   * **Install SDK**
 
@@ -1098,7 +1096,7 @@ Here’s an email template; please adjust as you see fit.
 **********
 
 
-## 10. Finalize the release
+## 11. Finalize the release
 
 Once the release candidate has been reviewed and approved by the community, the release should be finalized.
 This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.
@@ -1147,7 +1145,16 @@ Merge all of the website pull requests
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
 ```
+# Optional: unlock the signing key by signing an arbitrary file.
+gpg --output ~/doc.sig --sign ~/.bashrc
+
 VERSION_TAG="v${RELEASE}"
+
+# Tag for Go SDK
+git tag -s "sdks/$VERSION_TAG" "$RC_TAG"
+git push https://github.com/apache/beam "sdks/$VERSION_TAG"
+
+# Tag for repo root.
 git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```
@@ -1159,7 +1166,7 @@ After pushing the tag, the tag should be visible on Github's [Tags](https://gith
 Once the tag is uploaded, publish the release notes to Github, as follows:
 
 ```
-cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
+./beam/release/src/main/scripts/publish_github_release_notes.sh
 ```
 
 Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
@@ -1176,7 +1183,6 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
-The release manager should also make sure to update these links on the website ([example](https://github.com/apache/beam/pull/11727)).
 
 #### Mark the version as released in JIRA
 
@@ -1204,7 +1210,7 @@ Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to s
 **********
 
 
-## 11. Promote the release
+## 12. Promote the release
 
 Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.
 

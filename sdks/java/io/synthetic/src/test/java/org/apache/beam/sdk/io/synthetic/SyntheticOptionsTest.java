@@ -77,12 +77,12 @@ public class SyntheticOptionsTest {
     assertEquals(
         0,
         (long)
-            ((UniformRealDistribution) (sourceOptions.delayDistribution.getDistribution()))
+            ((UniformRealDistribution) sourceOptions.delayDistribution.getDistribution())
                 .getSupportLowerBound());
     assertEquals(
         100,
         (long)
-            ((UniformRealDistribution) (sourceOptions.delayDistribution.getDistribution()))
+            ((UniformRealDistribution) sourceOptions.delayDistribution.getDistribution())
                 .getSupportUpperBound());
   }
 
@@ -94,12 +94,11 @@ public class SyntheticOptionsTest {
     SyntheticOptions sourceOptions = optionsFromString(syntheticOptions, SyntheticOptions.class);
     assertEquals(
         100,
-        (long)
-            ((NormalDistribution) (sourceOptions.delayDistribution.getDistribution())).getMean());
+        (long) ((NormalDistribution) sourceOptions.delayDistribution.getDistribution()).getMean());
     assertEquals(
         50,
         (long)
-            ((NormalDistribution) (sourceOptions.delayDistribution.getDistribution()))
+            ((NormalDistribution) sourceOptions.delayDistribution.getDistribution())
                 .getStandardDeviation());
   }
 
@@ -111,7 +110,7 @@ public class SyntheticOptionsTest {
     assertEquals(
         10,
         (long)
-            ((ExponentialDistribution) (sourceOptions.delayDistribution.getDistribution()))
+            ((ExponentialDistribution) sourceOptions.delayDistribution.getDistribution())
                 .getMean());
   }
 

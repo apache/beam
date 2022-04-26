@@ -24,7 +24,7 @@ Are you interested in learning more about Apache Beam or giving a talk about Apa
 
 <div class="panel panel-default">
   <div class="panel-body">
-    <iframe src="https://drive.google.com/embeddedfolderview?id=0B-IhJZh9Ab52a3JLVXFWMDltcHM#list" width="700" height="300" frameborder="0"></iframe>
+    <iframe src="https://drive.google.com/embeddedfolderview?id=0B-IhJZh9Ab52a3JLVXFWMDltcHM&resourcekey=0-VP9gZcuYGybKzNARikCEnQ#list" width="700" height="300" frameborder="0"></iframe>
   </div>
 </div>
 

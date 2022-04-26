@@ -87,7 +87,7 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
     return (BeamKafkaTable)
-        (new KafkaTableProvider()
+        new KafkaTableProvider()
             .buildBeamSqlTable(
                 Table.builder()
                     .name("kafka")
@@ -95,6 +95,6 @@ public class BeamKafkaTableAvroTest extends BeamKafkaTableTest {
                     .schema(TEST_SCHEMA)
                     .location("localhost/mytopic")
                     .properties(JSON.parseObject("{ \"format\": \"avro\" }"))
-                    .build()));
+                    .build());
   }
 }

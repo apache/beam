@@ -176,7 +176,7 @@ public class SchemaOptionsTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testNotNullableOptionSetNull() {
-    Schema.Options options = Schema.Options.setOption(OPTION_NAME, FieldType.STRING, null).build();
+    Schema.Options.setOption(OPTION_NAME, FieldType.STRING, null).build();
   }
 
   @Test
@@ -217,10 +217,6 @@ public class SchemaOptionsTest {
         .setOption("field_option_int32", FieldType.INT32, 12)
         .setOption("field_option_int64", FieldType.INT64, 12L)
         .setOption("field_option_string", FieldType.STRING, "foo");
-  }
-
-  private Schema.Options.Builder setOptionsSet2() {
-    return setOptionsSet2(Schema.Options.builder());
   }
 
   private void assertOptionSet1(Schema.Options options) {

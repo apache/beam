@@ -17,6 +17,17 @@
  */
 package org.apache.beam.examples;
 
+// beam-playground:
+//   name: WordCount
+//   description: An example that counts words in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   context_line: 95
+//   categories:
+//     - Combiners
+//     - Options
+//     - Quickstart
+
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;

@@ -24,7 +24,6 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.Table.Builder;
 
 /** {@link TableFactory} that understands Data Catalog Pubsub entries. */
 class PubsubTableFactory implements TableFactory {
@@ -35,7 +34,7 @@ class PubsubTableFactory implements TableFactory {
       Pattern.compile("/projects/(?<PROJECT>[^/]+)/topics/(?<TOPIC>[^/]+)");
 
   @Override
-  public Optional<Builder> tableBuilder(Entry entry) {
+  public Optional<Table.Builder> tableBuilder(Entry entry) {
     if (!URI.create(entry.getLinkedResource()).getAuthority().equalsIgnoreCase(PUBSUB_API)) {
       return Optional.empty();
     }

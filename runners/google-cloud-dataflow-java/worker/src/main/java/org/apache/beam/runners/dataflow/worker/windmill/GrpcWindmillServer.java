@@ -86,17 +86,17 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.CallCredentials;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.auth.MoreCallCredentials;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.netty.GrpcSslContexts;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.netty.NegotiationType;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.CallCredentials;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.auth.MoreCallCredentials;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.netty.GrpcSslContexts;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.netty.NegotiationType;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
@@ -264,11 +264,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
    */
   private static class VendoredRequestMetadataCallbackAdapter
       implements com.google.auth.RequestMetadataCallback {
-    private final org.apache.beam.vendor.grpc.v1p36p0.com.google.auth.RequestMetadataCallback
+    private final org.apache.beam.vendor.grpc.v1p43p2.com.google.auth.RequestMetadataCallback
         callback;
 
     private VendoredRequestMetadataCallbackAdapter(
-        org.apache.beam.vendor.grpc.v1p36p0.com.google.auth.RequestMetadataCallback callback) {
+        org.apache.beam.vendor.grpc.v1p43p2.com.google.auth.RequestMetadataCallback callback) {
       this.callback = callback;
     }
 
@@ -292,7 +292,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
    * delegate to reduce maintenance burden.
    */
   private static class VendoredCredentialsAdapter
-      extends org.apache.beam.vendor.grpc.v1p36p0.com.google.auth.Credentials {
+      extends org.apache.beam.vendor.grpc.v1p43p2.com.google.auth.Credentials {
     private final com.google.auth.Credentials credentials;
 
     private VendoredCredentialsAdapter(com.google.auth.Credentials credentials) {
@@ -313,7 +313,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     public void getRequestMetadata(
         final URI uri,
         Executor executor,
-        final org.apache.beam.vendor.grpc.v1p36p0.com.google.auth.RequestMetadataCallback
+        final org.apache.beam.vendor.grpc.v1p43p2.com.google.auth.RequestMetadataCallback
             callback) {
       credentials.getRequestMetadata(
           uri, executor, new VendoredRequestMetadataCallbackAdapter(callback));
@@ -631,6 +631,8 @@ public class GrpcWindmillServer extends WindmillServerStub {
     // The following should be protected by synchronizing on this, except for
     // the atomics which may be read atomically for status pages.
     private StreamObserver<RequestT> requestObserver;
+    // Indicates if the current stream in requestObserver is closed by calling close() method
+    private final AtomicBoolean streamClosed = new AtomicBoolean();
     private final AtomicLong startTimeMs = new AtomicLong();
     private final AtomicLong lastSendTimeMs = new AtomicLong();
     private final AtomicLong lastResponseTimeMs = new AtomicLong();
@@ -662,6 +664,9 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected final void send(RequestT request) {
       lastSendTimeMs.set(Instant.now().getMillis());
       synchronized (this) {
+        if (streamClosed.get()) {
+          throw new IllegalStateException("Send called on a client closed stream.");
+        }
         requestObserver.onNext(request);
       }
     }
@@ -677,6 +682,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
             startTimeMs.set(Instant.now().getMillis());
             lastResponseTimeMs.set(0);
             requestObserver = streamObserverFactory.from(clientFactory, new ResponseObserver());
+            streamClosed.set(false);
             onNewStream();
             if (clientClosed.get()) {
               close();
@@ -738,10 +744,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
         writer.format(", %dms backoff remaining", sleepLeft);
       }
       writer.format(
-          ", current stream is %dms old, last send %dms, last response %dms",
+          ", current stream is %dms old, last send %dms, last response %dms, closed: %s",
           debugDuration(nowMs, startTimeMs.get()),
           debugDuration(nowMs, lastSendTimeMs.get()),
-          debugDuration(nowMs, lastResponseTimeMs.get()));
+          debugDuration(nowMs, lastResponseTimeMs.get()),
+          streamClosed.get());
     }
 
     // Don't require synchronization on stream, see the appendSummaryHtml comment.
@@ -834,6 +841,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
       clientClosed.set(true);
       requestObserver.onCompleted();
+      streamClosed.set(true);
     }
 
     @Override

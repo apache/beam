@@ -42,6 +42,10 @@ try:
   from apache_beam.io.gcp.experimental.spannerio import MutationGroup
   from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
   from apache_beam.io.gcp.experimental.spannerio import _BatchFn
+  from apache_beam.io.gcp import resource_identifiers
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
 except ImportError:
   spanner = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports

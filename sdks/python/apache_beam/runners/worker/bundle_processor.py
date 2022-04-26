@@ -119,7 +119,7 @@ class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
 
   def __init__(self,
-               name_context,  # type: Union[str, common.NameContext]
+               name_context,  # type: common.NameContext
                step_name,  # type: Any
                consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
                counter_factory,  # type: counters.CounterFactory
@@ -164,7 +164,7 @@ class DataInputOperation(RunnerIOOperation):
   """A source-like operation that gathers input from the runner."""
 
   def __init__(self,
-               operation_name,  # type: Union[str, common.NameContext]
+               operation_name,  # type: common.NameContext
                step_name,
                consumers,  # type: Mapping[Any, List[operations.Operation]]
                counter_factory,  # type: counters.CounterFactory

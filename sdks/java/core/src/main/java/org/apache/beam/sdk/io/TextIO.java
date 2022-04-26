@@ -268,7 +268,6 @@ public class TextIO {
         .setDelimiter(new char[] {'\n'})
         .setWritableByteChannelFactory(FileBasedSink.CompressionType.UNCOMPRESSED)
         .setWindowedWrites(false)
-        .setNumShards(0)
         .setNoSpilling(false)
         .build();
   }
@@ -623,7 +622,7 @@ public class TextIO {
     abstract @Nullable String getFooter();
 
     /** Requested number of shards. 0 for automatic. */
-    abstract int getNumShards();
+    abstract @Nullable ValueProvider<Integer> getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
     abstract @Nullable String getShardTemplate();
@@ -689,7 +688,8 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setFormatFunction(
           @Nullable SerializableFunction<UserT, String> formatFunction);
 
-      abstract Builder<UserT, DestinationT> setNumShards(int numShards);
+      abstract Builder<UserT, DestinationT> setNumShards(
+          @Nullable ValueProvider<Integer> numShards);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
@@ -846,6 +846,21 @@ public class TextIO {
      */
     public TypedWrite<UserT, DestinationT> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
+      if (numShards == 0) {
+        // If 0 shards are passed, then the user wants runner-determined
+        // sharding to kick in, thus we pass a null StaticValueProvider
+        // so that the runner-determined-sharding path will be activated.
+        return withNumShards(null);
+      } else {
+        return withNumShards(StaticValueProvider.of(numShards));
+      }
+    }
+
+    /**
+     * Like {@link #withNumShards(int)}. Specifying {@code null} means runner-determined sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withNumShards(
+        @Nullable ValueProvider<Integer> numShards) {
       return toBuilder().setNumShards(numShards).build();
     }
 
@@ -1002,7 +1017,7 @@ public class TextIO {
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
-      if (getNumShards() > 0) {
+      if (getNumShards() != null) {
         write = write.withNumShards(getNumShards());
       }
       if (getWindowedWrites()) {
@@ -1020,8 +1035,8 @@ public class TextIO {
 
       resolveDynamicDestinations().populateDisplayData(builder);
       builder
-          .addIfNotDefault(
-              DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
+          .addIfNotNull(
+              DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"))
           .addIfNotNull(
               DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"))
@@ -1136,6 +1151,11 @@ public class TextIO {
 
     /** See {@link TypedWrite#withNumShards(int)}. */
     public Write withNumShards(int numShards) {
+      return new Write(inner.withNumShards(numShards));
+    }
+
+    /** See {@link TypedWrite#withNumShards(ValueProvider)}. */
+    public Write withNumShards(@Nullable ValueProvider<Integer> numShards) {
       return new Write(inner.withNumShards(numShards));
     }
 

@@ -36,6 +36,13 @@ var (
 	month  = flag.Int("month_filter", 7, "Numerical month to analyze")
 )
 
+func init() {
+	beam.RegisterFunction(extractMeanTempFn)
+	beam.RegisterFunction(filterBelowMeanFn)
+	beam.RegisterType(reflect.TypeOf((*filterMonthFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*WeatherDataRow)(nil)).Elem())
+}
+
 type WeatherDataRow struct {
 	Year     int     `bigquery:"year"`
 	Month    int     `bigquery:"month"`

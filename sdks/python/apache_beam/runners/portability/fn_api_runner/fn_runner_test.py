@@ -58,13 +58,11 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.tools import utils
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -171,6 +169,53 @@ class FnApiRunnerTest(unittest.TestCase):
           main | beam.FlatMap(cross_product, beam.pvalue.AsList(side)),
           equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'), ('a', 'y'), ('b', 'y'),
                     ('c', 'y')]))
+
+  def test_pardo_side_input_dependencies(self):
+    ##
+    # The issue that this test surfaces is that whenever a PCollection is
+    # consumed as main input by several stages, we have a bug.
+    #
+    # The bug is: A stage assumes that it has run if its upstream PCollection
+    # has watermark=MAX. If multiple stages depend on a single PCollection, then
+    # the first stage that runs it will set its watermar to MAX, and other
+    # stages will think they've run.
+    #
+    # How to resolve?
+    # Option1: to make sure that a PCollection's watermark only advances with
+    #    its consumption by all consumers?
+    #          - I tested this and it didn't seem fruitful/obvious. (YET)
+    #
+    # Option2: Change execution schema: A PCollection's watermark represents
+    #    its *production* watermark, not its *consumption* watermark.(?)
+    with self.create_pipeline() as p:
+      inputs = [p | beam.Create([None])]
+      for k in range(1, 10):
+        inputs.append(
+            inputs[0] | beam.ParDo(
+                ExpectingSideInputsFn(f'Do{k}'),
+                *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
+
+  @unittest.skip('BEAM-13040')
+  @retry(stop=stop_after_attempt(3))
+  def test_pardo_side_input_sparse_dependencies(self):
+    with self.create_pipeline() as p:
+      inputs = []
+
+      def choose_input(s):
+        return inputs[(389 + s * 5077) % len(inputs)]
+
+      for k in range(20):
+        num_inputs = int((k * k % 16)**0.5)
+        if num_inputs == 0:
+          inputs.append(p | f'Create{k}' >> beam.Create([f'Create{k}']))
+        else:
+          inputs.append(
+              choose_input(0) | beam.ParDo(
+                  ExpectingSideInputsFn(f'Do{k}'),
+                  *[
+                      beam.pvalue.AsList(choose_input(s))
+                      for s in range(1, num_inputs)
+                  ]))
 
   @retry(stop=stop_after_attempt(3))
   def test_pardo_windowed_side_inputs(self):
@@ -293,6 +338,11 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
+
+  def test_pardo_unfusable_side_inputs_with_separation(self):
+    def cross_product(elem, sides):
+      for side in sides:
+        yield elem, side
 
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
@@ -674,7 +724,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
     if isinstance(p.runner, fn_api_runner.FnApiRunner):
       res = p.runner._latest_run_result
-      counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+      counters = res.metrics().query(
+          beam.metrics.MetricsFilter().with_name('my_counter'))['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
@@ -858,7 +909,8 @@ class FnApiRunnerTest(unittest.TestCase):
       with self.create_pipeline() as p:
 
         def raise_error(x):
-          raise RuntimeError('x')
+          raise RuntimeError(
+              'This error is expected and does not indicate a test failure.')
 
         # pylint: disable=expression-not-assigned
         (
@@ -881,7 +933,8 @@ class FnApiRunnerTest(unittest.TestCase):
       return third(x)
 
     def third(x):
-      raise ValueError('x')
+      raise ValueError(
+          'This error is expected and does not indicate a test failure.')
 
     try:
       with self.create_pipeline() as p:
@@ -1081,7 +1134,7 @@ class FnApiRunnerTest(unittest.TestCase):
         'Pack.*')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
-    step_names = set(m.key.step for m in counters)
+    step_names = set(m.key.step for m in counters if m.key.step)
     pipeline_options = p._options
     if assert_using_counter_names:
       if pipeline_options.view_as(StandardOptions).streaming:
@@ -1439,8 +1492,9 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
     try:
       # Test the new MonitoringInfo monitoring format.
-      self.assertEqual(2, len(res._monitoring_infos_by_stage))
-      pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+      self.assertEqual(3, len(res._monitoring_infos_by_stage))
+      pregbk_mis, postgbk_mis = [
+          mi for stage, mi in res._monitoring_infos_by_stage.items() if stage]
 
       if not has_mi_for_ptransform(pregbk_mis, 'Create/Map(decode)'):
         # The monitoring infos above are actually unordered. Swap.
@@ -2001,24 +2055,6 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
             default(),
             progress_request_frequency=0.5))
 
-  def test_lull_logging(self):
-
-    try:
-      utils.check_compiled('apache_beam.runners.worker.opcounters')
-    except RuntimeError:
-      self.skipTest('Cython is not available')
-
-    with self.assertLogs(level='WARNING') as logs:
-      with self.create_pipeline() as p:
-        sdk_worker.DEFAULT_LOG_LULL_TIMEOUT_NS = 1000 * 1000  # Lull after 1 ms
-
-        _ = (p | beam.Create([1]) | beam.Map(time.sleep))
-
-    self.assertRegex(
-        ''.join(logs.output),
-        '.*Operation ongoing for over.*',
-        'Unable to find a lull logged for this job.')
-
 
 class StateBackedTestElementType(object):
   live_element_count = 0
@@ -2081,6 +2117,20 @@ class CustomMergingWindowFn(window.WindowFn):
 
   def get_window_coder(self):
     return coders.IntervalWindowCoder()
+
+
+class ExpectingSideInputsFn(beam.DoFn):
+  def __init__(self, name):
+    self._name = name
+
+  def default_label(self):
+    return self._name
+
+  def process(self, element, *side_inputs):
+    logging.info('Running %s (side inputs: %s)', self._name, side_inputs)
+    if not all(list(s) for s in side_inputs):
+      raise ValueError(f'Missing data in side input {side_inputs}')
+    yield self._name
 
 
 if __name__ == '__main__':

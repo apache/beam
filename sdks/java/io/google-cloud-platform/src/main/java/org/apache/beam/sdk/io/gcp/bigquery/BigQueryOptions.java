@@ -86,6 +86,13 @@ public interface BigQueryOptions
   void setUseStorageWriteApi(Boolean value);
 
   @Description(
+      "If set, then BigQueryIO.Write will default to using the approximate Storage Write API.")
+  @Default.Boolean(false)
+  Boolean getUseStorageWriteApiAtLeastOnce();
+
+  void setUseStorageWriteApiAtLeastOnce(Boolean value);
+
+  @Description(
       "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams.")
   @Default.Integer(0)
   Integer getNumStorageWriteApiStreams();
@@ -110,4 +117,10 @@ public interface BigQueryOptions
   String getBigQueryProject();
 
   void setBigQueryProject(String value);
+
+  @Description("Specify the number of schema update retries. For internal testing only.")
+  @Default.Integer(2)
+  Integer getSchemaUpdateRetries();
+
+  void setSchemaUpdateRetries(Integer value);
 }

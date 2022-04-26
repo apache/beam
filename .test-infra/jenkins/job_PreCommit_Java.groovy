@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleSwitches: [
       '-PdisableSpotlessCheck=true'
     ], // spotless checked in separate pre-commit
+    timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
@@ -47,16 +48,16 @@ builder.build {
         checkStyle {
           pattern('**/build/reports/checkstyle/*.xml')
         }
-        configure { node ->
-          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
-            pattern('**/build/reports/spotbugs/*.xml')
-          }
+        spotBugs {
+          pattern('**/build/reports/spotbugs/*.xml')
         }
       }
       enabledForFailure(true)
     }
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
+      exclusionPattern('**/org/apache/beam/gradle/**,**/org/apache/beam/model/**,' +
+          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*')
     }
   }
 }

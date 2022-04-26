@@ -24,7 +24,6 @@ import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
 import java.io.IOException;
 import java.security.SecureRandom;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -46,7 +45,7 @@ public class FhirIOLROIT {
 
   public FhirIOLROIT() {
     long testTime = System.currentTimeMillis();
-    this.fhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.fhirStoreId = "FHIR_store_" + testTime + "_" + new SecureRandom().nextInt(32);
     this.deidFhirStoreId = fhirStoreId + "_deid";
     this.version = "STU3";
     this.project =
@@ -91,9 +90,8 @@ public class FhirIOLROIT {
   public void test_FhirIO_exportFhirResourcesGcs() {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =
-        "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + (new SecureRandom().nextInt(32));
-    PCollection<String> resources =
-        pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
+        "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + new SecureRandom().nextInt(32);
+    pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
     pipeline.run();
   }
 

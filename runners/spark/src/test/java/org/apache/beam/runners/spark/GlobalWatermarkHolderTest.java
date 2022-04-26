@@ -25,7 +25,6 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RegexMatcher;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -50,10 +49,12 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testLowHighWatermarksAdvance() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
 
     Instant instant = new Instant(0);
     // low == high.
+
+    SparkContextFactory.getSparkContext(options);
+
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(
@@ -96,9 +97,8 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testSynchronizedTimeMonotonic() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
+    SparkContextFactory.getSparkContext(options);
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(
@@ -118,9 +118,8 @@ public class GlobalWatermarkHolderTest {
 
   @Test
   public void testMultiSource() {
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-
     Instant instant = new Instant(0);
+    SparkContextFactory.getSparkContext(options);
     GlobalWatermarkHolder.add(
         1,
         new SparkWatermarks(

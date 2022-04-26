@@ -82,13 +82,6 @@ public final class ProtoDomain implements Serializable {
     crosswire();
   }
 
-  private static Map<String, DescriptorProtos.FileDescriptorProto> extractProtoMap(
-      DescriptorProtos.FileDescriptorSet fileDescriptorSet) {
-    HashMap<String, DescriptorProtos.FileDescriptorProto> map = new HashMap<>();
-    fileDescriptorSet.getFileList().forEach(fdp -> map.put(fdp.getName(), fdp));
-    return map;
-  }
-
   private static Descriptors.@Nullable FileDescriptor convertToFileDescriptorMap(
       String name,
       Map<String, DescriptorProtos.FileDescriptorProto> inMap,

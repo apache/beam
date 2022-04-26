@@ -132,9 +132,9 @@ class TimestampTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       self.assertEqual(Duration(456) - Timestamp(123), 333)
     with self.assertRaises(TypeError):
-      self.assertEqual(-Timestamp(123), -123)
+      self.assertEqual(-Timestamp(123), -123)  # pylint: disable=invalid-unary-operand-type
     with self.assertRaises(TypeError):
-      self.assertEqual(-Timestamp(123), -Duration(123))
+      self.assertEqual(-Timestamp(123), -Duration(123))  # pylint: disable=invalid-unary-operand-type
     with self.assertRaises(TypeError):
       self.assertEqual(1230 % Timestamp(456), 318)
     with self.assertRaises(TypeError):

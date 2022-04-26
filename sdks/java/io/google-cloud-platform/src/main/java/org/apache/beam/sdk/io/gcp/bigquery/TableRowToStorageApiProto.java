@@ -35,6 +35,7 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +45,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /**
@@ -51,6 +53,24 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
+  public static class SchemaConversionException extends Exception {
+    SchemaConversionException(String msg) {
+      super(msg);
+    }
+  }
+
+  public static class SchemaTooNarrowException extends SchemaConversionException {
+    SchemaTooNarrowException(String msg) {
+      super(msg);
+    }
+  }
+
+  public static class SchemaDoesntMatchException extends SchemaConversionException {
+    SchemaDoesntMatchException(String msg) {
+      super(msg);
+    }
+  }
+
   static final Map<String, Type> PRIMITIVE_TYPES =
       ImmutableMap.<String, Type>builder()
           .put("INT64", Type.TYPE_INT64)
@@ -68,6 +88,7 @@ public class TableRowToStorageApiProto {
           .put("TIME", Type.TYPE_STRING) // Pass through the JSON encoding.
           .put("DATETIME", Type.TYPE_STRING) // Pass through the JSON encoding.
           .put("TIMESTAMP", Type.TYPE_STRING) // Pass through the JSON encoding.
+          .put("JSON", Type.TYPE_STRING)
           .build();
 
   /**
@@ -85,25 +106,65 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
-  /**
-   * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
-   * using the BigQuery Storage API.
-   */
-  public static DynamicMessage messageFromTableRow(Descriptor descriptor, TableRow tableRow) {
+  public static DynamicMessage messageFromMap(
+      Descriptor descriptor, AbstractMap<String, Object> map, boolean ignoreUnknownValues)
+      throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
-    for (Map.Entry<String, Object> entry : tableRow.entrySet()) {
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
       @Nullable
       FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
       if (fieldDescriptor == null) {
-        throw new RuntimeException(
-            "TableRow contained unexpected field with name " + entry.getKey());
+        if (ignoreUnknownValues) {
+          continue;
+        } else {
+          throw new SchemaTooNarrowException(
+              "TableRow contained unexpected field with name " + entry.getKey());
+        }
       }
-      @Nullable Object value = messageValueFromFieldValue(fieldDescriptor, entry.getValue());
+      @Nullable
+      Object value =
+          messageValueFromFieldValue(fieldDescriptor, entry.getValue(), ignoreUnknownValues);
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
     }
     return builder.build();
+  }
+
+  /**
+   * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
+   * using the BigQuery Storage API.
+   */
+  public static DynamicMessage messageFromTableRow(
+      Descriptor descriptor, TableRow tableRow, boolean ignoreUnkownValues)
+      throws SchemaConversionException {
+    @Nullable Object fValue = tableRow.get("f");
+    if (fValue instanceof List) {
+      List<AbstractMap<String, Object>> cells = (List<AbstractMap<String, Object>>) fValue;
+      DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+      int cellsToProcess = cells.size();
+      if (cells.size() > descriptor.getFields().size()) {
+        if (ignoreUnkownValues) {
+          cellsToProcess = descriptor.getFields().size();
+        } else {
+          throw new SchemaTooNarrowException("TableRow contained too many fields");
+        }
+      }
+      for (int i = 0; i < cellsToProcess; ++i) {
+        AbstractMap<String, Object> cell = cells.get(i);
+        FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
+        @Nullable
+        Object value =
+            messageValueFromFieldValue(fieldDescriptor, cell.get("v"), ignoreUnkownValues);
+        if (value != null) {
+          builder.setField(fieldDescriptor, value);
+        }
+      }
+
+      return builder.build();
+    } else {
+      return messageFromMap(descriptor, tableRow, ignoreUnkownValues);
+    }
   }
 
   @VisibleForTesting
@@ -158,16 +219,21 @@ public class TableRowToStorageApiProto {
 
   @Nullable
   private static Object messageValueFromFieldValue(
-      FieldDescriptor fieldDescriptor, Object bqValue) {
+      FieldDescriptor fieldDescriptor, @Nullable Object bqValue, boolean ignoreUnknownValues)
+      throws SchemaConversionException {
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
-      } else {
+      } else if (fieldDescriptor.isRepeated()) {
+        return Collections.emptyList();
+      }
+      {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
       }
     }
-    return toProtoValue(fieldDescriptor, bqValue, fieldDescriptor.isRepeated());
+    return toProtoValue(
+        fieldDescriptor, bqValue, fieldDescriptor.isRepeated(), ignoreUnknownValues);
   }
 
   private static final Map<FieldDescriptor.Type, Function<String, Object>>
@@ -188,35 +254,35 @@ public class TableRowToStorageApiProto {
   @SuppressWarnings({"nullness"})
   @VisibleForTesting
   static Object toProtoValue(
-      FieldDescriptor fieldDescriptor, Object jsonBQValue, boolean isRepeated) {
+      FieldDescriptor fieldDescriptor,
+      Object jsonBQValue,
+      boolean isRepeated,
+      boolean ignoreUnknownValues)
+      throws SchemaConversionException {
     if (isRepeated) {
-      return ((List<Object>) jsonBQValue)
-          .stream()
-              .map(
-                  v -> {
-                    if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-                      return ((Map<String, Object>) v).get("v");
-                    } else {
-                      return v;
-                    }
-                  })
-              .map(v -> toProtoValue(fieldDescriptor, v, false))
-              .collect(toList());
+      List<Object> listValue = (List<Object>) jsonBQValue;
+      List<Object> protoList = Lists.newArrayListWithCapacity(listValue.size());
+      for (Object o : listValue) {
+        protoList.add(toProtoValue(fieldDescriptor, o, false, ignoreUnknownValues));
+      }
+      return protoList;
     }
 
     if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-      if (jsonBQValue instanceof AbstractMap) {
+      if (jsonBQValue instanceof TableRow) {
+        TableRow tableRow = (TableRow) jsonBQValue;
+        return messageFromTableRow(fieldDescriptor.getMessageType(), tableRow, ignoreUnknownValues);
+      } else if (jsonBQValue instanceof AbstractMap) {
         // This will handle nested rows.
-        TableRow tr = new TableRow();
-        tr.putAll((AbstractMap<String, Object>) jsonBQValue);
-        return messageFromTableRow(fieldDescriptor.getMessageType(), tr);
+        AbstractMap<String, Object> map = ((AbstractMap<String, Object>) jsonBQValue);
+        return messageFromMap(fieldDescriptor.getMessageType(), map, ignoreUnknownValues);
       } else {
         throw new RuntimeException("Unexpected value " + jsonBQValue + " Expected a JSON map.");
       }
     }
     @Nullable Object scalarValue = scalarToProtoValue(fieldDescriptor, jsonBQValue);
     if (scalarValue == null) {
-      return toProtoValue(fieldDescriptor, jsonBQValue.toString(), isRepeated);
+      return toProtoValue(fieldDescriptor, jsonBQValue.toString(), isRepeated, ignoreUnknownValues);
     } else {
       return scalarValue;
     }
@@ -275,6 +341,7 @@ public class TableRowToStorageApiProto {
 
   @VisibleForTesting
   public static TableRow tableRowFromMessage(Message message) {
+    // TODO: Would be more correct to generate TableRows using setF.
     TableRow tableRow = new TableRow();
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
       FieldDescriptor fieldDescriptor = field.getKey();

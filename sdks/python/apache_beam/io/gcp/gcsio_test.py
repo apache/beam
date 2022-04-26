@@ -103,10 +103,17 @@ class FakeGcsObjects(object):
     # has to persist even past the deletion of the object.
     self.last_generation = {}
     self.list_page_tokens = {}
+    self._fail_when_getting_metadata = []
+    self._fail_when_reading = []
 
-  def add_file(self, f):
+  def add_file(
+      self, f, fail_when_getting_metadata=False, fail_when_reading=False):
     self.files[(f.bucket, f.object)] = f
     self.last_generation[(f.bucket, f.object)] = f.generation
+    if fail_when_getting_metadata:
+      self._fail_when_getting_metadata.append(f)
+    if fail_when_reading:
+      self._fail_when_reading.append(f)
 
   def get_file(self, bucket, obj):
     return self.files.get((bucket, obj), None)
@@ -123,8 +130,12 @@ class FakeGcsObjects(object):
       # Failing with an HTTP 404 if file does not exist.
       raise HttpError({'status': 404}, None, None)
     if download is None:
+      if f in self._fail_when_getting_metadata:
+        raise HttpError({'status': 429}, None, None)
       return f.get_metadata()
     else:
+      if f in self._fail_when_reading:
+        raise HttpError({'status': 429}, None, None)
       stream = download.stream
 
       def get_range_callback(start, end):
@@ -303,7 +314,15 @@ class SampleOptions(object):
     'time', time=mock.MagicMock(side_effect=range(100)), sleep=mock.MagicMock())
 class TestGCSIO(unittest.TestCase):
   def _insert_random_file(
-      self, client, path, size, generation=1, crc32c=None, last_updated=None):
+      self,
+      client,
+      path,
+      size,
+      generation=1,
+      crc32c=None,
+      last_updated=None,
+      fail_when_getting_metadata=False,
+      fail_when_reading=False):
     bucket, name = gcsio.parse_gcs_path(path)
     f = FakeFile(
         bucket,
@@ -312,7 +331,7 @@ class TestGCSIO(unittest.TestCase):
         generation,
         crc32c=crc32c,
         last_updated=last_updated)
-    client.objects.add_file(f)
+    client.objects.add_file(f, fail_when_getting_metadata, fail_when_reading)
     return f
 
   def setUp(self):
@@ -793,6 +812,74 @@ class TestGCSIO(unittest.TestCase):
         metric_name).get_cumulative()
 
     self.assertEqual(metric_value, 2)
+
+  @mock.patch.object(FakeGcsBuckets, 'Get')
+  def test_downloader_fail_to_get_project_number(self, mock_get):
+    # Raising an error when listing GCS Bucket so that project number fails to
+    # be retrieved.
+    mock_get.side_effect = HttpError({'status': 403}, None, None)
+    # Clear the process wide metric container.
+    MetricsEnvironment.process_wide_container().reset()
+
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    file_size = 5 * 1024 * 1024 + 100
+    random_file = self._insert_random_file(self.client, file_name, file_size)
+    self.gcs.open(file_name, 'r')
+
+    resource = resource_identifiers.GoogleCloudStorageBucket(random_file.bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(DEFAULT_PROJECT_NUMBER),
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 0)
+
+    labels_without_project_id = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+    metric_name = MetricName(
+        None,
+        None,
+        urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        labels=labels_without_project_id)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 2)
+
+  def test_downloader_fail_non_existent_object(self):
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    with self.assertRaises(IOError):
+      self.gcs.open(file_name, 'r')
+
+  def test_downloader_fail_when_getting_metadata(self):
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    file_size = 5 * 1024 * 1024 + 100
+    self._insert_random_file(
+        self.client, file_name, file_size, fail_when_getting_metadata=True)
+    with self.assertRaises(HttpError):
+      self.gcs.open(file_name, 'r')
+
+  def test_downloader_fail_when_reading(self):
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    file_size = 5 * 1024 * 1024 + 100
+    self._insert_random_file(
+        self.client, file_name, file_size, fail_when_reading=True)
+    with self.assertRaises(HttpError):
+      self.gcs.open(file_name, 'r')
 
   def test_uploader_monitoring_info(self):
     # Clear the process wide metric container.

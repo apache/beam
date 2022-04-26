@@ -17,17 +17,28 @@ package funcx
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type foo struct {
 	i int
+}
+
+type nonConcreteType struct {
+	Ghi func(string) string
+}
+
+type illegalEmitType struct {
+	Abc string
+	Def nonConcreteType
 }
 
 func (m foo) Do(context.Context, int, string) (string, int, error) {
@@ -76,6 +87,21 @@ func TestNew(t *testing.T) {
 			Param: []FnParamKind{FnWindow, FnEventTime, FnType, FnValue},
 		},
 		{
+			Name:  "good6",
+			Fn:    func(int, func(string) func(*int) bool) {},
+			Param: []FnParamKind{FnValue, FnMultiMap},
+		},
+		{
+			Name:  "good7",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnType, FnValue},
+		},
+		{
+			Name:  "good8",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, typex.BundleFinalization, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnType, FnBundleFinalization, FnValue},
+		},
+		{
 			Name:  "good-method",
 			Fn:    foo{1}.Do,
 			Param: []FnParamKind{FnContext, FnValue, FnValue},
@@ -86,6 +112,12 @@ func TestNew(t *testing.T) {
 			Fn:    func(context.Context, typex.EventTime, reflect.Type, func(int)) error { return nil },
 			Param: []FnParamKind{FnContext, FnEventTime, FnType, FnEmit},
 			Ret:   []ReturnKind{RetError},
+		},
+		{
+			// TODO(BEAM-11104): Replace with a functioning test case once E2E support is finished.
+			Name: "sdf",
+			Fn:   func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
+			Err:  errContinuationSupport,
 		},
 		{
 			Name: "errContextParam: after input",
@@ -118,6 +150,11 @@ func TestNew(t *testing.T) {
 			Err:  errContextParam,
 		},
 		{
+			Name: "errPaneParam: after Window",
+			Fn:   func(typex.Window, typex.PaneInfo, int) {},
+			Err:  errPaneParamPrecedence,
+		},
+		{
 			Name: "errWindowParamPrecedence: after EventTime",
 			Fn: func(typex.EventTime, typex.Window, int) {
 			},
@@ -146,6 +183,11 @@ func TestNew(t *testing.T) {
 			Fn: func(reflect.Type, reflect.Type, int) {
 			},
 			Err: errReflectTypePrecedence,
+		},
+		{
+			Name: "errReflectTypePrecedence: after bundle finalizer",
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, typex.BundleFinalization, reflect.Type, []byte) {},
+			Err:  errReflectTypePrecedence,
 		},
 		{
 			Name: "errInputPrecedence- Iter before after output",
@@ -177,11 +219,55 @@ func TestNew(t *testing.T) {
 			Err: errErrorPrecedence,
 		},
 		{
+			Name: "errBundleFinalizationPrecedence",
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte, typex.BundleFinalization) {},
+			Err:  errBundleFinalizationPrecedence,
+		},
+		{
 			Name: "errEventTimeRetPrecedence",
 			Fn: func() (string, typex.EventTime) {
 				return "", mtime.ZeroTimestamp
 			},
 			Err: errEventTimeRetPrecedence,
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit struct",
+			Fn:   func(context.Context, typex.EventTime, reflect.Type, func(nonConcreteType)) error { return nil },
+			Err:  errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in struct",
+			Fn:   func(context.Context, typex.EventTime, reflect.Type, func(illegalEmitType)) error { return nil },
+			Err:  errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in map value",
+			Fn: func(context.Context, typex.EventTime, reflect.Type, func(map[string]nonConcreteType)) error {
+				return nil
+			},
+			Err: errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in slice",
+			Fn: func(context.Context, typex.EventTime, reflect.Type, func([]nonConcreteType)) error {
+				return nil
+			},
+			Err: errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInIter - malformed Iter",
+			Fn:   func(int, func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInIter),
+		},
+		{
+			Name: "errIllegalParametersInIter - malformed ReIter",
+			Fn:   func(int, func() func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInReIter),
+		},
+		{
+			Name: "errIllegalParametersInMultiMap - malformed MultiMap",
+			Fn:   func(int, func(string) func(*nonConcreteType) bool) {},
+			Err:  errors.New(errIllegalParametersInMultiMap),
 		},
 	}
 
@@ -268,8 +354,7 @@ func TestEmits(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for Emits function.
 			pos, num, exists := fn.Emits()
@@ -281,6 +366,138 @@ func TestEmits(t *testing.T) {
 			}
 			if pos != test.Pos {
 				t.Errorf("Emits() pos: got %v, want %v", pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestPane(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "pane input",
+			Params: []FnParamKind{FnContext, FnPane},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no pane input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.Pane()
+			if exists != test.Exists {
+				t.Errorf("Pane(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("Pane(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestWindow(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "window input",
+			Params: []FnParamKind{FnContext, FnWindow},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no window input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.Window()
+			if exists != test.Exists {
+				t.Errorf("Window(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("Window(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestBundleFinalization(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "bundleFinalization input",
+			Params: []FnParamKind{FnContext, FnBundleFinalization},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no bundleFinalization input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.BundleFinalization()
+			if exists != test.Exists {
+				t.Errorf("BundleFinalization(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("BundleFinalization(%v) - pos: got %v, want %v", params, pos, test.Pos)
 			}
 		})
 	}
@@ -347,8 +564,7 @@ func TestInputs(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for Inputs function.
 			pos, num, exists := fn.Inputs()

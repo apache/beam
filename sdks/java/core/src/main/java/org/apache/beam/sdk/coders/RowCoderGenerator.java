@@ -58,8 +58,6 @@ import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.byt
 import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to a
@@ -117,8 +115,6 @@ public abstract class RowCoderGenerator {
   private static final Map<UUID, Coder<Row>> GENERATED_CODERS = Maps.newConcurrentMap();
   private static final Map<UUID, Map<String, Integer>> ENCODING_POSITION_OVERRIDES =
       Maps.newConcurrentMap();
-
-  private static final Logger LOG = LoggerFactory.getLogger(RowCoderGenerator.class);
 
   public static void overrideEncodingPositions(UUID uuid, Map<String, Integer> encodingPositions) {
     ENCODING_POSITION_OVERRIDES.put(uuid, encodingPositions);

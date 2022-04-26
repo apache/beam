@@ -66,22 +66,24 @@ public class S3WritableByteChannelTest {
 
   @Test
   public void write() throws IOException {
-    writeFromConfig(s3Config("s3"));
-    writeFromConfig(s3ConfigWithSSEAlgorithm("s3"));
-    writeFromConfig(s3ConfigWithSSECustomerKey("s3"));
-    writeFromConfig(s3ConfigWithSSEAwsKeyManagementParams("s3"));
+    writeFromConfig(s3Config("s3"), false);
+    writeFromConfig(s3Config("s3"), true);
+    writeFromConfig(s3ConfigWithSSEAlgorithm("s3"), false);
+    writeFromConfig(s3ConfigWithSSECustomerKey("s3"), false);
+    writeFromConfig(s3ConfigWithSSEAwsKeyManagementParams("s3"), false);
     expected.expect(IllegalArgumentException.class);
-    writeFromConfig(s3ConfigWithMultipleSSEOptions("s3"));
+    writeFromConfig(s3ConfigWithMultipleSSEOptions("s3"), false);
   }
 
   @Test
   public void writeWithS3Options() throws IOException {
-    writeFromOptions(s3Options());
-    writeFromOptions(s3OptionsWithSSEAlgorithm());
-    writeFromOptions(s3OptionsWithSSECustomerKey());
-    writeFromOptions(s3OptionsWithSSEAwsKeyManagementParams());
+    writeFromOptions(s3Options(), false);
+    writeFromOptions(s3Options(), true);
+    writeFromOptions(s3OptionsWithSSEAlgorithm(), false);
+    writeFromOptions(s3OptionsWithSSECustomerKey(), false);
+    writeFromOptions(s3OptionsWithSSEAwsKeyManagementParams(), false);
     expected.expect(IllegalArgumentException.class);
-    writeFromOptions(s3OptionsWithMultipleSSEOptions());
+    writeFromOptions(s3OptionsWithMultipleSSEOptions(), false);
   }
 
   @FunctionalInterface
@@ -89,7 +91,7 @@ public class S3WritableByteChannelTest {
     S3WritableByteChannel get() throws IOException;
   }
 
-  private void writeFromOptions(S3Options options) throws IOException {
+  private void writeFromOptions(S3Options options, boolean writeReadOnlyBuffer) throws IOException {
     AmazonS3 mockAmazonS3 = mock(AmazonS3.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS));
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/file");
     Supplier channel =
@@ -107,10 +109,12 @@ public class S3WritableByteChannelTest {
         toMd5(options.getSSECustomerKey()),
         options.getSSEAwsKeyManagementParams(),
         options.getS3UploadBufferSizeBytes(),
-        options.getBucketKeyEnabled());
+        options.getBucketKeyEnabled(),
+        writeReadOnlyBuffer);
   }
 
-  private void writeFromConfig(S3FileSystemConfiguration config) throws IOException {
+  private void writeFromConfig(S3FileSystemConfiguration config, boolean writeReadOnlyBuffer)
+      throws IOException {
     AmazonS3 mockAmazonS3 = mock(AmazonS3.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS));
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/file");
     Supplier channel = () -> new S3WritableByteChannel(mockAmazonS3, path, "text/plain", config);
@@ -122,7 +126,8 @@ public class S3WritableByteChannelTest {
         toMd5(config.getSSECustomerKey()),
         config.getSSEAwsKeyManagementParams(),
         config.getS3UploadBufferSizeBytes(),
-        config.getBucketKeyEnabled());
+        config.getBucketKeyEnabled(),
+        writeReadOnlyBuffer);
   }
 
   private void write(
@@ -133,7 +138,8 @@ public class S3WritableByteChannelTest {
       String sseCustomerKeyMd5,
       SSEAwsKeyManagementParams sseAwsKeyManagementParams,
       long s3UploadBufferSizeBytes,
-      boolean bucketKeyEnabled)
+      boolean bucketKeyEnabled,
+      boolean writeReadOnlyBuffer)
       throws IOException {
     InitiateMultipartUploadResult initiateMultipartUploadResult =
         new InitiateMultipartUploadResult();
@@ -178,7 +184,8 @@ public class S3WritableByteChannelTest {
     uploadContent.flip();
 
     S3WritableByteChannel channel = channelSupplier.get();
-    int uploadedSize = channel.write(uploadContent);
+    int uploadedSize =
+        channel.write(writeReadOnlyBuffer ? uploadContent.asReadOnlyBuffer() : uploadContent);
     assertEquals(contentSize, uploadedSize);
 
     CompleteMultipartUploadResult completeMultipartUploadResult =

@@ -111,14 +111,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Code snippets used in webdocs. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class Snippets {
 
@@ -190,6 +190,7 @@ public class Snippets {
     }
 
     {
+      @SuppressWarnings("ModifiedButNotUsed")
       // [START BigQueryDataTypes]
       TableRow row = new TableRow();
       row.set("string", "abc");
@@ -596,6 +597,7 @@ public class Snippets {
   private static final Logger LOG = LoggerFactory.getLogger(Snippets.class);
 
   // [START SideInputPatternSlowUpdateGlobalWindowSnip1]
+
   public static void sideInputPatterns() {
     // This pipeline uses View.asSingleton for a placeholder external service.
     // Run in debug mode to see the output.
@@ -604,22 +606,26 @@ public class Snippets {
     // Create a side input that updates each second.
     PCollectionView<Map<String, String>> map =
         p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(5L)))
-            .apply(
-                Window.<Long>into(new GlobalWindows())
-                    .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
-                    .discardingFiredPanes())
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
+            .apply(Sum.longsGlobally().withoutDefaults())
             .apply(
                 ParDo.of(
                     new DoFn<Long, Map<String, String>>() {
 
                       @ProcessElement
                       public void process(
-                          @Element Long input, OutputReceiver<Map<String, String>> o) {
+                          @Element Long input,
+                          @Timestamp Instant timestamp,
+                          OutputReceiver<Map<String, String>> o) {
                         // Replace map with test data from the placeholder external service.
                         // Add external reads here.
-                        o.output(PlaceholderExternalService.readTestData());
+                        o.output(PlaceholderExternalService.readTestData(timestamp));
                       }
                     }))
+            .apply(
+                Window.<Map<String, String>>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
+                    .discardingFiredPanes())
             .apply(View.asSingleton());
 
     // Consume side input. GenerateSequence generates test data.
@@ -632,32 +638,30 @@ public class Snippets {
                     new DoFn<Long, KV<Long, Long>>() {
 
                       @ProcessElement
-                      public void process(ProcessContext c) {
+                      public void process(ProcessContext c, @Timestamp Instant timestamp) {
                         Map<String, String> keyMap = c.sideInput(map);
                         c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
 
-                        LOG.debug(
-                            "Value is {}, key A is {}, and key B is {}.",
+                        LOG.info(
+                            "Value is {} with timestamp {}, using key A from side input with time {}.",
                             c.element(),
-                            keyMap.get("Key_A"),
-                            keyMap.get("Key_B"));
+                            timestamp.toString(DateTimeFormat.forPattern("HH:mm:ss")),
+                            keyMap.get("Key_A"));
                       }
                     })
                 .withSideInputs(map));
+
+    p.run();
   }
 
   /** Placeholder class that represents an external service generating test data. */
   public static class PlaceholderExternalService {
 
-    public static Map<String, String> readTestData() {
+    public static Map<String, String> readTestData(Instant timestamp) {
 
       Map<String, String> map = new HashMap<>();
-      Instant now = Instant.now();
 
-      DateTimeFormatter dtf = DateTimeFormat.forPattern("HH:MM:SS");
-
-      map.put("Key_A", now.minus(Duration.standardSeconds(30)).toString(dtf));
-      map.put("Key_B", now.minus(Duration.standardSeconds(30)).toString());
+      map.put("Key_A", timestamp.toString(DateTimeFormat.forPattern("HH:mm:ss")));
 
       return map;
     }
@@ -797,16 +801,16 @@ public class Snippets {
                           new TableRow().set("user", "desktop").set("score", 4), new Instant()),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", -3).set("gap", 5),
-                          new Instant().plus(2000)),
+                          new Instant().plus(Duration.millis(2000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", 2).set("gap", 5),
-                          new Instant().plus(9000)),
+                          new Instant().plus(Duration.millis(9000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "mobile").set("score", 7).set("gap", 5),
-                          new Instant().plus(12000)),
+                          new Instant().plus(Duration.millis(12000))),
                       TimestampedValue.of(
                           new TableRow().set("user", "desktop").set("score", 10),
-                          new Instant().plus(12000))));
+                          new Instant().plus(Duration.millis(12000)))));
       // [END CustomSessionWindow5]
 
       // [START CustomSessionWindow6]
@@ -1173,6 +1177,7 @@ public class Snippets {
     }
   }
 
+  @SuppressWarnings("unused")
   private static class BundleFinalization {
     private static class BundleFinalizationDoFn extends DoFn<String, Integer> {
       // [START BundleFinalize]
@@ -1190,6 +1195,7 @@ public class Snippets {
     }
   }
 
+  @SuppressWarnings("unused")
   private static class SplittableDoFn {
 
     private static void seekToNextRecordBoundaryInFile(
@@ -1229,6 +1235,7 @@ public class Snippets {
     }
     // [END SDF_BasicExample]
 
+    @SuppressWarnings("unused")
     private static class BasicExampleWithInitialSplitting extends FileToWordsFn {
       // [START SDF_BasicExampleWithSplitting]
       void splitRestriction(
@@ -1247,6 +1254,7 @@ public class Snippets {
       // [END SDF_BasicExampleWithSplitting]
     }
 
+    @SuppressWarnings("unused")
     private static class BasicExampleWithBadTryClaimLoop extends DoFn<String, Integer> {
       // [START SDF_BadTryClaimLoop]
       @ProcessElement
@@ -1270,6 +1278,7 @@ public class Snippets {
       // [END SDF_BadTryClaimLoop]
     }
 
+    @SuppressWarnings("unused")
     private static class CustomWatermarkEstimatorExample extends DoFn<String, Integer> {
       private static Instant currentWatermark = Instant.now();
 
@@ -1335,6 +1344,7 @@ public class Snippets {
     }
     // [END SDF_CustomWatermarkEstimator]
 
+    @SuppressWarnings("unused")
     private static class UserInitiatedCheckpointExample extends DoFn<String, Integer> {
       public static class ThrottlingException extends Exception {}
 
@@ -1397,6 +1407,7 @@ public class Snippets {
       // [END SDF_Truncate]
     }
 
+    @SuppressWarnings("unused")
     private static class GetSizeExample extends DoFn<String, Integer> {
       // [START SDF_GetSize]
       @GetSize

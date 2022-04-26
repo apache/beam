@@ -59,6 +59,7 @@ var (
 	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	diskSizeGb           = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
+	diskType             = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
 	network              = flag.String("network", "", "GCP network (optional)")
@@ -76,8 +77,7 @@ var (
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
-	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
-	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
+	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 )
 
 // flagFilter filters flags that are already represented by the above flags
@@ -95,6 +95,7 @@ var flagFilter = map[string]bool{
 	"num_workers":                    true,
 	"max_num_workers":                true,
 	"disk_size_gb":                   true,
+	"disk_type":                      true,
 	"autoscaling_algorithm":          true,
 	"zone":                           true,
 	"network":                        true,
@@ -153,97 +154,14 @@ var unique int32
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
-	// (1) Gather job options
-
-	project := *gcpopts.Project
-	if project == "" {
-		return nil, errors.New("no Google Cloud project specified. Use --project=<project>")
-	}
-	region := gcpopts.GetRegion(ctx)
-	if region == "" {
-		return nil, errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
-	}
-	if *stagingLocation == "" {
-		return nil, errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
-	}
-	var jobLabels map[string]string
-	if *labels != "" {
-		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
-			return nil, errors.Wrapf(err, "error reading --label flag as JSON")
-		}
+	if !beam.Initialized() {
+		panic("Beam has not been initialized. Call beam.Init() before pipeline construction.")
 	}
 
-	if *cpuProfiling != "" {
-		perf.EnableProfCaptureHook("gcs_profile_writer", *cpuProfiling)
-	}
-
-	if *sessionRecording != "" {
-		// TODO(wcn): BEAM-4017
-		// It's a bit inconvenient for GCS because the whole object is written in
-		// one pass, whereas the session logs are constantly appended. We wouldn't
-		// want to hold all the logs in memory to flush at the end of the pipeline
-		// as we'd blow out memory on the worker. The implementation of the
-		// CaptureHook should create an internal buffer and write chunks out to GCS
-		// once they get to an appropriate size (50M or so?)
-	}
-	if *autoscalingAlgorithm != "" {
-		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
-			return nil, errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
-		}
-	}
-
-	hooks.SerializeHooksToOptions()
-
-	experiments := jobopts.GetExperiments()
-	// Always use runner v2, unless set already.
-	var v2set, portaSubmission bool
-	for _, e := range experiments {
-		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
-			v2set = true
-		}
-		if strings.Contains(e, "use_portable_job_submission") {
-			portaSubmission = true
-		}
-	}
-	// Enable by default unified worker, and portable job submission.
-	if !v2set {
-		experiments = append(experiments, "use_unified_worker")
-	}
-	if !portaSubmission {
-		experiments = append(experiments, "use_portable_job_submission")
-	}
-
-	if *minCPUPlatform != "" {
-		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
-	}
-
-	opts := &dataflowlib.JobOptions{
-		Name:                jobopts.GetJobName(),
-		Experiments:         experiments,
-		Options:             beam.PipelineOptions.Export(),
-		Project:             project,
-		Region:              region,
-		Zone:                *zone,
-		Network:             *network,
-		Subnetwork:          *subnetwork,
-		NoUsePublicIPs:      *noUsePublicIPs,
-		NumWorkers:          *numWorkers,
-		MaxNumWorkers:       *maxNumWorkers,
-		DiskSizeGb:          *diskSizeGb,
-		Algorithm:           *autoscalingAlgorithm,
-		MachineType:         *machineType,
-		Labels:              jobLabels,
-		ServiceAccountEmail: *serviceAccountEmail,
-		TempLocation:        *tempLocation,
-		Worker:              *jobopts.WorkerBinary,
-		WorkerJar:           *workerJar,
-		WorkerRegion:        *workerRegion,
-		WorkerZone:          *workerZone,
-		TeardownPolicy:      *teardownPolicy,
-		ContainerImage:      getContainerImage(ctx),
-	}
-	if opts.TempLocation == "" {
-		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
+	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
+	opts, err := getJobOptions(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	// (1) Build and submit
@@ -277,13 +195,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, errors.WithContext(err, "applying container image overrides")
 	}
 
-	// Apply the all the as Go Options
-	flag.Visit(func(f *flag.Flag) {
-		if !flagFilter[f.Name] {
-			opts.Options.Options[f.Name] = f.Value.String()
-		}
-	})
-
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
@@ -298,6 +209,95 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
 }
+
+func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
+	project := gcpopts.GetProjectFromFlagOrEnvironment(ctx)
+	if project == "" {
+		return nil, errors.New("no Google Cloud project specified. Use --project=<project>")
+	}
+	region := gcpopts.GetRegion(ctx)
+	if region == "" {
+		return nil, errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
+	}
+	if *stagingLocation == "" {
+		return nil, errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
+	}
+	var jobLabels map[string]string
+	if *labels != "" {
+		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
+			return nil, errors.Wrapf(err, "error reading --label flag as JSON")
+		}
+	}
+
+	if *cpuProfiling != "" {
+		perf.EnableProfCaptureHook("gcs_profile_writer", *cpuProfiling)
+	}
+
+	if *autoscalingAlgorithm != "" {
+		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
+			return nil, errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
+		}
+	}
+
+	hooks.SerializeHooksToOptions()
+
+	experiments := jobopts.GetExperiments()
+	// Always use runner v2, unless set already.
+	var v2set, portaSubmission bool
+	for _, e := range experiments {
+		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
+			v2set = true
+		}
+		if strings.Contains(e, "use_portable_job_submission") {
+			portaSubmission = true
+		}
+	}
+	// Enable by default unified worker, and portable job submission.
+	if !v2set {
+		experiments = append(experiments, "use_unified_worker")
+	}
+	if !portaSubmission {
+		experiments = append(experiments, "use_portable_job_submission")
+	}
+
+	if *minCPUPlatform != "" {
+		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
+	}
+
+	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
+	opts := &dataflowlib.JobOptions{
+		Name:                jobopts.GetJobName(),
+		Experiments:         experiments,
+		Options:             beam.PipelineOptions.Export(),
+		Project:             project,
+		Region:              region,
+		Zone:                *zone,
+		Network:             *network,
+		Subnetwork:          *subnetwork,
+		NoUsePublicIPs:      *noUsePublicIPs,
+		NumWorkers:          *numWorkers,
+		MaxNumWorkers:       *maxNumWorkers,
+		DiskSizeGb:          *diskSizeGb,
+		DiskType:            *diskType,
+		Algorithm:           *autoscalingAlgorithm,
+		MachineType:         *machineType,
+		Labels:              jobLabels,
+		ServiceAccountEmail: *serviceAccountEmail,
+		TempLocation:        *tempLocation,
+		Worker:              *jobopts.WorkerBinary,
+		WorkerJar:           *workerJar,
+		WorkerRegion:        *workerRegion,
+		WorkerZone:          *workerZone,
+		TeardownPolicy:      *teardownPolicy,
+		ContainerImage:      getContainerImage(ctx),
+	}
+	if opts.TempLocation == "" {
+		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
+	}
+
+	return opts, nil
+}
+
 func gcsRecorderHook(opts []string) perf.CaptureHook {
 	bucket, prefix, err := gcsx.ParseObject(opts[0])
 	if err != nil {

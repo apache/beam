@@ -115,7 +115,9 @@ class HL7v2IOTestUtil {
       // exponential backoff.
       sleepMs *= 2;
       // exit if next sleep will violate timeout
-      if (new Duration(start, Instant.now()).plus(sleepMs).isShorterThan(timeout)) {
+      if (new Duration(start, Instant.now())
+          .plus(Duration.millis(sleepMs))
+          .isShorterThan(timeout)) {
         Sleeper.DEFAULT.sleep(sleepMs);
       } else {
         throw new TimeoutException(

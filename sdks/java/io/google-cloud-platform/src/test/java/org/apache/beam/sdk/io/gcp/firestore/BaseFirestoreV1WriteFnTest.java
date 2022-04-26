@@ -410,7 +410,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
                 LOG.debug("request = {}", request);
                 long requestDurationMs = 0;
                 BatchWriteResponse.Builder builder = BatchWriteResponse.newBuilder();
-                for (Write w : request.getWritesList()) {
+                for (Write ignored : request.getWritesList()) {
                   builder.addWriteResults(WriteResult.newBuilder().build());
                   if (clock.prev.isBefore(threshold)) {
                     requestDurationMs += defaultDocumentWriteLatency;
@@ -853,19 +853,16 @@ public abstract class BaseFirestoreV1WriteFnTest<
   private static class MyCounter implements Counter {
     private final MetricName named;
 
-    private long incInvocationCount;
     private final List<Long> incInvocations;
 
     public MyCounter(String namespace, String name) {
       named = MetricName.named(namespace, name);
-      incInvocationCount = 0;
       incInvocations = new ArrayList<>();
     }
 
     @Override
     public void inc() {
       LOG.trace("{} {}:inc()", METRIC_MARKER, named);
-      incInvocationCount++;
     }
 
     @Override

@@ -19,13 +19,16 @@
 
 # pytype: skip-file
 
+import itertools
 import json
 import logging
+import os
 import sys
 import unittest
 
 import mock
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -171,15 +174,7 @@ class UtilTest(unittest.TestCase):
             dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
             FLEXRS_SPEED_OPTIMIZED))
 
-  def test_default_environment_get_set(self):
-
-    pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
-        '--temp_location',
-        'gs://any-location/temp'
-    ])
-
+  def _verify_sdk_harness_container_images_get_set(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -204,32 +199,39 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         '2.0.0',  # any environment version
         FAKE_PIPELINE_URL,
-        proto_pipeline,
-        _sdk_image_overrides={
-            '.*dummy.*': 'dummy_image', '.*test.*': 'test_default_image'
-        })
+        proto_pipeline)
     worker_pool = env.proto.workerPools[0]
 
     self.assertEqual(2, len(worker_pool.sdkHarnessContainerImages))
 
-    images_from_proto = [
-        sdk_info.containerImage
-        for sdk_info in worker_pool.sdkHarnessContainerImages
-    ]
-    self.assertIn('test_default_image', images_from_proto)
+    env_and_image = [(item.environmentId, item.containerImage)
+                     for item in worker_pool.sdkHarnessContainerImages]
+    self.assertIn(('dummy_env_id', 'dummy_image'), env_and_image)
+    self.assertIn((mock.ANY, 'test_default_image'), env_and_image)
 
-  def test_sdk_harness_container_image_overrides(self):
+  def test_sdk_harness_container_images_get_set_runner_v2(self):
+    pipeline_options = PipelineOptions([
+        '--experiments=use_runner_v2',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_sdk_harness_container_images_get_set(pipeline_options)
+
+  def test_sdk_harness_container_images_get_set_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_sdk_harness_container_images_get_set(pipeline_options)
+
+  def _verify_sdk_harness_container_image_overrides(self, pipeline_options):
     test_environment = DockerEnvironment(
         container_image='dummy_container_image')
     proto_pipeline, _ = Pipeline().to_runner_api(
       return_context=True, default_environment=test_environment)
-
-    pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
-        '--temp_location',
-        'gs://any-location/temp'
-    ])
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
@@ -251,14 +253,25 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         docker_payload.container_image, 'new_dummy_container_image')
 
-  def test_dataflow_container_image_override(self):
+  def test_sdk_harness_container_image_overrides_runner_v2(self):
     pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
+        '--experiments=use_runner_v2',
         '--temp_location',
         'gs://any-location/temp'
     ])
 
+    self._verify_sdk_harness_container_image_overrides(pipeline_options)
+
+  def test_sdk_harness_container_image_overrides_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_sdk_harness_container_image_overrides(pipeline_options)
+
+  def _verify_dataflow_container_image_override(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -282,14 +295,25 @@ class UtilTest(unittest.TestCase):
 
     self.assertTrue(found_override)
 
-  def test_non_apache_container_not_overridden(self):
+  def test_dataflow_container_image_override_runner_v2(self):
     pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
+        '--experiments=use_runner_v2',
         '--temp_location',
         'gs://any-location/temp'
     ])
 
+    self._verify_dataflow_container_image_override(pipeline_options)
+
+  def test_dataflow_container_image_override_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_dataflow_container_image_override(pipeline_options)
+
+  def _verify_non_apache_container_not_overridden(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -315,15 +339,25 @@ class UtilTest(unittest.TestCase):
 
     self.assertFalse(found_override)
 
-  def test_pipeline_sdk_not_overridden(self):
+  def test_non_apache_container_not_overridden_runner_v2(self):
     pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
+        '--experiments=use_runner_v2',
         '--temp_location',
-        'gs://any-location/temp',
-        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
+        'gs://any-location/temp'
     ])
 
+    self._verify_non_apache_container_not_overridden(pipeline_options)
+
+  def test_non_apache_container_not_overridden_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_non_apache_container_not_overridden(pipeline_options)
+
+  def _verify_pipeline_sdk_not_overridden(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
@@ -351,6 +385,26 @@ class UtilTest(unittest.TestCase):
 
     self.assertFalse(found_override)
 
+  def test_pipeline_sdk_not_overridden_runner_v2(self):
+    pipeline_options = PipelineOptions([
+        '--experiments=use_runner_v2',
+        '--temp_location',
+        'gs://any-location/temp',
+        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
+    ])
+
+    self._verify_pipeline_sdk_not_overridden(pipeline_options)
+
+  def test_pipeline_sdk_not_overridden_prime(self):
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--temp_location',
+        'gs://any-location/temp',
+        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
+    ])
+
+    self._verify_pipeline_sdk_not_overridden(pipeline_options)
+
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
     regexp = '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
@@ -364,7 +418,7 @@ class UtilTest(unittest.TestCase):
 
   def test_default_job_name(self):
     job_name = apiclient.Job.default_job_name(None)
-    regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}'
+    regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}-[a-z0-9]{8}$'
     self.assertRegex(job_name, regexp)
 
   def test_split_int(self):
@@ -970,7 +1024,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 9, 0))
+      (3, 10, 0))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
@@ -999,6 +1053,23 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions(
         ['--experiments=use_runner_v2', '--experiments=beam_fn_api'])
     self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(['--experiments=enable_prime'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--dataflow_service_options=enable_prime'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions([
+        '--dataflow_service_options=enable_prime',
+        '--experiments=disable_prime_runner_v2'
+    ])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--experiments=enable_prime', '--experiments=disable_prime_runner_v2'])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
 
     pipeline_options = PipelineOptions([
         '--experiments=use_unified_worker',
@@ -1192,7 +1263,26 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar1').SerializeToString())
+                                staged_name='bar1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/baz').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
                     ]),
                 'env2': beam_runner_api_pb2.Environment(
                     dependencies=[
@@ -1213,7 +1303,26 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar2').SerializeToString())
+                                staged_name='bar2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/baz').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/renamed2',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed2').SerializeToString())
                     ])
             }))
     client = apiclient.DataflowApplicationClient(pipeline_options)
@@ -1221,8 +1330,9 @@ class UtilTest(unittest.TestCase):
                            'stage_job_resources') as mock_stager:
       client._stage_resources(pipeline, pipeline_options)
     mock_stager.assert_called_once_with(
-        [('/tmp/foo1', 'foo1'), ('/tmp/bar1', 'bar1'), ('/tmp/foo2', 'foo2'),
-         ('/tmp/bar2', 'bar2')],
+        [('/tmp/foo1', 'foo1', ''), ('/tmp/bar1', 'bar1', ''),
+         ('/tmp/baz', 'baz1', ''), ('/tmp/renamed1', 'renamed1', 'abcdefg'),
+         ('/tmp/foo2', 'foo2', ''), ('/tmp/bar2', 'bar2', '')],
         staging_location='gs://test-location/staging')
 
     pipeline_expected = beam_runner_api_pb2.Pipeline(
@@ -1247,7 +1357,25 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar1').SerializeToString())
+                                staged_name='bar1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/baz1').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
                     ]),
                 'env2': beam_runner_api_pb2.Environment(
                     dependencies=[
@@ -1268,7 +1396,25 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar2').SerializeToString())
+                                staged_name='bar2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/baz1').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
                     ])
             }))
     self.assertEqual(pipeline, pipeline_expected)
@@ -1309,6 +1455,246 @@ class UtilTest(unittest.TestCase):
         FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.debugOptions, dataflow.DebugOptions(enableHotKeyLogging=True))
+
+  def _mock_uncached_copy(self, staging_root, src, sha256, dst_name=None):
+    sha_prefix = sha256[0:2]
+    gcs_cache_path = FileSystems.join(
+        staging_root,
+        apiclient.DataflowApplicationClient._GCS_CACHE_PREFIX,
+        sha_prefix,
+        sha256)
+
+    if not dst_name:
+      _, dst_name = os.path.split(src)
+    return [
+        mock.call.gcs_exists(gcs_cache_path),
+        mock.call.gcs_upload(src, gcs_cache_path),
+        mock.call.gcs_gcs_copy(
+            source_file_names=[gcs_cache_path],
+            destination_file_names=[f'gs://test-location/staging/{dst_name}'])
+    ]
+
+  def _mock_cached_copy(self, staging_root, src, sha256, dst_name=None):
+    uncached = self._mock_uncached_copy(staging_root, src, sha256, dst_name)
+    uncached.pop(1)
+    return uncached
+
+  def test_stage_artifacts_with_caching(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://test-location/temp',
+        '--staging_location',
+        'gs://test-location/staging',
+        '--no_auth',
+        '--enable_artifact_caching'
+    ])
+    pipeline = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                'env1': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/foo1',
+                                sha256='abcd').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/bar1',
+                                sha256='defg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(path='/tmp/baz', sha256='hijk'
+                                                ).SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
+                    ]),
+                'env2': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/foo2',
+                                sha256='lmno').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/bar2',
+                                sha256='pqrs').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(path='/tmp/baz', sha256='tuv'
+                                                ).SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/renamed2',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed2').SerializeToString())
+                    ])
+            }))
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+    staging_root = 'gs://test-location/staging'
+
+    # every other artifact already exists
+    n = [0]
+
+    def exists_return_value(*args):
+      n[0] += 1
+      return n[0] % 2 == 0
+
+    with mock.patch.object(FileSystems,
+                           'exists',
+                           side_effect=exists_return_value) as mock_gcs_exists:
+      with mock.patch.object(apiclient.DataflowApplicationClient,
+                             '_uncached_gcs_file_copy') as mock_gcs_copy:
+        with mock.patch.object(FileSystems, 'copy') as mock_gcs_gcs_copy:
+
+          manager = mock.Mock()
+          manager.attach_mock(mock_gcs_exists, 'gcs_exists')
+          manager.attach_mock(mock_gcs_copy, 'gcs_upload')
+          manager.attach_mock(mock_gcs_gcs_copy, 'gcs_gcs_copy')
+
+          client._stage_resources(pipeline, pipeline_options)
+          expected_calls = list(
+              itertools.chain.from_iterable([
+                  self._mock_uncached_copy(staging_root, '/tmp/foo1', 'abcd'),
+                  self._mock_cached_copy(staging_root, '/tmp/bar1', 'defg'),
+                  self._mock_uncached_copy(
+                      staging_root, '/tmp/baz', 'hijk', 'baz1'),
+                  self._mock_cached_copy(
+                      staging_root, '/tmp/renamed1', 'abcdefg'),
+                  self._mock_uncached_copy(staging_root, '/tmp/foo2', 'lmno'),
+                  self._mock_cached_copy(staging_root, '/tmp/bar2', 'pqrs'),
+              ]))
+          assert manager.mock_calls == expected_calls
+
+    pipeline_expected = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                'env1': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/foo1',
+                                sha256='abcd').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/bar1',
+                                sha256='defg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/baz1',
+                                sha256='hijk').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
+                    ]),
+                'env2': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/foo2',
+                                sha256='lmno').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/bar2',
+                                sha256='pqrs').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/baz1',
+                                sha256='tuv').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
+                    ])
+            }))
+    self.assertEqual(pipeline, pipeline_expected)
 
 
 if __name__ == '__main__':

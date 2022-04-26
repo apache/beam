@@ -356,7 +356,7 @@ public class ClickHouseIO {
 
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
     private static final String RETRY_ATTEMPT_LOG =
-        "Error writing to ClickHouse. Retry attempt[%d]";
+        "Error writing to ClickHouse. Retry attempt[{}]";
 
     private ClickHouseConnection connection;
     private FluentBackoff retryBackoff;
@@ -457,7 +457,7 @@ public class ClickHouseIO {
             throw e;
           } else {
             retries.inc();
-            LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), e);
+            LOG.warn(RETRY_ATTEMPT_LOG, attempt, e);
             attempt++;
           }
         }

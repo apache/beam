@@ -44,7 +44,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionN
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingSource;
-import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -412,34 +411,5 @@ public class QueryablePipelineTest {
     for (String transformId : primitiveComponents) {
       assertThat(originalComponents.getTransformsMap(), hasKey(transformId));
     }
-  }
-
-  /** This method doesn't do any pruning for reachability, but this may not require a test. */
-  @Test
-  public void retainOnlyPrimitivesIgnoresUnreachableNodes() {
-    Pipeline p = Pipeline.create();
-    p.apply(
-        new org.apache.beam.sdk.transforms.PTransform<PBegin, PCollection<Long>>() {
-          @Override
-          public PCollection<Long> expand(PBegin input) {
-            return input
-                .apply(GenerateSequence.from(2L))
-                .apply(Window.into(FixedWindows.of(Duration.standardMinutes(5L))))
-                .apply(MapElements.into(TypeDescriptors.longs()).via(l -> l + 1));
-          }
-        });
-
-    Components augmentedComponents =
-        PipelineTranslation.toProto(p)
-            .getComponents()
-            .toBuilder()
-            .putCoders("extra-coder", RunnerApi.Coder.getDefaultInstance())
-            .putWindowingStrategies(
-                "extra-windowing-strategy", RunnerApi.WindowingStrategy.getDefaultInstance())
-            .putEnvironments("extra-env", RunnerApi.Environment.getDefaultInstance())
-            .putPcollections("extra-pc", RunnerApi.PCollection.getDefaultInstance())
-            .build();
-    Collection<String> primitiveComponents =
-        QueryablePipeline.getPrimitiveTransformIds(augmentedComponents);
   }
 }

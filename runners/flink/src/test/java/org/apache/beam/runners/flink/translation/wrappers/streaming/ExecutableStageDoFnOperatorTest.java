@@ -100,8 +100,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -589,7 +589,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     // close() will also call dispose(), but call again to verify no new bundle
     // is created afterwards
-    operator.dispose();
+    operator.cleanUp();
     verifyNoMoreInteractions(bundle);
   }
 
@@ -637,6 +637,7 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(statefulDoFnRunner, instanceOf(StatefulDoFnRunner.class));
   }
 
+  @SuppressWarnings("LockNotBeforeTry")
   @Test
   public void testEnsureStateCleanupWithKeyedInputCleanupTimer() {
     InMemoryTimerInternals inMemoryTimerInternals = new InMemoryTimerInternals();
@@ -662,7 +663,7 @@ public class ExecutableStageDoFnOperatorTest {
     Mockito.verify(keyedStateBackend).setCurrentKey(key);
     assertThat(
         inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),
-        is(window.maxTimestamp().plus(1)));
+        is(window.maxTimestamp().plus(Duration.millis(1))));
     Mockito.verify(stateBackendLock).unlock();
   }
 
@@ -812,7 +813,8 @@ public class ExecutableStageDoFnOperatorTest {
     verify(receiver).accept(windowedValue);
 
     // move watermark past user timer while bundle is in progress
-    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(1).getMillis()));
+    testHarness.processWatermark(
+        new Watermark(window.maxTimestamp().plus(Duration.millis(1)).getMillis()));
 
     // Output watermark is held back and timers do not yet fire (they can still be changed!)
     assertThat(timerInputReceived.get(), is(false));
@@ -823,7 +825,8 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(timerInputReceived.getAndSet(false), is(true));
 
     // Move watermark past the cleanup timer
-    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(2).getMillis()));
+    testHarness.processWatermark(
+        new Watermark(window.maxTimestamp().plus(Duration.millis(2)).getMillis()));
     operator.invokeFinishBundle();
 
     // Cleanup timer has fired and cleanup queue is prepared for bundle finish
@@ -946,7 +949,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     // Generate final watermark to trigger state cleanup
     testHarness.processWatermark(
-        new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.plus(1).getMillis()));
+        new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1)).getMillis()));
 
     assertThat(testHarness.numKeyedStateEntries(), is(0));
   }

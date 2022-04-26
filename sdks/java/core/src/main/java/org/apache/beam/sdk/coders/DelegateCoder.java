@@ -154,10 +154,6 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
     return typeDescriptor;
   }
 
-  private String delegateEncodingId(Class<?> delegateClass, String encodingId) {
-    return String.format("%s:%s", delegateClass.getName(), encodingId);
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   private <InputT, OutputT> OutputT applyAndWrapExceptions(

@@ -40,6 +40,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
@@ -81,7 +82,8 @@ public class ShuffleSinkTest {
           KV.of(5, KV.of("in 5", 666)));
 
   private static final Instant timestamp = new Instant(123000);
-  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final IntervalWindow window =
+      new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)));
 
   private void runTestWriteUngroupingShuffleSink(List<Integer> expected) throws Exception {
     Coder<WindowedValue<Integer>> windowedValueCoder =

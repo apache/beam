@@ -34,12 +34,14 @@ ZONE_LOOKUP_PATH = (
 
 def run_aggregation_pipeline(pipeline, input_path, output_path):
   # The pipeline will be run on exiting the with block.
+  # [START DataFrame_taxiride_aggregation]
   with pipeline as p:
     rides = p | read_csv(input_path)
 
     # Count the number of passengers dropped off per LocationID
     agg = rides.groupby('DOLocationID').passenger_count.sum()
     agg.to_csv(output_path)
+    # [END DataFrame_taxiride_aggregation]
 
 
 def run_enrich_pipeline(
@@ -47,6 +49,7 @@ def run_enrich_pipeline(
   """Enrich taxi ride data with zone lookup table and perform a grouped
   aggregation."""
   # The pipeline will be run on exiting the with block.
+  # [START DataFrame_taxiride_enrich]
   with pipeline as p:
     rides = p | "Read taxi rides" >> read_csv(input_path)
     zones = p | "Read zone lookup" >> read_csv(zone_lookup_path)
@@ -63,6 +66,7 @@ def run_enrich_pipeline(
     # Sum passengers dropped off per Borough
     agg = rides.groupby('Borough').passenger_count.sum()
     agg.to_csv(output_path)
+    # [END DataFrame_taxiride_enrich]
 
     # A more intuitive alternative to the above merge call, but this option
     # doesn't preserve index, thus requires non-parallel execution.

@@ -225,11 +225,6 @@ class NativeFileSorter {
 
   ////////////////////////////////////////////////////////////////////////////////
 
-  private int bufferSize(int numFiles) {
-    final long memory = maxMemory > 0 ? maxMemory : estimateAvailableMemory();
-    return (int) (memory / numFiles / 2);
-  }
-
   /**
    * This method calls the garbage collector and then returns the free memory. This avoids problems
    * with applications where the GC hasn't reclaimed memory and reports no available memory.

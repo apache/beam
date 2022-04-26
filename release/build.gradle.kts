@@ -28,8 +28,8 @@ repositories {
 val library = project.extensions.extraProperties["library"] as Map<String, Map<String, String>>
 
 dependencies {
-  compile(library.getValue("groovy").getValue("groovy_all"))
-  compile("commons-cli:commons-cli:1.2")
+  implementation(library.getValue("groovy").getValue("groovy_all"))
+  implementation("commons-cli:commons-cli:1.2")
   permitUnusedDeclared("commons-cli:commons-cli:1.2") // BEAM-11761
 }
 

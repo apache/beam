@@ -68,7 +68,7 @@ type visiter struct {
 
 func newVisiter(xforms map[string]*pipepb.PTransform, ids []string) *visiter {
 	ret := &visiter{
-		output: make([]string, len(ids), len(ids)),
+		output: make([]string, len(ids)),
 		index:  len(ids) - 1,
 		seen:   make(map[string]bool),
 		next:   make(map[string][]string),
@@ -103,4 +103,12 @@ func (v *visiter) visit(xforms map[string]*pipepb.PTransform, id string) {
 	}
 	v.output[v.index] = id
 	v.index--
+}
+
+// BoolToBounded is a convenience function to get an IsBounded enum value.
+func BoolToBounded(bounded bool) pipepb.IsBounded_Enum {
+	if bounded {
+		return pipepb.IsBounded_BOUNDED
+	}
+	return pipepb.IsBounded_UNBOUNDED
 }

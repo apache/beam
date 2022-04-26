@@ -279,7 +279,7 @@ class IOTypeHintsTest(unittest.TestCase):
     with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'foo'"):
       decorators.getcallargs_forhints(fn, 5)
 
-  def test_origin(self):
+  def test_origin_annotated(self):
     def annotated(e: str) -> str:
       return e
 
@@ -369,9 +369,7 @@ class DecoratorsTest(unittest.TestCase):
     decorators.disable_type_annotations()
     self.assertTrue(decorators._disable_from_callable)
 
-
-class DecoratorsTest(unittest.TestCase):
-  def test_no_annotations(self):
+  def test_no_annotations_on_same_function(self):
     def fn(a: int) -> int:
       return a
 
@@ -383,9 +381,7 @@ class DecoratorsTest(unittest.TestCase):
     fn = decorators.no_annotations(fn)
     _ = ['a', 'b', 'c'] | Map(fn)
 
-
-class DecoratorsTest(unittest.TestCase):
-  def test_no_annotations(self):
+  def test_no_annotations_on_diff_function(self):
     def fn(a: int) -> int:
       return a
 

@@ -710,8 +710,8 @@ capability-matrix:
           description: ""
           values:
             - class: dataflow
-              l1: "Partially"
-              l2: Only Dataflow Runner V2 supports this.
+              l1: "Yes"
+              l2: fully supported
               l3: ""
             - class: flink
               l1: "Partially"
@@ -1552,5 +1552,44 @@ capability-matrix:
               l3:
             - class: twister2
               l1:
+              l2:
+              l3:
+        - name: Key-ordered delivery
+          description: The runner offers guarantees for the order in which elements are passed in between operations. See <a href=''>per-key ordering semantics.</a>
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2:
+              l3: Dataflow performs different shuffling algorithms for batch and streaming. Dataflow guarantees key-ordered delivery in streaming, though not in batch.
+            - class: flink
+              l1: "Partially"
+              l2:
+              l3: Flink may perform different shuffling algorithms for batch and streaming. Flink guarantees key-ordered delivery in streaming, though not in batch.
+            - class: spark-rdd
+              l1: "Unverified"
+              l2:
+              l3:
+            - class: spark-dataset
+              l1: "Unverified"
+              l2:
+              l3:
+            - class: ibmstreams
+              l1: "Unverified"
+              l2:
+              l3:
+            - class: samza
+              l1: "Partially"
+              l2:
+              l3: Samza may perform different shuffling algorithms for batch and streaming. Samza guarantees key-ordered delivery in streaming, though not in batch.
+            - class: nemo
+              l1: "Unverified"
+              l2:
+              l3:
+            - class: jet
+              l1: "Unverified"
+              l2:
+              l3:
+            - class: twister2
+              l1: "Unverified"
               l2:
               l3:

@@ -21,13 +21,13 @@ import java.util.stream.Collectors
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
-  enableStrictDependencies:true,
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.runners.spark',
   archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
   classesTriggerCheckerBugs: [
     'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
-    'SparkCombineFn': 'https://github.com/typetools/checker-framework/issues/3793',
-    'WindowingHelpers': 'https://github.com/typetools/checker-framework/issues/3793',
+    'SparkCombineFn'     : 'https://github.com/typetools/checker-framework/issues/3793',
+    'WindowingHelpers'   : 'https://github.com/typetools/checker-framework/issues/3793',
   ],
 )
 
@@ -41,73 +41,54 @@ description = "Apache Beam :: Runners :: Spark $spark_version"
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":sdks:java:io:hadoop-format")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":examples:java")
 
 configurations {
   validatesRunner
+  examplesJavaIntegrationTest
 }
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
-    "2101": "2.10.1",
-    "321": "3.2.1",
+  "285" : "2.8.5",
+  "292" : "2.9.2",
+  "2101": "2.10.1",
+  "321" : "3.2.1",
 ]
 
-hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
+hadoopVersions.each { kv -> configurations.create("hadoopVersion$kv.key") }
 
-/*
- * Copy & merge source overrides into build directory.
- */
-def sourceOverridesBase = "${project.buildDir}/source-overrides/src"
-
-def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
-  it.from main_source_overrides
-  it.into "${sourceOverridesBase}/main/java"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-compileJava.dependsOn copySourceOverrides
-
-def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
-  it.from main_resources_overrides
-  it.into "${sourceOverridesBase}/main/resources"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-compileJava.dependsOn copyResourcesOverrides
-
-def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
-  it.from test_source_overrides
-  it.into "${sourceOverridesBase}/test/java"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-compileTestJava.dependsOn copyTestSourceOverrides
-
-def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
-  it.from test_resources_overrides
-  it.into "${sourceOverridesBase}/test/resources"
-  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
-}
-compileJava.dependsOn copyTestResourcesOverrides
-
-/*
- * We have to explicitly set all directories here to make sure each
- * version of Spark has the correct overrides set.
- */
 def sourceBase = "${project.projectDir}/../src"
-sourceSets {
-  main {
-    java {
-      srcDirs = ["${sourceBase}/main/java", "${sourceOverridesBase}/main/java"]
-    }
-    resources {
-      srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
-    }
+def sourceBaseCopy = "${project.buildDir}/sourcebase/src"
+
+def useCopiedSourceSet = { scope, type, trigger ->
+  def taskName = "copy${scope.capitalize()}${type.capitalize()}"
+  trigger.dependsOn tasks.register(taskName, Copy) {
+    from "$sourceBase/$scope/$type"
+    into "$sourceBaseCopy/$scope/$type"
+    duplicatesStrategy DuplicatesStrategy.INCLUDE
   }
-  test {
-    java {
-      srcDirs = ["${sourceBase}/test/java", "${sourceOverridesBase}/test/java"]
+  // append copied sources to srcDirs
+  sourceSets."$scope"."$type".srcDirs "$sourceBaseCopy/$scope/$type"
+}
+
+if (copySourceBase) {
+  // Copy source base into build directory.
+  // While this is not necessary, having multiple source sets referencing the same shared base will typically confuse an IDE and harm developer experience.
+  // The copySourceBase flag can be swapped without any implications and allows to pick a main version that is actively worked on.
+  useCopiedSourceSet("main", "java", compileJava)
+  useCopiedSourceSet("main", "resources", processResources)
+  useCopiedSourceSet("test", "java", compileTestJava)
+  useCopiedSourceSet("test", "resources", processTestResources)
+} else {
+  // append shared base sources to srcDirs
+  sourceSets {
+    main {
+      java.srcDirs "${sourceBase}/main/java"
+      resources.srcDirs "${sourceBase}/main/resources"
     }
-    resources {
-      srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+    test {
+      java.srcDirs "${sourceBase}/test/java"
+      resources.srcDirs "${sourceBase}/test/resources"
     }
   }
 }
@@ -146,61 +127,75 @@ test {
 }
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":runners:core-construction-java")
-  compile project(":runners:core-java")
-  compile project(":runners:java-fn-execution")
-  compile project(":runners:java-job-service")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile library.java.jackson_annotations
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.args4j
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":model:job-management", configuration: "shadow")
-  compile project(":sdks:java:fn-execution")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.vendored_guava_26_0_jre
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:core-java")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation library.java.jackson_annotations
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.args4j
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(":sdks:java:fn-execution")
+  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_guava_26_0_jre
+  implementation "com.codahale.metrics:metrics-core:3.0.1"
   provided "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
   provided "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
-  if(project.property("spark_scala_version").equals("2.11")){
+  provided "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
+  if (project.property("spark_scala_version").equals("2.11")) {
+    compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
   } else {
+    compileOnly "org.scala-lang:scala-library:2.12.15"
     runtimeOnly library.java.jackson_module_scala_2_12
+  }
+  if (project.property("spark_version").equals("3.1.2")) {
+    compileOnly "org.apache.parquet:parquet-common:1.10.1"
   }
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
   provided library.java.hadoop_common
   provided library.java.commons_io
-  provided library.java.hamcrest_core
-  provided library.java.hamcrest_library
-  provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompile project(":sdks:java:io:kafka")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  provided library.java.hamcrest
+  provided "com.esotericsoftware:kryo-shaded:4.0.2"
+  testImplementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  testImplementation project(":sdks:java:io:kafka")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile project(":sdks:java:harness")
-  testCompile library.java.avro
-  testCompile "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
-  testCompile library.java.kafka_clients
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile "org.apache.zookeeper:zookeeper:3.4.11"
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:harness")
+  testImplementation library.java.avro
+  testImplementation "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
+  testImplementation library.java.kafka_clients
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(":sdks:java:io:hadoop-format")
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
-  validatesRunner project(path: ":examples:java", configuration: "testRuntime")
-  validatesRunner project(path: project.path, configuration: "testRuntime")
-  validatesRunner project(project.path)
-  validatesRunner project(path: project.path, configuration: "provided")
-  hadoopVersions.each {kv ->
+  validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
+  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
+  hadoopVersions.each { kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    // Force paranamer 2.8 to avoid issues when using Scala 2.12
+    "hadoopVersion$kv.key" "com.thoughtworks.paranamer:paranamer:2.8"
   }
 }
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 configurations.testRuntimeClasspath {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
@@ -213,7 +208,7 @@ configurations.validatesRunner {
 }
 
 
-hadoopVersions.each {kv ->
+hadoopVersions.each { kv ->
   configurations."hadoopVersion$kv.key" {
     // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
     exclude group: "org.slf4j", module: "slf4j-jdk14"
@@ -223,14 +218,14 @@ hadoopVersions.each {kv ->
   }
 }
 
-task validatesRunnerBatch(type: Test) {
+def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
   def pipelineOptions = JsonOutput.toJson([
-          "--runner=TestSparkRunner",
-          "--streaming=false",
-          "--enableSparkMetricSinks=false",
+    "--runner=TestSparkRunner",
+    "--streaming=false",
+    "--enableSparkMetricSinks=false",
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
   systemProperty "beam.spark.test.reuseSparkContext", "true"
@@ -239,9 +234,9 @@ task validatesRunnerBatch(type: Test) {
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
-            project(":sdks:java:core").sourceSets.test.output.classesDirs,
-            project(":runners:core-java").sourceSets.test.output.classesDirs,
-        )
+    project(":sdks:java:core").sourceSets.test.output.classesDirs,
+    project(":runners:core-java").sourceSets.test.output.classesDirs,
+  )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
   // Only one SparkContext may be running in a JVM (SPARK-2243)
@@ -250,8 +245,11 @@ task validatesRunnerBatch(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     // Unbounded
@@ -266,18 +264,21 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    // Ordering
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
   jvmArgs '-Xmx3g'
 }
 
-task validatesRunnerStreaming(type: Test) {
+def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
   def pipelineOptions = JsonOutput.toJson([
-          "--runner=TestSparkRunner",
-          "--forceStreaming=true",
-          "--enableSparkMetricSinks=true",
+    "--runner=TestSparkRunner",
+    "--forceStreaming=true",
+    "--enableSparkMetricSinks=true",
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
@@ -296,14 +297,14 @@ task validatesRunnerStreaming(type: Test) {
   }
 }
 
-task validatesStructuredStreamingRunnerBatch(type: Test) {
+tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
   def pipelineOptions = JsonOutput.toJson([
-          "--runner=SparkStructuredStreamingRunner",
-          "--testMode=true",
-          "--streaming=false",
+    "--runner=SparkStructuredStreamingRunner",
+    "--testMode=true",
+    "--streaming=false",
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
   systemProperty "spark.sql.shuffle.partitions", "4"
@@ -312,8 +313,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
-          project(":sdks:java:core").sourceSets.test.output.classesDirs,
-          project(":runners:core-java").sourceSets.test.output.classesDirs,
+    project(":sdks:java:core").sourceSets.test.output.classesDirs,
+    project(":runners:core-java").sourceSets.test.output.classesDirs,
   )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
@@ -324,6 +325,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   jvmArgs '-Xmx7g'
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -363,7 +366,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   }
 }
 
-task validatesRunner {
+tasks.register("validatesRunner") {
   group = "Verification"
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
@@ -376,15 +379,47 @@ task validatesRunner {
 // Generates :runners:spark:*:runQuickstartJavaSpark task
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
-task hadoopVersionsTest(group: "Verification") {
+tasks.register("hadoopVersionsTest") {
+  group = "Verification"
   def taskNames = hadoopVersions.keySet().stream()
-      .map{num -> "hadoopVersion${num}Test"}
-      .collect(Collectors.toList())
+    .map { num -> "hadoopVersion${num}Test" }
+    .collect(Collectors.toList())
   dependsOn taskNames
 }
 
-hadoopVersions.each {kv ->
-  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+tasks.register("examplesIntegrationTest", Test) {
+  group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
+  def pipelineOptions = JsonOutput.toJson([
+    "--runner=TestSparkRunner",
+    "--enableSparkMetricSinks=true",
+    "--tempLocation=${tempLocation}",
+    "--tempRoot=${tempLocation}",
+    "--project=${gcpProject}",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit {
+    filter {
+      // TODO (BEAM-14019) Fix integration Tests to run with SparkRunner: Failed to read from sharded output
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInStreamingStaticSharding'
+      excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
+    }
+  }
+  jvmArgs '-Xmx3g'
+}
+
+hadoopVersions.each { kv ->
+  tasks.register("hadoopVersion${kv.key}Test", Test) {
+    group = "Verification"
     description = "Runs Spark tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     systemProperty "beam.spark.test.reuseSparkContext", "true"

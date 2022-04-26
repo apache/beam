@@ -103,8 +103,6 @@ class EvaluationContext {
 
   private final Set<PValue> keyedPValues;
 
-  private final ExecutorService executorService;
-
   public static EvaluationContext create(
       Clock clock,
       BundleFactory bundleFactory,
@@ -124,7 +122,6 @@ class EvaluationContext {
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
     this.keyedPValues = keyedPValues;
-    this.executorService = executorService;
 
     this.watermarkManager = WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());

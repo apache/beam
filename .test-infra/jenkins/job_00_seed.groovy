@@ -73,8 +73,8 @@ job('beam_SeedJob') {
   }
 
   triggers {
-    // Run once per day
-    cron('H */6 * * *')
+    // Run every six hours
+    cron('H H/6 * * *')
 
     githubPullRequest {
       admins(['asfbot'])
@@ -108,7 +108,8 @@ job('beam_SeedJob') {
       command("""
         ( cd .test-infra/jenkins/committers_list_generator &&
         python3.8 -m venv ve3 && source ve3/bin/activate &&
-        pip install -r requirements.txt &&
+        pip install --retries 10 --upgrade pip setuptools wheel &&
+        pip install --retries 10 -r requirements.txt &&
         python main.py -o .. &&
         deactivate ) ||
         { echo "ERROR: Failed to fetch committers"; exit 3; }

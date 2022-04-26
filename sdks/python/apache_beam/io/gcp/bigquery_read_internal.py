@@ -264,7 +264,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def _create_source(self, path, schema):
     if not self.use_json_exports:
-      return _create_avro_source(path, use_fastavro=True)
+      return _create_avro_source(path)
     else:
       return _TextSource(
           path,

@@ -26,24 +26,22 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure"
 ext.summary = "IO library to read and write Azure services from Beam."
 
-repositories { jcenter() }
-
 dependencies {
-  compile library.java.commons_io
+  implementation library.java.commons_io
   permitUnusedDeclared library.java.commons_io // BEAM-11761
-  compile library.java.slf4j_api
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "com.azure:azure-storage-blob:12.10.0"
-  compile "com.azure:azure-identity:1.0.8"
-  compile "com.microsoft.azure:azure-storage:8.6.5"
-  compile "com.azure:azure-core:1.9.0"
-  compile "com.azure:azure-storage-common:12.10.0"
-  compile library.java.jackson_annotations
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation "com.azure:azure-storage-blob:12.10.0"
+  implementation "com.azure:azure-identity:1.0.8"
+  implementation "com.microsoft.azure:azure-storage:8.6.5"
+  implementation "com.azure:azure-core:1.9.0"
+  implementation "com.azure:azure-storage-common:12.10.0"
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.mockito_core
+  testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
 }

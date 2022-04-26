@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
@@ -42,12 +43,16 @@ type ParDo struct {
 	emitters []ReusableEmitter
 	ctx      context.Context
 	inv      *invoker
+	bf       *bundleFinalizer
+	we       sdf.WatermarkEstimator
 
 	reader StateReader
 	cache  *cacheElm
 
 	status Status
 	err    errorx.GuardedError
+
+	states *metrics.PTransformState
 }
 
 // GetPID returns the PTransformID for this ParDo.
@@ -75,11 +80,13 @@ func (n *ParDo) Up(ctx context.Context) error {
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
 
+	n.states = metrics.NewPTransformState(n.PID)
+
 	// We can't cache the context during Setup since it runs only once per bundle.
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -103,13 +110,15 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	// per-unit, to avoid the constant allocation overhead.
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
 
+	n.states.Set(n.ctx, metrics.StartBundle)
+
 	if err := MultiStartBundle(n.ctx, id, data, n.Out...); err != nil {
 		return n.fail(err)
 	}
 
 	// TODO(BEAM-3303): what to set for StartBundle/FinishBundle window and emitter timestamp?
 
-	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.StartBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(n.ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.StartBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	return nil
@@ -120,6 +129,8 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 	if n.status != Active {
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
+
+	n.states.Set(n.ctx, metrics.ProcessBundle)
 
 	return n.processMainInput(&MainInput{Key: *elm, Values: values})
 }
@@ -135,12 +146,15 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 	// is that either there is a single window or the function doesn't observe windows, so we can
 	// optimize it by treating all windows as a single one.
 	if !mustExplodeWindows(n.inv.fn, elm, len(n.Side) > 0) {
-		return n.processSingleWindow(mainIn)
+		// The ProcessContinuation return value is ignored because only SDFs can return ProcessContinuations.
+		_, processResult := n.processSingleWindow(mainIn)
+		return processResult
 	} else {
 		for _, w := range elm.Windows {
 			elm := &mainIn.Key
-			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}}
-			err := n.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: mainIn.RTracker})
+			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}, Pane: elm.Pane}
+			// The ProcessContinuation return value is ignored because only SDFs can return ProcessContinuations.
+			_, err := n.processSingleWindow(&MainInput{Key: wElm, Values: mainIn.Values, RTracker: mainIn.RTracker})
 			if err != nil {
 				return n.fail(err)
 			}
@@ -153,21 +167,21 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 // window. If the element has multiple windows, they are treated as a single
 // window. For DoFns that observe windows, this function should be called on
 // each individual window by exploding the windows first.
-func (n *ParDo) processSingleWindow(mainIn *MainInput) error {
+func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation, error) {
 	elm := &mainIn.Key
-	val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, mainIn)
+	val, err := n.invokeProcessFn(n.ctx, elm.Pane, elm.Windows, elm.Timestamp, mainIn)
 	if err != nil {
-		return n.fail(err)
+		return nil, n.fail(err)
 	}
 	if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
-		return rtErrHelper(mainIn.RTracker.GetError())
+		return nil, rtErrHelper(mainIn.RTracker.GetError())
 	}
 
 	// Forward direct output, if any. It is always a main output.
 	if val != nil {
-		return n.Out[0].ProcessElement(n.ctx, val)
+		return val.Continuation, n.Out[0].ProcessElement(n.ctx, val)
 	}
-	return nil
+	return nil, nil
 }
 
 func rtErrHelper(err error) error {
@@ -198,7 +212,9 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	n.status = Up
 	n.inv.Reset()
 
-	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
+	n.states.Set(n.ctx, metrics.FinishBundle)
+
+	if _, err := n.invokeDataFn(n.ctx, typex.NoFiringPane(), window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	n.reader = nil
@@ -219,7 +235,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.reader = nil
 	n.cache = nil
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -235,7 +251,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 
 		n.cache = &cacheElm{
 			key:   w,
-			extra: make([]interface{}, sideCount+emitCount, sideCount+emitCount),
+			extra: make([]interface{}, sideCount+emitCount),
 		}
 		for i, emit := range n.emitters {
 			n.cache.extra[i+sideCount] = emit.Value()
@@ -272,33 +288,39 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 }
 
 // invokeDataFn handle non-per element invocations.
-func (n *ParDo) invokeDataFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (*FullValue, error) {
+func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, fn *funcx.Fn, opt *MainInput) (val *FullValue, err error) {
 	if fn == nil {
 		return nil, nil
 	}
+	// Defer side input clean-up in case of panic
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err := Invoke(ctx, ws, ts, fn, opt, n.cache.extra...)
+	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.cache.extra...)
 	if err != nil {
-		return nil, err
-	}
-	if err := n.postInvoke(); err != nil {
 		return nil, err
 	}
 	return val, nil
 }
 
 // invokeProcessFn handles the per element invocations
-func (n *ParDo) invokeProcessFn(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput) (*FullValue, error) {
+func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime, opt *MainInput) (val *FullValue, err error) {
+	// Defer side input clean-up in case of panic
+	defer func() {
+		if postErr := n.postInvoke(); postErr != nil {
+			err = postErr
+		}
+	}()
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err := n.inv.Invoke(ctx, ws, ts, opt, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.cache.extra...)
 	if err != nil {
-		return nil, err
-	}
-	if err := n.postInvoke(); err != nil {
 		return nil, err
 	}
 	return val, nil
@@ -313,10 +335,15 @@ func (n *ParDo) preInvoke(ctx context.Context, ws []typex.Window, ts typex.Event
 	return n.initSideInput(ctx, ws[0])
 }
 
+// postInvoke cleans up all of the open side inputs. postInvoke is deferred in invokeDataFn() and invokeProcessFn() to
+// ensure that it is called even if a panic occurs. ReIter side input types may leak memory if the spawned iterators
+// are not fully read before a panic/bundle failure occurs as they do not track the iterators they return.
 func (n *ParDo) postInvoke() error {
-	for _, s := range n.cache.sideinput {
-		if err := s.Reset(); err != nil {
-			return err
+	if n.cache != nil {
+		for _, s := range n.cache.sideinput {
+			if err := s.Reset(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

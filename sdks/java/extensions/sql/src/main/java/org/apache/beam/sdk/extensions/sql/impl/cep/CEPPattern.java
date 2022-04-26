@@ -18,12 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
 
 /** Core pattern class that stores the definition of a single pattern. */
 @SuppressWarnings({
@@ -31,15 +28,12 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
 })
 public class CEPPattern implements Serializable {
 
-  private final Schema mySchema;
   private final String patternVar;
   private final CEPCall patternCondition;
   private final Quantifier quant;
 
-  private CEPPattern(
-      Schema mySchema, String patternVar, @Nullable RexCall patternDef, Quantifier quant) {
+  private CEPPattern(String patternVar, @Nullable RexCall patternDef, Quantifier quant) {
 
-    this.mySchema = mySchema;
     this.patternVar = patternVar;
     this.quant = quant;
 
@@ -49,51 +43,6 @@ public class CEPPattern implements Serializable {
     }
 
     this.patternCondition = CEPCall.of(patternDef);
-  }
-
-  // support only simple match: LAST(*.$, 0) for now.
-  // TODO: remove this method after implementing NFA
-  private int evalOperation(CEPCall operation, CEPLiteral lit, Row rowEle) {
-    CEPOperator call = operation.getOperator();
-    List<CEPOperation> operands = operation.getOperands();
-
-    if (call.getCepKind() == CEPKind.LAST) {
-      CEPOperation opr0 = operands.get(0);
-      CEPLiteral opr1 = (CEPLiteral) operands.get(1);
-      if (opr0.getClass() == CEPFieldRef.class && opr1.getDecimal().equals(BigDecimal.ZERO)) {
-        int fIndex = ((CEPFieldRef) opr0).getIndex();
-        Schema.Field fd = mySchema.getField(fIndex);
-        Schema.FieldType dtype = fd.getType();
-
-        switch (dtype.getTypeName()) {
-          case BYTE:
-            return rowEle.getByte(fIndex).compareTo(lit.getByte());
-          case INT16:
-            return rowEle.getInt16(fIndex).compareTo(lit.getInt16());
-          case INT32:
-            return rowEle.getInt32(fIndex).compareTo(lit.getInt32());
-          case INT64:
-            return rowEle.getInt64(fIndex).compareTo(lit.getInt64());
-          case DECIMAL:
-            return rowEle.getDecimal(fIndex).compareTo(lit.getDecimal());
-          case FLOAT:
-            return rowEle.getFloat(fIndex).compareTo(lit.getFloat());
-          case DOUBLE:
-            return rowEle.getDouble(fIndex).compareTo(lit.getDouble());
-          case STRING:
-            return rowEle.getString(fIndex).compareTo(lit.getString());
-          case DATETIME:
-            return rowEle.getDateTime(fIndex).compareTo(lit.getDateTime());
-          case BOOLEAN:
-            return rowEle.getBoolean(fIndex).compareTo(lit.getBoolean());
-          default:
-            throw new UnsupportedOperationException(
-                "Specified column not comparable: " + fd.getName());
-        }
-      }
-    }
-    throw new UnsupportedOperationException(
-        "backward functions (PREV, NEXT) not supported for now");
   }
 
   @Override
@@ -115,6 +64,6 @@ public class CEPPattern implements Serializable {
 
   public static CEPPattern of(
       Schema theSchema, String patternVar, RexCall patternDef, Quantifier quant) {
-    return new CEPPattern(theSchema, patternVar, patternDef, quant);
+    return new CEPPattern(patternVar, patternDef, quant);
   }
 }

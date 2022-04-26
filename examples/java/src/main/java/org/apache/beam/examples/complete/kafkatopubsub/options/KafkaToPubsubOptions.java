@@ -21,6 +21,7 @@ import org.apache.beam.examples.complete.kafkatopubsub.transforms.FormatTransfor
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface KafkaToPubsubOptions extends PipelineOptions {
   @Description(
@@ -90,6 +91,7 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   @Description(
       "Additional kafka consumer configs to be applied to Kafka Consumer (e.g. key1=value1;key2=value2).")
+  @Nullable
   String getKafkaConsumerConfig();
 
   void setKafkaConsumerConfig(String kafkaConfig);

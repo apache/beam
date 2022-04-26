@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.Monitor;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 
@@ -39,9 +36,7 @@ public final class NexmarkQuery<T extends KnownSize>
   final NexmarkConfiguration configuration;
   public final Monitor<Event> eventMonitor;
   public final Monitor<T> resultMonitor;
-  private final Counter fatalCounter;
   private final NexmarkQueryTransform<T> transform;
-  private transient PCollection<KV<Long, String>> sideInput = null;
 
   public NexmarkQuery(NexmarkConfiguration configuration, NexmarkQueryTransform<T> transform) {
     super(transform.getName());
@@ -50,11 +45,9 @@ public final class NexmarkQuery<T extends KnownSize>
     if (configuration.debug) {
       eventMonitor = new Monitor<>(name + ".Events", "event");
       resultMonitor = new Monitor<>(name + ".Results", "result");
-      fatalCounter = Metrics.counter(name, "fatal");
     } else {
       eventMonitor = null;
       resultMonitor = null;
-      fatalCounter = null;
     }
   }
 

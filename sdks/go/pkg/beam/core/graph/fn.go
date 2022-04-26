@@ -168,6 +168,8 @@ const (
 	restrictionSizeName          = "RestrictionSize"
 	createTrackerName            = "CreateTracker"
 
+	createWatermarkEstimatorName = "CreateWatermarkEstimator"
+
 	createAccumulatorName = "CreateAccumulator"
 	addInputName          = "AddInput"
 	mergeAccumulatorsName = "MergeAccumulators"
@@ -187,13 +189,18 @@ var doFnNames = []string{
 	splitRestrictionName,
 	restrictionSizeName,
 	createTrackerName,
+	createWatermarkEstimatorName,
 }
 
-var sdfNames = []string{
+var requiredSdfNames = []string{
 	createInitialRestrictionName,
 	splitRestrictionName,
 	restrictionSizeName,
 	createTrackerName,
+}
+
+var watermarkEstimationNames = []string{
+	createWatermarkEstimatorName,
 }
 
 var combineFnNames = []string{
@@ -301,6 +308,22 @@ func (f *SplittableDoFn) RestrictionT() reflect.Type {
 	return f.CreateInitialRestrictionFn().Ret[0].T
 }
 
+// IsWatermarkEstimating returns whether the DoFn implements a custom watermark estimator.
+func (f *SplittableDoFn) IsWatermarkEstimating() bool {
+	_, ok := f.methods[createWatermarkEstimatorName]
+	return ok
+}
+
+// createWatermarkEstimatorFn returns the "createWatermarkEstimator" function, if present
+func (f *SplittableDoFn) CreateWatermarkEstimatorFn() *funcx.Fn {
+	return f.methods[createWatermarkEstimatorName]
+}
+
+// WatermarkEstimatorT returns the type of the watermark estimator from the SDF
+func (f *SplittableDoFn) WatermarkEstimatorT() reflect.Type {
+	return f.CreateWatermarkEstimatorFn().Ret[0].T
+}
+
 // TODO(herohde) 5/19/2017: we can sometimes detect whether the main input must be
 // a KV or not based on the other signatures (unless we're more loose about which
 // sideinputs are present). Bind should respect that.
@@ -385,6 +408,12 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 
 	if _, ok := fn.methods[processElementName]; !ok {
 		err := errors.Errorf("failed to find %v method", processElementName)
+		if fn.Recv != nil {
+			v := reflect.ValueOf(fn.Recv)
+			if v.Kind() != reflect.Ptr {
+				err = errors.Wrap(err, "structural DoFn passed by value, ensure that the ProcessElement method has a value receiver or pass the DoFn by pointer")
+			}
+		}
 		return nil, addContext(err, fn)
 	}
 
@@ -479,6 +508,18 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	// Perform validation on the SDF method signatures to ensure they're valid.
 	if isSdf {
 		err := validateSdfSignatures(fn, numMainIn)
+		if err != nil {
+			return nil, addContext(err, fn)
+		}
+	}
+
+	isWatermarkEstimating, err := validateIsWatermarkEstimating(fn, isSdf)
+	if err != nil {
+		return nil, addContext(err, fn)
+	}
+
+	if isWatermarkEstimating {
+		err := validateWatermarkSig(fn)
 		if err != nil {
 			return nil, addContext(err, fn)
 		}
@@ -683,7 +724,7 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 // requirements for either case.
 //
 // For a Fn to be an SDF it must:
-//   * Implement all the SDF methods.
+//   * Implement all the required (non-watermark related) SDF methods.
 //   * Include an RTracker parameter in ProcessElement.
 // For a Fn to not be an SDF, it must:
 //   * Implement none of the SDF methods.
@@ -691,7 +732,7 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 func validateIsSdf(fn *Fn) (bool, error) {
 	// Store missing method names so we can output them to the user if validation fails.
 	var missing []string
-	for _, name := range sdfNames {
+	for _, name := range requiredSdfNames {
 		_, ok := fn.methods[name]
 		if !ok {
 			missing = append(missing, name)
@@ -702,10 +743,10 @@ func validateIsSdf(fn *Fn) (bool, error) {
 	switch len(missing) {
 	case 0: // All SDF methods present.
 		isSdf = true
-	case len(sdfNames): // No SDF methods.
+	case len(requiredSdfNames): // No SDF methods.
 		isSdf = false
 	default: // Anything else means an invalid # of SDF methods.
-		err := errors.Errorf("not all SplittableDoFn methods are present. Missing methods: %v", missing)
+		err := errors.Errorf("not all required SplittableDoFn methods are present. Missing methods: %v", missing)
 		return false, err
 	}
 
@@ -778,7 +819,7 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
-	for _, name := range sdfNames {
+	for _, name := range requiredSdfNames {
 		method := fn.methods[name]
 		if len(method.Param) != paramNums[name] {
 			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
@@ -807,7 +848,7 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 	restrictionT := fn.methods[createInitialRestrictionName].Ret[0].T
 	rTrackerT := reflect.TypeOf((*sdf.RTracker)(nil)).Elem()
 
-	for _, name := range sdfNames {
+	for _, name := range requiredSdfNames {
 		method := fn.methods[name]
 		switch name {
 		case createInitialRestrictionName:
@@ -863,7 +904,7 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					createTrackerName, 0, method.Param[0].T, restrictionT, createInitialRestrictionName)
 			}
-			if method.Ret[0].T.Implements(rTrackerT) == false {
+			if !method.Ret[0].T.Implements(rTrackerT) {
 				err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.RTracker",
 					createTrackerName, 0, method.Ret[0].T)
 				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
@@ -904,6 +945,61 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int) error {
 				name, i, method.Param[i].T, processFn.Param[pos+i].T, processElementName, processElementName)
 		}
 	}
+	return nil
+}
+
+// validateIsWatermarkEstimating returns true if watermark estimator methods are present on the DoFn, returns
+// false if they aren't, and returns an error if they are present but the function isn't an sdf and thus doesn't
+// support watermark estimation
+func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
+	_, isWatermarkEstimating := fn.methods[createWatermarkEstimatorName]
+	if !isSdf && isWatermarkEstimating {
+		return false, errors.Errorf("watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
+			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
+	}
+	return isWatermarkEstimating, nil
+}
+
+// validateWatermarkSig validates that all watermark related functions are valid
+func validateWatermarkSig(fn *Fn) error {
+	paramRange := map[string][]int{
+		createWatermarkEstimatorName: []int{0, 0},
+	}
+	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
+
+	watermarkEstimatorT := reflect.TypeOf((*sdf.WatermarkEstimator)(nil)).Elem()
+
+	for _, name := range watermarkEstimationNames {
+		if method, ok := fn.methods[name]; ok {
+			if len(method.Param) < paramRange[name][0] || len(method.Param) > paramRange[name][1] {
+				err := errors.Errorf("unexpected number of params in method %v. got: %v, want number in range: %v to %v",
+					name, len(method.Param), paramRange[name][0], paramRange[name][1])
+				return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
+					"Got: %v, Want number in range: %v to %v. Check that the signature conforms to the expected signature for %v, "+
+					"and that elements in SDF method parameters match elements in %v.",
+					name, len(method.Param), paramRange[name][0], paramRange[name][1], name, processElementName)
+			}
+			if len(method.Ret) != returnNum {
+				err := errors.Errorf("unexpected number of returns in method %v. got: %v, want: %v",
+					name, len(method.Ret), returnNum)
+				return errors.SetTopLevelMsgf(err, "Unexpected number of return values in method %v. "+
+					"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v.",
+					name, len(method.Ret), returnNum, name)
+			}
+
+			switch name {
+			case createWatermarkEstimatorName:
+				if !method.Ret[0].T.Implements(watermarkEstimatorT) {
+					err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.WatermarkEstimator",
+						createWatermarkEstimatorName, 0, method.Ret[0].T)
+					return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+						"return value at index %v (type: %v). Output of method %v must implement sdf.WatermarkEstimator.",
+						createWatermarkEstimatorName, 0, method.Ret[0].T, createWatermarkEstimatorName)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

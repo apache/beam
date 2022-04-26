@@ -503,10 +503,9 @@ class TestReadFromPubSub(unittest.TestCase):
               with_attributes=True))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_strings_success(self, mock_pubsub):
     data = u'🤷 ¯\\_(ツ)_/¯'
@@ -526,10 +525,9 @@ class TestReadFromPubSub(unittest.TestCase):
               'projects/fakeprj/topics/a_topic', None, None))
       assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_data_success(self, mock_pubsub):
     data_encoded = u'🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
@@ -547,10 +545,9 @@ class TestReadFromPubSub(unittest.TestCase):
           | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
       assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
     data = b'data'
@@ -583,10 +580,9 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='time'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
     data = b'data'
@@ -619,10 +615,9 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='time'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
     data = b'data'
@@ -656,10 +651,9 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='nonexistent'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
     data = b'data'
@@ -688,8 +682,7 @@ class TestReadFromPubSub(unittest.TestCase):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
 
-    mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
-        [mock.call()])
+    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
     # id_label is unsupported in DirectRunner.

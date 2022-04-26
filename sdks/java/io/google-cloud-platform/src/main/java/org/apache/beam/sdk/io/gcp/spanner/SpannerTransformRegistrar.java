@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -51,13 +51,13 @@ import org.joda.time.Duration;
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
-  public static final String INSERT_URN = "beam:external:java:spanner:insert:v1";
-  public static final String UPDATE_URN = "beam:external:java:spanner:update:v1";
-  public static final String REPLACE_URN = "beam:external:java:spanner:replace:v1";
+  public static final String INSERT_URN = "beam:transform:org.apache.beam:spanner_insert:v1";
+  public static final String UPDATE_URN = "beam:transform:org.apache.beam:spanner_update:v1";
+  public static final String REPLACE_URN = "beam:transform:org.apache.beam:spanner_replace:v1";
   public static final String INSERT_OR_UPDATE_URN =
-      "beam:external:java:spanner:insert_or_update:v1";
-  public static final String DELETE_URN = "beam:external:java:spanner:delete:v1";
-  public static final String READ_URN = "beam:external:java:spanner:read:v1";
+      "beam:transform:org.apache.beam:spanner_insert_or_update:v1";
+  public static final String DELETE_URN = "beam:transform:org.apache.beam:spanner_delete:v1";
+  public static final String READ_URN = "beam:transform:org.apache.beam:spanner_read:v1";
 
   @Override
   @NonNull
@@ -215,7 +215,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     @Override
     @NonNull
-    public PTransform<PBegin, PCollection<Row>> buildExternal(Configuration configuration) {
+    public PTransform<PBegin, PCollection<Row>> buildExternal(
+        ReadBuilder.Configuration configuration) {
       configuration.checkMandatoryFields();
 
       SpannerIO.Read readTransform =
@@ -334,7 +335,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
     @Override
     @NonNull
-    public PTransform<PCollection<Row>, PDone> buildExternal(Configuration configuration) {
+    public PTransform<PCollection<Row>, PDone> buildExternal(
+        WriteBuilder.Configuration configuration) {
       configuration.checkMandatoryFields();
 
       SpannerIO.Write writeTransform =

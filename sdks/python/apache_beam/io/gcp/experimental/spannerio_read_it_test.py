@@ -33,9 +33,13 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=unused-import
 try:
   from google.cloud import spanner
+  from apache_beam.io.gcp import resource_identifiers
   from apache_beam.io.gcp.experimental.spannerio import create_transaction
   from apache_beam.io.gcp.experimental.spannerio import ReadOperation
   from apache_beam.io.gcp.experimental.spannerio import ReadFromSpanner
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
 except ImportError:
   spanner = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -101,7 +105,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     cls._add_dummy_entries()
     _LOGGER.info("Spanner Read IT Setup Complete...")
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_read_via_table(self):
     _LOGGER.info("Spanner Read via table")
     with beam.Pipeline(argv=self.args) as p:
@@ -113,7 +117,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           columns=["UserId", "Key"])
     assert_that(r, equal_to(self._data))
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_read_via_sql(self):
     _LOGGER.info("Running Spanner via sql")
     with beam.Pipeline(argv=self.args) as p:
@@ -123,6 +127,225 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           self.TEST_DATABASE,
           sql="select * from Users")
     assert_that(r, equal_to(self._data))
+
+  @pytest.mark.spannerio_it
+  def test_transaction_table_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with beam.Pipeline(argv=self.args) as p:
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      r = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          table="Users",
+          columns=["UserId", "Key"],
+          transaction=transaction)
+
+    assert_that(r, equal_to(self._data))
+    self.verify_table_read_call_metric(
+        self.project, self.TEST_DATABASE, 'Users', 'ok', 1)
+
+  @pytest.mark.spannerio_it
+  def test_transaction_table_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with self.assertRaises(Exception):
+      p = beam.Pipeline(argv=self.args)
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      _ = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          table="INVALID_TABLE",
+          columns=["UserId", "Key"],
+          transaction=transaction)
+
+      res = p.run()
+      res.wait_until_finish()
+
+    self.verify_table_read_call_metric(
+        self.project, self.TEST_DATABASE, 'INVALID_TABLE', '404', 1)
+
+  @pytest.mark.spannerio_it
+  def test_transaction_sql_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with beam.Pipeline(argv=self.args) as p:
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      r = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          sql="select * from Users",
+          query_name='query-1',
+          transaction=transaction)
+
+    assert_that(r, equal_to(self._data))
+    self.verify_sql_read_call_metric(
+        self.project, self.TEST_DATABASE, 'query-1', 'ok', 1)
+
+  @pytest.mark.spannerio_it
+  def test_transaction_sql_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with self.assertRaises(Exception):
+      p = beam.Pipeline(argv=self.args)
+      transaction = (
+          p
+          | create_transaction(self.project, self.instance, self.TEST_DATABASE))
+      _ = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          sql="select * from NonExistent",
+          query_name="query-2",
+          transaction=transaction)
+
+      res = p.run()
+      res.wait_until_finish()
+
+    self.verify_sql_read_call_metric(
+        self.project, self.TEST_DATABASE, 'query-2', '400', 1)
+
+  @pytest.mark.spannerio_it
+  def test_table_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with beam.Pipeline(argv=self.args) as p:
+      r = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          table="Users",
+          columns=["UserId", "Key"])
+
+    assert_that(r, equal_to(self._data))
+    self.verify_table_read_call_metric(
+        self.project, self.TEST_DATABASE, 'Users', 'ok', 1)
+
+  @pytest.mark.spannerio_it
+  def test_table_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with self.assertRaises(Exception):
+      p = beam.Pipeline(argv=self.args)
+      _ = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          table="INVALID_TABLE",
+          columns=["UserId", "Key"])
+
+      res = p.run()
+      res.wait_until_finish()
+
+      self.verify_table_read_call_metric(
+          self.project, self.TEST_DATABASE, 'INVALID_TABLE', '404', 1)
+
+  @pytest.mark.spannerio_it
+  def test_sql_metrics_ok_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with beam.Pipeline(argv=self.args) as p:
+      r = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          sql="select * from Users",
+          query_name='query-1')
+
+    assert_that(r, equal_to(self._data))
+    self.verify_sql_read_call_metric(
+        self.project, self.TEST_DATABASE, 'query-1', 'ok', 1)
+
+  @pytest.mark.spannerio_it
+  def test_sql_metrics_error_call(self):
+    if 'DirectRunner' not in self.runner_name:
+      raise unittest.SkipTest('This test only runs with DirectRunner.')
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    with self.assertRaises(Exception):
+      p = beam.Pipeline(argv=self.args)
+      _ = p | ReadFromSpanner(
+          self.project,
+          self.instance,
+          self.TEST_DATABASE,
+          sql="select * from NonExistent",
+          query_name='query-2')
+
+      res = p.run()
+      res.wait_until_finish()
+
+      self.verify_sql_read_call_metric(
+          self.project, self.TEST_DATABASE, 'query-2', '400', 1)
+
+  def verify_table_read_call_metric(
+      self, project, database, table, status, count):
+    resource = resource_identifiers.SpannerTable(project, database, table)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: project,
+        monitoring_infos.SPANNER_DATABASE_ID: database,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_TABLE_ID: table,
+        monitoring_infos.STATUS_LABEL: status
+    }
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, count)
+
+  def verify_sql_read_call_metric(
+      self, project, database, query_name, status, count):
+    resource = resource_identifiers.SpannerSqlQuery(project, query_name)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Spanner',
+        monitoring_infos.METHOD_LABEL: 'Read',
+        monitoring_infos.SPANNER_PROJECT_ID: project,
+        monitoring_infos.SPANNER_DATABASE_ID: database,
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.SPANNER_QUERY_NAME: query_name,
+        monitoring_infos.STATUS_LABEL: status
+    }
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, count)
 
   @classmethod
   def tearDownClass(cls):

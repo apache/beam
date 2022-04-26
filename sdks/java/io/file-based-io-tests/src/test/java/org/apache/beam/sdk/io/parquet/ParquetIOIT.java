@@ -93,8 +93,6 @@ public class ParquetIOIT {
                   + "}");
 
   private static String filenamePrefix;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static Integer numberOfTextLines;
   private static Integer datasetSize;
   private static String expectedHash;
@@ -110,8 +108,6 @@ public class ParquetIOIT {
     datasetSize = options.getDatasetSize();
     expectedHash = options.getExpectedHash();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     settings =
         InfluxDBSettings.builder()
             .withHost(options.getInfluxHost())
@@ -179,7 +175,6 @@ public class ParquetIOIT {
         fillMetricSuppliers(uuid, timestamp);
     final IOITMetrics metrics =
         new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp);
-    metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }
 

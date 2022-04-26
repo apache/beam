@@ -85,7 +85,7 @@ public class TableSchemaJSONLoader {
         } else {
           // If the key of the pair is "name", directly append it to the StringBuilder, then append
           // a space.
-          schemaStringBuilder.append((pair.getValue()));
+          schemaStringBuilder.append(pair.getValue());
           schemaStringBuilder.append(' ');
         }
       }

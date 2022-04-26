@@ -20,23 +20,20 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.core.ApiFuture;
-import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
-import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Descriptors.Descriptor;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -48,6 +45,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
+import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.DescriptorWrapper;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiFlushAndFinalizeDoFn.Operation;
 import org.apache.beam.sdk.metrics.Counter;
@@ -59,6 +57,10 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -66,6 +68,7 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -75,7 +78,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
@@ -87,17 +89,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A transform to write sharded records to BigQuery using the Storage API. */
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+})
 public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>>, PCollection<Void>> {
+        PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>>,
+        PCollection<Void>> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWritesShardedRecords.class);
+  private static final Duration DEFAULT_STREAM_IDLE_TIME = Duration.standardHours(1);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final CreateDisposition createDisposition;
   private final String kmsKey;
   private final BigQueryServices bqServices;
   private final Coder<DestinationT> destinationCoder;
+  private final Duration streamIdleTime = DEFAULT_STREAM_IDLE_TIME;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
@@ -142,13 +150,13 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
   @Override
   public PCollection<Void> expand(
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>> input) {
+      PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> input) {
     String operationName = input.getName() + "/" + getName();
     // Append records to the Storage API streams.
     PCollection<KV<String, Operation>> written =
         input.apply(
             "Write Records",
-            ParDo.of(new WriteRecordsDoFn(operationName))
+            ParDo.of(new WriteRecordsDoFn(operationName, streamIdleTime))
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
     SchemaCoder<Operation> operationCoder;
@@ -179,58 +187,15 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
             "Flush and finalize writes", ParDo.of(new StorageApiFlushAndFinalizeDoFn(bqServices)));
   }
 
-  /**
-   * Takes in an iterable and batches the results into multiple ProtoRows objects. The splitSize
-   * parameter controls how many rows are batched into a single ProtoRows object before we move on
-   * to the next one.
-   */
-  static class SplittingIterable implements Iterable<ProtoRows> {
-    private final Iterable<byte[]> underlying;
-    private final long splitSize;
-
-    public SplittingIterable(Iterable<byte[]> underlying, long splitSize) {
-      this.underlying = underlying;
-      this.splitSize = splitSize;
-    }
-
-    @Override
-    public Iterator<ProtoRows> iterator() {
-      return new Iterator<ProtoRows>() {
-        final Iterator<byte[]> underlyingIterator = underlying.iterator();
-
-        @Override
-        public boolean hasNext() {
-          return underlyingIterator.hasNext();
-        }
-
-        @Override
-        public ProtoRows next() {
-          if (!hasNext()) {
-            throw new NoSuchElementException();
-          }
-
-          ProtoRows.Builder inserts = ProtoRows.newBuilder();
-          long bytesSize = 0;
-          while (underlyingIterator.hasNext()) {
-            ByteString byteString = ByteString.copyFrom(underlyingIterator.next());
-            inserts.addSerializedRows(byteString);
-            bytesSize += byteString.size();
-            if (bytesSize > splitSize) {
-              break;
-            }
-          }
-          return inserts.build();
-        }
-      };
-    }
-  }
-
   class WriteRecordsDoFn
-      extends DoFn<KV<ShardedKey<DestinationT>, Iterable<byte[]>>, KV<String, Operation>> {
+      extends DoFn<
+          KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>, KV<String, Operation>> {
     private final Counter recordsAppended =
         Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
     private final Counter streamsCreated =
         Metrics.counter(WriteRecordsDoFn.class, "streamsCreated");
+    private final Counter streamsIdle =
+        Metrics.counter(WriteRecordsDoFn.class, "idleStreamsFinalized");
     private final Counter appendFailures =
         Metrics.counter(WriteRecordsDoFn.class, "appendFailures");
     private final Counter appendOffsetFailures =
@@ -248,7 +213,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
 
-    private @Nullable DatasetService datasetServiceInternal = null;
+    private transient @Nullable DatasetService datasetServiceInternal = null;
 
     // Stores the current stream for this key.
     @StateId("streamName")
@@ -258,8 +223,14 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     @StateId("streamOffset")
     private final StateSpec<ValueState<Long>> streamOffsetSpec = StateSpecs.value();
 
-    public WriteRecordsDoFn(String operationName) {
+    @TimerId("idleTimer")
+    private final TimerSpec idleTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    private final Duration streamIdleTime;
+
+    public WriteRecordsDoFn(String operationName, Duration streamIdleTime) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
+      this.streamIdleTime = streamIdleTime;
     }
 
     @StartBundle
@@ -275,6 +246,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         String tableId,
         ValueState<String> streamName,
         ValueState<Long> streamOffset,
+        Timer streamIdleTimer,
         DatasetService datasetService)
         throws IOException, InterruptedException {
       String stream = streamName.read();
@@ -285,6 +257,12 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         streamOffset.write(0L);
         streamsCreated.inc();
       }
+      // Reset the idle timer.
+      streamIdleTimer
+          .offset(streamIdleTime)
+          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+          .setRelative();
+
       return stream;
     }
 
@@ -313,9 +291,10 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     public void process(
         ProcessContext c,
         final PipelineOptions pipelineOptions,
-        @Element KV<ShardedKey<DestinationT>, Iterable<byte[]>> element,
+        @Element KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>> element,
         final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
+        @TimerId("idleTimer") Timer idleTimer,
         final OutputReceiver<KV<String, Operation>> o)
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
@@ -330,27 +309,39 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                         + "but %s returned null for destination %s",
                     dynamicDestinations,
                     dest);
-                Supplier<TableSchema> schemaSupplier = () -> dynamicDestinations.getSchema(dest);
-                return CreateTableHelpers.possiblyCreateTable(
-                    c,
-                    tableDestination1,
-                    schemaSupplier,
-                    createDisposition,
-                    destinationCoder,
-                    kmsKey,
-                    bqServices);
+                return tableDestination1;
               });
       final String tableId = tableDestination.getTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       MessageConverter<ElementT> messageConverter =
-          messageConverters.get(element.getKey().getKey(), dynamicDestinations);
-      Descriptor descriptor = messageConverter.getSchemaDescriptor();
+          messageConverters.get(element.getKey().getKey(), dynamicDestinations, datasetService);
+      AtomicReference<DescriptorWrapper> descriptor =
+          new AtomicReference<>(messageConverter.getSchemaDescriptor());
 
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or already schema.
       final long oneMb = 1024 * 1024;
-      Iterable<ProtoRows> messages = new SplittingIterable(element.getValue(), oneMb);
+      // Called if the schema does not match.
+      Function<Long, DescriptorWrapper> updateSchemaHash =
+          (Long expectedHash) -> {
+            try {
+              LOG.info("Schema does not match. Querying BigQuery for the current table schema.");
+              // Update the schema from the table.
+              messageConverter.refreshSchema(expectedHash);
+              descriptor.set(messageConverter.getSchemaDescriptor());
+              // Force a new connection.
+              String stream = streamName.read();
+              if (stream != null) {
+                APPEND_CLIENTS.invalidate(stream);
+              }
+              return descriptor.get();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          };
+      Iterable<ProtoRows> messages =
+          new SplittingIterable(element.getValue(), oneMb, descriptor.get(), updateSchemaHash);
 
       class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
         final ShardedKey<DestinationT> key;
@@ -389,10 +380,14 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                 // Clear the stream name, forcing a new one to be created.
                 streamName.write("");
               }
-              String stream = getOrCreateStream(tableId, streamName, streamOffset, datasetService);
+              String stream =
+                  getOrCreateStream(tableId, streamName, streamOffset, idleTimer, datasetService);
               StreamAppendClient appendClient =
                   APPEND_CLIENTS.get(
-                      stream, () -> datasetService.getStreamAppendClient(stream, descriptor));
+                      stream,
+                      () ->
+                          datasetService.getStreamAppendClient(
+                              stream, descriptor.get().descriptor));
               for (AppendRowsContext context : contexts) {
                 context.streamName = stream;
                 appendClient.pin();
@@ -431,7 +426,9 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                 StreamAppendClient appendClient =
                     APPEND_CLIENTS.get(
                         context.streamName,
-                        () -> datasetService.getStreamAppendClient(context.streamName, descriptor));
+                        () ->
+                            datasetService.getStreamAppendClient(
+                                context.streamName, descriptor.get().descriptor));
                 return appendClient.appendRows(context.offset, protoRows);
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -444,13 +441,32 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
               // The first context is always the one that fails.
               AppendRowsContext failedContext =
                   Preconditions.checkNotNull(Iterables.getFirst(failedContexts, null));
-              Status.Code statusCode = Status.fromThrowable(failedContext.getError()).getCode();
               // Invalidate the StreamWriter and force a new one to be created.
               LOG.error(
                   "Got error " + failedContext.getError() + " closing " + failedContext.streamName);
               clearClients.accept(contexts);
               appendFailures.inc();
-              if (statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS)) {
+
+              boolean explicitStreamFinalized =
+                  failedContext.getError() instanceof StreamFinalizedException;
+              Status.Code statusCode = Status.fromThrowable(failedContext.getError()).getCode();
+              // This means that the offset we have stored does not match the current end of
+              // the stream in the Storage API. Usually this happens because a crash or a bundle
+              // failure
+              // happened after an append but before the worker could checkpoint it's
+              // state. The records that were appended in a failed bundle will be retried,
+              // meaning that the unflushed tail of the stream must be discarded to prevent
+              // duplicates.
+              boolean offsetMismatch =
+                  statusCode.equals(Code.OUT_OF_RANGE) || statusCode.equals(Code.ALREADY_EXISTS);
+              // This implies that the stream doesn't exist or has already been finalized. In this
+              // case we have no choice but to create a new stream.
+              boolean streamDoesNotExist =
+                  explicitStreamFinalized
+                      || statusCode.equals(Code.INVALID_ARGUMENT)
+                      || statusCode.equals(Code.NOT_FOUND)
+                      || statusCode.equals(Code.FAILED_PRECONDITION);
+              if (offsetMismatch || streamDoesNotExist) {
                 appendOffsetFailures.inc();
                 LOG.warn(
                     "Append to "
@@ -458,14 +474,6 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                         + " failed with "
                         + failedContext.getError()
                         + " Will retry with a new stream");
-                // This means that the offset we have stored does not match the current end of
-                // the stream in the Storage API. Usually this happens because a crash or a bundle
-                // failure
-                // happened after an append but before the worker could checkpoint it's
-                // state. The records that were appended in a failed bundle will be retried,
-                // meaning that the unflushed tail of the stream must be discarded to prevent
-                // duplicates.
-
                 // Finalize the stream and clear streamName so a new stream will be created.
                 o.output(
                     KV.of(failedContext.streamName, new Operation(failedContext.offset - 1, true)));
@@ -512,6 +520,38 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
       java.time.Duration timeElapsed = java.time.Duration.between(now, Instant.now());
       appendLatencyDistribution.update(timeElapsed.toMillis());
+      idleTimer
+          .offset(streamIdleTime)
+          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+          .setRelative();
+    }
+
+    // called by the idleTimer and window-expiration handlers.
+    private void finalizeStream(
+        @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
+        @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
+        OutputReceiver<KV<String, Operation>> o) {
+      String stream = MoreObjects.firstNonNull(streamName.read(), "");
+
+      if (!Strings.isNullOrEmpty(stream)) {
+        // Finalize the stream
+        long nextOffset = MoreObjects.firstNonNull(streamOffset.read(), 0L);
+        o.output(KV.of(stream, new Operation(nextOffset - 1, true)));
+        streamName.clear();
+        streamOffset.clear();
+        // Make sure that the stream object is closed.
+        APPEND_CLIENTS.invalidate(stream);
+      }
+    }
+
+    @OnTimer("idleTimer")
+    public void onTimer(
+        @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
+        @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
+        OutputReceiver<KV<String, Operation>> o) {
+      // Stream is idle - clear it.
+      finalizeStream(streamName, streamOffset, o);
+      streamsIdle.inc();
     }
 
     @OnWindowExpiration
@@ -521,15 +561,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         OutputReceiver<KV<String, Operation>> o) {
       // Window is done - usually because the pipeline has been drained. Make sure to clean up
       // streams so that they are not leaked.
-      String stream = MoreObjects.firstNonNull(streamName.read(), null);
-
-      if (!Strings.isNullOrEmpty(stream)) {
-        // Finalize the stream
-        long nextOffset = MoreObjects.firstNonNull(streamOffset.read(), 0L);
-        o.output(KV.of(stream, new Operation(nextOffset - 1, true)));
-        // Make sure that the stream object is closed.
-        APPEND_CLIENTS.invalidate(stream);
-      }
+      finalizeStream(streamName, streamOffset, o);
     }
   }
 }

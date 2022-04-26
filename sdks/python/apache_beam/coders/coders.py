@@ -53,6 +53,7 @@ from typing import TypeVar
 from typing import overload
 
 import google.protobuf.wrappers_pb2
+import proto
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
@@ -79,7 +80,7 @@ except ImportError:
 try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
   # occurs.
-  from apache_beam.internal.pickler import dill
+  from apache_beam.internal.dill_pickler import dill
 except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
@@ -99,6 +100,7 @@ __all__ = [
     'NullableCoder',
     'PickleCoder',
     'ProtoCoder',
+    'ProtoPlusCoder',
     'ShardedKeyCoder',
     'SingletonCoder',
     'StrUtf8Coder',
@@ -547,6 +549,11 @@ class MapCoder(FastCoder):
     # Map ordering is non-deterministic
     return False
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return DeterministicMapCoder(
+        self._key_coder.as_deterministic_coder(step_label, error_message),
+        self._value_coder.as_deterministic_coder(step_label, error_message))
+
   def __eq__(self, other):
     return (
         type(self) == type(other) and self._key_coder == other._key_coder and
@@ -557,6 +564,36 @@ class MapCoder(FastCoder):
 
   def __repr__(self):
     return 'MapCoder[%s, %s]' % (self._key_coder, self._value_coder)
+
+
+# This is a separate class from MapCoder as the former is a standard coder with
+# no way to carry the is_deterministic bit.
+class DeterministicMapCoder(FastCoder):
+  def __init__(self, key_coder, value_coder):
+    # type: (Coder, Coder) -> None
+    assert key_coder.is_deterministic()
+    assert value_coder.is_deterministic()
+    self._key_coder = key_coder
+    self._value_coder = value_coder
+
+  def _create_impl(self):
+    return coder_impl.MapCoderImpl(
+        self._key_coder.get_impl(), self._value_coder.get_impl(), True)
+
+  def is_deterministic(self):
+    return True
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._key_coder == other._key_coder and
+        self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._key_coder) + hash(self._value_coder)
+
+  def __repr__(self):
+    return 'DeterministicMapCoder[%s, %s]' % (
+        self._key_coder, self._value_coder)
 
 
 class NullableCoder(FastCoder):
@@ -570,9 +607,33 @@ class NullableCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Optional[self._value_coder.to_type_hint()]
 
+  def _get_component_coders(self):
+    # type: () -> List[Coder]
+    return [self._value_coder]
+
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    if typehints.is_nullable(typehint):
+      return cls(
+          registry.get_coder(
+              typehints.get_concrete_type_from_nullable(typehint)))
+    else:
+      raise TypeError(
+          'Typehint is not of nullable type, '
+          'and cannot be converted to a NullableCoder',
+          typehint)
+
   def is_deterministic(self):
     # type: () -> bool
     return self._value_coder.is_deterministic()
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      deterministic_value_coder = self._value_coder.as_deterministic_coder(
+          step_label, error_message)
+      return NullableCoder(deterministic_value_coder)
 
   def __eq__(self, other):
     return (
@@ -580,6 +641,9 @@ class NullableCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self)) + hash(self._value_coder)
+
+
+Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -959,7 +1023,7 @@ class ProtoCoder(FastCoder):
 
   """
   def __init__(self, proto_message_type):
-    # type: (google.protobuf.message.Message) -> None
+    # type: (Type[google.protobuf.message.Message]) -> None
     self.proto_message_type = proto_message_type
 
   def _create_impl(self):
@@ -1012,6 +1076,42 @@ class DeterministicProtoCoder(ProtoCoder):
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return self
+
+
+class ProtoPlusCoder(FastCoder):
+  """A Coder for Google Protocol Buffers wrapped using the proto-plus library.
+
+  ProtoPlusCoder is registered in the global CoderRegistry as the default coder
+  for any proto.Message object.
+  """
+  def __init__(self, proto_plus_message_type):
+    # type: (Type[proto.Message]) -> None
+    self.proto_plus_message_type = proto_plus_message_type
+
+  def _create_impl(self):
+    return coder_impl.ProtoPlusCoderImpl(self.proto_plus_message_type)
+
+  def is_deterministic(self):
+    return True
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and
+        self.proto_plus_message_type == other.proto_plus_message_type)
+
+  def __hash__(self):
+    return hash(self.proto_plus_message_type)
+
+  @classmethod
+  def from_type_hint(cls, typehint, unused_registry):
+    if issubclass(typehint, proto.Message):
+      return cls(typehint)
+    else:
+      raise ValueError(
+          'Expected a subclass of proto.Message, but got a %s' % typehint)
+
+  def to_type_hint(self):
+    return self.proto_plus_message_type
 
 
 AVRO_GENERIC_CODER_URN = "beam:coder:avro:generic:v1"
@@ -1245,6 +1345,9 @@ class ListCoder(ListLikeCoder):
   def to_type_hint(self):
     return typehints.List[self._elem_coder.to_type_hint()]
 
+  def _create_impl(self):
+    return coder_impl.ListCoderImpl(self._elem_coder.get_impl())
+
 
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
@@ -1448,7 +1551,6 @@ Coder.register_structured_urn(
 
 
 class StateBackedIterableCoder(FastCoder):
-
   DEFAULT_WRITE_THRESHOLD = 1
 
   def __init__(

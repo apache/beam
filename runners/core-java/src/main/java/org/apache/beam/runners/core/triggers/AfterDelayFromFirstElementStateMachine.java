@@ -294,7 +294,9 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
     @Override
     public Instant apply(Instant point) {
       long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
-      return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
+      return millisSinceStart == 0
+          ? point
+          : point.plus(size).minus(Duration.millis(millisSinceStart));
     }
 
     @Override
