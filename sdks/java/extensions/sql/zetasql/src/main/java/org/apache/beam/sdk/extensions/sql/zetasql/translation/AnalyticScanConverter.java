@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import com.google.zetasql.resolvedast.*;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedExpr;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedColumnRef;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByItem;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedWindowFrameExpr;
@@ -28,22 +27,14 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAnalyticFunctionCall
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAnalyticScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAnalyticFunctionGroup;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumn;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.asm.Advice;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollations;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.AggregateCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Window;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.*;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlAggFunction;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableBitSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,143 +54,100 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
 
     @Override
     public RelNode convert(ResolvedAnalyticScan zetaNode, List<RelNode> inputs) {
-        // Transforms input
-         LogicalProject input = convert(zetaNode, inputs.get(0));
+        RelNode input = inputs.get(0);
+        ImmutableList<RexNode> projects = getProjects(zetaNode);
+        ImmutableList<String> fieldNames = getFieldNames(zetaNode);
 
-        // Creates Window Groups from Analytic Function Group
-        List<Window.Group> windowGroups = new ArrayList<>();
-
-        for(ResolvedAnalyticFunctionGroup analyticFunctionGroup: zetaNode.getFunctionGroupList()) {
-           Window.Group windowGroup = convert(analyticFunctionGroup, input);
-           windowGroups.add(windowGroup);
-        }
-
-////        return new LogicalWindow(
-//                getCluster(),
-//                input.getTraitSet(),
-//                input,
-//                ImmutableList.of(),
-//                input.getRowType(),
-//                windowGroups
-//        );
-
-        return LogicalWindow.create(
-                input.getTraitSet(),
+        return LogicalProject.create(
                 input,
                 ImmutableList.of(),
-                input.getRowType(),
-                windowGroups
-        );
+                projects,
+                fieldNames);
     }
 
-    private LogicalProject convert(ResolvedAnalyticScan zetaNode, RelNode input){
+    private ImmutableList<RexNode> getProjects(ResolvedAnalyticScan zetaNode){
+        final RexBuilder rexBuilder = getCluster().getRexBuilder();
         List<RexNode> projects = new ArrayList<>();
+        int index = 0;
+        for(ResolvedColumn resolvedColumn: zetaNode.getInputScan().getColumnList()) {
+            RelDataType type = ZetaSqlCalciteTranslationUtils.toCalciteType(resolvedColumn.getType(), false, rexBuilder);
+            RexInputRef columnRef = new RexInputRef(index, type);
+
+            projects.add(columnRef);
+            index = index+1;
+        }
+
+        for(ResolvedAnalyticFunctionGroup group : zetaNode.getFunctionGroupList()){
+            List<RexNode> partitionKeys = new ArrayList<>();
+            List<RexFieldCollation> orderKeys = new ArrayList<>();
+
+            if(group.getPartitionBy() != null) {
+                for(ResolvedExpr expr: group.getPartitionBy().getPartitionByList()) {
+                    partitionKeys.add(getExpressionConverter().convertRexNodeFromResolvedExpr(expr));
+                }
+            }
+
+            if(group.getOrderBy() != null) {
+                for(ResolvedOrderByItem item: group.getOrderBy().getOrderByItemList()) {
+                    RexFieldCollation collation = new RexFieldCollation(
+                            getExpressionConverter().convertRexNodeFromResolvedExpr(item.getColumnRef()),
+                            ImmutableSet.of());
+                    orderKeys.add(collation);
+                }
+            }
+
+            for(ResolvedComputedColumn computedColumn: group.getAnalyticFunctionList()) {
+               ResolvedAnalyticFunctionCall analyticFunction = (ResolvedAnalyticFunctionCall) computedColumn.getExpr();
+               List<RexNode> operands = new ArrayList<>();
+               boolean isRows = (analyticFunction.getWindowFrame().getFrameUnit() == ResolvedWindowFrameEnums.FrameUnit.ROWS);
+
+               for(ResolvedExpr expr: analyticFunction.getArgumentList()) {
+                   operands.add(getExpressionConverter().convertRexNodeFromResolvedExpr(expr));
+               }
+
+               SqlAggFunction sqlAggFunction = (SqlAggFunction) SqlOperatorMappingTable.create(analyticFunction);
+               RelDataType type = ZetaSqlCalciteTranslationUtils.toCalciteType(
+                       analyticFunction
+                               .getFunction()
+                               .getSignatureList()
+                               .get(0)
+                               .getResultType()
+                               .getType(),
+                       false,
+                       rexBuilder
+               );
+
+               projects.add(rexBuilder.makeOver(
+                       type,
+                       sqlAggFunction,
+                       operands,
+                       ImmutableList.copyOf(partitionKeys),
+                       ImmutableList.copyOf(orderKeys),
+                       convert(analyticFunction.getWindowFrame().getStartExpr()),
+                       convert(analyticFunction.getWindowFrame().getEndExpr()),
+                       isRows, true, false, false, false
+               ));
+
+           }
+
+        }
+        return ImmutableList.copyOf(projects);
+    }
+
+    private ImmutableList<String> getFieldNames(ResolvedAnalyticScan zetaNode) {
         List<String> fieldNames = new ArrayList<>();
 
+        for(ResolvedColumn column: zetaNode.getInputScan().getColumnList()) {
+            fieldNames.add(getTrait().resolveAlias(column));
+        }
 
-
-
-        for(ResolvedAnalyticFunctionGroup analyticFunctionGroup: zetaNode.getFunctionGroupList()) {
-//            if(analyticFunctionGroup.getPartitionBy() != null) {
-//                for (ResolvedColumnRef resolvedColumnRef : analyticFunctionGroup.getPartitionBy().getPartitionByList()) {
-//                    projects.add(
-//                            getExpressionConverter()
-//                                    .convertRexNodeFromResolvedExpr(resolvedColumnRef)
-//                    );
-////                    fieldNames.add(getTrait().resolveAlias(resolvedColumnRef.getColumn()));
-//                }
-//            }
-//
-//            if(analyticFunctionGroup.getOrderBy() != null) {
-//                for(ResolvedOrderByItem resolvedOrderByItem: analyticFunctionGroup.getOrderBy().getOrderByItemList()) {
-//                    projects.add(
-//                            getExpressionConverter()
-//                                    .convertRexNodeFromResolvedExpr(resolvedOrderByItem.getColumnRef())
-//                    );
-////                    fieldNames.add(getTrait().resolveAlias(resolvedOrderByItem.getColumnRef().getColumn()));
-//                }
-//            }
-
-            for(ResolvedComputedColumn resolvedComputedColumn: analyticFunctionGroup.getAnalyticFunctionList()){
-                ResolvedAnalyticFunctionCall resolvedAnalyticFunctionCall = (ResolvedAnalyticFunctionCall) resolvedComputedColumn.getExpr();
-                //TODO: handle analytic function calls with more arguments
-                ResolvedExpr resolvedExpr = resolvedAnalyticFunctionCall.getArgumentList().get(0);
-
-                projects.add(
-                        getExpressionConverter()
-                                .convertRexNodeFromResolvedExpr(
-                                        resolvedExpr,
-                                        zetaNode.getInputScan().getColumnList(),
-                                        input.getRowType().getFieldList(),
-                                        ImmutableMap.of()));
-                fieldNames.add(getTrait().resolveAlias(resolvedComputedColumn.getColumn()));
+        for(ResolvedAnalyticFunctionGroup functionGroup: zetaNode.getFunctionGroupList())  {
+            for(ResolvedComputedColumn computedColumn: functionGroup.getAnalyticFunctionList()) {
+                fieldNames.add(getTrait().resolveAlias(computedColumn.getColumn()));
             }
         }
 
-
-        return LogicalProject.create(
-                input, ImmutableList.of(), projects, fieldNames
-        );
-    }
-
-    private Window.Group convert(ResolvedAnalyticFunctionGroup functionGroup, RelNode input){
-
-        List<Window.RexWinAggCall> aggCalls = new ArrayList<>();
-        ImmutableBitSet keys = ImmutableBitSet.of();
-        RexWindowBound upperBound = null;
-        RexWindowBound lowerBound = null;
-        int ordinal = 0;
-
-       for(ResolvedComputedColumn resolvedComputedColumn: functionGroup.getAnalyticFunctionList()) {
-           List<RexNode> operands = new ArrayList<>();
-           ResolvedAnalyticFunctionCall analyticFunctionCall = (ResolvedAnalyticFunctionCall) resolvedComputedColumn.getExpr();
-
-           if(upperBound == null && lowerBound == null) {
-               lowerBound = convert(analyticFunctionCall.getWindowFrame().getStartExpr());
-               upperBound = convert(analyticFunctionCall.getWindowFrame().getEndExpr());
-           }
-
-           //TODO: Go through the aggregate conversion and complete it
-           //TODO: Make this code and the one in AggregateScanConverter reusable if needed
-           SqlAggFunction sqlAggFunction = (SqlAggFunction) SqlOperatorMappingTable.create(analyticFunctionCall);
-           RelDataType type = ZetaSqlCalciteTranslationUtils.toCalciteType(
-                   analyticFunctionCall
-                           .getFunction()
-                           .getSignatureList()
-                           .get(ordinal)
-                           .getResultType()
-                           .getType(),
-                   false,
-                   getCluster().getRexBuilder()
-           );
-
-           //TODO: Fill the list of operands of the RexWinAggCall
-           RexNode operand = getExpressionConverter().convertRexNodeFromResolvedExpr(analyticFunctionCall.getArgumentList().get(0));
-           operands.add(operand);
-
-           Window.RexWinAggCall rexWinAggCall = new Window.RexWinAggCall(
-                   sqlAggFunction,
-                   type,
-                   operands,
-//                   ImmutableList.of(), //Add operands (columns used in the function)
-                   ordinal,
-                   false,
-                   false
-           );
-
-           aggCalls.add(rexWinAggCall);
-           ordinal++;
-       }
-
-        return new Window.Group(
-                keys, //TODO: add grouping keys
-                true,
-                lowerBound,
-                upperBound,
-                RelCollations.EMPTY, //TODO: add order keys
-                aggCalls
-        );
-
+        return ImmutableList.copyOf(fieldNames);
     }
 
     private RexWindowBound convert(ResolvedWindowFrameExpr frameExpr) {

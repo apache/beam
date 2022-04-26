@@ -209,7 +209,7 @@ public class ExpressionConverter {
           throw new IllegalStateException(
               String.format("Cannot find %s in fieldList %s", column, fieldList));
         }
-
+//        index = index-3;
         ret.add(rexBuilder().makeInputRef(fieldList.get(index).getType(), index));
       }
     }

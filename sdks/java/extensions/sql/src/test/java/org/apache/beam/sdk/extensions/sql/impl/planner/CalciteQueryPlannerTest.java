@@ -45,23 +45,35 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
             .addRows(1, 1, 1, 1, 1, 2, 1, 1, 3, 1, 1, 4, 1, 1, 5));
 
     registerTable(
-            "KeyValue",
+            "T",
             TestBoundedTable.of(
                             Schema.builder()
                                     .addInt64Field("Key")
-                                    .addStringField("Value")
-                                    .addStringField("Category")
-                                    .addDateTimeField("ts")
+                                    .addInt32Field("a")
+                                    .addInt32Field("b")
+                                    .addStringField("c")
                                     .build())
                     .addRows(
                             14L,
-                            "KeyValue234",
+                            11,
+                            11,
                             "A",
-                            parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+
                             15L,
-                            "KeyValue235",
+                            7,
+                            7,
                             "B",
-                            parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"))
+
+                            16L,
+                            5,
+                            5,
+                            "A",
+
+                            18L,
+                            17,
+                            17,
+                            "B"
+                    )
     );
   }
 
@@ -97,7 +109,15 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
 
   @Test
   public void testAnalyticOver() {
-    String sql ="select SUM(Key) over(PARTITION BY Category), Count(Key) over(ORDER BY Key) From KeyValue";
+    String sql ="select SUM(a) over(), COUNT(b) over() From T";
+    BeamRelNode root = env.parseQuery(sql);
+    Assert.assertTrue(
+            root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
+  }
+
+  @Test
+  public void testAggregateProject() {
+    String sql ="select SUM(a+b), c from T group by c  ";
     BeamRelNode root = env.parseQuery(sql);
     Assert.assertTrue(
             root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);

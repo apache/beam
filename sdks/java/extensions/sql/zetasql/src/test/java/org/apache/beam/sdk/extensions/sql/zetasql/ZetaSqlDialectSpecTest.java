@@ -3577,24 +3577,11 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
      String sql = "select sum(Key) over () From KeyValue";
 
      ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-//     thrown.expect(UnsupportedOperationException.class);
-//     thrown.expectMessage("Does not support sub-queries");
      zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test
   public void testAnalyticOver2() {
-    String sql = "select sum(Key) sum(Key) over () From KeyValue";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-//     thrown.expect(UnsupportedOperationException.class);
-//     thrown.expectMessage("Does not support sub-queries");
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
-
-  }
-
-  @Test
-  public void testAnalyticOver3() {
     String sql = "select sum(Key) over (PARTITION BY Value) From KeyValue";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -3604,7 +3591,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testAnalyticOver4() {
+  public void testAnalyticOver3() {
     String sql = "select sum(Key) over (PARTITION BY Value), count(Key) over () From KeyValue";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -3614,7 +3601,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testAnalyticOver5() {
+  public void testAnalyticOver4() {
     String sql = "select sum(Key) over (PARTITION BY Value), count(Key) over (ORDER BY Key) From KeyValue";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -3624,27 +3611,26 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testAnalyticOver6() {
-    String sql = "select sum(Key) over (PARTITION BY Value), sum(Key) sum(key) over () From KeyValue";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-//     thrown.expect(UnsupportedOperationException.class);
-//     thrown.expectMessage("Does not support sub-queries");
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
-  }
-
-  @Test
-  public void testAnalyticOver7() {
+  public void testAnalyticOver5() {
     String sql = "select sum(Key) over (ROWS BETWEEN 2 PRECEDING AND 3 FOLLOWING) From KeyValue";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
+
   @Test
-  public void testAnalyticOver8() {
-    String sql = "select sum(Key) over (RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) From KeyValue";
+  public void testAnalyticOver6() {
+    String sql = "select sum(Key) over (PARTITION BY Value), count(Key) over(ORDER BY Key RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) From KeyValue";
+
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
+
+//  @Test
+//  public void testAnalyticOver7() {
+//    String sql = "select sum(Key) over (ORDER BY Key ASC) From KeyValue";
+//    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+//    zetaSQLQueryPlanner.convertToBeamRel(sql);
+//  }
 
   @Test
   public void testSubstr() {
