@@ -228,6 +228,16 @@ class BatchElementsTest(unittest.TestCase):
               7,  # elements in [30, 47)
           ]))
 
+  def test_sized_batches(self):
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 1, 10, 6, 5, 1, 7, 1, 1], reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=10, max_batch_size=10, element_size_fn=lambda x: x)
+          | beam.Map(sum))
+      assert_that(res, equal_to([12, 11, 10]))
+
   def test_target_duration(self):
     clock = FakeClock()
     batch_estimator = util._BatchSizeEstimator(
