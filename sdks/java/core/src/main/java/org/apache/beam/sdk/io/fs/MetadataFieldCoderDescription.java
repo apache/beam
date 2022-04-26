@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.fs;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.SerializableBiConsumer;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
-public class MetadataFieldCoderDescription {
+public class MetadataFieldCoderDescription implements Serializable {
 
   private Coder<?> coder;
   private SerializableFunction<? super MatchResult.Metadata, ?> getter;
