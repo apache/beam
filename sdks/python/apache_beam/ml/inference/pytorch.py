@@ -20,6 +20,7 @@
 from typing import Any
 from typing import Callable
 from typing import Dict
+from collections import defaultdict
 from typing import Iterable
 from typing import List
 
@@ -48,11 +49,22 @@ class PytorchInferenceRunner(InferenceRunner):
     This method stacks the list of Tensors in a vectorized format to optimize
     the inference call.
     """
-
-    torch_batch = torch.stack(batch)
-    if torch_batch.device != self._device:
-      torch_batch = torch_batch.to(self._device)
-    predictions = model(torch_batch)
+    if isinstance(batch[0], dict):
+      result_dict = defaultdict(list)
+      for el in batch:
+        for k, v in el.items():
+          result_dict[k].append(v)
+      for k in result_dict:
+        batched_values = torch.stack(result_dict[k])
+        if batched_values.device != self._device:
+          batched_values = batched_values.to(self._device)
+        result_dict[k] = batched_values
+      predictions = model(**result_dict)
+    else:
+      batch = torch.stack(batch)
+      if batch.device != self._device:
+        batch = batch.to(self._device)
+      predictions = model(batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:

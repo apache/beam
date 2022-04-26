@@ -43,10 +43,14 @@ except ImportError:
   raise unittest.SkipTest('PyTorch dependencies are not installed')
 
 
-def _compare_prediction_result(a, b):
-  return (
-      torch.equal(a.inference, b.inference) and
-      torch.equal(a.example, b.example))
+def _compare_prediction_result(x, y):
+  if isinstance(x.example, dict):
+    example_equals = all(
+        torch.equal(x, y) for x,
+        y in zip(x.example.values(), y.example.values()))
+  else:
+    example_equals = torch.equal(x.example, y.example)
+  return torch.equal(x.inference, y.inference) and example_equals
 
 
 class PytorchLinearRegression(torch.nn.Module):
@@ -94,9 +98,6 @@ class PytorchRunInferenceTest(unittest.TestCase):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
   def test_inference_runner_multiple_tensor_features(self):
-    examples = torch.from_numpy(
-        np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
-                 dtype="float32")).reshape(-1, 2)
     examples = [
         torch.from_numpy(np.array([1, 5], dtype="float32")),
         torch.from_numpy(np.array([3, 10], dtype="float32")),
@@ -114,6 +115,54 @@ class PytorchRunInferenceTest(unittest.TestCase):
     model = PytorchLinearRegression(input_dim=2, output_dim=1)
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = PytorchInferenceRunner(torch.device('cpu'))
+    predictions = inference_runner.run_inference(examples, model)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
+  def test_inference_runner_kwargs(self):
+    examples = [
+        {
+            'k1': torch.from_numpy(np.array([1], dtype="float32")),
+            'k2': torch.from_numpy(np.array([1.5], dtype="float32"))
+        },
+        {
+            'k1': torch.from_numpy(np.array([5], dtype="float32")),
+            'k2': torch.from_numpy(np.array([5.5], dtype="float32"))
+        },
+        {
+            'k1': torch.from_numpy(np.array([-3], dtype="float32")),
+            'k2': torch.from_numpy(np.array([-3.5], dtype="float32"))
+        },
+        {
+            'k1': torch.from_numpy(np.array([10.0], dtype="float32")),
+            'k2': torch.from_numpy(np.array([10.5], dtype="float32"))
+        },
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            torch.Tensor([(example['k1'] * 2.0 + 0.5) +
+                          (example['k2'] * 2.0 + 0.5)
+                          for example in examples]).reshape(-1, 1))
+    ]
+
+    class PytorchLinearRegressionMultipleArgs(torch.nn.Module):
+      def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim)
+
+      def forward(self, k1, k2):
+        out = self.linear(k1) + self.linear(k2)
+        return out
+
+    model = PytorchLinearRegressionMultipleArgs(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                      ('linear.bias', torch.Tensor([0.5]))]))
     model.eval()
 
