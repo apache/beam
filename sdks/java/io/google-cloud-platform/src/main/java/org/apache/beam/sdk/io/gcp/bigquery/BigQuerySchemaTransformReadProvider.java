@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery read jobs configured using
@@ -50,7 +52,6 @@ public class BigQuerySchemaTransformReadProvider
     extends TypedSchemaTransformProvider<BigQuerySchemaTransformReadConfiguration> {
 
   private static final String API = "bigquery";
-  private static final String VERSION = "v2";
   private static final String OUTPUT_TAG = "OUTPUT";
 
   /** Returns the expected class of the configuration. */
@@ -68,7 +69,7 @@ public class BigQuerySchemaTransformReadProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:%s:read", API, VERSION);
+    return String.format("%s:read", API);
   }
 
   /**
@@ -123,6 +124,7 @@ public class BigQuerySchemaTransformReadProvider
       this.configuration = configuration;
     }
 
+    @VisibleForTesting
     void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
       this.testBigQueryServices = testBigQueryServices;
     }
@@ -153,11 +155,11 @@ public class BigQuerySchemaTransformReadProvider
     BigQueryIO.TypedRead<TableRow> toTypedRead() {
       BigQueryIO.TypedRead<TableRow> read = BigQueryIO.readTableRowsWithSchema();
 
-      if (configuration.getQuery() != null) {
+      if (!Strings.isNullOrEmpty(configuration.getQuery())) {
         read = read.fromQuery(configuration.getQuery());
       }
 
-      if (configuration.getTableSpec() != null) {
+      if (!Strings.isNullOrEmpty(configuration.getTableSpec())) {
         read = read.from(configuration.getTableSpec());
       }
 
@@ -165,7 +167,7 @@ public class BigQuerySchemaTransformReadProvider
         read = read.usingStandardSql();
       }
 
-      if (configuration.getQueryLocation() != null) {
+      if (!Strings.isNullOrEmpty(configuration.getQueryLocation())) {
         read = read.withQueryLocation(configuration.getQueryLocation());
       }
 

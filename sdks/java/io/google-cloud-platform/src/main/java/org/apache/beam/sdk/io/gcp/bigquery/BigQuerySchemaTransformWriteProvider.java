@@ -21,12 +21,10 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -35,7 +33,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -63,7 +60,6 @@ public class BigQuerySchemaTransformWriteProvider
     extends TypedSchemaTransformProvider<BigQuerySchemaTransformWriteConfiguration> {
 
   private static final String API = "bigquery";
-  private static final String VERSION = "v2";
   static final String INPUT_TAG = "INPUT";
 
   /** Returns the expected class of the configuration. */
@@ -81,7 +77,7 @@ public class BigQuerySchemaTransformWriteProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:%s:write", API, VERSION);
+    return String.format("%s:write", API);
   }
 
   /**
@@ -207,6 +203,7 @@ public class BigQuerySchemaTransformWriteProvider
     }
 
     /** Setter for testing using {@link BigQueryServices}. */
+    @VisibleForTesting
     void setTestBigQueryServices(BigQueryServices testBigQueryServices) {
       this.testBigQueryServices = testBigQueryServices;
     }
@@ -271,40 +268,12 @@ public class BigQuerySchemaTransformWriteProvider
     }
 
     void validateMatching(Schema sourceSchema, Schema destinationSchema) {
-      Set<String> fieldNames = new HashSet<>();
-      List<String> mismatchedFieldNames = new ArrayList<>();
-      fieldNames.addAll(sourceSchema.getFieldNames());
-      fieldNames.addAll(destinationSchema.getFieldNames());
-      for (String name : fieldNames) {
-        Field gotField = null;
-        Field wantField = null;
-        if (sourceSchema.hasField(name)) {
-          gotField = sourceSchema.getField(name);
-        }
-        if (destinationSchema.hasField(name)) {
-          wantField = destinationSchema.getField(name);
-        }
-        if (!matches(wantField, gotField)) {
-          mismatchedFieldNames.add(name);
-        }
-      }
-
-      if (!mismatchedFieldNames.isEmpty()) {
+      if (!sourceSchema.equals(destinationSchema)) {
         throw new IllegalArgumentException(
             String.format(
-                "source and destination schema mismatch for table: %s with fields: %s",
-                configuration.getTableSpec(), String.join(" | ", mismatchedFieldNames)));
+                "source and destination schema mismatch for table: %s",
+                configuration.getTableSpec()));
       }
-    }
-
-    private boolean matches(Field want, Field got) {
-      if (want == null && got == null) {
-        return true;
-      }
-      if (want == null) {
-        return false;
-      }
-      return want.equals(got);
     }
   }
 }

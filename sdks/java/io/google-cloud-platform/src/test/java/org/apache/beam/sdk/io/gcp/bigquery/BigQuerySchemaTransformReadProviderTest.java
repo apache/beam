@@ -127,9 +127,8 @@ public class BigQuerySchemaTransformReadProviderTest {
 
   @Test
   public void testQuery() {
-    // TODO: refactor this test using FakeBigQueryServices.
     // Previous attempts using FakeBigQueryServices with a Read configuration using a query failed.
-    // For now we test using DisplayData and the toTypedRead method.
+    // For now, we test using DisplayData and the toTypedRead method.
     List<Pair<BigQuerySchemaTransformReadConfiguration.Builder, TypedRead<TableRow>>> cases =
         Arrays.asList(
             Pair.of(
