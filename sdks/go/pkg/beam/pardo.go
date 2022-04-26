@@ -66,7 +66,7 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	}
 
 	var rc *coder.Coder
-	// Sdfs will always encode restrictions as KV<restriction, watermark state | nil>
+	// Sdfs will always encode restrictions as KV<restriction, watermark state | bool(false)>
 	if fn.IsSplittable() {
 		sdf := (*graph.SplittableDoFn)(fn)
 		restT := typex.New(sdf.RestrictionT())
