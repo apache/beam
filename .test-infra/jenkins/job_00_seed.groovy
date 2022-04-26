@@ -20,10 +20,7 @@
 
 import Committers as committers
 
-job('beam_SeedJob') {stringParam(
-        'ghprbPullId',
-        '',
-        'Pull Request ID (eg: 4001) that you want to build against.')
+job('beam_SeedJob') {
   description('Automatically configures all Apache Beam Jenkins projects based' +
       ' on Jenkins DSL groovy files checked into the code repository.')
 
