@@ -93,16 +93,20 @@ public class StaticSchemaInference {
    */
   public static Schema schemaFromClass(
       Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    if(alreadyVisitedSchemas.contains(clazz)){
+      throw new RuntimeException("Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
+    }
+    alreadyVisitedSchemas.add(clazz);
     Schema.Builder builder = Schema.builder();
     for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(clazz)) {
       Schema.FieldType fieldType = fieldFromType(type.getType(), fieldValueTypeSupplier);
-      alreadyVisitedSchemas.remove(clazz);
       if (type.isNullable()) {
         builder.addNullableField(type.getName(), fieldType);
       } else {
         builder.addField(type.getName(), fieldType);
       }
     }
+    alreadyVisitedSchemas.remove(clazz);
     return builder.build();
   }
 
@@ -169,12 +173,7 @@ public class StaticSchemaInference {
         throw new RuntimeException("Cannot infer schema from unparameterized collection.");
       }
     } else {
-      Class clazz = type.getRawType();
-      if(alreadyVisitedSchemas.contains(clazz)){
-        throw new RuntimeException("Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
-      }
-      alreadyVisitedSchemas.add(clazz);
-      return FieldType.row(schemaFromClass(clazz, fieldValueTypeSupplier));
+      return FieldType.row(schemaFromClass(type.getRawType(), fieldValueTypeSupplier));
     }
   }
 }

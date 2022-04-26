@@ -772,6 +772,6 @@ public class JavaFieldSchemaTest {
     assertThat(
         "Message should suggest which class has circular schema reference.",
         thrown.getMessage(),
-        containsString("TestPOJOs$SecondCircularNestedPOJO"));
+        containsString("TestPOJOs$FirstCircularNestedPOJO"));
   }
 }
