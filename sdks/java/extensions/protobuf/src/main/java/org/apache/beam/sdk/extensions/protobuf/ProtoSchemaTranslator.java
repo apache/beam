@@ -19,11 +19,14 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.OneofDescriptor;
 import com.google.protobuf.Message;
+
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -139,6 +142,8 @@ class ProtoSchemaTranslator {
   /** Option prefix for options on fields. */
   public static final String SCHEMA_OPTION_FIELD_PREFIX = "beam:option:proto:field:";
 
+  private static Set<Descriptors.Descriptor> alreadyVisitedSchemas = new HashSet<Descriptors.Descriptor>();
+
   /** Attach a proto field number to a type. */
   static Field withFieldNumber(Field field, int number) {
     return field.withOptions(
@@ -156,6 +161,10 @@ class ProtoSchemaTranslator {
   }
 
   static Schema getSchema(Descriptors.Descriptor descriptor) {
+    if(alreadyVisitedSchemas.contains(descriptor)){
+      throw new RuntimeException("Cannot infer schema with a circular reference. Proto Field: " + descriptor.getFullName());
+    }
+    alreadyVisitedSchemas.add(descriptor);
     /* OneOfComponentFields refers to the field number in the protobuf where the component subfields
      * are. This is needed to prevent double inclusion of the component fields.*/
     Set<Integer> oneOfComponentFields = Sets.newHashSet();
@@ -199,6 +208,7 @@ class ProtoSchemaTranslator {
         }
       }
     }
+    alreadyVisitedSchemas.remove(descriptor);
     return Schema.builder()
         .addFields(fields)
         .setOptions(

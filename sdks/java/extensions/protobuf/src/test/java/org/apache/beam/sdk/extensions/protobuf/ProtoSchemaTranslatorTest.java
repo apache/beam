@@ -17,13 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -109,6 +113,46 @@ public class ProtoSchemaTranslatorTest {
     assertEquals(
         TestProtoSchemas.WKT_MESSAGE_SCHEMA,
         ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.WktMessage.class));
+  }
+
+  @Test
+  public void testSelfNestedProtoThrows() {
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> {
+              new ProtoMessageSchema().schemaFor(TypeDescriptor.of(Proto3SchemaMessages.SelfNested.class));
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("proto3_schema_messages.SelfNested"));
+  }
+
+  @Test
+  public void testCircularNestedProtoThrows() {
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> {
+              new ProtoMessageSchema().schemaFor(TypeDescriptor.of(Proto3SchemaMessages.FirstCircularNested.class));
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("proto3_schema_messages.FirstCircularNested"));
   }
 
   @Test
