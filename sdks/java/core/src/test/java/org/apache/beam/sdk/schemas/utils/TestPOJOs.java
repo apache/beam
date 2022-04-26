@@ -1136,7 +1136,9 @@ public class TestPOJOs {
     }
   }
 
-  /** A POJO containing a circular reference back to itself through the accompanying POJO below. * */
+  /**
+   * A POJO containing a circular reference back to itself through the accompanying POJO below. *
+   */
   @DefaultSchema(JavaFieldSchema.class)
   public static class FirstCircularNestedPOJO {
     public SecondCircularNestedPOJO nested;
@@ -1165,7 +1167,9 @@ public class TestPOJOs {
     }
   }
 
-  /** A POJO containing a circular reference back to itself through the accompanying POJO below. * */
+  /**
+   * A POJO containing a circular reference back to itself through the accompanying POJO below. *
+   */
   @DefaultSchema(JavaFieldSchema.class)
   public static class SecondCircularNestedPOJO {
     public FirstCircularNestedPOJO nested;

@@ -738,8 +738,7 @@ public class JavaFieldSchemaTest {
         assertThrows(
             RuntimeException.class,
             () -> {
-              registry
-                  .getSchema(SelfNestedPOJO.class);
+              registry.getSchema(SelfNestedPOJO.class);
             });
 
     assertThat(
@@ -760,8 +759,7 @@ public class JavaFieldSchemaTest {
         assertThrows(
             RuntimeException.class,
             () -> {
-              registry
-                  .getSchema(FirstCircularNestedPOJO.class);
+              registry.getSchema(FirstCircularNestedPOJO.class);
             });
 
     assertThat(

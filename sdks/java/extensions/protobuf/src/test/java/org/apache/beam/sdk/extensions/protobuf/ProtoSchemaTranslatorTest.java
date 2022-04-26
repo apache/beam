@@ -121,7 +121,8 @@ public class ProtoSchemaTranslatorTest {
         assertThrows(
             RuntimeException.class,
             () -> {
-              new ProtoMessageSchema().schemaFor(TypeDescriptor.of(Proto3SchemaMessages.SelfNested.class));
+              new ProtoMessageSchema()
+                  .schemaFor(TypeDescriptor.of(Proto3SchemaMessages.SelfNested.class));
             });
 
     assertThat(
@@ -141,7 +142,8 @@ public class ProtoSchemaTranslatorTest {
         assertThrows(
             RuntimeException.class,
             () -> {
-              new ProtoMessageSchema().schemaFor(TypeDescriptor.of(Proto3SchemaMessages.FirstCircularNested.class));
+              new ProtoMessageSchema()
+                  .schemaFor(TypeDescriptor.of(Proto3SchemaMessages.FirstCircularNested.class));
             });
 
     assertThat(

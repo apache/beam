@@ -81,7 +81,10 @@ public class StaticSchemaInference {
           .put(BigDecimal.class, FieldType.DECIMAL)
           .build();
 
-  /** A HashSet containing the non-primitive schemas within another schema, to prevent circular references. */
+  /**
+   * A HashSet containing the non-primitive schemas within another schema, to prevent circular
+   * references.
+   */
   private static Set<Class> alreadyVisitedSchemas = new HashSet<Class>();
 
   /**
@@ -93,8 +96,9 @@ public class StaticSchemaInference {
    */
   public static Schema schemaFromClass(
       Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    if(alreadyVisitedSchemas.contains(clazz)){
-      throw new RuntimeException("Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
+    if (alreadyVisitedSchemas.contains(clazz)) {
+      throw new RuntimeException(
+          "Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
     }
     alreadyVisitedSchemas.add(clazz);
     Schema.Builder builder = Schema.builder();
