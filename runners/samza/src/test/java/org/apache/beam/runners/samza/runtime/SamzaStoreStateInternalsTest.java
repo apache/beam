@@ -65,14 +65,12 @@ import org.apache.samza.context.ContainerContext;
 import org.apache.samza.context.JobContext;
 import org.apache.samza.metrics.MetricsRegistry;
 import org.apache.samza.serializers.Serde;
-import org.apache.samza.storage.StorageEngineFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
 import org.apache.samza.storage.kv.KeyValueStoreMetrics;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
 import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStore;
-import org.apache.samza.system.SystemStreamPartition;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -201,10 +199,9 @@ public class SamzaStoreStateInternalsTest implements Serializable {
         String storeName,
         File storeDir,
         MetricsRegistry registry,
-        SystemStreamPartition changeLogSystemStreamPartition,
         JobContext jobContext,
         ContainerContext containerContext,
-        StorageEngineFactory.StoreMode readWrite) {
+        StoreMode storeMode) {
       KeyValueStoreMetrics metrics = new KeyValueStoreMetrics(storeName, registry);
       return new TestStore(metrics);
     }
