@@ -38,8 +38,8 @@ type PairWithRestriction struct {
 	Fn  *graph.DoFn
 	Out Node
 
-	inv      *cirInvoker
-	giwesInv *giwesInvoker
+	inv     *cirInvoker
+	iwesInv *iwesInvoker
 }
 
 // ID returns the UnitID for this unit.
@@ -56,9 +56,9 @@ func (n *PairWithRestriction) Up(_ context.Context) error {
 	}
 	var giwesFn *funcx.Fn
 	if (*graph.SplittableDoFn)(n.Fn).IsStatefulWatermarkEstimating() {
-		giwesFn = (*graph.SplittableDoFn)(n.Fn).GetInitialWatermarkEstimatorStateFn()
+		giwesFn = (*graph.SplittableDoFn)(n.Fn).InitialWatermarkEstimatorStateFn()
 	}
-	if n.giwesInv, err = newGetInitialWatermarkEstimatorStateInvoker(giwesFn); err != nil {
+	if n.iwesInv, err = newInitialWatermarkEstimatorStateInvoker(giwesFn); err != nil {
 		return errors.WithContextf(err, "%v", n)
 	}
 	return nil
@@ -91,7 +91,7 @@ func (n *PairWithRestriction) StartBundle(ctx context.Context, id string, data D
 //   }
 func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	rest := n.inv.Invoke(elm)
-	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.giwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows}
+	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.iwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows}
 
 	return n.Out.ProcessElement(ctx, &output, values...)
 }
@@ -99,7 +99,7 @@ func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue
 // FinishBundle resets the invokers.
 func (n *PairWithRestriction) FinishBundle(ctx context.Context) error {
 	n.inv.Reset()
-	n.giwesInv.Reset()
+	n.iwesInv.Reset()
 	return n.Out.FinishBundle(ctx)
 }
 
@@ -243,7 +243,7 @@ type ProcessSizedElementsAndRestrictions struct {
 	ctInv   *ctInvoker
 	sizeInv *rsInvoker
 	cweInv  *cweInvoker
-	gwesInv *gwesInvoker
+	wesInv  *wesInvoker
 
 	// SU is a buffered channel for indicating when this unit is splittable.
 	// When this unit is processing an element, it sends a SplittableUnit
@@ -302,9 +302,9 @@ func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 	}
 	var gwesFn *funcx.Fn
 	if (*graph.SplittableDoFn)(n.PDo.Fn).IsStatefulWatermarkEstimating() {
-		gwesFn = (*graph.SplittableDoFn)(n.PDo.Fn).GetWatermarkEstimatorStateFn()
+		gwesFn = (*graph.SplittableDoFn)(n.PDo.Fn).WatermarkEstimatorStateFn()
 	}
-	if n.gwesInv, err = newGetWatermarkEstimatorStateInvoker(gwesFn); err != nil {
+	if n.wesInv, err = newWatermarkEstimatorStateInvoker(gwesFn); err != nil {
 		return errors.WithContextf(err, "%v", n)
 	}
 	n.SU = make(chan SplittableUnit, 1)
@@ -377,7 +377,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 	if n.cweInv != nil {
 		n.PDo.we = n.cweInv.Invoke(elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2)
 	}
-	n.initWeS = n.gwesInv.Invoke(n.PDo.we)
+	n.initWeS = n.wesInv.Invoke(n.PDo.we)
 
 	// Begin processing elements, exploding windows if necessary.
 	n.currW = 0
@@ -435,7 +435,7 @@ func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) 
 	if n.cweInv != nil {
 		n.cweInv.Reset()
 	}
-	n.gwesInv.Reset()
+	n.wesInv.Reset()
 	return n.PDo.FinishBundle(ctx)
 }
 
@@ -494,7 +494,7 @@ func (n *ProcessSizedElementsAndRestrictions) Split(f float64) ([]*FullValue, []
 	// Get the watermark state immediately so that we don't overestimate our current watermark.
 	var pWeState interface{}
 	var rWeState interface{}
-	rWeState = n.gwesInv.Invoke(n.PDo.we)
+	rWeState = n.wesInv.Invoke(n.PDo.we)
 	pWeState = rWeState
 	// If we've processed elements, the initial watermark estimator state will be set.
 	// In that case we should hold the output watermark at that initial state so that we don't
