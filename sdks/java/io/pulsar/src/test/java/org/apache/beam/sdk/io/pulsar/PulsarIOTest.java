@@ -59,7 +59,6 @@ public class PulsarIOTest {
 
   private static final String TOPIC = "PULSAR_IO_TEST";
   protected static PulsarContainer pulsarContainer;
-  protected static PulsarClient client;
 
   private long endExpectedTime = 0;
   private long startTime = 0;
@@ -69,9 +68,7 @@ public class PulsarIOTest {
   @Rule public final transient TestPipeline testPipeline = TestPipeline.create();
 
   public List<Message<byte[]>> receiveMessages() throws PulsarClientException {
-    if (client == null) {
-      initClient();
-    }
+    PulsarClient client = initClient();
     List<Message<byte[]>> messages = new ArrayList<>();
     Consumer<byte[]> consumer =
         client.newConsumer().topic(TOPIC).subscriptionName("receiveMockMessageFn").subscribe();
@@ -84,11 +81,13 @@ public class PulsarIOTest {
         consumer.negativeAcknowledge(msg);
       }
     }
+    consumer.close();
+    client.close();
     return messages;
   }
 
   public List<PulsarMessage> produceMessages() throws PulsarClientException {
-    client = initClient();
+    PulsarClient client = initClient();
     Producer<byte[]> producer = client.newProducer().topic(TOPIC).create();
     Consumer<byte[]> consumer =
         client.newConsumer().topic(TOPIC).subscriptionName("produceMockMessageFn").subscribe();
@@ -136,7 +135,6 @@ public class PulsarIOTest {
   @BeforeClass
   public static void setup() throws PulsarClientException {
     setupPulsarContainer();
-    client = initClient();
   }
 
   @AfterClass
@@ -148,16 +146,19 @@ public class PulsarIOTest {
 
   @Test
   @SuppressWarnings({"rawtypes"})
-  public void testPulsarFunctionality() throws Exception {
-    try (Consumer consumer =
-            client.newConsumer().topic(TOPIC).subscriptionName("PulsarIO_IT").subscribe();
-        Producer<byte[]> producer = client.newProducer().topic(TOPIC).create(); ) {
+  public void testPulsarFunctionality() {
+    try {
+      PulsarClient client = initClient();
+      Consumer consumer = client.newConsumer().topic(TOPIC).subscriptionName("PulsarIO_IT").subscribe();
+      Producer<byte[]> producer = client.newProducer().topic(TOPIC).create();
       String messageTxt = "testing pulsar functionality";
       producer.send(messageTxt.getBytes(StandardCharsets.UTF_8));
       CompletableFuture<Message> future = consumer.receiveAsync();
       Message message = future.get(5, TimeUnit.SECONDS);
       assertEquals(messageTxt, new String(message.getData(), StandardCharsets.UTF_8));
       client.close();
+    } catch (Exception e) {
+      LOG.error(e.getMessage());
     }
   }
 
