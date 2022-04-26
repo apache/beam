@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -463,6 +464,7 @@ public class JmsIO {
 
     private T currentMessage;
     private Instant currentTimestamp;
+    private final java.util.Queue<Message> wait4cpQueue;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, JmsCheckpointMark checkpointMark) {
       this.source = source;
@@ -472,6 +474,7 @@ public class JmsIO {
         this.checkpointMark = new JmsCheckpointMark();
       }
       this.currentMessage = null;
+      wait4cpQueue = new ArrayDeque<>();
     }
 
     @Override
@@ -525,7 +528,7 @@ public class JmsIO {
           currentMessage = null;
           return false;
         }
-
+        wait4cpQueue.add(message);
         checkpointMark.add(message);
 
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
