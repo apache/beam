@@ -879,7 +879,7 @@ class DoOperation(Operation):
           self.execution_context.delayed_applications.append(
               (self, delayed_application))
 
-  def process_batch(self, windowed_batch: WindowedBatch):
+  def process_batch(self, windowed_batch: WindowedBatch) -> None:
     self.dofn_runner.process_batch(windowed_batch)
 
   def finalize_bundle(self):

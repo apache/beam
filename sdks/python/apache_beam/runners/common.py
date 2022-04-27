@@ -493,14 +493,14 @@ class DoFnInvoker(object):
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> Iterable[SplitResultResidual]
+    # type: (...) -> None
 
     """Invokes the DoFn.process() function.
 
     Args:
       windowed_batch: a WindowedBatch object that gives a batch of elements for
-                      which process() method should be invoked, along with the
-                      window each element belongs to.
+                      which process_batch() method should be invoked, along with
+                      the window each element belongs to.
       additional_args: additional arguments to be passed to the current
                       `DoFn.process()` invocation, usually as side inputs.
       additional_kwargs: additional keyword arguments to be passed to the
@@ -596,10 +596,9 @@ class SimpleInvoker(DoFnInvoker):
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> Iterable[SplitResultResidual]
+    # type: (...) -> None
     self.output_processor.process_batch_outputs(
         windowed_batch, self.process_batch_method(windowed_batch.values))
-    return []
 
 
 def _get_arg_placeholders(
@@ -1271,11 +1270,11 @@ class DoFnRunner:
       return []
 
   def process_batch(self, windowed_batch):
+    # type: (WindowedBatch) -> None
     try:
-      return self.do_fn_invoker.invoke_process_batch(windowed_batch)
+      self.do_fn_invoker.invoke_process_batch(windowed_batch)
     except BaseException as exn:
       self._reraise_augmented(exn)
-      return []
 
   def process_with_sized_restriction(self, windowed_value):
     # type: (WindowedValue) -> Iterable[SplitResultResidual]
