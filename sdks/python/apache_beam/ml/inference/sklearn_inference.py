@@ -42,14 +42,14 @@ class ModelFileType(enum.Enum):
 
 
 class SklearnInferenceRunner(InferenceRunner):
-  def run_inference(self, batch: List[numpy.array],
-                    model: Any) -> Iterable[numpy.array]:
+  def run_inference(self, batch: List[numpy.ndarray],
+                    model: Any) -> Iterable[PredictionResult]:
     # vectorize data for better performance
     vectorized_batch = numpy.stack(batch, axis=0)
     predictions = model.predict(vectorized_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
-  def get_num_bytes(self, batch: List[numpy.array]) -> int:
+  def get_num_bytes(self, batch: List[numpy.ndarray]) -> int:
     """Returns the number of bytes of data for a batch."""
     return sum(sys.getsizeof(element) for element in batch)
 
