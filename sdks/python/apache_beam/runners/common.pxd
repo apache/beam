@@ -94,10 +94,14 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef DoFnContext context
   cdef list args_for_process
   cdef dict kwargs_for_process
-  cdef list placeholders
+  cdef list placeholders_for_process
+  cdef list args_for_process_batch
+  cdef dict kwargs_for_process_batch
+  cdef list placeholders_for_process_batch
   cdef bint has_windowed_inputs
   cdef bint cache_globally_windowed_args
   cdef object process_method
+  cdef object process_batch_method
   cdef bint is_splittable
   cdef object threadsafe_restriction_tracker
   cdef object threadsafe_watermark_estimator

@@ -59,6 +59,8 @@ from apache_beam.typehints import typehints
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import ConcreteWindowedBatch
+from apache_beam.utils.windowed_value import HomogeneousWindowedBatch
 from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -713,6 +715,14 @@ class PerWindowInvoker(DoFnInvoker):
         self.kwargs_for_process) = _get_arg_placeholders(
             signature.process_method, input_args, input_kwargs)
 
+    self.process_batch_method = signature.process_batch_method.method_value
+
+    (
+        self.placeholders_for_process_batch,
+        self.args_for_process_batch,
+        self.kwargs_for_process_batch) = _get_arg_placeholders(
+            signature.process_batch_method, input_args, input_kwargs)
+
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
                      restriction=None,
@@ -784,6 +794,52 @@ class PerWindowInvoker(DoFnInvoker):
       self._invoke_process_per_window(
           windowed_value, additional_args, additional_kwargs)
     return residuals
+
+  def invoke_process_batch(self,
+                     windowed_batch,  # type: WindowedBatch
+                     additional_args=None,
+                     additional_kwargs=None
+                    ):
+    # type: (...) -> None
+
+    if not additional_args:
+      additional_args = []
+    if not additional_kwargs:
+      additional_kwargs = {}
+
+    if self.has_windowed_inputs:
+      # TODO
+      raise NotImplementedError
+    elif self.cache_globally_windowed_args:
+      # Attempt to cache additional args if all inputs are globally
+      # windowed inputs when processing the first element.
+      self.cache_globally_windowed_args = False
+
+      # Fill in sideInputs if they are globally windowed
+      global_window = GlobalWindow()
+      self.args_for_process_batch, self.kwargs_for_process_batch = (
+          util.insert_values_in_args(
+              self.args_for_process_batch, self.kwargs_for_process_batch,
+              [si[global_window] for si in self.side_inputs]))
+      args_for_process_batch, kwargs_for_process_batch = (
+          self.args_for_process_batch, self.kwargs_for_process_batch)
+    else:
+      args_for_process_batch, kwargs_for_process_batch = (
+          self.args_for_process_batch, self.kwargs_for_process_batch)
+
+    for i, p in self.placeholders_for_process_batch:
+      if core.DoFn.ElementParam == p:
+        args_for_process_batch[i] = windowed_batch.values
+      # TODO: Handle other params
+
+    kwargs_for_process_batch = kwargs_for_process_batch or {}
+
+    self.output_processor.process_batch_outputs(
+        windowed_batch,
+        self.process_batch_method(
+            *args_for_process_batch, **kwargs_for_process_batch),
+        self.threadsafe_watermark_estimator)
+
 
   def _should_process_window_for_sdf(
       self,
@@ -1473,10 +1529,21 @@ class _OutputProcessor(OutputProcessor):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, (WindowedValue, TimestampedValue)):
-        # TODO: Helpful message
-        raise RuntimeError
+        raise TypeError(
+            f"Received {type(result).__name__} from DoFn that was "
+            "expected to produce a batch.")
       if isinstance(result, WindowedBatch):
-        windowed_batch = result
+        if isinstance(result, ConcreteWindowedBatch):
+          # TODO: Rebatch into homogenous batches (or remove
+          # ConcreteWindowedBatch)
+          raise NotImplementedError
+        elif isinstance(result, HomogeneousWindowedBatch):
+          windowed_batch = result
+        else:
+          raise AssertionError(
+              "Unrecognized WindowedBatch implementation: "
+              f"{type(windowed_batch)}")
+
         # TODO: Should we do this in batches?
         #       Would need to require one batch per window
         #if (windowed_input_element is not None and
