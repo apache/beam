@@ -12,7 +12,7 @@
 
 - title: Flink
   image_url: /images/logo_flink.png
-  url: http://apache-beam-website-pull-requests.storage.googleapis.com/17408/documentation/runners/flink/index.html
+  url: https://beam.apache.org/documentation/runners/flink/
 - title: Spark
   image_url: /images/logo_spark.png
   url: https://beam.apache.org/documentation/runners/spark/
