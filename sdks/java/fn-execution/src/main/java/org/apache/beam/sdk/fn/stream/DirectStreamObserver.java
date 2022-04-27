@@ -90,7 +90,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         if (totalTimeWaited > 0) {
           // If the phase didn't change, this means that the installed onReady callback had not
           // been invoked.
-          if (initialPhase == phaser.getPhase()) {
+          if (initialPhase == phase) {
             LOG.info(
                 "Output channel stalled for {}s, outbound thread {}. See: "
                     + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
