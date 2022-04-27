@@ -426,7 +426,6 @@ class HadoopFileSystem(FileSystem):
 
     Returns:
       :class:`~apache_beam.io.filesystem.FileMetadata`.
-      Note: last_updated field is not supported yet.
 
     Raises:
       ``BeamIOError``: if url doesn't exist.

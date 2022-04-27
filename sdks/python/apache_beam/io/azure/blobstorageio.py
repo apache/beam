@@ -379,11 +379,13 @@ class BlobStorageIO(object):
     """
     properties = self._blob_properties(path)
     file_status = {}
-    if hasattr(properties, 'etag'): file_status['checksum'] = properties.etag
+    if hasattr(properties, 'etag'):
+      file_status['checksum'] = properties.etag
     if hasattr(properties, 'last_modified'):
       file_status['last_updated'] = self._updated_to_seconds(
           properties.last_modified)
-    if hasattr(properties, 'size'): file_status['size'] = properties.size
+    if hasattr(properties, 'size'):
+      file_status['size'] = properties.size
     return file_status
 
   @retry.with_exponential_backoff(

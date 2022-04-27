@@ -531,7 +531,8 @@ class GcsIO(object):
       file_status['kms_key'] = gcs_object.kmsKeyName
     if hasattr(gcs_object, 'updated'):
       file_status['last_updated'] = self._updated_to_seconds(gcs_object.updated)
-    if hasattr(gcs_object, 'size'): file_status['size'] = gcs_object.size
+    if hasattr(gcs_object, 'size'):
+      file_status['size'] = gcs_object.size
     return file_status
 
   @retry.with_exponential_backoff(

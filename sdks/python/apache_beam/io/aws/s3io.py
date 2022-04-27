@@ -472,11 +472,13 @@ class S3IO(object):
     """
     s3_object = self._s3_object(path)
     file_status = {}
-    if hasattr(s3_object, 'etag'): file_status['checksum'] = s3_object.etag
+    if hasattr(s3_object, 'etag'):
+      file_status['checksum'] = s3_object.etag
     if hasattr(s3_object, 'last_modified'):
       file_status['last_updated'] = self._updated_to_seconds(
           s3_object.last_modified)
-    if hasattr(s3_object, 'size'): file_status['size'] = s3_object.size
+    if hasattr(s3_object, 'size'):
+      file_status['size'] = s3_object.size
     return file_status
 
   @retry.with_exponential_backoff(

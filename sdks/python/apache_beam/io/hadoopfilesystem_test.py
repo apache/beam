@@ -37,14 +37,16 @@ class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
   __hash__ = None  # type: ignore[assignment]
 
-  def __init__(self, path, mode='', type='FILE', mtime=None):
+  def __init__(self, path, mode='', type='FILE', time_ms=None):
     io.BytesIO.__init__(self)
-    if mtime is None:
-      mtime = int(time.time() * 1000)
-    self.stat = {'path': path, 'mode': mode, 'type': type, 'mtime': mtime}
+    if time_ms is None:
+      time_ms = int(time.time() * 1000)
+    self.time_ms = time_ms
+    self.stat = {'path': path, 'mode': mode, 'type': type}
     self.saved_data = None
 
   def __eq__(self, other):
+    """Equality of two files. Timestamp not included in comparison"""
     return self.stat == other.stat and self.getvalue() == self.getvalue()
 
   def close(self):
@@ -71,7 +73,7 @@ class FakeFile(io.BytesIO):
         hdfs._FILE_STATUS_PATH_SUFFIX: posixpath.basename(self.stat['path']),
         hdfs._FILE_STATUS_LENGTH: self.size,
         hdfs._FILE_STATUS_TYPE: self.stat['type'],
-        hdfs._FILE_STATUS_UPDATED: self.stat['mtime']
+        hdfs._FILE_STATUS_UPDATED: self.time_ms
     }
 
   def get_file_checksum(self):
