@@ -134,7 +134,6 @@ func (a *parquetReadFn) ProcessElement(ctx context.Context, filename string, emi
 //   Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
 //   Ignored int32   //without parquet tag and won't write
 // }
-
 func Write(s beam.Scope, filename string, t reflect.Type, col beam.PCollection) {
 	s = s.Scope("parquetio.Write")
 	filesystem.ValidateScheme(filename)
