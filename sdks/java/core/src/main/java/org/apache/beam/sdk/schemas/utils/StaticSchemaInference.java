@@ -27,7 +27,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -82,12 +81,6 @@ public class StaticSchemaInference {
           .build();
 
   /**
-   * A HashSet containing the non-primitive schemas within another schema, to prevent circular
-   * references.
-   */
-  private static Set<Class> alreadyVisitedSchemas = new HashSet<Class>();
-
-  /**
    * Infer a schema from a Java class.
    *
    * <p>Takes in a function to extract a list of field types from a class. Different callers may
@@ -95,15 +88,21 @@ public class StaticSchemaInference {
    * public getter methods, or special annotations on the class.
    */
   public static Schema schemaFromClass(
-      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      Class<?> clazz,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      HashSet<Class> alreadyVisitedSchemas) {
     if (alreadyVisitedSchemas.contains(clazz)) {
+      System.out.println(clazz);
+      System.out.println(alreadyVisitedSchemas);
       throw new RuntimeException(
           "Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
     }
     alreadyVisitedSchemas.add(clazz);
+    System.out.println("Added: " + clazz);
     Schema.Builder builder = Schema.builder();
     for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(clazz)) {
-      Schema.FieldType fieldType = fieldFromType(type.getType(), fieldValueTypeSupplier);
+      Schema.FieldType fieldType =
+          fieldFromType(type.getType(), fieldValueTypeSupplier, alreadyVisitedSchemas);
       if (type.isNullable()) {
         builder.addNullableField(type.getName(), fieldType);
       } else {
@@ -111,12 +110,15 @@ public class StaticSchemaInference {
       }
     }
     alreadyVisitedSchemas.remove(clazz);
+    System.out.println("Removed: " + clazz);
     return builder.build();
   }
 
   /** Map a Java field type to a Beam Schema FieldType. */
   public static Schema.FieldType fieldFromType(
-      TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      TypeDescriptor type,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      HashSet<Class> alreadyVisitedSchemas) {
     FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {
       return primitiveType;
@@ -136,7 +138,8 @@ public class StaticSchemaInference {
         return FieldType.BYTES;
       } else {
         // Otherwise this is an array type.
-        return FieldType.array(fieldFromType(component, fieldValueTypeSupplier));
+        return FieldType.array(
+            fieldFromType(component, fieldValueTypeSupplier, alreadyVisitedSchemas));
       }
     } else if (type.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       TypeDescriptor<Collection<?>> map = type.getSupertype(Map.class);
@@ -144,8 +147,12 @@ public class StaticSchemaInference {
         ParameterizedType ptype = (ParameterizedType) map.getType();
         java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
         checkArgument(params.length == 2);
-        FieldType keyType = fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier);
-        FieldType valueType = fieldFromType(TypeDescriptor.of(params[1]), fieldValueTypeSupplier);
+        FieldType keyType =
+            fieldFromType(
+                TypeDescriptor.of(params[0]), fieldValueTypeSupplier, alreadyVisitedSchemas);
+        FieldType valueType =
+            fieldFromType(
+                TypeDescriptor.of(params[1]), fieldValueTypeSupplier, alreadyVisitedSchemas);
         checkArgument(
             keyType.getTypeName().isPrimitiveType(),
             "Only primitive types can be map keys. type: " + keyType.getTypeName());
@@ -168,16 +175,19 @@ public class StaticSchemaInference {
         // TODO: should this be AbstractCollection?
         if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
           return FieldType.array(
-              fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
+              fieldFromType(
+                  TypeDescriptor.of(params[0]), fieldValueTypeSupplier, alreadyVisitedSchemas));
         } else {
           return FieldType.iterable(
-              fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
+              fieldFromType(
+                  TypeDescriptor.of(params[0]), fieldValueTypeSupplier, alreadyVisitedSchemas));
         }
       } else {
         throw new RuntimeException("Cannot infer schema from unparameterized collection.");
       }
     } else {
-      return FieldType.row(schemaFromClass(type.getRawType(), fieldValueTypeSupplier));
+      return FieldType.row(
+          schemaFromClass(type.getRawType(), fieldValueTypeSupplier, alreadyVisitedSchemas));
     }
   }
 }

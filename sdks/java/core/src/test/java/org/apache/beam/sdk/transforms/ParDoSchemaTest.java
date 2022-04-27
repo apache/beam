@@ -467,6 +467,7 @@ public class ParDoSchemaTest implements Serializable {
                     new DoFn<Inferred, String>() {
                       @ProcessElement
                       public void process(@Element Inferred2 pojo, OutputReceiver<String> r) {
+                        System.out.println(pojo.getStringField());
                         r.output(pojo.getStringField() + ":" + pojo.getIntegerField());
                       }
                     }));
