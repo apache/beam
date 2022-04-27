@@ -537,7 +537,7 @@ class BeamModulePlugin implements Plugin<Project> {
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         cdap_api                                    : "io.cdap.cdap:cdap-api:$cdap_version",
-        cdap_api_commons                            : "io.cdap.cdap:cdap-api-common:$cdap_version",
+        cdap_common                                 : "io.cdap.cdap:cdap-common:$cdap_version",
         cdap_etl_api                                : "io.cdap.cdap:cdap-etl-api:$cdap_version",
         cdap_etl_api_spark                          : "io.cdap.cdap:cdap-etl-api-spark:$cdap_version",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
