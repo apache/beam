@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.python;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -244,7 +245,8 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
             fieldName,
             StaticSchemaInference.fieldFromType(
                 TypeDescriptor.of(field.getClass()),
-                JavaFieldSchema.JavaFieldTypeSupplier.INSTANCE));
+                JavaFieldSchema.JavaFieldTypeSupplier.INSTANCE,
+                new HashSet<>()));
       }
 
       counter++;
