@@ -109,8 +109,10 @@ public class Latest {
 
       if (input.getTimestamp().isBefore(accumulator.getTimestamp())) {
         return accumulator;
-      } else {
+      } else if (input.getTimestamp().isAfter(accumulator.getTimestamp())) {
         return input;
+      } else {
+        return accumulator.getValue() != null ? accumulator : input;
       }
     }
 

@@ -39,6 +39,7 @@ import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -61,10 +62,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.LongFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -191,6 +195,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
                   BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+                  bqOptions.setSchemaUpdateRetries(Integer.MAX_VALUE);
                   bqOptions.setProject("project-id");
                   if (description.getAnnotations().stream()
                       .anyMatch(a -> a.annotationType().equals(ProjectOverride.class))) {
@@ -226,9 +231,9 @@ public class BigQueryIOWriteTest implements Serializable {
           .withJobService(fakeJobService);
 
   @Before
-  public void setUp() throws IOException, InterruptedException {
+  public void setUp() throws ExecutionException, IOException, InterruptedException {
     FakeDatasetService.setUp();
-    BigQueryIO.clearCreatedTables();
+    BigQueryIO.clearStaticCaches();
     fakeDatasetService.createDataset("bigquery-project-id", "dataset-id", "", "", null);
     fakeDatasetService.createDataset("bigquery-project-id", "temp-dataset-id", "", "", null);
     fakeDatasetService.createDataset("project-id", "dataset-id", "", "", null);
@@ -366,7 +371,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     verifySideInputs();
                     // Each user in it's own table.
                     return new TableDestination(
-                        "dataset-id.userid-" + userId + "$" + partitionDecorator,
+                        "project-id:dataset-id.userid-" + userId + "$" + partitionDecorator,
                         "table for userid " + userId);
                   }
 
@@ -944,7 +949,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withCoder(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("dataset-id.table-id")
+                .to("project-id:dataset-id.table-id")
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(
                     new TableSchema()
@@ -1773,6 +1778,119 @@ public class BigQueryIOWriteTest implements Serializable {
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
+  }
+
+  @Test
+  public void testUpdateTableSchemaUseSet() throws Exception {
+    updateTableSchemaTest(true);
+  }
+
+  @Test
+  public void testUpdateTableSchemaUseSetF() throws Exception {
+    updateTableSchemaTest(false);
+  }
+
+  public void updateTableSchemaTest(boolean useSet) throws Exception {
+    if (!useStreaming || !useStorageApi) {
+      return;
+    }
+    BigQueryIO.Write.Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    p.enableAbandonedNodeEnforcement(false);
+
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER")));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+
+    LongFunction<TableRow> getRowSet =
+        (LongFunction<TableRow> & Serializable)
+            (long i) -> {
+              if (i < 5) {
+                return new TableRow().set("name", "name" + i).set("number", Long.toString(i));
+
+              } else {
+                return new TableRow()
+                    .set("name", "name" + i)
+                    .set("number", Long.toString(i))
+                    .set("double_number", Long.toString(i * 2));
+              }
+            };
+
+    LongFunction<TableRow> getRowSetF =
+        (LongFunction<TableRow> & Serializable)
+            (long i) -> {
+              if (i < 5) {
+                return new TableRow()
+                    .setF(
+                        ImmutableList.of(
+                            new TableCell().setV("name" + i),
+                            new TableCell().setV(Long.toString(i))));
+              } else {
+                return new TableRow()
+                    .setF(
+                        ImmutableList.of(
+                            new TableCell().setV("name" + i),
+                            new TableCell().setV(Long.toString(i)),
+                            new TableCell().setV(Long.toString(i * 2))));
+              }
+            };
+
+    LongFunction<TableRow> getRow = useSet ? getRowSet : getRowSetF;
+    final int numRows = 10;
+    PCollection<TableRow> tableRows =
+        p.apply(GenerateSequence.from(0).to(numRows))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<Long, TableRow>() {
+                      @Override
+                      public TableRow apply(Long input) {
+                        return getRow.apply(input);
+                      }
+                    }))
+            .setCoder(TableRowJsonCoder.of());
+    tableRows.apply(
+        BigQueryIO.writeTableRows()
+            .to(tableRef)
+            .withMethod(method)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withTestServices(fakeBqServices)
+            .withoutValidation());
+
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(5000);
+                TableSchema tableSchemaUpdated =
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("name").setType("STRING"),
+                                new TableFieldSchema().setName("number").setType("INTEGER"),
+                                new TableFieldSchema()
+                                    .setName("double_number")
+                                    .setType("INTEGER")));
+                fakeDatasetService.updateTableSchema(tableRef, tableSchemaUpdated);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
+    thread.start();
+    p.run();
+    thread.join();
+
+    assertThat(
+        fakeDatasetService.getAllRows(
+            tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+        containsInAnyOrder(
+            Iterables.toArray(
+                LongStream.range(0, numRows).mapToObj(getRowSet).collect(Collectors.toList()),
+                TableRow.class)));
   }
 
   @Test

@@ -120,8 +120,8 @@ func handleDoFn(fn *graph.DoFn, c cache) {
 	if !sdf.IsStatefulWatermarkEstimating() {
 		return
 	}
-	c.pullMethod(sdf.GetInitialWatermarkEstimatorStateFn())
-	c.pullMethod(sdf.GetWatermarkEstimatorStateFn())
+	c.pullMethod(sdf.InitialWatermarkEstimatorStateFn())
+	c.pullMethod(sdf.WatermarkEstimatorStateFn())
 	c.regType(sdf.WatermarkEstimatorStateT())
 }
 

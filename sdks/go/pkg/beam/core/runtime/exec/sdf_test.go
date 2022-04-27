@@ -995,7 +995,7 @@ func TestAsSplittableUnit(t *testing.T) {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
 				// Setup, create transforms, inputs, and desired outputs.
-				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}, we: VetWatermarkEstimator{State: 1}}
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}, we: &VetWatermarkEstimator{State: 1}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
 				node.rt = &SplittableUnitRTracker{
 					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*FullValue).Elm.(*VetRestriction)},
@@ -1128,26 +1128,24 @@ func TestAsSplittableUnit(t *testing.T) {
 				units := []Unit{root, node, capt}
 				constructAndExecutePlan(t, units)
 
-				if node.PDo.we == nil {
-					t.Fatalf("AHHH")
-				}
-
 				ow := node.GetOutputWatermark()
-				if got, want := len(ow), 2; got != want {
+				if ow == nil {
+					t.Errorf("ProcessSizedElementsAndRestrictions(%v), got: nil, want: output watermarks", test.in)
+				} else if got, want := len(ow), 2; got != want {
 					t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect number of watermarks, got: %v, want: %v",
 						test.in, len(ow), 2)
 				} else {
 					if got, ok := ow["output1"]; !ok {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has no watermark for ouptput1, want: %v",
 							test.in, test.want)
-					} else if got.AsTime() != test.want {
+					} else if !got.AsTime().Equal(test.want) {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect watermark for output1: got: %v, want: %v",
 							test.in, got.AsTime(), test.want)
 					}
 					if got, ok := ow["output2"]; !ok {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has no watermark for ouptput2, want: %v",
 							test.in, test.want)
-					} else if got.AsTime() != test.want {
+					} else if !got.AsTime().Equal(test.want) {
 						t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect watermark for output2: got: %v, want: %v",
 							test.in, got.AsTime(), test.want)
 					}

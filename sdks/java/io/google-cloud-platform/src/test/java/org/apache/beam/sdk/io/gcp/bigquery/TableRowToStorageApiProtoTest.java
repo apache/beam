@@ -511,7 +511,7 @@ public class TableRowToStorageApiProtoTest {
 
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, tableRow);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, tableRow, false);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -527,7 +527,8 @@ public class TableRowToStorageApiProtoTest {
   public void testMessageWithFFromTableRow() throws Exception {
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, BASE_TABLE_ROW);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(descriptor, BASE_TABLE_ROW, false);
     assertBaseRecord(msg, true);
   }
 
@@ -566,7 +567,8 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", ImmutableList.of(BASE_TABLE_ROW_NO_F, BASE_TABLE_ROW_NO_F));
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow, false);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -607,7 +609,8 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof2", null);
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
-    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow, false);
 
     Map<String, FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()

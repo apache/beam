@@ -267,7 +267,7 @@ func TestInvokes(t *testing.T) {
 					t.Fatalf("newCreateWatermarkEstimatorInvoker failed: %v", err)
 				}
 				got := invoker.Invoke(test.state)
-				want := test.want
+				want := &test.want
 				if !cmp.Equal(got, want) {
 					t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
 				}
@@ -281,11 +281,11 @@ func TestInvokes(t *testing.T) {
 		}
 	})
 
-	t.Run("GetInitialWatermarkEstimatorState Invoker (giweInvoker)", func(t *testing.T) {
-		fn := statefulWeFn.GetInitialWatermarkEstimatorStateFn()
-		invoker, err := newGetInitialWatermarkEstimatorStateInvoker(fn)
+	t.Run("InitialWatermarkEstimatorState Invoker (iwesInvoker)", func(t *testing.T) {
+		fn := statefulWeFn.InitialWatermarkEstimatorStateFn()
+		invoker, err := newInitialWatermarkEstimatorStateInvoker(fn)
 		if err != nil {
-			t.Fatalf("newGetInitialWatermarkEstimatorStateInvoker failed: %v", err)
+			t.Fatalf("newInitialWatermarkEstimatorStateInvoker failed: %v", err)
 		}
 		got := invoker.Invoke(&VetRestriction{ID: "Sdf"}, &FullValue{Elm: 1, Timestamp: mtime.ZeroTimestamp})
 		want := 1
@@ -294,13 +294,13 @@ func TestInvokes(t *testing.T) {
 		}
 	})
 
-	t.Run("GetWatermarkEstimatorState Invoker (gweInvoker)", func(t *testing.T) {
-		fn := statefulWeFn.GetWatermarkEstimatorStateFn()
-		invoker, err := newGetWatermarkEstimatorStateInvoker(fn)
+	t.Run("WatermarkEstimatorState Invoker (wesInvoker)", func(t *testing.T) {
+		fn := statefulWeFn.WatermarkEstimatorStateFn()
+		invoker, err := newWatermarkEstimatorStateInvoker(fn)
 		if err != nil {
-			t.Fatalf("newGetWatermarkEstimatorStateInvoker failed: %v", err)
+			t.Fatalf("newWatermarkEstimatorStateInvoker failed: %v", err)
 		}
-		got := invoker.Invoke(VetWatermarkEstimator{State: 11})
+		got := invoker.Invoke(&VetWatermarkEstimator{State: 11})
 		want := 11
 		if got != want {
 			t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
@@ -350,7 +350,7 @@ type VetWatermarkEstimator struct {
 	State int
 }
 
-func (e VetWatermarkEstimator) CurrentWatermark() time.Time {
+func (e *VetWatermarkEstimator) CurrentWatermark() time.Time {
 	return time.Date(2022, time.January, 1, 1, 0, 0, 0, time.UTC)
 }
 
@@ -399,8 +399,8 @@ func (fn *VetSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
 }
 
 // CreateWatermarkEstimator creates a watermark estimator to be used by the Sdf
-func (fn *VetSdf) CreateWatermarkEstimator() VetWatermarkEstimator {
-	return VetWatermarkEstimator{State: -1}
+func (fn *VetSdf) CreateWatermarkEstimator() *VetWatermarkEstimator {
+	return &VetWatermarkEstimator{State: -1}
 }
 
 // ProcessElement emits the restriction from the restriction tracker it
@@ -447,15 +447,15 @@ func (fn *VetSdfStatefulWatermark) CreateTracker(rest *VetRestriction) *VetRTrac
 	return &VetRTracker{rest}
 }
 
-func (fn *VetSdfStatefulWatermark) GetInitialWatermarkEstimatorState(_ typex.EventTime, _ *VetRestriction, element int) int {
+func (fn *VetSdfStatefulWatermark) InitialWatermarkEstimatorState(_ typex.EventTime, _ *VetRestriction, element int) int {
 	return 1
 }
 
-func (fn *VetSdfStatefulWatermark) CreateWatermarkEstimator(state int) VetWatermarkEstimator {
-	return VetWatermarkEstimator{State: state}
+func (fn *VetSdfStatefulWatermark) CreateWatermarkEstimator(state int) *VetWatermarkEstimator {
+	return &VetWatermarkEstimator{State: state}
 }
 
-func (fn *VetSdfStatefulWatermark) GetWatermarkEstimatorState(e VetWatermarkEstimator) int {
+func (fn *VetSdfStatefulWatermark) WatermarkEstimatorState(e *VetWatermarkEstimator) int {
 	return e.State
 }
 

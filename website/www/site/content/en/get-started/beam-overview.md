@@ -25,6 +25,11 @@ Apache Beam is an open source, unified model for defining both batch and streami
 
 Beam is particularly useful for [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarassingly_parallel) data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.
 
+<div style="display: flex; justify-content: center">
+  <img src="/images/learner_graph.png" width="800px" alt="Learner Graph">
+</div>
+
+
 ## Apache Beam SDKs
 
 The Beam SDKs provide a unified programming model that can represent and transform data sets of any size, whether the input is a finite data set from a batch data source, or an infinite data set from a streaming data source. The Beam SDKs use the same classes to represent both bounded and unbounded data, and the same transforms to operate on that data. You use the Beam SDK of your choice to build a program that defines your data processing pipeline.
