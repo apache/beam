@@ -1,82 +1,82 @@
 {{define "BuildWrapper_StartFinishBundle"}}
-{{$funcName := "unknown"}}{{$structName := "unknown"}}{{if (eq .func "startBundle")}}{{$funcName = "startBundle"}}{{$structName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$funcName = "finishBundle"}}{{$structName = "FinishBundle"}}{{end}}{{$startFinishBundleMaxIn := .startFinishBundleMaxIn}}{{$processElementMaxIn := .processElementMaxIn}}
+{{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "startBundle")}}{{$lowerName = "startBundle"}}{{$upperName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$lowerName = "finishBundle"}}{{$upperName = "FinishBundle"}}{{end}}{{$startFinishBundleMaxIn := .startFinishBundleMaxIn}}{{$processElementMaxIn := .processElementMaxIn}}
 {{range $numParams := upto $processElementMaxIn}}
-func build{{$structName}}Wrapper{{$numParams}}{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
-    {{$funcName}}In := -1
-	{{$funcName}}Out := -1
-	{{$funcName}}Method := reflect.ValueOf(doFn).MethodByName("{{$structName}}")
-	if {{$funcName}}Method.IsValid() {
-		{{$funcName}}In = {{$funcName}}Method.Type().NumIn()
-		{{$funcName}}Out = {{$funcName}}Method.Type().NumOut()
+func build{{$upperName}}Wrapper{{$numParams}}{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
+    {{$lowerName}}In := -1
+	{{$lowerName}}Out := -1
+	{{$lowerName}}Method := reflect.ValueOf(doFn).MethodByName("{{$upperName}}")
+	if {{$lowerName}}Method.IsValid() {
+		{{$lowerName}}In = {{$lowerName}}Method.Type().NumIn()
+		{{$lowerName}}Out = {{$lowerName}}Method.Type().NumOut()
 	    switch {
 {{range $funcIn := upto $startFinishBundleMaxIn}}
-    case {{$funcName}}In == {{$funcIn}}:
+    case {{$lowerName}}In == {{$funcIn}}:
             switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $numParams)}}{{if $possibleCombos}}
-            case {{$funcName}}Out == {{$funcOut}}:
-{{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$funcName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
+            case {{$lowerName}}Out == {{$funcOut}}:
+{{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
                     reflectx.RegisterFunc(reflect.TypeOf((*func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}{fn: fn.(func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})} })
-                    {{$funcRegister := (makeStructRegisterEntry $funcName $structName $funcCombo (list))}}{{if $funcOut}}{{$funcRegister = (makeStructRegisterEntry $funcName $structName $funcCombo (list "error"))}}{{end}}
+                    {{$funcRegister := (makeStructRegisterEntry $lowerName $upperName $funcCombo (list))}}{{if $funcOut}}{{$funcRegister = (makeStructRegisterEntry $lowerName $upperName $funcCombo (list "error"))}}{{end}}
                     return func(fn interface{}) reflectx.Func { return {{$funcRegister}} }
                 } {{end}}{{end}}{{end}}
             default:
-                panic("Invalid signature for {{$structName}}")
+                panic("Invalid signature for {{$upperName}}")
             }
 {{end}}
         default:
-            panic("Invalid signature for {{$structName}}")
+            panic("Invalid signature for {{$upperName}}")
         }
     }
     return nil
 }
 {{end}}{{end}}{{define "BuildWrapper_SetupTeardown"}}
-{{$funcName := "unknown"}}{{$structName := "unknown"}}{{if (eq .func "setup")}}{{$funcName = "setup"}}{{$structName = "Setup"}}{{end}}{{if (eq .func "teardown")}}{{$funcName = "teardown"}}{{$structName = "Teardown"}}{{end}}
-func build{{$structName}}Wrapper(doFn interface{}) func(interface{}) reflectx.Func {
-    if _, ok := doFn.({{$funcName}}0x0); ok {
-        {{$funcName}}Caller := func(fn interface{}) reflectx.Func {
+{{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "setup")}}{{$lowerName = "setup"}}{{$upperName = "Setup"}}{{end}}{{if (eq .func "teardown")}}{{$lowerName = "teardown"}}{{$upperName = "Teardown"}}{{end}}
+func build{{$upperName}}Wrapper(doFn interface{}) func(interface{}) reflectx.Func {
+    if _, ok := doFn.({{$lowerName}}0x0); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
             f := fn.(func())
             return &caller0x0{fn: f}
         }
-        reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), {{$funcName}}Caller)
+        reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), {{$lowerName}}Caller)
 
         return func(fn interface{}) reflectx.Func {
             return reflectx.MakeFunc(func() {
-                fn.({{$funcName}}0x0).{{$structName}}()
+                fn.({{$lowerName}}0x0).{{$upperName}}()
             })
         }
-    } else if _, ok := doFn.({{$funcName}}1x0); ok {
-        {{$funcName}}Caller := func(fn interface{}) reflectx.Func {
+    } else if _, ok := doFn.({{$lowerName}}1x0); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
             f := fn.(func(context.Context))
             return &caller1x0[context.Context]{fn: f}
         }
-        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), {{$funcName}}Caller)
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), {{$lowerName}}Caller)
 
         return func(fn interface{}) reflectx.Func {
             return reflectx.MakeFunc(func(a0 context.Context) {
-                fn.({{$funcName}}1x0).{{$structName}}(a0)
+                fn.({{$lowerName}}1x0).{{$upperName}}(a0)
             })
         }
-    } else if _, ok := doFn.({{$funcName}}0x1); ok {
-        {{$funcName}}Caller := func(fn interface{}) reflectx.Func {
+    } else if _, ok := doFn.({{$lowerName}}0x1); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
             f := fn.(func() error)
             return &caller0x1[error]{fn: f}
         }
-        reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), {{$funcName}}Caller)
+        reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), {{$lowerName}}Caller)
 
         return func(fn interface{}) reflectx.Func {
             return reflectx.MakeFunc(func() error {
-                return fn.({{$funcName}}0x1).{{$structName}}()
+                return fn.({{$lowerName}}0x1).{{$upperName}}()
             })
         }
-    } else if _, ok := doFn.({{$funcName}}1x1); ok {
-        {{$funcName}}Caller := func(fn interface{}) reflectx.Func {
+    } else if _, ok := doFn.({{$lowerName}}1x1); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
             f := fn.(func(context.Context) error)
             return &caller1x1[context.Context, error]{fn: f}
         }
-        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), {{$funcName}}Caller)
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), {{$lowerName}}Caller)
 
         return func(fn interface{}) reflectx.Func {
             return reflectx.MakeFunc(func(a0 context.Context) error {
-                return fn.({{$funcName}}1x1).{{$structName}}(a0)
+                return fn.({{$lowerName}}1x1).{{$upperName}}(a0)
             })
         }
     }
