@@ -21,7 +21,7 @@ new Swiper('.swiper', {
     bulletActiveClass: "bullet-active-class-custom",
   },
   breakpoints: {
-    1024: {
+    1025: {
       slidesPerView: 3,
       slidesPerGroup: 3,
     },
