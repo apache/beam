@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore ST1008 test cases with error returns out of place are intended
+
 package funcx
 
 import (

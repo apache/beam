@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
@@ -65,7 +66,14 @@ import org.slf4j.LoggerFactory;
 public class BigQueryIOJsonIT {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOJsonIT.class);
 
-  @Rule public final transient TestPipeline p = TestPipeline.create();
+  private static PipelineOptions testOptions = TestPipeline.testingPipelineOptions();
+
+  static {
+    TestPipelineOptions opt = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    testOptions.setTempLocation(opt.getTempRoot() + "/java-tmp");
+  }
+
+  @Rule public final transient TestPipeline p = TestPipeline.fromOptions(testOptions);
 
   @Rule public final transient TestPipeline pWrite = TestPipeline.create();
 
