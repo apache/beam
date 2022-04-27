@@ -92,6 +92,8 @@ var portableFilters = []string{
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
+	// TODO(BEAM-12815): Test fails on post commits: "Insufficient number of network buffers".
+	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
 	// Triggers are not yet supported
 	"TestTrigger.*",

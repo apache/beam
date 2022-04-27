@@ -17,10 +17,11 @@ package synthetic
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"math/rand"
 	"reflect"
 	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
@@ -130,7 +131,7 @@ func (fn *sdfStepFn) Setup() {
 func (fn *sdfStepFn) ProcessElement(rt *sdf.LockRTracker, key, val []byte, emit func([]byte, []byte)) {
 	filtered := fn.cfg.FilterRatio > 0 && fn.rng.Float64() < fn.cfg.FilterRatio
 
-	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
+	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i); i++ {
 		if !filtered {
 			emit(key, val)
 		}

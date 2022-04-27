@@ -425,16 +425,18 @@ class _ProcessingQueueManager(object):
     def enque(self, elm: Tuple[QUEUE_KEY_TYPE, DataInput]) -> None:
       key = elm[0]
       incoming_inputs: DataInput = elm[1]
+      if not incoming_inputs:
+        return
       if key in self._keyed_elements:
         existing_inputs = self._keyed_elements[key][1]
         for pcoll in incoming_inputs.data:
-          if incoming_inputs.data[pcoll] and pcoll in existing_inputs.data:
+          if incoming_inputs.data[pcoll] and existing_inputs.data.get(pcoll):
             existing_inputs.data[pcoll].extend(incoming_inputs.data[pcoll])
           elif incoming_inputs.data[pcoll]:
             existing_inputs.data[pcoll] = incoming_inputs.data[pcoll]
         for timer_family in (incoming_inputs.timers or []):
-          if incoming_inputs.timers[
-              timer_family] and timer_family in existing_inputs.timers:
+          if (incoming_inputs.timers[timer_family] and
+              existing_inputs.timers.get(timer_family)):
             existing_inputs.timers[timer_family].extend(
                 incoming_inputs.timers[timer_family])
           elif incoming_inputs.timers[timer_family]:
@@ -673,7 +675,7 @@ class GenericMergingWindowFn(window.WindowFn):
                 windowing_strategy_id=global_windowing_strategy_id,
                 coder_id=output_coder_id),
         },
-        coders=coders,
+        coders=coders,  # type: ignore
         windowing_strategies={
             global_windowing_strategy_id: global_windowing_strategy_proto,
         },

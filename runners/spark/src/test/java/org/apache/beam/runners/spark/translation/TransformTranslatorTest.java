@@ -68,7 +68,8 @@ public class TransformTranslatorTest {
                 new ByteArray(CoderHelpers.toByteArrayWithTs(1, coder, now)),
                 CoderHelpers.toByteArray(WindowedValue.of(1, now, window, paneInfo), wvCoder)),
             new Tuple2(
-                new ByteArray(CoderHelpers.toByteArrayWithTs(1, coder, now.plus(Duration.millis(1)))),
+                new ByteArray(
+                    CoderHelpers.toByteArrayWithTs(1, coder, now.plus(Duration.millis(1)))),
                 CoderHelpers.toByteArray(
                     WindowedValue.of(2, now.plus(Duration.millis(1)), window, paneInfo), wvCoder)));
 
@@ -78,7 +79,8 @@ public class TransformTranslatorTest {
                 new ByteArray(CoderHelpers.toByteArrayWithTs(2, coder, now)),
                 CoderHelpers.toByteArray(WindowedValue.of(3, now, window, paneInfo), wvCoder)),
             new Tuple2(
-                new ByteArray(CoderHelpers.toByteArrayWithTs(2, coder, now.plus(Duration.millis(2)))),
+                new ByteArray(
+                    CoderHelpers.toByteArrayWithTs(2, coder, now.plus(Duration.millis(2)))),
                 CoderHelpers.toByteArray(
                     WindowedValue.of(4, now.plus(Duration.millis(2)), window, paneInfo), wvCoder)));
 

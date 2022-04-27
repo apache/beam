@@ -607,9 +607,33 @@ class NullableCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Optional[self._value_coder.to_type_hint()]
 
+  def _get_component_coders(self):
+    # type: () -> List[Coder]
+    return [self._value_coder]
+
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    if typehints.is_nullable(typehint):
+      return cls(
+          registry.get_coder(
+              typehints.get_concrete_type_from_nullable(typehint)))
+    else:
+      raise TypeError(
+          'Typehint is not of nullable type, '
+          'and cannot be converted to a NullableCoder',
+          typehint)
+
   def is_deterministic(self):
     # type: () -> bool
     return self._value_coder.is_deterministic()
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      deterministic_value_coder = self._value_coder.as_deterministic_coder(
+          step_label, error_message)
+      return NullableCoder(deterministic_value_coder)
 
   def __eq__(self, other):
     return (
@@ -617,6 +641,9 @@ class NullableCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self)) + hash(self._value_coder)
+
+
+Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -1524,7 +1551,6 @@ Coder.register_structured_urn(
 
 
 class StateBackedIterableCoder(FastCoder):
-
   DEFAULT_WRITE_THRESHOLD = 1
 
   def __init__(

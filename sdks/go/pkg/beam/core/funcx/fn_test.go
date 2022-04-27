@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore ST1008 test cases with error returns out of place are intended
+
 package funcx
 
 import (
@@ -23,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -111,6 +114,12 @@ func TestNew(t *testing.T) {
 			Fn:    func(context.Context, typex.EventTime, reflect.Type, func(int)) error { return nil },
 			Param: []FnParamKind{FnContext, FnEventTime, FnType, FnEmit},
 			Ret:   []ReturnKind{RetError},
+		},
+		{
+			// TODO(BEAM-11104): Replace with a functioning test case once E2E support is finished.
+			Name: "sdf",
+			Fn:   func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
+			Err:  errContinuationSupport,
 		},
 		{
 			Name: "errContextParam: after input",

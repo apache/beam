@@ -200,32 +200,33 @@ public abstract class AbstractTranslationContext {
   // --------------------------------------------------------------------------------------------
 
   /** Starts the pipeline. */
-  public void startPipeline(){
-      SparkStructuredStreamingPipelineOptions options =
-          serializablePipelineOptions.get().as(SparkStructuredStreamingPipelineOptions.class);
-      int datasetIndex = 0;
-      for (Dataset<?> dataset : leaves) {
-        if (options.isStreaming()) {
-          // TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
-          // with DatastreamWriter.outputMode
-          DataStreamWriter<?> dataStreamWriter = dataset.writeStream();
-          // spark sets a default checkpoint dir if not set.
-          if (options.getCheckpointDir() != null) {
-            dataStreamWriter =
-                dataStreamWriter.option("checkpointLocation", options.getCheckpointDir());
-          }
-          launchStreaming(dataStreamWriter.foreach(new NoOpForeachWriter<>()));
-        } else {
-          if (options.getTestMode()) {
-            LOG.debug("**** dataset {} catalyst execution plans ****", ++datasetIndex);
-            dataset.explain(true);
-          }
-          // apply a dummy fn just to apply foreach action that will trigger the pipeline run in
-          // spark
-          dataset.foreach((ForeachFunction) t -> {});
+  public void startPipeline() {
+    SparkStructuredStreamingPipelineOptions options =
+        serializablePipelineOptions.get().as(SparkStructuredStreamingPipelineOptions.class);
+    int datasetIndex = 0;
+    for (Dataset<?> dataset : leaves) {
+      if (options.isStreaming()) {
+        // TODO: deal with Beam Discarding, Accumulating and Accumulating & Retracting	outputmodes
+        // with DatastreamWriter.outputMode
+        DataStreamWriter<?> dataStreamWriter = dataset.writeStream();
+        // spark sets a default checkpoint dir if not set.
+        if (options.getCheckpointDir() != null) {
+          dataStreamWriter =
+              dataStreamWriter.option("checkpointLocation", options.getCheckpointDir());
         }
+        launchStreaming(dataStreamWriter.foreach(new NoOpForeachWriter<>()));
+      } else {
+        if (options.getTestMode()) {
+          LOG.debug("**** dataset {} catalyst execution plans ****", ++datasetIndex);
+          dataset.explain(true);
+        }
+        // apply a dummy fn just to apply foreach action that will trigger the pipeline run in
+        // spark
+        dataset.foreach((ForeachFunction) t -> {});
       }
+    }
   }
+
   public abstract void launchStreaming(DataStreamWriter<?> dataStreamWriter);
 
   public static void printDatasetContent(Dataset<WindowedValue> dataset) {
@@ -236,6 +237,7 @@ public abstract class AbstractTranslationContext {
       LOG.debug("**** dataset content {} ****", windowedValue.toString());
     }
   }
+
   private static class NoOpForeachWriter<T> extends ForeachWriter<T> {
 
     @Override
@@ -253,5 +255,4 @@ public abstract class AbstractTranslationContext {
       // do nothing
     }
   }
-
 }
