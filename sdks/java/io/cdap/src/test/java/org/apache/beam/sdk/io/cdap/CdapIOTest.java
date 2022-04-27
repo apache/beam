@@ -173,9 +173,9 @@ public class CdapIOTest {
             });
     p.run();
 
-    assertEquals(ZendeskInputFormat.class, reader.getCdapPlugin().formatClass);
+    assertEquals(ZendeskInputFormat.class, reader.getCdapPlugin().getFormatClass());
 
-    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConf();
+    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConfiguration();
     String configJson = hadoopConf.get(ZendeskBatchSourceConstants.PROPERTY_CONFIG_JSON);
     ZendeskBatchSourceConfig configFromJson =
         GSON.fromJson(configJson, ZendeskBatchSourceConfig.class);
@@ -230,9 +230,9 @@ public class CdapIOTest {
             });
     p.run();
 
-    assertEquals(HubspotInputFormat.class, reader.getCdapPlugin().formatClass);
+    assertEquals(HubspotInputFormat.class, reader.getCdapPlugin().getFormatClass());
 
-    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConf();
+    Configuration hadoopConf = reader.getCdapPlugin().getHadoopConfiguration();
     String configJson = hadoopConf.get(HubspotInputFormatProvider.PROPERTY_CONFIG_JSON);
     SourceHubspotConfig configFromJson = GSON.fromJson(configJson, SourceHubspotConfig.class);
 

@@ -66,7 +66,7 @@ public class CdapPlugin<T extends SubmitterLifecycle> implements Serializable {
   }
 
   private final Format format;
-  private final Class<?> cdapPluginClass;
+  private final Class<T> cdapPluginClass;
   private final BatchContextImpl context;
 
   private Configuration hadoopConf;
