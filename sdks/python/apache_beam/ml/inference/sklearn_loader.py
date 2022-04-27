@@ -70,8 +70,10 @@ class SklearnModelLoader(ModelLoader):
       return pickle.load(file)
     elif self._model_file_type == ModelFileType.JOBLIB:
       if not joblib:
-        raise ImportError('Could not import joblib in this execution'
-            ' environment. For help with managing dependencies on Python workers see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/')
+        raise ImportError(
+            'Could not import joblib in this execution'
+            ' environment. For help with managing dependencies on Python workers see https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/'
+        )
       return joblib.load(file)
     raise AssertionError('Unsupported serialization type.')
 
