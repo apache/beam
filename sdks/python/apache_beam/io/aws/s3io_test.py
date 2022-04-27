@@ -118,7 +118,8 @@ class TestS3IO(unittest.TestCase):
 
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(self.aws.exists(file_name))
-
+    # The time difference should be tiny for the mock client.
+    # A loose tolerance is for the consideration of real s3 client.
     tolerance = 5 * 60  # 5 mins
     result = self.aws.last_updated(file_name)
     self.assertAlmostEqual(result, time.time(), delta=tolerance)

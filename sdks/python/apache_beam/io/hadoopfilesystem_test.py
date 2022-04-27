@@ -543,7 +543,9 @@ class HadoopFileSystemTest(unittest.TestCase):
     url = self.fs.join(self.tmpdir, 'f1')
     with self.fs.create(url) as f:
       f.write(b'Hello')
-    tolerance = 60  # 1 min
+    # The time difference should be tiny for the mock hdfs.
+    # A loose tolerance is for the consideration of real web hdfs.
+    tolerance = 5 * 60  # 5 mins
     result = self.fs.last_updated(url)
     self.assertAlmostEqual(result, time.time(), delta=tolerance)
 
