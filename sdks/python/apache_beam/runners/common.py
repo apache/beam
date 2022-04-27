@@ -891,23 +891,15 @@ class PerWindowInvoker(DoFnInvoker):
       elif core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
 
-    if additional_kwargs:
-      if kwargs_for_process is None:
-        kwargs_for_process = additional_kwargs
-      else:
-        for key in additional_kwargs:
-          kwargs_for_process[key] = additional_kwargs[key]
+    kwargs_for_process = kwargs_for_process or {}
 
-    if kwargs_for_process:
-      self.output_processor.process_outputs(
-          windowed_value,
-          self.process_method(*args_for_process, **kwargs_for_process),
-          self.threadsafe_watermark_estimator)
-    else:
-      self.output_processor.process_outputs(
-          windowed_value,
-          self.process_method(*args_for_process),
-          self.threadsafe_watermark_estimator)
+    if additional_kwargs:
+      kwargs_for_process.update(additional_kwargs)
+
+    self.output_processor.process_outputs(
+        windowed_value,
+        self.process_method(*args_for_process, **kwargs_for_process),
+        self.threadsafe_watermark_estimator)
 
     if self.is_splittable:
       assert self.threadsafe_restriction_tracker is not None
