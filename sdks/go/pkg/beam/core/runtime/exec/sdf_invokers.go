@@ -363,17 +363,8 @@ type trInvoker struct {
 var offsetrangeTracker = reflect.TypeOf((*offsetrange.Tracker)(nil)).Elem()
 
 func DefaultTruncateRestriction(restTracker interface{}) (newRest interface{}) {
-	tracker, ok := restTracker.(sdf.BoundableRTracker)
-	if !ok {
-		return nil
-	}
-	switch tracker.(type) {
-	case *offsetrange.Tracker:
-		if tracker.(*offsetrange.Tracker).IsBounded() {
-			return restTracker.(*offsetrange.Tracker).GetRestriction().(offsetrange.Restriction)
-		}
-	default:
-		return nil
+	if tracker, ok := restTracker.(sdf.BoundableRTracker); ok && tracker.IsBounded() {
+		tracker.GetRestriction()
 	}
 	return nil
 }
@@ -389,7 +380,7 @@ func newTruncateRestrictionInvoker(fn *funcx.Fn) (*trInvoker, error) {
 	return n, nil
 }
 
-func newDefaultTruncateRestriction() (*trInvoker, error) {
+func newDefaultTruncateRestrictionInvoker() (*trInvoker, error) {
 	n := &trInvoker{}
 	n.call = func(rest interface{}, elms *FullValue) interface{} {
 		return DefaultTruncateRestriction(rest)

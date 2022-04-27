@@ -243,7 +243,7 @@ func (n *TruncateSizedRestriction) Up(ctx context.Context) error {
 			return err
 		}
 	} else {
-		if n.truncateInv, err = newDefaultTruncateRestriction(); err != nil {
+		if n.truncateInv, err = newDefaultTruncateRestrictionInvoker(); err != nil {
 			return err
 		}
 	}
