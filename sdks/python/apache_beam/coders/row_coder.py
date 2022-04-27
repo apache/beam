@@ -131,7 +131,7 @@ def _coder_from_type(field_type):
 def _nonnull_coder_from_type(field_type):
   type_info = field_type.WhichOneof("type_info")
   if type_info == "atomic_type":
-    if field_type.atomic_type in (schema_pb2.INT32, schema_pb2.INT64):
+    if field_type.atomic_type in (schema_pb2.INT8, schema_pb2.INT16, schema_pb2.INT32, schema_pb2.INT64):
       return VarIntCoder()
     elif field_type.atomic_type == schema_pb2.DOUBLE:
       return FloatCoder()
