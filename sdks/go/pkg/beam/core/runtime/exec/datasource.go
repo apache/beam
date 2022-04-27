@@ -321,6 +321,9 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol}
 }
 
+// getProcessContinuation retrieves a ProcessContinuation that may be returned by
+// a self-checkpointing SDF. Current support for self-checkpointing requires that the
+// SDF is immediately after the DataSource.
 func (n *DataSource) getProcessContinuation() sdf.ProcessContinuation {
 	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok {
 		return u.continuation

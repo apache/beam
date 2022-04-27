@@ -435,7 +435,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		if checkErr != nil {
-			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, checkErr)
+			return fail(ctx, instID, "process bundle failed at checkpointing for instruction %v using plan %v : %v", instID, bdID, checkErr)
 		}
 
 		return &fnpb.InstructionResponse{
