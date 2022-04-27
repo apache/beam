@@ -39,7 +39,7 @@ interface for integration with CDAP plugins."""
 
 allprojects {
     repositories {
-        maven { url 'https://jitpack.io' }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
     }
 }
 
@@ -48,18 +48,8 @@ dependencies {
     implementation library.java.cdap_api_commons
     implementation library.java.cdap_etl_api
     implementation library.java.cdap_etl_api_spark
-    implementation library.java.cdap_formats
-    implementation library.java.cdap_hydrator_common
-    implementation library.java.commons_validator
-    implementation library.java.github_rholder
-    implementation library.java.guava
-    implementation library.java.google_code_gson
-    implementation library.java.google_http_client
-    implementation library.java.google_http_client_gson
     implementation library.java.hadoop_common
     implementation library.java.hadoop_mapred
-    implementation library.java.http_client
-    implementation library.java.http_core
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.slf4j_api
@@ -67,7 +57,9 @@ dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:io:hadoop-format")
-    testImplementation "com.github.data-integrations:salesforce:v1.3.9"
+    testImplementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
+    testImplementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
+    testImplementation "io.cdap.plugin:zendesk-plugins:1.0.0-SNAPSHOT"
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit

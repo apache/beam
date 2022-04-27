@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
@@ -59,6 +60,8 @@ public class CdapIO {
 
     abstract @Nullable Class<V> getValueClass();
 
+    abstract @Nullable Coder<V> getValueCoder();
+
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Experimental.Kind.PORTABILITY)
@@ -72,6 +75,8 @@ public class CdapIO {
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
       abstract Builder<K, V> setValueClass(Class<V> valueClass);
+
+      abstract Builder<K, V> setValueCoder(Coder<V> coder);
 
       abstract Read<K, V> build();
     }
@@ -90,6 +95,10 @@ public class CdapIO {
 
     public Read<K, V> withKeyClass(Class<K> keyClass) {
       return toBuilder().setKeyClass(keyClass).build();
+    }
+
+    public Read<K, V> withValueCoder(Coder<V> valueCoder) {
+      return toBuilder().setValueCoder(valueCoder).build();
     }
 
     public Read<K, V> withValueClass(Class<V> valueClass) {
