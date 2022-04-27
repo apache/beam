@@ -15,23 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.jms;
 
-import 'package:flutter/cupertino.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 
-class GetListOfExamplesRequestWrapper {
-  final SDK? sdk;
-  final String? category;
+/**
+ * The TextMessageMapper takes a {@link String} value, a {@link javax.jms.Session} and returns a
+ * {@link javax.jms.TextMessage}.
+ */
+public class TextMessageMapper implements SerializableBiFunction<String, Session, Message> {
 
-  GetListOfExamplesRequestWrapper({required this.sdk, required this.category});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is GetListOfExamplesRequestWrapper &&
-              category == other.category &&
-              sdk == other.sdk;
-
-  @override
-  int get hashCode => hashValues(category.hashCode, sdk.hashCode);
+  @Override
+  public Message apply(String value, Session session) {
+    try {
+      TextMessage msg = session.createTextMessage();
+      msg.setText(value);
+      return msg;
+    } catch (JMSException e) {
+      throw new JmsIOException("Error creating TextMessage", e);
+    }
+  }
 }

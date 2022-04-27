@@ -15,23 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.jms;
 
-import 'package:flutter/cupertino.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+public class JmsIOException extends RuntimeException {
+  public JmsIOException(String message) {
+    super(message);
+  }
 
-class GetListOfExamplesRequestWrapper {
-  final SDK? sdk;
-  final String? category;
-
-  GetListOfExamplesRequestWrapper({required this.sdk, required this.category});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is GetListOfExamplesRequestWrapper &&
-              category == other.category &&
-              sdk == other.sdk;
-
-  @override
-  int get hashCode => hashValues(category.hashCode, sdk.hashCode);
+  public JmsIOException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

@@ -37,7 +37,7 @@ class PytorchInferenceRunner(InferenceRunner):
     self._device = device
 
   def run_inference(self, batch: List[torch.Tensor],
-                    model: torch.nn.Module) -> Iterable[torch.Tensor]:
+                    model: torch.nn.Module) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
