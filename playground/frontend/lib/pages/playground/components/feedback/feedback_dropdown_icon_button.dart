@@ -29,6 +29,7 @@ const double kFeedbackDxLeftAlignment = 10.0;
 const double kFeedbackDropdownWidth = 400.0;
 
 class FeedbackDropdownIconButton extends StatefulWidget {
+  final String label;
   final String iconAsset;
   final String filledIconAsset;
   final bool isSelected;
@@ -36,6 +37,7 @@ class FeedbackDropdownIconButton extends StatefulWidget {
 
   const FeedbackDropdownIconButton({
     Key? key,
+    required this.label,
     required this.iconAsset,
     required this.filledIconAsset,
     required this.isSelected,
@@ -77,15 +79,19 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      key: feedbackKey,
-      padding: EdgeInsets.zero,
-      onPressed: () {
-        _changeSelectorVisibility();
-        widget.onClick();
-      },
-      icon: SvgPicture.asset(
-        widget.isSelected ? widget.filledIconAsset : widget.iconAsset,
+    return Semantics(
+      container: true,
+      child: IconButton(
+        key: feedbackKey,
+        padding: EdgeInsets.zero,
+        onPressed: () {
+          _changeSelectorVisibility();
+          widget.onClick();
+        },
+        tooltip: widget.label,
+        icon: SvgPicture.asset(
+          widget.isSelected ? widget.filledIconAsset : widget.iconAsset,
+        ),
       ),
     );
   }

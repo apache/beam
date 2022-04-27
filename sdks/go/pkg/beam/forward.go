@@ -219,3 +219,6 @@ var EventTimeType = typex.EventTimeType
 
 // MetricResult represents a single metric value, for use in writing predicate functions to query PipelineResults.
 type MetricResult = metrics.SingleResult
+
+// PaneInfo represents a PaneInfo that provides information about current firing when triggers are used.
+type PaneInfo = typex.PaneInfo

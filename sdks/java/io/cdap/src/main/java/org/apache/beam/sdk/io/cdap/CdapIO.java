@@ -54,7 +54,7 @@ public class CdapIO {
 
     abstract @Nullable PluginConfig getPluginConfig();
 
-    abstract @Nullable CdapPlugin getCdapPlugin();
+    abstract @Nullable Plugin getCdapPlugin();
 
     abstract @Nullable Class<K> getKeyClass();
 
@@ -70,7 +70,7 @@ public class CdapIO {
 
       abstract Builder<K, V> setPluginConfig(PluginConfig config);
 
-      abstract Builder<K, V> setCdapPlugin(CdapPlugin plugin);
+      abstract Builder<K, V> setCdapPlugin(Plugin plugin);
 
       abstract Builder<K, V> setKeyClass(Class<K> keyClass);
 
@@ -82,9 +82,12 @@ public class CdapIO {
     }
 
     public Read<K, V> withCdapPluginClass(Class<?> cdapPluginClass) {
+      // TODO: add mapping for format and formatProvider classes
 
-      // TODO: build CdapPlugin correctly
-      CdapPlugin plugin = new CdapPlugin(cdapPluginClass);
+      Class<?> formatClass = Object.class;
+      Class<?> formatProviderClass = Object.class;
+
+      Plugin plugin = Plugin.create(cdapPluginClass, formatClass, formatProviderClass);
 
       return toBuilder().setCdapPlugin(plugin).build();
     }
@@ -112,15 +115,13 @@ public class CdapIO {
       checkArgument(getKeyClass() != null, "withKeyClass() is required");
       checkArgument(getValueClass() != null, "withValueClass() is required");
 
-      getCdapPlugin().setKeyClass(getKeyClass());
-      getCdapPlugin().setValueClass(getValueClass());
-      getCdapPlugin().prepareRun(getPluginConfig());
+      //      getCdapPlugin().prepareRun(getPluginConfig());
 
-      if (getCdapPlugin().isUnbounded()) {
+      if (getCdapPlugin().getIsUnbounded()) {
         // TODO: implement SparkReceiverIO.<~>read()
         return null;
       } else {
-        Configuration hConf = getCdapPlugin().getHadoopConf();
+        Configuration hConf = getCdapPlugin().getHadoopConfiguration();
         HadoopFormatIO.Read<K, V> readFromHadoop =
             HadoopFormatIO.<K, V>read().withConfiguration(hConf);
         return input.apply(readFromHadoop);

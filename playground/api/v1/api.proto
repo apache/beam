@@ -184,6 +184,11 @@ message GetPrecompiledObjectsRequest{
   string category = 2;
 }
 
+// GetPrecompiledObjectRequest contains information of the needed PrecompiledObject.
+message GetPrecompiledObjectRequest{
+  string cloud_path = 1;
+}
+
 // GetPrecompiledObjectCodeRequest contains information of the PrecompiledObject uuid.
 message GetPrecompiledObjectCodeRequest{
   string cloud_path = 1;
@@ -212,6 +217,11 @@ message GetDefaultPrecompiledObjectRequest {
 // GetPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
 message GetPrecompiledObjectsResponse{
   repeated Categories sdk_categories = 1;
+}
+
+// GetPrecompiledObjectResponse represent the PrecompiledObject.
+message GetPrecompiledObjectResponse{
+  PrecompiledObject precompiled_object = 1;
 }
 
 // GetPrecompiledObjectResponse represents the source code of the PrecompiledObject.
@@ -273,6 +283,9 @@ service PlaygroundService {
 
   // Get all precompiled objects from the cloud storage.
   rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
+
+  // Get precompiled object from the cloud storage.
+  rpc GetPrecompiledObject(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectResponse);
 
   // Get the code of an PrecompiledObject.
   rpc GetPrecompiledObjectCode(GetPrecompiledObjectCodeRequest) returns (GetPrecompiledObjectCodeResponse);

@@ -32,7 +32,7 @@ func TestGetFuncName(t *testing.T) {
 		want string
 	}{
 		{
-			name: "get function name",
+			name: "Get function name",
 			args: args{i: TestGetFuncName},
 			want: "TestGetFuncName",
 		},
@@ -60,7 +60,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 		{
 			// Test case with calling checkNumOfTheParallelJobs when there is no code processing folders.
 			// As a result, want to receive true
-			name: "there is no code processing folder",
+			name: "There is no code processing folder",
 			args: args{
 				workingDir:        "",
 				numOfParallelJobs: 0,
@@ -71,7 +71,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 		{
 			// Test case with calling checkNumOfTheParallelJobs when there is one code processing folder.
 			// As a result, want to receive true
-			name: "less than needed",
+			name: "Less than needed",
 			args: args{
 				workingDir:        "",
 				numOfParallelJobs: 2,
@@ -87,7 +87,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 		{
 			// Test case with calling checkNumOfTheParallelJobs when the number of the code processing folders is equals numOfParallelJobs.
 			// As a result, want to receive false
-			name: "there are enough code processing folders",
+			name: "There are enough code processing folders",
 			args: args{
 				workingDir:        "",
 				numOfParallelJobs: 1,
@@ -103,7 +103,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 		{
 			// Test case with calling checkNumOfTheParallelJobs when the number of the code processing folders is more than numOfParallelJobs.
 			// As a result, want to receive false
-			name: "more than needed",
+			name: "More than needed",
 			args: args{
 				workingDir:        "",
 				numOfParallelJobs: 0,

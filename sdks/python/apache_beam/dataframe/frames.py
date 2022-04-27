@@ -4765,13 +4765,72 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
 
-  split = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'split',
-      reason='non-deferred-columns')
+  def _split_helper(self, rsplit=False, **kwargs):
+    expand = kwargs.get('expand', False)
 
-  rsplit = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'rsplit',
-      reason='non-deferred-columns')
+    if not expand:
+      # Not creating separate columns
+      proxy = self._expr.proxy()
+      if not rsplit:
+        func = lambda s: pd.concat([proxy, s.str.split(**kwargs)])
+      else:
+        func = lambda s: pd.concat([proxy, s.str.rsplit(**kwargs)])
+    else:
+      # Creating separate columns, so must be more strict on dtype
+      dtype = self._expr.proxy().dtype
+      if not isinstance(dtype, pd.CategoricalDtype):
+        method_name = 'rsplit' if rsplit else 'split'
+        raise frame_base.WontImplementError(
+            f"{method_name}() of non-categorical type is not supported because "
+            "the type of the output column depends on the data. Please use "
+            "pd.CategoricalDtype with explicit categories.",
+            reason="non-deferred-columns")
+
+      # Split the categories
+      split_cats = dtype.categories.str.split(**kwargs)
+
+      # Count the number of new columns to create for proxy
+      max_splits = len(max(split_cats, key=len))
+      proxy = pd.DataFrame(columns=range(max_splits))
+
+      def func(s):
+        if not rsplit:
+          result = s.str.split(**kwargs)
+        else:
+          result = s.str.rsplit(**kwargs)
+        result[~result.isna()].replace(np.nan, value=None)
+        return result
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'split',
+            func,
+            [self._expr],
+            proxy=proxy,
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def split(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=False, **kwargs)
+
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  def rsplit(self, **kwargs):
+    """
+    Like other non-deferred methods, dtype must be CategoricalDtype.
+    One exception is when ``expand`` is ``False``. Because we are not
+    creating new columns at construction time, dtype can be `str`.
+    """
+    return self._split_helper(rsplit=True, **kwargs)
 
 
 ELEMENTWISE_STRING_METHODS = [

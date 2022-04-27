@@ -37,7 +37,6 @@ from datetime import timedelta
 from typing import DefaultDict
 from typing import Dict
 from typing import List
-from typing import Mapping
 from typing import Optional
 
 import pandas as pd
@@ -45,8 +44,6 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.runners.interactive import interactive_environment as ie
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
@@ -349,17 +346,28 @@ class Clusters:
   Example of calling the Interactive Beam clusters describe method::
     ib.clusters.describe()
   """
+  # Explicitly set the Flink version here to ensure compatibility with 2.0
+  # Dataproc images:
+  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0
+  DATAPROC_FLINK_VERSION = '1.12'
+  # TODO(BEAM-14142): Fix the Dataproc image version after a released image
+  # contains all missing dependencies for Flink to run.
+  # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
+  DATAPROC_STAGING_LOG_NAME = 'dataproc-startup-script_output'
+
   def __init__(self) -> None:
     """Instantiates default values for Dataproc cluster interactions.
     """
+    # Set the default_cluster_name that will be used when creating Dataproc
+    # clusters.
     self.default_cluster_name = 'interactive-beam-cluster'
     # Bidirectional 1-1 mapping between master_urls (str) to cluster metadata
     # (MasterURLIdentifier), where self.master_urls.inverse is a mapping from
     # MasterURLIdentifier -> str.
-    self.master_urls: Mapping[str, MasterURLIdentifier] = bidict()
+    self.master_urls = bidict()
     # self.dataproc_cluster_managers map string pipeline ids to instances of
     # DataprocClusterManager.
-    self.dataproc_cluster_managers: Dict[str, DataprocClusterManager] = {}
+    self.dataproc_cluster_managers = {}
     # self.master_urls_to_pipelines map string master_urls to lists of
     # pipelines that use the corresponding master_url.
     self.master_urls_to_pipelines: DefaultDict[
@@ -457,8 +465,7 @@ recordings = Recordings()
 # Examples:
 # ib.clusters.describe(p)
 # Check the docstrings for detailed usages.
-# TODO(victorhc): Resolve connection issue and add a working example
-# clusters = Clusters()
+clusters = Clusters()
 
 
 def watch(watchable):
