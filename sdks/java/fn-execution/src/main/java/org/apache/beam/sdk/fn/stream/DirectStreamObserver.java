@@ -51,6 +51,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
    */
   private final int maxMessagesBeforeCheck;
 
+  private final Object lock = new Object();
   private int numMessages = -1;
 
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
@@ -66,7 +67,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onNext(T value) {
-    synchronized (outboundObserver) {
+    synchronized (lock) {
       if (++numMessages >= maxMessagesBeforeCheck) {
         numMessages = 0;
         int waitTime = 1;
@@ -77,7 +78,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         int initialPhase = phase;
         while (!outboundObserver.isReady()) {
           try {
-            phaser.awaitAdvanceInterruptibly(phase, waitTime, TimeUnit.SECONDS);
+            phase = phaser.awaitAdvanceInterruptibly(phase, waitTime, TimeUnit.SECONDS);
           } catch (TimeoutException e) {
             totalTimeWaited += waitTime;
             waitTime = waitTime * 2;
@@ -85,9 +86,6 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
           }
-          // There is a chance that we were spuriously woken up but the outboundObserver is no
-          // longer ready so we need to get the current phase before checking that we are ready.
-          phase = phaser.getPhase();
         }
         if (totalTimeWaited > 0) {
           // If the phase didn't change, this means that the installed onReady callback had not
@@ -113,14 +111,14 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onError(Throwable t) {
-    synchronized (outboundObserver) {
+    synchronized (lock) {
       outboundObserver.onError(t);
     }
   }
 
   @Override
   public void onCompleted() {
-    synchronized (outboundObserver) {
+    synchronized (lock) {
       outboundObserver.onCompleted();
     }
   }
