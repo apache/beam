@@ -30,7 +30,7 @@ import (
 
 func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	doFn := &CompleteDoFn2x1{}
-	RegisterDoFn2x1[string, func(int), int](doFn)
+	DoFn2x1[string, func(int), int](doFn)
 
 	m, ok := reflectx.WrapMethods(&CompleteDoFn2x1{})
 	if !ok {
@@ -94,7 +94,7 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 
 func TestRegister_PartialDoFn_WrapsStruct(t *testing.T) {
 	doFn := &PartialDoFn1x0{}
-	RegisterDoFn1x0[func(int)](doFn)
+	DoFn1x0[func(int)](doFn)
 
 	m, ok := reflectx.WrapMethods(&PartialDoFn1x0{})
 	if !ok {
@@ -128,7 +128,7 @@ func TestRegister_PartialDoFn_WrapsStruct(t *testing.T) {
 
 func TestRegister_ProcessElementDoFn_WrapsStruct(t *testing.T) {
 	doFn := &ProcessElementDoFn0x1{}
-	RegisterDoFn0x1[int](doFn)
+	DoFn0x1[int](doFn)
 
 	m, ok := reflectx.WrapMethods(&ProcessElementDoFn0x1{})
 	if !ok {
@@ -145,7 +145,7 @@ func TestRegister_ProcessElementDoFn_WrapsStruct(t *testing.T) {
 
 func TestRegister_RegistersTypes(t *testing.T) {
 	doFn := &CustomTypeDoFn1x1{}
-	RegisterDoFn1x1[CustomType, CustomType2](doFn)
+	DoFn1x1[CustomType, CustomType2](doFn)
 	// Need to call FromType so that the registry will reconcile its registrations
 	schema.FromType(reflect.TypeOf(doFn).Elem())
 	if !schema.Registered(reflect.TypeOf(doFn).Elem()) {

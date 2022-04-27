@@ -57205,7 +57205,7 @@ func buildTeardownWrapper(doFn interface{}) func(interface{}) reflectx.Func {
 	return nil
 }
 
-type doFn0x0 interface {
+type genericDoFn0x0 interface {
 	ProcessElement()
 }
 
@@ -57230,7 +57230,7 @@ func (c *caller0x0) Call0x0() {
 	c.fn()
 }
 
-func registerDoFn0x0StructWrappersAndFuncs(doFn doFn0x0) {
+func registerDoFn0x0StructWrappersAndFuncs(doFn genericDoFn0x0) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func())
 		return &caller0x0{fn: f}
@@ -57238,7 +57238,7 @@ func registerDoFn0x0StructWrappersAndFuncs(doFn doFn0x0) {
 	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func() {
-			fn.(doFn0x0).ProcessElement()
+			fn.(genericDoFn0x0).ProcessElement()
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper0(doFn)
@@ -57269,13 +57269,13 @@ func registerDoFn0x0StructWrappersAndFuncs(doFn doFn0x0) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn0x0 registers your DoFn to optimize execution at runtime.
-func RegisterDoFn0x0(doFn doFn0x0) {
+// DoFn0x0 registers your DoFn to optimize execution at runtime.
+func DoFn0x0(doFn genericDoFn0x0) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x0StructWrappersAndFuncs(doFn)
 }
 
-type doFn1x0[I0 any] interface {
+type genericDoFn1x0[I0 any] interface {
 	ProcessElement(i0 I0)
 }
 
@@ -57300,7 +57300,7 @@ func (c *caller1x0[I0]) Call1x0(arg0 I0) {
 	c.fn(arg0)
 }
 
-func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn doFn1x0[I0]) {
+func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn genericDoFn1x0[I0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0))
 		return &caller1x0[I0]{fn: f}
@@ -57308,7 +57308,7 @@ func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn doFn1x0[I0]) {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) {
-			fn.(doFn1x0[I0]).ProcessElement(a0)
+			fn.(genericDoFn1x0[I0]).ProcessElement(a0)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
@@ -57339,14 +57339,14 @@ func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn doFn1x0[I0]) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn1x0[I0 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x0[I0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn1x0[I0 any](doFn doFn1x0[I0]) {
+func DoFn1x0[I0 any](doFn genericDoFn1x0[I0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x0StructWrappersAndFuncs[I0](doFn)
 }
 
-type doFn2x0[I0, I1 any] interface {
+type genericDoFn2x0[I0, I1 any] interface {
 	ProcessElement(i0 I0, i1 I1)
 }
 
@@ -57371,7 +57371,7 @@ func (c *caller2x0[I0, I1]) Call2x0(arg0 I0, arg1 I1) {
 	c.fn(arg0, arg1)
 }
 
-func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn doFn2x0[I0, I1]) {
+func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn genericDoFn2x0[I0, I1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1))
 		return &caller2x0[I0, I1]{fn: f}
@@ -57379,7 +57379,7 @@ func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn doFn2x0[I0, I1]) {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) {
-			fn.(doFn2x0[I0, I1]).ProcessElement(a0, a1)
+			fn.(genericDoFn2x0[I0, I1]).ProcessElement(a0, a1)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
@@ -57410,14 +57410,14 @@ func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn doFn2x0[I0, I1]) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn2x0[I0, I1 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x0[I0, I1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn2x0[I0, I1 any](doFn doFn2x0[I0, I1]) {
+func DoFn2x0[I0, I1 any](doFn genericDoFn2x0[I0, I1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x0StructWrappersAndFuncs[I0, I1](doFn)
 }
 
-type doFn3x0[I0, I1, I2 any] interface {
+type genericDoFn3x0[I0, I1, I2 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2)
 }
 
@@ -57442,7 +57442,7 @@ func (c *caller3x0[I0, I1, I2]) Call3x0(arg0 I0, arg1 I1, arg2 I2) {
 	c.fn(arg0, arg1, arg2)
 }
 
-func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn doFn3x0[I0, I1, I2]) {
+func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn genericDoFn3x0[I0, I1, I2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2))
 		return &caller3x0[I0, I1, I2]{fn: f}
@@ -57450,7 +57450,7 @@ func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn doFn3x0[I0, I1, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) {
-			fn.(doFn3x0[I0, I1, I2]).ProcessElement(a0, a1, a2)
+			fn.(genericDoFn3x0[I0, I1, I2]).ProcessElement(a0, a1, a2)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
@@ -57481,14 +57481,14 @@ func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn doFn3x0[I0, I1, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn3x0[I0, I1, I2 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x0[I0, I1, I2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn3x0[I0, I1, I2 any](doFn doFn3x0[I0, I1, I2]) {
+func DoFn3x0[I0, I1, I2 any](doFn genericDoFn3x0[I0, I1, I2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2](doFn)
 }
 
-type doFn4x0[I0, I1, I2, I3 any] interface {
+type genericDoFn4x0[I0, I1, I2, I3 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3)
 }
 
@@ -57513,7 +57513,7 @@ func (c *caller4x0[I0, I1, I2, I3]) Call4x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3) 
 	c.fn(arg0, arg1, arg2, arg3)
 }
 
-func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn doFn4x0[I0, I1, I2, I3]) {
+func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn genericDoFn4x0[I0, I1, I2, I3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3))
 		return &caller4x0[I0, I1, I2, I3]{fn: f}
@@ -57521,7 +57521,7 @@ func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn doFn4x0[I0, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) {
-			fn.(doFn4x0[I0, I1, I2, I3]).ProcessElement(a0, a1, a2, a3)
+			fn.(genericDoFn4x0[I0, I1, I2, I3]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
@@ -57552,14 +57552,14 @@ func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn doFn4x0[I0, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn4x0[I0, I1, I2, I3 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x0[I0, I1, I2, I3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn4x0[I0, I1, I2, I3 any](doFn doFn4x0[I0, I1, I2, I3]) {
+func DoFn4x0[I0, I1, I2, I3 any](doFn genericDoFn4x0[I0, I1, I2, I3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3](doFn)
 }
 
-type doFn5x0[I0, I1, I2, I3, I4 any] interface {
+type genericDoFn5x0[I0, I1, I2, I3, I4 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4)
 }
 
@@ -57584,7 +57584,7 @@ func (c *caller5x0[I0, I1, I2, I3, I4]) Call5x0(arg0 I0, arg1 I1, arg2 I2, arg3 
 	c.fn(arg0, arg1, arg2, arg3, arg4)
 }
 
-func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn doFn5x0[I0, I1, I2, I3, I4]) {
+func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn genericDoFn5x0[I0, I1, I2, I3, I4]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4))
 		return &caller5x0[I0, I1, I2, I3, I4]{fn: f}
@@ -57592,7 +57592,7 @@ func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn doFn5x0[
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) {
-			fn.(doFn5x0[I0, I1, I2, I3, I4]).ProcessElement(a0, a1, a2, a3, a4)
+			fn.(genericDoFn5x0[I0, I1, I2, I3, I4]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
@@ -57623,14 +57623,14 @@ func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn doFn5x0[
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn5x0[I0, I1, I2, I3, I4 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x0[I0, I1, I2, I3, I4 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn5x0[I0, I1, I2, I3, I4 any](doFn doFn5x0[I0, I1, I2, I3, I4]) {
+func DoFn5x0[I0, I1, I2, I3, I4 any](doFn genericDoFn5x0[I0, I1, I2, I3, I4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4](doFn)
 }
 
-type doFn6x0[I0, I1, I2, I3, I4, I5 any] interface {
+type genericDoFn6x0[I0, I1, I2, I3, I4, I5 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5)
 }
 
@@ -57655,7 +57655,7 @@ func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call6x0(arg0 I0, arg1 I1, arg2 I2, a
 	c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
-func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn doFn6x0[I0, I1, I2, I3, I4, I5]) {
+func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn genericDoFn6x0[I0, I1, I2, I3, I4, I5]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5))
 		return &caller6x0[I0, I1, I2, I3, I4, I5]{fn: f}
@@ -57663,7 +57663,7 @@ func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn doFn
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) {
-			fn.(doFn6x0[I0, I1, I2, I3, I4, I5]).ProcessElement(a0, a1, a2, a3, a4, a5)
+			fn.(genericDoFn6x0[I0, I1, I2, I3, I4, I5]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
@@ -57694,14 +57694,14 @@ func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn doFn
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn6x0[I0, I1, I2, I3, I4, I5 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x0[I0, I1, I2, I3, I4, I5 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn6x0[I0, I1, I2, I3, I4, I5 any](doFn doFn6x0[I0, I1, I2, I3, I4, I5]) {
+func DoFn6x0[I0, I1, I2, I3, I4, I5 any](doFn genericDoFn6x0[I0, I1, I2, I3, I4, I5]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5](doFn)
 }
 
-type doFn7x0[I0, I1, I2, I3, I4, I5, I6 any] interface {
+type genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6)
 }
 
@@ -57726,7 +57726,7 @@ func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call7x0(arg0 I0, arg1 I1, arg2 I
 	c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 }
 
-func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn doFn7x0[I0, I1, I2, I3, I4, I5, I6]) {
+func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6))
 		return &caller7x0[I0, I1, I2, I3, I4, I5, I6]{fn: f}
@@ -57734,7 +57734,7 @@ func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) {
-			fn.(doFn7x0[I0, I1, I2, I3, I4, I5, I6]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
+			fn.(genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
@@ -57765,14 +57765,14 @@ func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn7x0[I0, I1, I2, I3, I4, I5, I6 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x0[I0, I1, I2, I3, I4, I5, I6 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn7x0[I0, I1, I2, I3, I4, I5, I6 any](doFn doFn7x0[I0, I1, I2, I3, I4, I5, I6]) {
+func DoFn7x0[I0, I1, I2, I3, I4, I5, I6 any](doFn genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6](doFn)
 }
 
-type doFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] interface {
+type genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6, i7 I7)
 }
 
@@ -57797,7 +57797,7 @@ func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call8x0(arg0 I0, arg1 I1, ar
 	c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 }
 
-func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn doFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]) {
+func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7))
 		return &caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]{fn: f}
@@ -57805,7 +57805,7 @@ func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](d
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) {
-			fn.(doFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
+			fn.(genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
@@ -57836,14 +57836,14 @@ func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn doFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]) {
+func DoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
 }
 
-type doFn0x1[R0 any] interface {
+type genericDoFn0x1[R0 any] interface {
 	ProcessElement() R0
 }
 
@@ -57868,7 +57868,7 @@ func (c *caller0x1[R0]) Call0x1() interface{} {
 	return c.fn()
 }
 
-func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn doFn0x1[R0]) {
+func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn genericDoFn0x1[R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func() R0)
 		return &caller0x1[R0]{fn: f}
@@ -57876,7 +57876,7 @@ func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn doFn0x1[R0]) {
 	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func() R0 {
-			return fn.(doFn0x1[R0]).ProcessElement()
+			return fn.(genericDoFn0x1[R0]).ProcessElement()
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper0(doFn)
@@ -57907,14 +57907,14 @@ func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn doFn0x1[R0]) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn0x1[R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x1[R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn0x1[R0 any](doFn doFn0x1[R0]) {
+func DoFn0x1[R0 any](doFn genericDoFn0x1[R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x1StructWrappersAndFuncs[R0](doFn)
 }
 
-type doFn1x1[I0, R0 any] interface {
+type genericDoFn1x1[I0, R0 any] interface {
 	ProcessElement(i0 I0) R0
 }
 
@@ -57939,7 +57939,7 @@ func (c *caller1x1[I0, R0]) Call1x1(arg0 I0) interface{} {
 	return c.fn(arg0)
 }
 
-func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn doFn1x1[I0, R0]) {
+func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn genericDoFn1x1[I0, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0) R0)
 		return &caller1x1[I0, R0]{fn: f}
@@ -57947,7 +57947,7 @@ func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn doFn1x1[I0, R0]) {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) R0 {
-			return fn.(doFn1x1[I0, R0]).ProcessElement(a0)
+			return fn.(genericDoFn1x1[I0, R0]).ProcessElement(a0)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
@@ -57978,14 +57978,14 @@ func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn doFn1x1[I0, R0]) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn1x1[I0, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x1[I0, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn1x1[I0, R0 any](doFn doFn1x1[I0, R0]) {
+func DoFn1x1[I0, R0 any](doFn genericDoFn1x1[I0, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x1StructWrappersAndFuncs[I0, R0](doFn)
 }
 
-type doFn2x1[I0, I1, R0 any] interface {
+type genericDoFn2x1[I0, I1, R0 any] interface {
 	ProcessElement(i0 I0, i1 I1) R0
 }
 
@@ -58010,7 +58010,7 @@ func (c *caller2x1[I0, I1, R0]) Call2x1(arg0 I0, arg1 I1) interface{} {
 	return c.fn(arg0, arg1)
 }
 
-func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn doFn2x1[I0, I1, R0]) {
+func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn genericDoFn2x1[I0, I1, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1) R0)
 		return &caller2x1[I0, I1, R0]{fn: f}
@@ -58018,7 +58018,7 @@ func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn doFn2x1[I0, I1, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) R0 {
-			return fn.(doFn2x1[I0, I1, R0]).ProcessElement(a0, a1)
+			return fn.(genericDoFn2x1[I0, I1, R0]).ProcessElement(a0, a1)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
@@ -58049,14 +58049,14 @@ func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn doFn2x1[I0, I1, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn2x1[I0, I1, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x1[I0, I1, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn2x1[I0, I1, R0 any](doFn doFn2x1[I0, I1, R0]) {
+func DoFn2x1[I0, I1, R0 any](doFn genericDoFn2x1[I0, I1, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0](doFn)
 }
 
-type doFn3x1[I0, I1, I2, R0 any] interface {
+type genericDoFn3x1[I0, I1, I2, R0 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2) R0
 }
 
@@ -58081,7 +58081,7 @@ func (c *caller3x1[I0, I1, I2, R0]) Call3x1(arg0 I0, arg1 I1, arg2 I2) interface
 	return c.fn(arg0, arg1, arg2)
 }
 
-func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn doFn3x1[I0, I1, I2, R0]) {
+func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn genericDoFn3x1[I0, I1, I2, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2) R0)
 		return &caller3x1[I0, I1, I2, R0]{fn: f}
@@ -58089,7 +58089,7 @@ func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn doFn3x1[I0, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) R0 {
-			return fn.(doFn3x1[I0, I1, I2, R0]).ProcessElement(a0, a1, a2)
+			return fn.(genericDoFn3x1[I0, I1, I2, R0]).ProcessElement(a0, a1, a2)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
@@ -58120,14 +58120,14 @@ func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn doFn3x1[I0, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn3x1[I0, I1, I2, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x1[I0, I1, I2, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn3x1[I0, I1, I2, R0 any](doFn doFn3x1[I0, I1, I2, R0]) {
+func DoFn3x1[I0, I1, I2, R0 any](doFn genericDoFn3x1[I0, I1, I2, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0](doFn)
 }
 
-type doFn4x1[I0, I1, I2, I3, R0 any] interface {
+type genericDoFn4x1[I0, I1, I2, I3, R0 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3) R0
 }
 
@@ -58152,7 +58152,7 @@ func (c *caller4x1[I0, I1, I2, I3, R0]) Call4x1(arg0 I0, arg1 I1, arg2 I2, arg3 
 	return c.fn(arg0, arg1, arg2, arg3)
 }
 
-func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn doFn4x1[I0, I1, I2, I3, R0]) {
+func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn genericDoFn4x1[I0, I1, I2, I3, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) R0)
 		return &caller4x1[I0, I1, I2, I3, R0]{fn: f}
@@ -58160,7 +58160,7 @@ func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn doFn4x1[
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) R0 {
-			return fn.(doFn4x1[I0, I1, I2, I3, R0]).ProcessElement(a0, a1, a2, a3)
+			return fn.(genericDoFn4x1[I0, I1, I2, I3, R0]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
@@ -58191,14 +58191,14 @@ func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn doFn4x1[
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn4x1[I0, I1, I2, I3, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x1[I0, I1, I2, I3, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn4x1[I0, I1, I2, I3, R0 any](doFn doFn4x1[I0, I1, I2, I3, R0]) {
+func DoFn4x1[I0, I1, I2, I3, R0 any](doFn genericDoFn4x1[I0, I1, I2, I3, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0](doFn)
 }
 
-type doFn5x1[I0, I1, I2, I3, I4, R0 any] interface {
+type genericDoFn5x1[I0, I1, I2, I3, I4, R0 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4) R0
 }
 
@@ -58223,7 +58223,7 @@ func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call5x1(arg0 I0, arg1 I1, arg2 I2, a
 	return c.fn(arg0, arg1, arg2, arg3, arg4)
 }
 
-func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn doFn5x1[I0, I1, I2, I3, I4, R0]) {
+func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn genericDoFn5x1[I0, I1, I2, I3, I4, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) R0)
 		return &caller5x1[I0, I1, I2, I3, I4, R0]{fn: f}
@@ -58231,7 +58231,7 @@ func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn doFn
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) R0 {
-			return fn.(doFn5x1[I0, I1, I2, I3, I4, R0]).ProcessElement(a0, a1, a2, a3, a4)
+			return fn.(genericDoFn5x1[I0, I1, I2, I3, I4, R0]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
@@ -58262,14 +58262,14 @@ func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn doFn
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn5x1[I0, I1, I2, I3, I4, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x1[I0, I1, I2, I3, I4, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn5x1[I0, I1, I2, I3, I4, R0 any](doFn doFn5x1[I0, I1, I2, I3, I4, R0]) {
+func DoFn5x1[I0, I1, I2, I3, I4, R0 any](doFn genericDoFn5x1[I0, I1, I2, I3, I4, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0](doFn)
 }
 
-type doFn6x1[I0, I1, I2, I3, I4, I5, R0 any] interface {
+type genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5) R0
 }
 
@@ -58294,7 +58294,7 @@ func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call6x1(arg0 I0, arg1 I1, arg2 I
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
-func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn doFn6x1[I0, I1, I2, I3, I4, I5, R0]) {
+func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) R0)
 		return &caller6x1[I0, I1, I2, I3, I4, I5, R0]{fn: f}
@@ -58302,7 +58302,7 @@ func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) R0 {
-			return fn.(doFn6x1[I0, I1, I2, I3, I4, I5, R0]).ProcessElement(a0, a1, a2, a3, a4, a5)
+			return fn.(genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
@@ -58333,14 +58333,14 @@ func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn6x1[I0, I1, I2, I3, I4, I5, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x1[I0, I1, I2, I3, I4, I5, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn6x1[I0, I1, I2, I3, I4, I5, R0 any](doFn doFn6x1[I0, I1, I2, I3, I4, I5, R0]) {
+func DoFn6x1[I0, I1, I2, I3, I4, I5, R0 any](doFn genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0](doFn)
 }
 
-type doFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] interface {
+type genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6) R0
 }
 
@@ -58365,7 +58365,7 @@ func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call7x1(arg0 I0, arg1 I1, ar
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 }
 
-func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn doFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]) {
+func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) R0)
 		return &caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]{fn: f}
@@ -58373,7 +58373,7 @@ func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](d
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) R0 {
-			return fn.(doFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
+			return fn.(genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
@@ -58404,14 +58404,14 @@ func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn doFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]) {
+func DoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0](doFn)
 }
 
-type doFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] interface {
+type genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6, i7 I7) R0
 }
 
@@ -58436,7 +58436,7 @@ func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call8x1(arg0 I0, arg1 I1
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 }
 
-func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn doFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) {
+func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) R0)
 		return &caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]{fn: f}
@@ -58444,7 +58444,7 @@ func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 an
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) R0)(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) R0 {
-			return fn.(doFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
+			return fn.(genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
@@ -58475,14 +58475,14 @@ func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn doFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) {
+func DoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0](doFn)
 }
 
-type doFn0x2[R0, R1 any] interface {
+type genericDoFn0x2[R0, R1 any] interface {
 	ProcessElement() (R0, R1)
 }
 
@@ -58507,7 +58507,7 @@ func (c *caller0x2[R0, R1]) Call0x2() (interface{}, interface{}) {
 	return c.fn()
 }
 
-func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn doFn0x2[R0, R1]) {
+func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn genericDoFn0x2[R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func() (R0, R1))
 		return &caller0x2[R0, R1]{fn: f}
@@ -58515,7 +58515,7 @@ func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn doFn0x2[R0, R1]) {
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func() (R0, R1) {
-			return fn.(doFn0x2[R0, R1]).ProcessElement()
+			return fn.(genericDoFn0x2[R0, R1]).ProcessElement()
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper0(doFn)
@@ -58546,14 +58546,14 @@ func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn doFn0x2[R0, R1]) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn0x2[R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x2[R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn0x2[R0, R1 any](doFn doFn0x2[R0, R1]) {
+func DoFn0x2[R0, R1 any](doFn genericDoFn0x2[R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x2StructWrappersAndFuncs[R0, R1](doFn)
 }
 
-type doFn1x2[I0, R0, R1 any] interface {
+type genericDoFn1x2[I0, R0, R1 any] interface {
 	ProcessElement(i0 I0) (R0, R1)
 }
 
@@ -58578,7 +58578,7 @@ func (c *caller1x2[I0, R0, R1]) Call1x2(arg0 I0) (interface{}, interface{}) {
 	return c.fn(arg0)
 }
 
-func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn doFn1x2[I0, R0, R1]) {
+func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn genericDoFn1x2[I0, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0) (R0, R1))
 		return &caller1x2[I0, R0, R1]{fn: f}
@@ -58586,7 +58586,7 @@ func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn doFn1x2[I0, R0, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) (R0, R1) {
-			return fn.(doFn1x2[I0, R0, R1]).ProcessElement(a0)
+			return fn.(genericDoFn1x2[I0, R0, R1]).ProcessElement(a0)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
@@ -58617,14 +58617,14 @@ func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn doFn1x2[I0, R0, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn1x2[I0, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x2[I0, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn1x2[I0, R0, R1 any](doFn doFn1x2[I0, R0, R1]) {
+func DoFn1x2[I0, R0, R1 any](doFn genericDoFn1x2[I0, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1](doFn)
 }
 
-type doFn2x2[I0, I1, R0, R1 any] interface {
+type genericDoFn2x2[I0, I1, R0, R1 any] interface {
 	ProcessElement(i0 I0, i1 I1) (R0, R1)
 }
 
@@ -58649,7 +58649,7 @@ func (c *caller2x2[I0, I1, R0, R1]) Call2x2(arg0 I0, arg1 I1) (interface{}, inte
 	return c.fn(arg0, arg1)
 }
 
-func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn doFn2x2[I0, I1, R0, R1]) {
+func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn genericDoFn2x2[I0, I1, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1))
 		return &caller2x2[I0, I1, R0, R1]{fn: f}
@@ -58657,7 +58657,7 @@ func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn doFn2x2[I0, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) (R0, R1) {
-			return fn.(doFn2x2[I0, I1, R0, R1]).ProcessElement(a0, a1)
+			return fn.(genericDoFn2x2[I0, I1, R0, R1]).ProcessElement(a0, a1)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
@@ -58688,14 +58688,14 @@ func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn doFn2x2[I0, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn2x2[I0, I1, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x2[I0, I1, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn2x2[I0, I1, R0, R1 any](doFn doFn2x2[I0, I1, R0, R1]) {
+func DoFn2x2[I0, I1, R0, R1 any](doFn genericDoFn2x2[I0, I1, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1](doFn)
 }
 
-type doFn3x2[I0, I1, I2, R0, R1 any] interface {
+type genericDoFn3x2[I0, I1, I2, R0, R1 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2) (R0, R1)
 }
 
@@ -58720,7 +58720,7 @@ func (c *caller3x2[I0, I1, I2, R0, R1]) Call3x2(arg0 I0, arg1 I1, arg2 I2) (inte
 	return c.fn(arg0, arg1, arg2)
 }
 
-func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn doFn3x2[I0, I1, I2, R0, R1]) {
+func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn genericDoFn3x2[I0, I1, I2, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1))
 		return &caller3x2[I0, I1, I2, R0, R1]{fn: f}
@@ -58728,7 +58728,7 @@ func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn doFn3x2[
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) (R0, R1) {
-			return fn.(doFn3x2[I0, I1, I2, R0, R1]).ProcessElement(a0, a1, a2)
+			return fn.(genericDoFn3x2[I0, I1, I2, R0, R1]).ProcessElement(a0, a1, a2)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
@@ -58759,14 +58759,14 @@ func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn doFn3x2[
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn3x2[I0, I1, I2, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x2[I0, I1, I2, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn3x2[I0, I1, I2, R0, R1 any](doFn doFn3x2[I0, I1, I2, R0, R1]) {
+func DoFn3x2[I0, I1, I2, R0, R1 any](doFn genericDoFn3x2[I0, I1, I2, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1](doFn)
 }
 
-type doFn4x2[I0, I1, I2, I3, R0, R1 any] interface {
+type genericDoFn4x2[I0, I1, I2, I3, R0, R1 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3) (R0, R1)
 }
 
@@ -58791,7 +58791,7 @@ func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call4x2(arg0 I0, arg1 I1, arg2 I2, a
 	return c.fn(arg0, arg1, arg2, arg3)
 }
 
-func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn doFn4x2[I0, I1, I2, I3, R0, R1]) {
+func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn genericDoFn4x2[I0, I1, I2, I3, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1))
 		return &caller4x2[I0, I1, I2, I3, R0, R1]{fn: f}
@@ -58799,7 +58799,7 @@ func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn doFn
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) (R0, R1) {
-			return fn.(doFn4x2[I0, I1, I2, I3, R0, R1]).ProcessElement(a0, a1, a2, a3)
+			return fn.(genericDoFn4x2[I0, I1, I2, I3, R0, R1]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
@@ -58830,14 +58830,14 @@ func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn doFn
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn4x2[I0, I1, I2, I3, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x2[I0, I1, I2, I3, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn4x2[I0, I1, I2, I3, R0, R1 any](doFn doFn4x2[I0, I1, I2, I3, R0, R1]) {
+func DoFn4x2[I0, I1, I2, I3, R0, R1 any](doFn genericDoFn4x2[I0, I1, I2, I3, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1](doFn)
 }
 
-type doFn5x2[I0, I1, I2, I3, I4, R0, R1 any] interface {
+type genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4) (R0, R1)
 }
 
@@ -58862,7 +58862,7 @@ func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call5x2(arg0 I0, arg1 I1, arg2 I
 	return c.fn(arg0, arg1, arg2, arg3, arg4)
 }
 
-func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn doFn5x2[I0, I1, I2, I3, I4, R0, R1]) {
+func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1))
 		return &caller5x2[I0, I1, I2, I3, I4, R0, R1]{fn: f}
@@ -58870,7 +58870,7 @@ func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) (R0, R1) {
-			return fn.(doFn5x2[I0, I1, I2, I3, I4, R0, R1]).ProcessElement(a0, a1, a2, a3, a4)
+			return fn.(genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
@@ -58901,14 +58901,14 @@ func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn5x2[I0, I1, I2, I3, I4, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x2[I0, I1, I2, I3, I4, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn5x2[I0, I1, I2, I3, I4, R0, R1 any](doFn doFn5x2[I0, I1, I2, I3, I4, R0, R1]) {
+func DoFn5x2[I0, I1, I2, I3, I4, R0, R1 any](doFn genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1](doFn)
 }
 
-type doFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] interface {
+type genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5) (R0, R1)
 }
 
@@ -58933,7 +58933,7 @@ func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call6x2(arg0 I0, arg1 I1, ar
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
-func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn doFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]) {
+func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1))
 		return &caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]{fn: f}
@@ -58941,7 +58941,7 @@ func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](d
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) (R0, R1) {
-			return fn.(doFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5)
+			return fn.(genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
@@ -58972,14 +58972,14 @@ func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn doFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]) {
+func DoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1](doFn)
 }
 
-type doFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] interface {
+type genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6) (R0, R1)
 }
 
@@ -59004,7 +59004,7 @@ func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call7x2(arg0 I0, arg1 I1
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 }
 
-func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn doFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) {
+func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1))
 		return &caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]{fn: f}
@@ -59012,7 +59012,7 @@ func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 an
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) (R0, R1) {
-			return fn.(doFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
+			return fn.(genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
@@ -59043,14 +59043,14 @@ func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn doFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) {
+func DoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1](doFn)
 }
 
-type doFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] interface {
+type genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6, i7 I7) (R0, R1)
 }
 
@@ -59075,7 +59075,7 @@ func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call8x2(arg0 I0, arg
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 }
 
-func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn doFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) {
+func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1))
 		return &caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]{fn: f}
@@ -59083,7 +59083,7 @@ func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) (R0, R1) {
-			return fn.(doFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
+			return fn.(genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
@@ -59114,14 +59114,14 @@ func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn doFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) {
+func DoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1](doFn)
 }
 
-type doFn0x3[R0, R1, R2 any] interface {
+type genericDoFn0x3[R0, R1, R2 any] interface {
 	ProcessElement() (R0, R1, R2)
 }
 
@@ -59146,7 +59146,7 @@ func (c *caller0x3[R0, R1, R2]) Call0x3() (interface{}, interface{}, interface{}
 	return c.fn()
 }
 
-func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn doFn0x3[R0, R1, R2]) {
+func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn genericDoFn0x3[R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func() (R0, R1, R2))
 		return &caller0x3[R0, R1, R2]{fn: f}
@@ -59154,7 +59154,7 @@ func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn doFn0x3[R0, R1, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func() (R0, R1, R2) {
-			return fn.(doFn0x3[R0, R1, R2]).ProcessElement()
+			return fn.(genericDoFn0x3[R0, R1, R2]).ProcessElement()
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper0(doFn)
@@ -59185,14 +59185,14 @@ func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn doFn0x3[R0, R1, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn0x3[R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x3[R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn0x3[R0, R1, R2 any](doFn doFn0x3[R0, R1, R2]) {
+func DoFn0x3[R0, R1, R2 any](doFn genericDoFn0x3[R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2](doFn)
 }
 
-type doFn1x3[I0, R0, R1, R2 any] interface {
+type genericDoFn1x3[I0, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0) (R0, R1, R2)
 }
 
@@ -59217,7 +59217,7 @@ func (c *caller1x3[I0, R0, R1, R2]) Call1x3(arg0 I0) (interface{}, interface{}, 
 	return c.fn(arg0)
 }
 
-func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn doFn1x3[I0, R0, R1, R2]) {
+func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn genericDoFn1x3[I0, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2))
 		return &caller1x3[I0, R0, R1, R2]{fn: f}
@@ -59225,7 +59225,7 @@ func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn doFn1x3[I0, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) (R0, R1, R2) {
-			return fn.(doFn1x3[I0, R0, R1, R2]).ProcessElement(a0)
+			return fn.(genericDoFn1x3[I0, R0, R1, R2]).ProcessElement(a0)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
@@ -59256,14 +59256,14 @@ func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn doFn1x3[I0, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn1x3[I0, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x3[I0, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn1x3[I0, R0, R1, R2 any](doFn doFn1x3[I0, R0, R1, R2]) {
+func DoFn1x3[I0, R0, R1, R2 any](doFn genericDoFn1x3[I0, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2](doFn)
 }
 
-type doFn2x3[I0, I1, R0, R1, R2 any] interface {
+type genericDoFn2x3[I0, I1, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0, i1 I1) (R0, R1, R2)
 }
 
@@ -59288,7 +59288,7 @@ func (c *caller2x3[I0, I1, R0, R1, R2]) Call2x3(arg0 I0, arg1 I1) (interface{}, 
 	return c.fn(arg0, arg1)
 }
 
-func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn doFn2x3[I0, I1, R0, R1, R2]) {
+func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn genericDoFn2x3[I0, I1, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2))
 		return &caller2x3[I0, I1, R0, R1, R2]{fn: f}
@@ -59296,7 +59296,7 @@ func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn doFn2x3[
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) (R0, R1, R2) {
-			return fn.(doFn2x3[I0, I1, R0, R1, R2]).ProcessElement(a0, a1)
+			return fn.(genericDoFn2x3[I0, I1, R0, R1, R2]).ProcessElement(a0, a1)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
@@ -59327,14 +59327,14 @@ func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn doFn2x3[
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn2x3[I0, I1, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x3[I0, I1, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn2x3[I0, I1, R0, R1, R2 any](doFn doFn2x3[I0, I1, R0, R1, R2]) {
+func DoFn2x3[I0, I1, R0, R1, R2 any](doFn genericDoFn2x3[I0, I1, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2](doFn)
 }
 
-type doFn3x3[I0, I1, I2, R0, R1, R2 any] interface {
+type genericDoFn3x3[I0, I1, I2, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2) (R0, R1, R2)
 }
 
@@ -59359,7 +59359,7 @@ func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call3x3(arg0 I0, arg1 I1, arg2 I2) (
 	return c.fn(arg0, arg1, arg2)
 }
 
-func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn doFn3x3[I0, I1, I2, R0, R1, R2]) {
+func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn genericDoFn3x3[I0, I1, I2, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2))
 		return &caller3x3[I0, I1, I2, R0, R1, R2]{fn: f}
@@ -59367,7 +59367,7 @@ func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn doFn
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) (R0, R1, R2) {
-			return fn.(doFn3x3[I0, I1, I2, R0, R1, R2]).ProcessElement(a0, a1, a2)
+			return fn.(genericDoFn3x3[I0, I1, I2, R0, R1, R2]).ProcessElement(a0, a1, a2)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
@@ -59398,14 +59398,14 @@ func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn doFn
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn3x3[I0, I1, I2, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x3[I0, I1, I2, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn3x3[I0, I1, I2, R0, R1, R2 any](doFn doFn3x3[I0, I1, I2, R0, R1, R2]) {
+func DoFn3x3[I0, I1, I2, R0, R1, R2 any](doFn genericDoFn3x3[I0, I1, I2, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2](doFn)
 }
 
-type doFn4x3[I0, I1, I2, I3, R0, R1, R2 any] interface {
+type genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3) (R0, R1, R2)
 }
 
@@ -59430,7 +59430,7 @@ func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call4x3(arg0 I0, arg1 I1, arg2 I
 	return c.fn(arg0, arg1, arg2, arg3)
 }
 
-func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn doFn4x3[I0, I1, I2, I3, R0, R1, R2]) {
+func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2))
 		return &caller4x3[I0, I1, I2, I3, R0, R1, R2]{fn: f}
@@ -59438,7 +59438,7 @@ func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) (R0, R1, R2) {
-			return fn.(doFn4x3[I0, I1, I2, I3, R0, R1, R2]).ProcessElement(a0, a1, a2, a3)
+			return fn.(genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
@@ -59469,14 +59469,14 @@ func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn4x3[I0, I1, I2, I3, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x3[I0, I1, I2, I3, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn4x3[I0, I1, I2, I3, R0, R1, R2 any](doFn doFn4x3[I0, I1, I2, I3, R0, R1, R2]) {
+func DoFn4x3[I0, I1, I2, I3, R0, R1, R2 any](doFn genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2](doFn)
 }
 
-type doFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] interface {
+type genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4) (R0, R1, R2)
 }
 
@@ -59501,7 +59501,7 @@ func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call5x3(arg0 I0, arg1 I1, ar
 	return c.fn(arg0, arg1, arg2, arg3, arg4)
 }
 
-func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn doFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]) {
+func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2))
 		return &caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]{fn: f}
@@ -59509,7 +59509,7 @@ func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](d
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) (R0, R1, R2) {
-			return fn.(doFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4)
+			return fn.(genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
@@ -59540,14 +59540,14 @@ func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn doFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]) {
+func DoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2](doFn)
 }
 
-type doFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] interface {
+type genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5) (R0, R1, R2)
 }
 
@@ -59572,7 +59572,7 @@ func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call6x3(arg0 I0, arg1 I1
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
-func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn doFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) {
+func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2))
 		return &caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]{fn: f}
@@ -59580,7 +59580,7 @@ func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 an
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) (R0, R1, R2) {
-			return fn.(doFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5)
+			return fn.(genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
@@ -59611,14 +59611,14 @@ func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn doFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) {
+func DoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2](doFn)
 }
 
-type doFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] interface {
+type genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6) (R0, R1, R2)
 }
 
@@ -59643,7 +59643,7 @@ func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call7x3(arg0 I0, arg
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 }
 
-func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn doFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) {
+func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2))
 		return &caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]{fn: f}
@@ -59651,7 +59651,7 @@ func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) (R0, R1, R2) {
-			return fn.(doFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
+			return fn.(genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
@@ -59682,14 +59682,14 @@ func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn doFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) {
+func DoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2](doFn)
 }
 
-type doFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] interface {
+type genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6, i7 I7) (R0, R1, R2)
 }
 
@@ -59714,7 +59714,7 @@ func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call8x3(arg0 I0,
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 }
 
-func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn doFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) {
+func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2))
 		return &caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]{fn: f}
@@ -59722,7 +59722,7 @@ func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) (R0, R1, R2) {
-			return fn.(doFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
+			return fn.(genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
@@ -59753,14 +59753,14 @@ func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn doFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) {
+func DoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2](doFn)
 }
 
-type doFn0x4[R0, R1, R2, R3 any] interface {
+type genericDoFn0x4[R0, R1, R2, R3 any] interface {
 	ProcessElement() (R0, R1, R2, R3)
 }
 
@@ -59785,7 +59785,7 @@ func (c *caller0x4[R0, R1, R2, R3]) Call0x4() (interface{}, interface{}, interfa
 	return c.fn()
 }
 
-func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn doFn0x4[R0, R1, R2, R3]) {
+func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn genericDoFn0x4[R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func() (R0, R1, R2, R3))
 		return &caller0x4[R0, R1, R2, R3]{fn: f}
@@ -59793,7 +59793,7 @@ func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn doFn0x4[R0, 
 	reflectx.RegisterFunc(reflect.TypeOf((*func() (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func() (R0, R1, R2, R3) {
-			return fn.(doFn0x4[R0, R1, R2, R3]).ProcessElement()
+			return fn.(genericDoFn0x4[R0, R1, R2, R3]).ProcessElement()
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper0(doFn)
@@ -59824,14 +59824,14 @@ func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn doFn0x4[R0, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn0x4[R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x4[R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn0x4[R0, R1, R2, R3 any](doFn doFn0x4[R0, R1, R2, R3]) {
+func DoFn0x4[R0, R1, R2, R3 any](doFn genericDoFn0x4[R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3](doFn)
 }
 
-type doFn1x4[I0, R0, R1, R2, R3 any] interface {
+type genericDoFn1x4[I0, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0) (R0, R1, R2, R3)
 }
 
@@ -59856,7 +59856,7 @@ func (c *caller1x4[I0, R0, R1, R2, R3]) Call1x4(arg0 I0) (interface{}, interface
 	return c.fn(arg0)
 }
 
-func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn doFn1x4[I0, R0, R1, R2, R3]) {
+func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn genericDoFn1x4[I0, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0) (R0, R1, R2, R3))
 		return &caller1x4[I0, R0, R1, R2, R3]{fn: f}
@@ -59864,7 +59864,7 @@ func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn doFn1x4[
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0) (R0, R1, R2, R3) {
-			return fn.(doFn1x4[I0, R0, R1, R2, R3]).ProcessElement(a0)
+			return fn.(genericDoFn1x4[I0, R0, R1, R2, R3]).ProcessElement(a0)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
@@ -59895,14 +59895,14 @@ func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn doFn1x4[
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn1x4[I0, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x4[I0, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn1x4[I0, R0, R1, R2, R3 any](doFn doFn1x4[I0, R0, R1, R2, R3]) {
+func DoFn1x4[I0, R0, R1, R2, R3 any](doFn genericDoFn1x4[I0, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3](doFn)
 }
 
-type doFn2x4[I0, I1, R0, R1, R2, R3 any] interface {
+type genericDoFn2x4[I0, I1, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0, i1 I1) (R0, R1, R2, R3)
 }
 
@@ -59927,7 +59927,7 @@ func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call2x4(arg0 I0, arg1 I1) (interface
 	return c.fn(arg0, arg1)
 }
 
-func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn doFn2x4[I0, I1, R0, R1, R2, R3]) {
+func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn genericDoFn2x4[I0, I1, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1) (R0, R1, R2, R3))
 		return &caller2x4[I0, I1, R0, R1, R2, R3]{fn: f}
@@ -59935,7 +59935,7 @@ func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn doFn
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1) (R0, R1, R2, R3) {
-			return fn.(doFn2x4[I0, I1, R0, R1, R2, R3]).ProcessElement(a0, a1)
+			return fn.(genericDoFn2x4[I0, I1, R0, R1, R2, R3]).ProcessElement(a0, a1)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
@@ -59966,14 +59966,14 @@ func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn doFn
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn2x4[I0, I1, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x4[I0, I1, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn2x4[I0, I1, R0, R1, R2, R3 any](doFn doFn2x4[I0, I1, R0, R1, R2, R3]) {
+func DoFn2x4[I0, I1, R0, R1, R2, R3 any](doFn genericDoFn2x4[I0, I1, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3](doFn)
 }
 
-type doFn3x4[I0, I1, I2, R0, R1, R2, R3 any] interface {
+type genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2) (R0, R1, R2, R3)
 }
 
@@ -59998,7 +59998,7 @@ func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call3x4(arg0 I0, arg1 I1, arg2 I
 	return c.fn(arg0, arg1, arg2)
 }
 
-func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn doFn3x4[I0, I1, I2, R0, R1, R2, R3]) {
+func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2) (R0, R1, R2, R3))
 		return &caller3x4[I0, I1, I2, R0, R1, R2, R3]{fn: f}
@@ -60006,7 +60006,7 @@ func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn 
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) (R0, R1, R2, R3) {
-			return fn.(doFn3x4[I0, I1, I2, R0, R1, R2, R3]).ProcessElement(a0, a1, a2)
+			return fn.(genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3]).ProcessElement(a0, a1, a2)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
@@ -60037,14 +60037,14 @@ func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn3x4[I0, I1, I2, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x4[I0, I1, I2, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn3x4[I0, I1, I2, R0, R1, R2, R3 any](doFn doFn3x4[I0, I1, I2, R0, R1, R2, R3]) {
+func DoFn3x4[I0, I1, I2, R0, R1, R2, R3 any](doFn genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3](doFn)
 }
 
-type doFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] interface {
+type genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3) (R0, R1, R2, R3)
 }
 
@@ -60069,7 +60069,7 @@ func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call4x4(arg0 I0, arg1 I1, ar
 	return c.fn(arg0, arg1, arg2, arg3)
 }
 
-func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn doFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]) {
+func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3) (R0, R1, R2, R3))
 		return &caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]{fn: f}
@@ -60077,7 +60077,7 @@ func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](d
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) (R0, R1, R2, R3) {
-			return fn.(doFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3)
+			return fn.(genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
@@ -60108,14 +60108,14 @@ func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn doFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]) {
+func DoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3](doFn)
 }
 
-type doFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] interface {
+type genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4) (R0, R1, R2, R3)
 }
 
@@ -60140,7 +60140,7 @@ func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call5x4(arg0 I0, arg1 I1
 	return c.fn(arg0, arg1, arg2, arg3, arg4)
 }
 
-func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn doFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) {
+func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4) (R0, R1, R2, R3))
 		return &caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]{fn: f}
@@ -60148,7 +60148,7 @@ func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 an
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) (R0, R1, R2, R3) {
-			return fn.(doFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4)
+			return fn.(genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
@@ -60179,14 +60179,14 @@ func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn doFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) {
+func DoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3](doFn)
 }
 
-type doFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] interface {
+type genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5) (R0, R1, R2, R3)
 }
 
@@ -60211,7 +60211,7 @@ func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call6x4(arg0 I0, arg
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
-func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn doFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) {
+func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3))
 		return &caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]{fn: f}
@@ -60219,7 +60219,7 @@ func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) (R0, R1, R2, R3) {
-			return fn.(doFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5)
+			return fn.(genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
@@ -60250,14 +60250,14 @@ func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn doFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) {
+func DoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3](doFn)
 }
 
-type doFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] interface {
+type genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6) (R0, R1, R2, R3)
 }
 
@@ -60282,7 +60282,7 @@ func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call7x4(arg0 I0,
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 }
 
-func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn doFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) {
+func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3))
 		return &caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]{fn: f}
@@ -60290,7 +60290,7 @@ func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) (R0, R1, R2, R3) {
-			return fn.(doFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
+			return fn.(genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
@@ -60321,14 +60321,14 @@ func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn doFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) {
+func DoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3](doFn)
 }
 
-type doFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] interface {
+type genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] interface {
 	ProcessElement(i0 I0, i1 I1, i2 I2, i3 I3, i4 I4, i5 I5, i6 I6, i7 I7) (R0, R1, R2, R3)
 }
 
@@ -60353,7 +60353,7 @@ func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call8x4(arg0
 	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 }
 
-func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn doFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) {
+func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) {
 	processElementCaller := func(fn interface{}) reflectx.Func {
 		f := fn.(func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3))
 		return &caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]{fn: f}
@@ -60361,7 +60361,7 @@ func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3))(nil)).Elem(), processElementCaller)
 	processElementWrapper := func(fn interface{}) reflectx.Func {
 		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6, a7 I7) (R0, R1, R2, R3) {
-			return fn.(doFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
+			return fn.(genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
 	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
@@ -60392,9 +60392,9 @@ func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// RegisterDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
-func RegisterDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn doFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) {
+func DoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3](doFn)
 }
