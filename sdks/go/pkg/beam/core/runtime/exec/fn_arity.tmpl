@@ -45,9 +45,6 @@ func (n *invoker) initCall() {
 	default:
 		n.call = func(pn typex.PaneInfo, ws []typex.Window, ts typex.EventTime) (*FullValue, error) {
 			ret := n.fn.Fn.Call(n.args)
-			if n.outErrIdx >= 0 && ret[n.outErrIdx] != nil {
-				return nil, ret[n.outErrIdx].(error)
-			}
 
 			// (5) Return direct output, if any. Input timestamp and windows are implicitly
 			// propagated.
