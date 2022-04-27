@@ -92,13 +92,10 @@ public class StaticSchemaInference {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       HashSet<Class> alreadyVisitedSchemas) {
     if (alreadyVisitedSchemas.contains(clazz)) {
-      System.out.println(clazz);
-      System.out.println(alreadyVisitedSchemas);
       throw new RuntimeException(
           "Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
     }
     alreadyVisitedSchemas.add(clazz);
-    System.out.println("Added: " + clazz);
     Schema.Builder builder = Schema.builder();
     for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(clazz)) {
       Schema.FieldType fieldType =
@@ -110,7 +107,6 @@ public class StaticSchemaInference {
       }
     }
     alreadyVisitedSchemas.remove(clazz);
-    System.out.println("Removed: " + clazz);
     return builder.build();
   }
 
