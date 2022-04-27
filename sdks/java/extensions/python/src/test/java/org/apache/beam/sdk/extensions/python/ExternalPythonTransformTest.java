@@ -49,7 +49,7 @@ public class ExternalPythonTransformTest implements Serializable {
     PCollection<String> output =
         p.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
             .apply(
-                ExternalPythonTransform
+                PythonExternalTransform
                     .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
                         from("apache_beam.GroupByKey"))
             .apply(MapElements.into(TypeDescriptors.strings()).via(kv -> kv.getKey()));
@@ -59,8 +59,8 @@ public class ExternalPythonTransformTest implements Serializable {
 
   @Test
   public void generateArgsEmpty() {
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform");
 
@@ -70,8 +70,8 @@ public class ExternalPythonTransformTest implements Serializable {
 
   @Test
   public void generateArgsWithPrimitives() {
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withArgs("aaa", "bbb", 11, 12L, 15.6, true);
@@ -105,8 +105,8 @@ public class ExternalPythonTransformTest implements Serializable {
             .build();
     Row rowField2 = Row.withSchema(subRowSchema2).addValues(12.5, true, "yyy").build();
 
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withArgs(rowField1, rowField2);
@@ -124,8 +124,8 @@ public class ExternalPythonTransformTest implements Serializable {
 
   @Test
   public void generatePayloadWithoutKwargs() throws Exception {
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withArgs("aaa", "bbb", 11, 12L, 15.6, true);
@@ -138,8 +138,8 @@ public class ExternalPythonTransformTest implements Serializable {
 
   @Test
   public void generatePayloadWithoutArgs() {
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withKwarg("stringField1", "aaa")
@@ -169,8 +169,8 @@ public class ExternalPythonTransformTest implements Serializable {
     customType2.strField = "yyy";
     customType2.intField = 456;
 
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withArgs(customType1, customType2);
@@ -186,8 +186,8 @@ public class ExternalPythonTransformTest implements Serializable {
 
   @Test
   public void generateKwargsEmpty() {
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform");
 
@@ -197,8 +197,8 @@ public class ExternalPythonTransformTest implements Serializable {
 
   @Test
   public void generateKwargsWithPrimitives() {
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withKwarg("stringField1", "aaa")
@@ -230,8 +230,8 @@ public class ExternalPythonTransformTest implements Serializable {
             .build();
     Row rowField2 = Row.withSchema(subRowSchema2).addValues(12.5, true, "yyy").build();
 
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withKwarg("customField0", rowField1)
@@ -258,8 +258,8 @@ public class ExternalPythonTransformTest implements Serializable {
     customType2.strField = "yyy";
     customType2.intField = 456;
 
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withKwarg("customField0", customType1)
@@ -289,8 +289,8 @@ public class ExternalPythonTransformTest implements Serializable {
             "doubleField",
             Double.valueOf(15.6));
 
-    ExternalPythonTransform<?, ?> transform =
-        ExternalPythonTransform
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
             .withKwargs(kwargsMap);
