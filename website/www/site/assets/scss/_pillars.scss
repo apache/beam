@@ -19,6 +19,7 @@
 
 .pillars {
   padding: $pad;
+  text-align: center;
 
   .pillars-title {
     @extend .component-title;
@@ -103,8 +104,6 @@
       max-width: 285px;
     }
   }
-
-  text-align: center;
 
   h2 {
     @extend .component-title;
