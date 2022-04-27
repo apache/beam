@@ -49,7 +49,7 @@ class FakeModel:
   def __init__(self):
     self.total_predict_calls = 0
 
-  def predict(self, input_vector: numpy.array):
+  def predict(self, input_vector: numpy.ndarray):
     self.total_predict_calls += 1
     return numpy.sum(input_vector, axis=1)
 

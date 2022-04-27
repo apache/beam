@@ -51,7 +51,7 @@ class RunInference(beam.PTransform):
 
   TODO(BEAM-14046): Add and link to help documentation
   """
-  def __init__(self, model_loader: base.ModelLoader) -> beam.pvalue.PCollection:
+  def __init__(self, model_loader: base.ModelLoader):
     self._model_loader = model_loader
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
