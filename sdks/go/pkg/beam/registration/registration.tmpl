@@ -1,6 +1,6 @@
 {{define "BuildWrapper_StartFinishBundle"}}
-{{$funcName := "unknown"}}{{$structName := "unknown"}}{{if (eq .func "startBundle")}}{{$funcName = "startBundle"}}{{$structName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$funcName = "finishBundle"}}{{$structName = "FinishBundle"}}{{end}}
-{{range $numParams := upto 10}}
+{{$funcName := "unknown"}}{{$structName := "unknown"}}{{if (eq .func "startBundle")}}{{$funcName = "startBundle"}}{{$structName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$funcName = "finishBundle"}}{{$structName = "FinishBundle"}}{{end}}{{$startFinishBundleMaxIn := .startFinishBundleMaxIn}}{{$processElementMaxIn := .processElementMaxIn}}
+{{range $numParams := upto $processElementMaxIn}}
 func build{{$structName}}Wrapper{{$numParams}}{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
     {{$funcName}}In := -1
 	{{$funcName}}Out := -1
@@ -9,20 +9,14 @@ func build{{$structName}}Wrapper{{$numParams}}{{(genericTypingRepresentation $nu
 		{{$funcName}}In = {{$funcName}}Method.Type().NumIn()
 		{{$funcName}}Out = {{$funcName}}Method.Type().NumOut()
 	    switch {
-{{range $funcIn := upto 8}}
+{{range $funcIn := upto $startFinishBundleMaxIn}}
     case {{$funcName}}In == {{$funcIn}}:
             switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $numParams)}}{{if $possibleCombos}}
             case {{$funcName}}Out == {{$funcOut}}:
 {{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$funcName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
-                    {{$funcName}}Caller := func(fn interface{}) reflectx.Func {
-                        f := fn.(func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})
-                        return &caller{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}{fn: f}
-                    }
-                    reflectx.RegisterFunc(reflect.TypeOf((*func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})(nil)).Elem(), {{$funcName}}Caller)
+                    reflectx.RegisterFunc(reflect.TypeOf((*func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}{fn: fn.(func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})} })
                     {{$funcRegister := (makeStructRegisterEntry $funcName $structName $funcCombo (list))}}{{if $funcOut}}{{$funcRegister = (makeStructRegisterEntry $funcName $structName $funcCombo (list "error"))}}{{end}}
-                    return func(fn interface{}) reflectx.Func {
-                        return {{$funcRegister}}
-                    }
+                    return func(fn interface{}) reflectx.Func { return {{$funcRegister}} }
                 } {{end}}{{end}}{{end}}
             default:
                 panic("Invalid signature for {{$structName}}")
@@ -118,10 +112,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
+{{$processElementMaxOut := 5}}{{$processElementMaxIn := 10}}{{$startFinishBundleOutRange := 2}}{{$startFinishBundleInRange := 8}}
+{{template "BuildWrapper_StartFinishBundle" (dict "func" "startBundle" "startFinishBundleMaxIn" $startFinishBundleInRange "processElementMaxIn" $processElementMaxIn)}}{{template "BuildWrapper_StartFinishBundle" (dict "func" "finishBundle" "startFinishBundleMaxIn" $startFinishBundleInRange "processElementMaxIn" $processElementMaxIn)}}{{template "BuildWrapper_SetupTeardown" (dict "func" "setup")}}{{template "BuildWrapper_SetupTeardown" (dict "func" "teardown")}}
 
-{{template "BuildWrapper_StartFinishBundle" (dict "func" "startBundle")}}{{template "BuildWrapper_StartFinishBundle" (dict "func" "finishBundle")}}{{template "BuildWrapper_SetupTeardown" (dict "func" "setup")}}{{template "BuildWrapper_SetupTeardown" (dict "func" "teardown")}}
-
-{{$processElementMaxOut := 5}}{{$processElementMaxIn := 10}}{{$startFinishBundleOutRange := 2}}{{$startFinishBundleInRange := 8}}{{range $processElementOut := upto $processElementMaxOut}}{{range $processElementIn := upto $processElementMaxIn}}
+{{range $processElementOut := upto $processElementMaxOut}}{{range $processElementIn := upto $processElementMaxIn}}
 type genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} interface {
     ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
 }
