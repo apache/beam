@@ -18,15 +18,15 @@
 package org.apache.beam.sdk.io.cdap;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.reflect.TypeToken;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.common.lang.InstantiatorFactory;
 import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({"rawtypes", "unchecked", "assignment.type.incompatible", "UnstableApiUsage"})
 public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
@@ -80,15 +80,9 @@ public abstract class Plugin {
    */
   public void prepareRun() {
     if (cdapPluginObj == null) {
-      for (Constructor<?> constructor : getPluginClass().getDeclaredConstructors()) {
-        constructor.setAccessible(true);
-        try {
-          cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-          LOG.error("Can not instantiate CDAP plugin class", e);
-          throw new IllegalStateException("Can not call prepareRun");
-        }
-      }
+      InstantiatorFactory instantiatorFactory = new InstantiatorFactory(false);
+      cdapPluginObj =
+          (SubmitterLifecycle) instantiatorFactory.get(TypeToken.of(getPluginClass())).create();
     }
     try {
       cdapPluginObj.prepareRun(getContext());
