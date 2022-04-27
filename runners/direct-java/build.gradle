@@ -120,8 +120,6 @@ def sickbayTests = [
         'org.apache.beam.sdk.testing.UsesLoopingTimer',
         // https://issues.apache.org/jira/browse/BEAM-8035
         'org.apache.beam.sdk.transforms.WatchTest.testMultiplePollsWithManyResults',
-        // https://issues.apache.org/jira/browse/BEAM-4191
-        'org.apache.beam.runners.direct.WatermarkManagerTest.updateWatermarkWithDifferentWindowedValueInstances',
         // https://issues.apache.org/jira/browse/BEAM-6354
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]
