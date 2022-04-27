@@ -298,7 +298,7 @@ class GeneralPurposeConsumerSet(ConsumerSet):
     for consumer in self.element_consumers:
       cython.cast(Operation, consumer).process(windowed_value)
 
-    # TODO: Do this branching when construction ConsumerSet
+    # TODO: Do this branching when contstructing ConsumerSet
     if self.has_batch_consumers:
       self._batched_elements.append(windowed_value)
 
