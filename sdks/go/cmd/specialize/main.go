@@ -314,8 +314,7 @@ func possibleBundleLifecycleParameterCombos(numInInterface interface{}, processE
 	pSetSize := int(math.Pow(2, float64(len(ordered_known_parameter_options))))
 	combos := make([][]string, 0, pSetSize)
 
-	var index int
-	for index < pSetSize {
+	for index := 0; index < pSetSize; index++ {
 		var subSet []string
 
 		for j, elem := range ordered_known_parameter_options {
@@ -332,8 +331,6 @@ func possibleBundleLifecycleParameterCombos(numInInterface interface{}, processE
 			}
 			combos = append(combos, subSet)
 		}
-
-		index++
 	}
 
 	return combos

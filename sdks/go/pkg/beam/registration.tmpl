@@ -1,8 +1,9 @@
-{{define "StructWrappersAndFuncs_StartFinishBundle"}}
+{{define "BuildWrapper_StartFinishBundle"}}
 {{$funcName := "unknown"}}{{$structName := "unknown"}}{{if (eq .func "startBundle")}}{{$funcName = "startBundle"}}{{$structName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$funcName = "finishBundle"}}{{$structName = "FinishBundle"}}{{end}}
-	{{$funcName}}In := -1
+{{range $numParams := upto 9}}
+func build{{$structName}}Wrapper{{$numParams}}{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
+    {{$funcName}}In := -1
 	{{$funcName}}Out := -1
-    var {{$funcName}}Wrapper func(fn interface{}) reflectx.Func
 	{{$funcName}}Method := reflect.ValueOf(doFn).MethodByName("{{$structName}}")
 	if {{$funcName}}Method.IsValid() {
 		{{$funcName}}In = {{$funcName}}Method.Type().NumIn()
@@ -10,7 +11,7 @@
 	    switch {
 {{range $funcIn := upto 8}}
     case {{$funcName}}In == {{$funcIn}}:
-            switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $.processElementIn)}}{{if $possibleCombos}}
+            switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $numParams)}}{{if $possibleCombos}}
             case {{$funcName}}Out == {{$funcOut}}:
 {{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$funcName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
                     {{$funcName}}Caller := func(fn interface{}) reflectx.Func {
@@ -19,7 +20,7 @@
                     }
                     reflectx.RegisterFunc(reflect.TypeOf((*func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})(nil)).Elem(), {{$funcName}}Caller)
                     {{$funcRegister := (makeStructRegisterEntry $funcName $structName $funcCombo (list))}}{{if $funcOut}}{{$funcRegister = (makeStructRegisterEntry $funcName $structName $funcCombo (list "error"))}}{{end}}
-                    {{$funcName}}Wrapper = func(fn interface{}) reflectx.Func {
+                    return func(fn interface{}) reflectx.Func {
                         return {{$funcRegister}}
                     }
                 } {{end}}{{end}}{{end}}
@@ -31,7 +32,9 @@
             panic("Invalid signature for {{$structName}}")
         }
     }
-{{end}}
+    return nil
+}
+{{end}}{{end}}
 // Licensed to the Apache Software Foundation (ASF) under one or more
 // contributor license agreements.  See the NOTICE file distributed with
 // this work for additional information regarding copyright ownership.
@@ -60,6 +63,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
+
+{{template "BuildWrapper_StartFinishBundle" (dict "func" "startBundle")}}{{template "BuildWrapper_StartFinishBundle" (dict "func" "finishBundle")}}
+
 {{$processElementMaxOut := 5}}{{$processElementMaxIn := 9}}{{$startFinishBundleOutRange := 2}}{{$startFinishBundleInRange := 8}}{{range $processElementOut := upto $processElementMaxOut}}{{range $processElementIn := upto $processElementMaxIn}}
 type doFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} interface {
     ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
@@ -96,7 +102,9 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
         return reflectx.MakeFunc(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}} {
             {{if $processElementOut}}return {{end}}fn.(doFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}).ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
         })
-    }{{template "StructWrappersAndFuncs_StartFinishBundle" (dict "processElementIn" $processElementIn "processElementOut" $processElementOut "func" "startBundle")}}{{template "StructWrappersAndFuncs_StartFinishBundle" (dict "processElementIn" $processElementIn "processElementOut" $processElementOut "func" "finishBundle")}}
+    }
+    var startBundleWrapper = buildStartBundleWrapper{{$processElementIn}}{{(genericTypingRepresentation $processElementIn 0 false)}}(doFn)
+    var finishBundleWrapper = buildFinishBundleWrapper{{$processElementIn}}{{(genericTypingRepresentation $processElementIn 0 false)}}(doFn)
     var setupWrapper func(fn interface{}) reflectx.Func
     if _, ok := doFn.(setup0x0); ok {
         setupCaller := func(fn interface{}) reflectx.Func {
