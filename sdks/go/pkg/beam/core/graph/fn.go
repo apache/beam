@@ -832,14 +832,6 @@ func validateSdfSignatures(fn *Fn, numMainIn mainInputs) error {
 	return nil
 }
 
-func optionalSdfNameMap() map[string]bool {
-	sdfMap := make(map[string]bool)
-	for _, name := range optionalSdfNames {
-		sdfMap[name] = true
-	}
-	return sdfMap
-}
-
 // validateSdfSigNumbers validates the number of parameters and return values
 // in each SDF method in the given Fn, and returns an error if a method has an
 // invalid/unexpected number.
@@ -853,11 +845,9 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
-	optionalSdfs := optionalSdfNameMap()
 	for _, name := range sdfNames {
 		method, ok := fn.methods[name]
-		if !ok && optionalSdfs[name] {
-			// skip validating unimplemented optional sdf methods
+		if !ok {
 			continue
 		}
 		if len(method.Param) != paramNums[name] {
@@ -887,14 +877,9 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 	restrictionT := fn.methods[createInitialRestrictionName].Ret[0].T
 	rTrackerT := reflect.TypeOf((*sdf.RTracker)(nil)).Elem()
 	bRTrackerT := fn.methods[createTrackerName].Ret[0].T
-	optionalSdfs := optionalSdfNameMap()
 
-	for _, name := range sdfNames {
-		method, ok := fn.methods[name]
-		if !ok && optionalSdfs[name] {
-			// skip validating unimplemented optional sdf methodsß
-			continue
-		}
+	for _, name := range requiredSdfNames {
+		method := fn.methods[name]
 		switch name {
 		case createInitialRestrictionName:
 			if err := validateSdfElementT(fn, createInitialRestrictionName, method, num); err != nil {
@@ -965,6 +950,14 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					"return value at index %v. Got: %v, Want: %v (from method %v).",
 					createTrackerName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
 			}
+		}
+	}
+	for _, name := range optionalSdfNames {
+		method, ok := fn.methods[name]
+		if !ok {
+			continue
+		}
+		switch name {
 		case truncateRestrictionName:
 			if method.Param[0].T != bRTrackerT {
 				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
