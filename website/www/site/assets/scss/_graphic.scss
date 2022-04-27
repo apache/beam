@@ -27,13 +27,22 @@
     height: 60px;
   }
   .margin {
-    margin-top: 84px;
-    margin-bottom: 84px;
+    margin-top: 50px;
+    margin-bottom: 50px;
     @media (max-width: $mobile) {
       margin-top: 0;
       margin-bottom: 64px;
     }
   }
+
+  .row-image {
+    width: 95%;
+    display: block;
+    @media (max-width: 1024px) {
+     display: none;
+    }
+  }
+
   .row {
     display: flex;
     justify-content: space-between;

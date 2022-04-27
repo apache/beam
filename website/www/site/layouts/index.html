@@ -103,13 +103,7 @@
     <div class="quotes">
       <h2 class="margin">{{ T "home-model-title1" }}</h2>
       <div class="margin section">
-        <div class="row images desktop">
-          <img src="/images/model-sources-icon.svg" class='icon'/>
-          <img src="/images/model-ellipse.svg"/>
-          <img src="/images/model-processing-icon.svg" class='icon'/>
-          <img src="/images/model-ellipse.svg"/>
-          <img src="/images/model-sinks-icon.svg" class='icon'/>
-        </div>
+        <img class="row-image" src="/images/graphic-background.png">
         <div class="row">
           {{ $data := index $.Site.Data .Site.Language.Lang }}
           {{ range $item := $data.graphic }}
