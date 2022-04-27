@@ -70,6 +70,12 @@ public class ExternalTranslation {
       String impulsePrefix = expandableTransform.getImpulsePrefix();
       RunnerApi.PTransform expandedTransform = expandableTransform.getExpandedTransform();
       RunnerApi.Components expandedComponents = expandableTransform.getExpandedComponents();
+      List<String> expandedRequirements = expandableTransform.getExpandedRequirements();
+
+      for (String requirement : expandedRequirements) {
+        components.addRequirement(requirement);
+      }
+
       Map<PCollection, String> externalPCollectionIdMap =
           expandableTransform.getExternalPCollectionIdMap();
       Map<Coder, String> externalCoderIdMap = expandableTransform.getExternalCoderIdMap();

@@ -128,11 +128,12 @@ type ReturnKind int
 
 // The supported types of ReturnKind.
 const (
-	RetIllegal   ReturnKind = 0x0
-	RetEventTime ReturnKind = 0x1
-	RetValue     ReturnKind = 0x2
-	RetError     ReturnKind = 0x4
-	RetRTracker  ReturnKind = 0x8
+	RetIllegal             ReturnKind = 0x0
+	RetEventTime           ReturnKind = 0x1
+	RetValue               ReturnKind = 0x2
+	RetError               ReturnKind = 0x4
+	RetRTracker            ReturnKind = 0x8
+	RetProcessContinuation ReturnKind = 0x10
 )
 
 func (k ReturnKind) String() string {
@@ -145,6 +146,8 @@ func (k ReturnKind) String() string {
 		return "EventTime"
 	case RetValue:
 		return "Value"
+	case RetProcessContinuation:
+		return "ProcessContinuation"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -317,6 +320,16 @@ func (u *Fn) OutEventTime() (pos int, exists bool) {
 	return -1, false
 }
 
+// ProcessContinuation returns (index, true) iff the function returns a process continuation.
+func (u *Fn) ProcessContinuation() (pos int, exists bool) {
+	for i, p := range u.Ret {
+		if p.Kind == RetProcessContinuation {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // Params returns the parameter indices that matches the given mask.
 func (u *Fn) Params(mask FnParamKind) []int {
 	var ret []int
@@ -409,6 +422,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = RetError
 		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
 			kind = RetRTracker
+		case t.Implements(reflect.TypeOf((*sdf.ProcessContinuation)(nil)).Elem()):
+			kind = RetProcessContinuation
 		case t == typex.EventTimeType:
 			kind = RetEventTime
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
@@ -641,6 +656,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 var (
 	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
 	errErrorPrecedence        = errors.New("error must be the final return parameter")
+	// TODO(BEAM-11104): Enable process continuations as a valid return value.
+	errContinuationSupport = errors.New("process continuations are not supported in this SDK release; see https://issues.apache.org/jira/browse/BEAM-11104 for the feature's current status")
 )
 
 type retState int
@@ -650,6 +667,7 @@ const (
 	rsEventTime
 	rsOutput
 	rsError
+	rsProcessContinuation
 )
 
 func nextRetState(cur retState, transition ReturnKind) (retState, error) {
@@ -659,7 +677,7 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 		case RetEventTime:
 			return rsEventTime, nil
 		}
-	case rsEventTime, rsOutput:
+	case rsEventTime, rsOutput, rsProcessContinuation:
 		// Identical to the default cases.
 	case rsError:
 		// This is a terminal state. No valid transitions. error must be the final return value.
@@ -671,6 +689,8 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 		return -1, errEventTimeRetPrecedence
 	case RetValue, RetRTracker:
 		return rsOutput, nil
+	case RetProcessContinuation:
+		return -1, errContinuationSupport
 	case RetError:
 		return rsError, nil
 	default:

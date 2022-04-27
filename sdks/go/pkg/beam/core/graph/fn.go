@@ -168,9 +168,9 @@ const (
 	restrictionSizeName          = "RestrictionSize"
 	createTrackerName            = "CreateTracker"
 
-	createWatermarkEstimatorName          = "CreateWatermarkEstimator"
-	getInitialWatermarkEstimatorStateName = "GetInitialWatermarkEstimatorState"
-	getWatermarkEstimatorStateName        = "GetWatermarkEstimatorState"
+	createWatermarkEstimatorName       = "CreateWatermarkEstimator"
+	initialWatermarkEstimatorStateName = "InitialWatermarkEstimatorState"
+	watermarkEstimatorStateName        = "WatermarkEstimatorState"
 
 	createAccumulatorName = "CreateAccumulator"
 	addInputName          = "AddInput"
@@ -192,8 +192,8 @@ var doFnNames = []string{
 	restrictionSizeName,
 	createTrackerName,
 	createWatermarkEstimatorName,
-	getInitialWatermarkEstimatorStateName,
-	getWatermarkEstimatorStateName,
+	initialWatermarkEstimatorStateName,
+	watermarkEstimatorStateName,
 }
 
 var requiredSdfNames = []string{
@@ -205,8 +205,8 @@ var requiredSdfNames = []string{
 
 var watermarkEstimationNames = []string{
 	createWatermarkEstimatorName,
-	getInitialWatermarkEstimatorStateName,
-	getWatermarkEstimatorStateName,
+	initialWatermarkEstimatorStateName,
+	watermarkEstimatorStateName,
 }
 
 var combineFnNames = []string{
@@ -330,25 +330,25 @@ func (f *SplittableDoFn) WatermarkEstimatorT() reflect.Type {
 	return f.CreateWatermarkEstimatorFn().Ret[0].T
 }
 
-// IsWatermarkEstimating returns whether the DoFn implements custom watermark state.
+// IsStatefulWatermarkEstimating returns whether the DoFn implements custom watermark state.
 func (f *SplittableDoFn) IsStatefulWatermarkEstimating() bool {
-	_, ok := f.methods[getWatermarkEstimatorStateName]
+	_, ok := f.methods[watermarkEstimatorStateName]
 	return ok
 }
 
-// GetInitialWatermarkEstimatorStateFn returns the "GetInitialWatermarkEstimatorState" function, if present
-func (f *SplittableDoFn) GetInitialWatermarkEstimatorStateFn() *funcx.Fn {
-	return f.methods[getInitialWatermarkEstimatorStateName]
+// InitialWatermarkEstimatorStateFn returns the "InitialWatermarkEstimatorState" function, if present
+func (f *SplittableDoFn) InitialWatermarkEstimatorStateFn() *funcx.Fn {
+	return f.methods[initialWatermarkEstimatorStateName]
 }
 
-// GetWatermarkEstimatorStateFn returns the "GetWatermarkEstimatorState" function, if present
-func (f *SplittableDoFn) GetWatermarkEstimatorStateFn() *funcx.Fn {
-	return f.methods[getWatermarkEstimatorStateName]
+// WatermarkEstimatorStateFn returns the "WatermarkEstimatorState" function, if present
+func (f *SplittableDoFn) WatermarkEstimatorStateFn() *funcx.Fn {
+	return f.methods[watermarkEstimatorStateName]
 }
 
 // WatermarkEstimatorStateT returns the type of the watermark estimator state from the SDF
 func (f *SplittableDoFn) WatermarkEstimatorStateT() reflect.Type {
-	return f.GetWatermarkEstimatorStateFn().Ret[0].T
+	return f.WatermarkEstimatorStateFn().Ret[0].T
 }
 
 // TODO(herohde) 5/19/2017: we can sometimes detect whether the main input must be
@@ -931,7 +931,7 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 					"Ensure that all restrictions in an SDF are the same type.",
 					createTrackerName, 0, method.Param[0].T, restrictionT, createInitialRestrictionName)
 			}
-			if method.Ret[0].T.Implements(rTrackerT) == false {
+			if !method.Ret[0].T.Implements(rTrackerT) {
 				err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.RTracker",
 					createTrackerName, 0, method.Ret[0].T)
 				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
@@ -979,12 +979,9 @@ func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int, startIn
 // false if they aren't, and returns an error if they are present but the function isn't an sdf and thus doesn't
 // support watermark estimation
 func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
-	var isWatermarkEstimating bool
-	if _, ok := fn.methods[createWatermarkEstimatorName]; ok {
-		isWatermarkEstimating = true
-	}
+	_, isWatermarkEstimating := fn.methods[createWatermarkEstimatorName]
 	if !isSdf && isWatermarkEstimating {
-		return false, errors.Errorf("Watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
+		return false, errors.Errorf("watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
 			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
 	}
 
@@ -1011,8 +1008,8 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 	if len(method.Param) > 1 {
 		err := errors.Errorf("unexpected number of params in method %v. got: %v, want number in range: 0 to 1",
 			createWatermarkEstimatorName, len(method.Param))
-		return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
-			"Got: %v, Want number in range: 0 to 1. Check that the signature conforms to the expected signature for %v.",
+		return errors.SetTopLevelMsgf(err, "unexpected number of parameters in method %v. "+
+			"got: %v, want number in range: 0 to 1. Check that the signature conforms to the expected signature for %v.",
 			createWatermarkEstimatorName, len(method.Param), createWatermarkEstimatorName)
 	} else if len(method.Param) == 1 {
 		err := validateStatefulWatermarkSig(fn, numMainIn)
@@ -1020,14 +1017,14 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 			return err
 		}
 	} else {
-		if _, ok := fn.methods[getInitialWatermarkEstimatorStateName]; ok {
+		if _, ok := fn.methods[initialWatermarkEstimatorStateName]; ok {
 			err := errors.Errorf("stateful watermark estimation method %v is present, "+
-				"but CreateWatermarkEstimator doesn't take in a state parameter.", getInitialWatermarkEstimatorStateName)
+				"but CreateWatermarkEstimator doesn't take in a state parameter.", initialWatermarkEstimatorStateName)
 			return err
 		}
-		if _, ok := fn.methods[getWatermarkEstimatorStateName]; ok {
+		if _, ok := fn.methods[watermarkEstimatorStateName]; ok {
 			err := errors.Errorf("stateful watermark estimation method %v is present, "+
-				"but CreateWatermarkEstimator doesn't take in a state parameter.", getWatermarkEstimatorStateName)
+				"but CreateWatermarkEstimator doesn't take in a state parameter.", watermarkEstimatorStateName)
 			return err
 		}
 	}
@@ -1035,13 +1032,13 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 	if len(method.Ret) != returnNum {
 		err := errors.Errorf("unexpected number of returns in method %v. got: %v, want: %v",
 			createWatermarkEstimatorName, len(method.Ret), returnNum)
-		return errors.SetTopLevelMsgf(err, "Unexpected number of return values in method %v. "+
-			"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v.",
+		return errors.SetTopLevelMsgf(err, "unexpected number of return values in method %v. "+
+			"got: %v, want: %v. Check that the signature conforms to the expected signature for %v.",
 			createWatermarkEstimatorName, len(method.Ret), returnNum, createWatermarkEstimatorName)
-	} else if method.Ret[0].T.Implements(watermarkEstimatorT) == false {
+	} else if !method.Ret[0].T.Implements(watermarkEstimatorT) {
 		err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.WatermarkEstimator",
 			createWatermarkEstimatorName, 0, method.Ret[0].T)
-		return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+		return errors.SetTopLevelMsgf(err, "invalid output type in method %v, "+
 			"return value at index %v (type: %v). Output of method %v must implement sdf.WatermarkEstimator.",
 			createWatermarkEstimatorName, 0, method.Ret[0].T, createWatermarkEstimatorName)
 	}
@@ -1050,10 +1047,10 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 	pos, _ := processFn.WatermarkEstimator()
 	if pos != -1 && method.Ret[0].T != processFn.Param[pos].T {
 		err := errors.Errorf("mismatched output type in method %v, return %v: got: %v, want: %v",
-			getWatermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T)
+			watermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T)
 		return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
 			"return value at index %v. Got: %v, Want: %v (from method %v).",
-			getWatermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
+			watermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
 	}
 
 	return nil
@@ -1092,29 +1089,29 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 	for _, name := range watermarkEstimationNames {
 		method := fn.methods[name]
 		switch name {
-		case getInitialWatermarkEstimatorStateName:
+		case initialWatermarkEstimatorStateName:
 			if len(method.Param) != numMainIn+2 {
 				err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
-					getInitialWatermarkEstimatorStateName, len(method.Param), numMainIn+2)
-				return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
-					"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v, "+
+					initialWatermarkEstimatorStateName, len(method.Param), numMainIn+2)
+				return errors.SetTopLevelMsgf(err, "unexpected number of parameters in method %v. "+
+					"got: %v, want: %v. Check that the signature conforms to the expected signature for %v, "+
 					"and that elements in SDF method parameters match elements in %v.",
-					getInitialWatermarkEstimatorStateName, len(method.Param), numMainIn+2, getInitialWatermarkEstimatorStateName, processElementName)
+					initialWatermarkEstimatorStateName, len(method.Param), numMainIn+2, initialWatermarkEstimatorStateName, processElementName)
 			}
 			if method.Param[0].T != typex.EventTimeType {
-				err := errors.Errorf("Unexpected parameter type in method %v, param %v. got: %v, want: %v",
-					getInitialWatermarkEstimatorStateName, 0, method.Param[0].T, typex.EventTimeType)
-				return errors.SetTopLevelMsgf(err, "Mismatched event time type in method %v, "+
-					"parameter at index %v. Got: %v, Want: %v.",
-					getInitialWatermarkEstimatorStateName, 0, method.Param[0].T, typex.EventTimeType)
+				err := errors.Errorf("unexpected parameter type in method %v, param %v. got: %v, want: %v",
+					initialWatermarkEstimatorStateName, 0, method.Param[0].T, typex.EventTimeType)
+				return errors.SetTopLevelMsgf(err, "mismatched event time type in method %v, "+
+					"parameter at index %v. got: %v, want: %v.",
+					initialWatermarkEstimatorStateName, 0, method.Param[0].T, typex.EventTimeType)
 			}
 			if method.Param[1].T != restT {
 				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
-					getInitialWatermarkEstimatorStateName, 1, method.Param[1].T, restT)
-				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
-					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					initialWatermarkEstimatorStateName, 1, method.Param[1].T, restT)
+				return errors.SetTopLevelMsgf(err, "mismatched restriction type in method %v, "+
+					"parameter at index %v. got: %v, want: %v (from method %v). "+
 					"Ensure that all restrictions in an SDF are the same type.",
-					getInitialWatermarkEstimatorStateName, 1, method.Param[1].T, restT, createTrackerName)
+					initialWatermarkEstimatorStateName, 1, method.Param[1].T, restT, createTrackerName)
 			}
 			if err := validateSdfElementT(fn, restrictionSizeName, method, numMainIn, 2); err != nil {
 				return err
@@ -1122,50 +1119,50 @@ func validateStatefulWatermarkSig(fn *Fn, numMainIn int) error {
 
 			if len(method.Ret) != 1 {
 				err := errors.Errorf("unexpected number of elements returned in method %v. got: %v, want %v",
-					getInitialWatermarkEstimatorStateName, len(method.Ret), 1)
-				return errors.SetTopLevelMsgf(err, "Unexpected number of elements returned in method %v. "+
-					"Got: %v, Want %v. Check that the signature conforms to the expected signature for %v.",
-					getInitialWatermarkEstimatorStateName, len(method.Ret), 1, getInitialWatermarkEstimatorStateName)
+					initialWatermarkEstimatorStateName, len(method.Ret), 1)
+				return errors.SetTopLevelMsgf(err, "unexpected number of elements returned in method %v. "+
+					"got: %v, want %v. Check that the signature conforms to the expected signature for %v.",
+					initialWatermarkEstimatorStateName, len(method.Ret), 1, initialWatermarkEstimatorStateName)
 			}
 			if method.Ret[0].T != watermarkStateT {
 				err := errors.Errorf("mismatched output type in method %v, return %v. got: %v, want: %v",
 					createWatermarkEstimatorName, 0, method.Ret[0].T, watermarkStateT)
-				return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
+				return errors.SetTopLevelMsgf(err, "mismatched output type in method %v, "+
 					"return value at index %v got: %v, want: %v (from method %v). "+
 					"Ensure that all watermark states in an SDF are the same type.",
 					createWatermarkEstimatorName, 0, method.Ret[0].T, watermarkStateT, createWatermarkEstimatorName)
 			}
-		case getWatermarkEstimatorStateName:
+		case watermarkEstimatorStateName:
 			if len(method.Param) != 1 {
 				err := errors.Errorf("unexpected number of params in method %v. got: %v, want %v",
-					getWatermarkEstimatorStateName, len(method.Param), 1)
-				return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
-					"Got: %v, Want %v. Check that the signature conforms to the expected signature for %v, "+
+					watermarkEstimatorStateName, len(method.Param), 1)
+				return errors.SetTopLevelMsgf(err, "unexpected number of parameters in method %v. "+
+					"got: %v, want %v. Check that the signature conforms to the expected signature for %v, "+
 					"and that elements in SDF method parameters match elements in %v.",
-					getWatermarkEstimatorStateName, len(method.Param), 1, getWatermarkEstimatorStateName, processElementName)
+					watermarkEstimatorStateName, len(method.Param), 1, watermarkEstimatorStateName, processElementName)
 			}
 			if method.Param[0].T != watermarkEstimatorT {
 				err := errors.Errorf("mismatched watermark state type in method %v, return %v. got: %v, want: %v",
-					getWatermarkEstimatorStateName, 0, method.Param[0].T, watermarkEstimatorT)
-				return errors.SetTopLevelMsgf(err, "Mismatched watermark state type in method %v, "+
+					watermarkEstimatorStateName, 0, method.Param[0].T, watermarkEstimatorT)
+				return errors.SetTopLevelMsgf(err, "mismatched watermark state type in method %v, "+
 					"return value at index %v got: %v, want: %v (from method %v). "+
 					"Ensure that all watermark states in an SDF are the same type.",
-					getWatermarkEstimatorStateName, 0, method.Param[0].T, watermarkEstimatorT, getWatermarkEstimatorStateName)
+					watermarkEstimatorStateName, 0, method.Param[0].T, watermarkEstimatorT, watermarkEstimatorStateName)
 			}
 			if len(method.Ret) != 1 {
 				err := errors.Errorf("unexpected number of elements returned in method %v. got: %v, want %v",
-					getWatermarkEstimatorStateName, len(method.Ret), 1)
-				return errors.SetTopLevelMsgf(err, "Unexpected number of elements returned in method %v. "+
-					"Got: %v, Want %v. Check that the signature conforms to the expected signature for %v.",
-					getWatermarkEstimatorStateName, len(method.Ret), 1, getWatermarkEstimatorStateName)
+					watermarkEstimatorStateName, len(method.Ret), 1)
+				return errors.SetTopLevelMsgf(err, "unexpected number of elements returned in method %v. "+
+					"got: %v, want %v. Check that the signature conforms to the expected signature for %v.",
+					watermarkEstimatorStateName, len(method.Ret), 1, watermarkEstimatorStateName)
 			}
 			if method.Ret[0].T != watermarkStateT {
 				err := errors.Errorf("mismatched output type in method %v, return %v. got: %v, want: %v",
-					getWatermarkEstimatorStateName, 0, method.Ret[0].T, watermarkStateT)
-				return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
+					watermarkEstimatorStateName, 0, method.Ret[0].T, watermarkStateT)
+				return errors.SetTopLevelMsgf(err, "mismatched output type in method %v, "+
 					"return value at index %v got: %v, want: %v (from method %v). "+
 					"Ensure that all watermark estimators in an SDF are the same type.",
-					getWatermarkEstimatorStateName, 0, method.Ret[0].T, watermarkStateT, getWatermarkEstimatorStateName)
+					watermarkEstimatorStateName, 0, method.Ret[0].T, watermarkStateT, watermarkEstimatorStateName)
 			}
 		}
 	}

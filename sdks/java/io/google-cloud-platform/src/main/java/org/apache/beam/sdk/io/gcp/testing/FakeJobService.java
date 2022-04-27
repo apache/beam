@@ -150,7 +150,7 @@ public class FakeJobService implements JobService, Serializable {
   @Override
   public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
       throws IOException {
-    synchronized (allJobs) {
+    synchronized (FakeJobService.class) {
       verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
       job.setJobReference(jobRef);
@@ -182,7 +182,7 @@ public class FakeJobService implements JobService, Serializable {
       throws IOException {
     checkArgument(
         "AVRO".equals(extractConfig.getDestinationFormat()), "Only extract to AVRO is supported");
-    synchronized (allJobs) {
+    synchronized (FakeJobService.class) {
       verifyUniqueJobId(jobRef.getJobId());
       ++numExtractJobCalls;
 
@@ -196,14 +196,14 @@ public class FakeJobService implements JobService, Serializable {
   }
 
   public int getNumExtractJobCalls() {
-    synchronized (allJobs) {
+    synchronized (FakeJobService.class) {
       return numExtractJobCalls;
     }
   }
 
   @Override
   public void startQueryJob(JobReference jobRef, JobConfigurationQuery query) {
-    synchronized (allJobs) {
+    synchronized (FakeJobService.class) {
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setQuery(query));
@@ -216,7 +216,7 @@ public class FakeJobService implements JobService, Serializable {
   @Override
   public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
       throws IOException {
-    synchronized (allJobs) {
+    synchronized (FakeJobService.class) {
       verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
       job.setJobReference(jobRef);
@@ -255,14 +255,14 @@ public class FakeJobService implements JobService, Serializable {
   }
 
   public void expectDryRunQuery(String projectId, String query, JobStatistics result) {
-    synchronized (dryRunQueryResults) {
+    synchronized (FakeJobService.class) {
       dryRunQueryResults.put(projectId, query, result);
     }
   }
 
   @Override
   public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query, String location) {
-    synchronized (dryRunQueryResults) {
+    synchronized (FakeJobService.class) {
       JobStatistics result = dryRunQueryResults.get(projectId, query.getQuery());
       if (result != null) {
         return result;
@@ -272,7 +272,7 @@ public class FakeJobService implements JobService, Serializable {
   }
 
   public Collection<Job> getAllJobs() {
-    synchronized (allJobs) {
+    synchronized (FakeJobService.class) {
       return allJobs.values().stream().map(j -> j.job).collect(Collectors.toList());
     }
   }
@@ -280,7 +280,7 @@ public class FakeJobService implements JobService, Serializable {
   @Override
   public Job getJob(JobReference jobRef) {
     try {
-      synchronized (allJobs) {
+      synchronized (FakeJobService.class) {
         JobInfo job = allJobs.get(jobRef.getProjectId(), jobRef.getJobId());
         if (job == null) {
           return null;

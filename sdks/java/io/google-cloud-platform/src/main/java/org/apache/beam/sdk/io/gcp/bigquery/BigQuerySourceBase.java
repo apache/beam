@@ -114,34 +114,35 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected ExtractResult extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
-    BigQueryServices.DatasetService datasetService = bqServices.getDatasetService(bqOptions);
-    Table table = datasetService.getTable(tableToExtract);
-    if (table == null) {
-      throw new IOException(
-          String.format(
-              "Cannot start an export job since table %s does not exist",
-              BigQueryHelpers.toTableSpec(tableToExtract)));
-    }
+    try (BigQueryServices.DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
+      Table table = datasetService.getTable(tableToExtract);
+      if (table == null) {
+        throw new IOException(
+            String.format(
+                "Cannot start an export job since table %s does not exist",
+                BigQueryHelpers.toTableSpec(tableToExtract)));
+      }
 
-    TableSchema schema = table.getSchema();
-    JobService jobService = bqServices.getJobService(bqOptions);
-    String extractJobId =
-        BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.EXPORT);
-    final String extractDestinationDir =
-        resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(
-            datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
-    List<ResourceId> tempFiles =
-        executeExtract(
-            extractJobId,
-            tableToExtract,
-            jobService,
-            bqOptions.getProject(),
-            extractDestinationDir,
-            bqLocation,
-            useAvroLogicalTypes);
-    return new ExtractResult(schema, tempFiles);
+      TableSchema schema = table.getSchema();
+      JobService jobService = bqServices.getJobService(bqOptions);
+      String extractJobId =
+          BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.EXPORT);
+      final String extractDestinationDir =
+          resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+      String bqLocation =
+          BigQueryHelpers.getDatasetLocation(
+              datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
+      List<ResourceId> tempFiles =
+          executeExtract(
+              extractJobId,
+              tableToExtract,
+              jobService,
+              bqOptions.getProject(),
+              extractDestinationDir,
+              bqLocation,
+              useAvroLogicalTypes);
+      return new ExtractResult(schema, tempFiles);
+    }
   }
 
   @Override

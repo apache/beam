@@ -22,12 +22,7 @@ project.ext {
   // Set the version of all Spark-related dependencies here.
   spark_version = '3.1.2'
   spark_scala_version = '2.12'
-
-  // Version specific code overrides.
-  main_source_overrides = ['./src/main/java']
-  test_source_overrides = ['./src/test/java']
-  main_resources_overrides = []
-  test_resources_overrides = []
+  copySourceBase = false // disabled to use Spark 3 as primary dev version
   archives_base_name = 'beam-runners-spark-3'
 }
 

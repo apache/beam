@@ -398,8 +398,7 @@ func TestMakeSlice(t *testing.T) {
 type typeWrapper interface{}
 
 func TestUnderlyingType(t *testing.T) {
-	var wrapper typeWrapper
-	wrapper = "test"
+	wrapper := typeWrapper("test")
 	underlying := UnderlyingType(reflect.ValueOf(wrapper))
 	if got, want := underlying.Type(), reflect.TypeOf((*string)(nil)).Elem(); got != want {
 		t.Fatalf("UnderlyingType(reflect.ValueOf(wrapper)) returned type of %v, want %v", got, want)
