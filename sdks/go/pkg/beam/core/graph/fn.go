@@ -205,6 +205,14 @@ var optionalSdfNames = []string{
 	truncateRestrictionName,
 }
 
+var sdfNames = []string{
+	createInitialRestrictionName,
+	splitRestrictionName,
+	restrictionSizeName,
+	createTrackerName,
+	truncateRestrictionName,
+}
+
 var watermarkEstimationNames = []string{
 	createWatermarkEstimatorName,
 }
@@ -824,6 +832,14 @@ func validateSdfSignatures(fn *Fn, numMainIn mainInputs) error {
 	return nil
 }
 
+func optionalSdfNameMap() map[string]bool {
+	sdfMap := make(map[string]bool)
+	for _, name := range optionalSdfNames {
+		sdfMap[name] = true
+	}
+	return sdfMap
+}
+
 // validateSdfSigNumbers validates the number of parameters and return values
 // in each SDF method in the given Fn, and returns an error if a method has an
 // invalid/unexpected number.
@@ -833,11 +849,17 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 		splitRestrictionName:         num + 1,
 		restrictionSizeName:          num + 1,
 		createTrackerName:            1,
+		truncateRestrictionName:      num + 1,
 	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
-	for _, name := range requiredSdfNames {
-		method := fn.methods[name]
+	optionalSdfs := optionalSdfNameMap()
+	for _, name := range sdfNames {
+		method, ok := fn.methods[name]
+		if !ok && optionalSdfs[name] {
+			// skip validating unimplemented optional sdf methods
+			continue
+		}
 		if len(method.Param) != paramNums[name] {
 			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
 				name, len(method.Param), paramNums[name])
@@ -864,9 +886,15 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 func validateSdfSigTypes(fn *Fn, num int) error {
 	restrictionT := fn.methods[createInitialRestrictionName].Ret[0].T
 	rTrackerT := reflect.TypeOf((*sdf.RTracker)(nil)).Elem()
+	bRTrackerT := fn.methods[createTrackerName].Ret[0].T
+	optionalSdfs := optionalSdfNameMap()
 
-	for _, name := range requiredSdfNames {
-		method := fn.methods[name]
+	for _, name := range sdfNames {
+		method, ok := fn.methods[name]
+		if !ok && optionalSdfs[name] {
+			// skip validating unimplemented optional sdf methodsß
+			continue
+		}
 		switch name {
 		case createInitialRestrictionName:
 			if err := validateSdfElementT(fn, createInitialRestrictionName, method, num); err != nil {
@@ -936,6 +964,23 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 				return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
 					"return value at index %v. Got: %v, Want: %v (from method %v).",
 					createTrackerName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
+			}
+		case truncateRestrictionName:
+			if method.Param[0].T != bRTrackerT {
+				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
+					truncateRestrictionName, 0, method.Param[0].T, bRTrackerT)
+				return errors.SetTopLevelMsgf(err, "Mismatched restriction tracker type in method %v, "+
+					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that restriction tracker is the first parameter.",
+					truncateRestrictionName, 0, method.Param[0].T, bRTrackerT, createTrackerName)
+			}
+			if method.Ret[0].T != restrictionT {
+				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
+					truncateRestrictionName, 0, method.Ret[0].T, restrictionT)
+				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type.",
+					truncateRestrictionName, 0, method.Ret[0].T, restrictionT, createInitialRestrictionName)
 			}
 		}
 	}

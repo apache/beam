@@ -242,6 +242,10 @@ func (n *TruncateSizedRestriction) Up(ctx context.Context) error {
 		if n.truncateInv, err = newTruncateRestrictionInvoker(fn); err != nil {
 			return err
 		}
+	} else {
+		if n.truncateInv, err = newDefaultTruncateRestriction(); err != nil {
+			return err
+		}
 	}
 	fn = (*graph.SplittableDoFn)(n.Fn).RestrictionSizeFn()
 	if n.sizeInv, err = newRestrictionSizeInvoker(fn); err != nil {
@@ -282,13 +286,7 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 	// TODO: change restriction extraction to consider watermark estimator after BEAM-11105 is merged.
 	rest := elm.Elm.(*FullValue).Elm2
 	rt := n.ctInv.Invoke(rest)
-	var err error
-	var newRest interface{}
-	if n.truncateInv == nil {
-		newRest = DefaultTruncateRestriction(rt)
-	} else {
-		newRest = n.truncateInv.Invoke(rt, mainElm)
-	}
+	newRest := n.truncateInv.Invoke(rt, mainElm)
 	size := n.sizeInv.Invoke(mainElm, newRest)
 	output := &FullValue{}
 	output.Timestamp = elm.Timestamp
@@ -296,7 +294,7 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 	output.Elm = &FullValue{Elm: mainElm, Elm2: newRest}
 	output.Elm2 = size
 
-	if err = n.Out.ProcessElement(ctx, output, values...); err != nil {
+	if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
 		return err
 	}
 	return nil
@@ -306,6 +304,7 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 func (n *TruncateSizedRestriction) FinishBundle(ctx context.Context) error {
 	n.truncateInv.Reset()
 	n.sizeInv.Reset()
+	n.ctInv.Reset()
 	return n.Out.FinishBundle(ctx)
 }
 

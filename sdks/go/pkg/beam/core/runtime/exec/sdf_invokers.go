@@ -357,20 +357,25 @@ func (n *cweInvoker) Reset() {
 type trInvoker struct {
 	fn   *funcx.Fn
 	args []interface{}
-	call func(elms *FullValue, rest interface{}) (pair interface{})
+	call func(rest interface{}, elms *FullValue) (pair interface{})
 }
 
 var offsetrangeTracker = reflect.TypeOf((*offsetrange.Tracker)(nil)).Elem()
 
-// var growableOffsetRangeTracker = reflect.TypeOf((*growable_offsetrange.Tracker)(nil))
-
 func DefaultTruncateRestriction(restTracker interface{}) (newRest interface{}) {
-	switch restTracker.(type) {
+	tracker, ok := restTracker.(sdf.BoundableRTracker)
+	if !ok {
+		return nil
+	}
+	switch tracker.(type) {
 	case *offsetrange.Tracker:
-		return restTracker.(*offsetrange.Tracker).GetRestriction().(offsetrange.Restriction) // since offsetrange has a bounded restriction
+		if tracker.(*offsetrange.Tracker).IsBounded() {
+			return restTracker.(*offsetrange.Tracker).GetRestriction().(offsetrange.Restriction)
+		}
 	default:
 		return nil
 	}
+	return nil
 }
 
 func newTruncateRestrictionInvoker(fn *funcx.Fn) (*trInvoker, error) {
@@ -384,32 +389,40 @@ func newTruncateRestrictionInvoker(fn *funcx.Fn) (*trInvoker, error) {
 	return n, nil
 }
 
+func newDefaultTruncateRestriction() (*trInvoker, error) {
+	n := &trInvoker{}
+	n.call = func(rest interface{}, elms *FullValue) interface{} {
+		return DefaultTruncateRestriction(rest)
+	}
+	return n, nil
+}
+
 func (n *trInvoker) initCallFn() error {
 	// Expects a signature of the form:
 	// (key?, value, restriction) []restriction
 	// TODO(BEAM-9643): Link to full documentation.
 	switch fnT := n.fn.Fn.(type) {
 	case reflectx.Func2x1:
-		n.call = func(elms *FullValue, rest interface{}) interface{} {
+		n.call = func(rest interface{}, elms *FullValue) interface{} {
 			return fnT.Call2x1(rest, elms.Elm)
 		}
 	case reflectx.Func3x1:
-		n.call = func(elms *FullValue, rest interface{}) interface{} {
+		n.call = func(rest interface{}, elms *FullValue) interface{} {
 			return fnT.Call3x1(rest, elms.Elm, elms.Elm2)
 		}
 	default:
 		switch len(n.fn.Param) {
 		case 2:
-			n.call = func(elms *FullValue, rest interface{}) interface{} {
+			n.call = func(rest interface{}, elms *FullValue) interface{} {
 				n.args[0] = rest
 				n.args[1] = elms.Elm
 				return n.fn.Fn.Call(n.args)[0]
 			}
 		case 3:
-			n.call = func(elms *FullValue, rest interface{}) interface{} {
+			n.call = func(rest interface{}, elms *FullValue) interface{} {
+				n.args[0] = rest
 				n.args[1] = elms.Elm
 				n.args[2] = elms.Elm2
-				n.args[0] = rest
 				return n.fn.Fn.Call(n.args)[0]
 			}
 		default:
@@ -423,7 +436,7 @@ func (n *trInvoker) initCallFn() error {
 // Invoke calls TruncateRestriction given a FullValue containing an element and
 // the associated restriction tracker, and returns a truncated restriction.
 func (n *trInvoker) Invoke(rt interface{}, elms *FullValue) (rest interface{}) {
-	return n.call(elms, rt)
+	return n.call(rt, elms)
 }
 
 // Reset zeroes argument entries in the cached slice to allow values to be

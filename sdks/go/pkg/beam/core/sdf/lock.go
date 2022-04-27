@@ -81,9 +81,71 @@ func (rt *LockRTracker) GetRestriction() interface{} {
 	return rt.Rt.GetRestriction()
 }
 
+// NewLockBoundableRTracker creates a LockBoundableRTracker initialized with the specified
+// restriction tracker as its underlying restriction tracker.
+func NewLockBoundableRTracker(rt BoundableRTracker) *LockRTracker {
+	return &LockRTracker{Rt: rt}
+}
+
+// LockBoundableRTracker is a restriction tracker that wraps another restriction
+// tracker and adds thread safety to it by locking a mutex in each method,
+// before delegating to the underlying tracker.
+type LockBoundableRTracker struct {
+	Mu sync.Mutex
+	Rt BoundableRTracker
+}
+
+// TryClaim locks a mutex for thread safety, and then delegates to the
+// underlying tracker's TryClaim.
+func (rt *LockBoundableRTracker) TryClaim(pos interface{}) (ok bool) {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.TryClaim(pos)
+}
+
+// GetError locks a mutex for thread safety, and then delegates to the
+// underlying tracker's GetError.
+func (rt *LockBoundableRTracker) GetError() error {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.GetError()
+}
+
+// TrySplit locks a mutex for thread safety, and then delegates to the
+// underlying tracker's TrySplit.
+func (rt *LockBoundableRTracker) TrySplit(fraction float64) (interface{}, interface{}, error) {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.TrySplit(fraction)
+}
+
+// GetProgress locks a mutex for thread safety, and then delegates to the
+// underlying tracker's GetProgress.
+func (rt *LockBoundableRTracker) GetProgress() (float64, float64) {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.GetProgress()
+}
+
+// IsDone locks a mutex for thread safety, and then delegates to the
+// underlying tracker's IsDone.
+func (rt *LockBoundableRTracker) IsDone() bool {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.IsDone()
+}
+
+// GetRestriction locks a mutex for thread safety, and then delegates to the
+// underlying tracker's GetRestriction.
+func (rt *LockBoundableRTracker) GetRestriction() interface{} {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.GetRestriction()
+}
+
 // IsBounded locks a mutex for thread safety, and then delegates to the
 // underlying tracker's IsBounded().
-func (rt *LockRTracker) IsBounded() bool {
+func (rt *LockBoundableRTracker) IsBounded() bool {
 	rt.Mu.Lock()
 	defer rt.Mu.Unlock()
 	return rt.Rt.IsBounded()
