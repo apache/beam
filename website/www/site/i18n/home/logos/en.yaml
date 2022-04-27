@@ -12,3 +12,6 @@
 
 - id: home-logos-title
   translation: "Write Once, Run Anywhere"
+
+- id: home-pipelines-title
+  translation: "Create Multi-language Pipelines"

@@ -248,3 +248,18 @@
     </div>
   </div>
 {{ end }}
+
+{{ define "pipelines-section" }}
+<div class="pipelines">
+  <div class="pipelines-title">
+    {{ T "home-pipelines-title" }}
+  </div>
+  <div class="pipelines-logos">
+    {{ range $pipeline := $.Site.Data.pipelines }}
+    <div class="pipelines-logo">
+      <a href="{{ $pipeline.url }}"><img src="{{ $pipeline.image_url }}" alt="{{ $pipeline.title }}"></a>
+    </div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
