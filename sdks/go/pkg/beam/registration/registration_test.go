@@ -13,6 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/specialize
+//go:generate specialize --package=beam --input=registration.tmpl --x=data,universals --imports=typex
+//go:generate go fmt
+
 package beam
 
 import (
