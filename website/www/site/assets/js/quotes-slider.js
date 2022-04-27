@@ -21,6 +21,7 @@ new Swiper('.swiper', {
     bulletActiveClass: "bullet-active-class-custom",
   },
   breakpoints: {
+    // when window width is > 1024px
     1025: {
       slidesPerView: 3,
       slidesPerGroup: 3,
