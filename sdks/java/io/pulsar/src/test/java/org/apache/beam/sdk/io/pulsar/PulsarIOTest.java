@@ -176,9 +176,9 @@ public class PulsarIOTest {
               .withPublishTime();
       testPipeline.apply(reader).apply(ParDo.of(new PulsarRecordsMetric()));
 
-      LOG.info("StartTime", startTime);
-      LOG.info("EndTime", endExpectedTime);
-      
+      LOG.info("StartTime {}", startTime);
+      LOG.info("EndTime {}", endExpectedTime);
+
       PipelineResult pipelineResult = testPipeline.run();
       MetricQueryResults metrics =
           pipelineResult
