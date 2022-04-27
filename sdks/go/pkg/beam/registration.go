@@ -57097,6 +57097,114 @@ func buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn interfac
 	return nil
 }
 
+func buildSetupWrapper(doFn interface{}) func(interface{}) reflectx.Func {
+	if _, ok := doFn.(setup0x0); ok {
+		setupCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func())
+			return &caller0x0{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() {
+				fn.(setup0x0).Setup()
+			})
+		}
+	} else if _, ok := doFn.(setup1x0); ok {
+		setupCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(context.Context))
+			return &caller1x0[context.Context]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) {
+				fn.(setup1x0).Setup(a0)
+			})
+		}
+	} else if _, ok := doFn.(setup0x1); ok {
+		setupCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() error)
+			return &caller0x1[error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() error {
+				return fn.(setup0x1).Setup()
+			})
+		}
+	} else if _, ok := doFn.(setup1x1); ok {
+		setupCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(context.Context) error)
+			return &caller1x1[context.Context, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) error {
+				return fn.(setup1x1).Setup(a0)
+			})
+		}
+	}
+
+	return nil
+}
+
+func buildTeardownWrapper(doFn interface{}) func(interface{}) reflectx.Func {
+	if _, ok := doFn.(teardown0x0); ok {
+		teardownCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func())
+			return &caller0x0{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() {
+				fn.(teardown0x0).Teardown()
+			})
+		}
+	} else if _, ok := doFn.(teardown1x0); ok {
+		teardownCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(context.Context))
+			return &caller1x0[context.Context]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) {
+				fn.(teardown1x0).Teardown(a0)
+			})
+		}
+	} else if _, ok := doFn.(teardown0x1); ok {
+		teardownCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() error)
+			return &caller0x1[error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() error {
+				return fn.(teardown0x1).Teardown()
+			})
+		}
+	} else if _, ok := doFn.(teardown1x1); ok {
+		teardownCaller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(context.Context) error)
+			return &caller1x1[context.Context, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
+
+		return func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) error {
+				return fn.(teardown1x1).Teardown(a0)
+			})
+		}
+	}
+
+	return nil
+}
+
 type doFn0x0 interface {
 	ProcessElement()
 }
@@ -57133,108 +57241,11 @@ func registerDoFn0x0StructWrappersAndFuncs(doFn doFn0x0) {
 			fn.(doFn0x0).ProcessElement()
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper0(doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper0(doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper0(doFn)
+	finishBundleWrapper := buildFinishBundleWrapper0(doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -57300,108 +57311,11 @@ func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn doFn1x0[I0]) {
 			fn.(doFn1x0[I0]).ProcessElement(a0)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper1[I0](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper1[I0](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper1[I0](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -57468,108 +57382,11 @@ func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn doFn2x0[I0, I1]) {
 			fn.(doFn2x0[I0, I1]).ProcessElement(a0, a1)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper2[I0, I1](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper2[I0, I1](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper2[I0, I1](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -57636,108 +57453,11 @@ func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn doFn3x0[I0, I1, 
 			fn.(doFn3x0[I0, I1, I2]).ProcessElement(a0, a1, a2)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper3[I0, I1, I2](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper3[I0, I1, I2](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper3[I0, I1, I2](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -57804,108 +57524,11 @@ func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn doFn4x0[I0, 
 			fn.(doFn4x0[I0, I1, I2, I3]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -57972,108 +57595,11 @@ func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn doFn5x0[
 			fn.(doFn5x0[I0, I1, I2, I3, I4]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -58140,108 +57666,11 @@ func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn doFn
 			fn.(doFn6x0[I0, I1, I2, I3, I4, I5]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -58308,108 +57737,11 @@ func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn 
 			fn.(doFn7x0[I0, I1, I2, I3, I4, I5, I6]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -58476,108 +57808,11 @@ func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](d
 			fn.(doFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -58644,108 +57879,11 @@ func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn doFn0x1[R0]) {
 			return fn.(doFn0x1[R0]).ProcessElement()
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper0(doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper0(doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper0(doFn)
+	finishBundleWrapper := buildFinishBundleWrapper0(doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -58812,108 +57950,11 @@ func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn doFn1x1[I0, R0]) {
 			return fn.(doFn1x1[I0, R0]).ProcessElement(a0)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper1[I0](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper1[I0](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper1[I0](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -58980,108 +58021,11 @@ func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn doFn2x1[I0, I1, 
 			return fn.(doFn2x1[I0, I1, R0]).ProcessElement(a0, a1)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper2[I0, I1](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper2[I0, I1](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper2[I0, I1](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -59148,108 +58092,11 @@ func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn doFn3x1[I0, 
 			return fn.(doFn3x1[I0, I1, I2, R0]).ProcessElement(a0, a1, a2)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper3[I0, I1, I2](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper3[I0, I1, I2](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper3[I0, I1, I2](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -59316,108 +58163,11 @@ func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn doFn4x1[
 			return fn.(doFn4x1[I0, I1, I2, I3, R0]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -59484,108 +58234,11 @@ func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn doFn
 			return fn.(doFn5x1[I0, I1, I2, I3, I4, R0]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -59652,108 +58305,11 @@ func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn 
 			return fn.(doFn6x1[I0, I1, I2, I3, I4, I5, R0]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -59820,108 +58376,11 @@ func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](d
 			return fn.(doFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -59988,108 +58447,11 @@ func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 an
 			return fn.(doFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -60156,108 +58518,11 @@ func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn doFn0x2[R0, R1]) {
 			return fn.(doFn0x2[R0, R1]).ProcessElement()
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper0(doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper0(doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper0(doFn)
+	finishBundleWrapper := buildFinishBundleWrapper0(doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -60324,108 +58589,11 @@ func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn doFn1x2[I0, R0, 
 			return fn.(doFn1x2[I0, R0, R1]).ProcessElement(a0)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper1[I0](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper1[I0](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper1[I0](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -60492,108 +58660,11 @@ func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn doFn2x2[I0, 
 			return fn.(doFn2x2[I0, I1, R0, R1]).ProcessElement(a0, a1)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper2[I0, I1](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper2[I0, I1](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper2[I0, I1](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -60660,108 +58731,11 @@ func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn doFn3x2[
 			return fn.(doFn3x2[I0, I1, I2, R0, R1]).ProcessElement(a0, a1, a2)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper3[I0, I1, I2](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper3[I0, I1, I2](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper3[I0, I1, I2](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -60828,108 +58802,11 @@ func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn doFn
 			return fn.(doFn4x2[I0, I1, I2, I3, R0, R1]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -60996,108 +58873,11 @@ func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn 
 			return fn.(doFn5x2[I0, I1, I2, I3, I4, R0, R1]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -61164,108 +58944,11 @@ func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](d
 			return fn.(doFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -61332,108 +59015,11 @@ func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 an
 			return fn.(doFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -61500,108 +59086,11 @@ func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 			return fn.(doFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -61668,108 +59157,11 @@ func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn doFn0x3[R0, R1, 
 			return fn.(doFn0x3[R0, R1, R2]).ProcessElement()
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper0(doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper0(doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper0(doFn)
+	finishBundleWrapper := buildFinishBundleWrapper0(doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -61836,108 +59228,11 @@ func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn doFn1x3[I0, 
 			return fn.(doFn1x3[I0, R0, R1, R2]).ProcessElement(a0)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper1[I0](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper1[I0](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper1[I0](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -62004,108 +59299,11 @@ func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn doFn2x3[
 			return fn.(doFn2x3[I0, I1, R0, R1, R2]).ProcessElement(a0, a1)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper2[I0, I1](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper2[I0, I1](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper2[I0, I1](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -62172,108 +59370,11 @@ func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn doFn
 			return fn.(doFn3x3[I0, I1, I2, R0, R1, R2]).ProcessElement(a0, a1, a2)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper3[I0, I1, I2](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper3[I0, I1, I2](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper3[I0, I1, I2](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -62340,108 +59441,11 @@ func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn 
 			return fn.(doFn4x3[I0, I1, I2, I3, R0, R1, R2]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -62508,108 +59512,11 @@ func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](d
 			return fn.(doFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -62676,108 +59583,11 @@ func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 an
 			return fn.(doFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -62844,108 +59654,11 @@ func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 			return fn.(doFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -63012,108 +59725,11 @@ func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 			return fn.(doFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -63180,108 +59796,11 @@ func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn doFn0x4[R0, 
 			return fn.(doFn0x4[R0, R1, R2, R3]).ProcessElement()
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper0(doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper0(doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper0(doFn)
+	finishBundleWrapper := buildFinishBundleWrapper0(doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -63348,108 +59867,11 @@ func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn doFn1x4[
 			return fn.(doFn1x4[I0, R0, R1, R2, R3]).ProcessElement(a0)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper1[I0](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper1[I0](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper1[I0](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper1[I0](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -63516,108 +59938,11 @@ func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn doFn
 			return fn.(doFn2x4[I0, I1, R0, R1, R2, R3]).ProcessElement(a0, a1)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper2[I0, I1](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper2[I0, I1](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper2[I0, I1](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper2[I0, I1](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -63684,108 +60009,11 @@ func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn 
 			return fn.(doFn3x4[I0, I1, I2, R0, R1, R2, R3]).ProcessElement(a0, a1, a2)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper3[I0, I1, I2](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper3[I0, I1, I2](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper3[I0, I1, I2](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper3[I0, I1, I2](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -63852,108 +60080,11 @@ func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](d
 			return fn.(doFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper4[I0, I1, I2, I3](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper4[I0, I1, I2, I3](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -64020,108 +60151,11 @@ func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 an
 			return fn.(doFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper5[I0, I1, I2, I3, I4](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -64188,108 +60222,11 @@ func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R
 			return fn.(doFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper6[I0, I1, I2, I3, I4, I5](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -64356,108 +60293,11 @@ func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 			return fn.(doFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper7[I0, I1, I2, I3, I4, I5, I6](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
@@ -64524,108 +60364,11 @@ func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 			return fn.(doFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]).ProcessElement(a0, a1, a2, a3, a4, a5, a6, a7)
 		})
 	}
-	var startBundleWrapper = buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var finishBundleWrapper = buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
-	var setupWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(setup0x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), setupCaller)
+	startBundleWrapper := buildStartBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	finishBundleWrapper := buildFinishBundleWrapper8[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+	setupWrapper := buildSetupWrapper(doFn)
+	teardownWrapper := buildTeardownWrapper(doFn)
 
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(setup0x0).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x0); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(setup1x0).Setup(a0)
-			})
-		}
-	} else if _, ok := doFn.(setup0x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(setup0x1).Setup()
-			})
-		}
-	} else if _, ok := doFn.(setup1x1); ok {
-		setupCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), setupCaller)
-
-		setupWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(setup1x1).Setup(a0)
-			})
-		}
-	}
-	var teardownWrapper func(fn interface{}) reflectx.Func
-	if _, ok := doFn.(teardown0x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func())
-			return &caller0x0{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() {
-				fn.(teardown0x0).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x0); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context))
-			return &caller1x0[context.Context]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) {
-				fn.(teardown1x0).Teardown(a0)
-			})
-		}
-	} else if _, ok := doFn.(teardown0x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func() error)
-			return &caller0x1[error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func() error {
-				return fn.(teardown0x1).Teardown()
-			})
-		}
-	} else if _, ok := doFn.(teardown1x1); ok {
-		teardownCaller := func(fn interface{}) reflectx.Func {
-			f := fn.(func(context.Context) error)
-			return &caller1x1[context.Context, error]{fn: f}
-		}
-		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), teardownCaller)
-
-		teardownWrapper = func(fn interface{}) reflectx.Func {
-			return reflectx.MakeFunc(func(a0 context.Context) error {
-				return fn.(teardown1x1).Teardown(a0)
-			})
-		}
-	}
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if processElementWrapper != nil {
