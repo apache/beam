@@ -171,6 +171,9 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
           reader.close();
           return ProcessContinuation.stop();
         }
+        LOG.info("From time ", tracker.currentRestriction().getFrom());
+        LOG.info("To time ", tracker.currentRestriction().getTo());
+
         if (pulsarSourceDescriptor.getEndMessageId() != null) {
           MessageId currentMsgId = message.getMessageId();
           boolean hasReachedEndMessageId =
@@ -205,9 +208,9 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     if (restriction.getTo() < Long.MAX_VALUE) {
       return new OffsetRangeTracker(restriction);
     }
-
     PulsarLatestOffsetEstimator offsetEstimator =
         new PulsarLatestOffsetEstimator(this.admin, pulsarSource.getTopic());
+    LOG.info("RestrictionFrom", restriction.getFrom());
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetEstimator);
   }
 
@@ -235,6 +238,7 @@ public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessa
     @Override
     public long estimate() {
       Message<byte[]> msg = memoizedBacklog.get();
+      LOG.info("LatestMsgTime", msg.getPublishTime());
       return msg.getPublishTime();
     }
   }
