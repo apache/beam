@@ -46,6 +46,11 @@ cdef class WindowedValue(object):
 cdef class WindowedBatch(object):
   cpdef WindowedBatch with_values(self, object new_values)
 
+cdef class HomogeneousWindowedBatch(WindowedBatch):
+  cdef public WindowedValue _wv
+
+  cpdef WindowedBatch with_values(self, object new_values)
+
 cdef class ConcreteWindowedBatch(WindowedBatch):
   cdef public object values
   cdef public object windows

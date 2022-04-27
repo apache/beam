@@ -88,6 +88,12 @@ WINDOWED_BATCH_INSTANCES = [
             windowed_value.PaneInfo(
                 False, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
         ]),
+    windowed_value.HomogeneousWindowedBatch.of(None, 3, ()),
+    windowed_value.HomogeneousWindowedBatch.of(
+        None,
+        3, (),
+        windowed_value.PaneInfo(
+            True, False, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)),
 ]
 
 
@@ -106,7 +112,7 @@ class WindowedBatchTest(unittest.TestCase):
         ])
     self.assertTrue(wb.timestamps is wb.timestamps)
 
-  def test_with_values(self):
+  def test_concrete_windowed_batch_with_values(self):
     pane_info = windowed_value.PaneInfo(
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
     wb = windowed_value.ConcreteWindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
@@ -116,16 +122,7 @@ class WindowedBatchTest(unittest.TestCase):
         windowed_value.ConcreteWindowedBatch(['baz', 'foo'], [3, 6], [(), ()],
                                              pane_info))
 
-  @parameterized.expand(itertools.combinations(WINDOWED_BATCH_INSTANCES, 2))
-  def test_inequality(self, left_wb, right_wb):
-    self.assertNotEqual(left_wb, right_wb)
-
-  def test_equals_different_type(self):
-    wb = windowed_value.ConcreteWindowedBatch(
-        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
-    self.assertNotEqual(wb, object())
-
-  def test_as_windowed_values(self):
+  def test_concrete_windowed_batch_as_windowed_values(self):
     pane_info = windowed_value.PaneInfo(
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
     wb = windowed_value.ConcreteWindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
@@ -138,6 +135,41 @@ class WindowedBatchTest(unittest.TestCase):
             windowed_value.WindowedValue('bar', 6, (), pane_info)
         ])
 
+  def test_homogeneous_windowed_batch_with_values(self):
+    pane_info = windowed_value.PaneInfo(
+        True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+    wb = windowed_value.HomogeneousWindowedBatch.of(['foo', 'bar'],
+                                                    6, (),
+                                                    pane_info)
+    self.assertEqual(
+        wb.with_values(['baz', 'foo']),
+        windowed_value.HomogeneousWindowedBatch.of(['baz', 'foo'],
+                                                   6, (),
+                                                   pane_info))
+
+  def test_homogeneous_windowed_batch_as_windowed_values(self):
+    pane_info = windowed_value.PaneInfo(
+        True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+    wb = windowed_value.HomogeneousWindowedBatch.of(['foo', 'bar'],
+                                                    3, (),
+                                                    pane_info)
+
+    self.assertEqual(
+        list(wb.as_windowed_values(iter)),
+        [
+            windowed_value.WindowedValue('foo', 3, (), pane_info),
+            windowed_value.WindowedValue('bar', 3, (), pane_info)
+        ])
+
+  @parameterized.expand(itertools.combinations(WINDOWED_BATCH_INSTANCES, 2))
+  def test_inequality(self, left_wb, right_wb):
+    self.assertNotEqual(left_wb, right_wb)
+
+  def test_equals_different_type(self):
+    wb = windowed_value.ConcreteWindowedBatch(
+        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
+    self.assertNotEqual(wb, object())
+
   def test_from_windowed_values(self):
     pane_info = windowed_value.PaneInfo(
         True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
@@ -148,10 +180,44 @@ class WindowedBatchTest(unittest.TestCase):
     ]
 
     self.assertEqual(
-        windowed_value.WindowedBatch.from_windowed_values(
-            windowed_values, produce_fn=list),
-        windowed_value.ConcreteWindowedBatch(['foo', 'bar'], [3, 6], [(), ()],
-                                             [pane_info, pane_info]))
+        list(
+            windowed_value.WindowedBatch.from_windowed_values(
+                windowed_values, produce_fn=list)),
+        [
+            windowed_value.ConcreteWindowedBatch(
+                ['foo', 'bar'], [3, 6], [(), ()], [pane_info, pane_info])
+        ])
+
+  def test_homogeneous_from_windowed_values(self):
+    pane_info = windowed_value.PaneInfo(
+        True, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
+
+    windowed_values = [
+        windowed_value.WindowedValue('foofoo', 3, (), pane_info),
+        windowed_value.WindowedValue('foobar', 6, (), pane_info),
+        windowed_value.WindowedValue('foobaz', 9, (), pane_info),
+        windowed_value.WindowedValue('barfoo', 3, (), pane_info),
+        windowed_value.WindowedValue('barbar', 6, (), pane_info),
+        windowed_value.WindowedValue('barbaz', 9, (), pane_info),
+        windowed_value.WindowedValue('bazfoo', 3, (), pane_info),
+        windowed_value.WindowedValue('bazbar', 6, (), pane_info),
+        windowed_value.WindowedValue('bazbaz', 9, (), pane_info),
+    ]
+
+    self.assertEqual(
+        list(
+            windowed_value.WindowedBatch.from_windowed_values(
+                windowed_values,
+                produce_fn=list,
+                mode=windowed_value.BatchingMode.HOMOGENEOUS)),
+        [
+            windowed_value.HomogeneousWindowedBatch.of(
+                ['foofoo', 'barfoo', 'bazfoo'], 3, (), pane_info),
+            windowed_value.HomogeneousWindowedBatch.of(
+                ['foobar', 'barbar', 'bazbar'], 6, (), pane_info),
+            windowed_value.HomogeneousWindowedBatch.of(
+                ['foobaz', 'barbaz', 'bazbaz'], 9, (), pane_info)
+        ])
 
 
 @parameterized_class(('wb', ), [(wb, ) for wb in WINDOWED_BATCH_INSTANCES])

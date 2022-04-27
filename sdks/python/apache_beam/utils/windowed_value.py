@@ -31,6 +31,7 @@ This module is experimental. No backwards-compatibility guarantees.
 # pytype: skip-file
 
 import itertools
+from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -292,6 +293,11 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
   return wv
 
 
+class BatchingMode(Enum):
+  CONCRETE = 1
+  HOMOGENEOUS = 2
+
+
 class WindowedBatch(object):
   """A batch of N windowed values, each having a value, a timestamp and set of
   windows."""
@@ -309,18 +315,68 @@ class WindowedBatch(object):
 
   @staticmethod
   def from_windowed_values(
-      windowed_values: Sequence[WindowedValue], *,
-      produce_fn: Callable) -> 'WindowedBatch':
-    # TODO: Combine equivalent pane/windows?
-    return ConcreteWindowedBatch(
-        produce_fn([wv.value for wv in windowed_values]),
-        [wv.timestamp
-         for wv in windowed_values], [wv.windows for wv in windowed_values],
-        [wv.pane_info for wv in windowed_values])
+      windowed_values: Sequence[WindowedValue],
+      *,
+      produce_fn: Callable,
+      mode: BatchingMode = BatchingMode.CONCRETE) -> Iterable['WindowedBatch']:
+    if mode == BatchingMode.HOMOGENEOUS:
+      import collections
+      grouped = collections.defaultdict(lambda: [])
+      for wv in windowed_values:
+        grouped[(wv.timestamp, wv.windows, wv.pane_info)].append(wv.value)
+
+      for key, values in grouped.items():
+        timestamp, windows, pane_info = key
+        yield HomogeneousWindowedBatch.of(
+            produce_fn(values), timestamp, windows, pane_info)
+    elif mode == BatchingMode.CONCRETE:
+      yield ConcreteWindowedBatch(
+          produce_fn([wv.value for wv in windowed_values]),
+          [wv.timestamp
+           for wv in windowed_values], [wv.windows for wv in windowed_values],
+          [wv.pane_info for wv in windowed_values])
+    else:
+      raise AssertionError(
+          "Unrecognized BatchingMode in "
+          f"WindowedBatch.from_windowed_values: {mode!r}")
+
+
+class HomogeneousWindowedBatch(WindowedBatch):
+  """A WindowedBatch with Homogeneous event-time information, represented
+  internally as a WindowedValue.
+  """
+  def __init__(self, wv):
+    self._wv = wv
+
+  @staticmethod
+  def of(values, timestamp, windows, pane_info=PANE_INFO_UNKNOWN):
+    return HomogeneousWindowedBatch(
+        WindowedValue(values, timestamp, windows, pane_info))
+
+  @property
+  def values(self):
+    return self._wv.value
+
+  def with_values(self, new_values):
+    # type: (Any) -> WindowedBatch
+    return HomogeneousWindowedBatch(self._wv.with_value(new_values))
+
+  def as_windowed_values(self, explode_fn: Callable) -> Iterable[WindowedValue]:
+    for value in explode_fn(self._wv.value):
+      yield self._wv.with_value(value)
+
+  def __eq__(self, other):
+    if isinstance(other, HomogeneousWindowedBatch):
+      return self._wv == other._wv
+    return NotImplemented
+
+  def __hash__(self):
+    return hash(self._wv)
 
 
 class ConcreteWindowedBatch(WindowedBatch):
-  """A concrete WindowedBatch where all event-time is stored independently.
+  """A concrete WindowedBatch where all event-time information is stored
+  independently for each element.
 
   Attributes:
     values: The underlying values of the windowed batch.
