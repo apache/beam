@@ -127,6 +127,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2914,12 +2916,10 @@ public class BigQueryIO {
               "useAvroLogicalTypes can only be set with Avro output.");
         }
 
+        // Batch load jobs currently support JSON data insertion only with CSV files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
-          // Batch load jobs currently support JSON data insertion only with CSV files
-          checkArgument(
-              !getJsonSchema().get().contains("\"type\":\"JSON\""),
-              "Found JSON type in TableSchema. JSON data insertion is currently "
-                  + "not supported with batch loads.");
+          JSONObject schema = new JSONObject(getJsonSchema().get());
+          validateNoJsonTypeInSchema(schema);
         }
 
         BatchLoads<DestinationT, T> batchLoads =
@@ -2999,6 +2999,22 @@ public class BigQueryIO {
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
+      }
+    }
+
+    private void validateNoJsonTypeInSchema(JSONObject schema){
+      JSONArray fields = schema.getJSONArray("fields");
+
+      for(int i = 0; i < fields.length(); i++){
+        JSONObject field = fields.getJSONObject(i);
+        checkArgument(
+            !field.getString("type").equals("JSON"),
+            "Found JSON type in TableSchema. JSON data insertion is currently "
+                + "not supported with 'FILE_LOADS' write method.");
+
+        if(field.getString("type").equals("STRUCT")){
+          validateNoJsonTypeInSchema(field);
+        }
       }
     }
 
