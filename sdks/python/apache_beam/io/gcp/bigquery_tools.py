@@ -1243,7 +1243,7 @@ class BigQueryWrapper(object):
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
-      will be a bigquery.InserttErrorsValueListEntry instance containing
+      will be a bigquery.InsertErrorsValueListEntry instance containing
       specific errors.
     """
 
