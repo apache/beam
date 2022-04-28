@@ -1679,8 +1679,8 @@ public class KafkaIO {
         int partition,
         long offset,
         long timestamp,
-        byte[] key,
-        byte[] value,
+        byte @Nullable [] key,
+        byte @Nullable [] value,
         @Nullable List<KafkaHeader> headers,
         int timestampTypeId,
         String timestampTypeName) {
