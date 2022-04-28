@@ -20,3 +20,6 @@
 <script src="{{ $keenSlider.RelPermalink }}"></script>
 {{ $quotesSlider := resources.Get "js/quotes-slider.js" | minify | fingerprint }}
 <script src="{{ $quotesSlider.RelPermalink }}"></script>
+{{ $fixPlaygroundNestedScroll := resources.Get "js/fix-playground-nested-scroll.js" | minify | fingerprint }}
+<script type="text/javascript" src="{{ $fixPlaygroundNestedScroll.RelPermalink }}" defer></script>
+

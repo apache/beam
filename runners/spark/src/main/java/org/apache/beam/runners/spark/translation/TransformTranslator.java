@@ -143,9 +143,10 @@ public final class TransformTranslator {
         Partitioner partitioner = getPartitioner(context);
         // As this is batch, we can ignore triggering and allowed lateness parameters.
         if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
-                && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+            && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
           // we can drop the windows and recover them later
-          groupedByKey = GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+          groupedByKey =
+              GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
                   inRDD, keyCoder, coder.getValueCoder(), partitioner);
         } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
           // we can have a memory sensitive translation for non-merging windows

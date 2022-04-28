@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
-plugins {
-  id 'base'
-  id 'org.apache.beam.module'
+apply plugin: 'com.diffplug.spotless'
+
+/*
+ * This build.gradle file is empty except to configure the spotless task on the java sources.
+ * These java sources are included in the subproject's sources in order to compile against the different versions.
+ * We configure spotless here once in order to only check these java sources once.
+ */
+spotless {
+  java {
+    licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
+    googleJavaFormat('1.7')
+    target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
+  }
 }
-applyDockerNature()
-applyPythonNature()
-
-pythonVersion = '3.6'
-
-apply from: "../common.gradle"
