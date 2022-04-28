@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# mypy: ignore-errors
 
 from dataclasses import dataclass
 from typing import Tuple

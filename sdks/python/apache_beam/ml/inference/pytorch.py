@@ -49,10 +49,10 @@ class PytorchInferenceRunner(InferenceRunner):
     the inference call.
     """
 
-    batch = torch.stack(batch)
-    if batch.device != self._device:
-      batch = batch.to(self._device)
-    predictions = model(batch)
+    torch_batch = torch.stack(batch)
+    if torch_batch.device != self._device:
+      torch_batch = torch_batch.to(self._device)
+    predictions = model(torch_batch)
     return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
   def get_num_bytes(self, batch: List[torch.Tensor]) -> int:

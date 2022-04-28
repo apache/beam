@@ -23,7 +23,7 @@ from typing import Any
 from typing import Iterable
 
 import apache_beam as beam
-import apache_beam.ml.inference.base as base
+from apache_beam.ml.inference import base
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
