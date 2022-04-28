@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import static java.math.MathContext.DECIMAL128;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toTimestamp;
@@ -206,8 +205,10 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
   @Override
   public Progress getProgress() {
     BigDecimal end;
-    if (range.getTo().compareTo(MAX_INCLUSIVE_END_AT) == 0) {
-      // Use now() as the end timestamp.
+    if (range.getTo().compareTo(Timestamp.MAX_VALUE) == 0) {
+      // When the given end timestamp equals to Timestamp.MAX_VALUE, this means that
+      // the end timestamp is not specified which should be a streaming job. So we
+      // use now() as the end timestamp.
       end = BigDecimal.valueOf(timeSupplier.get().getSeconds());
     } else {
       end = BigDecimal.valueOf(range.getTo().getSeconds());
