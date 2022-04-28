@@ -55,7 +55,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper for invoking external Python transforms. */
-public class ExternalPythonTransform<InputT extends PInput, OutputT extends POutput>
+public class PythonExternalTransform<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
@@ -69,7 +69,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Object @NonNull [] argsArray;
   private @Nullable Row providedKwargsRow;
 
-  private ExternalPythonTransform(String fullyQualifiedName, String expansionService) {
+  private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
     this.kwargsMap = new TreeMap<>();
@@ -82,11 +82,11 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param tranformName fully qualified transform name.
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
-   * @return A {@link ExternalPythonTransform} for the given transform name.
+   * @return A {@link PythonExternalTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      ExternalPythonTransform<InputT, OutputT> from(String tranformName) {
-    return new ExternalPythonTransform<>(tranformName, "");
+      PythonExternalTransform<InputT, OutputT> from(String tranformName) {
+    return new PythonExternalTransform<>(tranformName, "");
   }
 
   /**
@@ -96,11 +96,11 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param expansionService address and port number for externally launched expansion service
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
-   * @return A {@link ExternalPythonTransform} for the given transform name.
+   * @return A {@link PythonExternalTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      ExternalPythonTransform<InputT, OutputT> from(String tranformName, String expansionService) {
-    return new ExternalPythonTransform<>(tranformName, expansionService);
+      PythonExternalTransform<InputT, OutputT> from(String tranformName, String expansionService) {
+    return new PythonExternalTransform<>(tranformName, expansionService);
   }
 
   /**
@@ -110,7 +110,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param args list of arguments.
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withArgs(@NonNull Object... args) {
+  public PythonExternalTransform<InputT, OutputT> withArgs(@NonNull Object... args) {
     @Nullable
     Object @NonNull [] result = Arrays.copyOf(this.argsArray, this.argsArray.length + args.length);
     System.arraycopy(args, 0, result, this.argsArray.length, args.length);
@@ -126,7 +126,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param value argument value
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withKwarg(String name, Object value) {
+  public PythonExternalTransform<InputT, OutputT> withKwarg(String name, Object value) {
     if (providedKwargsRow != null) {
       throw new IllegalArgumentException("Kwargs were specified both directly and as a Row object");
     }
@@ -140,7 +140,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    *
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withKwargs(Map<String, Object> kwargs) {
+  public PythonExternalTransform<InputT, OutputT> withKwargs(Map<String, Object> kwargs) {
     if (providedKwargsRow != null) {
       throw new IllegalArgumentException("Kwargs were specified both directly and as a Row object");
     }
@@ -155,7 +155,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    *     arguments.
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withKwargs(Row kwargs) {
+  public PythonExternalTransform<InputT, OutputT> withKwargs(Row kwargs) {
     if (this.kwargsMap.size() > 0) {
       throw new IllegalArgumentException("Kwargs were specified both directly and as a Row object");
     }
