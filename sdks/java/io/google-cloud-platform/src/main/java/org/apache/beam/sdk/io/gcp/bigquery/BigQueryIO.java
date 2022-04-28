@@ -2919,7 +2919,9 @@ public class BigQueryIO {
         // Batch load jobs currently support JSON data insertion only with CSV files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
           JSONObject schema = new JSONObject(getJsonSchema().get());
-          validateNoJsonTypeInSchema(schema);
+          if (!schema.isEmpty()) {
+            validateNoJsonTypeInSchema(schema);
+          }
         }
 
         BatchLoads<DestinationT, T> batchLoads =
