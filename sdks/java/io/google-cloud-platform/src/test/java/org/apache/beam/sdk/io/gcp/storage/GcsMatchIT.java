@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.storage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.common.io.ByteStreams;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,7 +54,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GcsMatchIT {
-  /** Integration test for TextIO.MatchAll watching for file updates in gcs filesystem */
+  /** Integration test for TextIO.MatchAll watching for file updates in gcs filesystem. */
   @Test
   public void testGcsMatchContinuously() throws InterruptedException {
     TestPipelineOptions options =
