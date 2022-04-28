@@ -19,10 +19,10 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
-        classesTriggerCheckerBugs: [
-                'HCatalogTable': 'TODO: file a bug report',
-        ],
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
+  classesTriggerCheckerBugs: [
+    'HCatalogTable': 'TODO: file a bug report',
+  ],
 )
 
 def hive_version = "2.1.0"
