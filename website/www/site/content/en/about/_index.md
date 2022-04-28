@@ -24,7 +24,7 @@ Apache Beam is an open-source, unified programming model for batch and streaming
 
 <div style="display: flex; justify-content: center">
   <img src="/images/batch_stream_processing.png" alt="Batch and Stream Processing">
-</div>
+</div><br /><br />
 
 Apache Beam is the future of data processing because it provides:<br /><br />
 
@@ -58,7 +58,7 @@ Apache Beam is easy to adopt and implement because it abstracts you from low-lev
 
 Learn more about how Apache Beam enables custom use cases and orchestrates complex business logic for Big Data ecosystems of frontrunners in various industries by diving into our [Case Studies](http://apache-beam-website-pull-requests.storage.googleapis.com/17205/case-studies/index.html) section.
 
-## About Apache Beam Project 
+## About Apache Beam Project
 
 Apache Beam is a top-level project at Apache - the world’s largest, most welcoming open source community. Data processing leaders around the world contribute to Apache Beam’s development and make an impact by bringing next-gen distributed data processing and advanced technology solutions into reality.
 
