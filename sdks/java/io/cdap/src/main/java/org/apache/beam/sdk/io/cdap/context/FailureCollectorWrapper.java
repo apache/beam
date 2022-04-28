@@ -23,7 +23,7 @@ import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import java.util.ArrayList;
 import javax.annotation.Nullable;
 
-/** Class for collecting {@link ValidationFailure}s. */
+/** Class FailureCollectorWrapper is a class for collecting ValidationFailure. */
 public class FailureCollectorWrapper implements FailureCollector {
   private ArrayList<ValidationFailure> failuresCollection;
 

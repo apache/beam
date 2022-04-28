@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.cdap.context;
 
 import io.cdap.cdap.api.data.DatasetInstantiationException;
+import io.cdap.cdap.api.data.batch.InputFormatProvider;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.Dataset;
 import io.cdap.cdap.api.dataset.DatasetManagementException;
@@ -30,6 +31,7 @@ import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.Lookup;
 import io.cdap.cdap.etl.api.StageMetrics;
+import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.batch.BatchContext;
 import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
@@ -37,16 +39,28 @@ import java.net.URL;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
- * Common class for Batch, Sink and Stream CDAP wrapper classes that used to provide common details.
+ * Class OperationContext is a common class for Batch, Sink and Stream CDAP wrapper classes that use
+ * it to provide common details.
  */
 @SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
-public abstract class BatchContextImpl implements BatchContext {
+public class BatchContextImpl implements BatchContext {
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
 
+  /**
+   * This should be set after {@link SubmitterLifecycle#prepareRun(Object)} call with passing this
+   * context object as a param.
+   */
+  protected InputFormatProvider inputFormatProvider;
+
   private final Timestamp startTime = new Timestamp(System.currentTimeMillis());
+
+  public InputFormatProvider getInputFormatProvider() {
+    return inputFormatProvider;
+  }
 
   @Override
   public String getStageName() {
@@ -93,18 +107,19 @@ public abstract class BatchContextImpl implements BatchContext {
     return null;
   }
 
+  @Nullable
   @Override
   public Schema getInputSchema() {
     return null;
   }
 
   @Override
-  public Map<String, Schema> getInputSchemas() {
+  public @Nullable Map<String, Schema> getInputSchemas() {
     return null;
   }
 
   @Override
-  public Schema getOutputSchema() {
+  public @Nullable Schema getOutputSchema() {
     return null;
   }
 
@@ -132,11 +147,13 @@ public abstract class BatchContextImpl implements BatchContext {
     return this.failureCollector;
   }
 
+  @Nullable
   @Override
   public URL getServiceURL(String applicationId, String serviceId) {
     return null;
   }
 
+  @Nullable
   @Override
   public URL getServiceURL(String serviceId) {
     return null;

@@ -41,7 +41,7 @@ public class FailureCollectorWrapperTest {
     failureCollectorWrapper.addFailure(error.getMessage(), null);
 
     /** assert */
-    assertThrows(ValidationException.class, failureCollectorWrapper::getOrThrowException);
+    assertThrows(ValidationException.class, () -> failureCollectorWrapper.getOrThrowException());
   }
 
   @Test
@@ -58,7 +58,8 @@ public class FailureCollectorWrapperTest {
 
     /** act && assert */
     ValidationException e =
-        assertThrows(ValidationException.class, failureCollectorWrapper::getOrThrowException);
+        assertThrows(
+            ValidationException.class, () -> failureCollectorWrapper.getOrThrowException());
     assertEquals(expectedMessage, e.getMessage());
 
     // A case when return ValidationException with empty collector
