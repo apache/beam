@@ -20,7 +20,6 @@ package org.apache.beam.sdk.schemas.utils;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
-import java.util.HashSet;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -147,8 +146,7 @@ public class ConvertHelpers {
       TypeDescriptor<?> outputTypeDescriptor,
       TypeConversionsFactory typeConversionsFactory) {
     FieldType expectedFieldType =
-        StaticSchemaInference.fieldFromType(
-            outputTypeDescriptor, JavaFieldTypeSupplier.INSTANCE, new HashSet<Class>());
+        StaticSchemaInference.fieldFromType(outputTypeDescriptor, JavaFieldTypeSupplier.INSTANCE);
     if (!expectedFieldType.equals(fieldType)) {
       throw new IllegalArgumentException(
           "Element argument type "

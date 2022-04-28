@@ -80,6 +80,12 @@ public class StaticSchemaInference {
           .put(BigDecimal.class, FieldType.DECIMAL)
           .build();
 
+  /** Helper method that instantiates HashSet to verify that schemas don't reference themselves. */
+  public static Schema schemaFromClass(
+      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return schemaFromClass(clazz, fieldValueTypeSupplier, new HashSet<Class>());
+  }
+
   /**
    * Infer a schema from a Java class.
    *
@@ -87,12 +93,12 @@ public class StaticSchemaInference {
    * have different strategies for extracting this list: e.g. introspecting public member variables,
    * public getter methods, or special annotations on the class.
    */
-  public static Schema schemaFromClass(
+  private static Schema schemaFromClass(
       Class<?> clazz,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       HashSet<Class> alreadyVisitedSchemas) {
     if (alreadyVisitedSchemas.contains(clazz)) {
-      throw new RuntimeException(
+      throw new IllegalArgumentException(
           "Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
     }
     alreadyVisitedSchemas.add(clazz);
@@ -110,8 +116,14 @@ public class StaticSchemaInference {
     return builder.build();
   }
 
-  /** Map a Java field type to a Beam Schema FieldType. */
+  /** Helper method that instantiates HashSet to verify that schemas don't reference themselves. */
   public static Schema.FieldType fieldFromType(
+      TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return fieldFromType(type, fieldValueTypeSupplier, new HashSet<Class>());
+  }
+
+  /** Map a Java field type to a Beam Schema FieldType. */
+  private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       HashSet<Class> alreadyVisitedSchemas) {

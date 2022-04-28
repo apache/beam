@@ -734,9 +734,10 @@ public class JavaFieldSchemaTest {
   @Test
   public void testSelfNestedPOJOThrows() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    RuntimeException thrown =
+
+    IllegalArgumentException thrown =
         assertThrows(
-            RuntimeException.class,
+            IllegalArgumentException.class,
             () -> {
               registry.getSchema(SelfNestedPOJO.class);
             });
@@ -745,7 +746,6 @@ public class JavaFieldSchemaTest {
         "Message should suggest not using a circular schema reference.",
         thrown.getMessage(),
         containsString("circular reference"));
-
     assertThat(
         "Message should suggest which class has circular schema reference.",
         thrown.getMessage(),
@@ -755,9 +755,10 @@ public class JavaFieldSchemaTest {
   @Test
   public void testCircularNestedPOJOThrows() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
-    RuntimeException thrown =
+
+    IllegalArgumentException thrown =
         assertThrows(
-            RuntimeException.class,
+            IllegalArgumentException.class,
             () -> {
               registry.getSchema(FirstCircularNestedPOJO.class);
             });
@@ -766,7 +767,6 @@ public class JavaFieldSchemaTest {
         "Message should suggest not using a circular schema reference.",
         thrown.getMessage(),
         containsString("circular reference"));
-
     assertThat(
         "Message should suggest which class has circular schema reference.",
         thrown.getMessage(),

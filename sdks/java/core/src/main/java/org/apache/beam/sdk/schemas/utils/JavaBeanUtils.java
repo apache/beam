@@ -21,7 +21,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -67,8 +66,7 @@ public class JavaBeanUtils {
   /** Create a {@link Schema} for a Java Bean class. */
   public static Schema schemaFromJavaBeanClass(
       Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return StaticSchemaInference.schemaFromClass(
-        clazz, fieldValueTypeSupplier, new HashSet<Class>());
+    return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
   }
 
   private static final String CONSTRUCTOR_HELP_STRING =
