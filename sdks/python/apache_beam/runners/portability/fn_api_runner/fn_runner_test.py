@@ -35,6 +35,7 @@ from typing import Dict
 from typing import Iterator
 from typing import List
 from typing import Tuple
+from typing import no_type_check
 
 import hamcrest  # pylint: disable=ungrouped-imports
 import numpy as np
@@ -70,6 +71,7 @@ from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -149,9 +151,12 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_batch_pardo_fusion_break(self):
     class NormalizeDoFn(beam.DoFn):
+      @no_type_check
       def process_batch(
-          self, batch: np.ndarray, mean: np.float64,
-          **unused_kwargs) -> Iterator[np.ndarray]:
+          self,
+          batch: np.ndarray,
+          mean: np.float64,
+      ) -> Iterator[np.ndarray]:
         assert isinstance(batch, np.ndarray)
         yield batch - mean
 
@@ -174,6 +179,94 @@ class FnApiRunnerTest(unittest.TestCase):
               mean=beam.pvalue.AsSingleton(
                   pc | beam.CombineGlobally(beam.combiners.MeanCombineFn()))))
       assert_that(res, equal_to([-2, 0, 2]))
+
+  def test_batch_pardo_dofn_params(self):
+    class ConsumeParamsDoFn(beam.DoFn):
+      @no_type_check
+      def process_batch(
+          self,
+          batch: np.ndarray,
+          ts=beam.DoFn.TimestampParam,
+          pane_info=beam.DoFn.PaneInfoParam,
+      ) -> Iterator[np.ndarray]:
+        assert isinstance(batch, np.ndarray)
+        assert isinstance(ts, timestamp.Timestamp)
+        assert isinstance(pane_info, windowed_value.PaneInfo)
+
+        yield batch * ts.seconds()
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda t: window.TimestampedValue(t, int(t % 2))).
+          with_output_types(np.int64)
+          | beam.ParDo(ConsumeParamsDoFn()))
+
+      assert_that(res, equal_to([0, 1, 0, 3, 0, 5, 0, 7, 0, 9]))
+
+  def test_batch_pardo_window_param(self):
+    class PerWindowDoFn(beam.DoFn):
+      @no_type_check
+      def process_batch(
+          self,
+          batch: np.ndarray,
+          window=beam.DoFn.WindowParam,
+      ) -> Iterator[np.ndarray]:
+        yield batch * window.start.seconds()
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda t: window.TimestampedValue(t, int(t))).
+          with_output_types(np.int64)
+          | beam.WindowInto(window.FixedWindows(5))
+          | beam.ParDo(PerWindowDoFn()))
+
+      assert_that(res, equal_to([0, 0, 0, 0, 0, 25, 30, 35, 40, 45]))
+
+  def test_batch_pardo_overlapping_windows(self):
+    class PerWindowDoFn(beam.DoFn):
+      @no_type_check
+      def process_batch(self,
+                        batch: np.ndarray,
+                        window=beam.DoFn.WindowParam) -> Iterator[np.ndarray]:
+        yield batch * window.start.seconds()
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(10), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda t: window.TimestampedValue(t, int(t))).
+          with_output_types(np.int64)
+          | beam.WindowInto(window.SlidingWindows(size=5, period=3))
+          | beam.ParDo(PerWindowDoFn()))
+
+      assert_that(res, equal_to([               0*-3, 1*-3, # [-3, 2)
+                                 0*0, 1*0, 2*0, 3* 0, 4* 0, # [ 0, 5)
+                                 3*3, 4*3, 5*3, 6* 3, 7* 3, # [ 3, 8)
+                                 6*6, 7*6, 8*6, 9* 6,       # [ 6, 11)
+                                 9*9                        # [ 9, 14)
+                                 ]))
 
   @retry(stop=stop_after_attempt(3))
   def test_pardo_side_outputs(self):

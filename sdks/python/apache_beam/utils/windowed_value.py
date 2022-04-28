@@ -357,6 +357,22 @@ class HomogeneousWindowedBatch(WindowedBatch):
   def values(self):
     return self._wv.value
 
+  @property
+  def timestamp(self):
+    return self._wv.timestamp
+
+  @property
+  def pane_info(self):
+    return self._wv.pane_info
+
+  @property
+  def windows(self):
+    return self._wv.windows
+
+  @windows.setter
+  def windows(self, value):
+    self._wv.windows = value
+
   def with_values(self, new_values):
     # type: (Any) -> WindowedBatch
     return HomogeneousWindowedBatch(self._wv.with_value(new_values))

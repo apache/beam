@@ -444,10 +444,10 @@ class DoFnInvoker(object):
                                 allows a callback to be registered.
     """
     side_inputs = side_inputs or []
-    default_arg_values = signature.process_method.defaults
     use_per_window_invoker = process_invocation and (
-        side_inputs or input_args or input_kwargs or default_arg_values or
-        signature.is_stateful_dofn())
+        side_inputs or input_args or input_kwargs or
+        signature.process_method.defaults or
+        signature.process_batch_method.defaults or signature.is_stateful_dofn())
     if not use_per_window_invoker:
       return SimpleInvoker(output_processor, signature)
     else:
@@ -687,7 +687,9 @@ class PerWindowInvoker(DoFnInvoker):
     self.has_windowed_inputs = (
         not all(si.is_globally_windowed() for si in side_inputs) or any(
             core.DoFn.WindowParam == arg
-            for arg in signature.process_method.defaults) or
+            for arg in signature.process_method.defaults) or any(
+                core.DoFn.WindowParam == arg
+                for arg in signature.process_batch_method.defaults) or
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
     self.is_splittable = signature.is_splittable_dofn()
@@ -807,39 +809,18 @@ class PerWindowInvoker(DoFnInvoker):
     if not additional_kwargs:
       additional_kwargs = {}
 
-    if self.has_windowed_inputs:
-      # TODO
-      raise NotImplementedError
-    elif self.cache_globally_windowed_args:
-      # Attempt to cache additional args if all inputs are globally
-      # windowed inputs when processing the first element.
-      self.cache_globally_windowed_args = False
+    assert isinstance(windowed_batch, HomogeneousWindowedBatch)
 
-      # Fill in sideInputs if they are globally windowed
-      global_window = GlobalWindow()
-      self.args_for_process_batch, self.kwargs_for_process_batch = (
-          util.insert_values_in_args(
-              self.args_for_process_batch, self.kwargs_for_process_batch,
-              [si[global_window] for si in self.side_inputs]))
-      args_for_process_batch, kwargs_for_process_batch = (
-          self.args_for_process_batch, self.kwargs_for_process_batch)
+    if self.has_windowed_inputs and len(windowed_batch.windows) != 1:
+      for w in windowed_batch.windows:
+        self._invoke_process_batch_per_window(
+            HomogeneousWindowedBatch.of(
+                windowed_batch.values, windowed_batch.timestamp, (w, )),
+            additional_args,
+            additional_kwargs)
     else:
-      args_for_process_batch, kwargs_for_process_batch = (
-          self.args_for_process_batch, self.kwargs_for_process_batch)
-
-    for i, p in self.placeholders_for_process_batch:
-      if core.DoFn.ElementParam == p:
-        args_for_process_batch[i] = windowed_batch.values
-      # TODO: Handle other params
-
-    kwargs_for_process_batch = kwargs_for_process_batch or {}
-
-    self.output_processor.process_batch_outputs(
-        windowed_batch,
-        self.process_batch_method(
-            *args_for_process_batch, **kwargs_for_process_batch),
-        self.threadsafe_watermark_estimator)
-
+      self._invoke_process_batch_per_window(
+          windowed_batch, additional_args, additional_kwargs)
 
   def _should_process_window_for_sdf(
       self,
@@ -884,7 +865,9 @@ class PerWindowInvoker(DoFnInvoker):
                                  additional_kwargs,
                                 ):
     # type: (...) -> Optional[SplitResultResidual]
+
     if self.has_windowed_inputs:
+      assert len(windowed_value.windows) <= 1
       window, = windowed_value.windows
       side_inputs = [si[window] for si in self.side_inputs]
       side_inputs.extend(additional_args)
@@ -979,6 +962,68 @@ class PerWindowInvoker(DoFnInvoker):
             current_watermark=current_watermark,
             deferred_timestamp=deferred_timestamp)
     return None
+
+  def _invoke_process_batch_per_window(
+      self,
+      windowed_batch: WindowedBatch,
+      additional_args,
+      additional_kwargs,
+  ):
+    # type: (...) -> Optional[SplitResultResidual]
+
+    if self.has_windowed_inputs:
+      assert isinstance(windowed_batch, HomogeneousWindowedBatch)
+      assert len(windowed_batch.windows) <= 1
+
+      window, = windowed_batch.windows
+      side_inputs = [si[window] for si in self.side_inputs]
+      side_inputs.extend(additional_args)
+      (args_for_process_batch,
+       kwargs_for_process_batch) = util.insert_values_in_args(
+           self.args_for_process_batch,
+           self.kwargs_for_process_batch,
+           side_inputs)
+    elif self.cache_globally_windowed_args:
+      # Attempt to cache additional args if all inputs are globally
+      # windowed inputs when processing the first element.
+      self.cache_globally_windowed_args = False
+
+      # Fill in sideInputs if they are globally windowed
+      global_window = GlobalWindow()
+      self.args_for_process_batch, self.kwargs_for_process_batch = (
+          util.insert_values_in_args(
+              self.args_for_process_batch, self.kwargs_for_process_batch,
+              [si[global_window] for si in self.side_inputs]))
+      args_for_process_batch, kwargs_for_process_batch = (
+          self.args_for_process_batch, self.kwargs_for_process_batch)
+    else:
+      args_for_process_batch, kwargs_for_process_batch = (
+          self.args_for_process_batch, self.kwargs_for_process_batch)
+
+    for i, p in self.placeholders_for_process_batch:
+      if core.DoFn.ElementParam == p:
+        args_for_process_batch[i] = windowed_batch.values
+      elif core.DoFn.KeyParam == p:
+        raise NotImplementedError("BEAM-XXX: Per-key process_batch")
+      elif core.DoFn.WindowParam == p:
+        args_for_process_batch[i] = window
+      elif core.DoFn.TimestampParam == p:
+        args_for_process_batch[i] = windowed_batch.timestamp
+      elif core.DoFn.PaneInfoParam == p:
+        assert isinstance(windowed_batch, HomogeneousWindowedBatch)
+        args_for_process_batch[i] = windowed_batch.pane_info
+      elif isinstance(p, core.DoFn.StateParam):
+        raise NotImplementedError("BEAM-XXX: Per-key process_batch")
+      elif isinstance(p, core.DoFn.TimerParam):
+        raise NotImplementedError("BEAM-XXX: Per-key process_batch")
+
+    kwargs_for_process_batch = kwargs_for_process_batch or {}
+
+    self.output_processor.process_batch_outputs(
+        windowed_batch,
+        self.process_batch_method(
+            *args_for_process_batch, **kwargs_for_process_batch),
+        self.threadsafe_watermark_estimator)
 
   @staticmethod
   def _try_split(fraction,
@@ -1544,11 +1589,9 @@ class _OutputProcessor(OutputProcessor):
               "Unrecognized WindowedBatch implementation: "
               f"{type(windowed_batch)}")
 
-        # TODO: Should we do this in batches?
-        #       Would need to require one batch per window
-        #if (windowed_input_element is not None and
-        #    len(windowed_input_element.windows) != 1):
-        #  windowed_value.windows *= len(windowed_input_element.windows)
+        if (windowed_input_batch is not None and
+            len(windowed_input_batch.windows) != 1):
+          windowed_batch.windows *= len(windowed_input_batch.windows)
       # TODO(BEAM-14292): Add TimestampedBatch, an analogue for TimestampedValue
       # and handle it here (see TimestampedValue logic in process_outputs).
       else:
