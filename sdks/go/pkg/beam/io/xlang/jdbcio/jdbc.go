@@ -255,7 +255,7 @@ func WriteToPostgres(s beam.Scope, tableName, jdbcUrl, username, password string
 //   outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
 //   jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"))
 //
-// With Classpath paramater:
+// With Classpath parameter:
 //   jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"), jdbcio.ReadClasspaths([]string{"org.postgresql:postgresql:42.3.3"})))
 func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, outT reflect.Type, opts ...readOption) beam.PCollection {
 	s = s.Scope("jdbcio.Read")
