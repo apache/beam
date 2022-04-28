@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -308,7 +307,7 @@ public class TimestampRangeTrackerTest {
   public void testGetProgressForStreaming() {
     final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
     final Timestamp position = Timestamp.ofTimeSecondsAndNanos(101, 0);
-    final TimestampRange range = TimestampRange.of(from, MAX_INCLUSIVE_END_AT);
+    final TimestampRange range = TimestampRange.of(from, Timestamp.MAX_VALUE);
     final TimestampRangeTracker tracker = new TimestampRangeTracker(range);
 
     tracker.setTimeSupplier(() -> Timestamp.ofTimeSecondsAndNanos(position.getSeconds() + 10, 0));
