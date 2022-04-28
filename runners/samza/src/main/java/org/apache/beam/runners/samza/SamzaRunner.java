@@ -25,6 +25,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
+import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
@@ -61,6 +62,9 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
+  public static final String BEAM_PIPELINE_PROTO = "beamPipelinProto";
+  public static final String BEAM_JOB_INFO = "beamJobInfo";
+
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";
   private static final String BEAM_JSON_GRAPH = "beamJsonGraph";
@@ -89,6 +93,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder, options);
     configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
+    configBuilder.put(BEAM_PIPELINE_PROTO, Base64Serializer.serializeUnchecked(pipeline));
+    configBuilder.put(BEAM_JOB_INFO, Base64Serializer.serializeUnchecked(jobInfo));
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
