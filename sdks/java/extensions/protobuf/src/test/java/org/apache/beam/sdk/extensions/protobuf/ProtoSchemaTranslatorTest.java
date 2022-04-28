@@ -117,9 +117,9 @@ public class ProtoSchemaTranslatorTest {
 
   @Test
   public void testSelfNestedProtoThrows() {
-    RuntimeException thrown =
+    IllegalArgumentException thrown =
         assertThrows(
-            RuntimeException.class,
+            IllegalArgumentException.class,
             () -> {
               new ProtoMessageSchema()
                   .schemaFor(TypeDescriptor.of(Proto3SchemaMessages.SelfNested.class));
@@ -129,7 +129,6 @@ public class ProtoSchemaTranslatorTest {
         "Message should suggest not using a circular schema reference.",
         thrown.getMessage(),
         containsString("circular reference"));
-
     assertThat(
         "Message should suggest which class has circular schema reference.",
         thrown.getMessage(),
@@ -138,9 +137,9 @@ public class ProtoSchemaTranslatorTest {
 
   @Test
   public void testCircularNestedProtoThrows() {
-    RuntimeException thrown =
+    IllegalArgumentException thrown =
         assertThrows(
-            RuntimeException.class,
+            IllegalArgumentException.class,
             () -> {
               new ProtoMessageSchema()
                   .schemaFor(TypeDescriptor.of(Proto3SchemaMessages.FirstCircularNested.class));
@@ -150,7 +149,6 @@ public class ProtoSchemaTranslatorTest {
         "Message should suggest not using a circular schema reference.",
         thrown.getMessage(),
         containsString("circular reference"));
-
     assertThat(
         "Message should suggest which class has circular schema reference.",
         thrown.getMessage(),

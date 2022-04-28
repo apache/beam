@@ -165,7 +165,7 @@ class ProtoSchemaTranslator {
 
   static Schema getSchema(Descriptors.Descriptor descriptor) {
     if (alreadyVisitedSchemas.contains(descriptor)) {
-      throw new RuntimeException(
+      throw new IllegalArgumentException(
           "Cannot infer schema with a circular reference. Proto Field: "
               + descriptor.getFullName());
     }

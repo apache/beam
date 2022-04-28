@@ -28,6 +28,14 @@ applyJavaNature(
 def hive_version = "2.1.0"
 def netty_version = "4.1.51.Final"
 
+repositories {
+  mavenCentral()
+
+  maven {
+    url "https://conjars.org/repo"
+  }
+}
+
 configurations.all {
   resolutionStrategy {
     // Pin log4j as workaround for CVE-2021-44228
