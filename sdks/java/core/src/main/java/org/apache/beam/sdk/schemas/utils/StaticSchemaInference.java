@@ -80,7 +80,7 @@ public class StaticSchemaInference {
           .put(BigDecimal.class, FieldType.DECIMAL)
           .build();
 
-  /** Helper method that instantiates HashSet to verify that schemas don't reference themselves. */
+  /** Helper method that instantiates HashMap to verify that schemas don't reference themselves. */
   public static Schema schemaFromClass(
       Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return schemaFromClass(clazz, fieldValueTypeSupplier, new HashMap<Class, Schema>());

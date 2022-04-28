@@ -1198,7 +1198,7 @@ public class TestPOJOs {
     }
   }
 
-  /** A POJO containing a nested class. * */
+  /** A POJO containing a nested class, along with a SimplePOJO. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedPOJOWithSimplePOJO {
     public NestedPOJO nested;
@@ -1229,7 +1229,7 @@ public class TestPOJOs {
     }
   }
 
-  /** The schema for {@link NestedPOJO}. * */
+  /** The schema for {@link NestedPOJOWithSimplePOJO}. * */
   public static final Schema NESTED_POJO_WITH_SIMPLE_POJO_SCHEMA =
       Schema.builder()
           .addRowField("nested", NESTED_POJO_SCHEMA)
