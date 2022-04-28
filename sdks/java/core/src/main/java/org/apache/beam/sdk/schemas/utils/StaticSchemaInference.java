@@ -122,7 +122,7 @@ public class StaticSchemaInference {
     return generatedSchema;
   }
 
-  /** Helper method that instantiates HashSet to verify that schemas don't reference themselves. */
+  /** Helper method that instantiates HashMap to verify that schemas don't reference themselves. */
   public static Schema.FieldType fieldFromType(
       TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return fieldFromType(type, fieldValueTypeSupplier, new HashMap<Class, Schema>());
