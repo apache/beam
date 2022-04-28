@@ -34,7 +34,7 @@ The Apache Beam model offers powerful abstractions that insulate you from low-le
 
 - <u>Unified Batch and Streaming Programming Model</u>
 
-Apache Beam provides flexibility to express the business logic just once and execute it for both batch and streaming data pipelines, on-premises via OSS runners or in the cloud via managed services such as Google Cloud Dataflow or AWS Kinesis Data Analytics.  Apache Beam unifies multiple data processing engines and SDKs around its distinctive Beam model. This offers a way to easily create a large-scale common data infrastructure across different applications that consume the data.<br /><br />
+Apache Beam provides flexibility to express the business logic just once and execute it for both batch and streaming data pipelines, on-premises via OSS runners or in the cloud via managed services such as Google Cloud Dataflow or AWS Kinesis Data Analytics. Apache Beam unifies multiple data processing engines and SDKs around its distinctive Beam model. This offers a way to easily create a large-scale common data infrastructure across different applications that consume the data.<br /><br />
 
 - <u>Cross-language Capabilities</u>
 
