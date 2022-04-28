@@ -323,7 +323,8 @@ class WindowedBatch(object):
       import collections
       grouped = collections.defaultdict(lambda: [])
       for wv in windowed_values:
-        grouped[(wv.timestamp, wv.windows, wv.pane_info)].append(wv.value)
+        grouped[(wv.timestamp, tuple(wv.windows),
+                 wv.pane_info)].append(wv.value)
 
       for key, values in grouped.items():
         timestamp, windows, pane_info = key
