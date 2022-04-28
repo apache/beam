@@ -148,6 +148,7 @@ class MethodWrapper(object):
 
     # TODO(BEAM-5878) support kwonlyargs on Python 3.
     self.method_value = getattr(obj_to_invoke, method_name)
+    self.method_name = method_name
 
     self.has_userstate_arguments = False
     self.state_args_to_replace = {}  # type: Dict[str, core.StateSpec]
@@ -312,23 +313,55 @@ class DoFnSignature(object):
   def _validate(self):
     # type: () -> None
     self._validate_process()
+    self._validate_process_batch()
     self._validate_bundle_method(self.start_bundle_method)
     self._validate_bundle_method(self.finish_bundle_method)
     self._validate_stateful_dofn()
+
+  def _check_duplicate_dofn_params(self, method: MethodWrapper):
+    param_ids = [
+        d.param_id for d in method.defaults if isinstance(d, core._DoFnParam)
+    ]
+    if len(param_ids) != len(set(param_ids)):
+      raise ValueError(
+          'DoFn %r has duplicate %s method parameters: %s.' %
+          (self.do_fn, method.method_name, param_ids))
 
   def _validate_process(self):
     # type: () -> None
 
     """Validate that none of the DoFnParameters are repeated in the function
     """
-    param_ids = [
-        d.param_id for d in self.process_method.defaults
-        if isinstance(d, core._DoFnParam)
-    ]
-    if len(param_ids) != len(set(param_ids)):
-      raise ValueError(
-          'DoFn %r has duplicate process method parameters: %s.' %
-          (self.do_fn, param_ids))
+    self._check_duplicate_dofn_params(self.process_method)
+
+  def _validate_process_batch(self):
+    # type: () -> None
+    self._check_duplicate_dofn_params(self.process_batch_method)
+
+    for d in self.process_batch_method.defaults:
+      if not isinstance(d, core._DoFnParam):
+        continue
+
+      # Helpful errors for params which will be supported in the future
+      if d == (core.DoFn.ElementParam):
+        # We currently assume we can just get the typehint from the first
+        # parameter. ElementParam breaks this assumption
+        raise NotImplementedError(
+            f"DoFn {self.do_fn!r} uses unsupported DoFn param ElementParam.")
+
+      if d in (core.DoFn.KeyParam, core.DoFn.StateParam, core.DoFn.TimerParam):
+        raise NotImplementedError(
+            f"DoFn {self.do_fn!r} has unsupported per-key DoFn param {d}. "
+            "Per-key DoFn params are not yet supported for process_batch "
+            "(BEAM-XXX).")
+
+      # Fallback to catch anything not explicitly supported
+      if not d in (core.DoFn.WindowParam,
+                   core.DoFn.TimestampParam,
+                   core.DoFn.PaneInfoParam):
+        raise ValueError(
+            f"DoFn {self.do_fn!r} has unsupported process_batch "
+            f"method parameter {d}")
 
   def _validate_bundle_method(self, method_wrapper):
     """Validate that none of the DoFnParameters are used in the function
