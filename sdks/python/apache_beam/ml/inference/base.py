@@ -44,10 +44,10 @@ import apache_beam as beam
 from apache_beam.utils import shared
 
 try:
-  # pylint: disable=wrong-import-position
+  # pylint: disable=wrong-import-order, wrong-import-position
   import resource
 except ImportError:
-  resource = None
+  resource = None  # type: ignore[assignment]
 
 _MICROSECOND_TO_MILLISECOND = 1000
 _NANOSECOND_TO_MICROSECOND = 1000
