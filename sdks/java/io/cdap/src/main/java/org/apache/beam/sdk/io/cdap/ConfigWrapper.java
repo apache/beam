@@ -41,24 +41,26 @@ public class ConfigWrapper<T extends PluginConfig> {
     this.configClass = configClass;
   }
 
-  public ConfigWrapper<T> fromJsonString(String jsonString) {
+  public ConfigWrapper<T> fromJsonString(String jsonString) throws IOException {
     TypeReference<HashMap<String, Object>> typeRef =
         new TypeReference<HashMap<String, Object>>() {};
     try {
       paramsMap = new ObjectMapper().readValue(jsonString, typeRef);
     } catch (IOException e) {
       LOG.error("Can not read json string to params map", e);
+      throw e;
     }
     return this;
   }
 
-  public ConfigWrapper<T> fromJsonFile(File jsonFile) {
+  public ConfigWrapper<T> fromJsonFile(File jsonFile) throws IOException {
     TypeReference<HashMap<String, Object>> typeRef =
         new TypeReference<HashMap<String, Object>>() {};
     try {
       paramsMap = new ObjectMapper().readValue(jsonFile, typeRef);
     } catch (IOException e) {
       LOG.error("Can not read json file to params map", e);
+      throw e;
     }
     return this;
   }

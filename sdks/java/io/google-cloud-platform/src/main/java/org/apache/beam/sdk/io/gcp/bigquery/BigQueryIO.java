@@ -590,6 +590,7 @@ public class BigQueryIO {
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
+        .setProjectionPushdownApplied(false)
         .build();
   }
 
@@ -805,6 +806,8 @@ public class BigQueryIO {
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
 
       abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
+
+      abstract Builder<T> setProjectionPushdownApplied(boolean projectionPushdownApplied);
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -852,6 +855,8 @@ public class BigQueryIO {
     abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
     abstract Boolean getUseAvroLogicalTypes();
+
+    abstract boolean getProjectionPushdownApplied();
 
     /**
      * An enumeration type for the priority of a query.
@@ -1229,7 +1234,8 @@ public class BigQueryIO {
                     getRowRestriction(),
                     getParseFn(),
                     outputCoder,
-                    getBigQueryServices())));
+                    getBigQueryServices(),
+                    getProjectionPushdownApplied())));
       }
 
       checkArgument(
@@ -1430,6 +1436,10 @@ public class BigQueryIO {
               DisplayData.item("table", BigQueryHelpers.displayTable(getTableProvider()))
                   .withLabel("Table"))
           .addIfNotNull(DisplayData.item("query", getQuery()).withLabel("Query"))
+          .addIfNotDefault(
+              DisplayData.item("projectionPushdownApplied", getProjectionPushdownApplied())
+                  .withLabel("Projection Pushdown Applied"),
+              false)
           .addIfNotNull(
               DisplayData.item("flattenResults", getFlattenResults())
                   .withLabel("Flatten Query Results"))
@@ -1438,6 +1448,13 @@ public class BigQueryIO {
                   .withLabel("Use Legacy SQL Dialect"))
           .addIfNotDefault(
               DisplayData.item("validation", getValidate()).withLabel("Validation Enabled"), true);
+
+      ValueProvider<List<String>> selectedFieldsProvider = getSelectedFields();
+      if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+        builder.add(
+            DisplayData.item("selectedFields", String.join(", ", selectedFieldsProvider.get()))
+                .withLabel("Selected Fields"));
+      }
     }
 
     /** Ensures that methods of the from() / fromQuery() family are called at most once. */
@@ -1623,6 +1640,11 @@ public class BigQueryIO {
       return toBuilder().setUseAvroLogicalTypes(true).build();
     }
 
+    @VisibleForTesting
+    TypedRead<T> withProjectionPushdownApplied() {
+      return toBuilder().setProjectionPushdownApplied(true).build();
+    }
+
     @Override
     public boolean supportsProjectionPushdown() {
       // We can't do projection pushdown when a query is set. The query may project certain fields
@@ -1643,7 +1665,7 @@ public class BigQueryIO {
           outputFields.keySet());
       ImmutableList<String> fields =
           ImmutableList.copyOf(fieldAccessDescriptor.fieldNamesAccessed());
-      return withSelectedFields(fields);
+      return withSelectedFields(fields).withProjectionPushdownApplied();
     }
   }
 

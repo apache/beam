@@ -20,6 +20,11 @@
 Dataflow client utility functions."""
 
 # pytype: skip-file
+# To regenerate the client:
+# pip install google-apitools[cli]
+# gen_client --discovery_url=cloudbuild.v1 --overwrite \
+#  --outdir=apache_beam/runners/dataflow/internal/clients/cloudbuild \
+#  --root_package=. client
 
 import codecs
 from functools import partial
@@ -283,8 +288,6 @@ class Environment(object):
     # Dataflow workers.
     environments_to_use = self._get_environments_from_tranforms()
     if _use_unified_worker(options):
-      python_sdk_container_image = get_container_image_from_options(options)
-
       # Adding container images for other SDKs that may be needed for
       # cross-language pipelines.
       for id, environment in environments_to_use:
@@ -298,11 +301,12 @@ class Environment(object):
 
         container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
-        # Currently we only set following to True for Python SDK.
-        # TODO: set this correctly for remote environments that might be Python.
         container_image.useSingleCorePerContainer = (
-            container_image_url == python_sdk_container_image)
+            common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING in
+            environment.capabilities)
         container_image.environmentId = id
+        for capability in environment.capabilities:
+          container_image.capabilities.append(capability)
         pool.sdkHarnessContainerImages.append(container_image)
 
     if self.debug_options.number_of_worker_harness_threads:

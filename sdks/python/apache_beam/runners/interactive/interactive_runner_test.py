@@ -31,6 +31,7 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
@@ -543,11 +544,38 @@ class InteractiveRunnerTest(unittest.TestCase):
     from apache_beam.runners.portability.flink_runner import FlinkRunner
     p = beam.Pipeline(
         interactive_runner.InteractiveRunner(underlying_runner=FlinkRunner()),
-        options=PipelineOptions(
-            flink_master='--flink_master=example.internal:1'))
+        options=PipelineOptions(flink_master='--flink_master=test.internal:1'))
     runner._get_dataproc_cluster_master_url_if_applicable(p)
     self.assertEqual(ie.current_env().clusters.describe(), {})
     ie.current_env().clusters = ib.Clusters()
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @patch(
+      'apache_beam.runners.interactive.interactive_runner.'
+      'InteractiveRunner._get_dataproc_cluster_master_url_if_applicable',
+      return_value='test.internal:1')
+  def test_set_flink_dataproc_version(self, mock_get_master_url):
+    runner = interactive_runner.InteractiveRunner()
+    options = PipelineOptions()
+    p = beam.Pipeline(interactive_runner.InteractiveRunner())
+
+    # Watch the local scope for Interactive Beam so that values will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    # Run the pipeline
+    runner.run_pipeline(p, options)
+
+    # Check that the Flink version is set to the Dataproc image Flink version
+    # inside ib.clusters.
+    self.assertEqual(
+        options.view_as(FlinkRunnerOptions).flink_version,
+        ib.clusters.DATAPROC_FLINK_VERSION)
 
 
 if __name__ == '__main__':

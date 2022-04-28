@@ -94,11 +94,13 @@ var (
 	Parallelism = flag.Int("parallelism", -1, "The degree of parallelism to be used when distributing operations onto Flink workers.")
 )
 
+type missingFlagError error
+
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners
 // such as Dataflow set a reasonable default. Convenience function.
 func GetEndpoint() (string, error) {
 	if *Endpoint == "" {
-		return "", errors.New("no job service endpoint specified. Use --endpoint=<endpoint>")
+		return "", missingFlagError(errors.New("no job service endpoint specified. Use --endpoint=<endpoint>"))
 	}
 	return *Endpoint, nil
 }

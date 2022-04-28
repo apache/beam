@@ -69,14 +69,14 @@ public class ConfigWrapperTest {
   public void testBuildingPluginConfigFromParamsMap() {
     try {
       String newReferenceName = "new reference name";
-      SalesforceSourceConfig firstConfig =
+      SalesforceSourceConfig config =
           new ConfigWrapper<>(SalesforceSourceConfig.class)
               .withParams(TEST_SALESFORCE_PARAMS_MAP)
               .setParam("referenceName", newReferenceName)
               .build();
-      assertNotNull(firstConfig);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, firstConfig);
-      assertEquals(newReferenceName, firstConfig.referenceName);
+      assertNotNull(config);
+      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
+      assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
       fail();
@@ -87,14 +87,14 @@ public class ConfigWrapperTest {
   public void testBuildingPluginConfigFromJsonFile() {
     try {
       String newReferenceName = "new reference name";
-      SalesforceSourceConfig secondConfig =
+      SalesforceSourceConfig config =
           new ConfigWrapper<>(SalesforceSourceConfig.class)
               .fromJsonFile(new File(SALESFORCE_TEST_PARAMS_JSON))
               .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
               .build();
-      assertNotNull(secondConfig);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, secondConfig);
-      assertEquals(newReferenceName, secondConfig.referenceName);
+      assertNotNull(config);
+      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
+      assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
       fail();
@@ -105,14 +105,14 @@ public class ConfigWrapperTest {
   public void testBuildingPluginConfigFromJsonString() {
     try {
       String newReferenceName = "new reference name";
-      SalesforceSourceConfig secondConfig =
+      SalesforceSourceConfig config =
           new ConfigWrapper<>(SalesforceSourceConfig.class)
               .fromJsonString(TEST_SALESFORCE_PARAMS_JSON_STRING)
               .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
               .build();
-      assertNotNull(secondConfig);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, secondConfig);
-      assertEquals(newReferenceName, secondConfig.referenceName);
+      assertNotNull(config);
+      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
+      assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
       fail();

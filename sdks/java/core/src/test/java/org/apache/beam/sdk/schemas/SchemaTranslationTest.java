@@ -41,6 +41,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
@@ -180,6 +181,7 @@ public class SchemaTranslationTest {
           .add(Schema.of(Field.of("logical_argument", FieldType.logicalType(new DateTime()))))
           .add(
               Schema.of(Field.of("single_arg_argument", FieldType.logicalType(FixedBytes.of(100)))))
+          .add(Schema.of(Field.of("schema", FieldType.logicalType(new SchemaLogicalType()))))
           .build();
     }
 

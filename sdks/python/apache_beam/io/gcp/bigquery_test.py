@@ -1019,6 +1019,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               retry_strategy=None,
               additional_bq_parameters=[],
               ignore_insert_ids=False,
+              ignore_unknown_columns=False,
               with_auto_sharding=False,
               test_client=client))
 
@@ -1078,6 +1079,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               retry_strategy=None,
               additional_bq_parameters=[],
               ignore_insert_ids=False,
+              ignore_unknown_columns=False,
               with_auto_sharding=with_auto_sharding,
               test_client=client))
 

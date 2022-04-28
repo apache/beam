@@ -28,7 +28,7 @@ def basicTestOpts = [
     "--log-cli-level=INFO" //log level info
 ]
 
-task postCommitIT {
+tasks.register("postCommitIT") {
   dependsOn 'installGcpTest'
 
   // Run IT tests with TestDirectRunner in batch in Python 3.
@@ -55,7 +55,7 @@ task postCommitIT {
   }
 }
 
-task spannerioIT {
+tasks.register("spannerioIT") {
   dependsOn 'installGcpTest'
 
   // Run Spanner IO IT tests with TestDirectRunner in batch in Python 3.
@@ -77,7 +77,7 @@ task spannerioIT {
   }
 }
 
-task examples {
+tasks.register("examples") {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
 
@@ -128,7 +128,7 @@ tasks.register("mongodbioIT") {
   }
 }
 
-task directRunnerIT {
+tasks.register("directRunnerIT") {
   dependsOn 'installGcpTest'
 
   // Run IT tests with TestDirectRunner in batch.
@@ -177,7 +177,7 @@ task directRunnerIT {
   }
 }
 
-task hdfsIntegrationTest {
+tasks.register("hdfsIntegrationTest") {
   doLast {
     exec {
       executable 'sh'

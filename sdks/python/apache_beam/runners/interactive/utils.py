@@ -35,6 +35,7 @@ from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import storage
+from apache_beam.pipeline import Pipeline
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
@@ -502,3 +503,15 @@ def assert_bucket_exists(bucket_name):
   except ImportError:
     _LOGGER.warning(
         'ImportError - unable to verify whether bucket %s exists', bucket_name)
+
+
+def detect_pipeline_runner(pipeline):
+  if isinstance(pipeline, Pipeline):
+    from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+    if isinstance(pipeline.runner, InteractiveRunner):
+      pipeline_runner = pipeline.runner._underlying_runner
+    else:
+      pipeline_runner = pipeline.runner
+  else:
+    pipeline_runner = None
+  return pipeline_runner

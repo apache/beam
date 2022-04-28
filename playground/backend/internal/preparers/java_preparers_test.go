@@ -18,13 +18,10 @@ package preparers
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/validators"
-	"fmt"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -52,19 +49,20 @@ func Test_replace(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:    "original file doesn't exist",
+			name:    "file doesn't exist",
 			args:    args{[]interface{}{"someFile.java", classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantErr: true,
 		},
 		{
-			name:     "original file exists",
+			// Test that file with public class loses 'public' modifier
+			name:     "file with public class",
 			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantCode: codeWithoutPublicClass,
 			wantErr:  false,
 		},
 		{
-			// Test that file where package is used changes to import all dependencies from this package
-			name:     "original file with package",
+			// Test that file with defined package changes to import dependencies from this package
+			name:     "file with package",
 			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, packagePattern, importStringPattern}},
 			wantCode: codeWithImportedPackage,
 			wantErr:  false,
@@ -121,52 +119,6 @@ func TestGetJavaPreparers(t *testing.T) {
 			GetJavaPreparers(builder, tt.args.isUnitTest, tt.args.isKata)
 			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
 				t.Errorf("GetJavaPreparation() returns %v Preparers, want %v", len(*got), tt.want)
-			}
-		})
-	}
-}
-
-func Test_changeJavaTestFileName(t *testing.T) {
-	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
-	path, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
-	_ = lc.CreateFolders()
-	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
-	validationResults := sync.Map{}
-	validationResults.Store(validators.UnitTestValidatorName, true)
-
-	type args struct {
-		args []interface{}
-	}
-	tests := []struct {
-		name     string
-		args     args
-		wantErr  bool
-		wantName string
-	}{
-		{
-			// Test that file changes its name to the name of its public class
-			name:     "file with java unit test code to be renamed",
-			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, &validationResults}},
-			wantErr:  false,
-			wantName: "Class.java",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := changeJavaTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
-				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.Paths.AbsoluteSourceFileFolderPath))
-			if err != nil {
-				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if filepath.Base(files[0]) != "Class.java" {
-				t.Errorf("changeJavaTestFileName() expected name = %v, got %v", tt.wantName, filepath.Base(files[0]))
 			}
 		})
 	}
