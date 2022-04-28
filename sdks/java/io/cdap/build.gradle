@@ -39,27 +39,30 @@ interface for integration with CDAP plugins."""
 
 allprojects {
     repositories {
-        maven { url 'https://jitpack.io' }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
     }
 }
 
 dependencies {
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
+    implementation (library.java.cdap_common) {
+        exclude module: "log4j-over-slf4j"
+    }
     implementation library.java.cdap_etl_api
     implementation library.java.cdap_etl_api_spark
+    implementation library.java.guava
+    implementation library.java.hadoop_common
+    implementation library.java.hadoop_mapreduce_client_core
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.slf4j_api
     implementation library.java.tephra
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation "org.apache.hadoop:hadoop-common:3.1.2"
-    implementation "org.apache.hadoop:hadoop-mapreduce:2.7.0"
-    implementation "org.apache.hadoop:hadoop-mapreduce-client-core:2.10.1"
-    testImplementation 'org.apache.hadoop:hadoop-common:3.1.2'
-    testImplementation "com.github.data-integrations:salesforce:v1.3.9"
+    testImplementation "io.cdap.plugin:salesforce-plugins:1.5.0-SNAPSHOT"
     testImplementation library.java.cdap_etl_api
-    testImplementation library.java.vendored_guava_26_0_jre
+    testImplementation library.java.hadoop_common
     testImplementation library.java.junit
+    testImplementation library.java.vendored_guava_26_0_jre
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
 }

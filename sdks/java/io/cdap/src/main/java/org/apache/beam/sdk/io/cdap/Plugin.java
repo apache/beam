@@ -18,17 +18,40 @@
 package org.apache.beam.sdk.io.cdap;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.reflect.TypeToken;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.common.lang.InstantiatorFactory;
+import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.batch.BatchSink;
+import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
-import javax.annotation.Nullable;
+import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
+import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
+import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
+@SuppressWarnings({"rawtypes", "unchecked", "assignment.type.incompatible", "UnstableApiUsage"})
 public abstract class Plugin {
-  @Nullable protected PluginConfig pluginConfig;
-  @Nullable protected Configuration hadoopConfiguration;
+
+  private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
+
+  protected PluginConfig pluginConfig;
+  protected Configuration hadoopConfiguration;
+  protected SubmitterLifecycle cdapPluginObj;
+
+  /** Gets the context of a plugin. */
+  public abstract BatchContextImpl getContext();
 
   /** Gets the main class of a plugin. */
   public abstract Class<?> getPluginClass();
@@ -46,8 +69,31 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin config. */
-  public @Nullable PluginConfig getPluginConfig() {
+  public PluginConfig getPluginConfig() {
     return pluginConfig;
+  }
+
+  /**
+   * Calls {@link SubmitterLifecycle#prepareRun(Object)} method on the {@link #cdapPluginObj}
+   * passing needed {@param config} configuration object as a parameter. This method is needed for
+   * validating connection to the CDAP sink/source and performing initial tuning.
+   */
+  public void prepareRun() {
+    if (cdapPluginObj == null) {
+      InstantiatorFactory instantiatorFactory = new InstantiatorFactory(false);
+      cdapPluginObj =
+          (SubmitterLifecycle) instantiatorFactory.get(TypeToken.of(getPluginClass())).create();
+    }
+    try {
+      cdapPluginObj.prepareRun(getContext());
+      for (Map.Entry<String, String> entry :
+          getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
+        getHadoopConfiguration().set(entry.getKey(), entry.getValue());
+      }
+    } catch (Exception e) {
+      LOG.error("Error while prepareRun", e);
+      throw new IllegalStateException("Error while prepareRun");
+    }
   }
 
   /** Sets a plugin Hadoop configuration. */
@@ -55,12 +101,10 @@ public abstract class Plugin {
     PluginConstants.Format formatType = getFormatType();
     PluginConstants.Hadoop hadoopType = getHadoopType();
 
-    this.hadoopConfiguration = new Configuration(false);
-
-    this.hadoopConfiguration.setClass(
-        hadoopType.getFormatClass(), getFormatClass(), formatType.getFormatClass());
-    this.hadoopConfiguration.setClass(hadoopType.getKeyClass(), formatKeyClass, Object.class);
-    this.hadoopConfiguration.setClass(hadoopType.getValueClass(), formatValueClass, Object.class);
+    getHadoopConfiguration()
+        .setClass(hadoopType.getFormatClass(), getFormatClass(), formatType.getFormatClass());
+    getHadoopConfiguration().setClass(hadoopType.getKeyClass(), formatKeyClass, Object.class);
+    getHadoopConfiguration().setClass(hadoopType.getValueClass(), formatValueClass, Object.class);
 
     return this;
   }
@@ -73,7 +117,10 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin Hadoop configuration. */
-  public @Nullable Configuration getHadoopConfiguration() {
+  public Configuration getHadoopConfiguration() {
+    if (hadoopConfiguration == null) {
+      hadoopConfiguration = new Configuration(false);
+    }
     return hadoopConfiguration;
   }
 
@@ -101,9 +148,48 @@ public abstract class Plugin {
       return PluginConstants.PluginType.SOURCE;
     } else if (BatchSink.class.isAssignableFrom(pluginClass)) {
       return PluginConstants.PluginType.SINK;
+    } else {
+      throw new IllegalArgumentException("Provided class should be source or sink plugin");
+    }
+  }
+
+  public static BatchContextImpl initContext(Class<?> cdapPluginClass) {
+    // Init context and determine input or output
+    Class<?> contextClass = null;
+    List<Method> methods = new ArrayList<>(Arrays.asList(cdapPluginClass.getDeclaredMethods()));
+    methods.addAll(Arrays.asList(cdapPluginClass.getSuperclass().getDeclaredMethods()));
+    for (Method method : methods) {
+      if (method.getName().equals("prepareRun")) {
+        contextClass = method.getParameterTypes()[0];
+      }
+    }
+    if (contextClass == null) {
+      throw new IllegalStateException("Cannot determine context class");
     }
 
-    throw new IllegalArgumentException("Provided class should be source or sink plugin");
+    if (contextClass.equals(BatchSourceContext.class)) {
+      return new BatchSourceContextImpl();
+    } else if (contextClass.equals(BatchSinkContext.class)) {
+      return new BatchSinkContextImpl();
+    } else {
+      return new BatchSourceContextImpl();
+    }
+  }
+
+  /** Gets value of a plugin type. */
+  public Boolean isUnbounded() {
+    Boolean isUnbounded = null;
+
+    for (Annotation annotation : getPluginClass().getDeclaredAnnotations()) {
+      if (annotation.annotationType().equals(io.cdap.cdap.api.annotation.Plugin.class)) {
+        String pluginType = ((io.cdap.cdap.api.annotation.Plugin) annotation).type();
+        isUnbounded = pluginType != null && pluginType.startsWith("streaming");
+      }
+    }
+    if (isUnbounded == null) {
+      throw new IllegalArgumentException("CDAP plugin class must have Plugin annotation!");
+    }
+    return isUnbounded;
   }
 
   /** Creates a plugin instance. */
@@ -114,6 +200,7 @@ public abstract class Plugin {
         .setFormatClass(newFormatClass)
         .setFormatProviderClass(newFormatProviderClass)
         .setPluginType(Plugin.initPluginType(newPluginClass))
+        .setContext(Plugin.initContext(newPluginClass))
         .build();
   }
 
@@ -132,6 +219,8 @@ public abstract class Plugin {
     public abstract Builder setFormatProviderClass(Class<?> newFormatProviderClass);
 
     public abstract Builder setPluginType(PluginConstants.PluginType newPluginType);
+
+    public abstract Builder setContext(BatchContextImpl context);
 
     public abstract Plugin build();
   }
