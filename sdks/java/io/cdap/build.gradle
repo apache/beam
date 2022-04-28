@@ -45,11 +45,14 @@ allprojects {
 
 dependencies {
     implementation library.java.cdap_api
+    implementation library.java.cdap_api_commons
+    implementation library.java.cdap_etl_api
+    implementation library.java.cdap_etl_api_spark
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.slf4j_api
+    implementation library.java.tephra
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation "io.cdap.cdap:cdap-etl-api:6.5.1"
     implementation "org.apache.hadoop:hadoop-common:3.1.2"
     implementation "org.apache.hadoop:hadoop-mapreduce:2.7.0"
     implementation "org.apache.hadoop:hadoop-mapreduce-client-core:2.10.1"
@@ -58,4 +61,5 @@ dependencies {
     testImplementation library.java.cdap_etl_api
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
 }
