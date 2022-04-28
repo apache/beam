@@ -3002,17 +3002,17 @@ public class BigQueryIO {
       }
     }
 
-    private void validateNoJsonTypeInSchema(JSONObject schema){
+    private void validateNoJsonTypeInSchema(JSONObject schema) {
       JSONArray fields = schema.getJSONArray("fields");
 
-      for(int i = 0; i < fields.length(); i++){
+      for (int i = 0; i < fields.length(); i++) {
         JSONObject field = fields.getJSONObject(i);
         checkArgument(
             !field.getString("type").equals("JSON"),
             "Found JSON type in TableSchema. JSON data insertion is currently "
                 + "not supported with 'FILE_LOADS' write method.");
 
-        if(field.getString("type").equals("STRUCT")){
+        if (field.getString("type").equals("STRUCT")) {
           validateNoJsonTypeInSchema(field);
         }
       }
