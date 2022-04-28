@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
@@ -46,9 +47,9 @@ public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
 
-  protected PluginConfig pluginConfig;
-  protected Configuration hadoopConfiguration;
-  protected SubmitterLifecycle cdapPluginObj;
+  protected @Nullable PluginConfig pluginConfig;
+  protected @Nullable Configuration hadoopConfiguration;
+  protected @Nullable SubmitterLifecycle cdapPluginObj;
 
   /** Gets the context of a plugin. */
   public abstract BatchContextImpl getContext();
@@ -157,7 +158,9 @@ public abstract class Plugin {
     // Init context and determine input or output
     Class<?> contextClass = null;
     List<Method> methods = new ArrayList<>(Arrays.asList(cdapPluginClass.getDeclaredMethods()));
-    methods.addAll(Arrays.asList(cdapPluginClass.getSuperclass().getDeclaredMethods()));
+    if (cdapPluginClass.getSuperclass() != null) {
+      methods.addAll(Arrays.asList(cdapPluginClass.getSuperclass().getDeclaredMethods()));
+    }
     for (Method method : methods) {
       if (method.getName().equals("prepareRun")) {
         contextClass = method.getParameterTypes()[0];
