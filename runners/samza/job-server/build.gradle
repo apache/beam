@@ -74,8 +74,8 @@ def portableValidatesRunnerTask(String name, boolean docker) {
               includeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
               return
            }
-
-            includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
+            // TODO
+            // includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
             includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
             // Should be run only in a properly configured SDK harness environment
             excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
