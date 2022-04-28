@@ -25,3 +25,6 @@
 - title: Twister2
   image_url: /images/logo_twister2.png
   url: https://beam.apache.org/documentation/runners/twister2/
+- title: Amazon Kinesis Data Analytics
+  image_url: /images/logo_amazon-kinesis.png
+  url: https://docs.aws.amazon.com/kinesisanalytics/latest/java/examples-beam.html
