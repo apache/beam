@@ -1,10 +1,10 @@
 ---
 title:  "Running SQL with Apache Beam Notebooks and Google Cloud Dataflow"
-date:   2022-04-26 00:00:01 -0800
+date:   2022-04-28 00:00:01 -0800
 categories:
   - blog
 aliases:
-  - /blog/2022/04/26/beam-sql-with-notebooks-and-dataflow.html
+  - /blog/2022/04/28/beam-sql-with-notebooks-and-dataflow.html
 authors:
   - ningk
 ---
@@ -24,23 +24,41 @@ limitations under the License.
 
 [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) allows a
 Beam user to query PCollections with SQL statements.
+[Interactive Beam](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/runners/interactive#interactive-beam)
+provides an integration between Apache Beam and
+[Jupyter Notebooks](https://docs.jupyter.org/en/latest/) (formerly known as
+IPython Notebooks) to make pipeline prototyping and data exploration much faster
+and easier.
+You can set up your own notebook user interface (for example,
+[JupyterLab](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html)
+or classic [Jupyter Notebooks](https://docs.jupyter.org/en/latest/install.html))
+on your own device following their documentations. Alternatively, you can
+choose a hosted solution that does everything for you. You are free to select
+whichever notebook user interface you prefer. For simplicity, this
+post does not go through the notebook environment setup and uses
 [Apache Beam Notebooks](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development)
-provides a cloud-hosted [JupyterLab](https://jupyter.org/) environment and lets
+that provides a cloud-hosted
+[JupyterLab](https://jupyterlab.readthedocs.io/en/stable/) environment and lets
 a Beam user iteratively develop pipelines, inspect pipeline graphs, and parse
 individual PCollections in a read-eval-print-loop (REPL) workflow.
 
 In this post, you will see how to use `beam_sql`, a notebook
 [magic](https://ipython.readthedocs.io/en/stable/interactive/magics.html), to
-execute Beam SQL in notebooks and later move on to Dataflow. To follow the steps
-given in this post, you should have a project in Google Cloud Platform with
+execute Beam SQL in notebooks and inspect the results.
+
+By the end of the post, it also demonstrates how to use the `beam_sql` magic
+with a production environment, such as running it as a one-shot job on
+Dataflow. It's optional. To follow those steps, you should have a project in
+Google Cloud Platform with
 [necessary APIs enabled](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#before_you_begin)
 , and you should have enough permissions to create a Google Cloud Storage bucket
 (or to use an existing one), query a public Google Cloud BigQuery dataset, and
 run Dataflow jobs.
 
-Once you have your Google Cloud project ready, you will need to create an Apache
-Beam Notebooks instance and open the JupyterLab web interface. Please follow the
-instructions given at:
+If you choose to use the cloud hosted notebook solution, once you have your
+Google Cloud project ready, you will need to create an Apache Beam Notebooks
+instance and open the JupyterLab web interface. Please follow the instructions
+given at:
 https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#launching_an_notebooks_instance
 
 
@@ -48,8 +66,9 @@ https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development#l
 
 ### Landing page
 
-After clicking the `OPEN JUPYTERLAB` link, you will land on the default launcher
-page of the notebook environment.
+After starting your own notebook user interface: for example, if using Apche
+Beam Notebooks, after clicking the `OPEN JUPYTERLAB` link, you will land on
+the default launcher page of the notebook environment.
 
 <img class="center-block"
      src="/images/blog/beam-sql-notebooks/image1.png"
@@ -500,6 +519,11 @@ Now you can see all columns of the data with the maximum positive case on
 **Note**: to handle missing values of the negative column in the original data,
 you can use `{fn IFNULL(covid_data.negative, 0)}` to set null values to 0.
 
+When you're ready to scale up, you can translate the SQLs into a pipeline with
+`SqlTransform`s and run your pipeline on a distributed runner like Flink or
+Spark. This post demonstrates it by launching a one-shot job on Dataflow from
+the notebook with the help of `beam_sql` magic.
+
 ### Run on Dataflow
 
 Now that you have a pipeline that parses US COVID data from json to find
@@ -743,16 +767,24 @@ The table `YOUR-PROJECT:covid_data.max_analysis` created by your
      src="/images/blog/beam-sql-notebooks/image26.png"
      alt="Beam SQL in Notebooks: inspect the output BQ dataset.">
 
+### Run on other OSS runners directly with the `beam_sql` magic
+
+On the day this blog is posted, the `beam_sql` magic only supports DirectRunner
+(interactive) and DataflowRunner (one-shot). It's a simple wrapper on top of
+the `SqlTransform` with interactive input widgets implemented by
+[ipywidgets](https://ipywidgets.readthedocs.io/en/stable/). You can implement
+your own runner support or utilities by following the
+[instructions](https://lists.apache.org/thread/psrx1xhbyjcqbhxx6trf5nvh66c6pk3y).
+
+Additionally, support for other OSS runners are WIP, for example,
+[support using FlinkRunner with the `beam_sql` magic](https://issues.apache.org/jira/browse/BEAM-14373).
+
 
 ## Conclusions
 
 The `beam_sql` magic and Apache Beam Notebooks combined is a convenient tool for
-you to learn Beam SQL and mix Beam SQL into prototyping and productionizing (to
-Dataflow) your Beam pipelines with minimum setups.
-
-For more Beam SQL examples, check the
-`/Examples/Apache_Beam_SQL_in_notebooks.ipynb` in your created notebook
-instance.
+you to learn Beam SQL and mix Beam SQL into prototyping and productionizing (
+e.g., to Dataflow) your Beam pipelines with minimum setups.
 
 For more details about the Beam SQL syntax, check out the Beam Calcite SQL
 [compatibility](https://beam.apache.org/documentation/dsls/sql/calcite/overview/)
