@@ -71,7 +71,7 @@ class PytorchModelLoader(ModelLoader):
   def __init__(
       self,
       state_dict_path: str,
-      model_class: Callable[[...], torch.nn.Module],
+      model_class: Callable[..., torch.nn.Module],
       model_params: Dict[str, Any],
       device: str = 'CPU'):
     """
