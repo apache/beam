@@ -17,6 +17,7 @@
  */
 
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_code_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
@@ -32,6 +33,7 @@ final kGetListOfExamplesResponseMock =
     GetListOfExampleResponse(sdkCategoriesFromServerMock);
 final kGetExampleRequestMock = GetExampleRequestWrapper('', SDK.java);
 final kGetExampleResponseMock = GetExampleResponse(exampleMock1);
+final kGetExampleCodeResponseMock = GetExampleCodeResponse('test source');
 final kOutputResponseMock = OutputResponse('test outputs');
 
 final kRequestForExampleInfo =

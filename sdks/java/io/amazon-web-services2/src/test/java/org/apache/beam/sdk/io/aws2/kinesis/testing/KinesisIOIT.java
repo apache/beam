@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.aws2.kinesis.testing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.io.aws2.kinesis.KinesisPartitioner.explicitRandomPartitioner;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.KINESIS;
 
 import java.io.Serializable;
@@ -74,7 +73,7 @@ public class KinesisIOIT implements Serializable {
     void setKinesisStream(String value);
 
     @Description("Number of shards of stream")
-    @Default.Integer(2)
+    @Default.Integer(8)
     Integer getKinesisShards();
 
     void setKinesisShards(Integer count);
@@ -120,7 +119,7 @@ public class KinesisIOIT implements Serializable {
     KinesisIO.Write<TestRow> write =
         KinesisIO.<TestRow>write()
             .withStreamName(env.options().getKinesisStream())
-            .withPartitioner(explicitRandomPartitioner(env.options().getKinesisShards()))
+            .withPartitioner(row -> row.name())
             .withSerializer(testRowToBytes);
     if (!options.getUseRecordAggregation()) {
       write = write.withRecordAggregationDisabled();

@@ -919,7 +919,8 @@ public class DatastoreV1 {
                   options.getProjectId(), options.getNamespace()));
           baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, options.getProjectId());
           baseLabels.put(
-              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, options.getNamespace());
+              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE,
+              String.valueOf(options.getNamespace()));
           ServiceCallMetric serviceCallMetric =
               new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {

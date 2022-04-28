@@ -113,6 +113,8 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	return res, err
 }
 
+// UpdateGoEnvironmentWorker sets the worker artifact payload in
+// the default environment.
 func UpdateGoEnvironmentWorker(worker string, p *pipepb.Pipeline) error {
 	fd, err := os.Open(worker)
 	if err != nil {

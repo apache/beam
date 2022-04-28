@@ -63,6 +63,10 @@ job('beam_SeedJob') {
         'sha1',
         'master',
         'Commit id or refname (eg: origin/pr/4001/head) you want to build against.')
+    stringParam(
+        'ghprbPullId',
+        '',
+        'Pull Request ID (eg: 4001) that you want to build against.')
   }
 
   wrappers {
@@ -73,8 +77,8 @@ job('beam_SeedJob') {
   }
 
   triggers {
-    // Run once per day
-    cron('H */6 * * *')
+    // Run every six hours
+    cron('H H/6 * * *')
 
     githubPullRequest {
       admins(['asfbot'])
