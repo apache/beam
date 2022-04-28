@@ -24,7 +24,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -83,7 +83,7 @@ public class StaticSchemaInference {
   /** Helper method that instantiates HashSet to verify that schemas don't reference themselves. */
   public static Schema schemaFromClass(
       Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return schemaFromClass(clazz, fieldValueTypeSupplier, new HashSet<Class>());
+    return schemaFromClass(clazz, fieldValueTypeSupplier, new HashMap<Class, Schema>());
   }
 
   /**
@@ -96,12 +96,16 @@ public class StaticSchemaInference {
   private static Schema schemaFromClass(
       Class<?> clazz,
       FieldValueTypeSupplier fieldValueTypeSupplier,
-      HashSet<Class> alreadyVisitedSchemas) {
-    if (alreadyVisitedSchemas.contains(clazz)) {
-      throw new IllegalArgumentException(
-          "Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
+      HashMap<Class, Schema> alreadyVisitedSchemas) {
+    if (alreadyVisitedSchemas.containsKey(clazz)) {
+      Schema existingSchema = alreadyVisitedSchemas.get(clazz);
+      if (existingSchema == null) {
+        throw new IllegalArgumentException(
+            "Cannot infer schema with a circular reference. Class: " + clazz.getTypeName());
+      }
+      return existingSchema;
     }
-    alreadyVisitedSchemas.add(clazz);
+    alreadyVisitedSchemas.put(clazz, null);
     Schema.Builder builder = Schema.builder();
     for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(clazz)) {
       Schema.FieldType fieldType =
@@ -113,20 +117,22 @@ public class StaticSchemaInference {
       }
     }
     alreadyVisitedSchemas.remove(clazz);
-    return builder.build();
+    Schema generatedSchema = builder.build();
+    alreadyVisitedSchemas.put(clazz, generatedSchema);
+    return generatedSchema;
   }
 
   /** Helper method that instantiates HashSet to verify that schemas don't reference themselves. */
   public static Schema.FieldType fieldFromType(
       TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return fieldFromType(type, fieldValueTypeSupplier, new HashSet<Class>());
+    return fieldFromType(type, fieldValueTypeSupplier, new HashMap<Class, Schema>());
   }
 
   /** Map a Java field type to a Beam Schema FieldType. */
   private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,
-      HashSet<Class> alreadyVisitedSchemas) {
+      HashMap<Class, Schema> alreadyVisitedSchemas) {
     FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {
       return primitiveType;

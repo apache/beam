@@ -1197,4 +1197,42 @@ public class TestPOJOs {
       return Objects.hash(nested);
     }
   }
+
+  /** A POJO containing a nested class. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class NestedPOJOWithSimplePOJO {
+    public NestedPOJO nested;
+    public SimplePOJO simplePojo;
+
+    public NestedPOJOWithSimplePOJO(NestedPOJO nested, SimplePOJO simplePojo) {
+      this.nested = nested;
+      this.simplePojo = simplePojo;
+    }
+
+    public NestedPOJOWithSimplePOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedPOJOWithSimplePOJO that = (NestedPOJOWithSimplePOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /** The schema for {@link NestedPOJO}. * */
+  public static final Schema NESTED_POJO_WITH_SIMPLE_POJO_SCHEMA =
+      Schema.builder()
+          .addRowField("nested", NESTED_POJO_SCHEMA)
+          .addRowField("simplePojo", SIMPLE_POJO_SCHEMA)
+          .build();
 }

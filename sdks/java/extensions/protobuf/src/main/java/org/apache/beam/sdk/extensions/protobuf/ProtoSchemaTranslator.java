@@ -24,7 +24,7 @@ import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.OneofDescriptor;
 import com.google.protobuf.Message;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -127,6 +127,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * </ul>
  */
 @SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 class ProtoSchemaTranslator {
@@ -141,11 +142,11 @@ class ProtoSchemaTranslator {
   public static final String SCHEMA_OPTION_FIELD_PREFIX = "beam:option:proto:field:";
 
   /**
-   * A HashSet containing the non-primitive schemas within another schema, to prevent circular
+   * A HashMap containing the non-primitive schemas within another schema, to prevent circular
    * references.
    */
-  private static Set<Descriptors.Descriptor> alreadyVisitedSchemas =
-      new HashSet<Descriptors.Descriptor>();
+  private static Map<Descriptors.Descriptor, Schema> alreadyVisitedSchemas =
+      new HashMap<Descriptors.Descriptor, Schema>();
 
   /** Attach a proto field number to a type. */
   static Field withFieldNumber(Field field, int number) {
@@ -164,12 +165,16 @@ class ProtoSchemaTranslator {
   }
 
   static Schema getSchema(Descriptors.Descriptor descriptor) {
-    if (alreadyVisitedSchemas.contains(descriptor)) {
-      throw new IllegalArgumentException(
-          "Cannot infer schema with a circular reference. Proto Field: "
-              + descriptor.getFullName());
+    if (alreadyVisitedSchemas.containsKey(descriptor)) {
+      Schema existingSchema = alreadyVisitedSchemas.get(descriptor);
+      if (existingSchema == null) {
+        throw new IllegalArgumentException(
+            "Cannot infer schema with a circular reference. Proto Field: "
+                + descriptor.getFullName());
+      }
+      return existingSchema;
     }
-    alreadyVisitedSchemas.add(descriptor);
+    alreadyVisitedSchemas.put(descriptor, null);
     /* OneOfComponentFields refers to the field number in the protobuf where the component subfields
      * are. This is needed to prevent double inclusion of the component fields.*/
     Set<Integer> oneOfComponentFields = Sets.newHashSet();
@@ -213,14 +218,18 @@ class ProtoSchemaTranslator {
         }
       }
     }
-    alreadyVisitedSchemas.remove(descriptor);
-    return Schema.builder()
-        .addFields(fields)
-        .setOptions(
-            getSchemaOptions(descriptor)
-                .setOption(
-                    SCHEMA_OPTION_META_TYPE_NAME, FieldType.STRING, descriptor.getFullName()))
-        .build();
+
+    Schema generatedSchema =
+        Schema.builder()
+            .addFields(fields)
+            .setOptions(
+                getSchemaOptions(descriptor)
+                    .setOption(
+                        SCHEMA_OPTION_META_TYPE_NAME, FieldType.STRING, descriptor.getFullName()))
+            .build();
+    alreadyVisitedSchemas.put(descriptor, generatedSchema);
+
+    return generatedSchema;
   }
 
   private static FieldType beamFieldTypeFromProtoField(
