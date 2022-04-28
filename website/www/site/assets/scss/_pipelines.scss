@@ -61,6 +61,11 @@
           max-height: 45px;
         }
       }
+
+      :nth-child(2),
+      :last-child {
+        margin-right: 0;
+      }
     }
   }
 }
