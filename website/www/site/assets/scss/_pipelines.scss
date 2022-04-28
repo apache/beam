@@ -28,7 +28,7 @@
 
   .pipelines-logos {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     width: 100%;
     max-width: 1111px;
     margin: 70px auto 60px;
@@ -45,13 +45,13 @@
 
 @media (max-width: $tablet) {
   .pipelines {
-    padding: $pad-md $pad-s;
+    padding: 20px 30px 10px;
 
     .pipelines-logos {
       max-width: 360px;
       flex-wrap: wrap;
       justify-content: center;
-      margin: 50px auto 20px;
+      margin: 50px auto 0;
 
       .pipelines-logo {
         margin-right: 60px;
@@ -60,11 +60,6 @@
         img {
           max-height: 45px;
         }
-      }
-
-      :nth-child(3),
-      :last-child {
-        margin-right: 0;
       }
     }
   }
