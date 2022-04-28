@@ -14,14 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-"""Beam RunInference API
-- For high-level documentation see
-  TODO(BEAM-14046): Add and link to help documentation
-- :mod:`apache_beam.ml.inference.api`: Main RunInference interface
-- :mod:`apache_beam.ml.inference.base`: RunInference base class
-- :mod:`apache_beam.ml.inference.pytorch_inference`: Pytorch RunInference
-  implementation
-- :mod:`apache_beam.ml.inference.sklearn_inference`: Scikit-learn RunInference
-  implementation
-"""

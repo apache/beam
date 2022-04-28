@@ -250,7 +250,8 @@ class _Clock(object):
 class _FineGrainedClock(_Clock):
   def get_current_time_in_microseconds(self) -> int:
     return int(
-        time.clock_gettime_ns(time.CLOCK_REALTIME) / _NANOSECOND_TO_MICROSECOND)
+        time.clock_gettime_ns(time.CLOCK_REALTIME) /  # type: ignore[attr-defined]
+        _NANOSECOND_TO_MICROSECOND)
 
 
 #TODO(BEAM-14255): Research simplifying the internal clock and just using time.
