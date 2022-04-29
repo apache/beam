@@ -109,7 +109,7 @@ export function createOperator(
   Object.values(transform.outputs).map(context.getReceiver);
   let operatorConstructor = operatorsByUrn.get(transform.spec!.urn!);
   if (operatorConstructor == undefined) {
-    throw new Error("Unknown transform type:" + transform.spec?.urn);
+    throw new Error("Unknown transform type:" + transform.spec!.urn);
   }
   return operatorConstructor(transformId, transform, context);
 }

@@ -56,17 +56,3 @@ export function deserializeFn(s: Uint8Array): any {
     serialize_closures.defaultBuiltins.concat(registeredObjects)
   );
 }
-
-let fakeSerializeCounter = 0;
-const fakeSerializeMap = new Map<string, any>();
-
-function fakeSeralize(obj) {
-  fakeSerializeCounter += 1;
-  const id = "s_" + fakeSerializeCounter;
-  fakeSerializeMap.set(id, obj);
-  return new TextEncoder().encode(id);
-}
-
-function fakeDeserialize(s) {
-  return fakeSerializeMap.get(new TextDecoder().decode(s));
-}

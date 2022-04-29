@@ -43,11 +43,7 @@ export class AssertDeepEqual extends beam.PTransform<
     const expected = this.expected;
     pcoll.apply(
       new Assert("Assert", (actual) => {
-        // Is there a less explicit way to do this?
-        const actualArray: any[] = [];
-        for (const a of actual) {
-          actualArray.push(a);
-        }
+        const actualArray: any[] = [...a];
         expected.sort();
         actualArray.sort();
         callAssertDeepEqual(actualArray, expected);
@@ -83,13 +79,7 @@ export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
       .apply(new internal.GroupByKey()) // TODO: GroupBy.
       .map(
         beam.withName("extractActual", (kv) => {
-          // Javascript list comprehension?
-          const actual: any[] = [];
-          for (const o of kv.value) {
-            if (o.tag == "actual") {
-              actual.push(o.value);
-            }
-          }
+          const actual: any[] = kv.value?.filter(o => o.tag === "actual").map(o => o.value) || [];
           check(actual);
         })
       );
