@@ -95,6 +95,8 @@ dependencies {
   implementation library.java.grpc_auth
   implementation library.java.grpc_core
   permitUnusedDeclared library.java.grpc_core // BEAM-11761
+  implementation library.java.grpc_census
+  permitUnusedDeclared library.java.grpc_census // BEAM-11761
   implementation library.java.grpc_context
   permitUnusedDeclared library.java.grpc_context // BEAM-11761
   implementation library.java.grpc_grpclb
