@@ -82,8 +82,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
-  /** stores the default maximum number of stream append clients for a singular JVM instance */
-  private final static Integer MAX_CLIENTS = 5;
 
   private static final Cache<String, List<StreamAppendClient>> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
@@ -164,8 +162,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private final boolean useDefaultStream;
       private DescriptorWrapper descriptorWrapper;
       private Instant nextCacheTickle;
-      //TODO(rpablo): add a configuration to 
-      private Integer clientNumber = new Random().nextInt(MAX_CLIENTS);
+      //TODO(rpablo): add a options configuration to expose this knob
+      private Integer clientNumber = new Random().nextInt(maxAppendClientCount);
 
       public DestinationState(
           String tableUrn,
@@ -180,6 +178,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
       }
 
+      public 
+      
       void teardown() {
         maybeTickleCache();
         if (streamAppendClient != null) {
@@ -209,7 +209,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
       
       List<StreamAppendClient> generateClients(){
-        return IntStream.range(0, MAX_CLIENTS)
+        return IntStream.range(0, maxAppendClientCount)
                 .mapToObj(i -> {
                   try {
                     StreamAppendClient client = 
@@ -369,6 +369,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
+    // default append client count to 1
+    private Integer maxAppendClientCount = 1;
 
     WriteRecordsDoFn(
         String operationName,
@@ -379,6 +381,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
       this.useDefaultStream = useDefaultStream;
+    }
+    
+    WriteRecordsDoFn<DestinationT, ElementT> withMaxAppendClientCount(Integer maxAppendClientCount) {
+      LOG.info("using {} stream append clients on this worker.", maxAppendClientCount);
+      this.maxAppendClientCount = maxAppendClientCount;
+      return this;
     }
 
     boolean shouldFlush() {
