@@ -366,7 +366,7 @@ func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 func (e *emitNative) invokeTypex۰T(val typex.T) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
 	if e.est != nil {
-		(*e.est).(sdf.ToWatermarkEstimator).ObserveTimestamp(e.et.ToTime())
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)

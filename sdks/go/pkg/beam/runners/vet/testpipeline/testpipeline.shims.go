@@ -191,7 +191,7 @@ func emitMakerStringInt(n exec.ElementProcessor) exec.ReusableEmitter {
 func (e *emitNative) invokeStringInt(key string, val int) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
 	if e.est != nil {
-		(*e.est).(sdf.ToWatermarkEstimator).ObserveTimestamp(e.et.ToTime())
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)

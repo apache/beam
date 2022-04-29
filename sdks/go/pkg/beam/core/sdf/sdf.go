@@ -99,9 +99,9 @@ type WatermarkEstimator interface {
 	CurrentWatermark() time.Time
 }
 
-// ToWatermarkEstimator is an interface used to represent a user defined watermark estimator that
+// TimestampObservingEstimator is an interface used to represent a user defined watermark estimator that
 // has the ability to observe timestamps of elements outputted from a ParDo's emit function.
-type ToWatermarkEstimator interface {
+type TimestampObservingEstimator interface {
 	WatermarkEstimator
 	// ObserveTimestamp is called any time a DoFn emits an element and can use that element's
 	// event time to modify the state of the estimator.

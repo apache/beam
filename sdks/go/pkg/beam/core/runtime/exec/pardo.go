@@ -257,7 +257,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 		attachEstimator := false
 		if n.we != nil {
 			// var ok bool
-			if _, ok := n.we.(sdf.ToWatermarkEstimator); ok {
+			if _, ok := n.we.(sdf.TimestampObservingEstimator); ok {
 				attachEstimator = true
 			}
 		}

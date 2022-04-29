@@ -130,7 +130,7 @@ func (e *emitValue) invoke(args []reflect.Value) []reflect.Value {
 	}
 
 	if e.est != nil {
-		(*e.est).(sdf.ToWatermarkEstimator).ObserveTimestamp(value.Timestamp.ToTime())
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(value.Timestamp.ToTime())
 	}
 
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
