@@ -62,7 +62,7 @@ jobs:
           fi
       - name: Run Staticcheck
         run: |
-          go install "honnef.co/go/tools/cmd/staticcheck@2022.1"
+          go install "honnef.co/go/tools/cmd/staticcheck@2021.1.2"
           cd sdks/go/pkg/beam
           RESULTS=$($(go env GOPATH)/bin/staticcheck ./...)
           if [ -n "$RESULTS" ]; then 
