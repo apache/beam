@@ -92,7 +92,7 @@ export class GroupBy<T, K> extends PTransform<
  * Groups all elements of the input PCollection together.
  *
  * This is generally used with one or more combining specifications, as one
- * looses parallelization benefits in bringing all elements of a distributed
+ * loses parallelization benefits in bringing all elements of a distributed
  * PCollection together on a single machine.
  */
 export class GroupGlobally<T> extends PTransform<
