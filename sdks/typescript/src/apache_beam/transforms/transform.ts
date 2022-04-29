@@ -33,10 +33,7 @@ export function extractName<T>(withName: T): string {
     } else {
       return untyped.beamName();
     }
-  } else if (
-    untyped.name &&
-    untyped.name != "anonymous"
-  ) {
+  } else if (untyped.name && untyped.name != "anonymous") {
     return untyped.name;
   } else {
     const stringified = ("" + withName)
