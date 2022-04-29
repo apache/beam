@@ -35,7 +35,7 @@ public class BatchContextImplTest {
   public void getLogicalStartTime() {
     /** arrange */
     Timestamp expectedStartTime = new Timestamp(System.currentTimeMillis());
-    BatchSinkContextImpl context = new BatchSinkContextImpl();
+    BatchContextImpl context = new BatchContextImpl();
 
     /** act */
     long actualStartTime = context.getLogicalStartTime();
@@ -47,7 +47,7 @@ public class BatchContextImplTest {
   @Test
   public void getFailureCollector() {
     /** arrange */
-    BatchSourceContextImpl context = new BatchSourceContextImpl();
+    BatchContextImpl context = new BatchContextImpl();
 
     /** act */
     FailureCollector failureCollector = context.getFailureCollector();

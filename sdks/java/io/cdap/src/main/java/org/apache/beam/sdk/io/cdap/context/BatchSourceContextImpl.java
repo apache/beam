@@ -20,11 +20,16 @@ package org.apache.beam.sdk.io.cdap.context;
 import io.cdap.cdap.api.data.batch.Input;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 
-/** Class for creating context object of different CDAP classes with batch source type. */
+/**
+ * Class BatchSourceContextWrapper is a class for creating context object of different CDAP classes
+ * with batch source type.
+ */
 public class BatchSourceContextImpl extends BatchContextImpl implements BatchSourceContext {
 
   @Override
-  public void setInput(Input input) {}
+  public void setInput(Input input) {
+    this.inputFormatProvider = ((Input.InputFormatProviderInput) input).getInputFormatProvider();
+  }
 
   @Override
   public boolean isPreviewEnabled() {
