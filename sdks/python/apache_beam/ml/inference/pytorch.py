@@ -75,10 +75,13 @@ class PytorchModelLoader(ModelLoader):
       model_params: Dict[str, Any],
       device: str = 'CPU'):
     """
-    state_dict_path: path to the saved dictionary of the model state.
-    model_class: class of the Pytorch model that defines the model structure.
-    device: the device on which you wish to run the model. If ``device = GPU``
-        then device will be cuda if it is available. Otherwise, it will be cpu.
+    Initializes a PytorchModelLoader
+    :param state_dict_path: path to the saved dictionary of the model state.
+    :param model_class: class of the Pytorch model that defines the model
+    structure.
+    :param device: the device on which you wish to run the model. If
+    ``device = GPU`` then device will be cuda if it is avaiable. Otherwise,
+    it will be cpu.
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
