@@ -159,11 +159,15 @@ class ProtoSchemaTranslator {
     return field.getOptions().getValue(SCHEMA_OPTION_META_NUMBER);
   }
 
-  /** Return a Beam scheam representing a proto class. */
+  /** Return a Beam schema representing a proto class. */
   static Schema getSchema(Class<? extends Message> clazz) {
     return getSchema(ProtobufUtil.getDescriptorForClass(clazz));
   }
 
+  /**
+   * Return a Beam schema representing a proto class. Not safe to be used in a multi-thread context
+   * due to the use of a static HashMap.
+   */
   static Schema getSchema(Descriptors.Descriptor descriptor) {
     if (alreadyVisitedSchemas.containsKey(descriptor)) {
       Schema existingSchema = alreadyVisitedSchemas.get(descriptor);

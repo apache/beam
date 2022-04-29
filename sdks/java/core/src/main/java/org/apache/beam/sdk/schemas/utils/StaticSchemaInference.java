@@ -80,12 +80,6 @@ public class StaticSchemaInference {
           .put(BigDecimal.class, FieldType.DECIMAL)
           .build();
 
-  /** Helper method that instantiates HashMap to verify that schemas don't reference themselves. */
-  public static Schema schemaFromClass(
-      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return schemaFromClass(clazz, fieldValueTypeSupplier, new HashMap<Class, Schema>());
-  }
-
   /**
    * Infer a schema from a Java class.
    *
@@ -93,6 +87,11 @@ public class StaticSchemaInference {
    * have different strategies for extracting this list: e.g. introspecting public member variables,
    * public getter methods, or special annotations on the class.
    */
+  public static Schema schemaFromClass(
+      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return schemaFromClass(clazz, fieldValueTypeSupplier, new HashMap<Class, Schema>());
+  }
+
   private static Schema schemaFromClass(
       Class<?> clazz,
       FieldValueTypeSupplier fieldValueTypeSupplier,
@@ -122,13 +121,12 @@ public class StaticSchemaInference {
     return generatedSchema;
   }
 
-  /** Helper method that instantiates HashMap to verify that schemas don't reference themselves. */
+  /** Map a Java field type to a Beam Schema FieldType. */
   public static Schema.FieldType fieldFromType(
       TypeDescriptor type, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return fieldFromType(type, fieldValueTypeSupplier, new HashMap<Class, Schema>());
   }
 
-  /** Map a Java field type to a Beam Schema FieldType. */
   private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,
