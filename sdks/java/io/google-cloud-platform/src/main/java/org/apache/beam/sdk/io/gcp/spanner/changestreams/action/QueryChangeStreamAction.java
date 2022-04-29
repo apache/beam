@@ -207,8 +207,7 @@ public class QueryChangeStreamAction {
           // string representation of the record. Here, we only try to achieve an estimate
           // instead of an accurate throughput.
           this.throughputEstimator.update(
-              record.getRecordTimestamp(),
-              record.toString().getBytes(StandardCharsets.UTF_8).length);
+              Timestamp.now(), record.toString().getBytes(StandardCharsets.UTF_8).length);
 
           if (maybeContinuation.isPresent()) {
             LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
