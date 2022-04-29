@@ -140,6 +140,8 @@ public class DebeziumIO {
 
     abstract @Nullable Integer getMaxNumberOfRecords();
 
+    abstract @Nullable Long getMaxTimeToRun();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -153,6 +155,8 @@ public class DebeziumIO {
       abstract Builder<T> setFormatFunction(SourceRecordMapper<T> mapperFn);
 
       abstract Builder<T> setMaxNumberOfRecords(Integer maxNumberOfRecords);
+
+      abstract Builder<T> setMaxTimeToRun(long miliseconds);
 
       abstract Read<T> build();
     }
@@ -193,13 +197,25 @@ public class DebeziumIO {
 
     /**
      * Once the specified number of records has been reached, it will stop fetching them. The value
-     * can be null (default) which means it will not stop.
+     * can be null (default) which means it will not stop. This parameter is mainly intended for
+     * testing.
      *
      * @param maxNumberOfRecords The maximum number of records to be fetched before stop.
      * @return PTransform {@link #read}
      */
     public Read<T> withMaxNumberOfRecords(Integer maxNumberOfRecords) {
       return toBuilder().setMaxNumberOfRecords(maxNumberOfRecords).build();
+    }
+
+    /**
+     * Once the connector has run for the determined amount of time, it will stop. The value can be
+     * null (default) which means it will not stop. This parameter is mainly intended for testing.
+     *
+     * @param miliseconds The maximum number of miliseconds to run before stopping the connector.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withMaxTimeToRun(Long miliseconds) {
+      return toBuilder().setMaxTimeToRun(miliseconds).build();
     }
 
     @Override
@@ -213,7 +229,8 @@ public class DebeziumIO {
                   new KafkaSourceConsumerFn<>(
                       getConnectorConfiguration().getConnectorClass().get(),
                       getFormatFunction(),
-                      getMaxNumberOfRecords())))
+                      getMaxNumberOfRecords(),
+                      getMaxTimeToRun())))
           .setCoder(getCoder());
     }
   }

@@ -56,7 +56,7 @@ public class OffsetTrackerTest implements Serializable {
     Map<String, Object> position = new HashMap<>();
     KafkaSourceConsumerFn<String> kafkaSourceConsumerFn =
         new KafkaSourceConsumerFn<String>(
-            MySqlConnector.class, new SourceRecordJson.SourceRecordJsonMapper(), minutesToRun);
+            MySqlConnector.class, new SourceRecordJson.SourceRecordJsonMapper(), 10, millis);
     KafkaSourceConsumerFn.OffsetHolder restriction =
         kafkaSourceConsumerFn.getInitialRestriction(new HashMap<>());
     KafkaSourceConsumerFn.OffsetTracker tracker =
