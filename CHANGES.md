@@ -35,7 +35,6 @@
 
 ## Breaking Changes
 
-* Coders in Python are expected to inherit from Coder. ([BEAM-14351](https://issues.apache.org/jira/browse/BEAM-14351)).
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Deprecations
@@ -50,7 +49,7 @@
 ## Known Issues
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
+-->
 # [2.39.0] - Unreleased
 
 ## Highlights
@@ -78,6 +77,7 @@
         .withConnectionFactory(jmsConnectionFactory)
         .withValueMapper(new TextMessageMapper());
 ```
+* Coders in Python are expected to inherit from Coder. ([BEAM-14351](https://issues.apache.org/jira/browse/BEAM-14351)).
 
 ## Deprecations
 
