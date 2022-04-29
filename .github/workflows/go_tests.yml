@@ -54,7 +54,7 @@ jobs:
       - name: Run vet
         run: | 
           cd sdks/go/pkg/beam 
-          VOUT=go vet --copylocks=false --unsafeptr=false ./...
+          VOUT=$(go vet --copylocks=false --unsafeptr=false ./...)
           if [ -n "$VOUT" ]; then 
             echo -e "Run go vet and fix warnings before checking in changes\n"
             echo -e "Vet Warnings:\n"
