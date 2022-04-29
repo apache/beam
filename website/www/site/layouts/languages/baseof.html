@@ -15,8 +15,7 @@
  <head>
    {{ partial "head.html" . }}
  </head>
- <!--to activate an element via bootstrap's scrollspy library in the visible area, you need to scroll it by 10px relative to the browser window, so data-offset="10"-->
- <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="10">
+ <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
    {{ partial "header.html" . }}
    <div class="clearfix container-main-content">
      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
@@ -39,3 +38,4 @@
  {{ partial "footer.html" . }}
  </body>
  </html>
+ 
