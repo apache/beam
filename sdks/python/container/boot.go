@@ -161,8 +161,8 @@ func mainError() error {
 		return fmt.Errorf("Failed to initialize Python venv.")
 	}
 	cleanupFunc := func() {
-		log.Printf("Cleaning up temporary venv ...")
 		os.RemoveAll(venvDir)
+		log.Printf("Cleaned up temporary venv for worker %v.", *id)
 	}
 	defer cleanupFunc()
 
