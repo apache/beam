@@ -18,21 +18,17 @@
 # pylint: skip-file
 
 """End-to-End test for MNIST classification example"""
-import tempfile
 
-import pytest
+import logging
+import os
 import shutil
+import tempfile
 import unittest
 import uuid
 from typing import List
 
 from apache_beam.ml.inference.examples import pytorch_image_classification
 from apache_beam.testing.test_pipeline import TestPipeline
-
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
 
 
 class PyTorchInference(unittest.TestCase):
@@ -54,27 +50,29 @@ class PyTorchInference(unittest.TestCase):
         f.write(content + '\n')
       return f.name
 
-  @pytest.mark.examples_postcommit
   def test_predictions_output_file(self):
     requirements_cache_dir = self.make_temp_dir()
     requirements_file = self.create_temp_file(
         path=os.path.join(requirements_cache_dir, 'requirements.txt'),
         contents=['torch', 'torchvision'])
     test_pipeline = TestPipeline(is_integration_test=True)
-    # setup file with expected content
     output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
     output = '/'.join([output_file_dir, str(uuid.uuid4()), 'result'])
-    input_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
+    input_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/imagenet_samples.csv'
+    images_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs'
 
     model_path = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/models/mobilenet_v2.pt'
     extra_opts = {
         'input': input_file_dir,
         'output': output,
         'model_path': model_path,
-        'requirements_file': requirements_file
+        'requirements_file': requirements_file,
+        'images_dir': images_dir,
     }
-
-    gcs = gcsio.GcsIO()
     pytorch_image_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
-    self.assertTrue(gcs.exists(output))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.DEBUG)
+  unittest.main()
