@@ -128,6 +128,16 @@ public class Environments {
           fallback.specification);
       return fallback;
     }
+
+    public static JavaVersion forSpecificationStrict(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+      throw new UnsupportedOperationException(
+          String.format("unsupported Java version: %s", specification));
+    }
   }
 
   /* For development, use the container build by the current user to ensure that the SDK harness and
