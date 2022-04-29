@@ -167,6 +167,8 @@ class TransformTest(unittest.TestCase):
       a = pd.Series([1, 2, 6])
       self.run_scenario(a, lambda a: a.agg(sum))
       self.run_scenario(a, lambda a: a / a.agg(sum))
+      self.run_scenario(a, lambda a: a / (a.max() - a.min()))
+      self.run_scenario(a, lambda a: a / (a.sum() - 1))
 
       # Tests scalar being used as an input to a downstream stage.
       df = pd.DataFrame({'key': ['a', 'a', 'b'], 'val': [1, 2, 6]})
