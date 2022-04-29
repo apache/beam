@@ -42,7 +42,13 @@ import org.slf4j.LoggerFactory;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
-@SuppressWarnings({"rawtypes", "unchecked", "assignment.type.incompatible", "UnstableApiUsage", "initialization.fields.uninitialized"})
+@SuppressWarnings({
+  "rawtypes",
+  "unchecked",
+  "assignment.type.incompatible",
+  "UnstableApiUsage",
+  "initialization.fields.uninitialized"
+})
 public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
