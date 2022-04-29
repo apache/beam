@@ -517,6 +517,7 @@ class AssignWindowsParDoOperator implements IOperator {
   process(wvalue: WindowedValue<unknown>) {
     const newWindowsOnce = this.windowFn.assignWindows(wvalue.timestamp);
     if (newWindowsOnce.length > 0) {
+      // Each element from each original window is assigned to the new windows.
       const newWindows: Window[] = [];
       for (var i = 0; i < wvalue.windows.length; i++) {
         newWindows.push(...newWindowsOnce);

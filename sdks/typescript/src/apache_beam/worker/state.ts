@@ -63,22 +63,21 @@ export class CachingStateProvider implements StateProvider {
     );
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
-    } else {
-      let result = this.underlying.getState(stateKey, decode);
-      const this_ = this;
-      if (result.type == "promise") {
-        result = {
-          type: "promise",
-          promise: result.promise.then((value) => {
-            this_.cache.set(cacheKey, { type: "value", value });
-            return value;
-          }),
-        };
-      }
-      // TODO: (Perf) Cache eviction.
-      this.cache.set(cacheKey, result);
-      return result;
     }
+    let result = this.underlying.getState(stateKey, decode);
+    const this_ = this;
+    if (result.type == "promise") {
+      result = {
+        type: "promise",
+        promise: result.promise.then((value) => {
+          this_.cache.set(cacheKey, { type: "value", value });
+          return value;
+        }),
+      };
+    }
+    // TODO: (Perf) Cache eviction.
+    this.cache.set(cacheKey, result);
+    return result;
   }
 }
 

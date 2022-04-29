@@ -84,14 +84,7 @@ export class Worker {
       {}
     );
     this.controlChannel = this.controlClient.control(metadata);
-    this.controlChannel.on("data", async (request) => {
-      console.log(request);
-      if (request.request.oneofKind == "processBundle") {
-        await this.process(request);
-      } else {
-        console.log("Unknown instruction type: ", request);
-      }
-    });
+    this.controlChannel.on("data", this.handleRequest.bind(this));
     this.controlChannel.on("end", () => {
       console.log("Control channel closed.");
       for (const dataChannel of this.dataChannels.values()) {
@@ -106,6 +99,22 @@ export class Worker {
   async wait() {
     // TODO: Await closing of control log.
     await new Promise((r) => setTimeout(r, 1e9));
+  }
+
+  async handleRequest(request) {
+    console.log(request);
+    if (request.request.oneofKind == "processBundle") {
+      await this.process(request);
+    } else {
+      console.log("Unknown instruction type: ", request);
+      this.controlChannel.write({
+        instructionId: request.instructionId,
+        error: "Unknown instruction type: " + request.request.oneofKind,
+        response: {
+          oneofKind: undefined,
+        },
+      });
+    }
   }
 
   respond(response: InstructionResponse) {
@@ -189,7 +198,10 @@ export class Worker {
   }
 
   returnBundleProcessor(processor: BundleProcessor) {
-    this.bundleProcessors.get(processor.descriptor.id)?.push(processor);
+    if (!this.bundleProcessors.has(processor.descriptor.id)) {
+      this.bundleProcessors.set(processor.descriptor.id, []);
+    }
+    this.bundleProcessors.get(processor.descriptor.id)!.push(processor);
   }
 
   getDataChannel(endpoint: string): MultiplexingDataChannel {
