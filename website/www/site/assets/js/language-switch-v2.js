@@ -127,6 +127,9 @@ $(document).ready(function() {
                 // make sure that runner and shell snippets are still visible after changing language
                 $("code"+this.selector).show();
                 $("." + pref).show();
+
+                // Fix nav-menu bug with jumping between links when switching tabs
+                $('[data-spy="scroll"]').scrollspy('refresh');
             },
             "render": function(wrapper) {
                 this.addTabs();
