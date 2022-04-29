@@ -179,10 +179,6 @@ on a portable runner) but the following big-ticket items remain.
 
 There is probably more; there are many TODOs littered throughout the code.
 
-This code has also not yet been fully peer reviewed (it was the result of a
-hackathon) which needs to be done before putting it into the man repository.
-
-
 ## Development.
 
 ### Getting stared

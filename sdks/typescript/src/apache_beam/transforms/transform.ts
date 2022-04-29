@@ -34,7 +34,6 @@ export function extractName<T>(withName: T): string {
       return untyped.beamName();
     }
   } else if (
-    untyped.name != undefined &&
     untyped.name &&
     untyped.name != "anonymous"
   ) {
