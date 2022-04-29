@@ -668,14 +668,15 @@ def _get_arg_placeholders(
   # Fill the OtherPlaceholders for context, key, window or timestamp
   remaining_args_iter = iter(input_args[args_to_pick:])
   for a, d in zip(arg_names[-len(default_arg_values):], default_arg_values):
-    if (d in (
-        core.DoFn.ElementParam,
-        core.DoFn.KeyParam,
-        core.DoFn.WindowParam,
-        core.DoFn.TimestampParam,
-        core.DoFn.PaneInfoParam,
-    ) or isinstance(d, (core.DoFn.StateParam, core.DoFn.TimerParam)) or
-        (isinstance(d, type) and core.DoFn.BundleFinalizerParam == d)):
+    if core.DoFn.ElementParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif core.DoFn.KeyParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif core.DoFn.WindowParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif core.DoFn.TimestampParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif core.DoFn.PaneInfoParam == d:
       args_with_placeholders.append(ArgPlaceholder(d))
     elif core.DoFn.SideInputParam == d:
       # If no more args are present then the value must be passed via kwarg
@@ -684,6 +685,12 @@ def _get_arg_placeholders(
       except StopIteration:
         if a not in input_kwargs:
           raise ValueError("Value for sideinput %s not provided" % a)
+    elif isinstance(d, core.DoFn.StateParam):
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif isinstance(d, core.DoFn.TimerParam):
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
     else:
       # If no more args are present then the value must be passed via kwarg
       try:
@@ -717,6 +724,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.side_inputs = side_inputs
     self.context = context
     self.process_method = signature.process_method.method_value
+    default_arg_values = signature.process_method.defaults
     self.has_windowed_inputs = (
         not all(si.is_globally_windowed() for si in side_inputs) or any(
             core.DoFn.WindowParam == arg
@@ -727,7 +735,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.user_state_context = user_state_context
     self.is_splittable = signature.is_splittable_dofn()
     self.is_key_param_required = any(
-        core.DoFn.KeyParam == arg for arg in signature.process_method.defaults)
+        core.DoFn.KeyParam == arg for arg in default_arg_values)
     self.threadsafe_restriction_tracker = None  # type: Optional[ThreadsafeRestrictionTracker]
     self.threadsafe_watermark_estimator = None  # type: Optional[ThreadsafeWatermarkEstimator]
     self.current_windowed_value = None  # type: Optional[WindowedValue]
@@ -737,18 +745,19 @@ class PerWindowInvoker(DoFnInvoker):
       self.current_window_index = None
       self.stop_window_index = None
 
+    # Try to prepare all the arguments that can just be filled in
+    # without any additional work. in the process function.
+    # Also cache all the placeholders needed in the process function.
+
     # Flag to cache additional arguments on the first element if all
     # inputs are within the global window.
     self.cache_globally_windowed_args = not self.has_windowed_inputs
 
-    # Try to prepare all the arguments that can just be filled in
-    # without any additional work. in the process function.
-    # Also cache all the placeholders needed in the process function.
-    (
-        self.placeholders_for_process,
-        self.args_for_process,
-        self.kwargs_for_process) = _get_arg_placeholders(
-            signature.process_method, input_args, input_kwargs)
+    (self.placeholders,
+     self.args_for_process,
+     self.kwargs_for_process) = _get_arg_placeholders(signature.process_method,
+                                                      input_args,
+                                                      input_kwargs)
 
     self.process_batch_method = signature.process_batch_method.method_value
 
@@ -936,7 +945,7 @@ class PerWindowInvoker(DoFnInvoker):
             'Input value to a stateful DoFn or KeyParam must be a KV tuple; '
             'instead, got \'%s\'.') % (windowed_value.value, ))
 
-    for i, p in self.placeholders_for_process:
+    for i, p in self.placeholders:
       if core.DoFn.ElementParam == p:
         args_for_process[i] = windowed_value.value
       elif core.DoFn.KeyParam == p:
