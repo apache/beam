@@ -55,7 +55,11 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
         ParDo.of(
                 new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
                     operationName, dynamicDestinations, bqServices, true)
-                    .withMaxAppendClientCount(numStreams == 0 ? 1 : numStreams))
+                    .withStreamAppendClientCount(numStreams == 0 ? 1 : numStreams)
+                    .withRecordCountFlushThreshold(
+                            options.getStorageWriteRecordCountFlushThreshold())
+                    .withRecordBytesFlushThreshold(
+                            options.getStorageWriteRecordBytesFlushThreshold()))
             .withSideInputs(dynamicDestinations.getSideInputs()));
     return input.getPipeline().apply("voids", Create.empty(VoidCoder.of()));
   }

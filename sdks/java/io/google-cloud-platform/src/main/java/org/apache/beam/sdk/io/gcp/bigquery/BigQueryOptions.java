@@ -98,12 +98,26 @@ public interface BigQueryOptions
   Integer getNumStorageWriteApiStreams();
 
   void setNumStorageWriteApiStreams(Integer value);
+  
+  @Description(
+        "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
+  Integer getStorageWriteApiTriggeringFrequencySec();
+  
+  void setStorageWriteApiTriggeringFrequencySec(Integer value);
+  
+  @Description(
+      "The quantity of records that will be accumulated approximately before sending to BigQuery.")
+  @Default.Integer(150000)
+  Integer getStorageWriteRecordCountFlushThreshold();
+
+  void setStorageWriteRecordCountFlushThreshold(Integer value);
 
   @Description(
-      "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
-  Integer getStorageWriteApiTriggeringFrequencySec();
+      "The quantity of bytes that will be accumulated approximately before sending to BigQuery.")
+  @Default.Integer(2 * 1024 * 1024)
+  Integer getStorageWriteRecordBytesFlushThreshold();
 
-  void setStorageWriteApiTriggeringFrequencySec(Integer value);
+  void setStorageWriteRecordBytesFlushThreshold(Integer value);
 
   @Description(
       "When auto-sharding is used, the maximum duration in milliseconds the input records are"

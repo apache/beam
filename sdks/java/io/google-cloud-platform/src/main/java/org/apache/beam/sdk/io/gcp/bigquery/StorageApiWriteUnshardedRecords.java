@@ -163,7 +163,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private DescriptorWrapper descriptorWrapper;
       private Instant nextCacheTickle;
       //TODO(rpablo): add a options configuration to expose this knob
-      private Integer clientNumber = new Random().nextInt(maxAppendClientCount);
+      private Integer clientNumber = new Random().nextInt(streamAppendClientCount);
 
       public DestinationState(
           String tableUrn,
@@ -209,7 +209,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
       
       List<StreamAppendClient> generateClients(){
-        return IntStream.range(0, maxAppendClientCount)
+        return IntStream.range(0, streamAppendClientCount)
                 .mapToObj(i -> {
                   try {
                     StreamAppendClient client = 
@@ -359,18 +359,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
+    private static final int FLUSH_THRESHOLD_RECORDS_DEFAULT = 150000;
+    private static final int FLUSH_THRESHOLD_RECORD_BYTES_DEFAULT = 2 * 1024 * 1024;
+
     private Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private transient @Nullable DatasetService datasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
-    private static final int FLUSH_THRESHOLD_RECORDS = 150000;
-    private static final int FLUSH_THRESHOLD_RECORD_BYTES = 2 * 1024 * 1024;
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
     // default append client count to 1
-    private Integer maxAppendClientCount = 1;
+    private Integer streamAppendClientCount = 1;
+    private Integer recordCountFlushThreshold = FLUSH_THRESHOLD_RECORDS_DEFAULT;
+    private Integer recordBytesFlishThreshold = FLUSH_THRESHOLD_RECORD_BYTES_DEFAULT;
 
     WriteRecordsDoFn(
         String operationName,
@@ -383,15 +386,30 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.useDefaultStream = useDefaultStream;
     }
     
-    WriteRecordsDoFn<DestinationT, ElementT> withMaxAppendClientCount(Integer maxAppendClientCount) {
-      LOG.info("using {} stream append clients on this worker.", maxAppendClientCount);
-      this.maxAppendClientCount = maxAppendClientCount;
+    WriteRecordsDoFn<DestinationT, ElementT> withStreamAppendClientCount(
+            Integer streamAppendClientCount) {
+      LOG.debug("using {} stream append clients on this worker.", streamAppendClientCount);
+      this.streamAppendClientCount = streamAppendClientCount;
+      return this;
+    }
+
+    WriteRecordsDoFn<DestinationT, ElementT> withRecordCountFlushThreshold(
+            Integer recordCountFlushThreshold) {
+      LOG.debug("using {} count as the flush threshold.", recordCountFlushThreshold);
+      this.recordCountFlushThreshold = recordCountFlushThreshold;
+      return this;
+    }
+
+    WriteRecordsDoFn<DestinationT, ElementT> withRecordBytesFlushThreshold(
+            Integer recordBytesFlushThreshold) {
+      LOG.debug("using {} bytes as the flush threshold.", recordBytesFlushThreshold);
+      this.recordBytesFlishThreshold = recordBytesFlushThreshold;
       return this;
     }
 
     boolean shouldFlush() {
-      return numPendingRecords > FLUSH_THRESHOLD_RECORDS
-          || numPendingRecordBytes > FLUSH_THRESHOLD_RECORD_BYTES;
+      return numPendingRecords > recordCountFlushThreshold
+          || numPendingRecordBytes > recordBytesFlishThreshold;
     }
 
     void flushIfNecessary() throws Exception {
