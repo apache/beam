@@ -26,18 +26,23 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
+var errGeneric = errors.New("generic error")
+
 // TestInvoke verifies the the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
-		Fn                  interface{}
-		Opt                 *MainInput
-		Args                []interface{}
-		Expected, Expected2 interface{}
-		ExpectedTime        typex.EventTime
+		Fn                   interface{}
+		Opt                  *MainInput
+		Args                 []interface{}
+		Expected, Expected2  interface{}
+		ExpectedTime         typex.EventTime
+		ExpectedContinuation sdf.ProcessContinuation
+		ExpectedError        error
 	}{
 		{
 			// Void function
@@ -152,11 +157,50 @@ func TestInvoke(t *testing.T) {
 			ExpectedTime: 47,
 		},
 		{
+			// (Return check) EventTime, V, Error
+			Fn:           func(a int) (typex.EventTime, int, error) { return 10, 3 * a, nil },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 10,
+		},
+		{
+			// (Return check) EventTime, V
+			Fn:           func(a int) (typex.EventTime, int) { return 102, 3 * a },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 102,
+		},
+		{
 			// Check ConvertFn is invoked
 			Fn:       func(a string, b []int) (string, int) { return a, len(b) },
 			Opt:      &MainInput{Key: FullValue{Elm: "basketball", Elm2: []typex.T{23}}},
 			Expected: "basketball", Expected2: 1,
 		},
+		{
+			// ret1() error check
+			Fn:            func(a int) error { return errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret2() error check
+			Fn:            func(a int) (int, error) { return 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret3() error check
+			Fn:            func(a int) (typex.EventTime, int, error) { return 0, 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		{
+			// ret4() error check
+			Fn:            func(a int) (typex.EventTime, string, int, error) { return 0, "", 0, errGeneric },
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
+		// TODO(BEAM-11104): Add unit test cases for ProcessContinuations once they are enabled for use.
 	}
 
 	for i, test := range tests {
@@ -178,17 +222,27 @@ func TestInvoke(t *testing.T) {
 			}
 
 			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
-			if err != nil {
-				t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
-			}
-			if val != nil && val.Elm != test.Expected {
-				t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
-			}
-			if val != nil && val.Elm2 != test.Expected2 {
-				t.Errorf("Elm2: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm2, test.Expected2)
-			}
-			if val != nil && val.Timestamp != test.ExpectedTime {
-				t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+
+			if test.ExpectedError != nil {
+				if err == nil {
+					t.Fatalf("Invoke(%v, %v) succeeded when it should have failed, want %v", fn.Fn.Name(), test.Args, test.ExpectedError)
+				}
+				if err != test.ExpectedError {
+					t.Errorf("Invoke(%v, %v) returned unexpected error, got %v, want %v", fn.Fn.Name(), test.Args, err, test.ExpectedError)
+				}
+			} else {
+				if val != nil && val.Elm != test.Expected {
+					t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
+				}
+				if val != nil && val.Elm2 != test.Expected2 {
+					t.Errorf("Elm2: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm2, test.Expected2)
+				}
+				if val != nil && val.Timestamp != test.ExpectedTime {
+					t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
+				}
+				if val != nil && val.Continuation != test.ExpectedContinuation {
+					t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Continuation, test.ExpectedContinuation)
+				}
 			}
 		})
 	}

@@ -26,6 +26,7 @@ import io.opencensus.common.Scope;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -79,6 +81,7 @@ public class QueryChangeStreamAction {
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
   private final ChangeStreamMetrics metrics;
+  private final ThroughputEstimator throughputEstimator;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -93,6 +96,7 @@ public class QueryChangeStreamAction {
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
    * @param metrics metrics gathering class
+   * @param throughputEstimator an estimator to calculate local throughput.
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -102,7 +106,8 @@ public class QueryChangeStreamAction {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      ThroughputEstimator throughputEstimator) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -111,6 +116,7 @@ public class QueryChangeStreamAction {
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
     this.metrics = metrics;
+    this.throughputEstimator = throughputEstimator;
   }
 
   /**
@@ -212,6 +218,13 @@ public class QueryChangeStreamAction {
               LOG.error("[" + token + "] Unknown record type " + record.getClass());
               throw new IllegalArgumentException("Unknown record type " + record.getClass());
             }
+
+            // The size of a record is represented by the number of bytes needed for the
+            // string representation of the record. Here, we only try to achieve an estimate
+            // instead of an accurate throughput.
+            this.throughputEstimator.update(
+                Timestamp.now(), record.toString().getBytes(StandardCharsets.UTF_8).length);
+
             if (maybeContinuation.isPresent()) {
               LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
               bundleFinalizer.afterBundleCommit(
@@ -221,7 +234,6 @@ public class QueryChangeStreamAction {
             }
           }
         }
-
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
             updateWatermarkCallback(token, watermarkEstimator));
