@@ -49,7 +49,7 @@ export class PipelineContext {
       const components = (coderProto.componentCoderIds || []).map(
         this_.getCoder.bind(this_)
       );
-      if (coderProto.spec!.payload && coderProto.spec!.payload.length) {
+      if (coderProto.spec!.payload?.length) {
         this.coders[coderId] = new coderConstructor(
           coderProto.spec!.payload,
           ...components
