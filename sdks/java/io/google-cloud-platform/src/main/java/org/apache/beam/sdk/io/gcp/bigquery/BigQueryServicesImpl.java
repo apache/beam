@@ -29,11 +29,7 @@ import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.core.ApiFuture;
 import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.api.gax.rpc.ApiException;
-import com.google.api.gax.rpc.FixedHeaderProvider;
-import com.google.api.gax.rpc.HeaderProvider;
-import com.google.api.gax.rpc.ServerStream;
-import com.google.api.gax.rpc.UnaryCallSettings;
+import com.google.api.gax.rpc.*;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
@@ -1223,9 +1219,17 @@ class BigQueryServicesImpl implements BigQueryServices {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
 
+      TransportChannelProvider transportChannelProvider =
+          BigQueryWriteSettings.defaultGrpcTransportProviderBuilder()
+              .setKeepAliveTimeout(org.threeten.bp.Duration.ofMinutes(1))
+              .setKeepAliveWithoutCalls(true)
+              .setChannelsPerCpu(2)
+              .build();
+
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
+              .setChannelProvider(transportChannelProvider)
               .setTraceId(
                   "Dataflow:"
                       + (bqIOMetadata.getBeamJobId() != null
@@ -1274,6 +1278,11 @@ class BigQueryServicesImpl implements BigQueryServices {
         public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
             throws Exception {
           return streamWriter.append(rows, offset);
+        }
+
+        @Override
+        public long getInflightWaitSeconds() {
+          return streamWriter.getInflightWaitSeconds();
         }
       };
     }

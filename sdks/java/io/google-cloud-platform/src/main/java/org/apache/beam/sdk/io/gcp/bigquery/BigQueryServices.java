@@ -206,6 +206,11 @@ public interface BigQueryServices extends Serializable {
     /** Append rows to a Storage API write stream at the given offset. */
     ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
 
+    /** return the current wait time for data in flight, in seconds. */
+    default long getInflightWaitSeconds() {
+      return 0;
+    }
+
     /**
      * Pin this object. If close() is called before all pins are removed, the underlying resources
      * will not be freed until all pins are removed.
