@@ -26,8 +26,10 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -35,13 +37,14 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
@@ -54,75 +57,96 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GcsMatchIT {
+  /** DoFn that writes test files to Gcs System when first time called. */
+  private static class WriteToGcsFn extends DoFn<GcsPath, Void> {
+    public WriteToGcsFn(long waitSec) {
+      this.waitSec = waitSec;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      GcsPath writePath = context.element();
+      assert writePath != null;
+      Thread writer =
+          new Thread(
+              () -> {
+                try {
+                  // Copy the files to the "watch" directory;
+                  Thread.sleep(waitSec * 1000);
+                  writeBytesToFile(writePath.resolve("first").toString(), 42);
+                  Thread.sleep(1000);
+                  writeBytesToFile(writePath.resolve("first").toString(), 99);
+                  writeBytesToFile(writePath.resolve("second").toString(), 42);
+                  Thread.sleep(1000);
+                  writeBytesToFile(writePath.resolve("first").toString(), 37);
+                  writeBytesToFile(writePath.resolve("second").toString(), 42);
+                  writeBytesToFile(writePath.resolve("third").toString(), 99);
+                } catch (InterruptedException e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      writer.start();
+    }
+
+    private final long waitSec;
+  }
+
   /** Integration test for TextIO.MatchAll watching for file updates in gcs filesystem. */
   @Test
-  public void testGcsMatchContinuously() throws InterruptedException {
+  public void testGcsMatchContinuously() {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
     assertNotNull(options.getTempRoot());
-    options.setTempLocation(options.getTempRoot() + "/testGcsMatchContinuouslyTest");
+    options.setTempLocation(options.getTempRoot() + "/GcsMatchIT");
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     String dstFolderName =
         gcsOptions.getGcpTempLocation()
-            + String.format(
-                "/GcsMatchIT-%tF-%<tH-%<tM-%<tS-%<tL.testGcsMatchContinuously.copy/", new Date());
+            + String.format("/testGcsMatchContinuously.%tF-%<tH-%<tM-%<tS-%<tL/", new Date());
     final GcsPath watchPath = GcsPath.fromUri(dstFolderName);
+    long waitSec = 7;
+    if (options.getRunner() == DirectRunner.class) {
+      // save some time testing on direct runner
+      waitSec = 1;
+    }
 
     Pipeline p = Pipeline.create(options);
-
-    PCollection<Metadata> matchAllUpdatedMetadata =
-        p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
+    PCollection<GcsPath> path = p.apply(Create.of(Collections.singletonList(watchPath)));
+    PCollection<String> filenames =
+        path.apply(
+                MapElements.into(TypeDescriptors.strings())
+                    .via((gcsPath) -> gcsPath.resolve("*").toString()))
             .apply(
                 "matchAll updated",
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(250),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)),
-                        true));
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(waitSec + 2)),
+                        true))
+            .apply(
+                "pick up file names",
+                MapElements.into(TypeDescriptors.strings())
+                    .via((metadata) -> metadata.resourceId().getFilename()));
 
-    // Copy the files to the "watch" directory;
-    Thread writer =
-        new Thread(
-            () -> {
-              try {
-                Thread.sleep(1000);
-                writeBytesToFile(watchPath.resolve("first").toString(), 42);
-                Thread.sleep(1000);
-                writeBytesToFile(watchPath.resolve("first").toString(), 99);
-                writeBytesToFile(watchPath.resolve("second").toString(), 42);
-                Thread.sleep(1000);
-                writeBytesToFile(watchPath.resolve("first").toString(), 37);
-                writeBytesToFile(watchPath.resolve("second").toString(), 42);
-                writeBytesToFile(watchPath.resolve("third").toString(), 99);
-
-              } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-              }
-            });
+    path.apply(ParDo.of(new WriteToGcsFn(waitSec)));
 
     List<String> expectedMatchAllUpdated =
         Arrays.asList("first", "first", "first", "second", "second", "third");
-    PCollection<String> matchAllUpdatedCount =
-        matchAllUpdatedMetadata.apply(
-            "pick up matchAll file names",
-            MapElements.into(TypeDescriptors.strings())
-                .via((metadata) -> metadata.resourceId().getFilename()));
-    PAssert.that(matchAllUpdatedCount).containsInAnyOrder(expectedMatchAllUpdated);
+    PAssert.that(filenames).containsInAnyOrder(expectedMatchAllUpdated);
 
-    writer.start();
     PipelineResult result = p.run();
+
     State state = result.waitUntilFinish();
     assertEquals(State.DONE, state);
-
-    writer.join();
   }
 
-  private static void writeBytesToFile(String gcsPath, int length) throws IOException {
+  private static void writeBytesToFile(String gcsPath, int length) {
     ResourceId newFileResourceId = FileSystems.matchNewResource(gcsPath, false);
     try (ByteArrayInputStream in = new ByteArrayInputStream(new byte[length]);
         ReadableByteChannel readerChannel = Channels.newChannel(in);
         WritableByteChannel writerChannel = FileSystems.create(newFileResourceId, MimeTypes.TEXT)) {
       ByteStreams.copy(readerChannel, writerChannel);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 }
