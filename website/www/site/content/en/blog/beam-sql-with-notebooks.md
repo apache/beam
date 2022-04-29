@@ -1,10 +1,10 @@
 ---
-title:  "Running SQL with Apache Beam Notebooks and Google Cloud Dataflow"
+title:  "Running Beam SQL in notebooks"
 date:   2022-04-28 00:00:01 -0800
 categories:
   - blog
 aliases:
-  - /blog/2022/04/28/beam-sql-with-notebooks-and-dataflow.html
+  - /blog/2022/04/28/beam-sql-with-notebooks.html
 authors:
   - ningk
 ---
