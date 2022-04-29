@@ -158,8 +158,16 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       LOG.debug("--------- Consumer offset from Debezium Tracker: {}", consumerOffset);
 
       task.initialize(new BeamSourceTaskContext(tracker.currentRestriction().offset));
+      // Obtain a single task configuration and pass it to a single task that we'll run.
       task.start(connector.taskConfigs(1).get(0));
 
+      int tries = 0;
+      while (true) {
+      tries += 1;
+      Thread.sleep(1000);
+      if (tries >= 3) {
+        break;
+      }
       List<SourceRecord> records = task.poll();
 
       if (records == null) {
@@ -186,6 +194,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
         }
 
         task.commit();
+        break; // Break out of the loop!
+      }
       }
     } catch (Exception ex) {
       LOG.error(
@@ -194,7 +204,6 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
           ex.getStackTrace());
     } finally {
       restrictionTrackers.remove(this.getHashCode());
-
       LOG.debug("------- Stopping SourceTask");
       task.stop();
     }
@@ -255,11 +264,11 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   }
 
   static class OffsetHolder implements Serializable {
-    public final @Nullable Map<String, ?> offset;
-    public final @Nullable List<?> history;
-    public final @Nullable Integer fetchedRecords;
-    public final @Nullable Integer maxRecords;
-    public final long minutesToRun;
+    public @Nullable Map<String, ?> offset;
+    public @Nullable List<?> history;
+    public @Nullable Integer fetchedRecords;
+    public @Nullable Integer maxRecords;
+    public long minutesToRun;
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
@@ -320,13 +329,11 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
           "-------------- Time running: {} / {}",
           elapsedTime,
           (this.restriction.minutesToRun * MILLIS));
-      this.restriction =
-          new OffsetHolder(
-              position,
-              this.restriction.history,
-              fetchedRecords,
-              this.restriction.maxRecords,
-              this.restriction.minutesToRun);
+
+      // Restrictions used to be immutable objects, but due to BEAM-14387, we need to make it
+      // mutable, and work with a single object over time.
+      this.restriction.offset = position;
+      this.restriction.fetchedRecords = fetchedRecords;
       LOG.debug("-------------- History: {}", this.restriction.history);
 
       if (this.restriction.maxRecords == null && this.restriction.minutesToRun == -1) {
@@ -356,7 +363,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
     @Override
     public IsBounded isBounded() {
-      return IsBounded.BOUNDED;
+      return IsBounded.UNBOUNDED;
     }
   }
 
