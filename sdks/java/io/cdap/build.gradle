@@ -44,6 +44,7 @@ allprojects {
 }
 
 dependencies {
+    implementation library.java.avro
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
     implementation (library.java.cdap_common) {
