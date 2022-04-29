@@ -99,7 +99,9 @@ export class PortableRunner extends Runner {
   client: JobServiceClient;
   defaultOptions: any;
 
-  constructor(options: string | { jobEndpoint: string }) {
+  constructor(
+    options: string | { jobEndpoint: string; [others: string]: any }
+  ) {
     super();
     if (typeof options == "string") {
       this.defaultOptions = { jobEndpoint: options };

@@ -104,7 +104,6 @@ export class SubprocessService {
       }
     }
     if (!connected) {
-      this.process.kill();
       throw new Error(
         "Timed out waiting for service after " + timeoutMs + "ms."
       );
@@ -184,9 +183,9 @@ export class JavaJarService extends SubprocessService {
       // node-ts 0.x corresponds to Beam 2.x.
       version = "2" + version.substring(1);
     }
-    version = "2.36.0";
     const gradlePackage = gradleTarget.match(/^:?(.*):[^:]+:?$/)![1];
     const artifactId = "beam-" + gradlePackage.replaceAll(":", "-");
+    // TODO: Do this more robustly, e.g. use the git root.
     const projectRoot = path.resolve(
       __dirname,
       "..",

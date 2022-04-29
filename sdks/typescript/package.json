@@ -1,6 +1,6 @@
 {
   "name": "apache_beam",
-  "version": "0.37.0.dev",
+  "version": "0.38.0",
   "devDependencies": {
     "@types/mocha": "^9.0.0",
     "codecov": "^3.8.3",

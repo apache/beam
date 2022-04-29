@@ -40,7 +40,9 @@ export const max: CombineFn<any, any, any> = {
   createAccumulator: () => undefined,
   addInput: (acc: any, i: any) => (acc === undefined || acc < i ? i : acc),
   mergeAccumulators: (accumulators: any[]) =>
-    accumulators.reduce((a, b) => (a > b ? a : b)),
+    accumulators
+      .filter((x) => x !== undefined)
+      .reduce((a, b) => (a > b ? a : b), undefined),
   extractOutput: (acc: any) => acc,
 };
 
@@ -48,7 +50,9 @@ export const min: CombineFn<any, any, any> = {
   createAccumulator: () => undefined,
   addInput: (acc: any, i: any) => (acc === undefined || acc > i ? i : acc),
   mergeAccumulators: (accumulators: any[]) =>
-    accumulators.reduce((a, b) => (a < b ? a : b)),
+    accumulators
+      .filter((x) => x !== undefined)
+      .reduce((a, b) => (a < b ? a : b), undefined),
   extractOutput: (acc: any) => acc,
 };
 
