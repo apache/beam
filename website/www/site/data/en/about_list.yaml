@@ -40,3 +40,6 @@
 - title: Flexibility
   body: Apache Beam is easy to adopt and implement because it abstracts you from low-level details and provides freedom of choice between programming languages.<br/><br/> The Apache Beam data pipelines are expressed with generic transforms, thus they are understandable and maintainable, which helps accelerate Apache Beam adoption and onboarding of new team members.<br/><br/> Apache Beam users report that they experience impressive time-to-value. Most notably, they noted a reduction in the time needed to develop and deploy a pipeline, going down from several days to just a few hours.
   icon: icons/about/flexibility_icon.svg
+- title: Ease of Adoption
+  body: Apache Beam is easy to adopt and implement because it abstracts you from low-level details and provides freedom of choice between programming languages.<br/><br/> The Apache Beam data pipelines are expressed with generic transforms, thus they are understandable and maintainable, which helps accelerate Apache Beam adoption and onboarding of new team members. Apache Beam users report that they experience impressive time-to-value.<br/><br/> Most notably, they noted a reduction in the time needed to develop and deploy a pipeline, going down from several days to just a few hours.
+  icon: icons/about/adoption_icon.svg
