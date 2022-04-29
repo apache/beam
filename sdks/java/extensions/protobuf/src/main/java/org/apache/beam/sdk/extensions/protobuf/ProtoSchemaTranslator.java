@@ -164,11 +164,7 @@ class ProtoSchemaTranslator {
     return getSchema(ProtobufUtil.getDescriptorForClass(clazz));
   }
 
-  /**
-   * Return a Beam schema representing a proto class. Not safe to be used in a multi-thread context
-   * due to the use of a static HashMap.
-   */
-  static Schema getSchema(Descriptors.Descriptor descriptor) {
+  static synchronized Schema getSchema(Descriptors.Descriptor descriptor) {
     if (alreadyVisitedSchemas.containsKey(descriptor)) {
       Schema existingSchema = alreadyVisitedSchemas.get(descriptor);
       if (existingSchema == null) {

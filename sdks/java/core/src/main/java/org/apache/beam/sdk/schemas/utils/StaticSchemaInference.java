@@ -95,7 +95,7 @@ public class StaticSchemaInference {
   private static Schema schemaFromClass(
       Class<?> clazz,
       FieldValueTypeSupplier fieldValueTypeSupplier,
-      HashMap<Class, Schema> alreadyVisitedSchemas) {
+      Map<Class, Schema> alreadyVisitedSchemas) {
     if (alreadyVisitedSchemas.containsKey(clazz)) {
       Schema existingSchema = alreadyVisitedSchemas.get(clazz);
       if (existingSchema == null) {
@@ -115,9 +115,8 @@ public class StaticSchemaInference {
         builder.addField(type.getName(), fieldType);
       }
     }
-    alreadyVisitedSchemas.remove(clazz);
     Schema generatedSchema = builder.build();
-    alreadyVisitedSchemas.put(clazz, generatedSchema);
+    alreadyVisitedSchemas.replace(clazz, generatedSchema);
     return generatedSchema;
   }
 
@@ -130,7 +129,7 @@ public class StaticSchemaInference {
   private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,
-      HashMap<Class, Schema> alreadyVisitedSchemas) {
+      Map<Class, Schema> alreadyVisitedSchemas) {
     FieldType primitiveType = PRIMITIVE_TYPES.get(type.getRawType());
     if (primitiveType != null) {
       return primitiveType;
