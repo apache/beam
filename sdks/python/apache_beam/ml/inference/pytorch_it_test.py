@@ -23,6 +23,7 @@ import logging
 import os
 import shutil
 import tempfile
+import pytest
 import unittest
 import uuid
 from typing import List
@@ -50,6 +51,7 @@ class PyTorchInference(unittest.TestCase):
         f.write(content + '\n')
       return f.name
 
+  @pytest.mark.it_postcommit
   def test_predictions_output_file(self):
     requirements_cache_dir = self.make_temp_dir()
     requirements_file = self.create_temp_file(
