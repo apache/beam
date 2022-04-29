@@ -1554,8 +1554,12 @@ def bigqueryio_deadletter():
           write_disposition='WRITE_APPEND'))
   result = (
       errors['FailedRows']
-      | 'PrintErrors' >>
-      beam.FlatMap(lambda err: print("Error Found {}".format(err))))
+      | 'PrintErrors' >> beam.FlatMap(
+          lambda err: print({
+              "table": err[0],
+              "reason": json.dumps(err[2]),
+              "row_json": json.dumps(err[1]),
+          })))
   # [END BigQueryIODeadLetter]
 
   return result

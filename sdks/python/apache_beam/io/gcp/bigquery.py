@@ -1748,7 +1748,8 @@ class BigQueryWriteFn(DoFn):
           ignore_unknown_values=self.ignore_unknown_columns)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
-      failed_rows = [(rows[entry['index']], entry["errors"]) for entry in errors]
+      failed_rows = [(rows[entry['index']], entry["errors"])
+                     for entry in errors]
       should_retry = any(
           RetryStrategy.should_retry(
               self._retry_strategy, entry['errors'][0]['reason'])
@@ -1781,7 +1782,8 @@ class BigQueryWriteFn(DoFn):
         pvalue.TaggedOutput(
             BigQueryWriteFn.FAILED_ROWS,
             GlobalWindows.windowed_value((destination, row, row_errors)))
-        for row, row_errors in failed_rows
+        for row,
+        row_errors in failed_rows
     ]
 
 
