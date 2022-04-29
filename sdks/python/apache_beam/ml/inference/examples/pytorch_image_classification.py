@@ -73,7 +73,7 @@ class PostProcessor(beam.DoFn):
 
 def setup_pipeline(options: PipelineOptions, args=None):
   """Sets up dataflow pipeline based on specified arguments"""
-  model_class = torchvision.models.vgg16
+  model_class = torchvision.models.mobilenet_v2
   model_params = {'pretrained': False}
   model_loader = PytorchModelLoader(
       state_dict_path=args.model_path,
