@@ -82,6 +82,7 @@ class PytorchModelLoader(ModelLoader):
     :param device: the device on which you wish to run the model. If
     ``device = GPU`` then device will be cuda if it is available. Otherwise,
     it will be cpu.
+
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
     """
