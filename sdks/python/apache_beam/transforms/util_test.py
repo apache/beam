@@ -232,10 +232,15 @@ class BatchElementsTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create([1, 1, 10, 6, 5, 1, 7, 1, 1], reshuffle=False)
+          | beam.Create([
+              'a', 'a', 'aaaaaaaaaa',  # First batch.
+              'aaaaaa', 'aaaaa',       # Second batch.
+              'a', 'aaaaaaa', 'a', 'a' # Third batch.
+              ], reshuffle=False)
           | util.BatchElements(
-              min_batch_size=10, max_batch_size=10, element_size_fn=lambda x: x)
-          | beam.Map(sum))
+              min_batch_size=10, max_batch_size=10, element_size_fn=len)
+          | beam.Map(lambda batch: ''.join(batch))
+          | beam.Map(len))
       assert_that(res, equal_to([12, 11, 10]))
 
   def test_target_duration(self):
