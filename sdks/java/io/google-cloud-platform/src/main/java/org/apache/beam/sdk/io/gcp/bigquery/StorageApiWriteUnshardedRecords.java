@@ -91,8 +91,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 @Nullable final List<StreamAppendClient> streamAppendClients = removal.getValue();
                 streamAppendClients.forEach(
                     (StreamAppendClient client) -> {
-                      // Unpin in a different thread, as it may execute a blocking close.
-                      runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
                       // Close the writer in a different thread so as not to block the main one.
                       runAsyncIgnoreFailure(closeWriterExecutor, client::close);
                     });
@@ -224,23 +222,25 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         try {
           if (streamAppendClient == null) {
             createStreamIfNeeded();
-            if (lookupCache) {
-              this.streamAppendClient =
-                  APPEND_CLIENTS
-                          .get(streamName, () -> generateClients())
-                          .get(clientNumber);
-            } else {
-              // TODO (rpablo): this dance may make connections 
-              // go over quota for a short period of time, need to check
-              
-              // override the clients in the cache
-              APPEND_CLIENTS.put(streamName, generateClients());
-              this.streamAppendClient =
+            synchronized (APPEND_CLIENTS) {
+              if (lookupCache) {
+                this.streamAppendClient =
                     APPEND_CLIENTS
-                          .get(streamName, () -> generateClients())
-                          .get(clientNumber);                
+                            .get(streamName, () -> generateClients())
+                            .get(clientNumber);
+              } else {
+                // TODO (rpablo): this dance may make connections 
+                // go over quota for a short period of time, need to check
+
+                // override the clients in the cache
+                APPEND_CLIENTS.put(streamName, generateClients());
+                this.streamAppendClient =
+                      APPEND_CLIENTS
+                            .get(streamName, () -> generateClients())
+                            .get(clientNumber);                
+              }
+              this.streamAppendClient.pin();
             }
-            this.streamAppendClient.pin();
             this.currentOffset = 0;
             nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
           }
@@ -259,21 +259,27 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       void invalidateWriteStream() {
         if (streamAppendClient != null) {
-          // The default stream is cached across multiple different DoFns. If they all try and
-          // invalidate, then we can
-          // get races between threads invalidating and recreating streams. For this reason, we
-          // check to see that the
-          // cache still contains the object we created before invalidating (in case another
-          // thread has already invalidated
-          // and recreated the stream).
-          @Nullable
-          List<StreamAppendClient> cachedAppendClients = APPEND_CLIENTS.getIfPresent(streamName);
-          if (cachedAppendClients != null
-              && System.identityHashCode(cachedAppendClients.get(clientNumber))
-                  == System.identityHashCode(streamAppendClient)) {
-            APPEND_CLIENTS.invalidate(streamName);
+          synchronized (APPEND_CLIENTS) {
+            // Unpin in a different thread, as it may execute a blocking close.
+            runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
+            // The default stream is cached across multiple different DoFns. If they all try and
+            // invalidate, then we can
+            // get races between threads invalidating and recreating streams. For this reason, we
+            // check to see that the
+            // cache still contains the object we created before invalidating (in case another
+            // thread has already invalidated
+            // and recreated the stream).
+            @Nullable
+            List<StreamAppendClient> cachedAppendClients = APPEND_CLIENTS.getIfPresent(streamName);
+            if (cachedAppendClients != null
+                && System.identityHashCode(cachedAppendClients.get(clientNumber))
+                    == System.identityHashCode(streamAppendClient)) {
+              APPEND_CLIENTS.invalidate(streamName);
+            }
           }
           streamAppendClient = null;
+        } else if (useDefaultStream) {
+          APPEND_CLIENTS.invalidate(getDefaultStreamName());
         }
       }
       
