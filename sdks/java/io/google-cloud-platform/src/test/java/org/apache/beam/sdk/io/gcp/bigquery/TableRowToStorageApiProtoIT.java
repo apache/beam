@@ -85,10 +85,16 @@ public class TableRowToStorageApiProtoIT {
                   .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue"))
                   .add(
                       new TableFieldSchema()
-                          .setType("STRING")
+                          .setType("BYTES")
                           .setMode("REPEATED")
                           .setName("arrayValue"))
                   .build());
+
+  private static final List<Object> REPEATED_BYTES =
+      ImmutableList.of(
+          BaseEncoding.base64().encode("hello".getBytes(StandardCharsets.UTF_8)),
+          "goodbye".getBytes(StandardCharsets.UTF_8),
+          "solong".getBytes(StandardCharsets.UTF_8));
 
   private static final TableRow BASE_TABLE_ROW =
       new TableRow()
@@ -107,9 +113,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set(
-              "arrayValue",
-              Arrays.asList("hello", "goodbye", null)); // null in arrayValue should be removed
+          .set("arrayValue", REPEATED_BYTES);
 
   private static final TableRow BASE_TABLE_ROW_JODA_TIME =
       new TableRow()
@@ -127,7 +131,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", org.joda.time.LocalDate.parse("2019-08-16"))
           .set("numericValue", new BigDecimal("23.4"))
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES);
 
   private static final TableRow BASE_TABLE_ROW_JAVA_TIME =
       new TableRow()
@@ -145,7 +149,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", LocalDate.parse("2019-08-16"))
           .set("numericValue", new BigDecimal("23.4"))
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", Arrays.asList("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES);
 
   private static final TableRow BASE_TABLE_ROW_NUM_TIME =
       new TableRow()
@@ -163,7 +167,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", 18124)
           .set("numericValue", new BigDecimal("23.4"))
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES);
 
   private static final TableRow BASE_TABLE_ROW_FLOATS =
       new TableRow()
@@ -181,7 +185,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", 18124)
           .set("numericValue", 23.4)
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES);
 
   private static final TableRow BASE_TABLE_ROW_NULL =
       new TableRow()
@@ -200,6 +204,12 @@ public class TableRowToStorageApiProtoIT {
           .set("numericValue", null)
           .set("arrayValue", null);
 
+  private static final List<Object> REPEATED_BYTES_EXPECTED =
+      ImmutableList.of(
+          BaseEncoding.base64().encode("hello".getBytes(StandardCharsets.UTF_8)),
+          BaseEncoding.base64().encode("goodbye".getBytes(StandardCharsets.UTF_8)),
+          BaseEncoding.base64().encode("solong".getBytes(StandardCharsets.UTF_8)));
+
   private static final TableRow BASE_TABLE_ROW_EXPECTED =
       new TableRow()
           .set("stringValue", "string")
@@ -217,7 +227,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES_EXPECTED);
 
   // joda is up to millisecond precision, expect truncation
   private static final TableRow BASE_TABLE_ROW_JODA_EXPECTED =
@@ -237,7 +247,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES_EXPECTED);
 
   private static final TableRow BASE_TABLE_ROW_NUM_EXPECTED =
       new TableRow()
@@ -256,7 +266,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES_EXPECTED);
 
   private static final TableRow BASE_TABLE_ROW_FLOATS_EXPECTED =
       new TableRow()
@@ -275,7 +285,7 @@ public class TableRowToStorageApiProtoIT {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "23334.4")
-          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
+          .set("arrayValue", REPEATED_BYTES_EXPECTED);
 
   // only nonnull values are returned, null in arrayValue should be converted to empty list
   private static final TableRow BASE_TABLE_ROW_NULL_EXPECTED =
