@@ -63,10 +63,6 @@ job('beam_SeedJob_Standalone') {
         'sha1',
         'master',
         'Commit id or refname (eg: origin/pr/4001/head) you want to build against.')
-    stringParam(
-        'ghprbPullId',
-        '',
-        'Pull Request ID (eg: 4001) that you want to build against.')
   }
 
   wrappers {
