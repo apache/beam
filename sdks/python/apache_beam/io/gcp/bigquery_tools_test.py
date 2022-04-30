@@ -223,11 +223,10 @@ class TestBigQueryWrapper(unittest.TestCase):
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('google.cloud._http.JSONConnection.http')
   def test_user_agent_insert_all(self, http_mock, patched_sleep):
-    response = {'insertErrors': []}
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
     try:
       wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
-    except:
+    except:  # pylint: disable=bare-except
       # Ignore errors
       pass
     call = http_mock.request.mock_calls[-2]
@@ -262,7 +261,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper.client._http.request = request_mock
     try:
       wrapper.create_temporary_dataset('project_id', 'location')
-    except:
+    except:  # pylint: disable=bare-except
       # Ignore errors
       pass
     call = request_mock.mock_calls[-1]

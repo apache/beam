@@ -428,7 +428,7 @@ class TestGCSIO(unittest.TestCase):
     client = gcsio.GcsIO()
     try:
       client.get_bucket('mabucket')
-    except:
+    except:  # pylint: disable=bare-except
       pass
     call = get_new_http_mock.return_value.request.mock_calls[-2]
     self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
