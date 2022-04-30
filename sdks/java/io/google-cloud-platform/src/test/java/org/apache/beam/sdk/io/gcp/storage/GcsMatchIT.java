@@ -71,7 +71,7 @@ public class GcsMatchIT {
           new Thread(
               () -> {
                 try {
-                  // Copy the files to the "watch" directory;
+                  // Write test files to writePath
                   Thread.sleep(waitSec * 1000);
                   writeBytesToFile(writePath.resolve("first").toString(), 42);
                   Thread.sleep(1000);
