@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -162,8 +161,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private final boolean useDefaultStream;
       private DescriptorWrapper descriptorWrapper;
       private Instant nextCacheTickle;
-      //TODO(rpablo): add a options configuration to expose this knob
-      private Integer clientNumber = new Random().nextInt(streamAppendClientCount);
+      private final Integer clientNumber = new Random().nextInt(streamAppendClientCount);
 
       public DestinationState(
           String tableUrn,
@@ -178,9 +176,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
       }
 
-      public 
-      
-      void teardown() {
+      public void teardown() {
         maybeTickleCache();
         if (streamAppendClient != null) {
           runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
