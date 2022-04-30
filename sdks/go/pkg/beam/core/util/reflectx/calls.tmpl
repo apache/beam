@@ -31,7 +31,7 @@ import (
 // also allows more specific intermediate interfaces, such as Func2xbool, to be added
 // later.
 
-{{range $in := upto 10}}
+{{range $in := upto 9}}
 {{range $out := upto 5}}
 type Func{{$in}}x{{$out}} interface {
     Func
