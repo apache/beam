@@ -176,7 +176,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
       }
 
-      public void teardown() {
+      void teardown() {
         maybeTickleCache();
         if (streamAppendClient != null) {
           runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::unpin);
