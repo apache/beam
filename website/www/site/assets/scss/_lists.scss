@@ -146,10 +146,10 @@
      .list-item-icon--about {
        width: 96px;
        @media (max-width: $mobile) {
-         width: 44px;
+         width: 64px;
          svg {
-           width: 44px;
-           height: 44px;
+           width: 64px;
+           height: 64px;
          }
        }
      }

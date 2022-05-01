@@ -15,6 +15,20 @@
  *  limitations under the License.
  */
 
+.about-graph-container
+  display: flex
+  justify-content: center
+
+  .about-graph-img-desktop
+    display: block
+    @media (max-width: $ak-breakpoint-md)
+      display: none
+
+  .about-graph-img-mobile
+    display: none
+    @media (max-width: $ak-breakpoint-md)
+      display: block
+
 .about-cards-container
 
   .about-card-container
