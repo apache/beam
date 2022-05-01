@@ -79,6 +79,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
+  // The Guava cache object is threadsafe. However our protocol requires that client pin the
+  // StreamAppendClient
+  // after looking up the cache, and we must ensure that the cache is not accessed in between the
+  // lookup and the pin
+  // (any access of the cache could trigger element expiration). Therefore most uses of the
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
           .expireAfterAccess(15, TimeUnit.MINUTES)
@@ -121,10 +126,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   @Override
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
     return input
         .apply(
             "Write Records",
-            ParDo.of(new WriteRecordsDoFn<>(operationName, dynamicDestinations, bqServices, false))
+            ParDo.of(
+                    new WriteRecordsDoFn<>(
+                        operationName,
+                        dynamicDestinations,
+                        bqServices,
+                        false,
+                        options.getStorageApiAppendThresholdBytes()))
                 .withSideInputs(dynamicDestinations.getSideInputs()))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         // Calling Reshuffle makes the output stable - once this completes, the append operations
@@ -344,8 +356,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
     private static final int FLUSH_THRESHOLD_RECORDS = 150000;
-    //   private static final int FLUSH_THRESHOLD_RECORDS = 100;
-    private static final int FLUSH_THRESHOLD_RECORD_BYTES = 2 * 1024 * 1024;
+    private final int flushThresholdBytes;
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
@@ -354,16 +365,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         String operationName,
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
-        boolean useDefaultStream) {
+        boolean useDefaultStream,
+        int flushThresholdBytes) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
       this.useDefaultStream = useDefaultStream;
+      this.flushThresholdBytes = flushThresholdBytes;
     }
 
     boolean shouldFlush() {
       return numPendingRecords > FLUSH_THRESHOLD_RECORDS
-          || numPendingRecordBytes > FLUSH_THRESHOLD_RECORD_BYTES;
+          || numPendingRecordBytes > flushThresholdBytes;
     }
 
     void flushIfNecessary() throws Exception {
