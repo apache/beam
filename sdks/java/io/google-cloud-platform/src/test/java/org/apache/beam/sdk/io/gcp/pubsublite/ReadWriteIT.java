@@ -227,7 +227,6 @@ public class ReadWriteIT {
   }
 
   @Test
-  @Ignore("BEAM-14253")
   public void testReadWrite() throws Exception {
     pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
