@@ -127,7 +127,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * </ul>
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 class ProtoSchemaTranslator {
@@ -148,6 +147,9 @@ class ProtoSchemaTranslator {
   private static Map<Descriptors.Descriptor, Schema> alreadyVisitedSchemas =
       new HashMap<Descriptors.Descriptor, Schema>();
 
+  /** Empty schema to use as placeholder in alreadyVisitedSchemas map. */
+  private static final Schema EMPTY_SCHEMA = Schema.builder().build();
+
   /** Attach a proto field number to a type. */
   static Field withFieldNumber(Field field, int number) {
     return field.withOptions(
@@ -167,14 +169,14 @@ class ProtoSchemaTranslator {
   static synchronized Schema getSchema(Descriptors.Descriptor descriptor) {
     if (alreadyVisitedSchemas.containsKey(descriptor)) {
       Schema existingSchema = alreadyVisitedSchemas.get(descriptor);
-      if (existingSchema == null) {
+      if (existingSchema.equals(EMPTY_SCHEMA)) {
         throw new IllegalArgumentException(
             "Cannot infer schema with a circular reference. Proto Field: "
                 + descriptor.getFullName());
       }
       return existingSchema;
     }
-    alreadyVisitedSchemas.put(descriptor, null);
+    alreadyVisitedSchemas.put(descriptor, EMPTY_SCHEMA);
     /* OneOfComponentFields refers to the field number in the protobuf where the component subfields
      * are. This is needed to prevent double inclusion of the component fields.*/
     Set<Integer> oneOfComponentFields = Sets.newHashSet();
