@@ -673,8 +673,8 @@ class InteractiveEnvironment(object):
        all jQuery plugins are set.
     """
     try:
-      from IPython.core.display import Javascript
-      from IPython.core.display import display_javascript
+      from IPython.display import Javascript
+      from IPython.display import display_javascript
       display_javascript(
           Javascript(
               _JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='')))
@@ -695,8 +695,8 @@ class InteractiveEnvironment(object):
     especially the output areas of notebook cells.
     """
     try:
-      from IPython.core.display import Javascript
-      from IPython.core.display import display_javascript
+      from IPython.display import Javascript
+      from IPython.display import display_javascript
       display_javascript(
           Javascript(_HTML_IMPORT_TEMPLATE.format(hrefs=html_hrefs)))
     except ImportError:
