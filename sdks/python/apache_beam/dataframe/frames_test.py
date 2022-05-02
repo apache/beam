@@ -1592,6 +1592,240 @@ class DeferredFrameTest(_AbstractFrameTest):
           df,
           lenient_dtype_check=True)
 
+  def test_pivot_table_pandas_example1(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(
+        lambda df: df.pivot_table(
+            values='D', index=['A', 'B'], columns=['C'], aggfunc=np.sum),
+        df)
+
+  def test_pivot_table_pandas_example2(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(
+        lambda df: df.pivot_table(
+            values='D',
+            index=['A', 'B'],
+            columns=['C'],
+            aggfunc=np.sum,
+            fill_value=0),
+        df)
+
+  def test_pivot_table_pandas_example3(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(
+        lambda df: df.pivot_table(
+            values=['D', 'E'],
+            index=['A', 'C'],
+            aggfunc={
+                'D': np.mean, 'E': np.mean
+            }),
+        df)
+
+  def test_pivot_table_pandas_example4(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(
+        lambda df: df.pivot_table(
+            values=['D', 'E'],
+            index=['A', 'C'],
+            aggfunc={
+                'D': np.mean, 'E': [min, max, np.mean]
+            }),
+        df,
+        # Since there are different agg functions, we infer float64 based on
+        # the mean function
+        lenient_dtype_check=True)
+
+  def test_pivot_table_margin_true(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(
+        lambda df: df.pivot_table(
+            values=['D', 'E'],
+            index=['A', 'C'],
+            aggfunc={
+                'D': np.mean, 'E': [min, max, np.mean]
+            },
+            margins=True),
+        df)
+
+  def test_pivot_table_no_index_provided(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(
+        lambda df: df.pivot_table(
+            values=['D', 'E'], columns=['C'], aggfunc=np.sum),
+        df)
+
+  def test_pivot_table_no_values_provided(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(lambda df: df.pivot_table(columns=['C'], aggfunc=np.sum), df)
+
+  def test_pivot_table_no_index_no_column_provided(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    with self.assertRaisesRegex(ValueError, 'No group keys passed!'):
+      self._run_test(
+          lambda df: df.pivot_table(values=['D', 'E'], aggfunc=np.sum), df)
+
+  def test_pivot_table_non_categorical(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"pivot_table\(\) of non-categorical type is not supported"):
+      self._run_test(
+          lambda df: df.pivot_table(
+              values='D', index=['A', 'B'], columns=['C'], aggfunc=np.sum),
+          df)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
@@ -2522,187 +2756,6 @@ class BeamSpecificTest(unittest.TestCase):
     self.assert_frame_data_equivalent(
         result['baz'].apply(pd.to_numeric),
         df.pivot(index='foo', columns='bar')['baz'])
-  def test_pivot_table_pandas_example1(self):
-    df = pd.DataFrame({
-        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
-        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
-        "C": [
-            "small",
-            "large",
-            "large",
-            "small",
-            "small",
-            "large",
-            "small",
-            "small",
-            "large"
-        ],
-        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
-    })
-    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
-    result = self._evaluate(
-        lambda df: pd.pivot_table(
-            df, values='D', index=['A', 'B'], columns=['C'], aggfunc=np.sum),
-        df)
-    self.assert_frame_data_equivalent(
-        result,
-        pd.pivot_table(
-            df, values='D', index=['A', 'B'], columns=['C'], aggfunc=np.sum))
-
-  def test_pivot_table_pandas_example2(self):
-    df = pd.DataFrame({
-        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
-        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
-        "C": [
-            "small",
-            "large",
-            "large",
-            "small",
-            "small",
-            "large",
-            "small",
-            "small",
-            "large"
-        ],
-        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
-    })
-    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
-    result = self._evaluate(
-        lambda df: pd.pivot_table(
-            df,
-            values='D',
-            index=['A', 'B'],
-            columns=['C'],
-            aggfunc=np.sum,
-            fill_value=0),
-        df)
-    self.assert_frame_data_equivalent(
-        result,
-        pd.pivot_table(
-            df,
-            values='D',
-            index=['A', 'B'],
-            columns=['C'],
-            aggfunc=np.sum,
-            fill_value=0))
-
-  def test_pivot_table_pandas_example3(self):
-    df = pd.DataFrame({
-        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
-        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
-        "C": [
-            "small",
-            "large",
-            "large",
-            "small",
-            "small",
-            "large",
-            "small",
-            "small",
-            "large"
-        ],
-        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
-    })
-    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
-    result = self._evaluate(
-        lambda df: pd.pivot_table(
-            df,
-            values=['D', 'E'],
-            index=['A', 'C'],
-            aggfunc={
-                'D': np.mean, 'E': np.mean
-            }),
-        df)
-    self.assert_frame_data_equivalent(
-        result,
-        pd.pivot_table(
-            df,
-            values=['D', 'E'],
-            index=['A', 'C'],
-            aggfunc={
-                'D': np.mean, 'E': np.mean
-            }))
-
-  def test_pivot_table_pandas_example4(self):
-    df = pd.DataFrame({
-        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
-        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
-        "C": [
-            "small",
-            "large",
-            "large",
-            "small",
-            "small",
-            "large",
-            "small",
-            "small",
-            "large"
-        ],
-        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
-    })
-    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
-    result = self._evaluate(
-        lambda df: pd.pivot_table(
-            df,
-            values=['D', 'E'],
-            index=['A', 'C'],
-            aggfunc={
-                'D': np.mean, 'E': [min, max, np.mean]
-            }),
-        df)
-    self.assert_frame_data_equivalent(
-        result,
-        pd.pivot_table(
-            df,
-            values=['D', 'E'],
-            index=['A', 'C'],
-            aggfunc={
-                'D': np.mean, 'E': [min, max, np.mean]
-            }))
-
-  def test_pivot_table_margin_true(self):
-    df = pd.DataFrame({
-        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
-        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
-        "C": [
-            "small",
-            "large",
-            "large",
-            "small",
-            "small",
-            "large",
-            "small",
-            "small",
-            "large"
-        ],
-        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
-    })
-    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
-    result = self._evaluate(
-        lambda df: pd.pivot_table(
-            df,
-            values=['D', 'E'],
-            index=['A', 'C'],
-            aggfunc={
-                'D': np.mean, 'E': [min, max, np.mean]
-            },
-            margins=True),
-        df)
-    self.assert_frame_data_equivalent(
-        result,
-        pd.pivot_table(
-            df,
-            values=['D', 'E'],
-            index=['A', 'C'],
-            aggfunc={
-                'D': np.mean, 'E': [min, max, np.mean]
-            },
-            margins=True))
 
   def test_sample(self):
     df = pd.DataFrame({

@@ -3750,7 +3750,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         tmp = tmp.drop(index, axis=1)
       if columns:
         tmp = tmp.drop(columns, axis=1)
-      values = tmp.columns.values
+      values = tmp.columns.to_list()
 
     # Construct column index
     if is_list_like(columns) and len(columns) <= 1:
@@ -3783,7 +3783,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       verify_all_categorical(all_cols_are_categorical)
 
       if is_list_like(values) and len(values) > 1:
-        # If more than one value provided, don't create a None level
+        # If more than one value provided, create a None level
         values_in_col_index = values
         names = [None, *columns]
         categories = [
@@ -3866,38 +3866,118 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
-  def pivot_table(self, **kwargs):
+  def pivot_table(self, values=None, index=None, columns=None, **kwargs):
+    """Because pivot_table is a non-deferred method, any columns specified in
+    ``columns`` must be CategoricalDType so we can determine the output column
+    names."""
 
-    columns = kwargs.get('columns', None)
-    selected_cols = self._expr.proxy()[columns]
+    def verify_all_categorical(all_cols_are_categorical):
+      if not all_cols_are_categorical:
+        message = "pivot_table() of non-categorical type is not supported " \
+            "because the type of the output column depends on the data." \
+            "Please use pd.CategoricalDtype with explicit categories."
+        raise frame_base.WontImplementError(
+          message, reason="non-deferred-columns")
 
+    # Construct column index
+    if not columns:
+      col_index = pd.Index(values)
+    elif is_list_like(columns) and len(columns) <= 1:
+      columns = columns[0]
+    selected_cols = self._expr.proxy()[columns] if columns else None
     if isinstance(selected_cols, pd.Series):
       all_cols_are_categorical = isinstance(
         selected_cols.dtype, pd.CategoricalDtype
       )
-    else:
+      verify_all_categorical(all_cols_are_categorical)
+    elif isinstance(selected_cols, pd.DataFrame):
       all_cols_are_categorical = all(
         isinstance(c, pd.CategoricalDtype) for c in selected_cols.dtypes
       )
-    if not all_cols_are_categorical:
-      raise frame_base.WontImplementError(
-          "pivot_table() of non-categorical type is not supported because "
-          "the type of the output column depends on the data. Please use "
-          "pd.CategoricalDtype with explicit categories.",
-          reason="non-deferred-columns")
+      verify_all_categorical(all_cols_are_categorical)
+    # Call pivot_table on current proxy to get new proxy's col_index
+    if not columns:
+      extended_proxy = pd.concat([self._expr.proxy(),
+        pd.DataFrame(
+          [[0]*len(self._expr.proxy().columns)],
+          columns=self._expr.proxy().columns
+        )
+      ])
+      tmp_pivot = extended_proxy.pivot_table(
+        values=values,index=index,columns=columns, **kwargs)
+    else:
+      tmp_pivot = self._expr.proxy().pivot_table(
+        values=values,index=index,columns=columns, **kwargs)
+    if isinstance(tmp_pivot.columns, pd.CategoricalIndex):
+      col_index = pd.CategoricalIndex(
+        data = tmp_pivot.columns.categories.to_list(),
+        categories = tmp_pivot.columns.categories.to_list(),
+        name = tmp_pivot.columns.name)
+    elif isinstance(tmp_pivot.columns, pd.Index):
+      col_index = tmp_pivot.columns
+
+    # Get values
+    numerics = ['int16', 'int32', 'int64', 'float32', 'float64']
+    if not values:
+      tmp = self._expr.proxy()
+      if index:
+        tmp = tmp.drop(index, axis=1)
+      if columns:
+        tmp = tmp.drop(columns, axis=1)
+      numeric_values = tmp.select_dtypes(numerics).columns.to_list()
+      selected_values = self._expr.proxy()[numeric_values]
+    else:
+      numeric_values = self._expr.proxy().select_dtypes(numerics) \
+        .columns.to_list()
+      selected_values = self._expr.proxy()[values]
+
+    # Get dtype from values
+    if isinstance(selected_values, pd.Series):
+      value_dtype = selected_values.dtype
+    elif isinstance(selected_values, pd.DataFrame):
+      dtypes = [d for d in selected_values.dtypes]
+      value_dtype = object
+      if any((is_int64_dtype(x) for x in dtypes)):
+        value_dtype = np.int64
+      aggfunc = kwargs.get('aggfunc', None)
+      if isinstance(aggfunc, dict):
+        aggfunc_values = aggfunc.values()
+      else:
+        aggfunc_values = [aggfunc] if not is_list_like(aggfunc) else aggfunc
+      if (
+        any((is_float_dtype(x) for x in dtypes)) or
+        (np.mean in aggfunc_values)
+      ):
+        value_dtype = np.float64
+      if object in dtypes:
+        value_dtype = object
+
+    # Construct row index
+    if index:
+      per_partition = expressions.ComputedExpression(
+          'pivot-per-partition',
+          lambda df: df.set_index(keys=index), [self._expr],
+          preserves_partition_by=partitionings.Singleton(),
+          requires_partition_by=partitionings.Arbitrary()
+      )
+      row_index = per_partition.proxy().index
+    else:
+      per_partition = self._expr
+      row_index = self._expr.proxy().index
 
     proxy = pd.DataFrame(
-      columns=self._expr.proxy().pivot_table(**kwargs).columns
+      columns=col_index, dtype=value_dtype, index=row_index
     )
 
-    with expressions.allow_non_parallel_operations():
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'pivot_table',
-              lambda df: pd.concat([proxy, df.pivot_table(**kwargs)]),
-              [self._expr],
-              proxy=proxy,
-              requires_partition_by=partitionings.Singleton()))
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'pivot_table',
+            lambda df: df.pivot_table(
+              index=index, columns=columns, values=values, **kwargs),
+            [per_partition],
+            proxy=proxy,
+            preserves_partition_by=partitionings.Index(),
+            requires_partition_by=partitionings.Index()))
 
   sum = _agg_method(pd.DataFrame, 'sum')
   mean = _agg_method(pd.DataFrame, 'mean')
