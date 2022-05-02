@@ -221,6 +221,20 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertTrue(client.datasets.Delete.called)
 
   @mock.patch('time.sleep', return_value=None)
+  @mock.patch('google.cloud._http.JSONConnection.http')
+  def test_user_agent_insert_all(self, http_mock, patched_sleep):
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+    try:
+      wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
+    except:  # pylint: disable=bare-except
+      # Ignore errors. The errors come from the fact that we did not mock
+      # the response from the API, so the overall insert_all_rows call fails
+      # soon after the BQ API is called.
+      pass
+    call = http_mock.request.mock_calls[-2]
+    self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
+
+  @mock.patch('time.sleep', return_value=None)
   def test_delete_table_retries_for_timeouts(self, patched_time_sleep):
     client = mock.Mock()
     client.tables.Delete.side_effect = [
@@ -241,6 +255,21 @@ class TestBigQueryWrapper(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       wrapper.create_temporary_dataset('project_id', 'location')
     self.assertTrue(client.datasets.Get.called)
+
+  @mock.patch('time.sleep', return_value=None)
+  def test_user_agent_passed(self, sleep_mock):
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+    request_mock = mock.Mock()
+    wrapper.client._http.request = request_mock
+    try:
+      wrapper.create_temporary_dataset('project_id', 'location')
+    except:  # pylint: disable=bare-except
+      # Ignore errors. The errors come from the fact that we did not mock
+      # the response from the API, so the overall create_dataset call fails
+      # soon after the BQ API is called.
+      pass
+    call = request_mock.mock_calls[-1]
+    self.assertIn('apache-beam-', call[2]['headers']['user-agent'])
 
   def test_get_or_create_dataset_created(self):
     client = mock.Mock()
