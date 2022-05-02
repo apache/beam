@@ -28,6 +28,7 @@ import java.io.ObjectInputStream;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -173,7 +174,9 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
             location,
             queryTempDataset,
             kmsKey);
-    return bqServices.getDatasetService(options).getTable(queryResultTable);
+    try (DatasetService datasetService = bqServices.getDatasetService(options)) {
+      return datasetService.getTable(queryResultTable);
+    }
   }
 
   @Override
