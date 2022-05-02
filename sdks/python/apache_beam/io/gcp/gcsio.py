@@ -33,6 +33,7 @@ import time
 import traceback
 from itertools import islice
 
+import apache_beam
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.filesystemio import Downloader
@@ -155,7 +156,10 @@ class GcsIO(object):
           credentials=auth.get_service_credentials(),
           get_credentials=False,
           http=get_new_http(),
-          response_encoding='utf8')
+          response_encoding='utf8',
+          additional_http_headers={
+              "User-Agent": "apache-beam-%s" % apache_beam.__version__
+          })
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
