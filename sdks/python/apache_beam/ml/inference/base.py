@@ -38,6 +38,7 @@ from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import List
+from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
@@ -93,7 +94,7 @@ class RunInference(beam.PTransform):
       model_loader: An implementation of InferenceRunner.
       clock: A clock implementing get_current_time_in_microseconds.
   """
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  def __init__(self, model_loader: ModelLoader, clock: Optional[_Clock] = None):
     self._model_loader = model_loader
     self._clock = clock
 
