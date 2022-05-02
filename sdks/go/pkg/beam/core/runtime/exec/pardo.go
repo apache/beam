@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -253,8 +254,28 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 			key:   w,
 			extra: make([]interface{}, sideCount+emitCount),
 		}
+		attachEstimator := false
+		if n.we != nil {
+			// var ok bool
+			if _, ok := n.we.(sdf.TimestampObservingEstimator); ok {
+				attachEstimator = true
+			}
+		}
 		for i, emit := range n.emitters {
-			n.cache.extra[i+sideCount] = emit.Value()
+			if attachEstimator {
+				if weEmit, ok := emit.(ReusableTimestampObservingWatermarkEmitter); ok {
+					weEmit.AttachEstimator(&n.we)
+					n.cache.extra[i+sideCount] = weEmit.Value()
+				} else {
+					return errors.Errorf("Invalid emitter. Emitter %v must implement "+
+						"ReusableTimestampObservingWatermarkEmitter interface because it is "+
+						"used in a ParDo with a timestamp observing estimator. If you are not "+
+						"using a custom emitter, you may need to regenerate your shims with the code "+
+						"generator.", reflect.TypeOf(emit))
+				}
+			} else {
+				n.cache.extra[i+sideCount] = emit.Value()
+			}
 		}
 	} else if w.Equals(n.cache.key) {
 		// Fast path: same window. Just unwind the side inputs.

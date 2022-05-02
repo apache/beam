@@ -19,7 +19,9 @@
 // likely to have bugs.
 package sdf
 
-import "time"
+import (
+	"time"
+)
 
 // RTracker is an interface used to interact with restrictions while processing elements in
 // splittable DoFns (specifically, in the ProcessElement method). Each RTracker tracks the progress
@@ -95,4 +97,13 @@ type WatermarkEstimator interface {
 	// CurrentWatermark returns the estimator's current watermark. It is called any time a DoFn
 	// splits or checkpoints to advance the output watermark of the restriction's stage.
 	CurrentWatermark() time.Time
+}
+
+// TimestampObservingEstimator is an interface used to represent a user defined watermark estimator that
+// has the ability to observe timestamps of elements outputted from a ParDo's emit function.
+type TimestampObservingEstimator interface {
+	WatermarkEstimator
+	// ObserveTimestamp is called any time a DoFn emits an element and can use that element's
+	// event time to modify the state of the estimator.
+	ObserveTimestamp(ts time.Time)
 }
