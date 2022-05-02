@@ -38,6 +38,7 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
@@ -482,36 +483,17 @@ class TestReadFromBigQuery(unittest.TestCase):
     delete_table.assert_called_with(
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
-  def test_retrieve_table_schema(self, *args):
-    the_table = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
-        project_id="apache-beam-testing",
-        dataset_id="beam_bigquery_io_test",
-        table_id="taxi")
-    table = the_table.schema
-    schema = beam.io.gcp.internal.clients.bigquery.TableSchema(
-        fields=[
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="event_timestamp", type="TIMESTAMP", mode="REQUIRED"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="ride_id", type="STRING"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="point_idx", type="INTEGER"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="latitude", type="FLOAT"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="timestamp", type="STRING"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="meter_reading", type="FLOAT"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="meter_increment", type="FLOAT"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="ride_status", type="STRING"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="passenger_count", type="INTEGER"),
-            beam.io.gcp.internal.clients.bigquery.TableFieldSchema(
-                name="longitude", type="FLOAT")
-        ])
-    self.assertEqual(table, schema)
+  @pytest.mark.it_postcommit
+  def test_table_schema_retrieve(self):
+    with beam.Pipeline() as p:
+      result = (
+          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+              gcs_location="gs://bqio_schema",
+              table="beam_bigquery_io_test.taxi",
+              project="apache-beam-testing").get_pcoll_from_schema())
+      assert_that(result, equal_to([]))
+      # TODO: svetaksundhar@, Write another test to check for
+      #  a specific pCollection/schema.
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
