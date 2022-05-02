@@ -3012,7 +3012,10 @@ public class BigQueryIO {
         checkArgument(
             !field.getString("type").equals("JSON"),
             "Found JSON type in TableSchema. JSON data insertion is currently "
-                + "not supported with 'FILE_LOADS' write method.");
+                + "not supported with 'FILE_LOADS' write method. This is supported with the "
+                + "other write methods, however. For more information, visit: "
+                + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
+                + "json-data#ingest_json_data");
 
         if (field.getString("type").equals("STRUCT")) {
           validateNoJsonTypeInSchema(field);
