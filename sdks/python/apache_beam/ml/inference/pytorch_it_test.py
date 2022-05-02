@@ -56,9 +56,10 @@ def process_outputs(filepath):
   return lines
 
 
-@unittest.skipIf(torch is None, "PyArrow is not installed.")
+@pytest.mark.uses_pytorch
+@unittest.skipIf(torch is None, "Pytorch is not installed.")
 class PyTorchInference(unittest.TestCase):
-  @pytest.mark.uses_pytorch
+  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_predictions_output_file(self):
     test_pipeline = TestPipeline(is_integration_test=True)
