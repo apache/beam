@@ -27,3 +27,23 @@ type WallTimeWatermarkEstimator struct{}
 func (e *WallTimeWatermarkEstimator) CurrentWatermark() time.Time {
 	return time.Now()
 }
+
+// ManualWatermarkEstimator is a watermark estimator that advances the
+// current DoFn's output watermark when a user calls UpdateWatermark
+// from within ProcessElement.
+type ManualWatermarkEstimator struct {
+	State time.Time
+}
+
+// CurrentWatermark returns the most recent timestamp set from
+// ProcessElement. It is used by the Sdk harness to set the
+// current DoFn's output watermark on splits and checkpoints.
+func (e *ManualWatermarkEstimator) CurrentWatermark() time.Time {
+	return e.State
+}
+
+// UpdateWatermark is a convenience function that can be used
+// to update the current watermark from inside ProcessElement.
+func (e *ManualWatermarkEstimator) UpdateWatermark(t time.Time) {
+	e.State = t
+}
