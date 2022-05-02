@@ -42,7 +42,6 @@ from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.transforms import resources
 from apache_beam.utils import shared
 
 try:
@@ -91,10 +90,11 @@ class ModelLoader(Generic[T]):
 class RunInference(beam.PTransform):
   """An extensible transform for running inferences.
   Args:
-      model_loader: An implementation of InferenceRunner.
+      model_loader: An implementation of ModelLoader.
       clock: A clock implementing get_current_time_in_microseconds.
   """
-  def __init__(self, model_loader: ModelLoader, clock: Optional[_Clock] = None):
+  def __init__(
+      self, model_loader: ModelLoader, clock: Optional["_Clock"] = None):
     self._model_loader = model_loader
     self._clock = clock
 
@@ -161,14 +161,10 @@ class _MetricsCollector:
     self._inference_request_batch_byte_size.update(examples_byte_size)
 
 
-class _Clock(object):
-  def get_current_time_in_microseconds(self) -> int:
-    return int(time.time() * _SECOND_TO_MICROSECOND)
-
-
 class _RunInferenceDoFn(beam.DoFn):
   """A DoFn implementation generic to frameworks."""
-  def __init__(self, model_loader: ModelLoader, clock=None):
+  def __init__(
+      self, model_loader: ModelLoader, clock: Optional["_Clock"] = None):
     self._model_loader = model_loader
     self._inference_runner = model_loader.get_inference_runner()
     self._shared_model_handle = shared.Shared()
@@ -250,6 +246,11 @@ def _get_current_process_memory_in_bytes():
         'Resource module is not available for current platform, '
         'memory usage cannot be fetched.')
   return 0
+
+
+class _Clock(object):
+  def get_current_time_in_microseconds(self) -> int:
+    return int(time.time() * _SECOND_TO_MICROSECOND)
 
 
 def _is_windows() -> bool:
