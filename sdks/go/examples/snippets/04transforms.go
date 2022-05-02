@@ -150,7 +150,7 @@ func (fn *weDoFn) CreateWatermarkEstimator(initialState WatermarkState) *CustomW
 	return &CustomWatermarkEstimator{state: initialState}
 }
 
-// WatermarkEstimatorState returns the state usedto resume future watermark estimation
+// WatermarkEstimatorState returns the state used to resume future watermark estimation
 // after a checkpoint/split. It is required if InitialWatermarkEstimatorState is defined,
 // otherwise it must not be defined.
 func (fn *weDoFn) WatermarkEstimatorState(e *CustomWatermarkEstimator) WatermarkState {
