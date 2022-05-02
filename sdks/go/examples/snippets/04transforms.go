@@ -132,7 +132,7 @@ func (e *CustomWatermarkEstimator) ObserveTimestamp(ts time.Time) {
 // (Optional) Define an initial state to initialize your estimator with.
 // If this is not defined, GetWatermarkEstimatorState may not be defined and
 // CreateWatermarkEstimator must not take in parameters.
-func (fn *splittableDoFn) GetInitialWatermarkEstimatorState(et beam.EventTime, rest offsetrange.Restriction, element string) WatermarkState {
+func (fn *splittableDoFn) InitialWatermarkEstimatorState(et beam.EventTime, rest offsetrange.Restriction, element string) WatermarkState {
 	// Return some watermark state
 	return WatermarkState{Watermark: time.Now()}
 }
@@ -146,7 +146,7 @@ func (fn *splittableDoFn) CreateWatermarkEstimator(initialState WatermarkState) 
 // Return state to resume future watermark estimation after a checkpoint/split.
 // Required if GetInitialWatermarkEstimatorState is defined, otherwise it must
 // not be defined.
-func (fn *splittableDoFn) GetWatermarkEstimatorState(e *CustomWatermarkEstimator) WatermarkState {
+func (fn *splittableDoFn) WatermarkEstimatorState(e *CustomWatermarkEstimator) WatermarkState {
 	return e.state
 }
 
