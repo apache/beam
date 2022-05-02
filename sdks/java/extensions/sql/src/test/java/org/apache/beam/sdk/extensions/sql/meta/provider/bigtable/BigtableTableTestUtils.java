@@ -189,10 +189,11 @@ class BigtableTableTestUtils {
             column("stringColumn", "stringValue".getBytes(UTF_8)));
     Family family = Family.newBuilder().setName("familyTest").addAllColumns(columns).build();
     for (int i = 0; i < 5; i++) {
-      res[i] = com.google.bigtable.v2.Row.newBuilder()
-          .setKey(byteStringUtf8("key"+i))
-          .addFamilies(family)
-          .build();
+      res[i] =
+          com.google.bigtable.v2.Row.newBuilder()
+              .setKey(byteStringUtf8("key" + i))
+              .addFamilies(family)
+              .build();
     }
     return res;
   }
