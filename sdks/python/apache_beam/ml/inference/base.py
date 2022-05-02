@@ -34,7 +34,7 @@ import pickle
 import platform
 import sys
 import time
-from typing import Any
+from typing import Any, Mapping
 from typing import Generic
 from typing import Iterable
 from typing import List
