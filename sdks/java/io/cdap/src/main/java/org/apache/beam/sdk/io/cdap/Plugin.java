@@ -18,15 +18,15 @@
 package org.apache.beam.sdk.io.cdap;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.reflect.TypeToken;
 import io.cdap.cdap.api.plugin.PluginConfig;
-import io.cdap.cdap.common.lang.InstantiatorFactory;
 import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,15 +81,29 @@ public abstract class Plugin {
    */
   public void prepareRun() {
     if (cdapPluginObj == null) {
-      InstantiatorFactory instantiatorFactory = new InstantiatorFactory(false);
-      cdapPluginObj =
-          (SubmitterLifecycle) instantiatorFactory.get(TypeToken.of(getPluginClass())).create();
+      for (Constructor<?> constructor : getPluginClass().getDeclaredConstructors()) {
+        constructor.setAccessible(true);
+        try {
+          cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(getPluginConfig());
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+          LOG.error("Can not instantiate CDAP plugin class", e);
+          throw new IllegalStateException("Can not call prepareRun");
+        }
+      }
     }
     try {
       cdapPluginObj.prepareRun(getContext());
-      for (Map.Entry<String, String> entry :
-          getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
-        getHadoopConfiguration().set(entry.getKey(), entry.getValue());
+      if (getFormatType().equals(PluginConstants.Format.INPUT)) {
+        for (Map.Entry<String, String> entry :
+            getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
+          getHadoopConfiguration().set(entry.getKey(), entry.getValue());
+        }
+      } else {
+        for (Map.Entry<String, String> entry :
+            getContext().getOutputFormatProvider().getOutputFormatConfiguration().entrySet()) {
+          getHadoopConfiguration().set(entry.getKey(), entry.getValue());
+        }
+        getHadoopConfiguration().set(MRJobConfig.ID, String.valueOf(1));
       }
     } catch (Exception e) {
       LOG.error("Error while prepareRun", e);
@@ -161,19 +176,14 @@ public abstract class Plugin {
     for (Method method : methods) {
       if (method.getName().equals("prepareRun")) {
         contextClass = method.getParameterTypes()[0];
+        if (contextClass.equals(BatchSourceContext.class)) {
+          return new BatchSourceContextImpl();
+        } else if (contextClass.equals(BatchSinkContext.class)) {
+          return new BatchSinkContextImpl();
+        }
       }
     }
-    if (contextClass == null) {
-      throw new IllegalStateException("Cannot determine context class");
-    }
-
-    if (contextClass.equals(BatchSourceContext.class)) {
-      return new BatchSourceContextImpl();
-    } else if (contextClass.equals(BatchSinkContext.class)) {
-      return new BatchSinkContextImpl();
-    } else {
-      return new BatchSourceContextImpl();
-    }
+    throw new IllegalStateException("Cannot determine context class");
   }
 
   /** Gets value of a plugin type. */

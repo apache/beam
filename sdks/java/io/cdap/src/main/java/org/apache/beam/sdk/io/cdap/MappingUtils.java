@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
+import io.cdap.plugin.hubspot.sink.batch.HubspotBatchSink;
+import io.cdap.plugin.hubspot.sink.batch.HubspotOutputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
 import io.cdap.plugin.hubspot.source.batch.HubspotInputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotInputFormatProvider;
@@ -37,6 +39,9 @@ public class MappingUtils {
       return Plugin.create(pluginClass, HubspotInputFormat.class, HubspotInputFormatProvider.class);
     } else if (pluginClass.equals(ZendeskBatchSource.class)) {
       return Plugin.create(pluginClass, ZendeskInputFormat.class, ZendeskInputFormatProvider.class);
+    } else if (pluginClass.equals(HubspotBatchSink.class)) {
+      return Plugin.create(
+          pluginClass, HubspotOutputFormat.class, HubspotOutputFormatProviderImpl.class);
     }
     return null;
   }

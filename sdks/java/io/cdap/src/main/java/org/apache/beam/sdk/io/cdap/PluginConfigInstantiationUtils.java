@@ -23,10 +23,7 @@ import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.common.lang.InstantiatorFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -58,8 +55,7 @@ public class PluginConfigInstantiationUtils {
     while (currClass != null && !currClass.equals(Object.class)) {
       allFields.addAll(
           Arrays.stream(currClass.getDeclaredFields())
-              .filter(
-                  f -> !Modifier.isStatic(f.getModifiers()) && f.isAnnotationPresent(Name.class))
+              .filter(f -> !Modifier.isStatic(f.getModifiers()))
               .collect(Collectors.toList()));
       currClass = currClass.getSuperclass();
     }
@@ -80,6 +76,12 @@ public class PluginConfigInstantiationUtils {
         if (fieldValue != null && fieldType.equals(fieldValue.getClass())) {
           try {
             field.set(config, fieldValue);
+          } catch (IllegalAccessException e) {
+            LOG.error("Can not set a field with value {}", fieldValue);
+          }
+        } else if (field.getName().equals("macroFields")) {
+          try {
+            field.set(config, Collections.emptySet());
           } catch (IllegalAccessException e) {
             LOG.error("Can not set a field with value {}", fieldValue);
           }
