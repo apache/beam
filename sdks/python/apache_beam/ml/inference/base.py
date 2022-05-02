@@ -248,17 +248,17 @@ def _get_current_process_memory_in_bytes():
   return 0
 
 
-class _Clock(object):
-  def get_current_time_in_microseconds(self) -> int:
-    return int(time.time() * _SECOND_TO_MICROSECOND)
-
-
 def _is_windows() -> bool:
   return platform.system() == 'Windows' or os.name == 'nt'
 
 
 def _is_cygwin() -> bool:
   return platform.system().startswith('CYGWIN_NT')
+
+
+class _Clock(object):
+  def get_current_time_in_microseconds(self) -> int:
+    return int(time.time() * _SECOND_TO_MICROSECOND)
 
 
 class _FineGrainedClock(_Clock):
