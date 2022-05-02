@@ -207,3 +207,6 @@ message FirstCircularNested {
 message SecondCircularNested {
   FirstCircularNested nested = 1;
 }
+
+message Empty {
+}

@@ -116,6 +116,13 @@ public class ProtoSchemaTranslatorTest {
   }
 
   @Test
+  public void testEmptySchema() {
+    assertEquals(
+        TestProtoSchemas.EMPTY_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.Empty.class));
+  }
+
+  @Test
   public void testSelfNestedProtoThrows() {
     IllegalArgumentException thrown =
         assertThrows(
