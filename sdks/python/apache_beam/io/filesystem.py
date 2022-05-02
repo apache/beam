@@ -421,27 +421,44 @@ class CompressedFile(object):
 
 
 class FileMetadata(object):
-  """Metadata about a file path that is the output of FileSystem.match."""
-  def __init__(self, path, size_in_bytes):
+  """Metadata about a file path that is the output of FileSystem.match.
+
+  Fields:
+    path: [Required] file path.
+    size_in_bytes: [Required] file size in bytes.
+    last_updated_in_seconds: [Optional] last modified timestamp of the file, or
+    valued 0.0 if not specified.
+  """
+  def __init__(
+      self,
+      path: str,
+      size_in_bytes: int,
+      last_updated_in_seconds: float = 0.0):
     assert isinstance(path, str) and path, "Path should be a string"
     assert isinstance(size_in_bytes, int) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path
     self.size_in_bytes = size_in_bytes
+    self.last_updated_in_seconds = last_updated_in_seconds
 
   def __eq__(self, other):
     """Note: This is only used in tests where we verify that mock objects match.
     """
     return (
         isinstance(other, FileMetadata) and self.path == other.path and
-        self.size_in_bytes == other.size_in_bytes)
+        self.size_in_bytes == other.size_in_bytes and
+        self.last_updated_in_seconds == other.last_updated_in_seconds)
 
   def __hash__(self):
-    return hash((self.path, self.size_in_bytes))
+    return hash((self.path, self.size_in_bytes, self.last_updated_in_seconds))
 
   def __repr__(self):
-    return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
+    if self.last_updated_in_seconds == 0.0:
+      return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
+    else:
+      return 'FileMetadata(%s, %s, %s)' % (
+          self.path, self.size_in_bytes, self.last_updated_in_seconds)
 
 
 class MatchResult(object):
@@ -717,7 +734,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       if prefix_or_dir == pattern:
         # Short-circuit calling self.list() if there's no glob pattern to match.
         if self.exists(pattern):
-          file_metadatas = [FileMetadata(pattern, self.size(pattern))]
+          file_metadatas = [self.metadata(pattern)]
       else:
         if self.has_dirs():
           prefix_dirname = self._url_dirname(prefix_or_dir)
@@ -872,6 +889,27 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       path: string path of a file.
 
     Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def metadata(self, path):
+    """Fetch metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    This operation returns metadata as stored in the underlying
+    FileSystem. It should not need to read file data to obtain this value.
+    For web based file systems, this method should also incur as few as
+    possible requests.
+
+    Args:
+      path: string path of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
 
     Raises:
       ``BeamIOError``: if path isn't a file or doesn't exist.
