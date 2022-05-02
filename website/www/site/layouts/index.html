@@ -61,7 +61,7 @@
 {{ end }}
 
 {{ define "playground-section" }}
-<div class="body__contained body__section-nav playground-section">
+<div class="body__contained body__section-nav playground-section" tabindex="-1">
   <h1>Try Beam Playground</h1>
   <p>Beam Playground is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
     You can try the Apache Beam examples at <a href="https://play.beam.apache.org/">Beam Playground (Beta)</a>.
@@ -71,13 +71,16 @@
   <a class="playground__mobile" href="https://play.beam.apache.org/">
     <img src="images/playground.png" alt="beam playground">
   </a>
-  <iframe
-          src="https://play.beam.apache.org/embedded?enabled=true&example=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount&code="
-          width="100%"
-          height="700px"
-          class="code-snippet playground"
-          allow="clipboard-write">
-  </iframe>
+  <div id="playgroundIframeContainer">
+    <iframe
+            src="https://play.beam.apache.org/embedded?enabled=true&example=SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount&code="
+            id="playgroundIframe"
+            width="100%"
+            height="700px"
+            class="code-snippet playground"
+            allow="clipboard-write">
+    </iframe>
+  </div>
 </div>
 {{ end }}
 

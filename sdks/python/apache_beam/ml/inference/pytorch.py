@@ -17,6 +17,9 @@
 
 # pytype: skip-file
 
+from typing import Any
+from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import List
 
@@ -37,7 +40,7 @@ class PytorchInferenceRunner(InferenceRunner):
     self._device = device
 
   def run_inference(self, batch: List[torch.Tensor],
-                    model: torch.nn.Module) -> Iterable[torch.Tensor]:
+                    model: torch.nn.Module) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
     Tensor Predictions.
@@ -68,13 +71,14 @@ class PytorchModelLoader(ModelLoader):
   def __init__(
       self,
       state_dict_path: str,
-      model_class: torch.nn.Module,
+      model_class: Callable[..., torch.nn.Module],
+      model_params: Dict[str, Any],
       device: str = 'CPU'):
     """
     state_dict_path: path to the saved dictionary of the model state.
     model_class: class of the Pytorch model that defines the model structure.
     device: the device on which you wish to run the model. If ``device = GPU``
-        then device will be cuda if it is avaiable. Otherwise, it will be cpu.
+        then device will be cuda if it is available. Otherwise, it will be cpu.
 
     See https://pytorch.org/tutorials/beginner/saving_loading_models.html
     for details
@@ -85,12 +89,13 @@ class PytorchModelLoader(ModelLoader):
     else:
       self._device = torch.device('cpu')
     self._model_class = model_class
-    self._model_class.to(self._device)
+    self.model_params = model_params
     self._inference_runner = PytorchInferenceRunner(device=self._device)
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model = self._model_class
+    model = self._model_class(**self.model_params)
+    model.to(self._device)
     file = FileSystems.open(self._state_dict_path, 'rb')
     model.load_state_dict(torch.load(file))
     model.eval()

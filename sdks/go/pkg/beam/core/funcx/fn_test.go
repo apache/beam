@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//lint:file-ignore ST1008 test cases with error returns out of place are intended
+
 package funcx
 
 import (
@@ -100,6 +102,11 @@ func TestNew(t *testing.T) {
 			Name:  "good8",
 			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, typex.BundleFinalization, []byte) {},
 			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnType, FnBundleFinalization, FnValue},
+		},
+		{
+			Name:  "good9",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, sdf.WatermarkEstimator, reflect.Type, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnWatermarkEstimator, FnType, FnValue},
 		},
 		{
 			Name:  "good-method",
@@ -190,6 +197,11 @@ func TestNew(t *testing.T) {
 			Err:  errReflectTypePrecedence,
 		},
 		{
+			Name: "errEventTimeParamPrecedence: after watermark estimator",
+			Fn:   func(typex.PaneInfo, typex.Window, sdf.WatermarkEstimator, typex.EventTime, reflect.Type, []byte) {},
+			Err:  errEventTimeParamPrecedence,
+		},
+		{
 			Name: "errInputPrecedence- Iter before after output",
 			Fn:   func(int, func(int), func(*int) bool, func(*int, *string) bool) {},
 			Err:  errInputPrecedence,
@@ -222,6 +234,11 @@ func TestNew(t *testing.T) {
 			Name: "errBundleFinalizationPrecedence",
 			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte, typex.BundleFinalization) {},
 			Err:  errBundleFinalizationPrecedence,
+		},
+		{
+			Name: "errWatermarkEstimatorParamPrecedence",
+			Fn:   func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, sdf.WatermarkEstimator) {},
+			Err:  errWatermarkEstimatorParamPrecedence,
 		},
 		{
 			Name: "errEventTimeRetPrecedence",
@@ -498,6 +515,50 @@ func TestBundleFinalization(t *testing.T) {
 			}
 			if pos != test.Pos {
 				t.Errorf("BundleFinalization(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestWatermarkEstimator(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "watermarkEstimator input",
+			Params: []FnParamKind{FnContext, FnWatermarkEstimator},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no watermarkEstimator input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.WatermarkEstimator()
+			if exists != test.Exists {
+				t.Errorf("WatermarkEstimator(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("WatermarkEstimator(%v) - pos: got %v, want %v", params, pos, test.Pos)
 			}
 		})
 	}

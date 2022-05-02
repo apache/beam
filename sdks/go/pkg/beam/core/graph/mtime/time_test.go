@@ -213,3 +213,34 @@ func TestFromTime(t *testing.T) {
 		})
 	}
 }
+
+func TestToTime(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  Time
+		expOut time.Time
+	}{
+		{
+			"zero unix",
+			Time(0),
+			time.Unix(0, 0).UTC(),
+		},
+		{
+			"behind unix",
+			Time(-1000),
+			time.Unix(-1, 0).UTC(),
+		},
+		{
+			"ahead of unix",
+			Time(1000),
+			time.Unix(1, 0).UTC(),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got, want := test.input.ToTime(), test.expOut; got != want {
+				t.Errorf("ToTime(%v), got %v, want %v", test.input, got, want)
+			}
+		})
+	}
+}

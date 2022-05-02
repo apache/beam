@@ -155,7 +155,10 @@ class PytorchRunInferenceTest(unittest.TestCase):
 
       model_loader = PytorchModelLoader(
           state_dict_path=path,
-          model_class=PytorchLinearRegression(input_dim=2, output_dim=1))
+          model_class=PytorchLinearRegression,
+          model_params={
+              'input_dim': 2, 'output_dim': 1
+          })
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_loader)
@@ -178,7 +181,10 @@ class PytorchRunInferenceTest(unittest.TestCase):
       gs_pth = 'gs://apache-beam-ml/pytorch_lin_reg_model_2x+0.5_state_dict.pth'
       model_loader = PytorchModelLoader(
           state_dict_path=gs_pth,
-          model_class=PytorchLinearRegression(input_dim=1, output_dim=1))
+          model_class=PytorchLinearRegression,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          })
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_loader)
@@ -198,7 +204,10 @@ class PytorchRunInferenceTest(unittest.TestCase):
 
         model_loader = PytorchModelLoader(
             state_dict_path=path,
-            model_class=PytorchLinearRegression(input_dim=1, output_dim=1))
+            model_class=PytorchLinearRegression,
+            model_params={
+                'input_dim': 1, 'output_dim': 1
+            })
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         # pylint: disable=expression-not-assigned

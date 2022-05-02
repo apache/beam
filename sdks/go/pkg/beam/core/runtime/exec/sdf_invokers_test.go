@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -38,6 +40,12 @@ func TestInvokes(t *testing.T) {
 		t.Fatalf("invalid function: %v", err)
 	}
 	kvsdf := (*graph.SplittableDoFn)(dfn)
+
+	dfn, err = graph.NewDoFn(&VetSdfStatefulWatermark{}, graph.NumMainInputs(graph.MainSingle))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	statefulWeFn := (*graph.SplittableDoFn)(dfn)
 
 	// Tests.
 	t.Run("CreateInitialRestriction Invoker (cirInvoker)", func(t *testing.T) {
@@ -231,21 +239,71 @@ func TestInvokes(t *testing.T) {
 	})
 
 	t.Run("CreateWatermarkEstimator Invoker (cweInvoker)", func(t *testing.T) {
-		fn := sdf.CreateWatermarkEstimatorFn()
-		invoker, err := newCreateWatermarkEstimatorInvoker(fn)
-		if err != nil {
-			t.Fatalf("newCreateWatermarkEstimatorInvoker failed: %v", err)
+		tests := []struct {
+			name  string
+			sdf   *graph.SplittableDoFn
+			state int
+			want  VetWatermarkEstimator
+		}{
+			{
+				name:  "Non-stateful",
+				sdf:   sdf,
+				state: 1,
+				want:  VetWatermarkEstimator{State: -1},
+			}, {
+				name:  "Stateful",
+				sdf:   statefulWeFn,
+				state: 11,
+				want:  VetWatermarkEstimator{State: 11},
+			},
 		}
-		got := invoker.Invoke()
-		want := &VetWatermarkEstimator{}
-		if !cmp.Equal(got, want) {
+
+		for _, test := range tests {
+			test := test
+			fn := test.sdf.CreateWatermarkEstimatorFn()
+			t.Run(test.name, func(t *testing.T) {
+				invoker, err := newCreateWatermarkEstimatorInvoker(fn)
+				if err != nil {
+					t.Fatalf("newCreateWatermarkEstimatorInvoker failed: %v", err)
+				}
+				got := invoker.Invoke(test.state)
+				want := &test.want
+				if !cmp.Equal(got, want) {
+					t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
+				}
+				invoker.Reset()
+				for i, arg := range invoker.args {
+					if arg != nil {
+						t.Errorf("Reset() failed to empty all args. args[%v] = %v", i, arg)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("InitialWatermarkEstimatorState Invoker (iwesInvoker)", func(t *testing.T) {
+		fn := statefulWeFn.InitialWatermarkEstimatorStateFn()
+		invoker, err := newInitialWatermarkEstimatorStateInvoker(fn)
+		if err != nil {
+			t.Fatalf("newInitialWatermarkEstimatorStateInvoker failed: %v", err)
+		}
+		got := invoker.Invoke(&VetRestriction{ID: "Sdf"}, &FullValue{Elm: 1, Timestamp: mtime.ZeroTimestamp})
+		want := 1
+		if got != want {
 			t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
 		}
-		invoker.Reset()
-		for i, arg := range invoker.args {
-			if arg != nil {
-				t.Errorf("Reset() failed to empty all args. args[%v] = %v", i, arg)
-			}
+	})
+
+	t.Run("WatermarkEstimatorState Invoker (wesInvoker)", func(t *testing.T) {
+		fn := statefulWeFn.WatermarkEstimatorStateFn()
+		invoker, err := newWatermarkEstimatorStateInvoker(fn)
+		if err != nil {
+			t.Fatalf("newWatermarkEstimatorStateInvoker failed: %v", err)
+		}
+		got := invoker.Invoke(&VetWatermarkEstimator{State: 11})
+		want := 11
+		if got != want {
+			t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
 		}
 	})
 }
@@ -288,7 +346,9 @@ func (rt *VetRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
 	return nil, nil, nil
 }
 
-type VetWatermarkEstimator struct{}
+type VetWatermarkEstimator struct {
+	State int
+}
 
 func (e *VetWatermarkEstimator) CurrentWatermark() time.Time {
 	return time.Date(2022, time.January, 1, 1, 0, 0, 0, time.UTC)
@@ -340,7 +400,7 @@ func (fn *VetSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
 
 // CreateWatermarkEstimator creates a watermark estimator to be used by the Sdf
 func (fn *VetSdf) CreateWatermarkEstimator() *VetWatermarkEstimator {
-	return &VetWatermarkEstimator{}
+	return &VetWatermarkEstimator{State: -1}
 }
 
 // ProcessElement emits the restriction from the restriction tracker it
@@ -349,6 +409,57 @@ func (fn *VetSdf) CreateWatermarkEstimator() *VetWatermarkEstimator {
 // done here to allow validating that ProcessElement is being executed
 // properly.
 func (fn *VetSdf) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) {
+	rest := rt.Rest
+	rest.Key = nil
+	rest.Val = i
+	rest.ProcessElm = true
+	emit(rest)
+}
+
+type VetSdfStatefulWatermark struct {
+}
+
+func (fn *VetSdfStatefulWatermark) CreateInitialRestriction(i int) *VetRestriction {
+	return &VetRestriction{ID: "Sdf", Val: i, CreateRest: true}
+}
+
+func (fn *VetSdfStatefulWatermark) SplitRestriction(i int, rest *VetRestriction) []*VetRestriction {
+	rest.SplitRest = true
+	rest.Val = i
+
+	rest1 := rest.copy()
+	rest1.ID += ".1"
+	rest2 := rest.copy()
+	rest2.ID += ".2"
+
+	return []*VetRestriction{&rest1, &rest2}
+}
+
+func (fn *VetSdfStatefulWatermark) RestrictionSize(i int, rest *VetRestriction) float64 {
+	rest.Key = nil
+	rest.Val = i
+	rest.RestSize = true
+	return (float64)(i)
+}
+
+func (fn *VetSdfStatefulWatermark) CreateTracker(rest *VetRestriction) *VetRTracker {
+	rest.CreateTracker = true
+	return &VetRTracker{rest}
+}
+
+func (fn *VetSdfStatefulWatermark) InitialWatermarkEstimatorState(_ typex.EventTime, _ *VetRestriction, element int) int {
+	return 1
+}
+
+func (fn *VetSdfStatefulWatermark) CreateWatermarkEstimator(state int) *VetWatermarkEstimator {
+	return &VetWatermarkEstimator{State: state}
+}
+
+func (fn *VetSdfStatefulWatermark) WatermarkEstimatorState(e *VetWatermarkEstimator) int {
+	return e.State
+}
+
+func (fn *VetSdfStatefulWatermark) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) {
 	rest := rt.Rest
 	rest.Key = nil
 	rest.Val = i
