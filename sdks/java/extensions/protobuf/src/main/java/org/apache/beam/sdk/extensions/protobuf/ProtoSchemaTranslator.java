@@ -46,6 +46,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This class provides utilities for inferring a Beam schema from a protocol buffer.
@@ -141,14 +142,11 @@ class ProtoSchemaTranslator {
   public static final String SCHEMA_OPTION_FIELD_PREFIX = "beam:option:proto:field:";
 
   /**
-   * A HashMap containing the non-primitive schemas within another schema, to prevent circular
-   * references.
+   * A HashMap containing the sentinel values (null values) of schemas in the process of being
+   * inferenced, to prevent circular references.
    */
-  private static Map<Descriptors.Descriptor, Schema> alreadyVisitedSchemas =
-      new HashMap<Descriptors.Descriptor, Schema>();
-
-  /** Empty schema to use as placeholder in alreadyVisitedSchemas map. */
-  private static final Schema EMPTY_SCHEMA = Schema.builder().build();
+  private static Map<Descriptors.Descriptor, @Nullable Schema> alreadyVisitedSchemas =
+      new HashMap<Descriptors.Descriptor, @Nullable Schema>();
 
   /** Attach a proto field number to a type. */
   static Field withFieldNumber(Field field, int number) {
@@ -168,15 +166,15 @@ class ProtoSchemaTranslator {
 
   static synchronized Schema getSchema(Descriptors.Descriptor descriptor) {
     if (alreadyVisitedSchemas.containsKey(descriptor)) {
-      Schema existingSchema = alreadyVisitedSchemas.get(descriptor);
-      if (existingSchema.equals(EMPTY_SCHEMA)) {
+      @Nullable Schema existingSchema = alreadyVisitedSchemas.get(descriptor);
+      if (existingSchema == null) {
         throw new IllegalArgumentException(
             "Cannot infer schema with a circular reference. Proto Field: "
                 + descriptor.getFullName());
       }
       return existingSchema;
     }
-    alreadyVisitedSchemas.put(descriptor, EMPTY_SCHEMA);
+    alreadyVisitedSchemas.put(descriptor, null);
     /* OneOfComponentFields refers to the field number in the protobuf where the component subfields
      * are. This is needed to prevent double inclusion of the component fields.*/
     Set<Integer> oneOfComponentFields = Sets.newHashSet();
