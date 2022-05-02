@@ -54,8 +54,6 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 * Watermark estimation is now supported in the Go SDK ([BEAM-11105](https://issues.apache.org/jira/browse/BEAM-11105))
 
 ## I/Os
