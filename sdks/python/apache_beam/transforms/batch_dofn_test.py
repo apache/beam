@@ -22,7 +22,6 @@
 import unittest
 from typing import Iterator
 from typing import List
-from typing import Optional
 
 from parameterized import parameterized_class
 
