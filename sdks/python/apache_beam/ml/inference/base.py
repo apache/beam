@@ -86,15 +86,14 @@ class ModelLoader(Generic[T]):
     """Returns resource hints for the transform."""
     return {}
 
+
 class RunInference(beam.PTransform):
   """An extensible transform for running inferences.
   Args:
       model_loader: An implementation of InferenceRunner.
       clock: A clock implementing get_current_time_in_microseconds.
   """
-  def __init__(self,
-               model_loader: ModelLoader,
-               clock:_Clock=None):
+  def __init__(self, model_loader: ModelLoader, clock=None):
     self._model_loader = model_loader
     self._clock = clock
 
@@ -106,8 +105,10 @@ class RunInference(beam.PTransform):
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
-        | (beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock))
-            .with_resource_hints(**resource_hints))
+        | (
+            beam.ParDo(_RunInferenceDoFn(
+                self._model_loader,
+                self._clock)).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:
