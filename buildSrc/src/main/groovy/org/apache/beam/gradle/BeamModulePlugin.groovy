@@ -1787,8 +1787,6 @@ class BeamModulePlugin implements Plugin<Project> {
         if (pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
           if (pipelineOptionsString.contains('use_runner_v2')) {
             dependsOn ':runners:google-cloud-dataflow-java:buildAndPushDockerContainer'
-          } else {
-            project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
           }
         }
 
@@ -1803,6 +1801,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 "--region=${dataflowRegion}"
               ])
             } else {
+              project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
               def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
               allOptionsList.addAll([
