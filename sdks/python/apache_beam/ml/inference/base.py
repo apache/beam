@@ -82,36 +82,32 @@ class ModelLoader(Generic[T]):
     """Returns an implementation of InferenceRunner for this model."""
     raise NotImplementedError(type(self))
 
+  def get_resource_hints(self) -> dict:
+    """Returns resource hints for the transform."""
+    return {}
 
 class RunInference(beam.PTransform):
   """An extensible transform for running inferences.
   Args:
       model_loader: An implementation of InferenceRunner.
       clock: A clock implementing get_current_time_in_microseconds.
-      close_to_resource: A string representing the resource location hints.
   """
   def __init__(self,
                model_loader: ModelLoader,
-               clock:_Clock=None,
-               close_to_resource:str=None):
+               clock:_Clock=None):
     self._model_loader = model_loader
     self._clock = clock
-    self._close_to_resource = close_to_resource
 
   # TODO(BEAM-14208): Add batch_size back off in the case there
   # are functional reasons large batch sizes cannot be handled.
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
-    # TODO(BEAM-13690): Do this unconditionally one resolved.
-    if resources.ResourceHint.is_registered('close_to_resources') and self._close_to_resource:
-      pcoll |= (
-          'CloseToResources' >> beam.Map(lambda x: x).with_resource_hints(
-              close_to_resources=self._close_to_resource))
-
+    resource_hints = self._model_loader.get_resource_hints()
     return (
         pcoll
         # TODO(BEAM-14044): Hook into the batching DoFn APIs.
         | beam.BatchElements()
-        | beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock)))
+        | (beam.ParDo(_RunInferenceDoFn(self._model_loader, self._clock))
+            .with_resource_hints(**resource_hints))
 
 
 class _MetricsCollector:
