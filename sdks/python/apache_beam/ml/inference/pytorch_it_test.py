@@ -17,46 +17,44 @@
 
 # pylint: skip-file
 
-"""End-to-End test for MNIST classification example"""
+"""End-to-End test for Pytorch Inference"""
 
 import logging
-import os
-import shutil
-import tempfile
 import pytest
 import unittest
 import uuid
-from typing import List
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.examples import pytorch_image_classification
 from apache_beam.testing.test_pipeline import TestPipeline
 
+_EXPECTED_OUTPUTS = {
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005001.JPEG': '681',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005002.JPEG': '333',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005003.JPEG': '711',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005004.JPEG': '286',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005005.JPEG': '433',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005006.JPEG': '290',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005007.JPEG': '890',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005008.JPEG': '592',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005009.JPEG': '406',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005010.JPEG': '996',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005011.JPEG': '327',
+    'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005012.JPEG': '573'
+}
+
+
+def process_outputs(filepath):
+  with FileSystems().open(filepath) as f:
+    lines = f.readlines()
+  lines = [l.decode('utf-8').strip('\n') for l in lines]
+  return lines
+
 
 class PyTorchInference(unittest.TestCase):
-  def setUp(self) -> None:
-    self._temp_dir = None
-
-  def tearDown(self) -> None:
-    if self._temp_dir:
-      shutil.rmtree(self._temp_dir)
-
-  def make_temp_dir(self):
-    if self._temp_dir is None:
-      self._temp_dir = tempfile.mkdtemp()
-    return tempfile.mkdtemp(dir=self._temp_dir)
-
-  def create_temp_file(self, path, contents: List[str]):
-    with open(path, 'w') as f:
-      for content in contents:
-        f.write(content + '\n')
-      return f.name
-
+  @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
   def test_predictions_output_file(self):
-    requirements_cache_dir = self.make_temp_dir()
-    requirements_file = self.create_temp_file(
-        path=os.path.join(requirements_cache_dir, 'requirements.txt'),
-        contents=['torch', 'torchvision'])
     test_pipeline = TestPipeline(is_integration_test=True)
     output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
     output = '/'.join([output_file_dir, str(uuid.uuid4()), 'result'])
@@ -68,11 +66,18 @@ class PyTorchInference(unittest.TestCase):
         'input': input_file_dir,
         'output': output,
         'model_path': model_path,
-        'requirements_file': requirements_file,
         'images_dir': images_dir,
     }
     pytorch_image_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
+
+    output_file = output + '.txt'
+    self.assertEqual(FileSystems().exists(output_file), True)
+    outputs = process_outputs(filepath=output_file)
+
+    for output in outputs:
+      filename, prediction = output.split(',')
+      self.assertEqual(_EXPECTED_OUTPUTS[filename], prediction)
 
 
 if __name__ == '__main__':
