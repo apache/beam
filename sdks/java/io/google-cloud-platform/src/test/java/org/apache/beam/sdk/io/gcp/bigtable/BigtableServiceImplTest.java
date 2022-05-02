@@ -83,7 +83,7 @@ public class BigtableServiceImplTest {
   private static final String TABLE_ID = "table";
 
   private static final int MINI_BATCH_ROW_LIMIT = 100;
-  private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .8;
+  private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .3;
   private static final long DEFAULT_ROW_SIZE = 1024 * 1024 * 256;
 
   private static final BigtableTableName TABLE_NAME =
@@ -528,8 +528,8 @@ public class BigtableServiceImplTest {
   /**
    * This test checks that the buffer will not fill up once the byte limit is reached. It will
    * cancel the ScanHandler after reached the limit. This test completes one fill and contains one
-   * Row after the first buffer has been completed. The test cheaks the current free memory in the
-   * JVM and uses a percent of it to mock the original behavior.
+   * Row after the first buffer has been completed. The test cheaks the current available memory
+   * in the JVM and uses a percent of it to mock the original behavior.
    *
    * @throws IOException
    */
@@ -538,11 +538,11 @@ public class BigtableServiceImplTest {
     List<FlatRow> expectedFirstRangeRows = new ArrayList<>();
     // Max amount of memory allowed in a Row (256MB)
     byte[] largeMemory = new byte[(int) DEFAULT_ROW_SIZE];
+    long availableMemory = Runtime.getRuntime().maxMemory() -
+        (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory());
     long currentByteLimit =
-        (long) (Runtime.getRuntime().freeMemory() * DEFAULT_BYTE_LIMIT_PERCENTAGE);
+        (long) (availableMemory * DEFAULT_BYTE_LIMIT_PERCENTAGE);
     int numOfRowsInsideBuffer = (int) (currentByteLimit / DEFAULT_ROW_SIZE) + 1;
-    System.out.println("CurrentByteLimit inside of test method: " + currentByteLimit);
-    System.out.println("Num Of Rows Inside Of Buffer (start):" + numOfRowsInsideBuffer);
     FlatRow.Builder largeRow =
         FlatRow.newBuilder()
             .addCell(
@@ -550,13 +550,12 @@ public class BigtableServiceImplTest {
                 ByteString.copyFromUtf8("LargeMemoryRow"),
                 System.currentTimeMillis(),
                 ByteString.copyFrom(largeMemory));
-
-    for (int i = 0; i < numOfRowsInsideBuffer + 1; i++) {
+    expectedFirstRangeRows.add(
+        largeRow.withRowKey(ByteString.copyFromUtf8("a")).build());
+    for (int i = 0; i < numOfRowsInsideBuffer; i++) {
       expectedFirstRangeRows.add(
           largeRow.withRowKey(ByteString.copyFromUtf8("b" + String.format("%05d", i))).build());
     }
-    expectedFirstRangeRows.set(
-        0, FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("a")).build());
 
     ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey end = ByteKey.copyFrom("c".getBytes(StandardCharsets.UTF_8));
@@ -576,16 +575,11 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(
         FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
     for (int i = 0; i < expectedFirstRangeRows.size() - 1; i++) {
-      System.out.println("Step: " + i);
       underTest.advance();
-      Assert.assertEquals(
-          FlatRowConverter.convert(expectedFirstRangeRows.get(i + 1)), underTest.getCurrentRow());
     }
-    System.out.println("Asserting final row");
     Assert.assertEquals(
         FlatRowConverter.convert(expectedFirstRangeRows.get(expectedFirstRangeRows.size() - 1)),
         underTest.getCurrentRow());
-    System.out.println("Asserting final advance");
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
