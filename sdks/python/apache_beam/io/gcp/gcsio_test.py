@@ -429,6 +429,9 @@ class TestGCSIO(unittest.TestCase):
     try:
       client.get_bucket('mabucket')
     except:  # pylint: disable=bare-except
+      # Ignore errors. The errors come from the fact that we did not mock
+      # the response from the API, so the overall get_bucket call fails
+      # soon after the GCS API is called.
       pass
     call = get_new_http_mock.return_value.request.mock_calls[-2]
     self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])

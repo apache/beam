@@ -227,7 +227,9 @@ class TestBigQueryWrapper(unittest.TestCase):
     try:
       wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
     except:  # pylint: disable=bare-except
-      # Ignore errors
+      # Ignore errors. The errors come from the fact that we did not mock
+      # the response from the API, so the overall insert_all_rows call fails
+      # soon after the BQ API is called.
       pass
     call = http_mock.request.mock_calls[-2]
     self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
@@ -262,7 +264,9 @@ class TestBigQueryWrapper(unittest.TestCase):
     try:
       wrapper.create_temporary_dataset('project_id', 'location')
     except:  # pylint: disable=bare-except
-      # Ignore errors
+      # Ignore errors. The errors come from the fact that we did not mock
+      # the response from the API, so the overall create_dataset call fails
+      # soon after the BQ API is called.
       pass
     call = request_mock.mock_calls[-1]
     self.assertIn('apache-beam-', call[2]['headers']['user-agent'])
