@@ -20,18 +20,17 @@ import argparse
 import io
 import os
 from functools import partial
-from PIL import Image
 
 import apache_beam as beam
 import torch
 import torchvision
 import torchvision.transforms as transforms
-
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.api import RunInference
 from apache_beam.ml.inference.pytorch import PytorchModelLoader
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from PIL import Image
 
 _IMG_SIZE = (224, 224)
 normalize = transforms.Normalize(
