@@ -984,6 +984,17 @@ func validateIsWatermarkEstimating(fn *Fn, isSdf bool) (bool, error) {
 		return false, errors.Errorf("watermark estimation method %v is defined on non-splittable DoFn. Watermark"+
 			"estimation is only valid on splittable DoFns", createWatermarkEstimatorName)
 	}
+
+	processFn := fn.methods[processElementName]
+	if pos, ok := processFn.WatermarkEstimator(); ok && !isWatermarkEstimating {
+		err := errors.Errorf("method %v has sdf.WatermarkEstimator as param %v, expected none",
+			processElementName, pos)
+		return false, errors.SetTopLevelMsgf(err, "Method %v has an sdf.WatermarkEstimator parameter at index %v, "+
+			"but is not part of a watermark estimating DoFn. sdf.WatermarkEstimator is invalid in %v in "+
+			"non-watermark estimating DoFns.",
+			processElementName, pos, processElementName)
+	}
+
 	return isWatermarkEstimating, nil
 }
 
@@ -1030,6 +1041,16 @@ func validateWatermarkSig(fn *Fn, numMainIn int) error {
 		return errors.SetTopLevelMsgf(err, "invalid output type in method %v, "+
 			"return value at index %v (type: %v). Output of method %v must implement sdf.WatermarkEstimator.",
 			createWatermarkEstimatorName, 0, method.Ret[0].T, createWatermarkEstimatorName)
+	}
+
+	processFn := fn.methods[processElementName]
+	pos, _ := processFn.WatermarkEstimator()
+	if pos != -1 && method.Ret[0].T != processFn.Param[pos].T {
+		err := errors.Errorf("mismatched output type in method %v, return %v: got: %v, want: %v",
+			watermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T)
+		return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
+			"return value at index %v. Got: %v, Want: %v (from method %v).",
+			watermarkEstimatorStateName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
 	}
 
 	return nil
