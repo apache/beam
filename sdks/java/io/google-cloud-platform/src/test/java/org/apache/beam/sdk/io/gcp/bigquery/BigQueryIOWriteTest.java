@@ -524,14 +524,6 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testTimePartitioningStorageApi() throws Exception {
-    if (!useStorageApi) {
-      return;
-    }
-    testTimePartitioning(Method.STORAGE_WRITE_API);
-  }
-
-  @Test
   public void testClusteringStorageApi() throws Exception {
     if (useStorageApi) {
       testClustering(

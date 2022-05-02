@@ -22,6 +22,14 @@ plugins {
   id 'com.avast.gradle.docker-compose'
   id 'org.ajoberstar.grgit'
 }
+
+ext {
+  cluster = 'metrics'
+  zone='us-central1-a'
+  projectName='apache-beam-testing'
+  kubeConfigPath='/home/jenkins/.kube/config'
+}
+
 applyGroovyNature()
 
 repositories { mavenCentral() }
@@ -51,8 +59,23 @@ dockerCompose {
 
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task validateConfiguration(type: Exec) {
-  commandLine 'sh', '-c', 'kubectl apply --dry-run=true -Rf kubernetes'
+task getClusterCredentials(type: Exec) {
+  commandLine 'sh', '-c', "gcloud container clusters get-credentials ${cluster} --zone ${zone} --project ${projectName}"
+}
+
+task removeKubeConfig(type: Exec) {
+  commandLine 'sh', '-c', "rm ${kubeConfigPath}"
+}
+
+
+task validateK8sConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=client -Rf kubernetes'
+}
+
+task validateConfiguration {
+  dependsOn getClusterCredentials
+  dependsOn validateK8sConfiguration
+  finalizedBy removeKubeConfig
 }
 
 task preCommit {

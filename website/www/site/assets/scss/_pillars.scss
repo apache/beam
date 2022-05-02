@@ -18,7 +18,7 @@
 @import "media";
 
 .pillars {
-  padding: $pad;
+  padding: 0 30px 15px;
 
   .pillars-title {
     @extend .component-title;
@@ -32,7 +32,7 @@
     grid-template-columns: 443px 443px;
     grid-gap: 50px 89px;
     justify-content: center;
-    margin-top: 84px;
+    margin-top: 30px;
 
     .pillars-item {
       display: flex;
@@ -62,7 +62,7 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    margin-top: 117px;
+    margin-top: 30px;
 
     .pillars-social-icons {
       display: flex;
