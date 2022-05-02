@@ -294,7 +294,7 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      file_metadata = s3io.S3IO(options=self._options)._vars(path)
+      file_metadata = s3io.S3IO(options=self._options)._status(path)
       return FileMetadata(
           path, file_metadata['size'], file_metadata['last_updated'])
     except Exception as e:  # pylint: disable=broad-except
