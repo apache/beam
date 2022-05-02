@@ -18,11 +18,9 @@
 
 import argparse
 import io
-import logging
-import os.path
+import os
 
 import apache_beam as beam
-import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -34,13 +32,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from functools import partial
 from PIL import Image
-from typing import Any
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
 
 _IMG_SIZE = (224, 224)
 normalize = transforms.Normalize(
@@ -53,7 +44,7 @@ transform = transforms.Compose([
 ])
 
 
-def read_image(path_to_file: str, path_to_dir: str) -> Any:
+def read_image(path_to_file: str, path_to_dir: str):
   path_to_file = os.path.join(path_to_dir, path_to_file)
   with FileSystems().open(path_to_file, 'r') as file:
     data = Image.open(io.BytesIO(file.read())).convert('RGB')
@@ -65,14 +56,16 @@ def preprocess_data(data):
 
 
 class PostProcessor(beam.DoFn):
+  """Post process PredictionResult to output filename and
+  prediction using torch."""
   def process(self, element):
     filename, prediction_result = element
     prediction = torch.argmax(prediction_result.inference, dim=0)
-    yield filename, prediction
+    yield filename + ',' + str(int(prediction))
 
 
 def setup_pipeline(options: PipelineOptions, args=None):
-  """Sets up dataflow pipeline based on specified arguments"""
+  """Sets up PyTorch RunInference pipeline"""
   model_class = torchvision.models.mobilenet_v2
   model_params = {'pretrained': False}
   model_loader = PytorchModelLoader(
@@ -97,7 +90,7 @@ def setup_pipeline(options: PipelineOptions, args=None):
 
     predictions | "Write output to GCS" >> beam.io.WriteToText(
         args.output,
-        file_name_suffix='.csv',
+        file_name_suffix='.txt',
         shard_name_template='',
         append_trailing_newlines=True)
 
@@ -109,9 +102,9 @@ def parse_known_args(argv):
       '--input',
       dest='input',
       required=True,
-      help='Path to the GCS directory containing filenames')
+      help='Path to the CSV file containing image names')
   parser.add_argument(
-      '--output', dest='output', help='Output path for output files.')
+      '--output', dest='output', help='Predictions are saved to the output.')
   parser.add_argument(
       '--model_path', dest='model_path', help='Path to load the model.')
   parser.add_argument(
