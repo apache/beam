@@ -17,7 +17,7 @@
 
 // Code generated from registration.tmpl. DO NOT EDIT.
 
-package beam
+package registration
 
 import (
 	"context"

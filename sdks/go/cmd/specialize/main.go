@@ -308,7 +308,7 @@ func possibleBundleLifecycleParameterCombos(numInInterface interface{}, processE
 	numIn := numInInterface.(int)
 	processElementIn := processElementInInterface.(int)
 	ordered_known_parameter_options := []string{"context.Context", "typex.PaneInfo", "[]typex.Window", "typex.EventTime", "typex.BundleFinalization"}
-	// Because of how Bundle lifecycle functions are invoked, all known parameters must preced unknown options and be in order.
+	// Because of how Bundle lifecycle functions are invoked, all known parameters must precede unknown options and be in order.
 	// Once we hit an unknown options, all remaining unknown options must be included since all iters/emitters must be included
 	// Therefore, we can generate a powerset of the known options and fill out any remaining parameters with an ordered set of remaining unknown options
 	pSetSize := int(math.Pow(2, float64(len(ordered_known_parameter_options))))

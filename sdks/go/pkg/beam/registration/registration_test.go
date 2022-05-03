@@ -17,7 +17,7 @@
 //go:generate specialize --package=beam --input=registration.tmpl --x=data,universals --imports=typex
 //go:generate go fmt
 
-package beam
+package registration
 
 import (
 	"context"
