@@ -85,11 +85,11 @@ public class CreateTableDestinations<DestinationT, ElementT>
 
   private class CreateTablesFn
       extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, ElementT>> {
-    private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
+    private Map<DestinationT, TableDestination> destinations = Maps.newConcurrentMap();
 
     @StartBundle
     public void startBundle() {
-      destinations = Maps.newHashMap();
+      destinations = Maps.newConcurrentMap();
     }
 
     @ProcessElement

@@ -94,7 +94,7 @@ public class CreateTables<DestinationT, ElementT>
 
     @StartBundle
     public void startBundle() {
-      destinations = Maps.newHashMap();
+      destinations = Maps.newConcurrentMap();
     }
 
     @ProcessElement
