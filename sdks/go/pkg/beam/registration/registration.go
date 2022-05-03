@@ -29,6 +29,198 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
+func registerStartBundle0x0FuncAndMakeStructWrapper() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller0x0{fn: fn.(func())}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func() {
+			fn.(startBundle0x0).StartBundle()
+		})
+	}
+}
+
+func registerStartBundle0x1FuncAndMakeStructWrapper[R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller0x1[R0]{fn: fn.(func() R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func() R0 {
+			return fn.(startBundle0x1[R0]).StartBundle()
+		})
+	}
+}
+
+func registerStartBundle1x0FuncAndMakeStructWrapper[I0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller1x0[I0]{fn: fn.(func(I0))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0) {
+			fn.(startBundle1x0[I0]).StartBundle(a0)
+		})
+	}
+}
+
+func registerStartBundle1x1FuncAndMakeStructWrapper[I0, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller1x1[I0, R0]{fn: fn.(func(I0) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0) R0 {
+			return fn.(startBundle1x1[I0, R0]).StartBundle(a0)
+		})
+	}
+}
+
+func registerStartBundle2x0FuncAndMakeStructWrapper[I0, I1 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller2x0[I0, I1]{fn: fn.(func(I0, I1))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1) {
+			fn.(startBundle2x0[I0, I1]).StartBundle(a0, a1)
+		})
+	}
+}
+
+func registerStartBundle2x1FuncAndMakeStructWrapper[I0, I1, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller2x1[I0, I1, R0]{fn: fn.(func(I0, I1) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1) R0 {
+			return fn.(startBundle2x1[I0, I1, R0]).StartBundle(a0, a1)
+		})
+	}
+}
+
+func registerStartBundle3x0FuncAndMakeStructWrapper[I0, I1, I2 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller3x0[I0, I1, I2]{fn: fn.(func(I0, I1, I2))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) {
+			fn.(startBundle3x0[I0, I1, I2]).StartBundle(a0, a1, a2)
+		})
+	}
+}
+
+func registerStartBundle3x1FuncAndMakeStructWrapper[I0, I1, I2, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller3x1[I0, I1, I2, R0]{fn: fn.(func(I0, I1, I2) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) R0 {
+			return fn.(startBundle3x1[I0, I1, I2, R0]).StartBundle(a0, a1, a2)
+		})
+	}
+}
+
+func registerStartBundle4x0FuncAndMakeStructWrapper[I0, I1, I2, I3 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller4x0[I0, I1, I2, I3]{fn: fn.(func(I0, I1, I2, I3))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) {
+			fn.(startBundle4x0[I0, I1, I2, I3]).StartBundle(a0, a1, a2, a3)
+		})
+	}
+}
+
+func registerStartBundle4x1FuncAndMakeStructWrapper[I0, I1, I2, I3, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller4x1[I0, I1, I2, I3, R0]{fn: fn.(func(I0, I1, I2, I3) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) R0 {
+			return fn.(startBundle4x1[I0, I1, I2, I3, R0]).StartBundle(a0, a1, a2, a3)
+		})
+	}
+}
+
+func registerStartBundle5x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller5x0[I0, I1, I2, I3, I4]{fn: fn.(func(I0, I1, I2, I3, I4))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) {
+			fn.(startBundle5x0[I0, I1, I2, I3, I4]).StartBundle(a0, a1, a2, a3, a4)
+		})
+	}
+}
+
+func registerStartBundle5x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller5x1[I0, I1, I2, I3, I4, R0]{fn: fn.(func(I0, I1, I2, I3, I4) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) R0 {
+			return fn.(startBundle5x1[I0, I1, I2, I3, I4, R0]).StartBundle(a0, a1, a2, a3, a4)
+		})
+	}
+}
+
+func registerStartBundle6x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller6x0[I0, I1, I2, I3, I4, I5]{fn: fn.(func(I0, I1, I2, I3, I4, I5))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) {
+			fn.(startBundle6x0[I0, I1, I2, I3, I4, I5]).StartBundle(a0, a1, a2, a3, a4, a5)
+		})
+	}
+}
+
+func registerStartBundle6x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller6x1[I0, I1, I2, I3, I4, I5, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) R0 {
+			return fn.(startBundle6x1[I0, I1, I2, I3, I4, I5, R0]).StartBundle(a0, a1, a2, a3, a4, a5)
+		})
+	}
+}
+
+func registerStartBundle7x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller7x0[I0, I1, I2, I3, I4, I5, I6]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) {
+			fn.(startBundle7x0[I0, I1, I2, I3, I4, I5, I6]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
+		})
+	}
+}
+
+func registerStartBundle7x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) R0 {
+			return fn.(startBundle7x1[I0, I1, I2, I3, I4, I5, I6, R0]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
+		})
+	}
+}
+
 func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn interface{}) func(interface{}) reflectx.Func {
 	startBundleIn := -1
 	startBundleOut := -1
@@ -42,19 +234,11 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle0x0); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller0x0{fn: fn.(func())} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func() { fn.(startBundle0x0).StartBundle() })
-					}
+					return registerStartBundle0x0FuncAndMakeStructWrapper()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle0x1[error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller0x1[error]{fn: fn.(func() error)} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func() error { return fn.(startBundle0x1[error]).StartBundle() })
-					}
+					return registerStartBundle0x1FuncAndMakeStructWrapper[error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -64,93 +248,31 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle1x0[I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[I9]{fn: fn.(func(I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I9) { fn.(startBundle1x0[I9]).StartBundle(a0) })
-					}
+					return registerStartBundle1x0FuncAndMakeStructWrapper[I9]()
 				} else if _, ok := doFn.(startBundle1x0[context.Context]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[context.Context]{fn: fn.(func(context.Context))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context) { fn.(startBundle1x0[context.Context]).StartBundle(a0) })
-					}
+					return registerStartBundle1x0FuncAndMakeStructWrapper[context.Context]()
 				} else if _, ok := doFn.(startBundle1x0[typex.PaneInfo]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[typex.PaneInfo]{fn: fn.(func(typex.PaneInfo))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo) { fn.(startBundle1x0[typex.PaneInfo]).StartBundle(a0) })
-					}
+					return registerStartBundle1x0FuncAndMakeStructWrapper[typex.PaneInfo]()
 				} else if _, ok := doFn.(startBundle1x0[[]typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[[]typex.Window]{fn: fn.(func([]typex.Window))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window) { fn.(startBundle1x0[[]typex.Window]).StartBundle(a0) })
-					}
+					return registerStartBundle1x0FuncAndMakeStructWrapper[[]typex.Window]()
 				} else if _, ok := doFn.(startBundle1x0[typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[typex.EventTime]{fn: fn.(func(typex.EventTime))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime) { fn.(startBundle1x0[typex.EventTime]).StartBundle(a0) })
-					}
+					return registerStartBundle1x0FuncAndMakeStructWrapper[typex.EventTime]()
 				} else if _, ok := doFn.(startBundle1x0[typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x0[typex.BundleFinalization]{fn: fn.(func(typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization) { fn.(startBundle1x0[typex.BundleFinalization]).StartBundle(a0) })
-					}
+					return registerStartBundle1x0FuncAndMakeStructWrapper[typex.BundleFinalization]()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle1x1[I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x1[I9, error]{fn: fn.(func(I9) error)} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I9) error { return fn.(startBundle1x1[I9, error]).StartBundle(a0) })
-					}
+					return registerStartBundle1x1FuncAndMakeStructWrapper[I9, error]()
 				} else if _, ok := doFn.(startBundle1x1[context.Context, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[context.Context, error]{fn: fn.(func(context.Context) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context) error { return fn.(startBundle1x1[context.Context, error]).StartBundle(a0) })
-					}
+					return registerStartBundle1x1FuncAndMakeStructWrapper[context.Context, error]()
 				} else if _, ok := doFn.(startBundle1x1[typex.PaneInfo, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[typex.PaneInfo, error]{fn: fn.(func(typex.PaneInfo) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo) error { return fn.(startBundle1x1[typex.PaneInfo, error]).StartBundle(a0) })
-					}
+					return registerStartBundle1x1FuncAndMakeStructWrapper[typex.PaneInfo, error]()
 				} else if _, ok := doFn.(startBundle1x1[[]typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[[]typex.Window, error]{fn: fn.(func([]typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window) error { return fn.(startBundle1x1[[]typex.Window, error]).StartBundle(a0) })
-					}
+					return registerStartBundle1x1FuncAndMakeStructWrapper[[]typex.Window, error]()
 				} else if _, ok := doFn.(startBundle1x1[typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[typex.EventTime, error]{fn: fn.(func(typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime) error { return fn.(startBundle1x1[typex.EventTime, error]).StartBundle(a0) })
-					}
+					return registerStartBundle1x1FuncAndMakeStructWrapper[typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle1x1[typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[typex.BundleFinalization, error]{fn: fn.(func(typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization) error {
-							return fn.(startBundle1x1[typex.BundleFinalization, error]).StartBundle(a0)
-						})
-					}
+					return registerStartBundle1x1FuncAndMakeStructWrapper[typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -160,311 +282,71 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle2x0[I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller2x0[I8, I9]{fn: fn.(func(I8, I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I8, a1 I9) { fn.(startBundle2x0[I8, I9]).StartBundle(a0, a1) })
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[I8, I9]()
 				} else if _, ok := doFn.(startBundle2x0[context.Context, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, I9]{fn: fn.(func(context.Context, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I9) { fn.(startBundle2x0[context.Context, I9]).StartBundle(a0, a1) })
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, I9]()
 				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, I9]{fn: fn.(func(typex.PaneInfo, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I9) { fn.(startBundle2x0[typex.PaneInfo, I9]).StartBundle(a0, a1) })
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, I9]()
 				} else if _, ok := doFn.(startBundle2x0[context.Context, typex.PaneInfo]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, typex.PaneInfo]{fn: fn.(func(context.Context, typex.PaneInfo))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo) {
-							fn.(startBundle2x0[context.Context, typex.PaneInfo]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo]()
 				} else if _, ok := doFn.(startBundle2x0[[]typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[[]typex.Window, I9]{fn: fn.(func([]typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I9) { fn.(startBundle2x0[[]typex.Window, I9]).StartBundle(a0, a1) })
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, I9]()
 				} else if _, ok := doFn.(startBundle2x0[context.Context, []typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, []typex.Window]{fn: fn.(func(context.Context, []typex.Window))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window) {
-							fn.(startBundle2x0[context.Context, []typex.Window]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, []typex.Window]()
 				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, []typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, []typex.Window]{fn: fn.(func(typex.PaneInfo, []typex.Window))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window) {
-							fn.(startBundle2x0[typex.PaneInfo, []typex.Window]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window]()
 				} else if _, ok := doFn.(startBundle2x0[typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.EventTime, I9]{fn: fn.(func(typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I9) { fn.(startBundle2x0[typex.EventTime, I9]).StartBundle(a0, a1) })
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle2x0[context.Context, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, typex.EventTime]{fn: fn.(func(context.Context, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime) {
-							fn.(startBundle2x0[context.Context, typex.EventTime]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.EventTime]()
 				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, typex.EventTime]{fn: fn.(func(typex.PaneInfo, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime) {
-							fn.(startBundle2x0[typex.PaneInfo, typex.EventTime]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime]()
 				} else if _, ok := doFn.(startBundle2x0[[]typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[[]typex.Window, typex.EventTime]{fn: fn.(func([]typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime) {
-							fn.(startBundle2x0[[]typex.Window, typex.EventTime]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(startBundle2x0[typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.BundleFinalization, I9]{fn: fn.(func(typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I9) {
-							fn.(startBundle2x0[typex.BundleFinalization, I9]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle2x0[context.Context, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization) {
-							fn.(startBundle2x0[context.Context, typex.BundleFinalization]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization) {
-							fn.(startBundle2x0[typex.PaneInfo, typex.BundleFinalization]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle2x0[[]typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[[]typex.Window, typex.BundleFinalization]{fn: fn.(func([]typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization) {
-							fn.(startBundle2x0[[]typex.Window, typex.BundleFinalization]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle2x0[typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.EventTime, typex.BundleFinalization]{fn: fn.(func(typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization) {
-							fn.(startBundle2x0[typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization]()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle2x1[I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller2x1[I8, I9, error]{fn: fn.(func(I8, I9) error)} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I8, a1 I9) error { return fn.(startBundle2x1[I8, I9, error]).StartBundle(a0, a1) })
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[I8, I9, error]()
 				} else if _, ok := doFn.(startBundle2x1[context.Context, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, I9, error]{fn: fn.(func(context.Context, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I9) error {
-							return fn.(startBundle2x1[context.Context, I9, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, I9, error]()
 				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, I9, error]{fn: fn.(func(typex.PaneInfo, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I9) error {
-							return fn.(startBundle2x1[typex.PaneInfo, I9, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, I9, error]()
 				} else if _, ok := doFn.(startBundle2x1[context.Context, typex.PaneInfo, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, typex.PaneInfo, error]{fn: fn.(func(context.Context, typex.PaneInfo) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo) error {
-							return fn.(startBundle2x1[context.Context, typex.PaneInfo, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, error]()
 				} else if _, ok := doFn.(startBundle2x1[[]typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[[]typex.Window, I9, error]{fn: fn.(func([]typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I9) error {
-							return fn.(startBundle2x1[[]typex.Window, I9, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, I9, error]()
 				} else if _, ok := doFn.(startBundle2x1[context.Context, []typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, []typex.Window, error]{fn: fn.(func(context.Context, []typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window) error {
-							return fn.(startBundle2x1[context.Context, []typex.Window, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, []typex.Window, error]()
 				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, []typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, []typex.Window, error]{fn: fn.(func(typex.PaneInfo, []typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window) error {
-							return fn.(startBundle2x1[typex.PaneInfo, []typex.Window, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, error]()
 				} else if _, ok := doFn.(startBundle2x1[typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.EventTime, I9, error]{fn: fn.(func(typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I9) error {
-							return fn.(startBundle2x1[typex.EventTime, I9, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle2x1[context.Context, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, typex.EventTime, error]{fn: fn.(func(context.Context, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime) error {
-							return fn.(startBundle2x1[context.Context, typex.EventTime, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, typex.EventTime, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime) error {
-							return fn.(startBundle2x1[typex.PaneInfo, typex.EventTime, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle2x1[[]typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[[]typex.Window, typex.EventTime, error]{fn: fn.(func([]typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime) error {
-							return fn.(startBundle2x1[[]typex.Window, typex.EventTime, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle2x1[typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.BundleFinalization, I9, error]{fn: fn.(func(typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I9) error {
-							return fn.(startBundle2x1[typex.BundleFinalization, I9, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle2x1[context.Context, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization) error {
-							return fn.(startBundle2x1[context.Context, typex.BundleFinalization, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization) error {
-							return fn.(startBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle2x1[[]typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[[]typex.Window, typex.BundleFinalization, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization) error {
-							return fn.(startBundle2x1[[]typex.Window, typex.BundleFinalization, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle2x1[typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization) error {
-							return fn.(startBundle2x1[typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1)
-						})
-					}
+					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -474,521 +356,111 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle3x0[I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller3x0[I7, I8, I9]{fn: fn.(func(I7, I8, I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I7, a1 I8, a2 I9) { fn.(startBundle3x0[I7, I8, I9]).StartBundle(a0, a1, a2) })
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, I8, I9]{fn: fn.(func(context.Context, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I8, a2 I9) {
-							fn.(startBundle3x0[context.Context, I8, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, I8, I9]()
 				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, I8, I9]{fn: fn.(func(typex.PaneInfo, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I8, a2 I9) {
-							fn.(startBundle3x0[typex.PaneInfo, I8, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I9) {
-							fn.(startBundle3x0[context.Context, typex.PaneInfo, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9]()
 				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, I8, I9]{fn: fn.(func([]typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I8, a2 I9) {
-							fn.(startBundle3x0[[]typex.Window, I8, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, I8, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, []typex.Window, I9]{fn: fn.(func(context.Context, []typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I9) {
-							fn.(startBundle3x0[context.Context, []typex.Window, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I9]()
 				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, []typex.Window, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I9) {
-							fn.(startBundle3x0[typex.PaneInfo, []typex.Window, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, []typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, []typex.Window]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window) {
-							fn.(startBundle3x0[context.Context, typex.PaneInfo, []typex.Window]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window]()
 				} else if _, ok := doFn.(startBundle3x0[typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.EventTime, I8, I9]{fn: fn.(func(typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I8, a2 I9) {
-							fn.(startBundle3x0[typex.EventTime, I8, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.EventTime, I9]{fn: fn.(func(context.Context, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I9) {
-							fn.(startBundle3x0[context.Context, typex.EventTime, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, typex.EventTime, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I9) {
-							fn.(startBundle3x0[typex.PaneInfo, typex.EventTime, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, typex.EventTime]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime) {
-							fn.(startBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime]()
 				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, typex.EventTime, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I9) {
-							fn.(startBundle3x0[[]typex.Window, typex.EventTime, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, []typex.Window, typex.EventTime]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime) {
-							fn.(startBundle3x0[context.Context, []typex.Window, typex.EventTime]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, []typex.Window, typex.EventTime]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime) {
-							fn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(startBundle3x0[typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I8, a2 I9) {
-							fn.(startBundle3x0[typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I9) {
-							fn.(startBundle3x0[context.Context, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I9) {
-							fn.(startBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization) {
-							fn.(startBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, typex.BundleFinalization, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I9) {
-							fn.(startBundle3x0[[]typex.Window, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, []typex.Window, typex.BundleFinalization]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization) {
-							fn.(startBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization) {
-							fn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle3x0[typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I9) {
-							fn.(startBundle3x0[typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization) {
-							fn.(startBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization) {
-							fn.(startBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization) {
-							fn.(startBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization]()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle3x1[I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[I7, I8, I9, error]{fn: fn.(func(I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I7, a1 I8, a2 I9) error { return fn.(startBundle3x1[I7, I8, I9, error]).StartBundle(a0, a1, a2) })
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, I8, I9, error]{fn: fn.(func(context.Context, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I8, a2 I9) error {
-							return fn.(startBundle3x1[context.Context, I8, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I8, a2 I9) error {
-							return fn.(startBundle3x1[typex.PaneInfo, I8, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I9) error {
-							return fn.(startBundle3x1[context.Context, typex.PaneInfo, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, I8, I9, error]{fn: fn.(func([]typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I8, a2 I9) error {
-							return fn.(startBundle3x1[[]typex.Window, I8, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, []typex.Window, I9, error]{fn: fn.(func(context.Context, []typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I9) error {
-							return fn.(startBundle3x1[context.Context, []typex.Window, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, []typex.Window, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I9) error {
-							return fn.(startBundle3x1[typex.PaneInfo, []typex.Window, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, []typex.Window, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window) error {
-							return fn.(startBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.EventTime, I8, I9, error]{fn: fn.(func(typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I8, a2 I9) error {
-							return fn.(startBundle3x1[typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.EventTime, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I9) error {
-							return fn.(startBundle3x1[context.Context, typex.EventTime, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, typex.EventTime, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I9) error {
-							return fn.(startBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, typex.EventTime, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime) error {
-							return fn.(startBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, typex.EventTime, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I9) error {
-							return fn.(startBundle3x1[[]typex.Window, typex.EventTime, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, []typex.Window, typex.EventTime, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime) error {
-							return fn.(startBundle3x1[context.Context, []typex.Window, typex.EventTime, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime) error {
-							return fn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I8, a2 I9) error {
-							return fn.(startBundle3x1[typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(startBundle3x1[context.Context, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(startBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization) error {
-							return fn.(startBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(startBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, []typex.Window, typex.BundleFinalization, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization) error {
-							return fn.(startBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization) error {
-							return fn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(startBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization) error {
-							return fn.(startBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization) error {
-							return fn.(startBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization) error {
-							return fn.(startBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1, a2)
-						})
-					}
+					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -998,623 +470,131 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle4x0[I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller4x0[I6, I7, I8, I9]{fn: fn.(func(I6, I7, I8, I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I6, a1 I7, a2 I8, a3 I9) { fn.(startBundle4x0[I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3) })
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, I7, I8, I9]{fn: fn.(func(context.Context, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I7, a2 I8, a3 I9) {
-							fn.(startBundle4x0[context.Context, I7, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I7, a2 I8, a3 I9) {
-							fn.(startBundle4x0[typex.PaneInfo, I7, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I8, a3 I9) {
-							fn.(startBundle4x0[context.Context, typex.PaneInfo, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, I7, I8, I9]{fn: fn.(func([]typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I7, a2 I8, a3 I9) {
-							fn.(startBundle4x0[[]typex.Window, I7, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I8, a3 I9) {
-							fn.(startBundle4x0[context.Context, []typex.Window, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I8, a3 I9) {
-							fn.(startBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, []typex.Window, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I9) {
-							fn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.EventTime, I7, I8, I9]{fn: fn.(func(typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I7, a2 I8, a3 I9) {
-							fn.(startBundle4x0[typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I8, a3 I9) {
-							fn.(startBundle4x0[context.Context, typex.EventTime, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, typex.EventTime, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I8, a3 I9) {
-							fn.(startBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I9) {
-							fn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, typex.EventTime, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I8, a3 I9) {
-							fn.(startBundle4x0[[]typex.Window, typex.EventTime, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, typex.EventTime, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I9) {
-							fn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I9) {
-							fn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime) {
-							fn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(startBundle4x0[typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I7, a2 I8, a3 I9) {
-							fn.(startBundle4x0[typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(startBundle4x0[context.Context, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(startBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I9) {
-							fn.(startBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(startBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) {
-							fn.(startBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) {
-							fn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization) {
-							fn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(startBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) {
-							fn.(startBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) {
-							fn.(startBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization) {
-							fn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) {
-							fn.(startBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) {
-							fn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) {
-							fn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle4x1[I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[I6, I7, I8, I9, error]{fn: fn.(func(I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I6, a1 I7, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, I7, I8, I9, error]{fn: fn.(func(context.Context, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I7, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I7, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[typex.PaneInfo, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I7, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[[]typex.Window, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, []typex.Window, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.EventTime, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I7, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, typex.EventTime, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I9) error {
-							return fn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime) error {
-							return fn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I7, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization) error {
-							return fn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(startBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(startBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(startBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization) error {
-							return fn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(startBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) error {
-							return fn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) error {
-							return fn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -1624,647 +604,135 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle5x0[I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[I5, I6, I7, I8, I9]{fn: fn.(func(I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I5, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, I6, I7, I8, I9]{fn: fn.(func(context.Context, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[[]typex.Window, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, []typex.Window, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.EventTime, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(startBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) {
-							fn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) {
-							fn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization) {
-							fn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle5x1[I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[I5, I6, I7, I8, I9, error]{fn: fn.(func(I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I5, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[[]typex.Window, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.EventTime, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(startBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization) error {
-							return fn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]).StartBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -2274,647 +742,135 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle6x0[I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[I4, I5, I6, I7, I8, I9]{fn: fn.(func(I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I4, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[I4, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(startBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I9) {
-							fn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle6x1[I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I4, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[I4, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I9) error {
-							return fn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -2924,647 +880,135 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 			switch {
 			case startBundleOut == 0:
 				if _, ok := doFn.(startBundle7x0[I3, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I3, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[I3, I4, I5, I6, I7, I8, I9]{fn: fn.(func(I3, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I3, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[I3, I4, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, I4, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I8, a6 I9) {
-							fn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				}
 			case startBundleOut == 1:
 				if _, ok := doFn.(startBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I3, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[I3, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(I3, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I3, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I8, a6 I9) error {
-							return fn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).StartBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				}
 			default:
 				panic("Invalid signature for StartBundle")
@@ -3575,6 +1019,198 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 		}
 	}
 	return nil
+}
+
+func registerFinishBundle0x0FuncAndMakeStructWrapper() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller0x0{fn: fn.(func())}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func() {
+			fn.(finishBundle0x0).FinishBundle()
+		})
+	}
+}
+
+func registerFinishBundle0x1FuncAndMakeStructWrapper[R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func() R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller0x1[R0]{fn: fn.(func() R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func() R0 {
+			return fn.(finishBundle0x1[R0]).FinishBundle()
+		})
+	}
+}
+
+func registerFinishBundle1x0FuncAndMakeStructWrapper[I0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller1x0[I0]{fn: fn.(func(I0))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0) {
+			fn.(finishBundle1x0[I0]).FinishBundle(a0)
+		})
+	}
+}
+
+func registerFinishBundle1x1FuncAndMakeStructWrapper[I0, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller1x1[I0, R0]{fn: fn.(func(I0) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0) R0 {
+			return fn.(finishBundle1x1[I0, R0]).FinishBundle(a0)
+		})
+	}
+}
+
+func registerFinishBundle2x0FuncAndMakeStructWrapper[I0, I1 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller2x0[I0, I1]{fn: fn.(func(I0, I1))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1) {
+			fn.(finishBundle2x0[I0, I1]).FinishBundle(a0, a1)
+		})
+	}
+}
+
+func registerFinishBundle2x1FuncAndMakeStructWrapper[I0, I1, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller2x1[I0, I1, R0]{fn: fn.(func(I0, I1) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1) R0 {
+			return fn.(finishBundle2x1[I0, I1, R0]).FinishBundle(a0, a1)
+		})
+	}
+}
+
+func registerFinishBundle3x0FuncAndMakeStructWrapper[I0, I1, I2 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller3x0[I0, I1, I2]{fn: fn.(func(I0, I1, I2))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) {
+			fn.(finishBundle3x0[I0, I1, I2]).FinishBundle(a0, a1, a2)
+		})
+	}
+}
+
+func registerFinishBundle3x1FuncAndMakeStructWrapper[I0, I1, I2, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller3x1[I0, I1, I2, R0]{fn: fn.(func(I0, I1, I2) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2) R0 {
+			return fn.(finishBundle3x1[I0, I1, I2, R0]).FinishBundle(a0, a1, a2)
+		})
+	}
+}
+
+func registerFinishBundle4x0FuncAndMakeStructWrapper[I0, I1, I2, I3 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller4x0[I0, I1, I2, I3]{fn: fn.(func(I0, I1, I2, I3))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) {
+			fn.(finishBundle4x0[I0, I1, I2, I3]).FinishBundle(a0, a1, a2, a3)
+		})
+	}
+}
+
+func registerFinishBundle4x1FuncAndMakeStructWrapper[I0, I1, I2, I3, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller4x1[I0, I1, I2, I3, R0]{fn: fn.(func(I0, I1, I2, I3) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3) R0 {
+			return fn.(finishBundle4x1[I0, I1, I2, I3, R0]).FinishBundle(a0, a1, a2, a3)
+		})
+	}
+}
+
+func registerFinishBundle5x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller5x0[I0, I1, I2, I3, I4]{fn: fn.(func(I0, I1, I2, I3, I4))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) {
+			fn.(finishBundle5x0[I0, I1, I2, I3, I4]).FinishBundle(a0, a1, a2, a3, a4)
+		})
+	}
+}
+
+func registerFinishBundle5x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller5x1[I0, I1, I2, I3, I4, R0]{fn: fn.(func(I0, I1, I2, I3, I4) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4) R0 {
+			return fn.(finishBundle5x1[I0, I1, I2, I3, I4, R0]).FinishBundle(a0, a1, a2, a3, a4)
+		})
+	}
+}
+
+func registerFinishBundle6x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller6x0[I0, I1, I2, I3, I4, I5]{fn: fn.(func(I0, I1, I2, I3, I4, I5))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) {
+			fn.(finishBundle6x0[I0, I1, I2, I3, I4, I5]).FinishBundle(a0, a1, a2, a3, a4, a5)
+		})
+	}
+}
+
+func registerFinishBundle6x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller6x1[I0, I1, I2, I3, I4, I5, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5) R0 {
+			return fn.(finishBundle6x1[I0, I1, I2, I3, I4, I5, R0]).FinishBundle(a0, a1, a2, a3, a4, a5)
+		})
+	}
+}
+
+func registerFinishBundle7x0FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6))(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller7x0[I0, I1, I2, I3, I4, I5, I6]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6))}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) {
+			fn.(finishBundle7x0[I0, I1, I2, I3, I4, I5, I6]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
+		})
+	}
+}
+
+func registerFinishBundle7x1FuncAndMakeStructWrapper[I0, I1, I2, I3, I4, I5, I6, R0 any]() func(interface{}) reflectx.Func {
+	reflectx.RegisterFunc(reflect.TypeOf((*func(I0, I1, I2, I3, I4, I5, I6) R0)(nil)).Elem(), func(fn interface{}) reflectx.Func {
+		return &caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]{fn: fn.(func(I0, I1, I2, I3, I4, I5, I6) R0)}
+	})
+
+	return func(fn interface{}) reflectx.Func {
+		return reflectx.MakeFunc(func(a0 I0, a1 I1, a2 I2, a3 I3, a4 I4, a5 I5, a6 I6) R0 {
+			return fn.(finishBundle7x1[I0, I1, I2, I3, I4, I5, I6, R0]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
+		})
+	}
 }
 
 func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn interface{}) func(interface{}) reflectx.Func {
@@ -3590,19 +1226,11 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle0x0); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller0x0{fn: fn.(func())} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func() { fn.(finishBundle0x0).FinishBundle() })
-					}
+					return registerFinishBundle0x0FuncAndMakeStructWrapper()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle0x1[error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller0x1[error]{fn: fn.(func() error)} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func() error { return fn.(finishBundle0x1[error]).FinishBundle() })
-					}
+					return registerFinishBundle0x1FuncAndMakeStructWrapper[error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")
@@ -3612,93 +1240,31 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle1x0[I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[I9]{fn: fn.(func(I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I9) { fn.(finishBundle1x0[I9]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x0FuncAndMakeStructWrapper[I9]()
 				} else if _, ok := doFn.(finishBundle1x0[context.Context]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[context.Context]{fn: fn.(func(context.Context))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context) { fn.(finishBundle1x0[context.Context]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x0FuncAndMakeStructWrapper[context.Context]()
 				} else if _, ok := doFn.(finishBundle1x0[typex.PaneInfo]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[typex.PaneInfo]{fn: fn.(func(typex.PaneInfo))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo) { fn.(finishBundle1x0[typex.PaneInfo]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.PaneInfo]()
 				} else if _, ok := doFn.(finishBundle1x0[[]typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[[]typex.Window]{fn: fn.(func([]typex.Window))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window) { fn.(finishBundle1x0[[]typex.Window]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x0FuncAndMakeStructWrapper[[]typex.Window]()
 				} else if _, ok := doFn.(finishBundle1x0[typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x0[typex.EventTime]{fn: fn.(func(typex.EventTime))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime) { fn.(finishBundle1x0[typex.EventTime]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle1x0[typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x0[typex.BundleFinalization]{fn: fn.(func(typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization) { fn.(finishBundle1x0[typex.BundleFinalization]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.BundleFinalization]()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle1x1[I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller1x1[I9, error]{fn: fn.(func(I9) error)} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I9) error { return fn.(finishBundle1x1[I9, error]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x1FuncAndMakeStructWrapper[I9, error]()
 				} else if _, ok := doFn.(finishBundle1x1[context.Context, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[context.Context, error]{fn: fn.(func(context.Context) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context) error { return fn.(finishBundle1x1[context.Context, error]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x1FuncAndMakeStructWrapper[context.Context, error]()
 				} else if _, ok := doFn.(finishBundle1x1[typex.PaneInfo, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[typex.PaneInfo, error]{fn: fn.(func(typex.PaneInfo) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo) error { return fn.(finishBundle1x1[typex.PaneInfo, error]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.PaneInfo, error]()
 				} else if _, ok := doFn.(finishBundle1x1[[]typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[[]typex.Window, error]{fn: fn.(func([]typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window) error { return fn.(finishBundle1x1[[]typex.Window, error]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x1FuncAndMakeStructWrapper[[]typex.Window, error]()
 				} else if _, ok := doFn.(finishBundle1x1[typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[typex.EventTime, error]{fn: fn.(func(typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime) error { return fn.(finishBundle1x1[typex.EventTime, error]).FinishBundle(a0) })
-					}
+					return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle1x1[typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller1x1[typex.BundleFinalization, error]{fn: fn.(func(typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization) error {
-							return fn.(finishBundle1x1[typex.BundleFinalization, error]).FinishBundle(a0)
-						})
-					}
+					return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")
@@ -3708,311 +1274,71 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle2x0[I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller2x0[I8, I9]{fn: fn.(func(I8, I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I8, a1 I9) { fn.(finishBundle2x0[I8, I9]).FinishBundle(a0, a1) })
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[I8, I9]()
 				} else if _, ok := doFn.(finishBundle2x0[context.Context, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, I9]{fn: fn.(func(context.Context, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I9) { fn.(finishBundle2x0[context.Context, I9]).FinishBundle(a0, a1) })
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, I9]()
 				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, I9]{fn: fn.(func(typex.PaneInfo, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I9) { fn.(finishBundle2x0[typex.PaneInfo, I9]).FinishBundle(a0, a1) })
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, I9]()
 				} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.PaneInfo]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, typex.PaneInfo]{fn: fn.(func(context.Context, typex.PaneInfo))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo) {
-							fn.(finishBundle2x0[context.Context, typex.PaneInfo]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo]()
 				} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[[]typex.Window, I9]{fn: fn.(func([]typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I9) { fn.(finishBundle2x0[[]typex.Window, I9]).FinishBundle(a0, a1) })
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, I9]()
 				} else if _, ok := doFn.(finishBundle2x0[context.Context, []typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, []typex.Window]{fn: fn.(func(context.Context, []typex.Window))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window) {
-							fn.(finishBundle2x0[context.Context, []typex.Window]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, []typex.Window]()
 				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, []typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, []typex.Window]{fn: fn.(func(typex.PaneInfo, []typex.Window))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window) {
-							fn.(finishBundle2x0[typex.PaneInfo, []typex.Window]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window]()
 				} else if _, ok := doFn.(finishBundle2x0[typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.EventTime, I9]{fn: fn.(func(typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I9) { fn.(finishBundle2x0[typex.EventTime, I9]).FinishBundle(a0, a1) })
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, typex.EventTime]{fn: fn.(func(context.Context, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime) {
-							fn.(finishBundle2x0[context.Context, typex.EventTime]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, typex.EventTime]{fn: fn.(func(typex.PaneInfo, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime) {
-							fn.(finishBundle2x0[typex.PaneInfo, typex.EventTime]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[[]typex.Window, typex.EventTime]{fn: fn.(func([]typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime) {
-							fn.(finishBundle2x0[[]typex.Window, typex.EventTime]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle2x0[typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.BundleFinalization, I9]{fn: fn.(func(typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I9) {
-							fn.(finishBundle2x0[typex.BundleFinalization, I9]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[context.Context, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization) {
-							fn.(finishBundle2x0[context.Context, typex.BundleFinalization]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.PaneInfo, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization) {
-							fn.(finishBundle2x0[typex.PaneInfo, typex.BundleFinalization]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[[]typex.Window, typex.BundleFinalization]{fn: fn.(func([]typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization) {
-							fn.(finishBundle2x0[[]typex.Window, typex.BundleFinalization]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle2x0[typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x0[typex.EventTime, typex.BundleFinalization]{fn: fn.(func(typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization) {
-							fn.(finishBundle2x0[typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization]()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle2x1[I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller2x1[I8, I9, error]{fn: fn.(func(I8, I9) error)} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I8, a1 I9) error { return fn.(finishBundle2x1[I8, I9, error]).FinishBundle(a0, a1) })
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle2x1[context.Context, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, I9, error]{fn: fn.(func(context.Context, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I9) error {
-							return fn.(finishBundle2x1[context.Context, I9, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, I9, error]()
 				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, I9, error]{fn: fn.(func(typex.PaneInfo, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I9) error {
-							return fn.(finishBundle2x1[typex.PaneInfo, I9, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, I9, error]()
 				} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.PaneInfo, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, typex.PaneInfo, error]{fn: fn.(func(context.Context, typex.PaneInfo) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo) error {
-							return fn.(finishBundle2x1[context.Context, typex.PaneInfo, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, error]()
 				} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[[]typex.Window, I9, error]{fn: fn.(func([]typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I9) error {
-							return fn.(finishBundle2x1[[]typex.Window, I9, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, I9, error]()
 				} else if _, ok := doFn.(finishBundle2x1[context.Context, []typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, []typex.Window, error]{fn: fn.(func(context.Context, []typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window) error {
-							return fn.(finishBundle2x1[context.Context, []typex.Window, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, []typex.Window, error]()
 				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, []typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, []typex.Window, error]{fn: fn.(func(typex.PaneInfo, []typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window) error {
-							return fn.(finishBundle2x1[typex.PaneInfo, []typex.Window, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, error]()
 				} else if _, ok := doFn.(finishBundle2x1[typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.EventTime, I9, error]{fn: fn.(func(typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I9) error {
-							return fn.(finishBundle2x1[typex.EventTime, I9, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, typex.EventTime, error]{fn: fn.(func(context.Context, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime) error {
-							return fn.(finishBundle2x1[context.Context, typex.EventTime, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, typex.EventTime, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime) error {
-							return fn.(finishBundle2x1[typex.PaneInfo, typex.EventTime, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[[]typex.Window, typex.EventTime, error]{fn: fn.(func([]typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime) error {
-							return fn.(finishBundle2x1[[]typex.Window, typex.EventTime, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle2x1[typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.BundleFinalization, I9, error]{fn: fn.(func(typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I9) error {
-							return fn.(finishBundle2x1[typex.BundleFinalization, I9, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[context.Context, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization) error {
-							return fn.(finishBundle2x1[context.Context, typex.BundleFinalization, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.PaneInfo, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization) error {
-							return fn.(finishBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[[]typex.Window, typex.BundleFinalization, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization) error {
-							return fn.(finishBundle2x1[[]typex.Window, typex.BundleFinalization, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle2x1[typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller2x1[typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization) error {
-							return fn.(finishBundle2x1[typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1)
-						})
-					}
+					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")
@@ -4022,523 +1348,111 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle3x0[I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller3x0[I7, I8, I9]{fn: fn.(func(I7, I8, I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I7, a1 I8, a2 I9) { fn.(finishBundle3x0[I7, I8, I9]).FinishBundle(a0, a1, a2) })
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, I8, I9]{fn: fn.(func(context.Context, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I8, a2 I9) {
-							fn.(finishBundle3x0[context.Context, I8, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, I8, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, I8, I9]{fn: fn.(func(typex.PaneInfo, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I8, a2 I9) {
-							fn.(finishBundle3x0[typex.PaneInfo, I8, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I9) {
-							fn.(finishBundle3x0[context.Context, typex.PaneInfo, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, I8, I9]{fn: fn.(func([]typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I8, a2 I9) {
-							fn.(finishBundle3x0[[]typex.Window, I8, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, I8, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, []typex.Window, I9]{fn: fn.(func(context.Context, []typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I9) {
-							fn.(finishBundle3x0[context.Context, []typex.Window, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, []typex.Window, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I9) {
-							fn.(finishBundle3x0[typex.PaneInfo, []typex.Window, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, []typex.Window]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, []typex.Window]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window) {
-							fn.(finishBundle3x0[context.Context, typex.PaneInfo, []typex.Window]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.EventTime, I8, I9]{fn: fn.(func(typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I8, a2 I9) {
-							fn.(finishBundle3x0[typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.EventTime, I9]{fn: fn.(func(context.Context, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I9) {
-							fn.(finishBundle3x0[context.Context, typex.EventTime, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, typex.EventTime, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I9) {
-							fn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, typex.EventTime]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime) {
-							fn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, typex.EventTime, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I9) {
-							fn.(finishBundle3x0[[]typex.Window, typex.EventTime, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, []typex.Window, typex.EventTime]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime) {
-							fn.(finishBundle3x0[context.Context, []typex.Window, typex.EventTime]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, []typex.Window, typex.EventTime]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime) {
-							fn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I8, a2 I9) {
-							fn.(finishBundle3x0[typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I9) {
-							fn.(finishBundle3x0[context.Context, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I9) {
-							fn.(finishBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization) {
-							fn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, typex.BundleFinalization, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I9) {
-							fn.(finishBundle3x0[[]typex.Window, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, []typex.Window, typex.BundleFinalization]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization) {
-							fn.(finishBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization) {
-							fn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I9) {
-							fn.(finishBundle3x0[typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[context.Context, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization) {
-							fn.(finishBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization) {
-							fn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization) {
-							fn.(finishBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization]()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle3x1[I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[I7, I8, I9, error]{fn: fn.(func(I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I7, a1 I8, a2 I9) error {
-							return fn.(finishBundle3x1[I7, I8, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, I8, I9, error]{fn: fn.(func(context.Context, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I8, a2 I9) error {
-							return fn.(finishBundle3x1[context.Context, I8, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I8, a2 I9) error {
-							return fn.(finishBundle3x1[typex.PaneInfo, I8, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I9) error {
-							return fn.(finishBundle3x1[context.Context, typex.PaneInfo, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, I8, I9, error]{fn: fn.(func([]typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I8, a2 I9) error {
-							return fn.(finishBundle3x1[[]typex.Window, I8, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, []typex.Window, I9, error]{fn: fn.(func(context.Context, []typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I9) error {
-							return fn.(finishBundle3x1[context.Context, []typex.Window, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, []typex.Window, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I9) error {
-							return fn.(finishBundle3x1[typex.PaneInfo, []typex.Window, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, []typex.Window, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window) error {
-							return fn.(finishBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.EventTime, I8, I9, error]{fn: fn.(func(typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I8, a2 I9) error {
-							return fn.(finishBundle3x1[typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.EventTime, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I9) error {
-							return fn.(finishBundle3x1[context.Context, typex.EventTime, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, typex.EventTime, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I9) error {
-							return fn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, typex.EventTime, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime) error {
-							return fn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, typex.EventTime, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I9) error {
-							return fn.(finishBundle3x1[[]typex.Window, typex.EventTime, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, []typex.Window, typex.EventTime, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime) error {
-							return fn.(finishBundle3x1[context.Context, []typex.Window, typex.EventTime, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime) error {
-							return fn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I8, a2 I9) error {
-							return fn.(finishBundle3x1[typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(finishBundle3x1[context.Context, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(finishBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization) error {
-							return fn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(finishBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, []typex.Window, typex.BundleFinalization, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization) error {
-							return fn.(finishBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization) error {
-							return fn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I9) error {
-							return fn.(finishBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization) error {
-							return fn.(finishBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization) error {
-							return fn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization) error {
-							return fn.(finishBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2)
-						})
-					}
+					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")
@@ -4548,623 +1462,131 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle4x0[I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller4x0[I6, I7, I8, I9]{fn: fn.(func(I6, I7, I8, I9))} })
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I6, a1 I7, a2 I8, a3 I9) { fn.(finishBundle4x0[I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3) })
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, I7, I8, I9]{fn: fn.(func(context.Context, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I7, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[context.Context, I7, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I7, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[typex.PaneInfo, I7, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[context.Context, typex.PaneInfo, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, I7, I8, I9]{fn: fn.(func([]typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I7, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[[]typex.Window, I7, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[context.Context, []typex.Window, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, []typex.Window, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I9) {
-							fn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.EventTime, I7, I8, I9]{fn: fn.(func(typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I7, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[context.Context, typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, typex.EventTime, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I9) {
-							fn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, typex.EventTime, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[[]typex.Window, typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, typex.EventTime, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I9) {
-							fn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I9) {
-							fn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime) {
-							fn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I7, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[context.Context, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I9) {
-							fn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) {
-							fn.(finishBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) {
-							fn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization) {
-							fn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I8, a3 I9) {
-							fn.(finishBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) {
-							fn.(finishBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) {
-							fn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization) {
-							fn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) {
-							fn.(finishBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) {
-							fn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]()
 				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) {
-							fn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle4x1[I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[I6, I7, I8, I9, error]{fn: fn.(func(I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I6, a1 I7, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, I7, I8, I9, error]{fn: fn.(func(context.Context, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I7, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I7, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I7, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[[]typex.Window, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, []typex.Window, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.EventTime, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I7, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, typex.EventTime, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I9) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime) error {
-							return fn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I7, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization) error {
-							return fn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I8, a3 I9) error {
-							return fn.(finishBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(finishBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization) error {
-							return fn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I9) error {
-							return fn.(finishBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) error {
-							return fn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization) error {
-							return fn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2, a3)
-						})
-					}
+					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")
@@ -5174,647 +1596,135 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle5x0[I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[I5, I6, I7, I8, I9]{fn: fn.(func(I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I5, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, I6, I7, I8, I9]{fn: fn.(func(context.Context, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[[]typex.Window, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, []typex.Window, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.EventTime, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I6, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) {
-							fn.(finishBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) {
-							fn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) {
-							fn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization) {
-							fn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle5x1[I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[I5, I6, I7, I8, I9, error]{fn: fn.(func(I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I5, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[[]typex.Window, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.EventTime, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I6, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I7, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I8, a4 I9) error {
-							return fn.(finishBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I9) error {
-							return fn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization) error {
-							return fn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]).FinishBundle(a0, a1, a2, a3, a4)
-						})
-					}
+					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")
@@ -5824,647 +1734,135 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle6x0[I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[I4, I5, I6, I7, I8, I9]{fn: fn.(func(I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I4, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[I4, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) {
-							fn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I9) {
-							fn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle6x1[I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I4, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[I4, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I5, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I6, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I7, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I8, a5 I9) error {
-							return fn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I9) error {
-							return fn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5)
-						})
-					}
+					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")
@@ -6474,647 +1872,135 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 			switch {
 			case finishBundleOut == 0:
 				if _, ok := doFn.(finishBundle7x0[I3, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I3, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[I3, I4, I5, I6, I7, I8, I9]{fn: fn.(func(I3, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I3, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[I3, I4, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, I4, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]{fn: fn.(func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
 				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9))}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I8, a6 I9) {
-							fn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
 				}
 			case finishBundleOut == 1:
 				if _, ok := doFn.(finishBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(I3, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[I3, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(I3, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 I3, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.BundleFinalization, I4, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.BundleFinalization, a1 I4, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]{fn: fn.(func(typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.EventTime, a1 typex.BundleFinalization, a2 I5, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]{fn: fn.(func([]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 []typex.Window, a1 typex.EventTime, a2 typex.BundleFinalization, a3 I6, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]{fn: fn.(func(typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 typex.PaneInfo, a1 []typex.Window, a2 typex.EventTime, a3 typex.BundleFinalization, a4 I7, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
 				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)(nil)).Elem(), func(fn interface{}) reflectx.Func {
-						return &caller7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]{fn: fn.(func(context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9) error)}
-					})
-
-					return func(fn interface{}) reflectx.Func {
-						return reflectx.MakeFunc(func(a0 context.Context, a1 typex.PaneInfo, a2 []typex.Window, a3 typex.EventTime, a4 typex.BundleFinalization, a5 I8, a6 I9) error {
-							return fn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]).FinishBundle(a0, a1, a2, a3, a4, a5, a6)
-						})
-					}
+					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
 				}
 			default:
 				panic("Invalid signature for FinishBundle")

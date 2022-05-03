@@ -89,30 +89,6 @@ func TestPossibleBundleLifecycleParameterCombos(t *testing.T) {
 	}
 }
 
-func TestMakeStructRegisterEntry(t *testing.T) {
-	tests := []struct {
-		structName   string
-		functionName string
-		ins          []string
-		outs         []string
-		entry        string
-	}{
-		{"StartBundle", "startBundle", []string{}, []string{}, "reflectx.MakeFunc(func() { fn.(StartBundle0x0).startBundle() })"},
-		{"StartBundle", "startBundle", []string{"context.Context"}, []string{}, "reflectx.MakeFunc(func(a0 context.Context) { fn.(StartBundle1x0[context.Context]).startBundle(a0) })"},
-		{"StartBundle", "startBundle", []string{"context.Context", "I0"}, []string{}, "reflectx.MakeFunc(func(a0 context.Context, a1 I0) { fn.(StartBundle2x0[context.Context, I0]).startBundle(a0, a1) })"},
-		{"FinishBundle", "finishBundle", []string{}, []string{"[]typex.Window"}, "reflectx.MakeFunc(func() ([]typex.Window){ return fn.(FinishBundle0x1[[]typex.Window]).finishBundle() })"},
-		{"FinishBundle", "finishBundle", []string{}, []string{"[]typex.Window", "R0"}, "reflectx.MakeFunc(func() ([]typex.Window, R0){ return fn.(FinishBundle0x2[[]typex.Window, R0]).finishBundle() })"},
-		{"FinishBundle", "finishBundle", []string{"I0"}, []string{"[]typex.Window", "R0"}, "reflectx.MakeFunc(func(a0 I0) ([]typex.Window, R0){ return fn.(FinishBundle1x2[I0, []typex.Window, R0]).finishBundle(a0) })"},
-		{"FinishBundle", "finishBundle", []string{"context.Context", "I0"}, []string{"[]typex.Window", "R0"}, "reflectx.MakeFunc(func(a0 context.Context, a1 I0) ([]typex.Window, R0){ return fn.(FinishBundle2x2[context.Context, I0, []typex.Window, R0]).finishBundle(a0, a1) })"},
-	}
-
-	for _, test := range tests {
-		if got, want := makeStructRegisterEntry(test.structName, test.functionName, test.ins, test.outs), test.entry; got != want {
-			t.Errorf("makeStructRegisterEntry(\"%v\", \"%v\", %v, %v) = %v, want: %v", test.structName, test.functionName, test.ins, test.outs, got, want)
-		}
-	}
-}
-
 func assertRepresentationEquals(t *testing.T, got [][]string, want [][]string, functionInvocation string) {
 	if len(got) != len(want) {
 		t.Fatalf("%v returned list of length %v, want: %v. Full list: %v", functionInvocation, len(got), len(want), got)

@@ -208,7 +208,6 @@ var funcMap template.FuncMap = map[string]interface{}{
 	"list":                                   list,
 	"genericTypingRepresentation":            genericTypingRepresentation,
 	"possibleBundleLifecycleParameterCombos": possibleBundleLifecycleParameterCombos,
-	"makeStructRegisterEntry":                makeStructRegisterEntry,
 }
 
 // mkargs(n, type) returns "<fmt.Sprintf(format, 0)>, .., <fmt.Sprintf(format, n-1)> type".
@@ -334,42 +333,4 @@ func possibleBundleLifecycleParameterCombos(numInInterface interface{}, processE
 	}
 
 	return combos
-}
-
-func makeStructRegisterEntry(structName string, functionName string, ins []string, outs []string) string {
-	allParams := []string{}
-	allParams = append(allParams, ins...)
-	allParams = append(allParams, outs...)
-	sr := "reflectx.MakeFunc(func("
-	first := true
-	for idx, in := range ins {
-		if !first {
-			sr += ", "
-		}
-		sr += fmt.Sprintf("a%v %v", idx, in)
-		first = false
-	}
-	sr += ") "
-	if len(outs) > 0 {
-		sr += fmt.Sprintf("(%v)", strings.Join(outs, ", "))
-	}
-	sr += "{ "
-	if len(outs) > 0 {
-		sr += "return "
-	}
-	sr += fmt.Sprintf("fn.(%v%vx%v", structName, len(ins), len(outs))
-	if len(ins) > 0 || len(outs) > 0 {
-		sr += fmt.Sprintf("[%v]", strings.Join(allParams, ", "))
-	}
-	sr += fmt.Sprintf(").%v(", functionName)
-	first = true
-	for idx, _ := range ins {
-		if !first {
-			sr += ", "
-		}
-		sr += fmt.Sprintf("a%v", idx)
-		first = false
-	}
-	sr += ") })"
-	return sr
 }

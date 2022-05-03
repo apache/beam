@@ -1,5 +1,18 @@
 {{define "BuildWrapper_StartFinishBundle"}}
 {{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "startBundle")}}{{$lowerName = "startBundle"}}{{$upperName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$lowerName = "finishBundle"}}{{$upperName = "FinishBundle"}}{{end}}{{$startFinishBundleMaxIn := .startFinishBundleMaxIn}}{{$processElementMaxIn := .processElementMaxIn}}
+{{range $funcIn := upto $startFinishBundleMaxIn}}{{range $funcOut := upto 2}}
+func register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{(genericTypingRepresentation $funcIn $funcOut true)}}() func(interface{}) reflectx.Func {
+    reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $funcIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $funcOut}} R0{{end}})(nil)).Elem(), func(fn interface{}) reflectx.Func {
+        return &caller{{$funcIn}}x{{$funcOut}}{{(genericTypingRepresentation $funcIn $funcOut false)}}{fn: fn.(func({{range $in := upto $funcIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $funcOut}} R0{{end}})}
+    })
+
+    return func(fn interface{}) reflectx.Func {
+        return reflectx.MakeFunc(func({{range $in := upto $funcIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $funcOut}} R0{{end}} {
+            {{if $funcOut}}return {{end}}fn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{(genericTypingRepresentation $funcIn $funcOut false)}}).{{$upperName}}({{range $in := upto $funcIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
+        })
+    }
+}
+{{end}}{{end}}
 {{$numParams := $processElementMaxIn}}
 func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
     {{$lowerName}}In := -1
@@ -14,9 +27,7 @@ func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)
             switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $numParams)}}{{if $possibleCombos}}
             case {{$lowerName}}Out == {{$funcOut}}:
 {{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
-                    reflectx.RegisterFunc(reflect.TypeOf((*func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})(nil)).Elem(), func(fn interface{}) reflectx.Func { return &caller{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}{fn: fn.(func({{(join $funcCombo ", ")}}){{if $funcOut}} error{{end}})} })
-                    {{$funcRegister := (makeStructRegisterEntry $lowerName $upperName $funcCombo (list))}}{{if $funcOut}}{{$funcRegister = (makeStructRegisterEntry $lowerName $upperName $funcCombo (list "error"))}}{{end}}
-                    return func(fn interface{}) reflectx.Func { return {{$funcRegister}} }
+                    return register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}()
                 } {{end}}{{end}}{{end}}
             default:
                 panic("Invalid signature for {{$upperName}}")
