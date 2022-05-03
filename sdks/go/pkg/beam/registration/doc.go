@@ -24,6 +24,8 @@ This package contains generic registration/optimization function for each possib
 For example, given a DoFn with a ProcessElement function that takes 4 inputs and returns 3 outputs, you can call
 register.DoFn4x3[input1 type, input2 type, input3 type, input4 type, output1 type, output2 type, output3 type](&doFn{}) during pipeline construction. This will
 register your DoFn and perform some reflection based optimization to significantly speed up execution at runtime.
+
+See DoFn2x1 for a full example.
 */
 
 package registration

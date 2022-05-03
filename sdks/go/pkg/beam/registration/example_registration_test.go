@@ -46,6 +46,6 @@ func (fn *myDoFn) Teardown() error {
 	return nil
 }
 
-func ExampleRegistration() {
+func ExampleDoFn2x1() {
 	registration.DoFn2x1[string, func(int), int](&myDoFn{})
 }
