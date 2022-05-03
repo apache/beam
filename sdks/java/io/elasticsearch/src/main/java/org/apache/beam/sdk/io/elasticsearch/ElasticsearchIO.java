@@ -2012,7 +2012,7 @@ public class ElasticsearchIO {
 
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
-      /** @deprecated Use {@link this#setMaxParallelRequests} instead. */
+      /** @deprecated Use {@link #setMaxParallelRequests} instead. */
       @Deprecated
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
 
@@ -2175,10 +2175,10 @@ public class ElasticsearchIO {
      * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
      * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
      * ever be 1 request in flight. Having only a single request in flight can be beneficial for
-     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests,but may not work
+     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
      * for all use cases. If this number is less than the number of maximum workers in your
      * pipeline, the IO work will result in a sub-optimal distribution of the write step with most
-     * of the runners.
+     * runners.
      *
      * @param maxParallelRequests the maximum number of parallel bulk requests for a window of data
      * @return the {@link BulkIO} with maximum parallel bulk requests per window set
@@ -2198,13 +2198,13 @@ public class ElasticsearchIO {
      * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
      * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
      * ever be 1 request in flight. Having only a single request in flight can be beneficial for
-     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests,but may not work
+     * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
      * for all use cases. If this number is less than the number of maximum workers in your
      * pipeline, the IO work will result in a sub-optimal distribution of the write step with most
-     * of the runners.
+     * runners.
      *
      * @param maxParallelRequests the maximum number of parallel bulk requests
-     * @return the {@link BulkIO} with maximum parallel bulk requests per window set
+     * @return the {@link BulkIO} with maximum parallel bulk requests
      */
     public BulkIO withMaxParallelRequests(int maxParallelRequests) {
       checkArgument(
