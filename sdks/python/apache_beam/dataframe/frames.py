@@ -3763,12 +3763,15 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       verify_all_categorical(all_cols_are_categorical)
 
       if is_list_like(values) and len(values) > 1:
-        # If more than one value provided, don't create a None level
+        # If more than one value provided, create a None level
         values_in_col_index = values
         names = [None, columns]
         col_index = pd.MultiIndex.from_product(
           [values_in_col_index,
-          selected_cols.dtypes.categories.astype('category')],
+          pd.CategoricalIndex(
+            data=selected_cols.dtypes.categories,
+            categories=selected_cols.dtypes.categories)
+          ],
           names=names
         )
       else:
@@ -3787,7 +3790,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         values_in_col_index = values
         names = [None, *columns]
         categories = [
-          c.categories.astype('category') for c in selected_cols.dtypes
+          pd.CategoricalIndex(data=c.categories,categories=c.categories)
+          for c in selected_cols.dtypes
         ]
         col_index = pd.MultiIndex.from_product(
           [values_in_col_index, *categories],
@@ -3797,7 +3801,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         # If one value provided, don't create a None level
         names = columns
         categories = [
-          c.categories.astype('category') for c in selected_cols.dtypes
+          pd.CategoricalIndex(data=c.categories,categories=c.categories)
+          for c in selected_cols.dtypes
         ]
         col_index = pd.MultiIndex.from_product(
           categories,
@@ -3871,6 +3876,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     ``columns`` must be CategoricalDType so we can determine the output column
     names."""
 
+    # TODO: check for non-commutative agg_func. (unliftable) e.g. mean.
+    # If unliftable --> requires singleton
+
     def verify_all_categorical(all_cols_are_categorical):
       if not all_cols_are_categorical:
         message = "pivot_table() of non-categorical type is not supported " \
@@ -3878,43 +3886,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             "Please use pd.CategoricalDtype with explicit categories."
         raise frame_base.WontImplementError(
           message, reason="non-deferred-columns")
-
-    # Construct column index
-    if not columns:
-      col_index = pd.Index(values)
-    elif is_list_like(columns) and len(columns) <= 1:
-      columns = columns[0]
-    selected_cols = self._expr.proxy()[columns] if columns else None
-    if isinstance(selected_cols, pd.Series):
-      all_cols_are_categorical = isinstance(
-        selected_cols.dtype, pd.CategoricalDtype
-      )
-      verify_all_categorical(all_cols_are_categorical)
-    elif isinstance(selected_cols, pd.DataFrame):
-      all_cols_are_categorical = all(
-        isinstance(c, pd.CategoricalDtype) for c in selected_cols.dtypes
-      )
-      verify_all_categorical(all_cols_are_categorical)
-    # Call pivot_table on current proxy to get new proxy's col_index
-    if not columns:
-      extended_proxy = pd.concat([self._expr.proxy(),
-        pd.DataFrame(
-          [[0]*len(self._expr.proxy().columns)],
-          columns=self._expr.proxy().columns
-        )
-      ])
-      tmp_pivot = extended_proxy.pivot_table(
-        values=values,index=index,columns=columns, **kwargs)
-    else:
-      tmp_pivot = self._expr.proxy().pivot_table(
-        values=values,index=index,columns=columns, **kwargs)
-    if isinstance(tmp_pivot.columns, pd.CategoricalIndex):
-      col_index = pd.CategoricalIndex(
-        data = tmp_pivot.columns.categories.to_list(),
-        categories = tmp_pivot.columns.categories.to_list(),
-        name = tmp_pivot.columns.name)
-    elif isinstance(tmp_pivot.columns, pd.Index):
-      col_index = tmp_pivot.columns
 
     # Get values
     numerics = ['int16', 'int32', 'int64', 'float32', 'float64']
@@ -3930,6 +3901,94 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       numeric_values = self._expr.proxy().select_dtypes(numerics) \
         .columns.to_list()
       selected_values = self._expr.proxy()[values]
+
+    # Construct column index
+    if not columns:
+      col_index = pd.Index(values)
+    elif is_list_like(columns) and len(columns) <= 1:
+      columns = columns[0]
+    selected_cols = self._expr.proxy()[columns] if columns else None
+    if isinstance(selected_cols, pd.Series):
+      all_cols_are_categorical = isinstance(
+        selected_cols.dtype, pd.CategoricalDtype
+      )
+      verify_all_categorical(all_cols_are_categorical)
+
+      # If values not provided, then create col_index
+      if (
+        is_list_like(numeric_values) and len(numeric_values) > 1 and
+        not values):
+        # If more than one numeric_values provided, create a None level
+        values_in_col_index = numeric_values
+        names = [None, columns]
+        col_index = pd.MultiIndex.from_product(
+          [values_in_col_index,
+          pd.CategoricalIndex(
+            data=selected_cols.dtypes.categories,
+            categories=selected_cols.dtypes.categories)
+          ],
+          names=names
+        )
+      else:
+        col_index = pd.CategoricalIndex(
+          data=selected_cols.dtype.categories,
+          categories=selected_cols.dtype.categories,
+          name=columns
+        )
+    elif isinstance(selected_cols, pd.DataFrame):
+      all_cols_are_categorical = all(
+        isinstance(c, pd.CategoricalDtype) for c in selected_cols.dtypes
+      )
+      verify_all_categorical(all_cols_are_categorical)
+
+      # If values not provided, then create col_index
+      if (is_list_like(numeric_values) and len(numeric_values) > 1 and
+        not values):
+        # If more than one numeric_values provided, create a None level
+        values_in_col_index = numeric_values
+        names = [None, *columns]
+        categories = [
+          pd.CategoricalIndex(data=c.categories,categories=c.categories)
+          for c in selected_cols.dtypes
+        ]
+        col_index = pd.MultiIndex.from_product(
+          [values_in_col_index, *categories],
+          names=names
+        )
+      else:
+        # If one numeric_values provided, don't create a None level
+        names = columns
+        categories = [
+          pd.CategoricalIndex(data=c.categories,categories=c.categories)
+          for c in selected_cols.dtypes
+        ]
+        col_index = pd.MultiIndex.from_product(
+          categories,
+          names=names
+        )
+    # In the case that values is provided, call pivot_table on current proxy
+    # to get new proxy's col_index
+    if not columns:
+      extended_proxy = pd.concat([self._expr.proxy(),
+        pd.DataFrame(
+          [[0]*len(self._expr.proxy().columns)],
+          columns=self._expr.proxy().columns
+        )
+      ])
+      tmp_pivot = extended_proxy.pivot_table(
+        values=values,index=index,columns=columns, **kwargs)
+    else:
+      tmp_pivot = self._expr.proxy().pivot_table(
+        values=values,index=index,columns=columns, **kwargs)
+    # Update col_index if values is provided
+    if values:
+      if isinstance(tmp_pivot.columns, pd.CategoricalIndex):
+        col_index = pd.CategoricalIndex(
+          data = tmp_pivot.columns.categories.to_list(),
+          categories = tmp_pivot.columns.categories.to_list(),
+          name = tmp_pivot.columns.name)
+      else:
+        col_index = tmp_pivot.columns
 
     # Get dtype from values
     if isinstance(selected_values, pd.Series):
@@ -3961,9 +4020,17 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           requires_partition_by=partitionings.Arbitrary()
       )
       row_index = per_partition.proxy().index
+      requires_partition_by = partitionings.Index()
     else:
       per_partition = self._expr
-      row_index = self._expr.proxy().index
+      if isinstance(tmp_pivot.index, pd.MultiIndex):
+        row_index = tmp_pivot.index
+      else:
+        row_index = pd.Index(self._expr.proxy().index, dtype='object')
+      requires_partition_by = partitionings.Singleton(
+          reason=(
+              "pivot_table() without index cannot currently be parallelized. It"
+              " requires collecting all data on a single node."))
 
     proxy = pd.DataFrame(
       columns=col_index, dtype=value_dtype, index=row_index
@@ -3977,7 +4044,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             [per_partition],
             proxy=proxy,
             preserves_partition_by=partitionings.Index(),
-            requires_partition_by=partitionings.Index()))
+            requires_partition_by=requires_partition_by))
 
   sum = _agg_method(pd.DataFrame, 'sum')
   mean = _agg_method(pd.DataFrame, 'mean')

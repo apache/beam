@@ -1754,7 +1754,37 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.pivot_table(
             values=['D', 'E'], columns=['C'], aggfunc=np.sum),
-        df)
+        df,
+        nonparallel=True)
+
+  def test_pivot_table_no_index_provided_multiple_aggfunc(self):
+    df = pd.DataFrame({
+        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
+        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
+        "C": [
+            "small",
+            "large",
+            "large",
+            "small",
+            "small",
+            "large",
+            "small",
+            "small",
+            "large"
+        ],
+        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
+    })
+    df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
+    self._run_test(
+        lambda df: df.pivot_table(
+            values=['D', 'E'],
+            columns=['C'],
+            aggfunc={
+                'D': np.mean, 'E': [min, max, np.mean]
+            }),
+        df,
+        nonparallel=True)
 
   def test_pivot_table_no_values_provided(self):
     df = pd.DataFrame({
@@ -1775,7 +1805,9 @@ class DeferredFrameTest(_AbstractFrameTest):
         "E": [2, 4, 5, 5, 6, 6, 8, 9, 9]
     })
     df['C'] = df['C'].astype(pd.CategoricalDtype(categories=['small', 'large']))
-    self._run_test(lambda df: df.pivot_table(columns=['C'], aggfunc=np.sum), df)
+    self._run_test(
+        lambda df: df.pivot_table(index=['A'], columns=['C'], aggfunc=np.sum),
+        df)
 
   def test_pivot_table_no_index_no_column_provided(self):
     df = pd.DataFrame({
