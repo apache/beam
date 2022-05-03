@@ -82,6 +82,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
+  // The Guava cache object is threadsafe. However our protocol requires that client pin the
+  // StreamAppendClient
+  // after looking up the cache, and we must ensure that the cache is not accessed in between the
+  // lookup and the pin
+  // (any access of the cache could trigger element expiration). Therefore most uses of the
   private static final Cache<String, List<StreamAppendClient>> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
           .expireAfterAccess(15, TimeUnit.MINUTES)
@@ -96,6 +101,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     });
               })
           .build();
+
+  static void clearCache() {
+    APPEND_CLIENTS.invalidateAll();
+  }
 
   // Run a closure asynchronously, ignoring failures.
   private interface ThrowingRunnable {
@@ -123,10 +132,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   @Override
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
     return input
         .apply(
             "Write Records",
-            ParDo.of(new WriteRecordsDoFn<>(operationName, dynamicDestinations, bqServices, false))
+            ParDo.of(
+                    new WriteRecordsDoFn<>(
+                        operationName,
+                        dynamicDestinations,
+                        bqServices,
+                        false,
+                        options.getStorageApiAppendThresholdBytes()))
                 .withSideInputs(dynamicDestinations.getSideInputs()))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         // Calling Reshuffle makes the output stable - once this completes, the append operations
@@ -139,7 +155,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   static class WriteRecordsDoFn<DestinationT, ElementT>
       extends DoFn<KV<DestinationT, StorageApiWritePayload>, KV<String, String>> {
     private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
-    
+
     class DestinationState {
       private final String tableUrn;
       private final MessageConverter<ElementT> messageConverter;
@@ -201,7 +217,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
         return this.streamName;
       }
-      
+
       List<StreamAppendClient> generateClients(){
         return IntStream.range(0, streamAppendClientCount)
                 .mapToObj(i -> {
@@ -252,7 +268,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       void maybeTickleCache() {
         if (streamAppendClient != null && Instant.now().isAfter(nextCacheTickle)) {
-          APPEND_CLIENTS.getIfPresent(streamName);
+          synchronized (APPEND_CLIENTS) {
+            APPEND_CLIENTS.getIfPresent(streamName);
+          }
           nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
         }
       }
@@ -278,11 +296,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             }
           }
           streamAppendClient = null;
-        } else if (useDefaultStream) {
-          APPEND_CLIENTS.invalidate(getDefaultStreamName());
         }
       }
-      
+
       void addMessage(StorageApiWritePayload payload) throws Exception {
         maybeTickleCache();
         if (payload.getSchemaHash() != descriptorWrapper.hash) {
@@ -361,33 +377,32 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
-    private static final int FLUSH_THRESHOLD_RECORDS_DEFAULT = 150000;
-    private static final int FLUSH_THRESHOLD_RECORD_BYTES_DEFAULT = 2 * 1024 * 1024;
-
     private Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private transient @Nullable DatasetService datasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
+    private static final int FLUSH_THRESHOLD_RECORDS = 150000;
+    private final int flushThresholdBytes;
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
     // default append client count to 1
     private Integer streamAppendClientCount = 1;
-    private Integer recordCountFlushThreshold = FLUSH_THRESHOLD_RECORDS_DEFAULT;
-    private Integer recordBytesFlishThreshold = FLUSH_THRESHOLD_RECORD_BYTES_DEFAULT;
-
+   
     WriteRecordsDoFn(
         String operationName,
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
-        boolean useDefaultStream) {
+        boolean useDefaultStream,
+        int flushThresholdBytes) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
       this.useDefaultStream = useDefaultStream;
+      this.flushThresholdBytes = flushThresholdBytes;
     }
-    
+
     WriteRecordsDoFn<DestinationT, ElementT> withStreamAppendClientCount(
             Integer streamAppendClientCount) {
       LOG.debug("using {} stream append clients on this worker.", streamAppendClientCount);
@@ -395,23 +410,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       return this;
     }
 
-    WriteRecordsDoFn<DestinationT, ElementT> withRecordCountFlushThreshold(
-            Integer recordCountFlushThreshold) {
-      LOG.debug("using {} count as the flush threshold.", recordCountFlushThreshold);
-      this.recordCountFlushThreshold = recordCountFlushThreshold;
-      return this;
-    }
-
-    WriteRecordsDoFn<DestinationT, ElementT> withRecordBytesFlushThreshold(
-            Integer recordBytesFlushThreshold) {
-      LOG.debug("using {} bytes as the flush threshold.", recordBytesFlushThreshold);
-      this.recordBytesFlishThreshold = recordBytesFlushThreshold;
-      return this;
-    }
-
     boolean shouldFlush() {
-      return numPendingRecords > recordCountFlushThreshold
-          || numPendingRecordBytes > recordBytesFlishThreshold;
+      return numPendingRecords > FLUSH_THRESHOLD_RECORDS
+          || numPendingRecordBytes > flushThresholdBytes;
     }
 
     void flushIfNecessary() throws Exception {
