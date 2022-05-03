@@ -159,7 +159,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
-    'joblib>=1.1.0',
+    'joblib>=1.0.1',
     'mock>=1.0.1,<3.0.0',
     'pandas<2.0.0',
     'parameterized>=0.7.1,<0.8.0',
@@ -207,7 +207,7 @@ INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'google-cloud-dataproc>=3.0.0,<3.2.0',
     'ipython>=7,<8',
-    'ipykernel>=5.2.0,<6',
+    'ipykernel>=6,<7',
     'ipywidgets>=7.6.5,<8',
     # Skip version 6.1.13 due to
     # https://github.com/jupyter/jupyter_client/issues/637

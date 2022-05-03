@@ -157,6 +157,20 @@ func TestInvoke(t *testing.T) {
 			ExpectedTime: 47,
 		},
 		{
+			// (Return check) EventTime, V, Error
+			Fn:           func(a int) (typex.EventTime, int, error) { return 10, 3 * a, nil },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 10,
+		},
+		{
+			// (Return check) EventTime, V
+			Fn:           func(a int) (typex.EventTime, int) { return 102, 3 * a },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 102,
+		},
+		{
 			// Check ConvertFn is invoked
 			Fn:       func(a string, b []int) (string, int) { return a, len(b) },
 			Opt:      &MainInput{Key: FullValue{Elm: "basketball", Elm2: []typex.T{23}}},
@@ -207,7 +221,7 @@ func TestInvoke(t *testing.T) {
 				test.ExpectedTime = ts
 			}
 
-			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
+			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, nil, test.Args...)
 
 			if test.ExpectedError != nil {
 				if err == nil {
@@ -217,6 +231,9 @@ func TestInvoke(t *testing.T) {
 					t.Errorf("Invoke(%v, %v) returned unexpected error, got %v, want %v", fn.Fn.Name(), test.Args, err, test.ExpectedError)
 				}
 			} else {
+				if err != nil {
+					t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
+				}
 				if val != nil && val.Elm != test.Expected {
 					t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
 				}
@@ -400,7 +417,7 @@ func BenchmarkInvoke(b *testing.B) {
 		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
 		b.Run(fmt.Sprintf("SingleInvoker_%s", test.Name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
+				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -409,7 +426,7 @@ func BenchmarkInvoke(b *testing.B) {
 		b.Run(fmt.Sprintf("CachedInvoker_%s", test.Name), func(b *testing.B) {
 			inv := newInvoker(fn)
 			for i := 0; i < b.N; i++ {
-				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, nil, test.Args...)
+				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, nil, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -502,7 +519,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -513,7 +530,7 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -539,7 +556,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -550,7 +567,7 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)

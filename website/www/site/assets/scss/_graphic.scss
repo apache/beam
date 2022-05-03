@@ -27,11 +27,11 @@
     height: 60px;
   }
   .margin {
-    margin-top: 84px;
-    margin-bottom: 84px;
+    margin-top: 0px;
+    margin-bottom: 30px;
     @media (max-width: $mobile) {
       margin-top: 0;
-      margin-bottom: 64px;
+      margin-bottom: 30px;
     }
   }
   .row {
