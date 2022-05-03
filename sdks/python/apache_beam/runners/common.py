@@ -1635,7 +1635,7 @@ class _OutputProcessor(OutputProcessor):
         if (windowed_input_batch is not None and
             len(windowed_input_batch.windows) != 1):
           windowed_batch.windows *= len(windowed_input_batch.windows)
-      # TODO(BEAM-14292): Add TimestampedBatch, an analogue for TimestampedValue
+      # TODO(BEAM-14352): Add TimestampedBatch, an analogue for TimestampedValue
       # and handle it here (see TimestampedValue logic in process_outputs).
       else:
         # TODO: This should error unless the DoFn was defined with
