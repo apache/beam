@@ -57,10 +57,8 @@ def process_outputs(filepath):
 
 
 @pytest.mark.uses_pytorch
-@unittest.skipIf(torch is None, "Pytorch is not installed.")
+@pytest.mark.it_postcommit
 class PyTorchInference(unittest.TestCase):
-  @pytest.mark.examples_postcommit
-  @pytest.mark.it_postcommit
   def test_predictions_output_file(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
