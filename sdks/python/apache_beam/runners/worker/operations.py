@@ -141,14 +141,16 @@ class ConsumerSet(Receiver):
                output_index,
                consumers,
                coder,
-               producer_type_hints
+               producer_type_hints,
+               producer_batch_converter
                ):
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
         step_name,
         coder,
         output_index,
-        producer_type_hints=producer_type_hints)
+        producer_type_hints=producer_type_hints,
+        producer_batch_converter=producer_batch_converter)
     # Used in repr.
     self.step_name = step_name
     self.output_index = output_index
@@ -184,6 +186,10 @@ class ConsumerSet(Receiver):
     # type: () -> None
     self.opcounter.update_collect()
 
+  def update_counters_batch(self, windowed_batch):
+    # type: (WindowedBatch) -> None
+    self.opcounter.update_from_batch(windowed_batch)
+
   def __repr__(self):
     return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
         self.__class__.__name__,
@@ -209,7 +215,8 @@ class SingletonElementConsumerSet(ConsumerSet):
         step_name,
         output_index, [consumer],
         coder,
-        producer_type_hints)
+        producer_type_hints,
+        None)
     self.consumer = consumer
 
   def receive(self, windowed_value):
@@ -251,7 +258,8 @@ class GeneralPurposeConsumerSet(ConsumerSet):
         output_index,
         consumers,
         coder,
-        producer_type_hints)
+        producer_type_hints,
+        producer_batch_converter)
 
     self.producer_batch_converter = producer_batch_converter
 
@@ -304,7 +312,6 @@ class GeneralPurposeConsumerSet(ConsumerSet):
     self.update_counters_finish()
 
   def receive_batch(self, windowed_batch):
-    #self.update_counters_start(windowed_value)
     if self.element_consumers:
       for wv in windowed_batch.as_windowed_values(
           self.producer_batch_converter.explode_batch):
@@ -324,7 +331,8 @@ class GeneralPurposeConsumerSet(ConsumerSet):
                 consumer_batch_converter.produce_batch(
                     self.producer_batch_converter.explode_batch(
                         windowed_batch.values))))
-    #self.update_counters_finish()
+
+    self.update_counters_batch(windowed_batch)
 
   def flush(self):
     if not self.has_batch_consumers or not self._batched_elements:

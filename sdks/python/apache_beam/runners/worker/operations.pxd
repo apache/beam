@@ -37,6 +37,7 @@ cdef class ConsumerSet(Receiver):
 
   cpdef update_counters_start(self, WindowedValue windowed_value)
   cpdef update_counters_finish(self)
+  cpdef update_counters_batch(self, WindowedBatch windowed_batch)
 
 cdef class SingletonElementConsumerSet(ConsumerSet):
   cdef Operation consumer
