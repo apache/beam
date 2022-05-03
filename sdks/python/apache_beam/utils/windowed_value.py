@@ -263,7 +263,7 @@ class WindowedValue(object):
   def __hash__(self):
     return ((hash(self.value) & 0xFFFFFFFFFFFFFFF) + 3 *
             (self.timestamp_micros & 0xFFFFFFFFFFFFFF) + 7 *
-            (hash(self.windows) & 0xFFFFFFFFFFFFF) + 11 *
+            (hash(tuple(self.windows)) & 0xFFFFFFFFFFFFF) + 11 *
             (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
   def with_value(self, new_value):
@@ -323,13 +323,10 @@ class WindowedBatch(object):
       import collections
       grouped = collections.defaultdict(lambda: [])
       for wv in windowed_values:
-        grouped[(wv.timestamp, tuple(wv.windows),
-                 wv.pane_info)].append(wv.value)
+        grouped[wv.with_value(None)].append(wv.value)
 
       for key, values in grouped.items():
-        timestamp, windows, pane_info = key
-        yield HomogeneousWindowedBatch.of(
-            produce_fn(values), timestamp, windows, pane_info)
+        yield HomogeneousWindowedBatch(key.with_value(produce_fn(values)))
     elif mode == BatchingMode.CONCRETE:
       yield ConcreteWindowedBatch(
           produce_fn([wv.value for wv in windowed_values]),
