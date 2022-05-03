@@ -2324,11 +2324,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
-        || hasExperiment(options, "use_unified_worker")
-        || ((hasExperiment(options, "enable_prime")
-                || firstNonNull(options.getDataflowServiceOptions(), new ArrayList<>())
-                    .contains("enable_prime"))
-            && !hasExperiment(options, "disable_prime_runner_v2"));
+        || hasExperiment(options, "use_unified_worker");
   }
 
   static boolean useStreamingEngine(DataflowPipelineOptions options) {
