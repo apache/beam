@@ -474,7 +474,6 @@ class Operation(object):
     # type: () -> None
 
     """Finish operation."""
-    # TODO: Do we need an output_index here
     for receiver in self.receivers:
       cython.cast(Receiver, receiver).flush()
 
