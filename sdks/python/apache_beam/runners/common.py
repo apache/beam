@@ -56,6 +56,7 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import typehints
+from apache_beam.typehints.batch import BatchConverter
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
@@ -1378,7 +1379,8 @@ class DoFnRunner:
         windowing.windowfn,
         main_receivers,
         tagged_receivers,
-        per_element_output_counter)
+        per_element_output_counter,
+        getattr(fn, 'output_batch_converter', None))
 
     if do_fn_signature.is_stateful_dofn() and not user_state_context:
       raise Exception(
@@ -1511,7 +1513,9 @@ class _OutputProcessor(OutputProcessor):
                window_fn,
                main_receivers,  # type: Receiver
                tagged_receivers,  # type: Mapping[Optional[str], Receiver]
-               per_element_output_counter):
+               per_element_output_counter,
+               output_batch_converter, # type: Optional[BatchConverter]
+               ):
     """Initializes ``_OutputProcessor``.
 
     Args:
@@ -1529,6 +1533,7 @@ class _OutputProcessor(OutputProcessor):
       self.per_element_output_counter = per_element_output_counter
     else:
       self.per_element_output_counter = None
+    self.output_batch_converter = output_batch_converter
 
   def process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
@@ -1605,10 +1610,10 @@ class _OutputProcessor(OutputProcessor):
     # TODO(BEAM-10782): Verify that the results object is a valid iterable type
     #  if performance_runtime_type_check is active, without harming performance
 
+    assert self.output_batch_converter is not None
+
     output_element_count = 0
     for result in results:
-      # results here may be a generator, which cannot call len on it.
-      output_element_count += 1
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
@@ -1634,6 +1639,9 @@ class _OutputProcessor(OutputProcessor):
         # We should consider also validating that the length is the same as
         # windowed_input_batch
         windowed_batch = windowed_input_batch.with_values(result)
+
+      output_element_count += self.output_batch_converter.get_length(
+          windowed_input_batch.values)
 
       if watermark_estimator is not None:
         for timestamp in windowed_batch.timestamps:

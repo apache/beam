@@ -136,6 +136,8 @@ cdef class _OutputProcessor(OutputProcessor):
   cdef Receiver main_receivers
   cdef object tagged_receivers
   cdef DataflowDistributionCounter per_element_output_counter
+  cdef object output_batch_converter
+
   @cython.locals(windowed_value=WindowedValue,
                  output_element_count=int64_t)
   cpdef process_outputs(self, WindowedValue element, results,
