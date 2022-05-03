@@ -52,4 +52,23 @@ jobs:
       - name: Run fmt
         run: cd sdks/go/pkg/beam && go fmt ./...; git diff-index --quiet HEAD || (echo "Run go fmt before checking in changes" && exit 1)
       - name: Run vet
-        run: cd sdks/go/pkg/beam && go vet --copylocks=false --unsafeptr=false ./... || (echo "Run go vet and fix warnings before checking in changes" && exit 1)
+        run: | 
+          cd sdks/go/pkg/beam 
+          VOUT=$(go vet --copylocks=false --unsafeptr=false ./...)
+          if [ -n "$VOUT" ]; then 
+            echo -e "Run go vet and fix warnings before checking in changes\n"
+            echo -e "Vet Warnings:\n"
+            echo -e "$VOUT" && exit 1
+          fi
+      # TODO(BEAM-14385): The current staticcheck version is 2021.1.2 as there is 
+      # a known issue with 2022.1 and Go versions before 1.17. 
+      - name: Run Staticcheck
+        run: |
+          go install "honnef.co/go/tools/cmd/staticcheck@2021.1.2"
+          cd sdks/go/pkg/beam
+          RESULTS=$($(go env GOPATH)/bin/staticcheck ./...)
+          if [ -n "$RESULTS" ]; then 
+            echo -e "Please address Staticcheck warnings before checking in changes\n"
+            echo -e "Staticcheck Warnings:\n"
+            echo -e "$RESULTS" && exit 1
+          fi

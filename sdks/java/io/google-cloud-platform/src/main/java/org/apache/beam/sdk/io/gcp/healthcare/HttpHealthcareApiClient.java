@@ -26,8 +26,8 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1.CloudHealthcare;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.PatientEverything;
-import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.Search;
 import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
+import com.google.api.services.healthcare.v1.CloudHealthcareRequest;
 import com.google.api.services.healthcare.v1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
@@ -648,9 +648,26 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       @Nullable Map<String, Object> parameters,
       String pageToken)
       throws IOException {
-    SearchResourcesRequest request = new SearchResourcesRequest().setResourceType(resourceType);
-    Search search =
-        client.projects().locations().datasets().fhirStores().fhir().search(fhirStore, request);
+    CloudHealthcareRequest<HttpBody> search;
+    if (Strings.isNullOrEmpty(resourceType)) {
+      search =
+          client
+              .projects()
+              .locations()
+              .datasets()
+              .fhirStores()
+              .fhir()
+              .search(fhirStore, new SearchResourcesRequest());
+    } else {
+      search =
+          client
+              .projects()
+              .locations()
+              .datasets()
+              .fhirStores()
+              .fhir()
+              .searchType(fhirStore, resourceType, new SearchResourcesRequest());
+    }
     if (parameters != null && !parameters.isEmpty()) {
       parameters.forEach(search::set);
     }
