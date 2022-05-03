@@ -102,20 +102,6 @@ task preCommitLegacyWorkerImpersonate(type: Test) {
     ])
 }
 
-task verifyFnApiWorker(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-  dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  with commonConfig(
-          dataflowWorkerJar: dataflowWorkerJar,
-          workerHarnessContainerImage: dockerJavaImageName,
-          additionalOptions: ["--experiments=${fnapiExperiments}"]
-  )
-  useJUnit {
-    excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
-  }
-}
-
 task postCommitLegacyWorkerJava11(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath

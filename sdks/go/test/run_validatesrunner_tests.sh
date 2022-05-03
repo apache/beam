@@ -260,12 +260,7 @@ s.close()
 "
 
 # Set up environment based on runner.
-if [[ "$RUNNER" == "dataflow" ]]; then
-  if [[ -z "$DATAFLOW_WORKER_JAR" ]]; then
-    DATAFLOW_WORKER_JAR=$(find $(pwd)/runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
-  fi
-  echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
-elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"

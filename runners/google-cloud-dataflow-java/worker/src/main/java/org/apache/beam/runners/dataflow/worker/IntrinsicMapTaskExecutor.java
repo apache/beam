@@ -43,16 +43,6 @@ public class IntrinsicMapTaskExecutor extends DataflowMapTaskExecutor {
   }
 
   /**
-   * Creates a new MapTaskExecutor.
-   *
-   * @param operations the operations of the map task, in order of execution
-   */
-  public static IntrinsicMapTaskExecutor forOperations(
-      List<Operation> operations, ExecutionStateTracker executionStateTracker) {
-    return new IntrinsicMapTaskExecutor(operations, new CounterSet(), executionStateTracker);
-  }
-
-  /**
    * Creates a new MapTaskExecutor with a shared set of counters with its creator.
    *
    * @param operations the operations of the map task, in order of execution

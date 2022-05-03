@@ -146,9 +146,6 @@ func main() {
 	for _, a := range artifacts {
 		name, _ := artifact.MustExtractFilePayload(a)
 		if hasWorkerExperiment {
-			if strings.HasPrefix(name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
-				continue
-			}
 			if name == "dataflow-worker.jar" {
 				continue
 			}

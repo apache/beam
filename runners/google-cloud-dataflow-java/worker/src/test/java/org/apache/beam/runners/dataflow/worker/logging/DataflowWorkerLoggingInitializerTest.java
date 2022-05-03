@@ -17,12 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
-import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.DEFAULT_RUNNER_LOGGING_LOCATION;
-import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.DEFAULT_SDK_LOGGING_LOCATION;
-import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY;
-import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.SDK_FILEPATH_PROPERTY;
-import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.getLoggingHandler;
-import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.getSdkLoggingHandler;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -237,13 +231,6 @@ public class DataflowWorkerLoggingInitializerTest {
 
     log.info("foobar");
     verifyLogOutput("foobar");
-  }
-
-  @Test
-  public void testLoggingHandlersAreDifferent() {
-    assertThat(getLoggingHandler(), not(getSdkLoggingHandler()));
-    assertThat(DEFAULT_RUNNER_LOGGING_LOCATION, not(DEFAULT_SDK_LOGGING_LOCATION));
-    assertThat(RUNNER_FILEPATH_PROPERTY, not(SDK_FILEPATH_PROPERTY));
   }
 
   static class StdOutLogHandler extends java.util.logging.Handler {

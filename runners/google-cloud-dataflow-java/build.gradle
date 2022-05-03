@@ -398,7 +398,6 @@ task validatesRunnerStreaming {
 def setupXVR = tasks.register("setupXVR") {
   dependsOn buildAndPushDockerJavaContainer
   dependsOn buildAndPushDockerPythonContainer
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 }
 
 def cleanupXVR = tasks.register("cleanupXVR") {
@@ -444,7 +443,6 @@ createCrossLanguageValidatesRunnerTask(
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
-    "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
   ],
 )
 

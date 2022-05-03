@@ -559,24 +559,6 @@ public class StreamingDataflowWorker {
     }
   }
 
-  public static StreamingDataflowWorker forStreamingFnWorkerHarness(
-      List<MapTask> mapTasks,
-      WorkUnitClient workUnitClient,
-      DataflowWorkerHarnessOptions options,
-      RunnerApi.@Nullable Pipeline pipeline,
-      SdkHarnessRegistry sdkHarnessRegistry)
-      throws IOException {
-    return new StreamingDataflowWorker(
-        mapTasks,
-        BeamFnMapTaskExecutorFactory.defaultFactory(),
-        workUnitClient,
-        options.as(StreamingDataflowWorkerOptions.class),
-        pipeline,
-        sdkHarnessRegistry,
-        true,
-        new HotKeyLogger());
-  }
-
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
       DataflowWorkerHarnessOptions options, SdkHarnessRegistry sdkHarnessRegistry)
       throws IOException {
@@ -928,13 +910,6 @@ public class StreamingDataflowWorker {
     statusPages.addStatusDataProvider("streaming", "Streaming Rpcs", windmillServer);
 
     statusPages.start();
-  }
-
-  public void addWorkerStatusPage(BaseStatusServlet page) {
-    statusPages.addServlet(page);
-    if (page instanceof Capturable) {
-      statusPages.addCapturePage((Capturable) page);
-    }
   }
 
   public void stop() {

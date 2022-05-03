@@ -254,18 +254,7 @@ tasks.register("goPortablePreCommit") {
 }
 
 tasks.register("goPostCommit") {
-  dependsOn(":goIntegrationTests")
-}
-
-tasks.register("goIntegrationTests") {
-  doLast {
-    exec {
-      executable("sh")
-      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
-    }
-  }
-  dependsOn(":sdks:go:test:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
+  dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
 tasks.register("playgroundPreCommit") {

@@ -167,25 +167,6 @@ public class BatchDataflowWorker implements Closeable {
         options);
   }
 
-  /**
-   * Returns a {@link BatchDataflowWorker} configured to execute user functions via the Beam "Fn
-   * API".
-   *
-   * <p>This is also known as the "portable" or "Beam model" approach.
-   */
-  static BatchDataflowWorker forBatchFnWorkerHarness(
-      RunnerApi.@Nullable Pipeline pipeline,
-      SdkHarnessRegistry sdkHarnessRegistry,
-      WorkUnitClient workUnitClient,
-      DataflowWorkerHarnessOptions options) {
-    return new BatchDataflowWorker(
-        pipeline,
-        sdkHarnessRegistry,
-        workUnitClient,
-        BeamFnMapTaskExecutorFactory.defaultFactory(),
-        options);
-  }
-
   protected BatchDataflowWorker(
       RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
