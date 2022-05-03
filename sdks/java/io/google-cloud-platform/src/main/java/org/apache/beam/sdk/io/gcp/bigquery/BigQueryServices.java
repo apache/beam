@@ -206,6 +206,10 @@ public interface BigQueryServices extends Serializable {
     /** Append rows to a Storage API write stream at the given offset. */
     ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
 
+    /**
+     * If the previous call to appendRows blocked due to flow control, returns how long the call
+     * blocked for.
+     */
     default long getInflightWaitSeconds() {
       return 0;
     }

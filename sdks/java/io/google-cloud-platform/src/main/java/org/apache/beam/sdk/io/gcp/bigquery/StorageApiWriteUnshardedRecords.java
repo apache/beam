@@ -83,7 +83,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   // StreamAppendClient
   // after looking up the cache, and we must ensure that the cache is not accessed in between the
   // lookup and the pin
-  // (any access of the cache could trigger element expiration). Therefore most uses of the
+  // (any access of the cache could trigger element expiration). Therefore most used of
+  // APPEND_CLIENTS should
+  // synchronize.
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
           .expireAfterAccess(15, TimeUnit.MINUTES)
