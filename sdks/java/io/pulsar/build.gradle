@@ -43,5 +43,6 @@ dependencies {
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation "org.testcontainers:pulsar:1.15.3"
     testImplementation "org.assertj:assertj-core:2.9.1"
+    testRuntimeOnly library.java.slf4j_jdk14
 
 }
