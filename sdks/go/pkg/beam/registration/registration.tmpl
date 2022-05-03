@@ -1,7 +1,7 @@
 {{define "BuildWrapper_StartFinishBundle"}}
 {{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "startBundle")}}{{$lowerName = "startBundle"}}{{$upperName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$lowerName = "finishBundle"}}{{$upperName = "FinishBundle"}}{{end}}{{$startFinishBundleMaxIn := .startFinishBundleMaxIn}}{{$processElementMaxIn := .processElementMaxIn}}
-{{range $numParams := upto $processElementMaxIn}}
-func build{{$upperName}}Wrapper{{$numParams}}{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
+{{$numParams := $processElementMaxIn}}
+func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
     {{$lowerName}}In := -1
 	{{$lowerName}}Out := -1
 	{{$lowerName}}Method := reflect.ValueOf(doFn).MethodByName("{{$upperName}}")
@@ -28,7 +28,7 @@ func build{{$upperName}}Wrapper{{$numParams}}{{(genericTypingRepresentation $num
     }
     return nil
 }
-{{end}}{{end}}{{define "BuildWrapper_SetupTeardown"}}
+{{end}}{{define "BuildWrapper_SetupTeardown"}}
 {{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "setup")}}{{$lowerName = "setup"}}{{$upperName = "Setup"}}{{end}}{{if (eq .func "teardown")}}{{$lowerName = "teardown"}}{{$upperName = "Teardown"}}{{end}}
 func build{{$upperName}}Wrapper(doFn interface{}) func(interface{}) reflectx.Func {
     if _, ok := doFn.({{$lowerName}}0x0); ok {
@@ -115,7 +115,7 @@ import (
 {{$processElementMaxOut := 5}}{{$processElementMaxIn := 10}}{{$startFinishBundleOutRange := 2}}{{$startFinishBundleInRange := 8}}
 {{template "BuildWrapper_StartFinishBundle" (dict "func" "startBundle" "startFinishBundleMaxIn" $startFinishBundleInRange "processElementMaxIn" $processElementMaxIn)}}{{template "BuildWrapper_StartFinishBundle" (dict "func" "finishBundle" "startFinishBundleMaxIn" $startFinishBundleInRange "processElementMaxIn" $processElementMaxIn)}}{{template "BuildWrapper_SetupTeardown" (dict "func" "setup")}}{{template "BuildWrapper_SetupTeardown" (dict "func" "teardown")}}
 
-{{range $processElementOut := upto $processElementMaxOut}}{{range $processElementIn := upto $processElementMaxIn}}
+{{range $processElementOut := upto (add $processElementMaxOut 1)}}{{range $processElementIn := upto (add $processElementMaxIn 1)}}
 type genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} interface {
     ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
 }
@@ -152,8 +152,8 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
             {{if $processElementOut}}return {{end}}fn.(genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}).ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
         })
     }
-    startBundleWrapper := buildStartBundleWrapper{{$processElementIn}}{{(genericTypingRepresentation $processElementIn 0 false)}}(doFn)
-    finishBundleWrapper := buildFinishBundleWrapper{{$processElementIn}}{{(genericTypingRepresentation $processElementIn 0 false)}}(doFn)
+    startBundleWrapper := buildStartBundleWrapper[{{range $intFillers := upto $processElementMaxIn}}{{if (ge $intFillers $processElementIn)}}{{if (ne $intFillers $processElementIn)}}, {{end}}int{{end}}{{end}}{{range $genIn := upto $processElementIn}}{{if (or $genIn (ne $processElementIn $processElementMaxIn))}}, {{end}}I{{$genIn}}{{end}}](doFn)
+    finishBundleWrapper := buildFinishBundleWrapper[{{range $intFillers := upto $processElementMaxIn}}{{if (ge $intFillers $processElementIn)}}{{if (ne $intFillers $processElementIn)}}, {{end}}int{{end}}{{end}}{{range $genIn := upto $processElementIn}}{{if (or $genIn (ne $processElementIn $processElementMaxIn))}}, {{end}}I{{$genIn}}{{end}}](doFn)
     setupWrapper := buildSetupWrapper(doFn)
     teardownWrapper := buildTeardownWrapper(doFn)
 
