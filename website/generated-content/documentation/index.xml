@@ -11627,7 +11627,52 @@ watermark estimator implementation. You can also provide your own watermark esti
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">This&lt;/span> &lt;span class="nx">is&lt;/span> &lt;span class="nx">not&lt;/span> &lt;span class="nx">supported&lt;/span> &lt;span class="nx">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">see&lt;/span> &lt;span class="nx">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">11105.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// WatermarkState is a custom type.`
+&lt;/span>&lt;span class="c1">//
+&lt;/span>&lt;span class="c1">// It is optional to write your own state type when making a custom estimator.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">WatermarkState&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">Watermark&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Time&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// CustomWatermarkEstimator is a custom watermark estimator.
+&lt;/span>&lt;span class="c1">// You may use any type here, including some of Beam&amp;#39;s built in watermark estimator types,
+&lt;/span>&lt;span class="c1">// e.g. sdf.WallTimeWatermarkEstimator, sdf.TimestampObservingWatermarkEstimator, and sdf.ManualWatermarkEstimator
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">type&lt;/span> &lt;span class="nx">CustomWatermarkEstimator&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">state&lt;/span> &lt;span class="nx">WatermarkState&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// CurrentWatermark returns the current watermark and is invoked on DoFn splits and self-checkpoints.
+&lt;/span>&lt;span class="c1">// Watermark estimators must implement CurrentWatermark() time.Time
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">e&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">CustomWatermarkEstimator&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">CurrentWatermark&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Time&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">e&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Watermark&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// ObserveTimestamp is called on the output timestamps of all
+&lt;/span>&lt;span class="c1">// emitted elements to update the watermark. It is optional
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">e&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">CustomWatermarkEstimator&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ObserveTimestamp&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ts&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Time&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">e&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Watermark&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">ts&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// InitialWatermarkEstimatorState defines an initial state used to initialize the watermark
+&lt;/span>&lt;span class="c1">// estimator. It is optional. If this is not defined, WatermarkEstimatorState may not be
+&lt;/span>&lt;span class="c1">// defined and CreateWatermarkEstimator must not take in parameters.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">weDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">InitialWatermarkEstimatorState&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">et&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">EventTime&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">rest&lt;/span> &lt;span class="nx">offsetrange&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Restriction&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">element&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">WatermarkState&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// Return some watermark state
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">WatermarkState&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">Watermark&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Now&lt;/span>&lt;span class="p">()}&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// CreateWatermarkEstimator creates the watermark estimator used by this Splittable DoFn.
+&lt;/span>&lt;span class="c1">// Must take in a state parameter if InitialWatermarkEstimatorState is defined, otherwise takes no parameters.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">weDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">CreateWatermarkEstimator&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">initialState&lt;/span> &lt;span class="nx">WatermarkState&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">CustomWatermarkEstimator&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="o">&amp;amp;&lt;/span>&lt;span class="nx">CustomWatermarkEstimator&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">initialState&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// WatermarkEstimatorState returns the state used to resume future watermark estimation
+&lt;/span>&lt;span class="c1">// after a checkpoint/split. It is required if InitialWatermarkEstimatorState is defined,
+&lt;/span>&lt;span class="c1">// otherwise it must not be defined.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">weDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">WatermarkEstimatorState&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">e&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">CustomWatermarkEstimator&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">WatermarkState&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="nx">e&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">state&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="c1">// ProcessElement is the method to execute for each element.
+&lt;/span>&lt;span class="c1">// It can optionally take in a watermark estimator.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">fn&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">weDoFn&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">ProcessElement&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">e&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">CustomWatermarkEstimator&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">element&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="c1">// ...
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">e&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">state&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Watermark&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Now&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="truncating-during-drain">12.6. Truncating during drain&lt;/h3>
