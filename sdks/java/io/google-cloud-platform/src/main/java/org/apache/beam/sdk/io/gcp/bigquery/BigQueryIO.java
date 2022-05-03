@@ -3085,6 +3085,8 @@ public class BigQueryIO {
     CreateTables.clearCreatedTables();
     TwoLevelMessageConverterCache.clear();
     StorageApiDynamicDestinationsTableRow.clearSchemaCache();
+    StorageApiWriteUnshardedRecords.clearCache();
+    StorageApiWritesShardedRecords.clearCache();
   }
 
   /////////////////////////////////////////////////////////////////////////////
