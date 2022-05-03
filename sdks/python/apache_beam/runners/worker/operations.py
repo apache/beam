@@ -61,7 +61,6 @@ from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.typehints.batch import BatchConverter
-from apache_beam.utils.windowed_value import BatchingMode
 from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -333,17 +332,14 @@ class GeneralPurposeConsumerSet(ConsumerSet):
 
     for batch_converter, consumers in self.other_batch_consumers.items():
       for windowed_batch in WindowedBatch.from_windowed_values(
-          self._batched_elements,
-          produce_fn=batch_converter.produce_batch,
-          mode=BatchingMode.HOMOGENEOUS):
+          self._batched_elements, produce_fn=batch_converter.produce_batch):
         for consumer in consumers:
           cython.cast(Operation, consumer).process_batch(windowed_batch)
 
     for consumer in self.passthrough_batch_consumers:
       for windowed_batch in WindowedBatch.from_windowed_values(
           self._batched_elements,
-          produce_fn=self.producer_batch_converter.produce_batch,
-          mode=BatchingMode.HOMOGENEOUS):
+          produce_fn=self.producer_batch_converter.produce_batch):
         cython.cast(Operation, consumer).process_batch(windowed_batch)
 
     self._batched_elements = []

@@ -51,15 +51,6 @@ cdef class HomogeneousWindowedBatch(WindowedBatch):
 
   cpdef WindowedBatch with_values(self, object new_values)
 
-cdef class ConcreteWindowedBatch(WindowedBatch):
-  cdef public object values
-  cdef public object windows
-  cdef public object pane_infos
-  cdef public list timestamps_micros
-  cdef list timestamp_objects
-
-  cpdef WindowedBatch with_values(self, object new_values)
-
 @cython.locals(wv=WindowedValue)
 cpdef WindowedValue create(
   object value, int64_t timestamp_micros, object windows, object pane_info=*)

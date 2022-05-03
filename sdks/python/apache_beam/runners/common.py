@@ -59,7 +59,6 @@ from apache_beam.typehints import typehints
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.windowed_value import ConcreteWindowedBatch
 from apache_beam.utils.windowed_value import HomogeneousWindowedBatch
 from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
@@ -1621,16 +1620,8 @@ class _OutputProcessor(OutputProcessor):
             f"Received {type(result).__name__} from DoFn that was "
             "expected to produce a batch.")
       if isinstance(result, WindowedBatch):
-        if isinstance(result, ConcreteWindowedBatch):
-          # TODO: Rebatch into homogenous batches (or remove
-          # ConcreteWindowedBatch)
-          raise NotImplementedError
-        elif isinstance(result, HomogeneousWindowedBatch):
-          windowed_batch = result
-        else:
-          raise AssertionError(
-              "Unrecognized WindowedBatch implementation: "
-              f"{type(windowed_batch)}")
+        assert isinstance(result, HomogeneousWindowedBatch)
+        windowed_batch = result
 
         if (windowed_input_batch is not None and
             len(windowed_input_batch.windows) != 1):

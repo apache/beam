@@ -30,8 +30,7 @@ This module is experimental. No backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-import itertools
-from enum import Enum
+import collections
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -40,7 +39,6 @@ from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
-from typing import Union
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -293,11 +291,6 @@ def create(value, timestamp_micros, windows, pane_info=PANE_INFO_UNKNOWN):
   return wv
 
 
-class BatchingMode(Enum):
-  CONCRETE = 1
-  HOMOGENEOUS = 2
-
-
 class WindowedBatch(object):
   """A batch of N windowed values, each having a value, a timestamp and set of
   windows."""
@@ -315,28 +308,10 @@ class WindowedBatch(object):
 
   @staticmethod
   def from_windowed_values(
-      windowed_values: Sequence[WindowedValue],
-      *,
-      produce_fn: Callable,
-      mode: BatchingMode = BatchingMode.CONCRETE) -> Iterable['WindowedBatch']:
-    if mode == BatchingMode.HOMOGENEOUS:
-      import collections
-      grouped = collections.defaultdict(lambda: [])
-      for wv in windowed_values:
-        grouped[wv.with_value(None)].append(wv.value)
-
-      for key, values in grouped.items():
-        yield HomogeneousWindowedBatch(key.with_value(produce_fn(values)))
-    elif mode == BatchingMode.CONCRETE:
-      yield ConcreteWindowedBatch(
-          produce_fn([wv.value for wv in windowed_values]),
-          [wv.timestamp
-           for wv in windowed_values], [wv.windows for wv in windowed_values],
-          [wv.pane_info for wv in windowed_values])
-    else:
-      raise AssertionError(
-          "Unrecognized BatchingMode in "
-          f"WindowedBatch.from_windowed_values: {mode!r}")
+      windowed_values: Sequence[WindowedValue], *,
+      produce_fn: Callable) -> Iterable['WindowedBatch']:
+    return HomogeneousWindowedBatch.from_windowed_values(
+        windowed_values, produce_fn=produce_fn)
 
 
 class HomogeneousWindowedBatch(WindowedBatch):
@@ -387,102 +362,16 @@ class HomogeneousWindowedBatch(WindowedBatch):
   def __hash__(self):
     return hash(self._wv)
 
+  @staticmethod
+  def from_windowed_values(
+      windowed_values: Sequence[WindowedValue], *,
+      produce_fn: Callable) -> Iterable['WindowedBatch']:
+    grouped = collections.defaultdict(lambda: [])
+    for wv in windowed_values:
+      grouped[wv.with_value(None)].append(wv.value)
 
-class ConcreteWindowedBatch(WindowedBatch):
-  """A concrete WindowedBatch where all event-time information is stored
-  independently for each element.
-
-  Attributes:
-    values: The underlying values of the windowed batch.
-    timestamps: An iterable of timestamps associated with the value as seconds
-      since Unix epoch.
-    windows: An iterable with a set (iterable) of window objects for each value.
-      The window objects are descendants of the BoundedWindow class.
-    pane_infos: An iterable of PaneInfo descriptors describing the triggering
-      information for the pane that contained each value. Alternatively, a
-      single PaneInfo may be specified to use for every value.
-  """
-  def __init__(
-      self,
-      values,
-      timestamps,  # type: Sequence[TimestampTypes]
-      windows,  # type: Iterable[Tuple[BoundedWindow, ...]]
-      pane_infos # type: Union[Iterable[PaneInfo],PaneInfo]
-  ):
-    self.values = values
-
-    def convert_timestamp(timestamp: TimestampTypes) -> int:
-      if isinstance(timestamp, int):
-        return timestamp * 1000000
-      else:
-        # TODO: Cache Timestamp object as in WindowedValue?
-        timestamp_object = (
-            timestamp
-            if isinstance(timestamp, Timestamp) else Timestamp.of(timestamp))
-        return timestamp_object.micros
-
-    self.timestamp_objects: Optional[List[Timestamp]] = None
-    self.timestamps_micros = [convert_timestamp(t) for t in timestamps]
-    self.windows = windows
-    #TODO: Should we store length?
-    #self.length = length
-    self.pane_infos = pane_infos
-
-  @property
-  def timestamps(self) -> Sequence[Timestamp]:
-    if self.timestamp_objects is None:
-      self.timestamp_objects = [
-          Timestamp(0, micros) for micros in self.timestamps_micros
-      ]
-
-    return self.timestamp_objects
-
-  def with_values(self, new_values):
-    # type: (Any) -> WindowedBatch
-
-    """Creates a new WindowedBatch with the same timestamps and windows as this.
-
-    This is the fasted way to create a new WindowedValue.
-    """
-    wb = ConcreteWindowedBatch.__new__(ConcreteWindowedBatch)
-    wb.values = new_values
-    wb.timestamps_micros = self.timestamps_micros
-    wb.windows = self.windows
-    wb.pane_infos = self.pane_infos
-    return wb
-
-  def as_windowed_values(self, explode_fn: Callable) -> Iterable[WindowedValue]:
-    for value, timestamp, windows, pane_info in zip(explode_fn(self.values),
-                                                    self.timestamps_micros,
-                                                    self.windows,
-                                                    self._pane_infos_iter()):
-      yield create(value, timestamp, windows, pane_info)
-
-  def _pane_infos_iter(self):
-    if isinstance(self.pane_infos, PaneInfo):
-      return itertools.repeat(self.pane_infos, len(self.timestamps_micros))
-    else:
-      return self.pane_infos
-
-  def __eq__(self, other):
-    if isinstance(other, ConcreteWindowedBatch):
-      return (
-          type(self) == type(other) and
-          self.timestamps_micros == other.timestamps_micros and
-          self.values == other.values and self.windows == other.windows and
-          self.pane_infos == other.pane_infos)
-    return NotImplemented
-
-  def __hash__(self):
-    if isinstance(self.pane_infos, PaneInfo):
-      pane_infos_hash = hash(self.pane_infos)
-    else:
-      pane_infos_hash = sum(hash(p) for p in self.pane_infos)
-
-    return ((hash(self.values) & 0xFFFFFFFFFFFFFFF) + 3 *
-            (sum(self.timestamps_micros) & 0xFFFFFFFFFFFFFF) + 7 *
-            (sum(hash(w) for w in self.windows) & 0xFFFFFFFFFFFFF) + 11 *
-            (pane_infos_hash & 0xFFFFFFFFFFFFF))
+    for key, values in grouped.items():
+      yield HomogeneousWindowedBatch(key.with_value(produce_fn(values)))
 
 
 try:
