@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
+import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.hubspot.sink.batch.HubspotBatchSink;
 import io.cdap.plugin.hubspot.sink.batch.HubspotOutputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
@@ -25,6 +26,8 @@ import io.cdap.plugin.hubspot.source.batch.HubspotInputFormatProvider;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormat;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormatProvider;
+import io.cdap.plugin.servicenow.source.ServiceNowInputFormat;
+import io.cdap.plugin.servicenow.source.ServiceNowSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormatProvider;
@@ -42,6 +45,9 @@ public class MappingUtils {
     } else if (pluginClass.equals(HubspotBatchSink.class)) {
       return Plugin.create(
           pluginClass, HubspotOutputFormat.class, HubspotOutputFormatProviderImpl.class);
+    } else if (pluginClass.equals(ServiceNowSource.class)) {
+      return Plugin.create(
+          pluginClass, ServiceNowInputFormat.class, SourceInputFormatProvider.class);
     }
     return null;
   }

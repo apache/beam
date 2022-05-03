@@ -38,6 +38,7 @@ import io.cdap.cdap.etl.api.batch.BatchContext;
 import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
 import java.net.URL;
 import java.sql.Timestamp;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -150,7 +151,31 @@ public class BatchContextImpl implements BatchContext {
 
   @Override
   public SettableArguments getArguments() {
-    return null;
+    return new SettableArguments() {
+      @Override
+      public boolean has(String name) {
+        return false;
+      }
+
+      @Nullable
+      @Override
+      public String get(String name) {
+        return null;
+      }
+
+      @Override
+      public void set(String name, String value) {}
+
+      @Override
+      public Map<String, String> asMap() {
+        return null;
+      }
+
+      @Override
+      public Iterator<Map.Entry<String, String>> iterator() {
+        return null;
+      }
+    };
   }
 
   @Override

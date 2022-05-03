@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -39,6 +36,9 @@ import io.cdap.plugin.hubspot.source.batch.HubspotInputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotInputFormatProvider;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
+import io.cdap.plugin.servicenow.source.ServiceNowInputFormat;
+import io.cdap.plugin.servicenow.source.ServiceNowSource;
+import io.cdap.plugin.servicenow.source.ServiceNowSourceConfig;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
@@ -112,6 +112,23 @@ public class CdapIOTest {
           .put("readTimeout", 10)
           .put("objectsToPull", "Groups")
           .build();
+
+  private static final ImmutableMap<String, Object> TEST_SERVICE_NOW_PARAMS_MAP =
+      ImmutableMap.<String, Object>builder()
+          .put("referenceName", "referenceName")
+          .put("queryMode", "Table")
+          .put("tableName", "x_817050_testapp_testlabel")
+          .put("clientId", System.getenv("SERVICE_NOW_CLIENT_ID"))
+          .put("clientSecret", System.getenv("SERVICE_NOW_CLIENT_SECRET"))
+          .put("user", System.getenv("SERVICE_NOW_USER"))
+          .put("password", System.getenv("SERVICE_NOW_PASSWORD"))
+          .put("restApiEndpoint", System.getenv("SERVICE_NOW_API_ENDPOINT"))
+          .put("valueType", "Actual")
+          .build();
+  private static final long NUM_OF_TEST_SERVICE_NOW_RECORDS =
+      Long.parseLong(System.getenv("NUM_OF_TEST_SERVICE_NOW_RECORDS"));
+  private static final String SERVICE_NOW_TEST_RECORDS_PREFIX =
+      System.getenv("SERVICE_NOW_TEST_RECORDS_PREFIX");
 
   private static final long NUM_OF_TEST_HUBSPOT_CONTACTS =
       Long.parseLong(System.getenv("HUBSPOT_CONTACTS_NUM"));
@@ -212,6 +229,53 @@ public class CdapIOTest {
         GSON.fromJson(configJson, ZendeskBatchSourceConfig.class);
 
     assertEquals(pluginConfig.getAdminEmail(), configFromJson.getAdminEmail());
+  }
+
+  @Test
+  public void testReadFromServiceNow() {
+
+    ServiceNowSourceConfig pluginConfig =
+        new ConfigWrapper<>(ServiceNowSourceConfig.class)
+            .withParams(TEST_SERVICE_NOW_PARAMS_MAP)
+            .build();
+
+    CdapIO.Read<NullWritable, StructuredRecord> reader =
+        CdapIO.<NullWritable, StructuredRecord>read()
+            .withCdapPluginClass(ServiceNowSource.class)
+            .withPluginConfig(pluginConfig)
+            .withKeyClass(NullWritable.class)
+            .withValueClass(StructuredRecord.class);
+
+    assertNotNull(reader.getPluginConfig());
+    assertNotNull(reader.getCdapPlugin());
+    assertFalse(reader.getCdapPlugin().isUnbounded());
+    assertEquals(BatchSourceContextImpl.class, reader.getCdapPlugin().getContext().getClass());
+
+    PCollection<KV<NullWritable, StructuredRecord>> input =
+        p.apply(reader)
+            .setCoder(
+                KvCoder.of(
+                    NullableCoder.of(WritableCoder.of(NullWritable.class)),
+                    SerializableCoder.of(StructuredRecord.class)));
+
+    PAssert.that(input)
+        .satisfies(
+            (iterable) -> {
+              List<KV<NullWritable, StructuredRecord>> list =
+                  (List<KV<NullWritable, StructuredRecord>>) iterable;
+              assertEquals(NUM_OF_TEST_SERVICE_NOW_RECORDS, list.size());
+              for (int i = 0; i < list.size(); i++) {
+                StructuredRecord record = list.get(0).getValue();
+                assertNotNull(record);
+                String recordName = record.get("name");
+                assertNotNull(recordName);
+                assertTrue(recordName.startsWith(SERVICE_NOW_TEST_RECORDS_PREFIX));
+              }
+              return null;
+            });
+    p.run();
+
+    assertEquals(ServiceNowInputFormat.class, reader.getCdapPlugin().getFormatClass());
   }
 
   @Test
