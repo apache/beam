@@ -205,7 +205,7 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfCreateTrackerReturn{}},
 			{dfn: &BadSdfMismatchedRTracker{}},
 			{dfn: &BadSdfMissingRTracker{}},
-			{dfn: &BadSdfMisnatchRTrackerTruncateRestriction{}},
+			{dfn: &BadSdfMismatchRTrackerTruncateRestriction{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -1097,11 +1097,11 @@ func (fn *BadSdfMismatchedRTracker) ProcessElement(*OtherRTrackerT, int) int {
 	return 0
 }
 
-type BadSdfMisnatchRTrackerTruncateRestriction struct {
+type BadSdfMismatchRTrackerTruncateRestriction struct {
 	*GoodSdf
 }
 
-func (fn *BadSdfMisnatchRTrackerTruncateRestriction) TruncateRestriction(*OtherRTrackerT, int) RestT {
+func (fn *BadSdfMismatchRTrackerTruncateRestriction) TruncateRestriction(*OtherRTrackerT, int) RestT {
 	return RestT{}
 }
 
