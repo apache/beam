@@ -38,7 +38,6 @@ import com.google.cloud.bigtable.grpc.scanner.FlatRowConverter;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.grpc.scanner.ScanHandler;
 import com.google.cloud.bigtable.util.ByteStringComparator;
-import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -72,6 +71,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Comparis
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -325,7 +325,9 @@ class BigtableServiceImpl implements BigtableService {
         future = startNextSegmentRead();
       }
       if (buffer.isEmpty()) {
-        if (future == null || lastFillComplete) return false;
+        if (future == null || lastFillComplete) {
+          return false;
+        }
         waitReadRowsFuture();
       }
       // If the last fill is equal to row limit, the lastFillComplete flag will not be true
