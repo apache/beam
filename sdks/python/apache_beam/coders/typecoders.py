@@ -119,10 +119,7 @@ class CoderRegistry(object):
     if typehint_type.__module__ == '__main__':
       # See https://issues.apache.org/jira/browse/BEAM-14250
       # TODO(robertwb): Remove once all runners are portable.
-      if hasattr(typehint_type, '__name__'):
-        typehint_type = typehint_type.__name__
-      else:
-        typehint_type = str(typehint_type)
+      typehint_type = getattr(typehint_type, '__name__', str(typehint_type))
     self._register_coder_internal(typehint_type, typehint_coder_class)
 
   def get_coder(self, typehint):
@@ -130,10 +127,7 @@ class CoderRegistry(object):
     if typehint and typehint.__module__ == '__main__':
       # See https://issues.apache.org/jira/browse/BEAM-14250
       # TODO(robertwb): Remove once all runners are portable.
-      if hasattr(typehint, '__name__'):
-        typehint = typehint.__name__
-      else:
-        typehint = str(typehint)
+      typehint = getattr(typehint, '__name__', str(typehint))
     coder = self._coders.get(
         typehint.__class__
         if isinstance(typehint, typehints.TypeConstraint) else typehint,
