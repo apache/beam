@@ -39,7 +39,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class TestDataflowRunner(DataflowRunner):
-  console_url = "https://console.cloud.google.com/dataflow/jobs/"
   def run_pipeline(self, pipeline, options):
     """Execute test pipeline and verify test matcher"""
     test_options = options.view_as(TestOptions)
@@ -56,8 +55,7 @@ class TestDataflowRunner(DataflowRunner):
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
       print('Worker logs: %s' % self.build_console_url(options))
-      self.console_url = self.build_console_url(options)
-      _LOGGER.info('Console log: {}'.format(self.console_url))
+      _LOGGER.info('Console log: {}'.format(self.build_console_url(options)))
 
     try:
       self.wait_until_in_state(PipelineState.RUNNING)
@@ -87,8 +85,10 @@ class TestDataflowRunner(DataflowRunner):
 
   def wait_until_in_state(self, expected_state, timeout=WAIT_IN_STATE_TIMEOUT):
     """Wait until Dataflow pipeline enters a certain state."""
+    consoleUrl = """https://console.cloud.google.com/dataflow/jobs/
+    <regionId>/{}?project=<projectId>""".format(self.result.job_id)
     if not self.result.has_job:
-      _LOGGER.error("Console log: {}".format(self.console_url))
+      _LOGGER.error("Console log: {}".format(consoleUrl))
       raise IOError('Failed to get the Dataflow job id.')
 
     start_time = time.time()
@@ -97,8 +97,7 @@ class TestDataflowRunner(DataflowRunner):
       if self.result.is_in_terminal_state() or job_state == expected_state:
         return job_state
       time.sleep(5)
-
-    _LOGGER.error("Console log: {}".format(self.console_url))
+    _LOGGER.error('Console URL {}'.format(consoleUrl))
     raise RuntimeError(
         'Timeout after %d seconds while waiting for job %s '
         'enters expected state %s. Current state is %s.' %

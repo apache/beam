@@ -1609,8 +1609,7 @@ class DataflowPipelineResult(PipelineResult):
 
   def wait_until_finish(self, duration=None):
     consoleUrl = """More info in:'https://console.cloud.google.com/
-        dataflow/jobs/<RegionId>/{}?project=<ProjectId>'""".format(self.job_id)
-
+      dataflow/jobs/<RegionId>/{}?project=<ProjectId>'""".format(self.job_id)
     if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
@@ -1631,17 +1630,16 @@ class DataflowPipelineResult(PipelineResult):
       # is_in_terminal_state.
       terminated = self.is_in_terminal_state()
       assert duration or terminated, (
-        'Job did not reach to a terminal state after waiting indefinitely. %s'%
-        (consoleUrl))
+          'Job did not reach to a terminal state after waiting indefinitely.'
+          'Console log: {}'.format(consoleUrl))
 
       if terminated and self.state != PipelineState.DONE:
         # TODO(BEAM-1290): Consider converting this to an error log based on
         # theresolution of the issue.
-        _LOGGER.error(consoleUrl)
+        _LOGGER.error('Console URL {}'.format(consoleUrl))
         raise DataflowRuntimeException(
-            '%s\nDataflow pipeline failed. State: %s, Error:\n%s' %
-            (consoleUrl, self.state, 
-              getattr(self._runner, 'last_error_msg', None)),
+            'Dataflow pipeline failed. State: %s, Error:\n%s' %
+            (self.state, getattr(self._runner, 'last_error_msg', None)),
             self)
     return self.state
 
