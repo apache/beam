@@ -350,7 +350,7 @@ class HomogeneousWindowedBatch(WindowedBatch):
     self._wv = wv
 
   @staticmethod
-  def of(values, timestamp, windows, pane_info=PANE_INFO_UNKNOWN):
+  def of(values, timestamp, windows, pane_info):
     return HomogeneousWindowedBatch(
         WindowedValue(values, timestamp, windows, pane_info))
 
@@ -397,21 +397,20 @@ class ConcreteWindowedBatch(WindowedBatch):
 
   Attributes:
     values: The underlying values of the windowed batch.
-    timestamp: An iterable of timestamps associated with the value as seconds
+    timestamps: An iterable of timestamps associated with the value as seconds
       since Unix epoch.
     windows: An iterable with a set (iterable) of window objects for each value.
       The window objects are descendants of the BoundedWindow class.
-    pane_info: An iterable of PaneInfo descriptors describing the triggering
+    pane_infos: An iterable of PaneInfo descriptors describing the triggering
       information for the pane that contained each value. Alternatively, a
-      single PaneInfo may be specified to use for every value. If None, will be
-      set to PANE_INFO_UNKNOWN.
+      single PaneInfo may be specified to use for every value.
   """
   def __init__(
       self,
       values,
       timestamps,  # type: Sequence[TimestampTypes]
       windows,  # type: Iterable[Tuple[BoundedWindow, ...]]
-      pane_infos=PANE_INFO_UNKNOWN  # type: Union[Iterable[PaneInfo],PaneInfo]
+      pane_infos # type: Union[Iterable[PaneInfo],PaneInfo]
   ):
     self.values = values
 

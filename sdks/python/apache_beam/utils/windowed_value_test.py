@@ -77,7 +77,8 @@ class WindowedValueTest(unittest.TestCase):
 
 
 WINDOWED_BATCH_INSTANCES = [
-    windowed_value.ConcreteWindowedBatch(None, [3, 4, 5], [(), (), ()]),
+    windowed_value.ConcreteWindowedBatch(
+        None, [3, 4, 5], [(), (), ()], windowed_value.PANE_INFO_UNKNOWN),
     windowed_value.ConcreteWindowedBatch(
         None, [6, 7, 8], [(), (), ()],
         [
@@ -88,7 +89,8 @@ WINDOWED_BATCH_INSTANCES = [
             windowed_value.PaneInfo(
                 False, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 0)
         ]),
-    windowed_value.HomogeneousWindowedBatch.of(None, 3, ()),
+    windowed_value.HomogeneousWindowedBatch.of(
+        None, 3, (), windowed_value.PANE_INFO_UNKNOWN),
     windowed_value.HomogeneousWindowedBatch.of(
         None,
         3, (),
@@ -100,7 +102,8 @@ WINDOWED_BATCH_INSTANCES = [
 class WindowedBatchTest(unittest.TestCase):
   def test_timestamps(self):
     wb = windowed_value.ConcreteWindowedBatch(
-        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
+        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()],
+        windowed_value.PANE_INFO_UNKNOWN)
     self.assertEqual(
         wb.timestamps,
         [
@@ -167,7 +170,8 @@ class WindowedBatchTest(unittest.TestCase):
 
   def test_equals_different_type(self):
     wb = windowed_value.ConcreteWindowedBatch(
-        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()])
+        None, [3, 4, 5, 6, -2.5], [(), (), (), (), ()],
+        windowed_value.PANE_INFO_UNKNOWN)
     self.assertNotEqual(wb, object())
 
   def test_from_windowed_values(self):

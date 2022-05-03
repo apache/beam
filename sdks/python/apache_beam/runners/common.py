@@ -856,7 +856,9 @@ class PerWindowInvoker(DoFnInvoker):
       for w in windowed_batch.windows:
         self._invoke_process_batch_per_window(
             HomogeneousWindowedBatch.of(
-                windowed_batch.values, windowed_batch.timestamp, (w, )),
+                windowed_batch.values,
+                windowed_batch.timestamp, (w, ),
+                windowed_batch.pane_info),
             additional_args,
             additional_kwargs)
     else:
