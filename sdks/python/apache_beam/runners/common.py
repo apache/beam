@@ -745,19 +745,18 @@ class PerWindowInvoker(DoFnInvoker):
       self.current_window_index = None
       self.stop_window_index = None
 
-    # Try to prepare all the arguments that can just be filled in
-    # without any additional work. in the process function.
-    # Also cache all the placeholders needed in the process function.
-
     # Flag to cache additional arguments on the first element if all
     # inputs are within the global window.
     self.cache_globally_windowed_args = not self.has_windowed_inputs
 
-    (self.placeholders,
-     self.args_for_process,
-     self.kwargs_for_process) = _get_arg_placeholders(signature.process_method,
-                                                      input_args,
-                                                      input_kwargs)
+    # Try to prepare all the arguments that can just be filled in
+    # without any additional work. in the process function.
+    # Also cache all the placeholders needed in the process function.
+    (
+        self.placeholders_for_process,
+        self.args_for_process,
+        self.kwargs_for_process) = _get_arg_placeholders(
+            signature.process_method, input_args, input_kwargs)
 
     self.process_batch_method = signature.process_batch_method.method_value
 
@@ -945,7 +944,7 @@ class PerWindowInvoker(DoFnInvoker):
             'Input value to a stateful DoFn or KeyParam must be a KV tuple; '
             'instead, got \'%s\'.') % (windowed_value.value, ))
 
-    for i, p in self.placeholders:
+    for i, p in self.placeholders_for_process:
       if core.DoFn.ElementParam == p:
         args_for_process[i] = windowed_value.value
       elif core.DoFn.KeyParam == p:
