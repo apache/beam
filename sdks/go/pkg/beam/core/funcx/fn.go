@@ -654,10 +654,9 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 }
 
 var (
-	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
-	errErrorPrecedence        = errors.New("error must be the final return parameter")
-	// TODO(BEAM-11104): Enable process continuations as a valid return value.
-	errContinuationSupport = errors.New("process continuations are not supported in this SDK release; see https://issues.apache.org/jira/browse/BEAM-11104 for the feature's current status")
+	errEventTimeRetPrecedence        = errors.New("beam.EventTime must be first return parameter")
+	errErrorPrecedence               = errors.New("error must be the final return parameter")
+	errProcessContinuationPrecedence = errors.New("ProcessContinuation must be the final non-error return parameter")
 )
 
 type retState int
@@ -677,8 +676,15 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 		case RetEventTime:
 			return rsEventTime, nil
 		}
-	case rsEventTime, rsOutput, rsProcessContinuation:
+	case rsEventTime, rsOutput:
 		// Identical to the default cases.
+	case rsProcessContinuation:
+		switch transition {
+		case RetError:
+			return rsError, nil
+		default:
+			return -1, errProcessContinuationPrecedence
+		}
 	case rsError:
 		// This is a terminal state. No valid transitions. error must be the final return value.
 		return -1, errErrorPrecedence
@@ -690,7 +696,7 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 	case RetValue, RetRTracker:
 		return rsOutput, nil
 	case RetProcessContinuation:
-		return -1, errContinuationSupport
+		return rsProcessContinuation, nil
 	case RetError:
 		return rsError, nil
 	default:
