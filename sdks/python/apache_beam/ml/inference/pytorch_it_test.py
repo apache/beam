@@ -31,7 +31,7 @@ try:
   import torch
   from apache_beam.ml.inference.examples import pytorch_image_classification
 except ImportError:
-  raise unittest.SkipTest('PyTorch, pillow' ' dependencies are not installed')
+  torch = None
 
 _EXPECTED_OUTPUTS = {
     'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005001.JPEG': '681',
@@ -56,10 +56,9 @@ def process_outputs(filepath):
   return lines
 
 
-@pytest.mark.uses_pytorch
-@unittest.skipIf(torch is None, "Pytorch is not installed.")
+@unittest.skipIf(torch is None, 'torch is not installed')
 class PyTorchInference(unittest.TestCase):
-  @pytest.mark.examples_postcommit
+  @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
   def test_predictions_output_file(self):
     test_pipeline = TestPipeline(is_integration_test=True)
