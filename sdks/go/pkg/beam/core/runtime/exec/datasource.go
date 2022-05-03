@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -320,6 +321,76 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol}
 }
 
+// getProcessContinuation retrieves a ProcessContinuation that may be returned by
+// a self-checkpointing SDF. Current support for self-checkpointing requires that the
+// SDF is immediately after the DataSource.
+func (n *DataSource) getProcessContinuation() sdf.ProcessContinuation {
+	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok {
+		return u.continuation
+	}
+	return nil
+}
+
+func (n *DataSource) makeEncodeElms() func([]*FullValue) ([][]byte, error) {
+	wc := MakeWindowEncoder(n.Coder.Window)
+	ec := MakeElementEncoder(coder.SkipW(n.Coder))
+	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
+		encElms := make([][]byte, len(fvs))
+		for i, fv := range fvs {
+			enc, err := encodeElm(fv, wc, ec)
+			if err != nil {
+				return nil, err
+			}
+			encElms[i] = enc
+		}
+		return encElms, nil
+	}
+	return encodeElms
+}
+
+// Checkpoint attempts to split an SDF that has self-checkpointed (e.g. returned a
+// ProcessContinuation) and needs to be resumed later. If the underlying DoFn is not
+// splittable or has not returned a resuming continuation, the function returns an empty
+// SplitResult, a negative resumption time, and a false boolean to indicate that no split
+// occurred.
+func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	pc := n.getProcessContinuation()
+	if pc == nil || !pc.ShouldResume() {
+		return SplitResult{}, -1 * time.Minute, false, nil
+	}
+
+	su := SplittableUnit(n.Out.(*ProcessSizedElementsAndRestrictions))
+
+	ow := su.GetOutputWatermark()
+
+	// Always split at fraction 0.0, should have no primaries left.
+	ps, rs, err := su.Split(0.0)
+	if err != nil {
+		return SplitResult{}, -1 * time.Minute, false, err
+	}
+	if ps != nil {
+		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want nil", ps)
+	}
+
+	encodeElms := n.makeEncodeElms()
+
+	rsEnc, err := encodeElms(rs)
+	if err != nil {
+		return SplitResult{}, -1 * time.Minute, false, err
+	}
+
+	res := SplitResult{
+		RS:   rsEnc,
+		TId:  su.GetTransformId(),
+		InId: su.GetInputId(),
+		OW:   ow,
+	}
+	return res, pc.ResumeDelay(), true, nil
+}
+
 // Split takes a sorted set of potential split indices and a fraction of the
 // remainder to split at, selects and actuates a split on an appropriate split
 // index, and returns the selected split index in a SplitResult if successful or
@@ -403,19 +474,7 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 
 	// TODO(BEAM-10579) Eventually encode elements with the splittable
 	// unit's input coder instead of the DataSource's coder.
-	wc := MakeWindowEncoder(n.Coder.Window)
-	ec := MakeElementEncoder(coder.SkipW(n.Coder))
-	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
-		encElms := make([][]byte, len(fvs))
-		for i, fv := range fvs {
-			enc, err := encodeElm(fv, wc, ec)
-			if err != nil {
-				return nil, err
-			}
-			encElms[i] = enc
-		}
-		return encElms, nil
-	}
+	encodeElms := n.makeEncodeElms()
 
 	psEnc, err := encodeElms(ps)
 	if err != nil {

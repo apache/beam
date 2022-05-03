@@ -18,12 +18,13 @@
 @import "media";
 
 .quotes {
-  padding: $pad;
+  padding: 40px 30px 10px;
   background-color: $color-medium-gray;
 
   .quotes-title {
     @extend .component-title;
 
+    margin-top: 0;
     text-align: center;
     border: none;
   }
@@ -40,7 +41,7 @@
       width: 100%;
       max-width: 381px;
       height: 474px;
-      margin: 86px 36px 0 0;
+      margin: 40px 36px 0 0;
       padding: 55px 20px 24px 20px;
       border-radius: 16px;
       background-color: $color-white;

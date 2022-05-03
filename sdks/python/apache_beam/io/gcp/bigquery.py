@@ -2016,6 +2016,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         data to BigQuery: https://cloud.google.com/bigquery/docs/loading-data.
         DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
         FILE_LOADS on Batch pipelines.
+        Note: FILE_LOADS currently does not support BigQuery's JSON data type:
+        https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
         Default is to retry always. This means that whenever there are rows

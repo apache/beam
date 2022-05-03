@@ -34,7 +34,6 @@ class PredictionResult:
   inference: _OUTPUT_TYPE
 
 
-@beam.ptransform_fn
 @beam.typehints.with_input_types(Union[_INPUT_TYPE, Tuple[_K, _INPUT_TYPE]])
 @beam.typehints.with_output_types(Union[PredictionResult, Tuple[_K, PredictionResult]])  # pylint: disable=line-too-long
 class RunInference(beam.PTransform):

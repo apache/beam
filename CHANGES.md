@@ -54,25 +54,34 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Watermark estimation is now supported in the Go SDK ([BEAM-11105](https://issues.apache.org/jira/browse/BEAM-11105))
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* JmsIO gains the ability to map any kind of input to any subclass of `javax.jms.Message` (Java) ([BEAM-16308](https://issues.apache.org/jira/browse/BEAM-16308)).
+* JmsIO introduces the ability to write to dynamic topics (Java) ([BEAM-16308](https://issues.apache.org/jira/browse/BEAM-16308)).
+  * A `topicNameMapper` must be set to extract the topic name from the input value.
+  * A `valueMapper` must be set to convert the input value to JMS message.
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * 'Manage Clusters' JupyterLab extension added for users to configure usage of Dataproc clusters managed by Interactive Beam (Python) ([BEAM-14130](https://issues.apache.org/jira/browse/BEAM-14130)).
 
 ## Breaking Changes
 
 * Unused functions `ShallowCloneParDoPayload()`, `ShallowCloneSideInput()`, and `ShallowCloneFunctionSpec()` have been removed from the Go SDK's pipelinex package ([BEAM-13739](https://issues.apache.org/jira/browse/BEAM-13739)).
+* JmsIO requires an explicit `valueMapper` to be set ([BEAM-16308](https://issues.apache.org/jira/browse/BEAM-16308)). You can use the `TextMessageMapper` to convert `String` inputs to JMS `TestMessage`s:
+```java
+  JmsIO.<String>write()
+        .withConnectionFactory(jmsConnectionFactory)
+        .withValueMapper(new TextMessageMapper());
+```
+* Coders in Python are expected to inherit from Coder. ([BEAM-14351](https://issues.apache.org/jira/browse/BEAM-14351)).
 
 ## Deprecations
 
 * Flink 1.11 is no longer supported ([BEAM-14139](https://issues.apache.org/jira/browse/BEAM-14139)).
+* Python 3.6 is no longer supported ([BEAM-13657](https://issues.apache.org/jira/browse/BEAM-13657)).
 
 ## Bugfixes
 
