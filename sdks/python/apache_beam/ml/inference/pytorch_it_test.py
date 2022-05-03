@@ -25,13 +25,13 @@ import unittest
 import uuid
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.examples import pytorch_image_classification
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   import torch
+  from apache_beam.ml.inference.examples import pytorch_image_classification
 except ImportError:
-  torch = None
+  raise unittest.SkipTest('PyTorch, pillow' ' dependencies are not installed')
 
 _EXPECTED_OUTPUTS = {
     'gs://apache-beam-ml/temp_storage_end_to_end_testing/inputs/ILSVRC2012_val_00005001.JPEG': '681',
