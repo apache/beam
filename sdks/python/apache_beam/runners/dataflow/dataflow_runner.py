@@ -1641,7 +1641,7 @@ class DataflowPipelineResult(PipelineResult):
         raise DataflowRuntimeException(
             '%s\nDataflow pipeline failed. State: %s, Error:\n%s' %
             (consoleUrl, self.state, 
-            getattr(self._runner, 'last_error_msg', None)),
+              getattr(self._runner, 'last_error_msg', None)),
             self)
     return self.state
 
