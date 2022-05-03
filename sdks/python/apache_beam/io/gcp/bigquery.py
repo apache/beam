@@ -2201,8 +2201,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
                   'FILE_LOADS write method. This is supported with '
                   'STREAMING_INSERTS. For more information: '
                   'https://cloud.google.com/bigquery/docs/reference/'
-                  'standard-sql/json-data#ingest_json_data'
-              )
+                  'standard-sql/json-data#ingest_json_data')
             elif field['type'] == 'STRUCT':
               find_in_nested_dict(field)
 
