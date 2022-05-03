@@ -60,11 +60,9 @@ jobs:
             echo -e "Vet Warnings:\n"
             echo -e "$VOUT" && exit 1
           fi
-      # TODO(BEAM-14385): The current staticcheck version is 2021.1.2 as there is 
-      # a known issue with 2022.1 and Go versions before 1.17. 
       - name: Run Staticcheck
         run: |
-          go install "honnef.co/go/tools/cmd/staticcheck@2021.1.2"
+          go install "honnef.co/go/tools/cmd/staticcheck@2022.1"
           cd sdks/go/pkg/beam
           RESULTS=$($(go env GOPATH)/bin/staticcheck ./...)
           if [ -n "$RESULTS" ]; then 
