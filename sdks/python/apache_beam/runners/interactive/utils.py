@@ -228,8 +228,8 @@ class IPythonLogHandler(logging.Handler):
   def emit(self, record):
     try:
       from html import escape
-      from IPython.core.display import HTML
-      from IPython.core.display import display
+      from IPython.display import HTML
+      from IPython.display import display
       display(HTML(_INTERACTIVE_LOG_STYLE))
       display(
           HTML(
@@ -269,8 +269,8 @@ class ProgressIndicator(object):
 
   def __enter__(self):
     try:
-      from IPython.core.display import HTML
-      from IPython.core.display import display
+      from IPython.display import HTML
+      from IPython.display import display
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
         display(HTML(self.spinner_template.format(id=self._id)))
@@ -283,9 +283,9 @@ class ProgressIndicator(object):
 
   def __exit__(self, exc_type, exc_value, traceback):
     try:
-      from IPython.core.display import Javascript
-      from IPython.core.display import display
-      from IPython.core.display import display_javascript
+      from IPython.display import Javascript
+      from IPython.display import display
+      from IPython.display import display_javascript
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
         script = self.spinner_removal_template.format(id=self._id)
