@@ -444,8 +444,12 @@ class ConcreteWindowedBatch(WindowedBatch):
 
     This is the fasted way to create a new WindowedValue.
     """
-    return create_batch(
-        new_values, self.timestamps_micros, self.windows, self.pane_infos)
+    wb = ConcreteWindowedBatch.__new__(ConcreteWindowedBatch)
+    wb.values = new_values
+    wb.timestamps_micros = self.timestamps_micros
+    wb.windows = self.windows
+    wb.pane_infos = self.pane_infos
+    return wb
 
   def as_windowed_values(self, explode_fn: Callable) -> Iterable[WindowedValue]:
     for value, timestamp, windows, pane_info in zip(explode_fn(self.values),
@@ -479,16 +483,6 @@ class ConcreteWindowedBatch(WindowedBatch):
             (sum(self.timestamps_micros) & 0xFFFFFFFFFFFFFF) + 7 *
             (sum(hash(w) for w in self.windows) & 0xFFFFFFFFFFFFF) + 11 *
             (pane_infos_hash & 0xFFFFFFFFFFFFF))
-
-
-def create_batch(
-    values, timestamps_micros, windows, pane_infos=PANE_INFO_UNKNOWN):
-  wb = ConcreteWindowedBatch.__new__(ConcreteWindowedBatch)
-  wb.values = values
-  wb.timestamps_micros = timestamps_micros
-  wb.windows = windows
-  wb.pane_infos = pane_infos
-  return wb
 
 
 try:
