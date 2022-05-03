@@ -205,13 +205,7 @@ var optionalSdfNames = []string{
 	truncateRestrictionName,
 }
 
-var sdfNames = []string{
-	createInitialRestrictionName,
-	splitRestrictionName,
-	restrictionSizeName,
-	createTrackerName,
-	truncateRestrictionName,
-}
+var sdfNames = append(append([]string{}, requiredSdfNames...), optionalSdfNames...)
 
 var watermarkEstimationNames = []string{
 	createWatermarkEstimatorName,
@@ -876,7 +870,6 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 func validateSdfSigTypes(fn *Fn, num int) error {
 	restrictionT := fn.methods[createInitialRestrictionName].Ret[0].T
 	rTrackerT := reflect.TypeOf((*sdf.RTracker)(nil)).Elem()
-	bRTrackerT := fn.methods[createTrackerName].Ret[0].T
 
 	for _, name := range requiredSdfNames {
 		method := fn.methods[name]
@@ -952,6 +945,9 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 			}
 		}
 	}
+
+	rTrackerImplT := fn.methods[createTrackerName].Ret[0].T
+
 	for _, name := range optionalSdfNames {
 		method, ok := fn.methods[name]
 		if !ok {
@@ -959,13 +955,13 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 		}
 		switch name {
 		case truncateRestrictionName:
-			if method.Param[0].T != bRTrackerT {
+			if method.Param[0].T != rTrackerImplT {
 				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
-					truncateRestrictionName, 0, method.Param[0].T, bRTrackerT)
+					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT)
 				return errors.SetTopLevelMsgf(err, "Mismatched restriction tracker type in method %v, "+
 					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
 					"Ensure that restriction tracker is the first parameter.",
-					truncateRestrictionName, 0, method.Param[0].T, bRTrackerT, createTrackerName)
+					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT, createTrackerName)
 			}
 			if method.Ret[0].T != restrictionT {
 				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",

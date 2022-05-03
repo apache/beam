@@ -22,7 +22,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 // This file contains invokers for SDF methods. These invokers are based off
@@ -360,13 +359,11 @@ type trInvoker struct {
 	call func(rest interface{}, elms *FullValue) (pair interface{})
 }
 
-var offsetrangeTracker = reflect.TypeOf((*offsetrange.Tracker)(nil)).Elem()
-
-func DefaultTruncateRestriction(restTracker interface{}) (newRest interface{}) {
-	if tracker, ok := restTracker.(sdf.BoundableRTracker); ok && tracker.IsBounded() {
-		tracker.GetRestriction()
+func defaultTruncateRestriction(restTracker interface{}) (newRest interface{}) {
+	if tracker, ok := restTracker.(sdf.BoundableRTracker); ok && !tracker.IsBounded() {
+		return nil
 	}
-	return nil
+	return restTracker.(sdf.RTracker).GetRestriction()
 }
 
 func newTruncateRestrictionInvoker(fn *funcx.Fn) (*trInvoker, error) {
@@ -383,7 +380,7 @@ func newTruncateRestrictionInvoker(fn *funcx.Fn) (*trInvoker, error) {
 func newDefaultTruncateRestrictionInvoker() (*trInvoker, error) {
 	n := &trInvoker{}
 	n.call = func(rest interface{}, elms *FullValue) interface{} {
-		return DefaultTruncateRestriction(rest)
+		return defaultTruncateRestriction(rest)
 	}
 	return n, nil
 }

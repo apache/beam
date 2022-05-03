@@ -264,7 +264,10 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 //   *FullValue {
 //     Elm: *FullValue {
 //       Elm:  *FullValue (original input)
-//       Elm2: Restriction
+//       Elm2: *FullValue {
+// 	       Elm: Restriction
+// 	       Elm2: Watermark estimator state
+//       }
 //     }
 //     Elm2: float64 (size)
 //     Windows
@@ -275,7 +278,10 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 //   *FullValue {
 //     Elm: *FullValue {
 //       Elm:  *FullValue (original input)
-//       Elm2: Restriction
+//       Elm2: *FullValue {
+// 	       Elm: Restriction
+// 	       Elm2: Watermark estimator state
+//       }
 //     }
 //     Elm2: float64 (size)
 //     Windows
@@ -283,8 +289,7 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 //    }
 func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	mainElm := elm.Elm.(*FullValue).Elm.(*FullValue)
-	// TODO: change restriction extraction to consider watermark estimator after BEAM-11105 is merged.
-	rest := elm.Elm.(*FullValue).Elm2
+	rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
 	rt := n.ctInv.Invoke(rest)
 	newRest := n.truncateInv.Invoke(rt, mainElm)
 	if newRest == nil {
@@ -295,7 +300,7 @@ func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *Full
 	output := &FullValue{}
 	output.Timestamp = elm.Timestamp
 	output.Windows = elm.Windows
-	output.Elm = &FullValue{Elm: mainElm, Elm2: newRest}
+	output.Elm = &FullValue{Elm: mainElm, Elm2: &FullValue{Elm: newRest, Elm2: elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2}}
 	output.Elm2 = size
 
 	if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
