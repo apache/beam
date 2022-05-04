@@ -175,7 +175,6 @@ REQUIRED_TEST_PACKAGES = [
     'psycopg2-binary>=2.8.5,<3.0.0',
     'testcontainers[mysql]>=3.0.3,<4.0.0',
     'cryptography>=36.0.0',
-    'torch',
     'pillow'
 ]
 

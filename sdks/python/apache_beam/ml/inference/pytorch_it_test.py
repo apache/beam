@@ -27,10 +27,12 @@ import uuid
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
+error = None
 try:
   import torch
   from apache_beam.ml.inference.examples import pytorch_image_classification
-except ImportError:
+except ImportError as e:
+  error = e  # check if test is skipping because of torch or pillow.
   torch = None
 
 _EXPECTED_OUTPUTS = {
@@ -56,7 +58,8 @@ def process_outputs(filepath):
   return lines
 
 
-@unittest.skipIf(torch is None, 'torch is not installed')
+@unittest.skipIf(
+    torch is None, 'torch is not installed. Error: {}'.format(error))
 class PyTorchInference(unittest.TestCase):
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
