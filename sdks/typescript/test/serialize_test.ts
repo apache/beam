@@ -18,22 +18,14 @@
 
 import { expect } from "chai";
 import {
-  deserialize,
-  serialize,
-  BuiltinList,
-  generateDefaultBuiltins,
-} from "serialize-closures";
+  serializeFn,
+  deserializeFn,
+} from "../src/apache_beam/internal/serialize";
 
 describe("serialization tests", function () {
-  function roundtrip(value, builtins?: BuiltinList) {
-    return deserialize(
-      JSON.parse(JSON.stringify(serialize(value, builtins))),
-      builtins
-    );
-  }
-
-  function expectRoundtrip(value, builtins?: BuiltinList) {
-    expect(roundtrip(value, builtins)).to.deep.equal(value);
+  function roundtrip(value) {
+    console.log(new TextDecoder().decode(serializeFn(value)));
+    return deserializeFn(serializeFn(value));
   }
 
   function* myGenerator() {
@@ -41,19 +33,13 @@ describe("serialization tests", function () {
     yield 84;
   }
 
-  function simpleGenerator() {
-    expect(myGenerator().next()).to.equal(42);
-  }
-
-  function roundtripGeneratorConstructor() {
-    expect(roundtrip(myGenerator)().next()).to.equal(42);
-  }
-
-  function roundtripGeneratorInProgress() {
-    const gen = myGenerator();
-    expect(gen.next()).to.equal(42);
-    expect(roundtrip(gen).next()).to.equal(84);
-  }
+  it("serializes and deserializes generators", async function () {
+    expect(roundtrip(myGenerator)().next()).to.deep.equal({
+      value: 42,
+      done: false,
+    });
+    expect([...roundtrip(myGenerator)()]).to.deep.equal([42, 84]);
+  });
 
   it("serializes and deserializes function() defined functions", async function () {
     // function that returns a simple generator
@@ -74,7 +60,9 @@ describe("serialization tests", function () {
     expect(foo_itr.next()).to.deep.equal(bar_itr.next());
   });
 
-  // it("serializes and deserializes arrow functions", async function() {
-  //
-  //  });
+  it("serializes and deserializes arrow functions", async function () {
+    expect(roundtrip((a) => a * a)(2)).to.equal(4);
+    const x = 3;
+    expect(roundtrip((a) => a * x)(2)).to.equal(6);
+  });
 });
