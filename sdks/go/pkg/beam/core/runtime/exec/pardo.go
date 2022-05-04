@@ -180,6 +180,10 @@ func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation,
 
 	// Forward direct output, if any. It is always a main output.
 	if val != nil {
+		// We do not forward a ProcessContinuation on its own
+		if val.Elm == nil {
+			return val.Continuation, nil
+		}
 		return val.Continuation, n.Out[0].ProcessElement(n.ctx, val)
 	}
 	return nil, nil
