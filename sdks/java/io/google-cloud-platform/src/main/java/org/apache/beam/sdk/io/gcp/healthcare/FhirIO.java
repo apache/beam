@@ -1460,7 +1460,7 @@ public class FhirIO {
 
       private void parseResponse(ProcessContext context, String inputBody, HttpBody resp)
           throws JsonProcessingException {
-        JsonObject bundle = JsonParser.parseString(resp.getData()).getAsJsonObject();
+        JsonObject bundle = JsonParser.parseString(resp.toString()).getAsJsonObject();
         String bundleType = bundle.getAsJsonPrimitive(BUNDLE_TYPE_FIELD).getAsString();
         JsonArray entries = bundle.getAsJsonArray(BUNDLE_ENTRY_FIELD).getAsJsonArray();
         if (entries == null) {
