@@ -26,6 +26,7 @@ import logging
 import random
 import time
 import unittest
+import json
 from decimal import Decimal
 
 import hamcrest as hc
@@ -372,6 +373,92 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               table_id,
               write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
               temp_file_format=FileFormat.JSON))
+
+  @pytest.mark.it_postcommit
+  def test_big_query_write_insert_errors_reporting(self):
+    table_name = 'python_write_table'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    errors_table_name = table_name + '_error_records'
+    errors_table_id = '{}.{}'.format(self.dataset_id, errors_table_name)
+
+    input_data = [{
+        'number': 1,
+        'str': 'some_string',
+    }, {
+        'number': 2
+    }, {
+        'number': 3,
+        'str': 'some_string',
+        'additional_field_str': 'some_string',
+    }]
+
+    table_schema = {
+        "fields": [{
+            "name": "number", "type": "INTEGER", 'mode': 'REQUIRED'
+        }, {
+            "name": "str", "type": "STRING", 'mode': 'REQUIRED'
+        }]
+    }
+
+    errors_table_schema = {
+        "fields": [{
+            'name': 'table', 'type': 'STRING', 'mode': 'REQUIRED'
+        }, {
+            'name': 'reason', 'type': 'STRING', 'mode': 'NULLABLE'
+        }, {
+            'name': 'row_json', 'type': 'STRING', 'mode': 'REQUIRED'
+        }]
+    }
+
+    pipeline_verifiers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT number, str FROM %s" % table_id,
+            data=[(
+                1,
+                'some_string'
+            )]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT table, reason, row_json FROM %s" % errors_table_id,
+            data=[(
+                table_id,
+                '[{"reason": "invalid", "location": "", "debugInfo": "", \
+"message": "Missing required field: Msg_0_CLOUD_QUERY_TABLE.str."}]',
+                '{"number": 2}'
+            ), (
+                table_id,
+                '[{"reason": "invalid", "location": "additional_field_str", \
+"debugInfo": "", "message": "no such field: additional_field_str."}]',
+                '{"number": 3, "str": "some_string", "additional_field_str": \
+"some_string"}'
+            )])
+    ]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      errors = (
+          p | 'create' >> beam.Create(input_data)
+          | 'write' >> beam.io.WriteToBigQuery(
+              table_id,
+              schema=table_schema,
+              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+      (
+          errors["FailedRows"]
+          | 'ParseErrors' >> beam.Map(lambda err: {
+                "table": err[0],
+                "reason": json.dumps(err[2]),
+                "row_json": json.dumps(err[1])})
+          | 'WriteErrors' >> beam.io.WriteToBigQuery(
+              errors_table_id,
+              schema=errors_table_schema,
+              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   @pytest.mark.it_postcommit
   @parameterized.expand([
