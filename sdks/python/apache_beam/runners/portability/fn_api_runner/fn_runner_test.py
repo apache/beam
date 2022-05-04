@@ -130,7 +130,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_large_input_pardo(self):
     try:
-      utils.check_compiled('apache_beam.coders')
+      utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
           'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
@@ -158,7 +158,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_batch_pardo_trigger_flush(self):
     try:
-      utils.check_compiled('apache_beam.coders')
+      utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
           'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '

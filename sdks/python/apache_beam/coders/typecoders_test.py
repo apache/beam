@@ -55,7 +55,7 @@ class CustomCoder(coders.Coder):
 class TypeCodersTest(unittest.TestCase):
   def setUp(self):
     try:
-      utils.check_compiled('apache_beam.coders')
+      utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest('Cython is not installed')
 
