@@ -86,7 +86,6 @@ MAX_KNOWN_NOT_RUNNING_INSTRUCTIONS = 1000
 # will remember for failed instructions.
 MAX_FAILED_INSTRUCTIONS = 10000
 
-
 # retry on transient UNAVAILABLE grpc error from state channels.
 _GRPC_SERVICE_CONFIG = json.dumps({
     "methodConfig": [{
@@ -102,6 +101,7 @@ _GRPC_SERVICE_CONFIG = json.dumps({
         },
     }]
 })
+
 
 class ShortIdCache(object):
   """ Cache for MonitoringInfo "short ids"
