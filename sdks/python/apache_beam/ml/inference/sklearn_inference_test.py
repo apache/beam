@@ -32,9 +32,9 @@ from sklearn import svm
 import apache_beam as beam
 import apache_beam.ml.inference.api as api
 import apache_beam.ml.inference.base as base
-from apache_beam.ml.inference.sklearn_loader import ModelFileType
-from apache_beam.ml.inference.sklearn_loader import SklearnInferenceRunner
-from apache_beam.ml.inference.sklearn_loader import SklearnModelLoader
+from apache_beam.ml.inference.sklearn_inference import ModelFileType
+from apache_beam.ml.inference.sklearn_inference import SklearnInferenceRunner
+from apache_beam.ml.inference.sklearn_inference import SklearnModelLoader
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -165,7 +165,8 @@ class SkLearnRunInferenceTest(unittest.TestCase):
 
   @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_bad_input_type_raises(self):
-    with self.assertRaisesRegex(TypeError, 'Unsupported serialization type'):
+    with self.assertRaisesRegex(AssertionError,
+                                'Unsupported serialization type'):
       with tempfile.NamedTemporaryFile() as file:
         model_loader = SklearnModelLoader(
             model_uri=file.name, model_file_type=None)

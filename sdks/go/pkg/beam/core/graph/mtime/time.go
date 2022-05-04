@@ -74,6 +74,12 @@ func (t Time) Milliseconds() int64 {
 	return int64(t)
 }
 
+// ToTime returns the Time represented as a time.Time
+func (t Time) ToTime() time.Time {
+	// TODO(BEAM-13988): Replace with time.UnixMilli(int64(t)).UTC() for Go 1.17 or higher.
+	return time.Unix(0, int64(t)*1e6).UTC()
+}
+
 // Add returns the time plus the duration. Input Durations of less than one
 // millisecond will not increment the time due to a loss of precision when
 // converting to milliseconds.

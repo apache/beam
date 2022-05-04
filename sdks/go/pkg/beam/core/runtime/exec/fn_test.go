@@ -33,6 +33,13 @@ import (
 
 var errGeneric = errors.New("generic error")
 
+func continuationsEqual(first, second sdf.ProcessContinuation) bool {
+	if first.ShouldResume() {
+		return first.ShouldResume() == second.ShouldResume() && first.ResumeDelay() == second.ResumeDelay()
+	}
+	return first.ShouldResume() == second.ShouldResume()
+}
+
 // TestInvoke verifies the the various forms of input to Invoke are handled correctly.
 func TestInvoke(t *testing.T) {
 	tests := []struct {
@@ -127,6 +134,12 @@ func TestInvoke(t *testing.T) {
 			Expected: mtime.EndOfGlobalWindowTime.Milliseconds(),
 		},
 		{
+			// (Return check) ProcessContinuation
+			Fn:                   func(a string) sdf.ProcessContinuation { return sdf.ResumeProcessingIn(1 * time.Second) },
+			Opt:                  &MainInput{Key: FullValue{Elm: "some string"}},
+			ExpectedContinuation: sdf.ResumeProcessingIn(1 * time.Second),
+		},
+		{
 			// (Return check) K, V
 			Fn:        func(a int) (int64, int) { return int64(a), 2 * a },
 			Opt:       &MainInput{Key: FullValue{Elm: 1}},
@@ -134,11 +147,26 @@ func TestInvoke(t *testing.T) {
 			Expected2: 2,
 		},
 		{
+			// (Return check) V, ProcessContinuation
+			Fn:                   func(a int) (int, sdf.ProcessContinuation) { return 2 * a, sdf.StopProcessing() },
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             2,
+			ExpectedContinuation: sdf.StopProcessing(),
+		},
+		{
 			// (Return check)  K, V, Error
 			Fn:        func(a int) (int64, int, error) { return int64(a), 2 * a, nil },
 			Opt:       &MainInput{Key: FullValue{Elm: 1}},
 			Expected:  int64(1),
 			Expected2: 2,
+		},
+		{
+			// (Return check) K, V, ProcessContinuation
+			Fn:                   func(a int) (int64, int, sdf.ProcessContinuation) { return int64(a), 2 * a, sdf.StopProcessing() },
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             int64(1),
+			Expected2:            2,
+			ExpectedContinuation: sdf.StopProcessing(),
 		},
 		{
 			// (Return check) EventTime, K, V
@@ -149,12 +177,48 @@ func TestInvoke(t *testing.T) {
 			ExpectedTime: 42,
 		},
 		{
+			// (Return check) EventTime, K, V, ProcessContinuation
+			Fn: func(a int) (typex.EventTime, int64, int, sdf.ProcessContinuation) {
+				return 42, int64(a), 3 * a, sdf.StopProcessing()
+			},
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             int64(1),
+			Expected2:            3,
+			ExpectedTime:         42,
+			ExpectedContinuation: sdf.StopProcessing(),
+		},
+		{
 			// (Return check) EventTime, K, V, Error
 			Fn:           func(a int) (typex.EventTime, int64, int, error) { return 47, int64(a), 3 * a, nil },
 			Opt:          &MainInput{Key: FullValue{Elm: 1}},
 			Expected:     int64(1),
 			Expected2:    3,
 			ExpectedTime: 47,
+		},
+		{
+			// (Return check) EventTime, K, V, ProcessContinuation, Error
+			Fn: func(a int) (typex.EventTime, int64, int, sdf.ProcessContinuation, error) {
+				return 47, int64(a), 3 * a, sdf.StopProcessing(), nil
+			},
+			Opt:                  &MainInput{Key: FullValue{Elm: 1}},
+			Expected:             int64(1),
+			Expected2:            3,
+			ExpectedTime:         47,
+			ExpectedContinuation: sdf.StopProcessing(),
+		},
+		{
+			// (Return check) EventTime, V, Error
+			Fn:           func(a int) (typex.EventTime, int, error) { return 10, 3 * a, nil },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 10,
+		},
+		{
+			// (Return check) EventTime, V
+			Fn:           func(a int) (typex.EventTime, int) { return 102, 3 * a },
+			Opt:          &MainInput{Key: FullValue{Elm: 1}},
+			Expected:     3,
+			ExpectedTime: 102,
 		},
 		{
 			// Check ConvertFn is invoked
@@ -186,7 +250,14 @@ func TestInvoke(t *testing.T) {
 			Opt:           &MainInput{Key: FullValue{Elm: 1}},
 			ExpectedError: errGeneric,
 		},
-		// TODO(BEAM-11104): Add unit test cases for ProcessContinuations once they are enabled for use.
+		{
+			// ret5() error check
+			Fn: func(a int) (typex.EventTime, string, int, sdf.ProcessContinuation, error) {
+				return 0, "", 0, nil, errGeneric
+			},
+			Opt:           &MainInput{Key: FullValue{Elm: 1}},
+			ExpectedError: errGeneric,
+		},
 	}
 
 	for i, test := range tests {
@@ -207,7 +278,7 @@ func TestInvoke(t *testing.T) {
 				test.ExpectedTime = ts
 			}
 
-			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
+			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, nil, test.Args...)
 
 			if test.ExpectedError != nil {
 				if err == nil {
@@ -217,6 +288,9 @@ func TestInvoke(t *testing.T) {
 					t.Errorf("Invoke(%v, %v) returned unexpected error, got %v, want %v", fn.Fn.Name(), test.Args, err, test.ExpectedError)
 				}
 			} else {
+				if err != nil {
+					t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
+				}
 				if val != nil && val.Elm != test.Expected {
 					t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
 				}
@@ -226,8 +300,8 @@ func TestInvoke(t *testing.T) {
 				if val != nil && val.Timestamp != test.ExpectedTime {
 					t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Timestamp, test.ExpectedTime)
 				}
-				if val != nil && val.Continuation != test.ExpectedContinuation {
-					t.Errorf("EventTime: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Continuation, test.ExpectedContinuation)
+				if val != nil && test.ExpectedContinuation != nil && !continuationsEqual(val.Continuation, test.ExpectedContinuation) {
+					t.Errorf("Continuation: Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Continuation, test.ExpectedContinuation)
 				}
 			}
 		})
@@ -400,7 +474,7 @@ func BenchmarkInvoke(b *testing.B) {
 		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
 		b.Run(fmt.Sprintf("SingleInvoker_%s", test.Name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, test.Args...)
+				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, nil, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -409,7 +483,7 @@ func BenchmarkInvoke(b *testing.B) {
 		b.Run(fmt.Sprintf("CachedInvoker_%s", test.Name), func(b *testing.B) {
 			inv := newInvoker(fn)
 			for i := 0; i < b.N; i++ {
-				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, nil, test.Args...)
+				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, nil, nil, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -502,7 +576,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -513,7 +587,7 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -539,7 +613,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}}, nil, nil)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)
@@ -550,7 +624,7 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 	ctx := context.Background()
 	n := 0
 	for i := 0; i < b.N; i++ {
-		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, n)
+		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, nil, nil, n)
 		n = ret.Elm.(int)
 	}
 	b.Log(n)

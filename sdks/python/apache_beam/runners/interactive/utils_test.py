@@ -210,7 +210,7 @@ class IPythonLogHandlerTest(unittest.TestCase):
     # loggings from child loggers will be propagated to the interactive "root"
     # logger which is set to INFO level that gets handled by the sole log
     # handler IPythonLogHandler which is set to NOTSET. The effect will be
-    # everything >= info level will be logged through IPython.core.display to
+    # everything >= info level will be logged through IPython.display to
     # all frontends connected to current kernel.
     dummy_logger = logging.getLogger('apache_beam.runners.interactive.dummy1')
     dummy_logger.info('info')
@@ -259,7 +259,7 @@ class ProgressIndicatorTest(unittest.TestCase):
       self, mocked_is_in_notebook, unused):
     mocked_is_in_notebook.return_value = False
 
-    with patch('IPython.core.display.display') as mocked_display:
+    with patch('IPython.display.display') as mocked_display:
 
       @utils.progress_indicated
       def progress_indicated_dummy():
@@ -277,8 +277,8 @@ class ProgressIndicatorTest(unittest.TestCase):
       self, mocked_is_in_notebook, unused):
     mocked_is_in_notebook.return_value = True
 
-    with patch('IPython.core.display.HTML') as mocked_html,\
-      patch('IPython.core.display.Javascript') as mocked_js:
+    with patch('IPython.display.HTML') as mocked_html,\
+      patch('IPython.display.Javascript') as mocked_js:
       with utils.ProgressIndicator('enter', 'exit'):
         mocked_html.assert_called()
       mocked_js.assert_called()

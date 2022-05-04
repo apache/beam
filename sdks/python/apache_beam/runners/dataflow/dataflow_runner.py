@@ -471,10 +471,19 @@ class DataflowRunner(PipelineRunner):
         options.view_as(WorkerOptions).sdk_container_image = (
             self._default_environment.container_image)
       else:
+        artifacts = environments.python_sdk_dependencies(options)
+        if artifacts and apiclient._use_fnapi(options):
+          _LOGGER.info(
+              "Pipeline has additional dependencies to be installed "
+              "in SDK worker container, consider using the SDK "
+              "container image pre-building workflow to avoid "
+              "repetitive installations. Learn more on "
+              "https://cloud.google.com/dataflow/docs/guides/"
+              "using-custom-containers#prebuild")
         self._default_environment = (
             environments.DockerEnvironment.from_container_image(
                 apiclient.get_container_image_from_options(options),
-                artifacts=environments.python_sdk_dependencies(options),
+                artifacts=artifacts,
                 resource_hints=environments.resource_hints_from_options(
                     options)))
 
