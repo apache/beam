@@ -864,11 +864,14 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 		createTrackerName:            1,
 		truncateRestrictionName:      num + 1,
 	}
+	optionalSdfs := map[string]bool{
+		truncateRestrictionName: true,
+	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
 	for _, name := range sdfNames {
 		method, ok := fn.methods[name]
-		if !ok {
+		if !ok && optionalSdfs[name] {
 			continue
 		}
 		if len(method.Param) != paramNums[name] {
