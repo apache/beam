@@ -236,7 +236,7 @@ class WriteRecordsToFile(beam.DoFn):
         'max_files_per_bundle': self.max_files_per_bundle,
         'max_file_size': str(self.max_file_size),
         'file_format': self.file_format,
-        'coder': self.coder,
+        'coder': self.coder.__class__,
     }
 
   def start_bundle(self):
