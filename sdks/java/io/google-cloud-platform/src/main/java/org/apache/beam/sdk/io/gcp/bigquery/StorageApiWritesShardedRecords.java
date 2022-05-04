@@ -119,6 +119,10 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
               })
           .build();
 
+  static void clearCache() {
+    APPEND_CLIENTS.invalidateAll();
+  }
+
   // Run a closure asynchronously, ignoring failures.
   private interface ThrowingRunnable {
     void run() throws Exception;
