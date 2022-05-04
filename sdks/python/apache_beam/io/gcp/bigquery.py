@@ -2201,6 +2201,23 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               'A schema must be provided when writing to BigQuery using '
               'Avro based file loads')
 
+      if self.schema and type(self.schema) is dict:
+
+        def find_in_nested_dict(schema):
+          for field in schema['fields']:
+            if field['type'] == 'JSON':
+              raise ValueError(
+                  'Found JSON type in table schema. JSON data '
+                  'insertion is currently not supported with '
+                  'FILE_LOADS write method. This is supported with '
+                  'STREAMING_INSERTS. For more information: '
+                  'https://cloud.google.com/bigquery/docs/reference/'
+                  'standard-sql/json-data#ingest_json_data')
+            elif field['type'] == 'STRUCT':
+              find_in_nested_dict(field)
+
+        find_in_nested_dict(self.schema)
+
       from apache_beam.io.gcp import bigquery_file_loads
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads

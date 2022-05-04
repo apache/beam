@@ -78,6 +78,9 @@ func TestCoders(t *testing.T) {
 			coder: coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
 			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.GlobalWindow{}}},
 		}, {
+			coder: coder.NewW(coder.NewVarInt(), coder.NewIntervalWindow()),
+			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}, window.IntervalWindow{Start: 50, End: 150}}},
+		}, {
 			coder: coder.NewPW(coder.NewString(), coder.NewGlobalWindow()),
 			val:   &FullValue{Elm: "myString" /*Windowing info isn't encoded for PW so we can omit it here*/},
 		}, {

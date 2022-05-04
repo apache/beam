@@ -35,9 +35,11 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"gopkg.in/retry.v1"
 )
 
 var expansionAddr string // Populate with expansion address labelled "schemaio".
+const maxRetryCount = 5
 
 func checkFlags(t *testing.T) {
 	if expansionAddr == "" {
@@ -68,9 +70,23 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 		},
 		Started: true,
 	}
-	container, err := testcontainers.GenericContainer(ctx, req)
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
+
+	strategy := retry.LimitCount(maxRetryCount,
+		retry.Exponential{
+			Initial: time.Second,
+			Factor:  2,
+		},
+	)
+	var container testcontainers.Container
+	var err error
+	for r := retry.Start(strategy, nil); r.Next(); {
+		container, err = testcontainers.GenericContainer(ctx, req)
+		if err == nil {
+			break
+		}
+		if r.Count() == maxRetryCount {
+			t.Fatalf("failed to start container with %v retries: %v", maxRetryCount, err)
+		}
 	}
 
 	mappedPort, err := container.MappedPort(ctx, nat.Port(port))

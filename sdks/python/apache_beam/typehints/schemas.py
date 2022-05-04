@@ -345,13 +345,17 @@ def _hydrate_namedtuple_instance(encoded_schema, values):
       proto_utils.parse_Bytes(encoded_schema, schema_pb2.Schema))(*values)
 
 
-def named_tuple_from_schema(schema):
+def named_tuple_from_schema(
+    schema, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> type:
   return typing_from_runner_api(
-      schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema)))
+      schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema)),
+      schema_registry)
 
 
-def named_tuple_to_schema(named_tuple):
-  return typing_to_runner_api(named_tuple).row_type.schema
+def named_tuple_to_schema(
+    named_tuple,
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> schema_pb2.Schema:
+  return typing_to_runner_api(named_tuple, schema_registry).row_type.schema
 
 
 def schema_from_element_type(element_type: type) -> schema_pb2.Schema:

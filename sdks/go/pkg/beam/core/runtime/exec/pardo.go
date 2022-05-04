@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -86,7 +87,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -235,7 +236,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.reader = nil
 	n.cache = nil
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -253,8 +254,28 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 			key:   w,
 			extra: make([]interface{}, sideCount+emitCount),
 		}
+		attachEstimator := false
+		if n.we != nil {
+			// var ok bool
+			if _, ok := n.we.(sdf.TimestampObservingEstimator); ok {
+				attachEstimator = true
+			}
+		}
 		for i, emit := range n.emitters {
-			n.cache.extra[i+sideCount] = emit.Value()
+			if attachEstimator {
+				if weEmit, ok := emit.(ReusableTimestampObservingWatermarkEmitter); ok {
+					weEmit.AttachEstimator(&n.we)
+					n.cache.extra[i+sideCount] = weEmit.Value()
+				} else {
+					return errors.Errorf("Invalid emitter. Emitter %v must implement "+
+						"ReusableTimestampObservingWatermarkEmitter interface because it is "+
+						"used in a ParDo with a timestamp observing estimator. If you are not "+
+						"using a custom emitter, you may need to regenerate your shims with the code "+
+						"generator.", reflect.TypeOf(emit))
+				}
+			} else {
+				n.cache.extra[i+sideCount] = emit.Value()
+			}
 		}
 	} else if w.Equals(n.cache.key) {
 		// Fast path: same window. Just unwind the side inputs.
@@ -301,7 +322,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.cache.extra...)
+	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.we, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +340,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.we, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}

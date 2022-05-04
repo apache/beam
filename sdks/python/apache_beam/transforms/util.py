@@ -382,7 +382,7 @@ class _BatchSizeEstimator(object):
     # timing.
     if self._ignore_next_timing:
       self._ignore_next_timing = False
-      self._replay_last_batch_size = batch_size
+      self._replay_last_batch_size = min(batch_size, self._max_batch_size)
     else:
       self._data.append((batch_size, elapsed))
       if len(self._data) >= self._MAX_DATA_POINTS:
@@ -525,71 +525,84 @@ class _BatchSizeEstimator(object):
 
 
 class _GlobalWindowsBatchingDoFn(DoFn):
-  def __init__(self, batch_size_estimator):
+  def __init__(self, batch_size_estimator, element_size_fn):
     self._batch_size_estimator = batch_size_estimator
+    self._element_size_fn = element_size_fn
 
   def start_bundle(self):
     self._batch = []
-    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._running_batch_size = 0
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
     # The first emit often involves non-trivial setup.
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
     self._batch.append(element)
-    if len(self._batch) >= self._batch_size:
-      with self._batch_size_estimator.record_time(self._batch_size):
+    self._running_batch_size += self._element_size_fn(element)
+    if self._running_batch_size >= self._target_batch_size:
+      with self._batch_size_estimator.record_time(self._running_batch_size):
         yield self._batch
       self._batch = []
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._running_batch_size = 0
+      self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
   def finish_bundle(self):
     if self._batch:
-      with self._batch_size_estimator.record_time(self._batch_size):
+      with self._batch_size_estimator.record_time(self._running_batch_size):
         yield window.GlobalWindows.windowed_value(self._batch)
       self._batch = None
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._running_batch_size = 0
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
+
+
+class _SizedBatch():
+  def __init__(self):
+    self.elements = []
+    self.size = 0
 
 
 class _WindowAwareBatchingDoFn(DoFn):
 
   _MAX_LIVE_WINDOWS = 10
 
-  def __init__(self, batch_size_estimator):
+  def __init__(self, batch_size_estimator, element_size_fn):
     self._batch_size_estimator = batch_size_estimator
+    self._element_size_fn = element_size_fn
 
   def start_bundle(self):
-    self._batches = collections.defaultdict(list)
-    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._batches = collections.defaultdict(_SizedBatch)
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
     # The first emit often involves non-trivial setup.
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element, window=DoFn.WindowParam):
-    self._batches[window].append(element)
-    if len(self._batches[window]) >= self._batch_size:
-      with self._batch_size_estimator.record_time(self._batch_size):
+    batch = self._batches[window]
+    batch.elements.append(element)
+    batch.size += self._element_size_fn(element)
+    if batch.size >= self._target_batch_size:
+      with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
-            self._batches[window], window.max_timestamp(), (window, ))
+            batch.elements, window.max_timestamp(), (window, ))
       del self._batches[window]
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._target_batch_size = self._batch_size_estimator.next_batch_size()
     elif len(self._batches) > self._MAX_LIVE_WINDOWS:
-      window, _ = sorted(
+      window, batch = max(
           self._batches.items(),
-          key=lambda window_batch: len(window_batch[1]),
-          reverse=True)[0]
-      with self._batch_size_estimator.record_time(self._batch_size):
+          key=lambda window_batch: window_batch[1].size)
+      with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
-            self._batches[window], window.max_timestamp(), (window, ))
+            batch.elements, window.max_timestamp(), (window, ))
       del self._batches[window]
-      self._batch_size = self._batch_size_estimator.next_batch_size()
+      self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
   def finish_bundle(self):
     for window, batch in self._batches.items():
       if batch:
-        with self._batch_size_estimator.record_time(self._batch_size):
+        with self._batch_size_estimator.record_time(batch.size):
           yield windowed_value.WindowedValue(
-              batch, window.max_timestamp(), (window, ))
+              batch.elements, window.max_timestamp(), (window, ))
     self._batches = None
-    self._batch_size = self._batch_size_estimator.next_batch_size()
+    self._target_batch_size = self._batch_size_estimator.next_batch_size()
 
 
 @typehints.with_input_types(T)
@@ -614,12 +627,16 @@ class BatchElements(PTransform):
   corresponding to its contents.
 
   Args:
-    min_batch_size: (optional) the smallest number of elements per batch
-    max_batch_size: (optional) the largest number of elements per batch
+    min_batch_size: (optional) the smallest size of a batch
+    max_batch_size: (optional) the largest size of a batch
     target_batch_overhead: (optional) a target for fixed_cost / time,
         as used in the formula above
     target_batch_duration_secs: (optional) a target for total time per bundle,
         in seconds
+    element_size_fn: (optional) A mapping of an element to its contribution to
+        batch size, defaulting to every element having size 1.  When provided,
+        attempts to provide batches of optimal total size which may consist of
+        a varying number of elements.
     variance: (optional) the permitted (relative) amount of deviation from the
         (estimated) ideal batch size used to produce a wider base for
         linear interpolation
@@ -632,6 +649,8 @@ class BatchElements(PTransform):
       max_batch_size=10000,
       target_batch_overhead=.05,
       target_batch_duration_secs=1,
+      *,
+      element_size_fn=lambda x: 1,
       variance=0.25,
       clock=time.time):
     self._batch_size_estimator = _BatchSizeEstimator(
@@ -641,6 +660,7 @@ class BatchElements(PTransform):
         target_batch_duration_secs=target_batch_duration_secs,
         variance=variance,
         clock=clock)
+    self._element_size_fn = element_size_fn
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
@@ -649,9 +669,12 @@ class BatchElements(PTransform):
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
       return pcoll | ParDo(
-          _GlobalWindowsBatchingDoFn(self._batch_size_estimator))
+          _GlobalWindowsBatchingDoFn(
+              self._batch_size_estimator, self._element_size_fn))
     else:
-      return pcoll | ParDo(_WindowAwareBatchingDoFn(self._batch_size_estimator))
+      return pcoll | ParDo(
+          _WindowAwareBatchingDoFn(
+              self._batch_size_estimator, self._element_size_fn))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):

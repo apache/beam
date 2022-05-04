@@ -159,6 +159,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
+    'joblib>=1.0.1',
     'mock>=1.0.1,<3.0.0',
     'pandas<2.0.0',
     'parameterized>=0.7.1,<0.8.0',
@@ -169,6 +170,7 @@ REQUIRED_TEST_PACKAGES = [
     'pytest>=4.4.0,<5.0',
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
+    'scikit-learn>=0.20.0',
     'sqlalchemy>=1.3,<2.0',
     'psycopg2-binary>=2.8.5,<3.0.0',
     'testcontainers[mysql]>=3.0.3,<4.0.0',
@@ -204,8 +206,10 @@ GCP_REQUIREMENTS = [
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'google-cloud-dataproc>=3.0.0,<3.2.0',
-    'ipython>=7,<8',
-    'ipykernel>=5.2.0,<6',
+    # IPython>=8 is not compatible with Python<=3.7
+    'ipython>=7,<8;python_version<="3.7"',
+    'ipython>=8,<9;python_version>"3.7"',
+    'ipykernel>=6,<7',
     'ipywidgets>=7.6.5,<8',
     # Skip version 6.1.13 due to
     # https://github.com/jupyter/jupyter_client/issues/637
@@ -219,7 +223,7 @@ INTERACTIVE_BEAM_TEST = [
     'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=96,<97',
+    'chromedriver-binary>=100,<101',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]

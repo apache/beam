@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
 import org.apache.beam.runners.core.construction.External;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -46,16 +47,19 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper for invoking external Python transforms. */
-public class ExternalPythonTransform<InputT extends PInput, OutputT extends POutput>
+public class PythonExternalTransform<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
   private String fullyQualifiedName;
+  private String expansionService;
 
   // We preseve the order here since Schema's care about order of fields but the order will not
   // matter when applying kwargs at the Python side.
@@ -64,8 +68,9 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
   private @Nullable Object @NonNull [] argsArray;
   private @Nullable Row providedKwargsRow;
 
-  private ExternalPythonTransform(String fullyQualifiedName) {
+  private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
+    this.expansionService = expansionService;
     this.kwargsMap = new TreeMap<>();
     argsArray = new Object[] {};
   }
@@ -76,11 +81,25 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param tranformName fully qualified transform name.
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
-   * @return A {@link ExternalPythonTransform} for the given transform name.
+   * @return A {@link PythonExternalTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      ExternalPythonTransform<InputT, OutputT> from(String tranformName) {
-    return new ExternalPythonTransform<InputT, OutputT>(tranformName);
+      PythonExternalTransform<InputT, OutputT> from(String tranformName) {
+    return new PythonExternalTransform<>(tranformName, "");
+  }
+
+  /**
+   * Instantiates a cross-language wrapper for a Python transform with a given transform name.
+   *
+   * @param tranformName fully qualified transform name.
+   * @param expansionService address and port number for externally launched expansion service
+   * @param <InputT> Input {@link PCollection} type
+   * @param <OutputT> Output {@link PCollection} type
+   * @return A {@link PythonExternalTransform} for the given transform name.
+   */
+  public static <InputT extends PInput, OutputT extends POutput>
+      PythonExternalTransform<InputT, OutputT> from(String tranformName, String expansionService) {
+    return new PythonExternalTransform<>(tranformName, expansionService);
   }
 
   /**
@@ -90,7 +109,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param args list of arguments.
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withArgs(@NonNull Object... args) {
+  public PythonExternalTransform<InputT, OutputT> withArgs(@NonNull Object... args) {
     @Nullable
     Object @NonNull [] result = Arrays.copyOf(this.argsArray, this.argsArray.length + args.length);
     System.arraycopy(args, 0, result, this.argsArray.length, args.length);
@@ -106,7 +125,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    * @param value argument value
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withKwarg(String name, Object value) {
+  public PythonExternalTransform<InputT, OutputT> withKwarg(String name, Object value) {
     if (providedKwargsRow != null) {
       throw new IllegalArgumentException("Kwargs were specified both directly and as a Row object");
     }
@@ -120,7 +139,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    *
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withKwargs(Map<String, Object> kwargs) {
+  public PythonExternalTransform<InputT, OutputT> withKwargs(Map<String, Object> kwargs) {
     if (providedKwargsRow != null) {
       throw new IllegalArgumentException("Kwargs were specified both directly and as a Row object");
     }
@@ -135,7 +154,7 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
    *     arguments.
    * @return updated wrapper for the cross-language transform.
    */
-  public ExternalPythonTransform<InputT, OutputT> withKwargs(Row kwargs) {
+  public PythonExternalTransform<InputT, OutputT> withKwargs(Row kwargs) {
     if (this.kwargsMap.size() > 0) {
       throw new IllegalArgumentException("Kwargs were specified both directly and as a Row object");
     }
@@ -242,64 +261,95 @@ public class ExternalPythonTransform<InputT extends PInput, OutputT extends POut
     return generateSchemaDirectly(fieldValues, fieldNames);
   }
 
-  @Override
-  public OutputT expand(InputT input) {
-    int port;
+  @VisibleForTesting
+  ExternalTransforms.ExternalConfigurationPayload generatePayload() {
     Row argsRow = buildOrGetArgsRow();
     Row kwargsRow = buildOrGetKwargsRow();
+    Schema.Builder schemaBuilder = Schema.builder();
+    schemaBuilder.addStringField("constructor");
+    if (argsRow.getValues().size() > 0) {
+      schemaBuilder.addRowField("args", argsRow.getSchema());
+    }
+    if (kwargsRow.getValues().size() > 0) {
+      schemaBuilder.addRowField("kwargs", kwargsRow.getSchema());
+    }
+    Schema payloadSchema = schemaBuilder.build();
+    payloadSchema.setUUID(UUID.randomUUID());
+    Row.Builder payloadRowBuilder = Row.withSchema(payloadSchema);
+    payloadRowBuilder.addValue(fullyQualifiedName);
+    if (argsRow.getValues().size() > 0) {
+      payloadRowBuilder.addValue(argsRow);
+    }
+    if (kwargsRow.getValues().size() > 0) {
+      payloadRowBuilder.addValue(kwargsRow);
+    }
     try {
-      port = PythonService.findAvailablePort();
-      PythonService service =
-          new PythonService(
-              "apache_beam.runners.portability.expansion_service_main",
-              "--port",
-              "" + port,
-              "--fully_qualified_name_glob",
-              "*");
-      Schema payloadSchema =
-          Schema.of(
-              Schema.Field.of("constructor", Schema.FieldType.STRING),
-              Schema.Field.of("args", Schema.FieldType.row(argsRow.getSchema())),
-              Schema.Field.of("kwargs", Schema.FieldType.row(kwargsRow.getSchema())));
-      payloadSchema.setUUID(UUID.randomUUID());
-      Row payloadRow =
-          Row.withSchema(payloadSchema).addValues(fullyQualifiedName, argsRow, kwargsRow).build();
-      ExternalTransforms.ExternalConfigurationPayload payload =
-          ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-              .setSchema(SchemaTranslation.schemaToProto(payloadSchema, true))
-              .setPayload(
-                  ByteString.copyFrom(
-                      CoderUtils.encodeToByteArray(RowCoder.of(payloadSchema), payloadRow)))
-              .build();
-      try (AutoCloseable p = service.start()) {
-        PythonService.waitForPort("localhost", port, 15000);
-        PTransform<PInput, PCollectionTuple> transform =
-            External.<PInput, Object>of(
-                    "beam:transforms:python:fully_qualified_named",
-                    payload.toByteArray(),
-                    "localhost:" + port)
-                .withMultiOutputs();
-        PCollectionTuple outputs;
-        if (input instanceof PCollection) {
-          outputs = ((PCollection<?>) input).apply(transform);
-        } else if (input instanceof PCollectionTuple) {
-          outputs = ((PCollectionTuple) input).apply(transform);
-        } else if (input instanceof PBegin) {
-          outputs = ((PBegin) input).apply(transform);
-        } else {
-          throw new RuntimeException("Unhandled input type " + input.getClass());
-        }
-        Set<TupleTag<?>> tags = outputs.getAll().keySet();
-        if (tags.size() == 1) {
-          return (OutputT) outputs.get(Iterables.getOnlyElement(tags));
-        } else {
-          return (OutputT) outputs;
+      return ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+          .setSchema(SchemaTranslation.schemaToProto(payloadSchema, true))
+          .setPayload(
+              ByteString.copyFrom(
+                  CoderUtils.encodeToByteArray(
+                      RowCoder.of(payloadSchema), payloadRowBuilder.build())))
+          .build();
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public OutputT expand(InputT input) {
+    try {
+      ExternalTransforms.ExternalConfigurationPayload payload = generatePayload();
+      if (!Strings.isNullOrEmpty(expansionService)) {
+        PythonService.waitForPort(
+            Iterables.get(Splitter.on(':').split(expansionService), 0),
+            Integer.parseInt(Iterables.get(Splitter.on(':').split(expansionService), 1)),
+            15000);
+        return apply(input, expansionService, payload);
+      } else {
+        int port = PythonService.findAvailablePort();
+        PythonService service =
+            new PythonService(
+                "apache_beam.runners.portability.expansion_service_main",
+                "--port",
+                "" + port,
+                "--fully_qualified_name_glob",
+                "*");
+        try (AutoCloseable p = service.start()) {
+          PythonService.waitForPort("localhost", port, 15000);
+          return apply(input, String.format("localhost:%s", port), payload);
         }
       }
-    } catch (RuntimeException exn) {
-      throw exn;
     } catch (Exception exn) {
       throw new RuntimeException(exn);
+    }
+  }
+
+  private OutputT apply(
+      InputT input,
+      String expansionService,
+      ExternalTransforms.ExternalConfigurationPayload payload) {
+    PTransform<PInput, PCollectionTuple> transform =
+        External.of(
+                "beam:transforms:python:fully_qualified_named",
+                payload.toByteArray(),
+                expansionService)
+            .withMultiOutputs();
+    PCollectionTuple outputs;
+    if (input instanceof PCollection) {
+      outputs = ((PCollection<?>) input).apply(transform);
+    } else if (input instanceof PCollectionTuple) {
+      outputs = ((PCollectionTuple) input).apply(transform);
+    } else if (input instanceof PBegin) {
+      outputs = ((PBegin) input).apply(transform);
+    } else {
+      throw new RuntimeException("Unhandled input type " + input.getClass());
+    }
+    Set<TupleTag<?>> tags = outputs.getAll().keySet();
+    if (tags.size() == 1) {
+      return (OutputT) outputs.get(Iterables.getOnlyElement(tags));
+    } else {
+      return (OutputT) outputs;
     }
   }
 }
