@@ -208,6 +208,16 @@ public class SpannerIOReadTest implements Serializable {
             .withServiceFactory(serviceFactory));
   }
 
+  @Test
+  public void runReadTestWithNullProject() throws Exception {
+    runReadTest(
+        SpannerConfig.create()
+            .withProjectId((String) null)
+            .withInstanceId("123")
+            .withDatabaseId("aaa")
+            .withServiceFactory(serviceFactory));
+  }
+
   private void runReadTest(SpannerConfig spannerConfig) throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
