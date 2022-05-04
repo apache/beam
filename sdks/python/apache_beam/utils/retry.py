@@ -129,6 +129,10 @@ def retry_on_server_errors_filter(exception):
                                                    GoogleAPICallError):
     if exception.code >= 500:  # 500 are internal server errors
       return True
+    else:
+      # If we have a GoogleAPICallError with a code that doesn't
+      # indicate a server error, we do not need to retry.
+      return False
   if (S3ClientError is not None) and isinstance(exception, S3ClientError):
     return exception.code is None or exception.code >= 500
   return not isinstance(exception, PermanentException)
