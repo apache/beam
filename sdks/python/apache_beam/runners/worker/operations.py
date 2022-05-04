@@ -245,6 +245,8 @@ class SingletonElementConsumerSet(ConsumerSet):
 class GeneralPurposeConsumerSet(ConsumerSet):
   """ConsumerSet implementation that handles all combinations of possible edges.
   """
+  MAX_BATCH_SIZE = 4096
+
   def __init__(self,
                counter_factory,
                step_name,  # type: str
@@ -301,6 +303,7 @@ class GeneralPurposeConsumerSet(ConsumerSet):
 
   def receive(self, windowed_value):
     # type: (WindowedValue) -> None
+
     self.update_counters_start(windowed_value)
 
     for consumer in self.element_consumers:
@@ -309,6 +312,8 @@ class GeneralPurposeConsumerSet(ConsumerSet):
     # TODO: Do this branching when contstructing ConsumerSet
     if self.has_batch_consumers:
       self._batched_elements.append(windowed_value)
+      if len(self._batched_elements) >= self.MAX_BATCH_SIZE:
+        self.flush()
 
     self.update_counters_finish()
 

@@ -131,12 +131,14 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       res = (
           p
-          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
-              np.int64)
+          # Pass more than GeneralPurposeConsumerSet.MAX_BATCH_SIZE elements
+          # here to make sure we exercise the batch size limit.
+          | beam.Create(np.array(range(5000),
+                                 dtype=np.int64)).with_output_types(np.int64)
           | beam.ParDo(ArrayMultiplyDoFn())
           | beam.Map(lambda x: x * 3))
 
-      assert_that(res, equal_to([6, 12, 18]))
+      assert_that(res, equal_to([i * 2 * 3 for i in range(5000)]))
 
   def test_batch_rebatch_pardos(self):
     # Should raise a warning about the rebatching that mentions:
@@ -2291,6 +2293,9 @@ class ArrayMultiplyDoFn(beam.DoFn):
   def process_batch(self, batch: np.ndarray, *unused_args,
                     **unused_kwargs) -> Iterator[np.ndarray]:
     assert isinstance(batch, np.ndarray)
+    # GeneralPurposeConsumerSet should limit batches to MAX_BATCH_SIZE (4096)
+    # elements
+    assert np.size(batch, 0) <= 4096
     yield batch * 2
 
   # infer_output_type must be defined (when there's no process method),
