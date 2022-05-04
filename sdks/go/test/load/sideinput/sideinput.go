@@ -52,13 +52,12 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 }
 
 type doFn struct {
-	ElementsToAccess int
+	ElementsToAccess int64
 }
 
 func (fn *doFn) ProcessElement(_ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
-	var key []byte
-	var value []byte
-	i := 0
+	var key, value []byte
+	var i int64
 	for values(&key, &value) {
 		if i >= fn.ElementsToAccess {
 			break
@@ -75,7 +74,7 @@ func main() {
 	p, s := beam.NewPipelineWithRoot()
 
 	syntheticConfig := parseSyntheticConfig()
-	elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
+	elementsToAccess := syntheticConfig.NumElements * int64(*accessPercentage/100)
 
 	src := synthetic.SourceSingle(s, syntheticConfig)
 	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
