@@ -986,27 +986,35 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
   # Using https://googleapis.dev/python/google-api-core/latest/_modules/google/api_core/exceptions.html
   # to determine error types and messages to try for retriables.
   @parameterized.expand([
-    param(
-      exception_type=retry.PermanentException,
-      error_args=('nonretriable', )),
-    param(
-      exception_type=google.api_core.exceptions.BadRequest,
-      error_args=('forbidden morbidden', [{'reason': 'nonretriablereason'}])),
-    param(
-      exception_type=google.api_core.exceptions.BadRequest,
-      error_args=('BAD REQUEST!', [{'reason': 'nonretriablereason'}])),
-    param(
-      exception_type=google.api_core.exceptions.MethodNotAllowed,
-      error_args=('method not allowed!', [{'reason': 'nonretriablereason'}])),
-    param(
-      exception_type=google.api_core.exceptions.MethodNotAllowed,
-      error_args=('method not allowed!', 'args')),
-    param(
-      exception_type=google.api_core.exceptions.Unknown,
-      error_args=('unknown!', 'args')),
-    param(
-      exception_type=google.api_core.exceptions.Aborted,
-      error_args=('abortet!', 'abort')),
+      param(
+          exception_type=retry.PermanentException,
+          error_args=('nonretriable', )),
+      param(
+          exception_type=google.api_core.exceptions.BadRequest,
+          error_args=(
+              'forbidden morbidden', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=google.api_core.exceptions.BadRequest,
+          error_args=('BAD REQUEST!', [{
+              'reason': 'nonretriablereason'
+          }])),
+      param(
+          exception_type=google.api_core.exceptions.MethodNotAllowed,
+          error_args=(
+              'method not allowed!', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=google.api_core.exceptions.MethodNotAllowed,
+          error_args=('method not allowed!', 'args')),
+      param(
+          exception_type=google.api_core.exceptions.Unknown,
+          error_args=('unknown!', 'args')),
+      param(
+          exception_type=google.api_core.exceptions.Aborted,
+          error_args=('abortet!', 'abort')),
   ])
   @mock.patch('time.sleep')
   @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
@@ -1037,6 +1045,82 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
                 create_disposition='CREATE_NEVER',
                 method='STREAMING_INSERTS'))
     self.assertEqual(1, mock_send.call_count)
+
+  # Using https://googleapis.dev/python/google-api-core/latest/_modules/google/api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=retry.PermanentException,
+          error_args=('nonretriable', )),
+      param(
+          exception_type=google.api_core.exceptions.BadRequest,
+          error_args=(
+              'forbidden morbidden', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=google.api_core.exceptions.BadRequest,
+          error_args=('BAD REQUEST!', [{
+              'reason': 'nonretriablereason'
+          }])),
+      param(
+          exception_type=google.api_core.exceptions.MethodNotAllowed,
+          error_args=(
+              'method not allowed!', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=google.api_core.exceptions.MethodNotAllowed,
+          error_args=('method not allowed!', 'args')),
+      param(
+          exception_type=google.api_core.exceptions.Unknown,
+          error_args=('unknown!', 'args')),
+      param(
+          exception_type=google.api_core.exceptions.Aborted,
+          error_args=('abortet!', 'abort')),
+      param(
+          exception_type=requests.exceptions.ConnectionError,
+          error_args=('some connection error', )),
+      param(
+          exception_type=requests.exceptions.Timeout,
+          error_args=('some timeout error', )),
+      param(
+          exception_type=ConnectionError,
+          error_args=('some py connection error', )),
+      param(
+          exception_type=google.api_core.exceptions.BadGateway,
+          error_args=('some badgateway error', )),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_unretriable_errors_streaming(
+      self, mock_send, unused_mock_sleep, exception_type=None, error_args=None):
+    # In this test, a STREAMING pipeline will retry ALL errors, and never throw
+    # an exception.
+    mock_send.side_effect = [
+        exception_type(*error_args),
+        exception_type(*error_args),
+        []  # Errors thrown twice, and then succeeded
+    ]
+
+    opt = StandardOptions()
+    opt.streaming = True
+    with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              method='STREAMING_INSERTS'))
+    self.assertEqual(3, mock_send.call_count)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
