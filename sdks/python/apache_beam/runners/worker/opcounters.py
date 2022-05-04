@@ -32,11 +32,11 @@ from typing import Optional
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils import counters
+from apache_beam.utils import windowed_value
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 
 if TYPE_CHECKING:
-  from apache_beam.utils import windowed_value
   from apache_beam.runners.worker.statesampler import StateSampler
   from apache_beam.typehints.batch import BatchConverter
 
@@ -217,9 +217,11 @@ class OperationCounters(object):
   def update_from_batch(self, windowed_batch):
     # type: (windowed_value.WindowedBatch) -> None
     assert self.producer_batch_converter is not None
+    assert isinstance(windowed_batch, windowed_value.HomogeneousWindowedBatch)
+
     self.element_counter.update(
         self.producer_batch_converter.get_length(windowed_batch.values))
-    # TODO(BEAM-XXX): Update byte size estimate
+    # TODO(BEAM-14408): Update byte size estimate
 
   def _observable_callback(self, inner_coder_impl, accumulator):
     def _observable_callback_inner(value, is_encoded=False):
