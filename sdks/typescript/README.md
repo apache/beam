@@ -87,7 +87,7 @@ There is currently an operation to split a PCollection into multiple
 PCollections based on the properties of the elements, and
 we may consider using a callback for side outputs.
 
-* The `map`, `flatmap`, and `ParDo.proceess` methods take an additional
+* The `map`, `flatMap`, and `ParDo.proceess` methods take an additional
 (optional) context argument, which is similar to the keyword arguments
 used in Python. These can be "ordinary" javascript objects (which are passed
 as is) or special DoFnParam objects which provide getters to element-specific
@@ -112,15 +112,9 @@ on a portable runner) but the following big-ticket items remain.
 
 * Containerization
 
-  * Function and object serialization: we currently only support "loopback"
-  mode; to be able to run on a remote, distributed manner we need to finish up
-  the work in picking closures and DoFn objects. Some investigation has been
-  started here, but all existing libraries have non-trivial drawbacks.
-
-  * Finish the work in building a full SDK container image that starts
-  the worker.
-
   * Actually use worker threads for multiple bundles.
+
+  * Build and test containers with gradle tasks.
 
 * API
 
@@ -129,39 +123,25 @@ on a portable runner) but the following big-ticket items remain.
     * Consider using (or supporting) 2-arrays rather than {key, value} objects
       for KVs.
 
-    * Consider renaming map/flatMap to doMap/doFlatMap to avoid confusion with
-    Array.map that takes a key as a second callback argument.
-    Or force the second argument to be an Object, which would lead to a less
-    confusing API and clean up the implementation.
+    * Force the second argument of map/flatMap to be an Object, which would lead
+    to a less confusing API (vs. Array.map) and clean up the implementation.
     Also add a [do]Filter, and possibly a [do]Reduce?
 
     * Move away from using classes.
 
-  * Add the ability to set good PTransform names, and ideally infer good
-  defaults.
-
   * Advanced features like metrics, state, timers, and SDF.
   Possibly some of these can wait.
-
-* Infrastructure
-
-  * Gradle and Jenkins integration for tests and style enforcement.
 
 * Other
 
   * Enforce unique names for pipeline update.
-
-  * PipelineOptions should be a Javascript Object, not a proto Struct.
-
-  * Though Dataflow Runner v2 supports portability, submission is still done
-  via v1beta3 and interaction with GCS rather than the job submission API.
 
   * Cleanup uses of var, this. Arrow functions. `===` vs `==`.
 
   * Avoid `any` return types (and re-enable check in compiler).
 
   * Relative vs. absoute imports, possibly via setting a base url with a
-  `jsconfig.json`.  Also remove imports from base.ts.
+  `jsconfig.json`.
 
   * More/better tests, including tests of illegal/unsupported use.
 
@@ -183,7 +163,7 @@ There is probably more; there are many TODOs littered throughout the code.
 
 ### Getting stared
 
-Install node.js, and then from within `sdks/node-ts`.
+Install node.js, and then from within `sdks/typescript`.
 
 ```
 npm install
