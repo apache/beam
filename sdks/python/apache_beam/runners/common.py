@@ -353,7 +353,7 @@ class DoFnSignature(object):
         raise NotImplementedError(
             f"DoFn {self.do_fn!r} has unsupported per-key DoFn param {d}. "
             "Per-key DoFn params are not yet supported for process_batch "
-            "(BEAM-XXX).")
+            "(BEAM-14409).")
 
       # Fallback to catch anything not explicitly supported
       if not d in (core.DoFn.WindowParam,
@@ -1047,7 +1047,7 @@ class PerWindowInvoker(DoFnInvoker):
       if core.DoFn.ElementParam == p:
         args_for_process_batch[i] = windowed_batch.values
       elif core.DoFn.KeyParam == p:
-        raise NotImplementedError("BEAM-XXX: Per-key process_batch")
+        raise NotImplementedError("BEAM-14409: Per-key process_batch")
       elif core.DoFn.WindowParam == p:
         args_for_process_batch[i] = window
       elif core.DoFn.TimestampParam == p:
@@ -1056,9 +1056,9 @@ class PerWindowInvoker(DoFnInvoker):
         assert isinstance(windowed_batch, HomogeneousWindowedBatch)
         args_for_process_batch[i] = windowed_batch.pane_info
       elif isinstance(p, core.DoFn.StateParam):
-        raise NotImplementedError("BEAM-XXX: Per-key process_batch")
+        raise NotImplementedError("BEAM-14409: Per-key process_batch")
       elif isinstance(p, core.DoFn.TimerParam):
-        raise NotImplementedError("BEAM-XXX: Per-key process_batch")
+        raise NotImplementedError("BEAM-14409: Per-key process_batch")
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
 
