@@ -232,6 +232,121 @@ func (n *SplitAndSizeRestrictions) String() string {
 	return fmt.Sprintf("SDF.SplitAndSizeRestrictions[%v] UID:%v Out:%v", path.Base(n.Fn.Name()), n.UID, IDs(n.Out))
 }
 
+// TruncateSizedRestriction is an executor for the expanded SDF step of the
+// same name. This step is added to the expanded SDF when the runner signals to drain
+// the pipeline. This step is followed by ProcessSizedElementsAndRestrictions.
+type TruncateSizedRestriction struct {
+	UID         UnitID
+	Fn          *graph.DoFn
+	Out         Node
+	truncateInv *trInvoker
+	sizeInv     *rsInvoker
+	ctInv       *ctInvoker
+}
+
+// ID return the UnitID for this unit.
+func (n *TruncateSizedRestriction) ID() UnitID {
+	return n.UID
+}
+
+// Up performs one-time setup for this executor.
+func (n *TruncateSizedRestriction) Up(ctx context.Context) error {
+	fn := (*graph.SplittableDoFn)(n.Fn).CreateTrackerFn()
+	var err error
+	if n.ctInv, err = newCreateTrackerInvoker(fn); err != nil {
+		return errors.WithContextf(err, "%v", n)
+	}
+
+	fn = (*graph.SplittableDoFn)(n.Fn).TruncateRestrictionFn()
+	if fn != nil {
+		if n.truncateInv, err = newTruncateRestrictionInvoker(fn); err != nil {
+			return err
+		}
+	} else {
+		if n.truncateInv, err = newDefaultTruncateRestrictionInvoker(); err != nil {
+			return err
+		}
+	}
+	fn = (*graph.SplittableDoFn)(n.Fn).RestrictionSizeFn()
+	if n.sizeInv, err = newRestrictionSizeInvoker(fn); err != nil {
+		return err
+	}
+	return nil
+}
+
+// StartBundle currently does nothing.
+func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, data DataContext) error {
+	return n.Out.StartBundle(ctx, id, data)
+}
+
+// ProcessElement gets input elm as:
+// Input Diagram:
+//   *FullValue {
+//     Elm: *FullValue {
+//       Elm:  *FullValue (original input)
+//       Elm2: *FullValue {
+// 	       Elm: Restriction
+// 	       Elm2: Watermark estimator state
+//       }
+//     }
+//     Elm2: float64 (size)
+//     Windows
+//     Timestamps
+//    }
+//
+// Output Diagram:
+//   *FullValue {
+//     Elm: *FullValue {
+//       Elm:  *FullValue (original input)
+//       Elm2: *FullValue {
+// 	       Elm: Restriction
+// 	       Elm2: Watermark estimator state
+//       }
+//     }
+//     Elm2: float64 (size)
+//     Windows
+//     Timestamps
+//    }
+func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+	mainElm := elm.Elm.(*FullValue).Elm.(*FullValue)
+	rest := elm.Elm.(*FullValue).Elm2.(*FullValue).Elm
+	rt := n.ctInv.Invoke(rest)
+	newRest := n.truncateInv.Invoke(rt, mainElm)
+	if newRest == nil {
+		// do not propagate discarded restrictions.
+		return nil
+	}
+	size := n.sizeInv.Invoke(mainElm, newRest)
+	output := &FullValue{}
+	output.Timestamp = elm.Timestamp
+	output.Windows = elm.Windows
+	output.Elm = &FullValue{Elm: mainElm, Elm2: &FullValue{Elm: newRest, Elm2: elm.Elm.(*FullValue).Elm2.(*FullValue).Elm2}}
+	output.Elm2 = size
+
+	if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// FinishBundle resets the invokers.
+func (n *TruncateSizedRestriction) FinishBundle(ctx context.Context) error {
+	n.truncateInv.Reset()
+	n.sizeInv.Reset()
+	n.ctInv.Reset()
+	return n.Out.FinishBundle(ctx)
+}
+
+// Down currently does nothing.
+func (n *TruncateSizedRestriction) Down(_ context.Context) error {
+	return nil
+}
+
+// String outputs a human-readable description of this transform.
+func (n *TruncateSizedRestriction) String() string {
+	return fmt.Sprintf("SDF.TruncateSizedRestriction[%v] UID:%v Out:%v", path.Base(n.Fn.Name()), n.UID, IDs(n.Out))
+}
+
 // ProcessSizedElementsAndRestrictions is an executor for the expanded SDF step
 // of the same name. It is the final step of the expanded SDF. It sets up and
 // invokes the user's SDF methods, similar to exec.ParDo but with slight

@@ -306,6 +306,142 @@ func TestInvokes(t *testing.T) {
 			t.Errorf("Invoke() has incorrect output: got: %v, want: %v", got, want)
 		}
 	})
+
+	t.Run("TruncateRestriction Invoker (trInvoker)", func(t *testing.T) {
+		tests := []struct {
+			name string
+			sdf  *graph.SplittableDoFn
+			elms *FullValue
+			rest *VetRestriction
+			want interface{}
+		}{
+			{
+				name: "SingleElem",
+				sdf:  sdf,
+				elms: &FullValue{Elm: 1},
+				rest: &VetRestriction{ID: "Sdf"},
+				want: &VetRestriction{ID: "Sdf", CreateTracker: true, TruncateRest: true, RestSize: true, Val: 1},
+			}, {
+				name: "KvElem",
+				sdf:  kvsdf,
+				elms: &FullValue{Elm: 1, Elm2: 2},
+				rest: &VetRestriction{ID: "KvSdf"},
+				want: &VetRestriction{ID: "KvSdf", CreateTracker: true, TruncateRest: true, RestSize: true, Key: 1, Val: 2},
+			},
+		}
+		for _, test := range tests {
+			test := test
+			fn := test.sdf.TruncateRestrictionFn()
+			ctFn := test.sdf.CreateTrackerFn()
+			rsFn := test.sdf.RestrictionSizeFn()
+			t.Run(test.name, func(t *testing.T) {
+				rest := test.rest // Create a copy because our test SDF edits the restriction.
+				ctInvoker, err := newCreateTrackerInvoker(ctFn)
+				if err != nil {
+					t.Fatalf("newCreateTrackerInvoker failed: %v", err)
+				}
+				rt := ctInvoker.Invoke(rest)
+
+				trInvoker, err := newTruncateRestrictionInvoker(fn)
+				if err != nil {
+					t.Fatalf("newTruncateRestrictionInvoker failed: %v", err)
+				}
+				trRest := trInvoker.Invoke(rt, test.elms)
+
+				rsInvoker, err := newRestrictionSizeInvoker(rsFn)
+				if err != nil {
+					t.Fatalf("newRestrictionSizeInvoker failed: %v", err)
+				}
+				_ = rsInvoker.Invoke(test.elms, trRest)
+				if !cmp.Equal(trRest, test.want) {
+					t.Errorf("Invoke(%v, %v) has incorrect output: got: %v, want: %v",
+						test.elms, test.rest, trRest, test.want)
+				}
+				trInvoker.Reset()
+				for i, arg := range trInvoker.args {
+					if arg != nil {
+						t.Errorf("Reset() failed to empty all args. args[%v] = %v", i, arg)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("Default TruncateRestriction Invoker", func(t *testing.T) {
+		tests := []struct {
+			name string
+			sdf  *graph.SplittableDoFn
+			elms *FullValue
+			rest *VetRestriction
+			want interface{}
+		}{
+			{
+				name: "SingleElem",
+				sdf:  sdf,
+				elms: &FullValue{Elm: 1},
+				rest: &VetRestriction{ID: "Sdf", Bounded: true},
+				want: &VetRestriction{ID: "Sdf", Bounded: true, CreateTracker: true, RestSize: true, Val: 1},
+			},
+			{
+				name: "SingleElem",
+				sdf:  sdf,
+				elms: &FullValue{Elm: 1},
+				rest: &VetRestriction{ID: "Sdf", Bounded: false},
+				want: &VetRestriction{ID: "Sdf", Bounded: false, CreateTracker: true, RestSize: false, Val: 1},
+			},
+			{
+				name: "KvElem",
+				sdf:  kvsdf,
+				elms: &FullValue{Elm: 1, Elm2: 2},
+				rest: &VetRestriction{ID: "KvSdf", Bounded: true},
+				want: &VetRestriction{ID: "KvSdf", Bounded: true, CreateTracker: true, RestSize: true, Key: 1, Val: 2},
+			},
+			{
+				name: "KvElem",
+				sdf:  kvsdf,
+				elms: &FullValue{Elm: 1, Elm2: 2},
+				rest: &VetRestriction{ID: "KvSdf", Bounded: false},
+				want: &VetRestriction{ID: "KvSdf", Bounded: false, CreateTracker: true, RestSize: false, Key: 1, Val: 2},
+			},
+		}
+
+		for _, test := range tests {
+			test := test
+			ctFn := test.sdf.CreateTrackerFn()
+			rsFn := test.sdf.RestrictionSizeFn()
+			t.Run(test.name, func(t *testing.T) {
+				rest := test.rest // Create a copy because our test SDF edits the restriction.
+				ctInvoker, err := newCreateTrackerInvoker(ctFn)
+				if err != nil {
+					t.Fatalf("newCreateTrackerInvoker failed: %v", err)
+				}
+				rt := ctInvoker.Invoke(rest)
+
+				trInvoker, err := newDefaultTruncateRestrictionInvoker()
+				if err != nil {
+					t.Fatalf("newTruncateRestrictionInvoker failed: %v", err)
+				}
+				trRest := trInvoker.Invoke(rt, test.elms)
+				if trRest != nil {
+					rsInvoker, err := newRestrictionSizeInvoker(rsFn)
+					if err != nil {
+						t.Fatalf("newRestrictionSizeInvoker failed: %v", err)
+					}
+					_ = rsInvoker.Invoke(test.elms, trRest)
+					if !cmp.Equal(trRest, test.want) {
+						t.Errorf("Invoke(%v, %v) has incorrect output: got: %v, want: %v",
+							test.elms, test.rest, trRest, test.want)
+					}
+					trInvoker.Reset()
+					for i, arg := range trInvoker.args {
+						if arg != nil {
+							t.Errorf("Reset() failed to empty all args. args[%v] = %v", i, arg)
+						}
+					}
+				}
+			})
+		}
+	})
 }
 
 // VetRestriction is a restriction used for validating that SDF methods get
@@ -322,9 +458,12 @@ type VetRestriction struct {
 	// confirm that the restriction saw the expected element.
 	Key, Val interface{}
 
+	// Bounded just tells if the restriction is bounded or not
+	Bounded bool
+
 	// These booleans should be flipped to true by the corresponding SDF methods
 	// to prove that the methods got called on the restriction.
-	CreateRest, SplitRest, RestSize, CreateTracker, ProcessElm bool
+	CreateRest, SplitRest, RestSize, CreateTracker, ProcessElm, TruncateRest bool
 }
 
 func (r VetRestriction) copy() VetRestriction {
@@ -345,6 +484,7 @@ func (rt *VetRTracker) GetRestriction() interface{}     { return nil }
 func (rt *VetRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
 	return nil, nil, nil
 }
+func (rt *VetRTracker) IsBounded() bool { return rt.Rest.Bounded }
 
 type VetWatermarkEstimator struct {
 	State int
@@ -389,6 +529,12 @@ func (fn *VetSdf) RestrictionSize(i int, rest *VetRestriction) float64 {
 	rest.Val = i
 	rest.RestSize = true
 	return (float64)(i)
+}
+
+// TruncateRestriction truncates the restriction into half.
+func (fn *VetSdf) TruncateRestriction(rest *VetRTracker, i int) *VetRestriction {
+	rest.Rest.TruncateRest = true
+	return rest.Rest
 }
 
 // CreateTracker creates an RTracker containing the given restriction and flips
@@ -505,6 +651,12 @@ func (fn *VetKvSdf) RestrictionSize(i, j int, rest *VetRestriction) float64 {
 	return (float64)(i + j)
 }
 
+// TruncateRestriction truncates the restriction tracked by VetRTracker.
+func (fn *VetKvSdf) TruncateRestriction(rest *VetRTracker, i, j int) *VetRestriction {
+	rest.Rest.TruncateRest = true
+	return rest.Rest
+}
+
 // CreateTracker creates an RTracker containing the given restriction and flips
 // the appropriate flags on the restriction to track that this was called.
 func (fn *VetKvSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
@@ -550,6 +702,12 @@ func (fn *VetEmptyInitialSplitSdf) RestrictionSize(i int, rest *VetRestriction) 
 	rest.Val = i
 	rest.RestSize = true
 	return (float64)(i)
+}
+
+// TruncateRestriction truncates the restriction into half.
+func (fn *VetEmptyInitialSplitSdf) TruncateRestriction(rest *VetRTracker, i int) *VetRestriction {
+	rest.Rest.TruncateRest = true
+	return rest.Rest
 }
 
 // CreateTracker creates an RTracker containing the given restriction and flips
