@@ -38,6 +38,7 @@ from apache_beam.utils.counters import CounterName
 if TYPE_CHECKING:
   from apache_beam.utils import windowed_value
   from apache_beam.runners.worker.statesampler import StateSampler
+  from apache_beam.typehints.batch import BatchConverter
 
 # This module is experimental. No backwards-compatibility guarantees.
 
