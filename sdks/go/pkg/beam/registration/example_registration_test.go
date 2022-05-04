@@ -47,5 +47,8 @@ func (fn *myDoFn) Teardown() error {
 }
 
 func ExampleDoFn2x1() {
+	// Since myDoFn's ProcessElement call has 2 inputs and 1 output, call DoFn2x1.
+	// Since the inputs to ProcessElement are (string, func(int)), and the output
+	// is int, we pass those parameter types to the function.
 	registration.DoFn2x1[string, func(int), int](&myDoFn{})
 }

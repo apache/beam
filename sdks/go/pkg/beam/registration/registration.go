@@ -225,800 +225,832 @@ func buildStartBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn in
 	startBundleIn := -1
 	startBundleOut := -1
 	startBundleMethod := reflect.ValueOf(doFn).MethodByName("StartBundle")
-	if startBundleMethod.IsValid() {
-		startBundleIn = startBundleMethod.Type().NumIn()
-		startBundleOut = startBundleMethod.Type().NumOut()
+	if !startBundleMethod.IsValid() {
+		return nil
+	}
+	startBundleIn = startBundleMethod.Type().NumIn()
+	startBundleOut = startBundleMethod.Type().NumOut()
+	switch {
+
+	case startBundleIn == 0:
 		switch {
-
-		case startBundleIn == 0:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle0x0); ok {
-					return registerStartBundle0x0FuncAndMakeStructWrapper()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle0x1[error]); ok {
-					return registerStartBundle0x1FuncAndMakeStructWrapper[error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle0x0); ok {
+				return registerStartBundle0x0FuncAndMakeStructWrapper()
+			} else {
+				panic("Unable to infer the types of StartBundle")
 			}
-
-		case startBundleIn == 1:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle1x0[I9]); ok {
-					return registerStartBundle1x0FuncAndMakeStructWrapper[I9]()
-				} else if _, ok := doFn.(startBundle1x0[context.Context]); ok {
-					return registerStartBundle1x0FuncAndMakeStructWrapper[context.Context]()
-				} else if _, ok := doFn.(startBundle1x0[typex.PaneInfo]); ok {
-					return registerStartBundle1x0FuncAndMakeStructWrapper[typex.PaneInfo]()
-				} else if _, ok := doFn.(startBundle1x0[[]typex.Window]); ok {
-					return registerStartBundle1x0FuncAndMakeStructWrapper[[]typex.Window]()
-				} else if _, ok := doFn.(startBundle1x0[typex.EventTime]); ok {
-					return registerStartBundle1x0FuncAndMakeStructWrapper[typex.EventTime]()
-				} else if _, ok := doFn.(startBundle1x0[typex.BundleFinalization]); ok {
-					return registerStartBundle1x0FuncAndMakeStructWrapper[typex.BundleFinalization]()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle1x1[I9, error]); ok {
-					return registerStartBundle1x1FuncAndMakeStructWrapper[I9, error]()
-				} else if _, ok := doFn.(startBundle1x1[context.Context, error]); ok {
-					return registerStartBundle1x1FuncAndMakeStructWrapper[context.Context, error]()
-				} else if _, ok := doFn.(startBundle1x1[typex.PaneInfo, error]); ok {
-					return registerStartBundle1x1FuncAndMakeStructWrapper[typex.PaneInfo, error]()
-				} else if _, ok := doFn.(startBundle1x1[[]typex.Window, error]); ok {
-					return registerStartBundle1x1FuncAndMakeStructWrapper[[]typex.Window, error]()
-				} else if _, ok := doFn.(startBundle1x1[typex.EventTime, error]); ok {
-					return registerStartBundle1x1FuncAndMakeStructWrapper[typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle1x1[typex.BundleFinalization, error]); ok {
-					return registerStartBundle1x1FuncAndMakeStructWrapper[typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle0x1[error]); ok {
+				return registerStartBundle0x1FuncAndMakeStructWrapper[error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
 			}
-
-		case startBundleIn == 2:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle2x0[I8, I9]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[I8, I9]()
-				} else if _, ok := doFn.(startBundle2x0[context.Context, I9]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, I9]()
-				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, I9]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, I9]()
-				} else if _, ok := doFn.(startBundle2x0[context.Context, typex.PaneInfo]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo]()
-				} else if _, ok := doFn.(startBundle2x0[[]typex.Window, I9]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, I9]()
-				} else if _, ok := doFn.(startBundle2x0[context.Context, []typex.Window]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, []typex.Window]()
-				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, []typex.Window]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window]()
-				} else if _, ok := doFn.(startBundle2x0[typex.EventTime, I9]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle2x0[context.Context, typex.EventTime]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.EventTime]()
-				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, typex.EventTime]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime]()
-				} else if _, ok := doFn.(startBundle2x0[[]typex.Window, typex.EventTime]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(startBundle2x0[typex.BundleFinalization, I9]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle2x0[context.Context, typex.BundleFinalization]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, typex.BundleFinalization]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle2x0[[]typex.Window, typex.BundleFinalization]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle2x0[typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle2x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization]()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle2x1[I8, I9, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[I8, I9, error]()
-				} else if _, ok := doFn.(startBundle2x1[context.Context, I9, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, I9, error]()
-				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, I9, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, I9, error]()
-				} else if _, ok := doFn.(startBundle2x1[context.Context, typex.PaneInfo, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, error]()
-				} else if _, ok := doFn.(startBundle2x1[[]typex.Window, I9, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, I9, error]()
-				} else if _, ok := doFn.(startBundle2x1[context.Context, []typex.Window, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, []typex.Window, error]()
-				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, []typex.Window, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, error]()
-				} else if _, ok := doFn.(startBundle2x1[typex.EventTime, I9, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle2x1[context.Context, typex.EventTime, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, typex.EventTime, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle2x1[[]typex.Window, typex.EventTime, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle2x1[typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle2x1[context.Context, typex.BundleFinalization, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle2x1[[]typex.Window, typex.BundleFinalization, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle2x1[typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle2x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
-			}
-
-		case startBundleIn == 3:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle3x0[I7, I8, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, I8, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, I8, I9]()
-				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, I8, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9]()
-				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, I8, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, I8, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I9]()
-				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, []typex.Window]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window]()
-				} else if _, ok := doFn.(startBundle3x0[typex.EventTime, I8, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.EventTime, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.EventTime, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime]()
-				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.EventTime, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, typex.EventTime]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(startBundle3x0[typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle3x0[typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization]()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle3x1[I7, I8, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, I8, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, I8, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, I8, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.EventTime, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.EventTime, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, typex.EventTime, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
-			}
-
-		case startBundleIn == 4:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle4x0[I6, I7, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, I7, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, I7, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, I7, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.EventTime, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(startBundle4x0[typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle4x1[I6, I7, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, I7, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, I7, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, I7, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
-			}
-
-		case startBundleIn == 5:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle5x0[I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, I6, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, I6, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, I6, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle5x1[I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
-			}
-
-		case startBundleIn == 6:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle6x0[I4, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle6x1[I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
-			}
-
-		case startBundleIn == 7:
-			switch {
-			case startBundleOut == 0:
-				if _, ok := doFn.(startBundle7x0[I3, I4, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				}
-			case startBundleOut == 1:
-				if _, ok := doFn.(startBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				}
-			default:
-				panic("Invalid signature for StartBundle")
-			}
-
 		default:
 			panic("Invalid signature for StartBundle")
 		}
+
+	case startBundleIn == 1:
+		switch {
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle1x0[I9]); ok {
+				return registerStartBundle1x0FuncAndMakeStructWrapper[I9]()
+			} else if _, ok := doFn.(startBundle1x0[context.Context]); ok {
+				return registerStartBundle1x0FuncAndMakeStructWrapper[context.Context]()
+			} else if _, ok := doFn.(startBundle1x0[typex.PaneInfo]); ok {
+				return registerStartBundle1x0FuncAndMakeStructWrapper[typex.PaneInfo]()
+			} else if _, ok := doFn.(startBundle1x0[[]typex.Window]); ok {
+				return registerStartBundle1x0FuncAndMakeStructWrapper[[]typex.Window]()
+			} else if _, ok := doFn.(startBundle1x0[typex.EventTime]); ok {
+				return registerStartBundle1x0FuncAndMakeStructWrapper[typex.EventTime]()
+			} else if _, ok := doFn.(startBundle1x0[typex.BundleFinalization]); ok {
+				return registerStartBundle1x0FuncAndMakeStructWrapper[typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle1x1[I9, error]); ok {
+				return registerStartBundle1x1FuncAndMakeStructWrapper[I9, error]()
+			} else if _, ok := doFn.(startBundle1x1[context.Context, error]); ok {
+				return registerStartBundle1x1FuncAndMakeStructWrapper[context.Context, error]()
+			} else if _, ok := doFn.(startBundle1x1[typex.PaneInfo, error]); ok {
+				return registerStartBundle1x1FuncAndMakeStructWrapper[typex.PaneInfo, error]()
+			} else if _, ok := doFn.(startBundle1x1[[]typex.Window, error]); ok {
+				return registerStartBundle1x1FuncAndMakeStructWrapper[[]typex.Window, error]()
+			} else if _, ok := doFn.(startBundle1x1[typex.EventTime, error]); ok {
+				return registerStartBundle1x1FuncAndMakeStructWrapper[typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle1x1[typex.BundleFinalization, error]); ok {
+				return registerStartBundle1x1FuncAndMakeStructWrapper[typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		default:
+			panic("Invalid signature for StartBundle")
+		}
+
+	case startBundleIn == 2:
+		switch {
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle2x0[I8, I9]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[I8, I9]()
+			} else if _, ok := doFn.(startBundle2x0[context.Context, I9]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, I9]()
+			} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, I9]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, I9]()
+			} else if _, ok := doFn.(startBundle2x0[context.Context, typex.PaneInfo]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo]()
+			} else if _, ok := doFn.(startBundle2x0[[]typex.Window, I9]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, I9]()
+			} else if _, ok := doFn.(startBundle2x0[context.Context, []typex.Window]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, []typex.Window]()
+			} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, []typex.Window]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window]()
+			} else if _, ok := doFn.(startBundle2x0[typex.EventTime, I9]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle2x0[context.Context, typex.EventTime]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.EventTime]()
+			} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, typex.EventTime]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime]()
+			} else if _, ok := doFn.(startBundle2x0[[]typex.Window, typex.EventTime]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(startBundle2x0[typex.BundleFinalization, I9]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle2x0[context.Context, typex.BundleFinalization]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle2x0[typex.PaneInfo, typex.BundleFinalization]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle2x0[[]typex.Window, typex.BundleFinalization]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle2x0[typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle2x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle2x1[I8, I9, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[I8, I9, error]()
+			} else if _, ok := doFn.(startBundle2x1[context.Context, I9, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, I9, error]()
+			} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, I9, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, I9, error]()
+			} else if _, ok := doFn.(startBundle2x1[context.Context, typex.PaneInfo, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, error]()
+			} else if _, ok := doFn.(startBundle2x1[[]typex.Window, I9, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, I9, error]()
+			} else if _, ok := doFn.(startBundle2x1[context.Context, []typex.Window, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, []typex.Window, error]()
+			} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, []typex.Window, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, error]()
+			} else if _, ok := doFn.(startBundle2x1[typex.EventTime, I9, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle2x1[context.Context, typex.EventTime, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, typex.EventTime, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle2x1[[]typex.Window, typex.EventTime, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle2x1[typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle2x1[context.Context, typex.BundleFinalization, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle2x1[[]typex.Window, typex.BundleFinalization, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle2x1[typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle2x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		default:
+			panic("Invalid signature for StartBundle")
+		}
+
+	case startBundleIn == 3:
+		switch {
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle3x0[I7, I8, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, I8, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, I8, I9]()
+			} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, I8, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9]()
+			} else if _, ok := doFn.(startBundle3x0[[]typex.Window, I8, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, I8, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I9]()
+			} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, []typex.Window]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window]()
+			} else if _, ok := doFn.(startBundle3x0[typex.EventTime, I8, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, typex.EventTime, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.EventTime, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime]()
+			} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.EventTime, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, typex.EventTime]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(startBundle3x0[typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle3x0[typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle3x1[I7, I8, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, I8, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, I8, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[[]typex.Window, I8, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, typex.EventTime, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.EventTime, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, typex.EventTime, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		default:
+			panic("Invalid signature for StartBundle")
+		}
+
+	case startBundleIn == 4:
+		switch {
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle4x0[I6, I7, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, I7, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, I7, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[[]typex.Window, I7, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.EventTime, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(startBundle4x0[typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(startBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle4x1[I6, I7, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, I7, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, I7, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[[]typex.Window, I7, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(startBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		default:
+			panic("Invalid signature for StartBundle")
+		}
+
+	case startBundleIn == 5:
+		switch {
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle5x0[I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, I6, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, I6, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[[]typex.Window, I6, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(startBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerStartBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle5x1[I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[[]typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(startBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerStartBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		default:
+			panic("Invalid signature for StartBundle")
+		}
+
+	case startBundleIn == 6:
+		switch {
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle6x0[I4, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(startBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerStartBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle6x1[I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerStartBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		default:
+			panic("Invalid signature for StartBundle")
+		}
+
+	case startBundleIn == 7:
+		switch {
+		case startBundleOut == 0:
+			if _, ok := doFn.(startBundle7x0[I3, I4, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(startBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerStartBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		case startBundleOut == 1:
+			if _, ok := doFn.(startBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(startBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerStartBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else {
+				panic("Unable to infer the types of StartBundle")
+			}
+		default:
+			panic("Invalid signature for StartBundle")
+		}
+
+	default:
+		panic("Invalid signature for StartBundle")
 	}
-	return nil
 }
 
 func registerFinishBundle0x0FuncAndMakeStructWrapper() func(interface{}) reflectx.Func {
@@ -1217,800 +1249,832 @@ func buildFinishBundleWrapper[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn i
 	finishBundleIn := -1
 	finishBundleOut := -1
 	finishBundleMethod := reflect.ValueOf(doFn).MethodByName("FinishBundle")
-	if finishBundleMethod.IsValid() {
-		finishBundleIn = finishBundleMethod.Type().NumIn()
-		finishBundleOut = finishBundleMethod.Type().NumOut()
+	if !finishBundleMethod.IsValid() {
+		return nil
+	}
+	finishBundleIn = finishBundleMethod.Type().NumIn()
+	finishBundleOut = finishBundleMethod.Type().NumOut()
+	switch {
+
+	case finishBundleIn == 0:
 		switch {
-
-		case finishBundleIn == 0:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle0x0); ok {
-					return registerFinishBundle0x0FuncAndMakeStructWrapper()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle0x1[error]); ok {
-					return registerFinishBundle0x1FuncAndMakeStructWrapper[error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle0x0); ok {
+				return registerFinishBundle0x0FuncAndMakeStructWrapper()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
 			}
-
-		case finishBundleIn == 1:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle1x0[I9]); ok {
-					return registerFinishBundle1x0FuncAndMakeStructWrapper[I9]()
-				} else if _, ok := doFn.(finishBundle1x0[context.Context]); ok {
-					return registerFinishBundle1x0FuncAndMakeStructWrapper[context.Context]()
-				} else if _, ok := doFn.(finishBundle1x0[typex.PaneInfo]); ok {
-					return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.PaneInfo]()
-				} else if _, ok := doFn.(finishBundle1x0[[]typex.Window]); ok {
-					return registerFinishBundle1x0FuncAndMakeStructWrapper[[]typex.Window]()
-				} else if _, ok := doFn.(finishBundle1x0[typex.EventTime]); ok {
-					return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle1x0[typex.BundleFinalization]); ok {
-					return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.BundleFinalization]()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle1x1[I9, error]); ok {
-					return registerFinishBundle1x1FuncAndMakeStructWrapper[I9, error]()
-				} else if _, ok := doFn.(finishBundle1x1[context.Context, error]); ok {
-					return registerFinishBundle1x1FuncAndMakeStructWrapper[context.Context, error]()
-				} else if _, ok := doFn.(finishBundle1x1[typex.PaneInfo, error]); ok {
-					return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.PaneInfo, error]()
-				} else if _, ok := doFn.(finishBundle1x1[[]typex.Window, error]); ok {
-					return registerFinishBundle1x1FuncAndMakeStructWrapper[[]typex.Window, error]()
-				} else if _, ok := doFn.(finishBundle1x1[typex.EventTime, error]); ok {
-					return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle1x1[typex.BundleFinalization, error]); ok {
-					return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle0x1[error]); ok {
+				return registerFinishBundle0x1FuncAndMakeStructWrapper[error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
 			}
-
-		case finishBundleIn == 2:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle2x0[I8, I9]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[I8, I9]()
-				} else if _, ok := doFn.(finishBundle2x0[context.Context, I9]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, I9]()
-				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, I9]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, I9]()
-				} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.PaneInfo]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo]()
-				} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, I9]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, I9]()
-				} else if _, ok := doFn.(finishBundle2x0[context.Context, []typex.Window]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, []typex.Window]()
-				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, []typex.Window]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window]()
-				} else if _, ok := doFn.(finishBundle2x0[typex.EventTime, I9]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.EventTime]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, typex.EventTime]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, typex.EventTime]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle2x0[typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.BundleFinalization]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, typex.BundleFinalization]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, typex.BundleFinalization]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle2x0[typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization]()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle2x1[I8, I9, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle2x1[context.Context, I9, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, I9, error]()
-				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, I9, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, I9, error]()
-				} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.PaneInfo, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, error]()
-				} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, I9, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, I9, error]()
-				} else if _, ok := doFn.(finishBundle2x1[context.Context, []typex.Window, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, []typex.Window, error]()
-				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, []typex.Window, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, error]()
-				} else if _, ok := doFn.(finishBundle2x1[typex.EventTime, I9, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.EventTime, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, typex.EventTime, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, typex.EventTime, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle2x1[typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle2x1[typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
-			}
-
-		case finishBundleIn == 3:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle3x0[I7, I8, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, I8, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, I8, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, I8, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, I8, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, I8, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, []typex.Window]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.EventTime, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.EventTime, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, typex.EventTime]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization]()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle3x1[I7, I8, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, I8, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, I8, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, I8, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.EventTime, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.EventTime, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, typex.EventTime, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
-			}
-
-		case finishBundleIn == 4:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle4x0[I6, I7, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, I7, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, I7, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, I7, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]()
-				} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle4x1[I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, I7, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, I7, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, I7, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
-			}
-
-		case finishBundleIn == 5:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle5x0[I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, I6, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, I6, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, I6, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
-					return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle5x1[I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
-					return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
-			}
-
-		case finishBundleIn == 6:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle6x0[I4, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
-					return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle6x1[I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
-					return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
-			}
-
-		case finishBundleIn == 7:
-			switch {
-			case finishBundleOut == 0:
-				if _, ok := doFn.(finishBundle7x0[I3, I4, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
-				} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
-					return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
-				}
-			case finishBundleOut == 1:
-				if _, ok := doFn.(finishBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
-				} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
-					return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
-				}
-			default:
-				panic("Invalid signature for FinishBundle")
-			}
-
 		default:
 			panic("Invalid signature for FinishBundle")
 		}
+
+	case finishBundleIn == 1:
+		switch {
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle1x0[I9]); ok {
+				return registerFinishBundle1x0FuncAndMakeStructWrapper[I9]()
+			} else if _, ok := doFn.(finishBundle1x0[context.Context]); ok {
+				return registerFinishBundle1x0FuncAndMakeStructWrapper[context.Context]()
+			} else if _, ok := doFn.(finishBundle1x0[typex.PaneInfo]); ok {
+				return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.PaneInfo]()
+			} else if _, ok := doFn.(finishBundle1x0[[]typex.Window]); ok {
+				return registerFinishBundle1x0FuncAndMakeStructWrapper[[]typex.Window]()
+			} else if _, ok := doFn.(finishBundle1x0[typex.EventTime]); ok {
+				return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle1x0[typex.BundleFinalization]); ok {
+				return registerFinishBundle1x0FuncAndMakeStructWrapper[typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle1x1[I9, error]); ok {
+				return registerFinishBundle1x1FuncAndMakeStructWrapper[I9, error]()
+			} else if _, ok := doFn.(finishBundle1x1[context.Context, error]); ok {
+				return registerFinishBundle1x1FuncAndMakeStructWrapper[context.Context, error]()
+			} else if _, ok := doFn.(finishBundle1x1[typex.PaneInfo, error]); ok {
+				return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.PaneInfo, error]()
+			} else if _, ok := doFn.(finishBundle1x1[[]typex.Window, error]); ok {
+				return registerFinishBundle1x1FuncAndMakeStructWrapper[[]typex.Window, error]()
+			} else if _, ok := doFn.(finishBundle1x1[typex.EventTime, error]); ok {
+				return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle1x1[typex.BundleFinalization, error]); ok {
+				return registerFinishBundle1x1FuncAndMakeStructWrapper[typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		default:
+			panic("Invalid signature for FinishBundle")
+		}
+
+	case finishBundleIn == 2:
+		switch {
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle2x0[I8, I9]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[I8, I9]()
+			} else if _, ok := doFn.(finishBundle2x0[context.Context, I9]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, I9]()
+			} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, I9]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, I9]()
+			} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.PaneInfo]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo]()
+			} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, I9]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, I9]()
+			} else if _, ok := doFn.(finishBundle2x0[context.Context, []typex.Window]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, []typex.Window]()
+			} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, []typex.Window]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window]()
+			} else if _, ok := doFn.(finishBundle2x0[typex.EventTime, I9]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.EventTime]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, typex.EventTime]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, typex.EventTime]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle2x0[typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle2x0[context.Context, typex.BundleFinalization]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle2x0[typex.PaneInfo, typex.BundleFinalization]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle2x0[[]typex.Window, typex.BundleFinalization]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle2x0[typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle2x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle2x1[I8, I9, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle2x1[context.Context, I9, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, I9, error]()
+			} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, I9, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, I9, error]()
+			} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.PaneInfo, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, error]()
+			} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, I9, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, I9, error]()
+			} else if _, ok := doFn.(finishBundle2x1[context.Context, []typex.Window, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, []typex.Window, error]()
+			} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, []typex.Window, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, error]()
+			} else if _, ok := doFn.(finishBundle2x1[typex.EventTime, I9, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.EventTime, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, typex.EventTime, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, typex.EventTime, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle2x1[typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle2x1[context.Context, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle2x1[typex.PaneInfo, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle2x1[[]typex.Window, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle2x1[typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle2x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		default:
+			panic("Invalid signature for FinishBundle")
+		}
+
+	case finishBundleIn == 3:
+		switch {
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle3x0[I7, I8, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, I8, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, I8, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, I8, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, I8, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, I8, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, []typex.Window]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.EventTime, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.EventTime]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.EventTime, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, typex.EventTime]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.PaneInfo, typex.BundleFinalization]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, []typex.Window, typex.BundleFinalization]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle3x0[context.Context, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle3x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle3x0[[]typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle3x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle3x1[I7, I8, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, I8, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, I8, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, I8, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, []typex.Window, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.EventTime, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.EventTime, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.EventTime, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, typex.EventTime, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.PaneInfo, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, []typex.Window, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle3x1[context.Context, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle3x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle3x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle3x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		default:
+			panic("Invalid signature for FinishBundle")
+		}
+
+	case finishBundleIn == 4:
+		switch {
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle4x0[I6, I7, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, I7, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, I7, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, I7, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle4x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle4x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else if _, ok := doFn.(finishBundle4x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle4x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle4x1[I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, I7, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, I7, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, I7, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle4x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle4x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else if _, ok := doFn.(finishBundle4x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle4x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		default:
+			panic("Invalid signature for FinishBundle")
+		}
+
+	case finishBundleIn == 5:
+		switch {
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle5x0[I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, I6, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, I6, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, I6, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else if _, ok := doFn.(finishBundle5x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]); ok {
+				return registerFinishBundle5x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle5x1[I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else if _, ok := doFn.(finishBundle5x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]); ok {
+				return registerFinishBundle5x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		default:
+			panic("Invalid signature for FinishBundle")
+		}
+
+	case finishBundleIn == 6:
+		switch {
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle6x0[I4, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else if _, ok := doFn.(finishBundle6x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]); ok {
+				return registerFinishBundle6x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle6x1[I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle6x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]); ok {
+				return registerFinishBundle6x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I9, error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		default:
+			panic("Invalid signature for FinishBundle")
+		}
+
+	case finishBundleIn == 7:
+		switch {
+		case finishBundleOut == 0:
+			if _, ok := doFn.(finishBundle7x0[I3, I4, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, I4, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, I4, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, I4, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.EventTime, I4, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9]()
+			} else if _, ok := doFn.(finishBundle7x0[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]); ok {
+				return registerFinishBundle7x0FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		case finishBundleOut == 1:
+			if _, ok := doFn.(finishBundle7x1[I3, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[I3, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.EventTime, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.EventTime, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.BundleFinalization, I4, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.EventTime, typex.BundleFinalization, I5, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[[]typex.Window, typex.EventTime, typex.BundleFinalization, I6, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I7, I8, I9, error]()
+			} else if _, ok := doFn.(finishBundle7x1[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]); ok {
+				return registerFinishBundle7x1FuncAndMakeStructWrapper[context.Context, typex.PaneInfo, []typex.Window, typex.EventTime, typex.BundleFinalization, I8, I9, error]()
+			} else {
+				panic("Unable to infer the types of FinishBundle")
+			}
+		default:
+			panic("Invalid signature for FinishBundle")
+		}
+
+	default:
+		panic("Invalid signature for FinishBundle")
 	}
-	return nil
 }
 
 func buildSetupWrapper(doFn interface{}) func(interface{}) reflectx.Func {

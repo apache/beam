@@ -16,8 +16,9 @@
 package main
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenericTypingRepresentation(t *testing.T) {
@@ -85,38 +86,22 @@ func TestPossibleBundleLifecycleParameterCombos(t *testing.T) {
 
 	for _, test := range tests {
 		got, want := possibleBundleLifecycleParameterCombos(test.numIn, test.processElementIn), test.representation
-		assertRepresentationEquals(t, got, want, fmt.Sprintf("possibleBundleLifecycleParameterCombos(%v, %v)", test.numIn, test.processElementIn))
-	}
-}
-
-func assertRepresentationEquals(t *testing.T, got [][]string, want [][]string, functionInvocation string) {
-	if len(got) != len(want) {
-		t.Fatalf("%v returned list of length %v, want: %v. Full list: %v", functionInvocation, len(got), len(want), got)
-	}
-	for _, l1 := range got {
-		found := false
-		for _, l2 := range want {
-			if listEquals(l1, l2) {
-				found = true
-				break
+		if len(got) != len(want) {
+			t.Errorf("possibleBundleLifecycleParameterCombos(%v, %v) returned list of length %v, want: %v. Full list: %v", test.numIn, test.processElementIn, len(got), len(want), got)
+		} else {
+			for _, l1 := range got {
+				found := false
+				for _, l2 := range want {
+					// cmp.Equal doesn't seem to handle the empty list case correctly
+					if (len(l1) == 0 && len(l2) == 0) || cmp.Equal(l1, l2) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("possibleBundleLifecycleParameterCombos(%v, %v) does not contain list %v", test.numIn, test.processElementIn, l1)
+				}
 			}
 		}
-		if !found {
-			t.Fatalf("%v does not contain list %v", functionInvocation, l1)
-		}
 	}
-}
-
-func listEquals(got []string, want []string) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	for idx, e1 := range got {
-		e2 := want[idx]
-		if e1 != e2 {
-			return false
-		}
-	}
-
-	return true
 }

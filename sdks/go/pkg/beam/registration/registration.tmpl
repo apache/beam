@@ -18,26 +18,28 @@ func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)
     {{$lowerName}}In := -1
 	{{$lowerName}}Out := -1
 	{{$lowerName}}Method := reflect.ValueOf(doFn).MethodByName("{{$upperName}}")
-	if {{$lowerName}}Method.IsValid() {
-		{{$lowerName}}In = {{$lowerName}}Method.Type().NumIn()
-		{{$lowerName}}Out = {{$lowerName}}Method.Type().NumOut()
-	    switch {
-{{range $funcIn := upto $startFinishBundleMaxIn}}
+	if !{{$lowerName}}Method.IsValid() {
+        return nil
+    }
+    {{$lowerName}}In = {{$lowerName}}Method.Type().NumIn()
+    {{$lowerName}}Out = {{$lowerName}}Method.Type().NumOut()
+    switch {
+    {{range $funcIn := upto $startFinishBundleMaxIn}}
     case {{$lowerName}}In == {{$funcIn}}:
             switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $numParams)}}{{if $possibleCombos}}
             case {{$lowerName}}Out == {{$funcOut}}:
-{{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
+    {{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
                     return register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}()
-                } {{end}}{{end}}{{end}}
+                } {{end}}{{end}}else {
+                    panic("Unable to infer the types of {{$upperName}}")
+                }{{end}}
             default:
                 panic("Invalid signature for {{$upperName}}")
             }
-{{end}}
-        default:
-            panic("Invalid signature for {{$upperName}}")
-        }
+    {{end}}
+    default:
+        panic("Invalid signature for {{$upperName}}")
     }
-    return nil
 }
 {{end}}{{define "BuildWrapper_SetupTeardown"}}
 {{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "setup")}}{{$lowerName = "setup"}}{{$upperName = "Setup"}}{{end}}{{if (eq .func "teardown")}}{{$lowerName = "teardown"}}{{$upperName = "Teardown"}}{{end}}
