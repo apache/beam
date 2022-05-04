@@ -68,6 +68,7 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.tools import utils
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -127,7 +128,42 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
 
+  def test_large_input_pardo(self):
+    try:
+      utils.check_compiled('apache_beam.coders')
+    except RuntimeError:
+      self.skipTest(
+          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
+          'in non-cython environments')
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(5000),
+                                 dtype=np.int64)).with_output_types(np.int64)
+          | beam.Map(lambda e: e * 2)
+          | beam.Map(lambda e: e + 3))
+      assert_that(res, equal_to([(i * 2) + 3 for i in range(5000)]))
+
   def test_batch_pardo(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 18]))
+
+  def test_batch_pardo_trigger_flush(self):
+    try:
+      utils.check_compiled('apache_beam.coders')
+    except RuntimeError:
+      self.skipTest(
+          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
+          'in non-cython environments')
+
     with self.create_pipeline() as p:
       res = (
           p
@@ -2295,7 +2331,7 @@ class ArrayMultiplyDoFn(beam.DoFn):
     assert isinstance(batch, np.ndarray)
     # GeneralPurposeConsumerSet should limit batches to MAX_BATCH_SIZE (4096)
     # elements
-    assert np.size(batch, 0) <= 4096
+    assert np.size(batch, axis=0) <= 4096
     yield batch * 2
 
   # infer_output_type must be defined (when there's no process method),
