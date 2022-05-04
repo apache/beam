@@ -267,7 +267,10 @@ class Entity(object):
       if isinstance(value, key.Key):
         value = Key.from_client_key(value)
       if isinstance(value, entity.Entity):
-        value = Entity.from_client_entity(value)
+        if value.key:
+          value = Entity.from_client_entity(value)
+        else:
+          value = {k: v for k, v in value.items()}
       res.properties[name] = value
     return res
 
