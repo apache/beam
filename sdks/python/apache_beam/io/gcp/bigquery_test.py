@@ -987,12 +987,9 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
       param(
           exception_type=exceptions.MethodNotAllowed,
           error_args=('method not allowed!', 'args')),
+      param(exception_type=exceptions.Unknown, error_args=('unknown!', 'args')),
       param(
-          exception_type=exceptions.Unknown,
-          error_args=('unknown!', 'args')),
-      param(
-          exception_type=exceptions.Aborted,
-          error_args=('abortet!', 'abort')),
+          exception_type=exceptions.Aborted, error_args=('abortet!', 'abort')),
   ])
   @mock.patch('time.sleep')
   @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
@@ -1051,12 +1048,9 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
       param(
           exception_type=exceptions.MethodNotAllowed,
           error_args=('method not allowed!', 'args')),
+      param(exception_type=exceptions.Unknown, error_args=('unknown!', 'args')),
       param(
-          exception_type=exceptions.Unknown,
-          error_args=('unknown!', 'args')),
-      param(
-          exception_type=exceptions.Aborted,
-          error_args=('abortet!', 'abort')),
+          exception_type=exceptions.Aborted, error_args=('abortet!', 'abort')),
       param(
           exception_type=requests.exceptions.ConnectionError,
           error_args=('some connection error', )),
