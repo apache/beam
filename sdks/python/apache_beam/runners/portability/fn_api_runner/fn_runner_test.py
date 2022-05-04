@@ -128,23 +128,6 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
 
-  def test_large_input_pardo(self):
-    try:
-      utils.check_compiled('apache_beam.coders.coder_impl')
-    except RuntimeError:
-      self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
-          'in non-cython environments')
-
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | beam.Create(np.array(range(5000),
-                                 dtype=np.int64)).with_output_types(np.int64)
-          | beam.Map(lambda e: e * 2)
-          | beam.Map(lambda e: e + 3))
-      assert_that(res, equal_to([(i * 2) + 3 for i in range(5000)]))
-
   def test_batch_pardo(self):
     with self.create_pipeline() as p:
       res = (
