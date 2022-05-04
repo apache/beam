@@ -315,6 +315,8 @@ class GeneralPurposeConsumerSet(ConsumerSet):
       if len(self._batched_elements) >= self.MAX_BATCH_SIZE:
         self.flush()
 
+    # TODO(BEAM-XXX): Properly estimate sizes in the batch-consumer only case,
+    # this undercounts large iterables
     self.update_counters_finish()
 
   def receive_batch(self, windowed_batch):
