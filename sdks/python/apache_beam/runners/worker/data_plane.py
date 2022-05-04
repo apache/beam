@@ -70,6 +70,22 @@ _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
 # can have up to _MAX_CLEANED_INSTRUCTIONS items. See _GrpcDataChannel.
 _MAX_CLEANED_INSTRUCTIONS = 10000
 
+# retry on transient UNAVAILABLE grpc error from data channels.
+_GRPC_SERVICE_CONFIG = json.dumps({
+    "methodConfig": [{
+        "name": [{
+            "service": "org.apache.beam.model.fn_execution.v1.BeamFnData"
+        }],
+        "retryPolicy": {
+            "maxAttempts": 5,
+            "initialBackoff": "0.1s",
+            "maxBackoff": "5s",
+            "backoffMultiplier": 2,
+            "retryableStatusCodes": ["UNAVAILABLE"],
+        },
+    }]
+})
+
 
 class ClosableOutputStream(OutputStream):
   """A Outputstream for use with CoderImpls that has a close() method."""
@@ -754,27 +770,12 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       with self._lock:
         if url not in self._data_channel_cache:
           _LOGGER.info('Creating client data channel for %s', url)
-          # retry on transient UNAVAILABLE grpc error for data channels.
-          grpc_service_config = json.dumps({
-              "methodConfig": [{
-                  "name": [{
-                      "service": "org.apache.beam.model.fn_execution.v1.BeamFnData"
-                  }],
-                  "retryPolicy": {
-                      "maxAttempts": 5,
-                      "initialBackoff": "0.1s",
-                      "maxBackoff": "5s",
-                      "backoffMultiplier": 2,
-                      "retryableStatusCodes": ["UNAVAILABLE"],
-                  },
-              }]
-          })
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
           channel_options = [("grpc.max_receive_message_length", -1),
                              ("grpc.max_send_message_length", -1),
-                             ("grpc.service_config", grpc_service_config)]
+                             ("grpc.service_config", _GRPC_SERVICE_CONFIG)]
           grpc_channel = None
           if self._credentials is None:
             grpc_channel = GRPCChannelFactory.insecure_channel(
