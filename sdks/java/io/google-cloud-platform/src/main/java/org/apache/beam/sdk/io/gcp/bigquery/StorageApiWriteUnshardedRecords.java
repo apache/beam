@@ -30,11 +30,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -135,10 +135,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
-    // default value from options is 0, so we set at least one client 
-    Integer numStreams = options.getNumStorageWriteApiStreams() == 0 
-            ? 1 
-            : options.getNumStorageWriteApiStreams();
+    // default value from options is 0, so we set at least one client
+    Integer numStreams =
+        options.getNumStorageWriteApiStreams() == 0 ? 1 : options.getNumStorageWriteApiStreams();
     return input
         .apply(
             "Write Records",
@@ -229,20 +228,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
         return this.streamName;
       }
-      
-      List<StreamAppendClient> generateClients(){
+
+      List<StreamAppendClient> generateClients() {
         return IntStream.range(0, streamAppendClientCount)
-                .mapToObj(i -> {
+            .mapToObj(
+                i -> {
                   try {
-                    StreamAppendClient client = 
-                      datasetService.getStreamAppendClient(
-                                streamName, descriptorWrapper.descriptor);
+                    StreamAppendClient client =
+                        datasetService.getStreamAppendClient(
+                            streamName, descriptorWrapper.descriptor);
                     return client;
                   } catch (Exception ex) {
                     throw new RuntimeException(ex);
                   }
                 })
-                .collect(Collectors.toList());
+            .collect(Collectors.toList());
       }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
@@ -252,19 +252,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             synchronized (APPEND_CLIENTS) {
               if (lookupCache) {
                 this.streamAppendClient =
-                    APPEND_CLIENTS
-                            .get(streamName, () -> generateClients())
-                            .get(clientNumber);
+                    APPEND_CLIENTS.get(streamName, () -> generateClients()).get(clientNumber);
               } else {
-                // TODO (rpablo): this dance may make connections 
+                // TODO (rpablo): this dance may make connections
                 // go over quota for a short period of time, need to check
 
                 // override the clients in the cache
                 APPEND_CLIENTS.put(streamName, generateClients());
                 this.streamAppendClient =
-                    APPEND_CLIENTS
-                            .get(streamName, () -> generateClients())
-                            .get(clientNumber); 
+                    APPEND_CLIENTS.get(streamName, () -> generateClients()).get(clientNumber);
               }
               this.streamAppendClient.pin();
             }
@@ -400,7 +396,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final boolean useDefaultStream;
     // default append client count to 1
     private Integer streamAppendClientCount = 1;
-    
+
     WriteRecordsDoFn(
         String operationName,
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -419,8 +415,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     boolean shouldFlush() {
-      return numPendingRecords > flushThresholdCount
-          || numPendingRecordBytes > flushThresholdBytes;
+      return numPendingRecords > flushThresholdCount || numPendingRecordBytes > flushThresholdBytes;
     }
 
     void flushIfNecessary() throws Exception {
@@ -474,11 +469,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         throw new RuntimeException(e);
       }
       return new DestinationState(
-              tableDestination1.getTableUrn(), 
-              messageConverter, 
-              datasetService, 
-              useDefaultStream, 
-              streamAppendClientCount);
+          tableDestination1.getTableUrn(),
+          messageConverter,
+          datasetService,
+          useDefaultStream,
+          streamAppendClientCount);
     }
 
     @ProcessElement

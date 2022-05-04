@@ -47,9 +47,10 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-    // default value from options is 0, so we set at least one client 
-    Integer numStreams = bigQueryOptions.getNumStorageWriteApiStreams() == 0 
-            ? 1 
+    // default value from options is 0, so we set at least one client
+    Integer numStreams =
+        bigQueryOptions.getNumStorageWriteApiStreams() == 0
+            ? 1
             : bigQueryOptions.getNumStorageWriteApiStreams();
     // Append records to the Storage API streams.
     input.apply(
