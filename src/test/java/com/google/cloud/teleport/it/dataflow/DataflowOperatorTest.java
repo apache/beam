@@ -54,8 +54,8 @@ public final class DataflowOperatorTest {
   private static final String PROJECT = "test-project";
   private static final String REGION = "us-east1";
   private static final String JOB_ID = "test-job-id";
-  private static final Duration CHECK_AFTER = Duration.ofMillis(10);
-  private static final Duration TIMEOUT_AFTER = Duration.ofMillis(100);
+  private static final Duration CHECK_AFTER = Duration.ofMillis(100);
+  private static final Duration TIMEOUT_AFTER = Duration.ofMillis(1000);
 
   private static final Config DEFAULT_CONFIG =
       Config.builder()
