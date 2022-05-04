@@ -26,6 +26,7 @@
 import collections
 import logging
 import threading
+import warnings
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import DefaultDict
@@ -325,7 +326,15 @@ class GeneralPurposeConsumerSet(ConsumerSet):
          consumers) in self.other_batch_consumers.items():
       # Explode and rebatch into the new batch type (ouch!)
       # TODO: Register direct conversions for equivalent batch types
+
       for consumer in consumers:
+        warnings.warn(
+            f"Input to operation {consumer} must be rebatched from type "
+            f"{self.producer_batch_converter.batch_type!r} to "
+            f"{consumer_batch_converter.batch_type!r}.\n"
+            "This is very inefficient, consider re-structuring your pipeline "
+            "or adding a DoFn to directly convert between these types.",
+            InefficientExecutionWarning)
         cython.cast(Operation, consumer).process_batch(
             windowed_batch.with_values(
                 consumer_batch_converter.produce_batch(
@@ -1446,3 +1455,11 @@ class SimpleMapTaskExecutor(object):
       op.start()
     for op in self._ops:
       op.finish()
+
+
+class InefficientExecutionWarning(RuntimeWarning):
+  """warning to indicate an inefficiency in a Beam pipeline."""
+
+
+# Don't ignore InefficientExecutionWarning, but only log them once
+warnings.simplefilter('once', InefficientExecutionWarning)

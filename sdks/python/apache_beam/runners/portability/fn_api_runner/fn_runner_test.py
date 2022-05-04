@@ -63,6 +63,7 @@ from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.operations import InefficientExecutionWarning
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -138,16 +139,22 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([6, 12, 18]))
 
   def test_batch_rebatch_pardos(self):
-    with self.create_pipeline() as p:
-      res = (
-          p
-          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
-              np.int64)
-          | beam.ParDo(ArrayMultiplyDoFn())
-          | beam.ParDo(ListPlusOneDoFn())
-          | beam.Map(lambda x: x * 3))
+    # Should raise a warning about the rebatching that mentions:
+    # - The consuming DoFn
+    # - The output batch type of the producer
+    # - The input batch type of the consumer
+    with self.assertWarnsRegex(InefficientExecutionWarning,
+                               r'ListPlusOneDoFn.*NumpyArray.*List\[int64\]'):
+      with self.create_pipeline() as p:
+        res = (
+            p
+            | beam.Create(np.array([1, 2, 3],
+                                   dtype=np.int64)).with_output_types(np.int64)
+            | beam.ParDo(ArrayMultiplyDoFn())
+            | beam.ParDo(ListPlusOneDoFn())
+            | beam.Map(lambda x: x * 3))
 
-      assert_that(res, equal_to([9, 15, 21]))
+        assert_that(res, equal_to([9, 15, 21]))
 
   def test_batch_pardo_fusion_break(self):
     class NormalizeDoFn(beam.DoFn):
