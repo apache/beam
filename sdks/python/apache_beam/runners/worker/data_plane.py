@@ -22,6 +22,7 @@
 
 import abc
 import collections
+import json
 import logging
 import queue
 import threading
@@ -51,6 +52,7 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 if TYPE_CHECKING:
   import apache_beam.coders.slow_stream
+
   OutputStream = apache_beam.coders.slow_stream.OutputStream
   DataOrTimers = Union[beam_fn_api_pb2.Elements.Data,
                        beam_fn_api_pb2.Elements.Timers]
@@ -111,6 +113,7 @@ class ClosableOutputStream(OutputStream):
 
 class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   """A size-based buffering OutputStream."""
+
   def __init__(
       self,
       close_callback=None,  # type: Optional[Callable[[bytes], None]]
@@ -185,6 +188,7 @@ class TimeBasedBufferingClosableOutputStream(
 
 class PeriodicThread(threading.Thread):
   """Call a function periodically with the specified number of seconds"""
+
   def __init__(
       self,
       interval,  # type: float
@@ -656,6 +660,7 @@ class _GrpcDataChannel(DataChannel):
 
 class GrpcClientDataChannel(_GrpcDataChannel):
   """A DataChannel wrapping the client side of a BeamFnData connection."""
+
   def __init__(
       self,
       data_stub,  # type: beam_fn_api_pb2_grpc.BeamFnDataStub
@@ -724,6 +729,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
 
   Caches the created channels by ``data descriptor url``.
   """
+
   def __init__(
       self,
       credentials=None,  # type: Any
@@ -748,11 +754,27 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       with self._lock:
         if url not in self._data_channel_cache:
           _LOGGER.info('Creating client data channel for %s', url)
+          # retry on transient UNAVAILABLE grpc error for data channels.
+          grpc_service_config = json.dumps({
+              "methodConfig": [{
+                  "name": [{
+                      "service": "org.apache.beam.model.fn_execution.v1.BeamFnData"
+                  }],
+                  "retryPolicy": {
+                      "maxAttempts": 5,
+                      "initialBackoff": "0.1s",
+                      "maxBackoff": "5s",
+                      "backoffMultiplier": 2,
+                      "retryableStatusCodes": ["UNAVAILABLE"],
+                  },
+              }]
+          })
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
           channel_options = [("grpc.max_receive_message_length", -1),
-                             ("grpc.max_send_message_length", -1)]
+                             ("grpc.max_send_message_length", -1),
+                             ("grpc.service_config", grpc_service_config)]
           grpc_channel = None
           if self._credentials is None:
             grpc_channel = GRPCChannelFactory.insecure_channel(
