@@ -433,8 +433,9 @@ format of the dataset.&lt;/li>
 &lt;p>To run SQL on Dataflow is very simple, you just need to add the option
 &lt;code>-r DataflowRunner&lt;/code>.&lt;/p>
 &lt;pre>&lt;code>%%beam_sql -o data_by_state -r DataflowRunner
-SELECT partition_date, state, confirmed_cases, deaths
+SELECT partition_date, state, SUM(confirmed_cases) as confirmed_cases, SUM(deaths) as deaths
 FROM covid_data
+GROUP BY partition_date, state
 &lt;/code>&lt;/pre>&lt;p>Different from previous &lt;code>beam_sql&lt;/code> magic executions, you won’t see the result
 immediately. Instead, a form like below is printed in the notebook cell output:&lt;/p>
 &lt;p>&lt;img class="center-block"
