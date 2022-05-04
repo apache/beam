@@ -55,9 +55,10 @@ class CustomCoder(coders.Coder):
 class TypeCodersTest(unittest.TestCase):
   def test_register_non_type_coder(self):
     coder = CustomCoder()
-    with self.assertRaisesRegex(TypeError, (
-        'Coder registration requires a coder class object. '
-        'Received %r instead.' % coder)):
+    with self.assertRaisesRegex(
+        TypeError,
+        ('Coder registration requires a coder class object. '
+         'Received %r instead.' % coder)):
 
       # When registering a coder the coder class must be specified.
       typecoders.registry.register_coder(CustomClass, coder)
