@@ -160,7 +160,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     examples = list(range(100))
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | run_inference_base.RunInference(FakeLoaderWithBatchArgForwarding())
+      actual = pcoll | base.RunInference(FakeLoaderWithBatchArgForwarding())
       assert_that(actual, equal_to(examples), label='assert:inferences')
 
 
