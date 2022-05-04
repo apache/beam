@@ -167,6 +167,7 @@ const (
 	splitRestrictionName         = "SplitRestriction"
 	restrictionSizeName          = "RestrictionSize"
 	createTrackerName            = "CreateTracker"
+	truncateRestrictionName      = "TruncateRestriction"
 
 	createWatermarkEstimatorName       = "CreateWatermarkEstimator"
 	initialWatermarkEstimatorStateName = "InitialWatermarkEstimatorState"
@@ -192,6 +193,7 @@ var doFnNames = []string{
 	restrictionSizeName,
 	createTrackerName,
 	createWatermarkEstimatorName,
+	truncateRestrictionName,
 	initialWatermarkEstimatorStateName,
 	watermarkEstimatorStateName,
 }
@@ -202,6 +204,12 @@ var requiredSdfNames = []string{
 	restrictionSizeName,
 	createTrackerName,
 }
+
+var optionalSdfNames = []string{
+	truncateRestrictionName,
+}
+
+var sdfNames = append(append([]string{}, requiredSdfNames...), optionalSdfNames...)
 
 var watermarkEstimationNames = []string{
 	createWatermarkEstimatorName,
@@ -312,6 +320,17 @@ func (f *SplittableDoFn) Name() string {
 // RestrictionT returns the restriction type from the SDF.
 func (f *SplittableDoFn) RestrictionT() reflect.Type {
 	return f.CreateInitialRestrictionFn().Ret[0].T
+}
+
+// HasTruncateRestriction returns whether the DoFn implements a custom truncate restriction function.
+func (f *SplittableDoFn) HasTruncateRestriction() bool {
+	_, ok := f.methods[truncateRestrictionName]
+	return ok
+}
+
+// TruncateRestrictionFn returns the "TruncateRestriction" function, if present.
+func (f *SplittableDoFn) TruncateRestrictionFn() *funcx.Fn {
+	return f.methods[truncateRestrictionName]
 }
 
 // IsWatermarkEstimating returns whether the DoFn implements a custom watermark estimator.
@@ -843,11 +862,18 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 		splitRestrictionName:         num + 1,
 		restrictionSizeName:          num + 1,
 		createTrackerName:            1,
+		truncateRestrictionName:      num + 1,
+	}
+	optionalSdfs := map[string]bool{
+		truncateRestrictionName: true,
 	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
-	for _, name := range requiredSdfNames {
-		method := fn.methods[name]
+	for _, name := range sdfNames {
+		method, ok := fn.methods[name]
+		if !ok && optionalSdfs[name] {
+			continue
+		}
 		if len(method.Param) != paramNums[name] {
 			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
 				name, len(method.Param), paramNums[name])
@@ -946,6 +972,34 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 				return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
 					"return value at index %v. Got: %v, Want: %v (from method %v).",
 					createTrackerName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
+			}
+		}
+	}
+
+	rTrackerImplT := fn.methods[createTrackerName].Ret[0].T
+
+	for _, name := range optionalSdfNames {
+		method, ok := fn.methods[name]
+		if !ok {
+			continue
+		}
+		switch name {
+		case truncateRestrictionName:
+			if method.Param[0].T != rTrackerImplT {
+				err := errors.Errorf("mismatched restriction tracker type in method %v, param %v. got: %v, want: %v",
+					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT)
+				return errors.SetTopLevelMsgf(err, "Mismatched restriction tracker type in method %v, "+
+					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that restriction tracker is the first parameter.",
+					truncateRestrictionName, 0, method.Param[0].T, rTrackerImplT, createTrackerName)
+			}
+			if method.Ret[0].T != restrictionT {
+				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
+					truncateRestrictionName, 0, method.Ret[0].T, restrictionT)
+				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type.",
+					truncateRestrictionName, 0, method.Ret[0].T, restrictionT, createInitialRestrictionName)
 			}
 		}
 	}
