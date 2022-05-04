@@ -727,7 +727,7 @@ class FnApiRunnerExecutionContext(object):
     # TODO(pabloem): Move Clock classes out of DirectRunner and into FnApiRnr
     self.clock: Union[TestClock, RealClock] = (
         TestClock() if uses_teststream else RealClock())
-    self.queues = _ProcessingQueueManager()
+    self.queues: _ProcessingQueueManager = _ProcessingQueueManager()
 
     # The following set of dictionaries hold information mapping relationships
     # between various pipeline elements.
@@ -740,9 +740,9 @@ class FnApiRunnerExecutionContext(object):
     self._compute_pipeline_dictionaries()
 
     self.watermark_manager = WatermarkManager(stages)
-    # from apache_beam.runners.portability.fn_api_runner import \
-    #     visualization_tools
-    # visualization_tools.show_watermark_manager(self.watermark_manager)
+    from apache_beam.runners.portability.fn_api_runner import \
+        visualization_tools
+    visualization_tools.show_watermark_manager(self.watermark_manager)
     self.pipeline_context = pipeline_context.PipelineContext(
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)

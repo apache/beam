@@ -125,7 +125,6 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
                             List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
 
 
-# TODO(pabloem): Change tha name to a more representative one
 class DataInput(NamedTuple):
   data: MutableMapping[str, 'PartitionableBuffer']
   timers: MutableMapping[TimerFamilyId, 'PartitionableBuffer']
@@ -439,6 +438,8 @@ class TransformContext(object):
                 for env in self.components.environments.values())))
     self.use_state_iterables = use_state_iterables
     self.is_drain = is_drain
+    self.test_stream: Optional[beam_runner_api_pb2.TestStreamPayload] = None
+    self.test_stream_consumer: Optional[str] = None
     # ok to pass None for context because BytesCoder has no components
     coder_proto = coders.BytesCoder().to_runner_api(
         None)  # type: ignore[arg-type]
@@ -2016,6 +2017,9 @@ def add_impulse_to_dangling_transforms(stages, pipeline_context):
   for stage in stages:
     for transform in stage.transforms:
       if len(transform.inputs
+             ) == 0 and transform.spec.urn == common_urns.primitives.TEST_STREAM.urn:
+        continue
+      elif len(transform.inputs
              ) == 0 and transform.spec.urn != bundle_processor.DATA_INPUT_URN:
         # We look through the various stages in the DAG, and transforms. If we
         # see a transform that has no inputs whatsoever.
@@ -2038,6 +2042,28 @@ def add_impulse_to_dangling_transforms(stages, pipeline_context):
                     urn=bundle_processor.DATA_INPUT_URN,
                     payload=IMPULSE_BUFFER),
                 outputs={'out': impulse_pc}))
+    yield stage
+
+
+def grab_teststream_and_prepare_it(stages: Iterable[Stage], pipeline_context: TransformContext) -> Iterable[Stage]:
+  """Remove TestStreams from the pipeline, and pass it to the runner."""
+  for stage in stages:
+    for transform in stage.transforms:
+      if transform.spec.urn == common_urns.primitives.TEST_STREAM.urn:
+        assert pipeline_context.test_stream is None, "Multiple TestStream objects found"
+        pipeline_context.test_stream = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.TestStreamPayload)
+        pipeline_context.test_stream_consumer = only_element(transform.outputs.values())
+        break
+    yield stage
+
+def print_teststream_stage(stages: Iterable[Stage], pipeline_context: TransformContext) -> Iterable[Stage]:
+  for stage in stages:
+    for transform in stage.transforms:
+      if transform.spec.urn == common_urns.primitives.TEST_STREAM.urn:
+        from apache_beam.runners.portability.fn_api_runner import visualization_tools
+        visualization_tools.show_stage(stage)
+        break
     yield stage
 
 

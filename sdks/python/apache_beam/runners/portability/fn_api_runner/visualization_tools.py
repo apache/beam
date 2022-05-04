@@ -23,8 +23,14 @@ from apache_beam.runners.portability.fn_api_runner.translations import Stage
 from apache_beam.runners.portability.fn_api_runner.watermark_manager import WatermarkManager
 from apache_beam.utils import timestamp
 
+def _pcoll_node_name(pcoll_node: WatermarkManager.PCollectionNode):
+  if isinstance(pcoll_node.name, tuple):
+    return 'PCOLL_%s_%s' % pcoll_node.name
+  else:
+    return 'PCOLL_%s' % pcoll_node.name
 
-def show_stage(stage: Stage):
+
+def show_stage(stage: Stage, file_name: str = None):
   try:
     import graphviz
   except ImportError:
@@ -36,7 +42,8 @@ def show_stage(stage: Stage):
 
   seen_pcollections = set()
   for t in stage.transforms:
-    g.node(t.unique_name, shape='box')
+    tname = t.unique_name.replace(':', '')
+    g.node(tname, shape='box')
 
     for i in t.inputs.values():
       assert isinstance(i, str)
@@ -44,7 +51,7 @@ def show_stage(stage: Stage):
         g.node(i)
         seen_pcollections.add(i)
 
-      g.edge(i, t.unique_name)
+      g.edge(i, tname)
 
     for o in t.outputs.values():
       assert isinstance(o, str)
@@ -52,9 +59,9 @@ def show_stage(stage: Stage):
         g.node(o)
         seen_pcollections.add(o)
 
-      g.edge(t.unique_name, o)
+      g.edge(tname, o)
 
-  g.render('stage_graph', format='png')
+  g.render(file_name or 'stage_graph', format='png')
 
 
 def show_watermark_manager(watermark_manager: WatermarkManager, filename=None):
@@ -67,21 +74,14 @@ def show_watermark_manager(watermark_manager: WatermarkManager, filename=None):
 
   g = graphviz.Digraph()
 
-  def pcoll_node_name(pcoll_node: WatermarkManager.PCollectionNode):
-    if isinstance(pcoll_node.name, tuple):
-      return 'PCOLL_%s_%s' % pcoll_node.name
-    else:
-      return 'PCOLL_%s' % pcoll_node.name
-
   def add_node(name, shape=None, color=None, label=None):
     if name not in seen_nodes:
       seen_nodes.add(name)
-      g.node(
-          name,
-          shape=shape,
-          fillcolor=color,
-          style='filled',
-          label=name + (label or ''))
+      g.node(name,
+             shape=shape,
+             fillcolor=color,
+             style='filled',
+             label=name + (label or ''))
 
   def add_links(link_from=None, link_to=None, edge_style="solid"):
     if link_from and link_to:
@@ -97,7 +97,7 @@ def show_watermark_manager(watermark_manager: WatermarkManager, filename=None):
 
   for pcnode in watermark_manager._pcollections_by_name.values():
     assert isinstance(pcnode, WatermarkManager.PCollectionNode)
-    name = pcoll_node_name(pcnode)
+    name = _pcoll_node_name(pcnode)
     if pcnode.watermark() == timestamp.MIN_TIMESTAMP:
       color = 'aquamarine'
     elif pcnode.watermark() == timestamp.MAX_TIMESTAMP:
@@ -113,17 +113,17 @@ def show_watermark_manager(watermark_manager: WatermarkManager, filename=None):
   for node in watermark_manager._stages_by_name.values():
     stage = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
     for pcoll in node.inputs:
-      input_name = pcoll_node_name(pcoll)
+      input_name = _pcoll_node_name(pcoll)
       # Main inputs have a BOLD edge.
       add_links(link_from=input_name, link_to=stage, edge_style="bold")
     for pcoll in node.side_inputs:
       # Side inputs have a dashed edge.
-      input_name = pcoll_node_name(pcoll)
+      input_name = _pcoll_node_name(pcoll)
       add_links(link_from=input_name, link_to=stage, edge_style="dashed")
 
   for pcnode in watermark_manager._pcollections_by_name.values():
     assert isinstance(pcnode, WatermarkManager.PCollectionNode)
-    pcoll_name = pcoll_node_name(pcnode)
+    pcoll_name = _pcoll_node_name(pcnode)
     for producer in pcnode.producers:
       prod_name = 'STAGE_%s...%s' % (producer.name[:30], producer.name[-30:])
       add_links(link_from=prod_name, link_to=pcoll_name)

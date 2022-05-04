@@ -198,5 +198,6 @@ class WatermarkManager(object):
     return self._pcollections_by_name[name]
 
   def set_pcoll_watermark(self, name, watermark):
+    print('pcolls are: '+str(list(self._pcollections_by_name.keys())))
     element = self._pcollections_by_name[name]
     element.set_watermark(watermark)

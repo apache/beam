@@ -62,6 +62,7 @@ from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
+from apache_beam.runners.portability.fn_api_runner import visualization_tools
 from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
 from apache_beam.runners.portability.fn_api_runner.translations import BundleProcessResult
 from apache_beam.runners.portability.fn_api_runner.translations import DataInput
@@ -302,9 +303,7 @@ class FnApiRunner(runner.PipelineRunner):
         raise ValueError(
             'Unable to run pipeline with requirement: %s' % requirement)
     for transform in pipeline_proto.components.transforms.values():
-      if transform.spec.urn == common_urns.primitives.TEST_STREAM.urn:
-        raise NotImplementedError(transform.spec.urn)
-      elif transform.spec.urn in translations.PAR_DO_URNS:
+      if transform.spec.urn in translations.PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         for timer in payload.timer_family_specs.values():
@@ -321,6 +320,7 @@ class FnApiRunner(runner.PipelineRunner):
     return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
         phases=[
+            translations.grab_teststream_and_prepare_it,
             translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
             translations.pack_combiners,
@@ -335,6 +335,7 @@ class FnApiRunner(runner.PipelineRunner):
             translations.add_impulse_to_dangling_transforms,
             translations.setup_timer_mapping,
             translations.populate_data_channel_coders,
+            translations.print_teststream_stage,
         ],
         known_runner_urns=frozenset([
             common_urns.primitives.FLATTEN.urn,
@@ -342,6 +343,26 @@ class FnApiRunner(runner.PipelineRunner):
         ]),
         use_state_iterables=self._use_state_iterables,
         is_drain=self._is_drain)
+
+  def _apply_ts_event(self, event, stage_context: translations.TransformContext, runner_execution_context: execution.FnApiRunnerExecutionContext):
+    # TODO(pabloem): Code this up.
+    if event.WhichOneof('event') == 'element_event':
+      elems: beam_runner_api_pb2.TestStreamPayload.Event.AddElements = event.element_event
+      pcoll = stage_context.test_stream_consumer if elems.tag in (None, 'None') else elems.tag
+      print('event has pcoll' + str(pcoll))
+      bundle = (pcoll, translations.DataInput(
+          {pcoll: [e.encoded_element for e in elems.elements]},
+          {}))
+      runner_execution_context.queues.ready_inputs.enque(bundle)
+    elif event.WhichOneof('event') == 'watermark_event':
+      wm_event: beam_runner_api_pb2.TestStreamPayload.Event.AdvanceWatermark = event.watermark_event
+      pcoll = stage_context.test_stream_consumer if wm_event.tag in (None, 'None') else wm_event.tag
+      print('wm event is '+str(timestamp.Timestamp.of(wm_event.new_watermark / 1000.0)))
+      runner_execution_context.watermark_manager.set_pcoll_watermark(pcoll, timestamp.Timestamp.of(wm_event.new_watermark / 1000.0))
+    elif event.WhichOneof('event') == 'processing_time_event':
+      raise ValueError('Processing time events are not supported at the moment')
+    else:
+      raise RuntimeError('Unknown event type for: %s' % event)
 
   def run_stages(self,
                  stage_context,  # type: translations.TransformContext
@@ -382,55 +403,81 @@ class FnApiRunner(runner.PipelineRunner):
         # - Replace Data API endpoints in protobufs.
         runner_execution_context.setup()
 
+        # If we have a test stream, then we go through all events
+        test_stream_event_index = 0
+
         bundle_counter = 0
         # Start executing all ready bundles.
-        while len(runner_execution_context.queues.ready_inputs) > 0:
-          _LOGGER.debug(
-              "Remaining ready bundles: %s\n"
-              "\tWatermark pending bundles: %s\n"
-              "\tTime pending bundles: %s",
-              len(runner_execution_context.queues.ready_inputs),
-              len(runner_execution_context.queues.watermark_pending_inputs),
-              len(runner_execution_context.queues.time_pending_inputs))
-          consuming_stage_name, bundle_input = (
-              runner_execution_context.queues.ready_inputs.deque())
-          stage = runner_execution_context.stages[consuming_stage_name]
-          bundle_context_manager = runner_execution_context.bundle_manager_for(
-              stage)
-          _BUNDLE_LOGGER.debug(
-              'Running bundle for stage %s\n\tExpected outputs: %s timers: %s',
-              bundle_context_manager.stage.name,
-              bundle_context_manager.stage_data_outputs,
-              bundle_context_manager.stage_timer_outputs)
-          assert consuming_stage_name == bundle_context_manager.stage.name
+        while True:
+          if len(runner_execution_context.queues.ready_inputs) == 0:
+            # If we don't have any ready inputs, then we want to execute the
+            # next test stream event. If there is no more ready inputs, and no
+            # more test stream events to process (i.e. either there is no test
+            # stream at all, or the test stream has been fully consumed), then
+            # we can exit the pipeline.
+            if stage_context.test_stream:
+              ts_payload: beam_runner_api_pb2.TestStreamPayload = stage_context.test_stream
 
-          bundle_counter += 1
-          bundle_results = self._execute_bundle(
-              runner_execution_context, bundle_context_manager, bundle_input)
+              if test_stream_event_index >= len(ts_payload.events):
+                # We have reached the end of the test stream, and we must exit
+                break
 
-          if consuming_stage_name in monitoring_infos_by_stage:
-            monitoring_infos_by_stage[
-                consuming_stage_name] = consolidate_monitoring_infos(
-                    itertools.chain(
-                        bundle_results.process_bundle.monitoring_infos,
-                        monitoring_infos_by_stage[consuming_stage_name]))
+              event = ts_payload.events[test_stream_event_index]
+              test_stream_event_index += 1
+              self._apply_ts_event(event, stage_context, runner_execution_context)
+              continue
+            else:
+              # If there is no test stream, and there are no ready_inputs, then
+              # we break out of the execution loop.
+              break
           else:
-            assert isinstance(
-                bundle_results.process_bundle.monitoring_infos, Iterable)
-            monitoring_infos_by_stage[consuming_stage_name] = \
-              bundle_results.process_bundle.monitoring_infos
+            # If we do have ready inputs, then we process that input
+            _LOGGER.debug(
+                "Remaining ready bundles: %s\n"
+                "\tWatermark pending bunbles: %s\n"
+                "\tTime pending bunbles: %s",
+                len(runner_execution_context.queues.ready_inputs),
+                len(runner_execution_context.queues.watermark_pending_inputs),
+                len(runner_execution_context.queues.time_pending_inputs))
+            consuming_stage_name, bundle_input = (
+                runner_execution_context.queues.ready_inputs.deque())
+            stage = runner_execution_context.stages[consuming_stage_name]
+            # visualization_tools.show_stage(
+            # stage, stage.name[:50].replace('/', '').replace('(', '').replace(')', ''))
+            bundle_context_manager = runner_execution_context.bundle_manager_for(
+                stage)
+            _BUNDLE_LOGGER.debug(
+                'Running bundle for stage %s\n\tExpected outputs: %s timers: %s',
+                bundle_context_manager.stage.name,
+                bundle_context_manager.stage_data_outputs,
+                bundle_context_manager.stage_timer_outputs)
+            assert consuming_stage_name == bundle_context_manager.stage.name
 
-          # Within monitoring_infos_by_stage we also keep monitoring information
-          # for the whole pipeline, which we key under ''.
-          if '' not in monitoring_infos_by_stage:
-            monitoring_infos_by_stage[''] = list(
-                pipeline_metrics.to_runner_api_monitoring_infos('').values())
-          else:
-            monitoring_infos_by_stage[''] = consolidate_monitoring_infos(
-                itertools.chain(
-                    pipeline_metrics.to_runner_api_monitoring_infos(
-                        '').values(),
-                    monitoring_infos_by_stage['']))
+            bundle_counter += 1
+            bundle_results = self._execute_bundle(
+                runner_execution_context, bundle_context_manager, bundle_input)
+
+            if consuming_stage_name in monitoring_infos_by_stage:
+              monitoring_infos_by_stage[
+                  consuming_stage_name] = consolidate_monitoring_infos(
+                      itertools.chain(
+                          bundle_results.process_bundle.monitoring_infos,
+                          monitoring_infos_by_stage[consuming_stage_name]))
+            else:
+              assert isinstance(
+                  bundle_results.process_bundle.monitoring_infos, Iterable)
+              monitoring_infos_by_stage[consuming_stage_name] = \
+                bundle_results.process_bundle.monitoring_infos
+
+            if '' not in monitoring_infos_by_stage:
+              monitoring_infos_by_stage[''] = list(
+                  pipeline_metrics.to_runner_api_monitoring_infos('').values())
+            else:
+              monitoring_infos_by_stage[''] = consolidate_monitoring_infos(
+                  itertools.chain(
+                      pipeline_metrics.to_runner_api_monitoring_infos(
+                          '').values(),
+                      monitoring_infos_by_stage['']))
 
           # We only compute new ready bundles whenever we run out of current
           # ready bundles, but we could do it after every new bundle and

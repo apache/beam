@@ -381,8 +381,6 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(
           p | beam.Create(inputs) | beam.ParDo(AddIndex()), equal_to(expected))
 
-  @unittest.skip('TestStream not yet supported')
-  @retry(stop=stop_after_attempt(3))
   def test_teststream_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
@@ -403,14 +401,14 @@ class FnApiRunnerTest(unittest.TestCase):
         .advance_watermark_to(1000))
 
     with self.create_pipeline() as p:
-      _ = (
+      actual = (
           p
           | ts
           | beam.ParDo(TimerDoFn())
           | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
 
-      #expected = [('fired', ts) for ts in (20, 200)]
-      #assert_that(actual, equal_to(expected))
+      expected = [('fired', ts) for ts in (20, 200)]
+      assert_that(actual, equal_to(expected))
 
   @retry(stop=stop_after_attempt(3))
   def test_pardo_timers(self):
