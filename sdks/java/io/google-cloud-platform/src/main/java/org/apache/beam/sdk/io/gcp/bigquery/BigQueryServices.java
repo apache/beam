@@ -207,6 +207,14 @@ public interface BigQueryServices extends Serializable {
     ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
 
     /**
+     * If the previous call to appendRows blocked due to flow control, returns how long the call
+     * blocked for.
+     */
+    default long getInflightWaitSeconds() {
+      return 0;
+    }
+
+    /**
      * Pin this object. If close() is called before all pins are removed, the underlying resources
      * will not be freed until all pins are removed.
      */
