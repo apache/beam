@@ -456,17 +456,24 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     self.assertNotIn(known_meta.master_url, self.clusters.master_urls)
     self.assertIsNone(self.clusters.default_cluster_metadata)
 
-  def test_cleanup_everything(self):
+  def test_force_cleanup_everything(self):
     meta = ClusterMetadata(project_id='test-project')
     meta2 = ClusterMetadata(project_id='test-project-2')
     _ = self.clusters.create(meta)
     _ = self.clusters.create(meta2)
 
-    self.clusters.cleanup()
+    self.clusters.cleanup(force=True)
     self.assertEqual(self.m_delete_cluster.call_count, 2)
     self.assertNotIn(meta, self.clusters.dataproc_cluster_managers)
     self.assertNotIn(meta2, self.clusters.dataproc_cluster_managers)
     self.assertIsNone(self.clusters.default_cluster_metadata)
+
+  def test_cleanup_noop_for_no_cluster_identifier(self):
+    meta = ClusterMetadata(project_id='test-project')
+    _ = self.clusters.create(meta)
+
+    self.clusters.cleanup()
+    self.m_delete_cluster.assert_not_called()
 
   def test_cleanup_noop_unknown_cluster(self):
     meta = ClusterMetadata(project_id='test-project')

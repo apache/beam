@@ -375,7 +375,8 @@ class Clusters:
 
     An example::
 
-      # dcm == ib.clusters.pipelines.get(pipeline), no cluster is newly created.
+      # If pipeline runs on a known cluster, below code reuses the cluster
+      # manager without creating a new one.
       dcm = ib.clusters.create(pipeline)
 
   To configure a pipeline to run on an existing FlinkRunner deployed elsewhere,
@@ -440,19 +441,30 @@ class Clusters:
     return dcm
 
   def cleanup(
-      self, cluster_identifier: Optional[ClusterIdentifier] = None) -> None:
+      self,
+      cluster_identifier: Optional[ClusterIdentifier] = None,
+      force: bool = False) -> None:
     """Cleans up the cluster associated with the given cluster_identifier.
 
-    If None cluster_identifier is provided, cleans up for all clusters.
+    When None cluster_identifier is provided: if force is True, cleans up for
+    all clusters; otherwise, do a dry run and NOOP.
     If a beam.Pipeline is given as the ClusterIdentifier while multiple
     pipelines share the same cluster, it only cleans up the association between
     the pipeline and the cluster identified.
     If the cluster_identifier is unknown, NOOP.
     """
-    if not cluster_identifier:  # Cleans up everything.
-      for dcm in set(self.dataproc_cluster_managers.values()):
-        self._cleanup(dcm)
-      self.default_cluster_metadata = None
+    if not cluster_identifier:
+      dcm_to_cleanup = set(self.dataproc_cluster_managers.values())
+      if force:
+        for dcm in dcm_to_cleanup:
+          self._cleanup(dcm)
+        self.default_cluster_metadata = None
+      else:
+        _LOGGER.warning(
+            'No cluster_identifier provided. If you intend to '
+            'clean up all clusters, invoke ib.clusters.cleanup(force=True). '
+            'Current clusters are %s.',
+            self.describe())
     elif isinstance(cluster_identifier, beam.Pipeline):
       p = cluster_identifier
       dcm = self.pipelines.pop(p, None)

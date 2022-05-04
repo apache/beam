@@ -497,7 +497,7 @@ class TuneForFlinkTest(unittest.TestCase):
         underlying_runner=FlinkRunner())
     options = PipelineOptions(project='test-project', region='test-region')
     p = beam.Pipeline(runner=runner, options=options)
-    runner.tune_for_flink(p, options)
+    runner.configure_for_flink(p, options)
 
     # Fetch the metadata and assert all side effects.
     meta = clusters.cluster_metadata(p)
@@ -529,7 +529,7 @@ class TuneForFlinkTest(unittest.TestCase):
     dcm = DataprocClusterManager(meta)
     # Configure the clusters so that the pipeline is known.
     clusters.pipelines[p] = dcm
-    runner.tune_for_flink(p, options)
+    runner.configure_for_flink(p, options)
 
     # A known cluster is reused.
     tuned_meta = clusters.cluster_metadata(p)
@@ -546,7 +546,7 @@ class TuneForFlinkTest(unittest.TestCase):
     # Configure the clusters so that the cluster is known.
     clusters.dataproc_cluster_managers[meta] = dcm
     clusters.set_default_cluster(meta)
-    runner.tune_for_flink(p, options)
+    runner.configure_for_flink(p, options)
 
     # A known cluster is reused.
     tuned_meta = clusters.cluster_metadata(p)
@@ -570,7 +570,7 @@ class TuneForFlinkTest(unittest.TestCase):
     # Configure the clusters so that a default cluster is known.
     clusters.dataproc_cluster_managers[meta] = dcm
     clusters.set_default_cluster(meta)
-    runner.tune_for_flink(p, options)
+    runner.configure_for_flink(p, options)
 
     # The default cluster is used.
     tuned_meta = clusters.cluster_metadata(p)

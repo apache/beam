@@ -284,7 +284,7 @@ class InteractiveEnvironment(object):
       # we don't need to clean it up here.
       if cache_manager and pipeline_id not in self._recording_managers:
         cache_manager.cleanup()
-    self.clusters.cleanup()
+    self.clusters.cleanup(force=True)
 
   def cleanup(self, pipeline=None):
     """Cleans up cached states for the given pipeline. Noop if the given

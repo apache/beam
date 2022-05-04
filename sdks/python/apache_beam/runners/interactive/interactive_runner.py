@@ -140,7 +140,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
     from apache_beam.runners.portability.flink_runner import FlinkRunner
     if isinstance(self._underlying_runner, FlinkRunner):
-      self.tune_for_flink(user_pipeline, options)
+      self.configure_for_flink(user_pipeline, options)
 
     pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
@@ -218,7 +218,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
     return main_job_result
 
-  def tune_for_flink(
+  def configure_for_flink(
       self, user_pipeline: beam.Pipeline, options: PipelineOptions) -> None:
     """Tunes the pipeline options for the setup of running a job with Flink.
     """
