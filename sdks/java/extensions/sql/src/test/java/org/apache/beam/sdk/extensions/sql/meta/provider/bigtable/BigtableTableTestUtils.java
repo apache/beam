@@ -180,7 +180,7 @@ class BigtableTableTestUtils {
   }
 
   static com.google.bigtable.v2.Row[] bigTableSegmentedRows() {
-    com.google.bigtable.v2.Row[] res = new com.google.bigtable.v2.Row[5];
+    com.google.bigtable.v2.Row[] rows = new com.google.bigtable.v2.Row[5];
     List<Column> columns =
         ImmutableList.of(
             column("boolColumn", booleanToByteArray(true)),
@@ -189,13 +189,13 @@ class BigtableTableTestUtils {
             column("stringColumn", "stringValue".getBytes(UTF_8)));
     Family family = Family.newBuilder().setName("familyTest").addAllColumns(columns).build();
     for (int i = 0; i < 5; i++) {
-      res[i] =
+      rows[i] =
           com.google.bigtable.v2.Row.newBuilder()
               .setKey(byteStringUtf8("key" + i))
               .addFamilies(family)
               .build();
     }
-    return res;
+    return rows;
   }
 
   // There is no possibility to insert a value with fixed timestamp so we have to replace it

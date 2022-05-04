@@ -243,7 +243,6 @@ class BigtableServiceImpl implements BigtableService {
     private ByteString lastFetchedRow;
     private boolean lastFillComplete;
     private boolean byteLimitReached;
-    private long bufferByteLimit;
 
     private final int segmentLimit;
     private final int segmentWaterMark;
@@ -257,10 +256,6 @@ class BigtableServiceImpl implements BigtableService {
       } else {
         this.segmentLimit = DEFAULT_SEGMENT_SIZE;
       }
-      long availableMemory =
-          Runtime.getRuntime().maxMemory()
-              - (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory());
-      this.bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * availableMemory);
       // Asynchronously refill buffer when there is 10% of the elements are left
       this.segmentWaterMark = segmentLimit / 10;
       tableName = session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
@@ -344,7 +339,7 @@ class BigtableServiceImpl implements BigtableService {
       long availableMemory =
           Runtime.getRuntime().maxMemory()
               - (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory());
-      bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * availableMemory);
+      long bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * availableMemory);
       // TODO(diegomez): Remove atomic ScanHandler for simpler StreamObserver/Future implementation
       AtomicReference<ScanHandler> atomic = new AtomicReference<>();
       ScanHandler handler;

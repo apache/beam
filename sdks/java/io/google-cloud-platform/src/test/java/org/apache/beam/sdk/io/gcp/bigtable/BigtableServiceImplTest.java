@@ -231,8 +231,9 @@ public class BigtableServiceImplTest {
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
    * uses two ranges with MINI_BATCH_ROW_LIMIT rows. The buffer should be refilled twice and
-   * ReadRowsAsync should be called twice. The following test follows this example: FirstRange:
-   * [a,b1,...,b99,c) SecondRange: [c,d1,...,d99,e)
+   * ReadRowsAsync should be called three times. The last rpc call should return zero rows.
+   * The following test follows this example: FirstRange: [a,b1,...,b99,c)
+   * SecondRange: [c,d1,...,d99,e)
    *
    * @throws IOException
    */
@@ -298,9 +299,10 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
-   * uses three overlapping ranges. The logic should remove all keys that were added to the buffer.
-   * The following test follows this example: FirstRange: [a,b1,...,b99,b100) SecondRange:
-   * [b50,b51...b100,d1,...,d199,c) ThirdRange: [b70, c)
+   * uses three overlapping ranges. The logic should remove all keys that were already added to
+   * the buffer. The following test follows this example:
+   * FirstRange: [a,b1,...,b99,b100) SecondRange: [b50,b51...b100,d1,...,d199,c)
+   * ThirdRange: [b70, c)
    *
    * @throws IOException
    */
@@ -435,6 +437,8 @@ public class BigtableServiceImplTest {
     }
     Assert.assertFalse(underTest.advance());
     underTest.close();
+
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 4);
   }
 
   /**
@@ -526,7 +530,7 @@ public class BigtableServiceImplTest {
   }
 
   /**
-   * This test checks that the buffer will not fill up once the byte limit is reached. It will
+   * This test checks that the buffer will stop filling up once the byte limit is reached. It will
    * cancel the ScanHandler after reached the limit. This test completes one fill and contains one
    * Row after the first buffer has been completed. The test cheaks the current available memory in
    * the JVM and uses a percent of it to mock the original behavior.
