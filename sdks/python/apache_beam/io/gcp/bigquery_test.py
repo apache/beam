@@ -836,32 +836,6 @@ class TestWriteToBigQuery(unittest.TestCase):
               with_auto_sharding=True,
               test_client=client))
 
-  def test_insert_all_handles_exception_forbidden(self):
-    def insert_all_mock(table, **kwargs):
-      return []
-
-    client = mock.Mock()
-    client.insert_rows_json = mock.Mock(side_effect=insert_all_mock)
-    opt = StandardOptions()
-    opt.streaming = True
-    with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
-      _ = (
-          p
-          | beam.Create([{
-              'columnA': 'value1'
-          }])
-          | WriteToBigQuery(
-              table='project:dataset.table',
-              schema={
-                  'fields': [{
-                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
-                  }]
-              },
-              create_disposition='CREATE_NEVER',
-              method='STREAMING_INSERTS',
-              with_auto_sharding=True,
-              test_client=client))
-
 
 class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
