@@ -56,6 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -83,6 +84,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -111,10 +113,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -1615,6 +1619,82 @@ public class KafkaIOTest {
     }
   }
 
+  private static class StaticProducerFactory
+      implements SerializableFunction<Map<String, Object>, Producer<Integer, Long>> {
+    final Producer<Integer,Long> producer;
+
+    StaticProducerFactory(Producer<Integer,Long> producer) {
+      this.producer = producer;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Producer<Integer, Long> apply(Map<String, Object> config) {
+
+      // Make sure the config is correctly set up for serializers.
+      Utils.newInstance(
+              (Class<? extends Serializer<?>>)
+                  ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
+                      .asSubclass(Serializer.class))
+          .configure(config, true);
+
+      Utils.newInstance(
+              (Class<? extends Serializer<?>>)
+                  ((Class<?>) config.get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG))
+                      .asSubclass(Serializer.class))
+          .configure(config, false);
+
+      // Returning same producer in each instance in a pipeline seems to work fine currently.
+      // If DirectRunner creates multiple DoFn instances for sinks, we might need to handle
+      // it appropriately. I.e. allow multiple producers for each producerKey and concatenate
+      // all the messages written to each producer for verification after the pipeline finishes.
+
+      return producer;
+    }
+  }
+
+  private static final Producer<Integer,Long> sendErrorProducer = new MockProducer<Integer, Long>(false, new IntegerSerializer(), new LongSerializer()){
+    @Override
+    public synchronized Future<RecordMetadata> send(ProducerRecord<Integer, Long> record, Callback callback){
+      throw new KafkaException("fakeException");
+    }
+  };
+
+  @Test
+  public void testExactlyOnceSinkWithSendException() throws Throwable {
+
+    if (!ProducerSpEL.supportsTransactions()) {
+      LOG.warn(
+          "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
+      return;
+    }
+
+    // thrown.expect(KafkaException.class);
+    // thrown.expectMessage("fakeException");
+
+    String topic = "test";
+
+    p.apply(Create.of(Arrays.asList(KV.of(1,1L),KV.of(2,2L))))
+          .apply(
+              KafkaIO.<Integer, Long>write()
+                  .withBootstrapServers("none")
+                  .withTopic(topic)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withEOS(1, "test")
+                  .withConsumerFactoryFn(
+                      new ConsumerFactoryFn(
+                          Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                  .withProducerFactoryFn(new StaticProducerFactory(sendErrorProducer)));
+
+      try {
+        p.run();
+      } catch (PipelineExecutionException e) {
+        // throwing inner exception helps assert that first exception is thrown from the Sink
+        throw e.getCause().getCause();
+      }
+  }
+
   @Test
   public void testSinkWithSendErrors() throws Throwable {
     // similar to testSink(), except that up to 10 of the send calls to producer will fail
@@ -1804,6 +1884,8 @@ public class KafkaIOTest {
       completionThread.shutdown();
     }
   }
+
+
 
   private static void verifyProducerRecords(
       MockProducer<Integer, Long> mockProducer,
