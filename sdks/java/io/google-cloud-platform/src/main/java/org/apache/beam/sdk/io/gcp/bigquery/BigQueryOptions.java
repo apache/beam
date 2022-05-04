@@ -93,7 +93,10 @@ public interface BigQueryOptions
   void setUseStorageWriteApiAtLeastOnce(Boolean value);
 
   @Description(
-      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams.")
+      "If set, then BigQueryIO.Write will default to using this number of Storage Write API streams. "
+              + "The number of streams indicated will be allocated at a per worker and destination basis, "
+              + "a high number can cause a large pipeline to go over the BigQuery connection quota quickly. "
+              + "With low-mid volume pipelines using the default configuration should be enough.")
   @Default.Integer(0)
   Integer getNumStorageWriteApiStreams();
 
@@ -129,4 +132,10 @@ public interface BigQueryOptions
   Integer getStorageApiAppendThresholdBytes();
 
   void setStorageApiAppendThresholdBytes(Integer value);
+  
+  @Description("Maximum (best effort) record count of a single append to the storage API.")
+  @Default.Integer(150000)
+  Integer getStorageApiAppendThresholdRecordCount();
+
+  void setStorageApiAppendThresholdRecordCount(Integer value);
 }

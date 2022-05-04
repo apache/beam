@@ -29,6 +29,9 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -86,15 +89,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   // (any access of the cache could trigger element expiration). Therefore most used of
   // APPEND_CLIENTS should
   // synchronize.
-  private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
+  private static final Cache<String, List<StreamAppendClient>> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
           .expireAfterAccess(15, TimeUnit.MINUTES)
           .removalListener(
-              (RemovalNotification<String, StreamAppendClient> removal) -> {
+              (RemovalNotification<String, List<StreamAppendClient>> removal) -> {
                 LOG.info("Expiring append client for " + removal.getKey());
-                @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
-                // Close the writer in a different thread so as not to block the main one.
-                runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
+                @Nullable final List<StreamAppendClient> streamAppendClients = removal.getValue();
+                streamAppendClients.forEach(
+                    (StreamAppendClient client) -> {
+                      // Close the writer in a different thread so as not to block the main one.
+                      runAsyncIgnoreFailure(closeWriterExecutor, client::close);
+                    });
               })
           .build();
 
@@ -129,6 +135,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    // default value from options is 0, so we set at least one client 
+    Integer numStreams = options.getNumStorageWriteApiStreams() == 0 
+            ? 1 
+            : options.getNumStorageWriteApiStreams();
     return input
         .apply(
             "Write Records",
@@ -138,7 +148,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         dynamicDestinations,
                         bqServices,
                         false,
-                        options.getStorageApiAppendThresholdBytes()))
+                        options.getStorageApiAppendThresholdBytes(),
+                        options.getStorageApiAppendThresholdRecordCount(),
+                        numStreams))
                 .withSideInputs(dynamicDestinations.getSideInputs()))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         // Calling Reshuffle makes the output stable - once this completes, the append operations
@@ -171,18 +183,23 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private final boolean useDefaultStream;
       private DescriptorWrapper descriptorWrapper;
       private Instant nextCacheTickle;
+      private final int streamAppendClientCount;
+      private final int clientNumber;
 
       public DestinationState(
           String tableUrn,
           MessageConverter<ElementT> messageConverter,
           DatasetService datasetService,
-          boolean useDefaultStream) {
+          boolean useDefaultStream,
+          int streamAppendClientCount) {
         this.tableUrn = tableUrn;
         this.messageConverter = messageConverter;
         this.pendingMessages = Lists.newArrayList();
         this.datasetService = datasetService;
         this.useDefaultStream = useDefaultStream;
         this.descriptorWrapper = messageConverter.getSchemaDescriptor();
+        this.streamAppendClientCount = streamAppendClientCount;
+        this.clientNumber = new Random().nextInt(streamAppendClientCount);
       }
 
       void teardown() {
@@ -212,6 +229,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
         return this.streamName;
       }
+      
+      List<StreamAppendClient> generateClients(){
+        return IntStream.range(0, streamAppendClientCount)
+                .mapToObj(i -> {
+                  try {
+                    StreamAppendClient client = 
+                      datasetService.getStreamAppendClient(
+                                streamName, descriptorWrapper.descriptor);
+                    return client;
+                  } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                  }
+                })
+                .collect(Collectors.toList());
+      }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
         try {
@@ -220,15 +252,19 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             synchronized (APPEND_CLIENTS) {
               if (lookupCache) {
                 this.streamAppendClient =
-                    APPEND_CLIENTS.get(
-                        streamName,
-                        () ->
-                            datasetService.getStreamAppendClient(
-                                streamName, descriptorWrapper.descriptor));
+                    APPEND_CLIENTS
+                            .get(streamName, () -> generateClients())
+                            .get(clientNumber);
               } else {
+                // TODO (rpablo): this dance may make connections 
+                // go over quota for a short period of time, need to check
+
+                // override the clients in the cache
+                APPEND_CLIENTS.put(streamName, generateClients());
                 this.streamAppendClient =
-                    datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
-                APPEND_CLIENTS.put(streamName, this.streamAppendClient);
+                    APPEND_CLIENTS
+                            .get(streamName, () -> generateClients())
+                            .get(clientNumber); 
               }
               this.streamAppendClient.pin();
             }
@@ -263,9 +299,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             // thread has already invalidated
             // and recreated the stream).
             @Nullable
-            StreamAppendClient cachedAppendClient = APPEND_CLIENTS.getIfPresent(streamName);
-            if (cachedAppendClient != null
-                && System.identityHashCode(cachedAppendClient)
+            List<StreamAppendClient> cachedAppendClients = APPEND_CLIENTS.getIfPresent(streamName);
+            if (cachedAppendClients != null
+                && System.identityHashCode(cachedAppendClients.get(clientNumber))
                     == System.identityHashCode(streamAppendClient)) {
               APPEND_CLIENTS.invalidate(streamName);
             }
@@ -357,27 +393,33 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private transient @Nullable DatasetService datasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
-    private static final int FLUSH_THRESHOLD_RECORDS = 150000;
     private final int flushThresholdBytes;
+    private final int flushThresholdCount;
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
-
+    // default append client count to 1
+    private Integer streamAppendClientCount = 1;
+    
     WriteRecordsDoFn(
         String operationName,
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
         boolean useDefaultStream,
-        int flushThresholdBytes) {
+        int flushThresholdBytes,
+        int flushThresholdCount,
+        int streamAppendClientCount) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
       this.useDefaultStream = useDefaultStream;
       this.flushThresholdBytes = flushThresholdBytes;
+      this.flushThresholdCount = flushThresholdCount;
+      this.streamAppendClientCount = streamAppendClientCount;
     }
 
     boolean shouldFlush() {
-      return numPendingRecords > FLUSH_THRESHOLD_RECORDS
+      return numPendingRecords > flushThresholdCount
           || numPendingRecordBytes > flushThresholdBytes;
     }
 
@@ -432,7 +474,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         throw new RuntimeException(e);
       }
       return new DestinationState(
-          tableDestination1.getTableUrn(), messageConverter, datasetService, useDefaultStream);
+              tableDestination1.getTableUrn(), 
+              messageConverter, 
+              datasetService, 
+              useDefaultStream, 
+              streamAppendClientCount);
     }
 
     @ProcessElement
