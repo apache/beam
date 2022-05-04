@@ -1975,6 +1975,8 @@ public class SpannerIO {
 
       projectId =
           this.spannerConfig.getProjectId() == null
+                  || this.spannerConfig.getProjectId().get() == null
+                  || this.spannerConfig.getProjectId().get().isEmpty()
               ? SpannerOptions.getDefaultProjectId()
               : this.spannerConfig.getProjectId().get();
     }
