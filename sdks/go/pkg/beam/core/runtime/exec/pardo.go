@@ -174,17 +174,22 @@ func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation,
 	if err != nil {
 		return nil, n.fail(err)
 	}
-	if mainIn.RTracker != nil && val.Continuation == nil && !mainIn.RTracker.IsDone() {
-		return nil, rtErrHelper(mainIn.RTracker.GetError())
-	}
 
 	// Forward direct output, if any. It is always a main output.
 	if val != nil {
+		// Check for incomplete processing of a restriction without a checkpoint
+		if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() && val.Continuation == nil {
+			return nil, rtErrHelper(mainIn.RTracker.GetError())
+		}
 		// We do not forward a ProcessContinuation on its own
 		if val.Elm == nil {
 			return val.Continuation, nil
 		}
 		return val.Continuation, n.Out[0].ProcessElement(n.ctx, val)
+	} else {
+		if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+			return nil, rtErrHelper(mainIn.RTracker.GetError())
+		}
 	}
 	return nil, nil
 }
