@@ -88,7 +88,7 @@ def batchScenarios = {
         autoscaling_algorithm: 'NONE',
         environment_type     : 'DOCKER',
         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-      
+
       ]
     ],
     [
@@ -120,7 +120,7 @@ def batchScenarios = {
         autoscaling_algorithm: 'NONE',
         environment_type     : 'DOCKER',
         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-      
+
       ]
     ],
     [
@@ -152,7 +152,7 @@ def batchScenarios = {
         autoscaling_algorithm: 'NONE',
         environment_type     : 'DOCKER',
         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
-      
+
       ]
     ],
   ]
