@@ -34,8 +34,7 @@ from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
-from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import MasterURLIdentifier
+from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.utils import to_element_list
@@ -248,6 +247,7 @@ class InteractiveRunner(runners.PipelineRunner):
       '--environment_type=DOCKER'
       ])
     """
+    from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
     from apache_beam.runners.portability.flink_runner import FlinkRunner
     flink_master = user_pipeline.options.view_as(
         FlinkRunnerOptions).flink_master
@@ -267,9 +267,16 @@ class InteractiveRunner(runners.PipelineRunner):
               category=DeprecationWarning)
         project_id = (user_pipeline.options.view_as(GoogleCloudOptions).project)
         region = (user_pipeline.options.view_as(GoogleCloudOptions).region)
-        cluster_name = ie.current_env().clusters.default_cluster_name
-        cluster_metadata = MasterURLIdentifier(
-            project_id=project_id, region=region, cluster_name=cluster_name)
+        if not project_id:
+          # When a Google Cloud project is not specified, we try to set the
+          # cluster_metadata to be the default value set from the
+          # 'Manage Clusters' JupyterLab extension. If a value has not been
+          # specified, this value defaults to None.
+          cluster_metadata = ie.current_env().clusters.default_cluster_metadata
+        else:
+          cluster_name = ie.current_env().clusters.default_cluster_name
+          cluster_metadata = MasterURLIdentifier(
+              project_id=project_id, region=region, cluster_name=cluster_name)
       else:
         cluster_metadata = clusters.master_urls.get(flink_master, None)
       # else noop, no need to log anything because we allow a master_url

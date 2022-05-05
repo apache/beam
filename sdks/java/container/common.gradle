@@ -83,7 +83,7 @@ task copyJdkOptions(type: Copy) {
 
 task skipPullLicenses(type: Exec) {
     executable "sh"
-    args "-c", "mkdir -p build/target/go-licenses build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+    args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
 }
 
 docker {

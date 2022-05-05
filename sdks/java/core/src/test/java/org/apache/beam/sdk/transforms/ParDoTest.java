@@ -4121,15 +4121,16 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesLoopingTimer.class
+      UsesLoopingTimer.class,
+      UsesStrictTimerOrdering.class
     })
     public void testEventTimeTimerLoop() {
       final String stateId = "count";
       final String timerId = "timer";
       final int loopCount = 5;
 
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
+      DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+          new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
             @TimerId(timerId)
             private final TimerSpec loopSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
@@ -4141,27 +4142,47 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer) {
+              countState.write(0);
               loopTimer.offset(Duration.millis(1)).setRelative();
             }
 
             @OnTimer(timerId)
             public void onLoopTimer(
+                @Key String key,
                 @StateId(stateId) ValueState<Integer> countState,
                 @TimerId(timerId) Timer loopTimer,
-                OutputReceiver<Integer> r) {
-              int count = MoreObjects.firstNonNull(countState.read(), 0);
+                OutputReceiver<KV<String, Integer>> r) {
+              int count = Preconditions.checkNotNull(countState.read());
               if (count < loopCount) {
-                r.output(count);
+                r.output(KV.of(key, count));
                 countState.write(count + 1);
                 loopTimer.offset(Duration.millis(1)).setRelative();
               }
             }
           };
 
-      PCollection<Integer> output =
-          pipeline.apply(Create.of(KV.of("hello", 42))).apply(ParDo.of(fn));
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(Create.of(KV.of("hello1", 42), KV.of("hello2", 42), KV.of("hello3", 42)))
+              .apply(ParDo.of(fn));
 
-      PAssert.that(output).containsInAnyOrder(0, 1, 2, 3, 4);
+      PAssert.that(output)
+          .containsInAnyOrder(
+              KV.of("hello1", 0),
+              KV.of("hello1", 1),
+              KV.of("hello1", 2),
+              KV.of("hello1", 3),
+              KV.of("hello1", 4),
+              KV.of("hello2", 0),
+              KV.of("hello2", 1),
+              KV.of("hello2", 2),
+              KV.of("hello2", 3),
+              KV.of("hello2", 4),
+              KV.of("hello3", 0),
+              KV.of("hello3", 1),
+              KV.of("hello3", 2),
+              KV.of("hello3", 3),
+              KV.of("hello3", 4));
       pipeline.run();
     }
 

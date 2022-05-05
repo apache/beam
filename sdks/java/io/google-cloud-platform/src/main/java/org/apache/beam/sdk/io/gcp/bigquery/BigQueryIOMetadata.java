@@ -63,6 +63,13 @@ final class BigQueryIOMetadata {
     return jobLabels;
   }
 
+  /*
+   * Returns the beam job id. Can be null if it is not running on Dataflow.
+   */
+  public String getBeamJobId() {
+    return this.beamJobId;
+  }
+
   /**
    * Returns true if label_value is a valid cloud label string. This function can return false in
    * cases where the label value is valid. However, it will not return true in a case where the

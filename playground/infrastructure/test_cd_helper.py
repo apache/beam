@@ -110,10 +110,20 @@ def test__save_to_cloud_storage(mocker):
   Args:
       mocker: mocker fixture from pytest-mocker
   """
+  expected_cloud_path = "SDK_JAVA/Example/example.java"
+  object_meta = {
+      "name": "name",
+      "description": "description",
+      "multifile": False,
+      "categories": ["category-1", "category-2"],
+      "pipeline_options": "--option option",
+      "default_example": True
+  }
   upload_blob_mock = mocker.patch(
       "cd_helper.CDHelper._upload_blob", return_value=upload_blob)
   write_to_os_mock = mocker.patch(
-      "cd_helper.CDHelper._write_to_local_fs", return_value={"": ""})
+      "cd_helper.CDHelper._write_to_local_fs",
+      return_value={expected_cloud_path: ""})
   example = Example(
       name="name",
       pipeline_id="pipeline_id",
@@ -122,12 +132,13 @@ def test__save_to_cloud_storage(mocker):
       code="code_of_example",
       output="output_of_example",
       status=STATUS_UNSPECIFIED,
-      tag=None,
+      tag=Tag(**object_meta),
       link="link")
 
   CDHelper()._save_to_cloud_storage([example])
   write_to_os_mock.assert_called_with(example)
-  upload_blob_mock.assert_called_with(source_file="", destination_blob_name="")
+  upload_blob_mock.assert_called_with(
+      source_file="", destination_blob_name=expected_cloud_path)
 
 
 def test__write_default_example_path_to_local_fs(delete_temp_folder):
@@ -145,3 +156,10 @@ def test__write_default_example_path_to_local_fs(delete_temp_folder):
       default_example_path)
   assert cloud_path == expected_result
   assert os.path.exists(os.path.join("temp", cloud_path))
+
+
+def test__clear_temp_folder():
+  if not os.path.exists(Config.TEMP_FOLDER):
+    os.mkdir(Config.TEMP_FOLDER)
+  CDHelper()._clear_temp_folder()
+  assert os.path.exists(Config.TEMP_FOLDER) is False

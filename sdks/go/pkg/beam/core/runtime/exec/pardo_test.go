@@ -187,10 +187,6 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 	if err != nil {
 		b.Fatalf("invalid pardo: %v", err)
 	}
-	var in []int
-	for i := 0; i < b.N; i++ {
-		in = append(in)
-	}
 
 	process := make(chan MainInput, 1)
 	errchan := make(chan string, 1)

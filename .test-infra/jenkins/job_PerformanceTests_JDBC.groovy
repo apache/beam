@@ -24,7 +24,7 @@ String jobName = "beam_PerformanceTests_JDBC"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate, 'H */6 * * *')
+  common.setAutoJob(delegate, 'H H/6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java JdbcIO Performance Test',

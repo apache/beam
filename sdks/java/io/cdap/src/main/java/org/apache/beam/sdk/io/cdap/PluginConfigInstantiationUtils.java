@@ -25,6 +25,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 public class PluginConfigInstantiationUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginConfigInstantiationUtils.class);
+  private static final String MACRO_FIELDS_FIELD_NAME = "macroFields";
 
   /**
    * Method for instantiating {@link PluginConfig} object of specific class {@param configClass}.
@@ -58,8 +60,7 @@ public class PluginConfigInstantiationUtils {
     while (currClass != null && !currClass.equals(Object.class)) {
       allFields.addAll(
           Arrays.stream(currClass.getDeclaredFields())
-              .filter(
-                  f -> !Modifier.isStatic(f.getModifiers()) && f.isAnnotationPresent(Name.class))
+              .filter(f -> !Modifier.isStatic(f.getModifiers()))
               .collect(Collectors.toList()));
       currClass = currClass.getSuperclass();
     }
@@ -82,6 +83,12 @@ public class PluginConfigInstantiationUtils {
             field.set(config, fieldValue);
           } catch (IllegalAccessException e) {
             LOG.error("Can not set a field with value {}", fieldValue);
+          }
+        } else if (field.getName().equals(MACRO_FIELDS_FIELD_NAME)) {
+          try {
+            field.set(config, Collections.emptySet());
+          } catch (IllegalAccessException e) {
+            LOG.error("Can not set macro fields");
           }
         }
       }

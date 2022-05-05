@@ -195,6 +195,8 @@ abstract class BatchSpannerRead
       spannerAccessor = SpannerAccessor.getOrCreate(config);
       projectId =
           this.config.getProjectId() == null
+                  || this.config.getProjectId().get() == null
+                  || this.config.getProjectId().get().isEmpty()
               ? SpannerOptions.getDefaultProjectId()
               : this.config.getProjectId().get();
     }

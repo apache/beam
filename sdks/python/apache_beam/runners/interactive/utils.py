@@ -36,7 +36,7 @@ from apache_beam.internal.gcp import auth
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.pipeline import Pipeline
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
@@ -97,7 +97,7 @@ class bidict(dict):
     return value, inverse_value
 
 def to_element_list(
-    reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
+    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]]
     coder,  # type: Coder
     include_window_info,  # type: bool
     n=None,  # type: int
@@ -112,7 +112,7 @@ def to_element_list(
   # elements read. Otherwise, the count limit would need to be duplicated.
   def elements():
     for e in reader:
-      if isinstance(e, TestStreamPayload.Event):
+      if isinstance(e, beam_runner_api_pb2.TestStreamPayload.Event):
         if (e.HasField('watermark_event') or
             e.HasField('processing_time_event')):
           if include_time_events:
@@ -138,7 +138,7 @@ def to_element_list(
 
     yield e
 
-    if not isinstance(e, TestStreamPayload.Event):
+    if not isinstance(e, beam_runner_api_pb2.TestStreamPayload.Event):
       count += 1
 
 
@@ -228,8 +228,8 @@ class IPythonLogHandler(logging.Handler):
   def emit(self, record):
     try:
       from html import escape
-      from IPython.core.display import HTML
-      from IPython.core.display import display
+      from IPython.display import HTML
+      from IPython.display import display
       display(HTML(_INTERACTIVE_LOG_STYLE))
       display(
           HTML(
@@ -269,8 +269,8 @@ class ProgressIndicator(object):
 
   def __enter__(self):
     try:
-      from IPython.core.display import HTML
-      from IPython.core.display import display
+      from IPython.display import HTML
+      from IPython.display import display
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
         display(HTML(self.spinner_template.format(id=self._id)))
@@ -283,9 +283,9 @@ class ProgressIndicator(object):
 
   def __exit__(self, exc_type, exc_value, traceback):
     try:
-      from IPython.core.display import Javascript
-      from IPython.core.display import display
-      from IPython.core.display import display_javascript
+      from IPython.display import Javascript
+      from IPython.display import display
+      from IPython.display import display_javascript
       from apache_beam.runners.interactive import interactive_environment as ie
       if ie.current_env().is_in_notebook:
         script = self.spinner_removal_template.format(id=self._id)

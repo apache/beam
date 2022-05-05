@@ -41,6 +41,7 @@ class InteractiveEnvironmentInspector(object):
     self._anonymous = {}
     self._inspectable_pipelines = set()
     self._ignore_synthetic = ignore_synthetic
+    self._clusters = {}
 
   @property
   def inspectables(self):
@@ -135,6 +136,38 @@ class InteractiveEnvironmentInspector(object):
       dataframe = ib.collect(value, include_window_info=include_window_info)
       return dataframe.to_json(orient='table')
     return {}
+
+  @as_json
+  def list_clusters(self):
+    """Retrieves information for all clusters as a json.
+
+    The json object maps a unique obfuscated identifier of a cluster to
+    the corresponding cluster_name, project, region, master_url, dashboard,
+    and pipelines. Furthermore, copies the mapping to self._clusters.
+    """
+    from apache_beam.runners.interactive import interactive_environment as ie
+    clusters = ie.current_env().clusters
+    all_cluster_data = {}
+    for master_url in clusters.master_urls:
+      cluster_metadata = clusters.master_urls[master_url]
+      project = cluster_metadata.project_id
+      region = cluster_metadata.region
+      name = cluster_metadata.cluster_name
+
+      all_cluster_data[obfuscate(project, region, name)] = {
+          'cluster_name': name,
+          'project': project,
+          'region': region,
+          'master_url': master_url,
+          'dashboard': clusters.master_urls_to_dashboards[master_url],
+          'pipelines': clusters.master_urls_to_pipelines[master_url]
+      }
+    self._clusters = all_cluster_data
+    return all_cluster_data
+
+  def get_cluster_master_url(self, id: str) -> str:
+    """Returns the master_url corresponding to the provided cluster id."""
+    return self._clusters[id]['master_url']  # The id is guaranteed to exist.
 
 
 def inspect(ignore_synthetic=True):
