@@ -218,6 +218,9 @@ if [[ -z $PIPELINE_OPTS ]]; then
   echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
   echo "torch" >> postcommit_requirements.txt
   echo "torchvision" >> postcommit_requirements.txt
+
+  pip install torch
+  pip install torchvision
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).
   opts=(
