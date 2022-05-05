@@ -186,11 +186,12 @@ func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation,
 			return val.Continuation, nil
 		}
 		return val.Continuation, n.Out[0].ProcessElement(n.ctx, val)
-	} else {
-		if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
-			return nil, rtErrHelper(mainIn.RTracker.GetError())
-		}
 	}
+
+	if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+		return nil, rtErrHelper(mainIn.RTracker.GetError())
+	}
+
 	return nil, nil
 }
 
