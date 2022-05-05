@@ -49,7 +49,6 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -307,12 +306,9 @@ public abstract class WindowedValue<T> {
   /** The abstract superclass of WindowedValue representations where timestamp is arbitrary. */
   private abstract static class TimestampedWindowedValue<T> extends SimpleWindowedValue<T> {
     private final Instant timestamp;
-    private static final Instant MAX_TS =
-        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
 
     public TimestampedWindowedValue(T value, Instant timestamp, PaneInfo pane) {
       super(value, pane);
-      checkArgument(timestamp.isBefore(MAX_TS), "Timestamp " + timestamp + " out of bounds.");
       this.timestamp = checkNotNull(timestamp);
     }
 

@@ -4367,7 +4367,9 @@ public class ParDoTest implements Serializable {
                 o.output(timestamp.getMillis());
                 fail("Should have failed due to outputting when noOutputTimestamp was set.");
               } catch (IllegalArgumentException e) {
-                Preconditions.checkState(e.getMessage().contains("out of bounds"));
+                System.err.println("EXCEPTION " + e.getMessage() + " stack ");
+                e.printStackTrace();
+                Preconditions.checkState(e.getMessage().contains("Cannot output with timestamp"));
               }
             }
           };

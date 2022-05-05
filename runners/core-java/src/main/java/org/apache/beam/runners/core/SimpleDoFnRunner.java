@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -247,6 +246,30 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     return sideInputReader.get(view, sideInputWindow);
   }
 
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkTimestamp(Instant elemTimestamp, Instant timestamp) {
+    Instant lowerBound;
+    try {
+      lowerBound = elemTimestamp.minus(fn.getAllowedTimestampSkew());
+    } catch (ArithmeticException e) {
+      lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+    if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                  + "timestamp of the current input (%s) minus the allowed skew (%s) and no "
+                  + "later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details "
+                  + "on changing the allowed skew.",
+              timestamp,
+              elemTimestamp,
+              fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
+                  ? fn.getAllowedTimestampSkew()
+                  : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
+              BoundedWindow.TIMESTAMP_MAX_VALUE));
+    }
+  }
+
   private <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
     checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
     outputManager.output(tag, windowedElem);
@@ -390,7 +413,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      checkTimestamp(timestamp);
+      checkTimestamp(elem.getTimestamp(), timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
@@ -403,7 +426,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
-      checkTimestamp(timestamp);
+      checkTimestamp(elem.getTimestamp(), timestamp);
       outputWindowedValue(
           tag, WindowedValue.of(output, timestamp, elem.getWindows(), elem.getPane()));
     }
@@ -415,30 +438,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     public Collection<? extends BoundedWindow> windows() {
       return elem.getWindows();
-    }
-
-    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
-    private void checkTimestamp(Instant timestamp) {
-      Instant lowerBound;
-      try {
-        lowerBound = elem.getTimestamp().minus(fn.getAllowedTimestampSkew());
-      } catch (ArithmeticException e) {
-        lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
-      }
-      if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                    + "timestamp of the current input (%s) minus the allowed skew (%s) and no "
-                    + "later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details "
-                    + "on changing the allowed skew.",
-                timestamp,
-                elem.getTimestamp(),
-                fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
-                    ? fn.getAllowedTimestampSkew()
-                    : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
-                BoundedWindow.TIMESTAMP_MAX_VALUE));
-      }
     }
 
     @Override
@@ -835,18 +834,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      checkTimestamp(timestamp);
+      checkTimestamp(timestamp(), timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
+      checkTimestamp(timestamp(), timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkTimestamp(timestamp);
+      checkTimestamp(timestamp(), timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
@@ -854,30 +854,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
           "Bundle finalization is not supported in non-portable pipelines.");
-    }
-
-    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
-    private void checkTimestamp(Instant timestamp) {
-      Instant lowerBound;
-      try {
-        lowerBound = timestamp().minus(fn.getAllowedTimestampSkew());
-      } catch (ArithmeticException e) {
-        lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
-      }
-      if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                    + "output timestamp of the timer (%s) minus the allowed skew (%s) and no "
-                    + "later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details "
-                    + "on changing the allowed skew.",
-                timestamp,
-                timestamp(),
-                fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
-                    ? fn.getAllowedTimestampSkew()
-                    : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
-                BoundedWindow.TIMESTAMP_MAX_VALUE));
-      }
     }
   }
 
@@ -1065,17 +1041,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(this.timestamp, timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
+      checkTimestamp(this.timestamp, timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkTimestamp(timestamp);
+      checkTimestamp(this.timestamp, timestamp);
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
     }
 
@@ -1083,30 +1061,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
           "Bundle finalization is not supported in non-portable pipelines.");
-    }
-
-    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
-    private void checkTimestamp(Instant timestamp) {
-      Instant lowerBound;
-      try {
-        lowerBound = this.timestamp.minus(fn.getAllowedTimestampSkew());
-      } catch (ArithmeticException e) {
-        lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
-      }
-      if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                    + "output timestamp of the window (%s) minus the allowed skew (%s) and no "
-                    + "later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details "
-                    + "on changing the allowed skew.",
-                timestamp,
-                this.timestamp,
-                fn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
-                    ? fn.getAllowedTimestampSkew()
-                    : PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod()),
-                BoundedWindow.TIMESTAMP_MAX_VALUE));
-      }
     }
   }
 
@@ -1296,7 +1250,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
               windowExpiry);
         }
       } else {
-        outputTimestamp = GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
+        outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
       }
     }
 

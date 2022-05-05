@@ -1962,7 +1962,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               windowExpiry);
         }
       } else {
-        outputTimestamp = GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
+        outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1));
       }
       return Timer.of(
           userKey,
