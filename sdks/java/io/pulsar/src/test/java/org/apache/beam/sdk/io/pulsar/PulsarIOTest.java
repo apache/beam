@@ -166,6 +166,7 @@ public class PulsarIOTest {
   public void testReadFromSimpleTopic() {
     try {
       List<PulsarMessage> inputsMock = produceMessages();
+
       PulsarIO.Read reader =
           PulsarIO.read()
               .withClientUrl(pulsarContainer.getPulsarBrokerUrl())
@@ -175,9 +176,9 @@ public class PulsarIOTest {
               .withEndTimestamp(endExpectedTime)
               .withPublishTime();
       testPipeline.apply(reader).apply(ParDo.of(new PulsarRecordsMetric()));
-
-      LOG.info("StartTime {}", startTime);
-      LOG.info("EndTime {}", endExpectedTime);
+      LOG.warn("Test PulsarIO read from simple topic");
+      LOG.warn("StartTime {}", startTime);
+      LOG.warn("EndTime {}", endExpectedTime);
 
       PipelineResult pipelineResult = testPipeline.run();
       MetricQueryResults metrics =
