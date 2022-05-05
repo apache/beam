@@ -126,6 +126,7 @@ import org.apache.beam.sdk.transforms.Mean.CountSum;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -6515,7 +6516,6 @@ public class ParDoTest implements Serializable {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               // verify state
               assertEquals(1, (int) currentValue);
-              System.err.println("KEY " + key + " VALUE " + currentValue);
               // To check output is received from OnWindowExpiration
               r.output(currentValue);
             }
@@ -6672,6 +6672,62 @@ public class ParDoTest implements Serializable {
       assertTrue(
           fieldAccessDescriptor.toString(),
           fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty());
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class BundleInvariantsTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({ValidatesRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+    public void testWatermarkUpdateMidBundle() {
+      DoFn<String, String> bufferDoFn =
+          new DoFn<String, String>() {
+            private final Set<KV<String, Instant>> buffer = new HashSet<>();
+
+            @ProcessElement
+            public void process(@Element String in, @Timestamp Instant ts) {
+              buffer.add(KV.of(in, ts));
+            }
+
+            @FinishBundle
+            public void finish(FinishBundleContext context) {
+              buffer.forEach(k -> context.output(k.getKey(), k.getValue(), GlobalWindow.INSTANCE));
+              buffer.clear();
+            }
+          };
+      int numBundles = 200;
+      TestStream.Builder<String> builder =
+          TestStream.create(StringUtf8Coder.of()).advanceWatermarkTo(new Instant(0));
+      List<List<TimestampedValue<String>>> bundles =
+          IntStream.range(0, numBundles)
+              .mapToObj(
+                  r ->
+                      IntStream.range(0, r + 1)
+                          .mapToObj(v -> TimestampedValue.of(String.valueOf(v), new Instant(r)))
+                          .collect(Collectors.toList()))
+              .collect(Collectors.toList());
+      for (List<TimestampedValue<String>> b : bundles) {
+        builder =
+            builder
+                .addElements(b.get(0), b.subList(1, b.size()).toArray(new TimestampedValue[] {}))
+                .advanceWatermarkTo(new Instant(b.size()));
+      }
+      PCollection<Long> result =
+          pipeline
+              .apply(builder.advanceWatermarkToInfinity())
+              .apply(ParDo.of(bufferDoFn))
+              .apply("milliWindow", Window.into(FixedWindows.of(Duration.millis(1))))
+              .apply("count", Combine.globally(Count.<String>combineFn()).withoutDefaults())
+              .apply(
+                  "globalWindow",
+                  Window.<Long>into(new GlobalWindows())
+                      .triggering(AfterWatermark.pastEndOfWindow())
+                      .withAllowedLateness(Duration.ZERO)
+                      .discardingFiredPanes())
+              .apply("sum", Sum.longsGlobally());
+      PAssert.that(result).containsInAnyOrder((numBundles * numBundles + numBundles) / 2L);
+      pipeline.run();
     }
   }
 }
