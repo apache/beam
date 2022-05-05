@@ -2702,6 +2702,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void output(OutputT output) {
+        checkTimerTimestamp(currentTimer.getHoldTimestamp());
         outputTo(
             mainOutputConsumers,
             WindowedValue.of(
@@ -2718,6 +2719,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void output(TupleTag<T> tag, T output) {
+        checkTimerTimestamp(currentTimer.getHoldTimestamp());
         Collection<FnDataReceiver<WindowedValue<T>>> consumers =
             (Collection) localNameToConsumer.get(tag.getId());
         if (consumers == null) {

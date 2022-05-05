@@ -258,7 +258,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       throw new IllegalArgumentException(
           String.format(
               "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                  + "timestamp of the current input (%s) minus the allowed skew (%s) and no "
+                  + "timestamp of the current input or timer (%s) minus the allowed skew (%s) and no "
                   + "later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details "
                   + "on changing the allowed skew.",
               timestamp,
