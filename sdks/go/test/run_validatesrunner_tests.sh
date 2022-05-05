@@ -274,7 +274,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
       java \
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
-          --flink-conf-dir $CURRENT_DIRECTORY/resources \
+          --flink-conf-dir $CURRENT_DIRECTORY/../../../runners/flink/src/test/resources \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &

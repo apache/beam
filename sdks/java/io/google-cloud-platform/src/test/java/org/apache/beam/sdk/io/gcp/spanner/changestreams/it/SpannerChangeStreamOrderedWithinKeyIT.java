@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -81,6 +82,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
+  @Ignore
   @Test
   public void testOrderedWithinKey() {
     LOG.info("Test pipeline: " + pipeline.toString());

@@ -30,7 +30,7 @@ from apache_beam.coders import RowCoder
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
-from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import expansion_service
 from apache_beam.transforms import ptransform
@@ -270,6 +270,29 @@ class PayloadTransform(ptransform.PTransform):
     return PayloadTransform(payload.decode('ascii'))
 
 
+@ptransform.PTransform.register_urn('map_to_union_types', None)
+class MapToUnionTypesTransform(ptransform.PTransform):
+  class CustomDoFn(beam.DoFn):
+    def process(self, element):
+      if element == 1:
+        return ['1']
+      elif element == 2:
+        return [2]
+      else:
+        return [3.0]
+
+  def expand(self, pcoll):
+    return pcoll | beam.ParDo(self.CustomDoFn())
+
+  def to_runner_api_parameter(self, unused_context):
+    return b'map_to_union_types', None
+
+  @staticmethod
+  def from_runner_api_parameter(
+      unused_ptransform, unused_payload, unused_context):
+    return MapToUnionTypesTransform()
+
+
 @ptransform.PTransform.register_urn('fib', bytes)
 class FibTransform(ptransform.PTransform):
   def __init__(self, level):
@@ -317,7 +340,7 @@ class NoOutputTransform(ptransform.PTransform):
 
 
 def parse_string_payload(input_byte):
-  payload = ExternalConfigurationPayload()
+  payload = external_transforms_pb2.ExternalConfigurationPayload()
   payload.ParseFromString(input_byte)
 
   return RowCoder(payload.schema).decode(payload.payload)._asdict()

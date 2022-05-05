@@ -16,10 +16,11 @@
 package xlangx
 
 import (
+	"testing"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
-	"testing"
 )
 
 func createExternalEdge(typeUrn string, typePayload []byte) *graph.MultiEdge {
@@ -49,7 +50,7 @@ func TestUpdateFileArtifactWithUrlPath(t *testing.T) {
 	payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 		Path: "gs://dummy"})
 	e := createExternalEdge("beam:artifact:type:file:v1", payload)
-	UpdateArtifactTypeFromFileToUrl([]*graph.MultiEdge{e})
+	UpdateArtifactTypeFromFileToURL([]*graph.MultiEdge{e})
 	expected := createExternalEdge("beam:artifact:type:url:v1", payload)
 
 	if !proto.Equal(
@@ -65,7 +66,7 @@ func TestUpdateFileArtifactWithLocalPath(t *testing.T) {
 	payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 		Path: "/tmp/artifact/dummy"})
 	e := createExternalEdge("beam:artifact:type:file:v1", payload)
-	UpdateArtifactTypeFromFileToUrl([]*graph.MultiEdge{e})
+	UpdateArtifactTypeFromFileToURL([]*graph.MultiEdge{e})
 	expected := createExternalEdge("beam:artifact:type:file:v1", payload)
 
 	if !proto.Equal(

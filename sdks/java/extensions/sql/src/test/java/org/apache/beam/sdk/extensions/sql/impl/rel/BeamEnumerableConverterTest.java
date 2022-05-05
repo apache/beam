@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -149,11 +148,6 @@ public class BeamEnumerableConverterTest {
                   public void processElement(ProcessContext context) {}
                 }));
         return PDone.in(input.getPipeline());
-      }
-
-      @Override
-      public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-        return BeamTableStatistics.BOUNDED_UNKNOWN;
       }
     }
 
