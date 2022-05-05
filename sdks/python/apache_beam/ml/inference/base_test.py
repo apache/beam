@@ -71,6 +71,7 @@ class ExtractInferences(beam.DoFn):
   def process(self, prediction_result):
     yield prediction_result.inference
 
+
 class FakeInferenceRunnerNeedsBigBatch(FakeInferenceRunner):
   def run_inference(self, batch, unused_model):
     if len(batch) < 100:
