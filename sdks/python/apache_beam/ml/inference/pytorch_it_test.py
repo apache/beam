@@ -66,6 +66,7 @@ class PyTorchInference(unittest.TestCase):
   @pytest.mark.sickbay_direct
   @pytest.mark.sickbay_spark
   @pytest.mark.sickbay_flink
+  @pytest.mark.examples_postcommit
   def test_predictions_output_file(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     output_file_dir = 'gs://apache-beam-ml/temp_storage_end_to_end_testing/outputs'
