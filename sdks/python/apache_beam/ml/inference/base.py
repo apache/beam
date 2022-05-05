@@ -34,10 +34,11 @@ import pickle
 import platform
 import sys
 import time
-from typing import Any, Mapping
+from typing import Any
 from typing import Generic
 from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import TypeVar
 
 import apache_beam as beam
