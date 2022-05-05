@@ -387,8 +387,8 @@ class FnApiRunner(runner.PipelineRunner):
         while len(runner_execution_context.queues.ready_inputs) > 0:
           _LOGGER.debug(
               "Remaining ready bundles: %s\n"
-              "\tWatermark pending bunbles: %s\n"
-              "\tTime pending bunbles: %s",
+              "\tWatermark pending bundles: %s\n"
+              "\tTime pending bundles: %s",
               len(runner_execution_context.queues.ready_inputs),
               len(runner_execution_context.queues.watermark_pending_inputs),
               len(runner_execution_context.queues.time_pending_inputs))

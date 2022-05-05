@@ -49,13 +49,12 @@
 ## Known Issues
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
+-->
 # [2.39.0] - Unreleased
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Watermark estimation is now supported in the Go SDK ([BEAM-11105](https://issues.apache.org/jira/browse/BEAM-11105))
 
 ## I/Os
 
@@ -67,6 +66,8 @@
 ## New Features / Improvements
 
 * 'Manage Clusters' JupyterLab extension added for users to configure usage of Dataproc clusters managed by Interactive Beam (Python) ([BEAM-14130](https://issues.apache.org/jira/browse/BEAM-14130)).
+* Pipeline drain support added for Go SDK ([BEAM-11106](https://issues.apache.org/jira/browse/BEAM-11106)). **Note: this feature is not yet fully validated and should be treated as experimental in this release.**
+* Go SDK users may now write self-checkpointing Splittable DoFns to read from streaming sources. **Note: this feature is not yet fully validated and should be treated as experimental in this release.** ([BEAM-11104](https://issues.apache.org/jira/browse/BEAM-11104))
 
 ## Breaking Changes
 
@@ -77,9 +78,11 @@
         .withConnectionFactory(jmsConnectionFactory)
         .withValueMapper(new TextMessageMapper());
 ```
+* Coders in Python are expected to inherit from Coder. ([BEAM-14351](https://issues.apache.org/jira/browse/BEAM-14351)).
 
 ## Deprecations
 
+* Support for flink scala 2.12, because most of the libraries support version 2.12 onwards. ([beam-14386](https://issues.apache.org/jira/browse/BEAM-14386))
 * Flink 1.11 is no longer supported ([BEAM-14139](https://issues.apache.org/jira/browse/BEAM-14139)).
 * Python 3.6 is no longer supported ([BEAM-13657](https://issues.apache.org/jira/browse/BEAM-13657)).
 

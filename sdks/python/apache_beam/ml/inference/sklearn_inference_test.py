@@ -30,11 +30,11 @@ import numpy
 from sklearn import svm
 
 import apache_beam as beam
-import apache_beam.ml.inference.api as api
-import apache_beam.ml.inference.base as base
-from apache_beam.ml.inference.sklearn_loader import ModelFileType
-from apache_beam.ml.inference.sklearn_loader import SklearnInferenceRunner
-from apache_beam.ml.inference.sklearn_loader import SklearnModelLoader
+from apache_beam.ml.inference import api
+from apache_beam.ml.inference import base
+from apache_beam.ml.inference.sklearn_inference import ModelFileType
+from apache_beam.ml.inference.sklearn_inference import SklearnInferenceRunner
+from apache_beam.ml.inference.sklearn_inference import SklearnModelLoader
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -49,7 +49,7 @@ class FakeModel:
   def __init__(self):
     self.total_predict_calls = 0
 
-  def predict(self, input_vector: numpy.array):
+  def predict(self, input_vector: numpy.ndarray):
     self.total_predict_calls += 1
     return numpy.sum(input_vector, axis=1)
 

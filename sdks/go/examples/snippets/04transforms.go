@@ -25,6 +25,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -91,6 +92,8 @@ func CreateAndSplit(s beam.Scope, input []stringPair) beam.PCollection {
 
 type splittableDoFn struct{}
 
+type weDoFn struct{}
+
 // [START bundlefinalization_simplecallback]
 
 func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalization) {
@@ -104,6 +107,64 @@ func (fn *splittableDoFn) ProcessElement(element string, bf beam.BundleFinalizat
 }
 
 // [END bundlefinalization_simplecallback]
+
+// [START watermarkestimation_customestimator]
+
+// WatermarkState is a custom type.`
+//
+// It is optional to write your own state type when making a custom estimator.
+type WatermarkState struct {
+	Watermark time.Time
+}
+
+// CustomWatermarkEstimator is a custom watermark estimator.
+// You may use any type here, including some of Beam's built in watermark estimator types,
+// e.g. sdf.WallTimeWatermarkEstimator, sdf.TimestampObservingWatermarkEstimator, and sdf.ManualWatermarkEstimator
+type CustomWatermarkEstimator struct {
+	state WatermarkState
+}
+
+// CurrentWatermark returns the current watermark and is invoked on DoFn splits and self-checkpoints.
+// Watermark estimators must implement CurrentWatermark() time.Time
+func (e *CustomWatermarkEstimator) CurrentWatermark() time.Time {
+	return e.state.Watermark
+}
+
+// ObserveTimestamp is called on the output timestamps of all
+// emitted elements to update the watermark. It is optional
+func (e *CustomWatermarkEstimator) ObserveTimestamp(ts time.Time) {
+	e.state.Watermark = ts
+}
+
+// InitialWatermarkEstimatorState defines an initial state used to initialize the watermark
+// estimator. It is optional. If this is not defined, WatermarkEstimatorState may not be
+// defined and CreateWatermarkEstimator must not take in parameters.
+func (fn *weDoFn) InitialWatermarkEstimatorState(et beam.EventTime, rest offsetrange.Restriction, element string) WatermarkState {
+	// Return some watermark state
+	return WatermarkState{Watermark: time.Now()}
+}
+
+// CreateWatermarkEstimator creates the watermark estimator used by this Splittable DoFn.
+// Must take in a state parameter if InitialWatermarkEstimatorState is defined, otherwise takes no parameters.
+func (fn *weDoFn) CreateWatermarkEstimator(initialState WatermarkState) *CustomWatermarkEstimator {
+	return &CustomWatermarkEstimator{state: initialState}
+}
+
+// WatermarkEstimatorState returns the state used to resume future watermark estimation
+// after a checkpoint/split. It is required if InitialWatermarkEstimatorState is defined,
+// otherwise it must not be defined.
+func (fn *weDoFn) WatermarkEstimatorState(e *CustomWatermarkEstimator) WatermarkState {
+	return e.state
+}
+
+// ProcessElement is the method to execute for each element.
+// It can optionally take in a watermark estimator.
+func (fn *weDoFn) ProcessElement(e *CustomWatermarkEstimator, element string) {
+	// ...
+	e.state.Watermark = time.Now()
+}
+
+// [END watermarkestimation_customestimator]
 
 // [START cogroupbykey_output_helpers]
 

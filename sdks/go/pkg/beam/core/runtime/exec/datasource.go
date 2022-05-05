@@ -371,8 +371,8 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 	if err != nil {
 		return SplitResult{}, -1 * time.Minute, false, err
 	}
-	if ps != nil {
-		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want nil", ps)
+	if len(ps) != 0 {
+		return SplitResult{}, -1 * time.Minute, false, fmt.Errorf("failed to checkpoint: got %v primary roots, want none", ps)
 	}
 
 	encodeElms := n.makeEncodeElms()

@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toList;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
@@ -34,19 +35,28 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.joda.time.Days;
 
 /**
  * Utility methods for converting JSON {@link TableRow} objects to dynamic protocol message, for use
@@ -71,6 +81,58 @@ public class TableRowToStorageApiProto {
     }
   }
 
+  static class SchemaInformation {
+    private final TableFieldSchema tableFieldSchema;
+    private final List<SchemaInformation> subFields;
+    private final Map<String, SchemaInformation> subFieldsByName;
+
+    private SchemaInformation(TableFieldSchema tableFieldSchema) {
+      this.tableFieldSchema = tableFieldSchema;
+      this.subFields = Lists.newArrayList();
+      this.subFieldsByName = Maps.newHashMap();
+      if (tableFieldSchema.getFields() != null) {
+        for (TableFieldSchema field : tableFieldSchema.getFields()) {
+          SchemaInformation schemaInformation = new SchemaInformation(field);
+          subFields.add(schemaInformation);
+          subFieldsByName.put(field.getName(), schemaInformation);
+        }
+      }
+    }
+
+    public String getName() {
+      return tableFieldSchema.getName();
+    }
+
+    public String getType() {
+      return tableFieldSchema.getType();
+    }
+
+    public SchemaInformation getSchemaForField(String name) {
+      SchemaInformation schemaInformation = subFieldsByName.get(name);
+      if (schemaInformation == null) {
+        throw new RuntimeException("Schema field not found: " + name);
+      }
+      return schemaInformation;
+    }
+
+    public SchemaInformation getSchemaForField(int i) {
+      SchemaInformation schemaInformation = subFields.get(i);
+      if (schemaInformation == null) {
+        throw new RuntimeException("Schema field not found: " + i);
+      }
+      return schemaInformation;
+    }
+
+    static SchemaInformation fromTableSchema(TableSchema tableSchema) {
+      TableFieldSchema rootSchema =
+          new TableFieldSchema()
+              .setName("__root__")
+              .setType("RECORD")
+              .setFields(tableSchema.getFields());
+      return new SchemaInformation(rootSchema);
+    }
+  }
+
   static final Map<String, Type> PRIMITIVE_TYPES =
       ImmutableMap.<String, Type>builder()
           .put("INT64", Type.TYPE_INT64)
@@ -81,13 +143,13 @@ public class TableRowToStorageApiProto {
           .put("BOOL", Type.TYPE_BOOL)
           .put("BOOLEAN", Type.TYPE_BOOL)
           .put("BYTES", Type.TYPE_BYTES)
-          .put("NUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("BIGNUMERIC", Type.TYPE_STRING) // Pass through the JSON encoding.
+          .put("NUMERIC", Type.TYPE_BYTES) // Pass through the JSON encoding.
+          .put("BIGNUMERIC", Type.TYPE_BYTES) // Pass through the JSON encoding.
           .put("GEOGRAPHY", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("DATE", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("TIME", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("DATETIME", Type.TYPE_STRING) // Pass through the JSON encoding.
-          .put("TIMESTAMP", Type.TYPE_STRING) // Pass through the JSON encoding.
+          .put("DATE", Type.TYPE_INT32)
+          .put("TIME", Type.TYPE_INT64)
+          .put("DATETIME", Type.TYPE_INT64)
+          .put("TIMESTAMP", Type.TYPE_INT64)
           .put("JSON", Type.TYPE_STRING)
           .build();
 
@@ -107,7 +169,10 @@ public class TableRowToStorageApiProto {
   }
 
   public static DynamicMessage messageFromMap(
-      Descriptor descriptor, AbstractMap<String, Object> map, boolean ignoreUnknownValues)
+      SchemaInformation schemaInformation,
+      Descriptor descriptor,
+      AbstractMap<String, Object> map,
+      boolean ignoreUnknownValues)
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Map.Entry<String, Object> entry : map.entrySet()) {
@@ -121,9 +186,12 @@ public class TableRowToStorageApiProto {
               "TableRow contained unexpected field with name " + entry.getKey());
         }
       }
+      SchemaInformation fieldSchemaInformation =
+          schemaInformation.getSchemaForField(entry.getKey());
       @Nullable
       Object value =
-          messageValueFromFieldValue(fieldDescriptor, entry.getValue(), ignoreUnknownValues);
+          messageValueFromFieldValue(
+              fieldSchemaInformation, fieldDescriptor, entry.getValue(), ignoreUnknownValues);
       if (value != null) {
         builder.setField(fieldDescriptor, value);
       }
@@ -136,7 +204,10 @@ public class TableRowToStorageApiProto {
    * using the BigQuery Storage API.
    */
   public static DynamicMessage messageFromTableRow(
-      Descriptor descriptor, TableRow tableRow, boolean ignoreUnkownValues)
+      SchemaInformation schemaInformation,
+      Descriptor descriptor,
+      TableRow tableRow,
+      boolean ignoreUnkownValues)
       throws SchemaConversionException {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
@@ -153,9 +224,11 @@ public class TableRowToStorageApiProto {
       for (int i = 0; i < cellsToProcess; ++i) {
         AbstractMap<String, Object> cell = cells.get(i);
         FieldDescriptor fieldDescriptor = descriptor.getFields().get(i);
+        SchemaInformation fieldSchemaInformation = schemaInformation.getSchemaForField(i);
         @Nullable
         Object value =
-            messageValueFromFieldValue(fieldDescriptor, cell.get("v"), ignoreUnkownValues);
+            messageValueFromFieldValue(
+                fieldSchemaInformation, fieldDescriptor, cell.get("v"), ignoreUnkownValues);
         if (value != null) {
           builder.setField(fieldDescriptor, value);
         }
@@ -163,7 +236,7 @@ public class TableRowToStorageApiProto {
 
       return builder.build();
     } else {
-      return messageFromMap(descriptor, tableRow, ignoreUnkownValues);
+      return messageFromMap(schemaInformation, descriptor, tableRow, ignoreUnkownValues);
     }
   }
 
@@ -218,125 +291,191 @@ public class TableRowToStorageApiProto {
   }
 
   @Nullable
+  @SuppressWarnings({"nullness"})
   private static Object messageValueFromFieldValue(
-      FieldDescriptor fieldDescriptor, @Nullable Object bqValue, boolean ignoreUnknownValues)
+      SchemaInformation schemaInformation,
+      FieldDescriptor fieldDescriptor,
+      @Nullable Object bqValue,
+      boolean ignoreUnknownValues)
       throws SchemaConversionException {
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
       } else if (fieldDescriptor.isRepeated()) {
         return Collections.emptyList();
-      }
-      {
+      } else {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
       }
     }
-    return toProtoValue(
-        fieldDescriptor, bqValue, fieldDescriptor.isRepeated(), ignoreUnknownValues);
-  }
 
-  private static final Map<FieldDescriptor.Type, Function<String, Object>>
-      JSON_PROTO_STRING_PARSERS =
-          ImmutableMap.<FieldDescriptor.Type, Function<String, Object>>builder()
-              .put(FieldDescriptor.Type.INT32, Integer::valueOf)
-              .put(FieldDescriptor.Type.INT64, Long::valueOf)
-              .put(FieldDescriptor.Type.FLOAT, Float::valueOf)
-              .put(FieldDescriptor.Type.DOUBLE, Double::valueOf)
-              .put(FieldDescriptor.Type.BOOL, Boolean::valueOf)
-              .put(FieldDescriptor.Type.STRING, str -> str)
-              .put(
-                  FieldDescriptor.Type.BYTES,
-                  b64 -> ByteString.copyFrom(BaseEncoding.base64().decode(b64)))
-              .build();
-
-  @Nullable
-  @SuppressWarnings({"nullness"})
-  @VisibleForTesting
-  static Object toProtoValue(
-      FieldDescriptor fieldDescriptor,
-      Object jsonBQValue,
-      boolean isRepeated,
-      boolean ignoreUnknownValues)
-      throws SchemaConversionException {
-    if (isRepeated) {
-      List<Object> listValue = (List<Object>) jsonBQValue;
+    if (fieldDescriptor.isRepeated()) {
+      List<Object> listValue = (List<Object>) bqValue;
       List<Object> protoList = Lists.newArrayListWithCapacity(listValue.size());
-      for (Object o : listValue) {
-        protoList.add(toProtoValue(fieldDescriptor, o, false, ignoreUnknownValues));
+      for (@Nullable Object o : listValue) {
+        if (o != null) { // repeated field cannot contain null.
+          protoList.add(
+              singularFieldToProtoValue(
+                  schemaInformation, fieldDescriptor, o, ignoreUnknownValues));
+        }
       }
       return protoList;
     }
-
-    if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-      if (jsonBQValue instanceof TableRow) {
-        TableRow tableRow = (TableRow) jsonBQValue;
-        return messageFromTableRow(fieldDescriptor.getMessageType(), tableRow, ignoreUnknownValues);
-      } else if (jsonBQValue instanceof AbstractMap) {
-        // This will handle nested rows.
-        AbstractMap<String, Object> map = ((AbstractMap<String, Object>) jsonBQValue);
-        return messageFromMap(fieldDescriptor.getMessageType(), map, ignoreUnknownValues);
-      } else {
-        throw new RuntimeException("Unexpected value " + jsonBQValue + " Expected a JSON map.");
-      }
-    }
-    @Nullable Object scalarValue = scalarToProtoValue(fieldDescriptor, jsonBQValue);
-    if (scalarValue == null) {
-      return toProtoValue(fieldDescriptor, jsonBQValue.toString(), isRepeated, ignoreUnknownValues);
-    } else {
-      return scalarValue;
-    }
+    return singularFieldToProtoValue(
+        schemaInformation, fieldDescriptor, bqValue, ignoreUnknownValues);
   }
 
   @VisibleForTesting
   @Nullable
-  static Object scalarToProtoValue(FieldDescriptor fieldDescriptor, Object jsonBQValue) {
-    if (jsonBQValue instanceof String) {
-      Function<String, Object> mapper = JSON_PROTO_STRING_PARSERS.get(fieldDescriptor.getType());
-      if (mapper == null) {
-        throw new UnsupportedOperationException(
-            "Converting BigQuery type '"
-                + jsonBQValue.getClass()
-                + "' to '"
-                + fieldDescriptor
-                + "' is not supported");
-      }
-      return mapper.apply((String) jsonBQValue);
+  static Object singularFieldToProtoValue(
+      SchemaInformation schemaInformation,
+      FieldDescriptor fieldDescriptor,
+      Object value,
+      boolean ignoreUnknownValues)
+      throws SchemaConversionException {
+    switch (schemaInformation.getType()) {
+      case "INT64":
+      case "INTEGER":
+        if (value instanceof String) {
+          return Long.valueOf((String) value);
+        } else if (value instanceof Integer || value instanceof Long) {
+          return ((Number) value).longValue();
+        }
+        break;
+      case "FLOAT64":
+      case "FLOAT":
+        if (value instanceof String) {
+          return Double.valueOf((String) value);
+        } else if (value instanceof Double || value instanceof Float) {
+          return ((Number) value).doubleValue();
+        }
+        break;
+      case "BOOLEAN":
+      case "BOOL":
+        if (value instanceof String) {
+          return Boolean.valueOf((String) value);
+        } else if (value instanceof Boolean) {
+          return value;
+        }
+        break;
+      case "BYTES":
+        if (value instanceof String) {
+          return ByteString.copyFrom(BaseEncoding.base64().decode((String) value));
+        } else if (value instanceof byte[]) {
+          return ByteString.copyFrom((byte[]) value);
+        } else if (value instanceof ByteString) {
+          return value;
+        }
+        break;
+      case "TIMESTAMP":
+        if (value instanceof String) {
+          try {
+            return ChronoUnit.MICROS.between(Instant.EPOCH, Instant.parse((String) value));
+          } catch (DateTimeParseException e) {
+            return ChronoUnit.MICROS.between(
+                Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+          }
+        } else if (value instanceof Instant) {
+          return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
+        } else if (value instanceof org.joda.time.Instant) {
+          // joda instant precision is millisecond
+          return ((org.joda.time.Instant) value).getMillis() * 1000L;
+        } else if (value instanceof Integer || value instanceof Long) {
+          return ((Number) value).longValue();
+        } else if (value instanceof Double || value instanceof Float) {
+          // assume value represents number of seconds since epoch
+          return BigDecimal.valueOf(((Number) value).doubleValue())
+              .scaleByPowerOfTen(6)
+              .setScale(0, RoundingMode.HALF_UP)
+              .longValue();
+        }
+        break;
+      case "DATE":
+        if (value instanceof String) {
+          return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
+        } else if (value instanceof LocalDate) {
+          return ((Long) ((LocalDate) value).toEpochDay()).intValue();
+        } else if (value instanceof org.joda.time.LocalDate) {
+          return Days.daysBetween(
+                  org.joda.time.Instant.EPOCH.toDateTime().toLocalDate(),
+                  (org.joda.time.LocalDate) value)
+              .getDays();
+        } else if (value instanceof Integer || value instanceof Long) {
+          return ((Number) value).intValue();
+        }
+        break;
+      case "NUMERIC":
+        if (value instanceof String) {
+          return BigDecimalByteStringEncoder.encodeToNumericByteString(
+              new BigDecimal((String) value));
+        } else if (value instanceof BigDecimal) {
+          return BigDecimalByteStringEncoder.encodeToNumericByteString(((BigDecimal) value));
+        } else if (value instanceof Double || value instanceof Float) {
+          return BigDecimalByteStringEncoder.encodeToNumericByteString(
+              BigDecimal.valueOf(((Number) value).doubleValue()));
+        }
+        break;
+      case "BIGNUMERIC":
+        if (value instanceof String) {
+          return BigDecimalByteStringEncoder.encodeToBigNumericByteString(
+              new BigDecimal((String) value));
+        } else if (value instanceof BigDecimal) {
+          return BigDecimalByteStringEncoder.encodeToBigNumericByteString(((BigDecimal) value));
+        } else if (value instanceof Double || value instanceof Float) {
+          return BigDecimalByteStringEncoder.encodeToBigNumericByteString(
+              BigDecimal.valueOf(((Number) value).doubleValue()));
+        }
+        break;
+      case "DATETIME":
+        if (value instanceof String) {
+          return CivilTimeEncoder.encodePacked64DatetimeMicros(LocalDateTime.parse((String) value));
+        } else if (value instanceof Number) {
+          return ((Number) value).longValue();
+        } else if (value instanceof LocalDateTime) {
+          return CivilTimeEncoder.encodePacked64DatetimeMicros((LocalDateTime) value);
+        } else if (value instanceof org.joda.time.LocalDateTime) {
+          return CivilTimeEncoder.encodePacked64DatetimeMicros((org.joda.time.LocalDateTime) value);
+        }
+        break;
+      case "TIME":
+        if (value instanceof String) {
+          return CivilTimeEncoder.encodePacked64TimeMicros(LocalTime.parse((String) value));
+        } else if (value instanceof Number) {
+          return ((Number) value).longValue();
+        } else if (value instanceof LocalTime) {
+          return CivilTimeEncoder.encodePacked64TimeMicros((LocalTime) value);
+        } else if (value instanceof org.joda.time.LocalTime) {
+          return CivilTimeEncoder.encodePacked64TimeMicros((org.joda.time.LocalTime) value);
+        }
+        break;
+      case "STRING":
+      case "JSON":
+      case "GEOGRAPHY":
+        return value.toString();
+      case "STRUCT":
+      case "RECORD":
+        if (value instanceof TableRow) {
+          TableRow tableRow = (TableRow) value;
+          return messageFromTableRow(
+              schemaInformation, fieldDescriptor.getMessageType(), tableRow, ignoreUnknownValues);
+        } else if (value instanceof AbstractMap) {
+          // This will handle nested rows.
+          AbstractMap<String, Object> map = ((AbstractMap<String, Object>) value);
+          return messageFromMap(
+              schemaInformation, fieldDescriptor.getMessageType(), map, ignoreUnknownValues);
+        }
+        break;
     }
 
-    switch (fieldDescriptor.getType()) {
-      case BOOL:
-        if (jsonBQValue instanceof Boolean) {
-          return jsonBQValue;
-        }
-        break;
-      case BYTES:
-        break;
-      case INT64:
-        if (jsonBQValue instanceof Integer) {
-          return Long.valueOf((Integer) jsonBQValue);
-        } else if (jsonBQValue instanceof Long) {
-          return jsonBQValue;
-        }
-        break;
-      case INT32:
-        if (jsonBQValue instanceof Integer) {
-          return jsonBQValue;
-        }
-        break;
-      case STRING:
-        break;
-      case DOUBLE:
-        if (jsonBQValue instanceof Double) {
-          return jsonBQValue;
-        } else if (jsonBQValue instanceof Float) {
-          return Double.valueOf((Float) jsonBQValue);
-        }
-        break;
-      default:
-        throw new RuntimeException("Unsupported proto type " + fieldDescriptor.getType());
-    }
-    return null;
+    throw new RuntimeException(
+        "Unexpected value :"
+            + value
+            + ", type: "
+            + value.getClass()
+            + ". Table field name: "
+            + schemaInformation.getName()
+            + ", type: "
+            + schemaInformation.getType());
   }
 
   @VisibleForTesting
