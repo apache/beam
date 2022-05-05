@@ -164,6 +164,9 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
   # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
+  # We can't the dependencies out of the if/else, otherwise dependabot won't
+  # be able to parse it, so any dependencies added should be added in both the
+  # if and the else.
   if sys.platform == 'win32' and sys.maxsize <= 2**32:
     setuptools.setup(
         name=PACKAGE_NAME,
