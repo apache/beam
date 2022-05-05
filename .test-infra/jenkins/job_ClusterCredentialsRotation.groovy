@@ -31,15 +31,7 @@ job('Rotate Cluster Credentials') {
 
     //Credentials rotation for metrics and io-datastores
 
-    //Set a maintenance window
-    shell('''gcloud container clusters update metrics \
-    --zone=us-central1-a --maintenance-window=06:00 --quiet''')
-
-    shell('''gcloud container clusters update io-datastores \
-    --zone=us-central1-a --maintenance-window=06:00 --quiet''')
-
     //Starting credential rotation
-    // it's necessary to rebuild the nodes after rotation to avoid apiservices issues
     shell('''gcloud container clusters update metrics \
     --start-credential-rotation --zone=us-central1-a --quiet''')
 
