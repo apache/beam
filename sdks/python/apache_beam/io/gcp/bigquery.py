@@ -2529,7 +2529,8 @@ class ReadFromBigQuery(PTransform):
   def get_pcoll_from_schema(table_schema):
     pcoll_val = apache_beam.io.gcp.bigquery_schema_tools.\
         produce_pcoll_with_schema(table_schema)
-    return beam.Map(lambda values: pcoll_val(**values))
+    return beam.Map(lambda values: pcoll_val(**values)).with_output_types(
+        pcoll_val)
 
 
 class ReadFromBigQueryRequest:
