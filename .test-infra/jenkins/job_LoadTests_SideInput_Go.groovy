@@ -22,6 +22,8 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
+
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
 def batchScenarios = {
@@ -45,6 +47,8 @@ def batchScenarios = {
         access_percentage: 1,
         num_workers          : 10,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
     [
@@ -65,6 +69,8 @@ def batchScenarios = {
         '"value_size": 900}\'',
         num_workers          : 10,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ]
   ]
@@ -78,7 +84,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Go_SideInput_Dataflow_Batch',
     'Run Load Tests Go SideInput Dataflow Batch',
-    'Load Tests Go SideInput Dataflow Batch suite',
+    'Load Tests Go SideInput Dataflow Batch',
     this
     ) {
       additionalPipelineArgs = [:]
