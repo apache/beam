@@ -60,6 +60,7 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.logging.LogRecord;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -335,6 +336,29 @@ public class JdbcIOTest implements Serializable {
                 Row.withSchema(expectedSchema).addValues(BigDecimal.valueOf(1)).build()));
 
     pipeline.run();
+  }
+
+  @Test
+  @SuppressWarnings({"UnusedVariable", "AssertThrowsMultipleStatements"})
+  public void testReadRowsFailedToGetSchema() {
+    Exception exc =
+        assertThrows(
+            BeamSchemaInferenceException.class,
+            () -> {
+              // Using a new pipeline object to avoid the various checks made by TestPipeline in
+              // this pipeline which is
+              // expected to throw an exception.
+              Pipeline pipeline = Pipeline.create();
+              pipeline.apply(
+                  JdbcIO.readRows()
+                      .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                      .withQuery(
+                          String.format(
+                              "SELECT CAST(1 AS NUMERIC(1, 0)) AS T1 FROM %s", "unknown_table")));
+              pipeline.run();
+            });
+
+    assertThat(exc.getMessage(), containsString("Failed to infer Beam schema"));
   }
 
   @Test
@@ -810,6 +834,7 @@ public class JdbcIOTest implements Serializable {
     } finally {
       DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
       thrown.expect(RuntimeException.class);
+      thrown.expectMessage("Non nullable fields are not allowed without a matching schema.");
     }
   }
 
