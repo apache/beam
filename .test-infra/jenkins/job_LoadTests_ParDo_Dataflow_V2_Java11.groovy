@@ -46,7 +46,8 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90
+                                  "valueSizeBytes": 90,
+                                  "forceNumInitialBundles": 100
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 10,
@@ -78,7 +79,8 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90
+                                  "valueSizeBytes": 90,
+                                  "forceNumInitialBundles": 100
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 200,
@@ -111,7 +113,8 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90
+                                  "valueSizeBytes": 90,
+                                  "forceNumInitialBundles": 100
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 1,
@@ -144,7 +147,8 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                 {
                                   "numRecords": 20000000,
                                   "keySizeBytes": 10,
-                                  "valueSizeBytes": 90
+                                  "valueSizeBytes": 90,
+                                  "forceNumInitialBundles": 100
                                 }
                               """.trim().replaceAll("\\s", ""),
         iterations          : 1,

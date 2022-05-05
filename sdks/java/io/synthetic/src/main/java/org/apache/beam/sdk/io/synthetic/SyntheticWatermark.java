@@ -23,6 +23,8 @@ import java.util.stream.LongStream;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This watermark is based on synthetic data that is used by synthetic sources. It uses the
@@ -32,6 +34,8 @@ import org.joda.time.Instant;
 class SyntheticWatermark implements Serializable {
 
   private SyntheticSourceOptions options;
+
+  private static final Logger LOG = LoggerFactory.getLogger(SyntheticWatermark.class);
 
   private final long endOffset;
 
@@ -48,6 +52,7 @@ class SyntheticWatermark implements Serializable {
 
     // the source has seen all elements so the watermark is "+infinity"
     if (currentOffset >= endOffset) {
+      LOG.warn("Current offset passed end offset {}", endOffset);
       watermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
       return watermark;
     }

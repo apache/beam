@@ -97,10 +97,10 @@ public class SyntheticUnboundedSource
 
   @Override
   public List<SyntheticUnboundedSource> split(int desiredNumSplits, PipelineOptions options) {
-    int desiredNumBundles =
-        sourceOptions.forceNumInitialBundles != null
-            ? sourceOptions.forceNumInitialBundles
-            : desiredNumSplits;
+    int desiredNumBundles = 1;
+        // sourceOptions.forceNumInitialBundles != null
+        //     ? sourceOptions.forceNumInitialBundles
+        //     : desiredNumSplits;
 
     List<SyntheticUnboundedSource> splits =
         bundleSplitter.getBundleSizes(desiredNumBundles, startOffset, endOffset).stream()
