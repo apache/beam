@@ -42,7 +42,6 @@ import apache_beam.io.gcp.bigquery
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
-from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -492,7 +491,6 @@ class TestReadFromBigQuery(unittest.TestCase):
         dataset_id="beam_bigquery_io_test",
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
-    utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
     with beam.Pipeline() as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
@@ -503,12 +501,8 @@ class TestReadFromBigQuery(unittest.TestCase):
               table))
       assert_that(
           result,
-          equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
-          ]))
+          equal_to([(3, 'customer1', 'test'), (1, 'customer1', 'test'),
+                    (2, 'customer2', 'test'), (4, 'customer2', 'test')]))
       # TODO: svetaksundhar@, Write another test to check for
       #  a specific pCollection/schema.
 
