@@ -121,10 +121,10 @@ except ImportError:
   cythonize = lambda *args, **kwargs: []
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
-pyarrow_dependency = 'pyarrow>=0.15.1,<8.0.0'
-pyarrow_dependency = ''
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
+else:
+  pyarrow_dependency = 'pyarrow>=0.15.1,<8.0.0'
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -162,8 +162,8 @@ if __name__ == '__main__':
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
   generate_protos_first()
-  # We can't move the dependencies out of the setup call, otherwise
-  # dependabot won't be able to parse it.
+  # Keep all dependencies inlined in the setup call, otherwise dependabot won't
+  # be able to parse it.
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
