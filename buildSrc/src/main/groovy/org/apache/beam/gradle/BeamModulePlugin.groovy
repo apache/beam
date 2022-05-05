@@ -541,6 +541,7 @@ class BeamModulePlugin implements Plugin<Project> {
         cdap_common                                 : "io.cdap.cdap:cdap-common:$cdap_version",
         cdap_etl_api                                : "io.cdap.cdap:cdap-etl-api:$cdap_version",
         cdap_etl_api_spark                          : "io.cdap.cdap:cdap-etl-api-spark:$cdap_version",
+        cdap_plugin_service_now                     : "io.cdap.plugin:servicenow-plugins:1.1.0",
         checker_qual                                : "org.checkerframework:checker-qual:$checkerframework_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.15",
