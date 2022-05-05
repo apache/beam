@@ -47,12 +47,17 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   @Override
   public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
+    BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     // Append records to the Storage API streams.
     input.apply(
         "Write Records",
         ParDo.of(
                 new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
-                    operationName, dynamicDestinations, bqServices, true))
+                    operationName,
+                    dynamicDestinations,
+                    bqServices,
+                    true,
+                    bigQueryOptions.getStorageApiAppendThresholdBytes()))
             .withSideInputs(dynamicDestinations.getSideInputs()));
     return input.getPipeline().apply("voids", Create.empty(VoidCoder.of()));
   }

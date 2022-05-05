@@ -301,6 +301,89 @@ func (n *ctInvoker) Reset() {
 	}
 }
 
+// trInvoker is an invoker for TruncateRestriction.
+type trInvoker struct {
+	fn   *funcx.Fn
+	args []interface{}
+	call func(rest interface{}, elms *FullValue) (pair interface{})
+}
+
+func defaultTruncateRestriction(restTracker interface{}) (newRest interface{}) {
+	if tracker, ok := restTracker.(sdf.BoundableRTracker); ok && !tracker.IsBounded() {
+		return nil
+	}
+	return restTracker.(sdf.RTracker).GetRestriction()
+}
+
+func newTruncateRestrictionInvoker(fn *funcx.Fn) (*trInvoker, error) {
+	n := &trInvoker{
+		fn:   fn,
+		args: make([]interface{}, len(fn.Param)),
+	}
+	if err := n.initCallFn(); err != nil {
+		return nil, errors.WithContext(err, "sdf TruncateRestriction invoker")
+	}
+	return n, nil
+}
+
+func newDefaultTruncateRestrictionInvoker() (*trInvoker, error) {
+	n := &trInvoker{}
+	n.call = func(rest interface{}, elms *FullValue) interface{} {
+		return defaultTruncateRestriction(rest)
+	}
+	return n, nil
+}
+
+func (n *trInvoker) initCallFn() error {
+	// Expects a signature of the form:
+	// (key?, value, restriction) []restriction
+	// TODO(BEAM-9643): Link to full documentation.
+	switch fnT := n.fn.Fn.(type) {
+	case reflectx.Func2x1:
+		n.call = func(rest interface{}, elms *FullValue) interface{} {
+			return fnT.Call2x1(rest, elms.Elm)
+		}
+	case reflectx.Func3x1:
+		n.call = func(rest interface{}, elms *FullValue) interface{} {
+			return fnT.Call3x1(rest, elms.Elm, elms.Elm2)
+		}
+	default:
+		switch len(n.fn.Param) {
+		case 2:
+			n.call = func(rest interface{}, elms *FullValue) interface{} {
+				n.args[0] = rest
+				n.args[1] = elms.Elm
+				return n.fn.Fn.Call(n.args)[0]
+			}
+		case 3:
+			n.call = func(rest interface{}, elms *FullValue) interface{} {
+				n.args[0] = rest
+				n.args[1] = elms.Elm
+				n.args[2] = elms.Elm2
+				return n.fn.Fn.Call(n.args)[0]
+			}
+		default:
+			return errors.Errorf("TruncateRestriction fn %v has unexpected number of parameters: %v",
+				n.fn.Fn.Name(), len(n.fn.Param))
+		}
+	}
+	return nil
+}
+
+// Invoke calls TruncateRestriction given a FullValue containing an element and
+// the associated restriction tracker, and returns a truncated restriction.
+func (n *trInvoker) Invoke(rt interface{}, elms *FullValue) (rest interface{}) {
+	return n.call(rt, elms)
+}
+
+// Reset zeroes argument entries in the cached slice to allow values to be
+// garbage collected after the bundle ends.
+func (n *trInvoker) Reset() {
+	for i := range n.args {
+		n.args[i] = nil
+	}
+}
+
 // cweInvoker is an invoker for CreateWatermarkEstimator.
 type cweInvoker struct {
 	fn   *funcx.Fn

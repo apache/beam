@@ -121,10 +121,10 @@ func TestNew(t *testing.T) {
 			Ret:   []ReturnKind{RetError},
 		},
 		{
-			// TODO(BEAM-11104): Replace with a functioning test case once E2E support is finished.
-			Name: "sdf",
-			Fn:   func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
-			Err:  errContinuationSupport,
+			Name:  "sdf",
+			Fn:    func(sdf.RTracker, func(int)) (sdf.ProcessContinuation, error) { return nil, nil },
+			Param: []FnParamKind{FnRTracker, FnEmit},
+			Ret:   []ReturnKind{RetProcessContinuation, RetError},
 		},
 		{
 			Name: "errContextParam: after input",
@@ -246,6 +246,13 @@ func TestNew(t *testing.T) {
 				return "", mtime.ZeroTimestamp
 			},
 			Err: errEventTimeRetPrecedence,
+		},
+		{
+			Name: "errProcessContinuationPrecedence",
+			Fn: func() (string, sdf.ProcessContinuation, int, error) {
+				return "", nil, 0, nil
+			},
+			Err: errProcessContinuationPrecedence,
 		},
 		{
 			Name: "errIllegalParametersInEmit - malformed emit struct",
