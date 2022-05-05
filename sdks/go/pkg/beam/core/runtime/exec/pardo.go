@@ -174,7 +174,7 @@ func (n *ParDo) processSingleWindow(mainIn *MainInput) (sdf.ProcessContinuation,
 	if err != nil {
 		return nil, n.fail(err)
 	}
-	if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+	if mainIn.RTracker != nil && val.Continuation == nil && !mainIn.RTracker.IsDone() {
 		return nil, rtErrHelper(mainIn.RTracker.GetError())
 	}
 
