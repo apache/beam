@@ -53,6 +53,7 @@ from apache_beam.options.value_provider import StaticValueProvider
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  import google.cloud
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
   from google.api_core.exceptions import ClientError, DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
@@ -220,6 +221,8 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
 
+  @unittest.skipIf(
+      not hasattr(google.cloud, '_http'), 'Dependencies not installed')
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('google.cloud._http.JSONConnection.http')
   def test_user_agent_insert_all(self, http_mock, patched_sleep):
@@ -258,7 +261,10 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   @mock.patch('time.sleep', return_value=None)
   def test_user_agent_passed(self, sleep_mock):
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+    try:
+      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+    except:
+      self.skipTest('Unable to create a BQ Wrapper')
     request_mock = mock.Mock()
     wrapper.client._http.request = request_mock
     try:
