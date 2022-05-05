@@ -316,7 +316,7 @@ public class FlinkSavepointTest implements Serializable {
                   MapElements.via(
                       new InferableFunction<byte[], KV<String, Void>>() {
                         @Override
-                        public KV<String, Void> apply(byte[] input) throws Exception {
+                        public KV<String, Void> apply(byte[] input) {
                           // This only writes data to one of the two initial partitions.
                           // We want to test this due to
                           // https://jira.apache.org/jira/browse/BEAM-7144
