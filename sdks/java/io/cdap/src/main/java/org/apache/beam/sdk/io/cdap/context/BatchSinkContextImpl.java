@@ -20,10 +20,7 @@ package org.apache.beam.sdk.io.cdap.context;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 
-/**
- * Class BatchSinkContextWrapper is a class for creating context object of different CDAP classes
- * with batch sink type.
- */
+/** Class for creating context object of different CDAP classes with batch sink type. */
 public class BatchSinkContextImpl extends BatchContextImpl implements BatchSinkContext {
 
   @Override
