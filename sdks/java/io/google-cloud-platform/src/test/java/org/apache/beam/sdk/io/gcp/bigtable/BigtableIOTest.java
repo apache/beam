@@ -1838,7 +1838,7 @@ public class BigtableIOTest {
     }
   }
 
-  /** Error injection for FakeBigtableService and FakeBigtableReader. */
+  /** Error injection options for FakeBigtableService and FakeBigtableReader. */
   @AutoValue
   public abstract static class FailureOptions {
     abstract Boolean getFailAtStart();
