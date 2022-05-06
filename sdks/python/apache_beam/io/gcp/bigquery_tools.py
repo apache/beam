@@ -502,10 +502,9 @@ class BigQueryWrapper(object):
       job_labels=None):
 
     if not source_uris and not source_stream:
-      raise ValueError(
-          'Either a non-empty list of fully-qualified source URIs must be '
-          'provided via the source_uris parameter or an open file object must '
-          'be provided via the source_stream parameter. Got neither.')
+      _LOGGER.warning(
+          'Both source URIs and source stream are not provided. BigQuery load '
+          'job will not load any data.')
 
     if source_uris and source_stream:
       raise ValueError(
@@ -1002,17 +1001,6 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
-    if not source_uris and not source_stream:
-      raise ValueError(
-          'Either a non-empty list of fully-qualified source URIs must be '
-          'provided via the source_uris parameter or an open file object must '
-          'be provided via the source_stream parameter. Got neither.')
-
-    if source_uris and source_stream:
-      raise ValueError(
-          'Only one of source_uris and source_stream may be specified. '
-          'Got both.')
-
     project_id = (
         destination.projectId
         if load_job_project_id is None else load_job_project_id)
