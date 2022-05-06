@@ -451,24 +451,11 @@ public class Read {
 
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
+    private static final Cache<Object, UnboundedReader<?>> cachedReaders;
     private final Coder<CheckpointT> checkpointCoder;
-    private Cache<Object, UnboundedReader<OutputT>> cachedReaders;
     private Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
-    @VisibleForTesting
-    UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
-      this.checkpointCoder = checkpointCoder;
-    }
-
-    @GetInitialRestriction
-    public UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction(
-        @Element UnboundedSource<OutputT, CheckpointT> element) {
-      return UnboundedSourceRestriction.create(element, null, BoundedWindow.TIMESTAMP_MIN_VALUE);
-    }
-
-    @Setup
-    public void setUp() throws Exception {
-      restrictionCoder = restrictionCoder();
+    static {
       cachedReaders =
           CacheBuilder.newBuilder()
               .expireAfterWrite(1, TimeUnit.MINUTES)
@@ -485,6 +472,22 @@ public class Read {
                         }
                       })
               .build();
+    }
+
+    @VisibleForTesting
+    UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
+      this.checkpointCoder = checkpointCoder;
+    }
+
+    @GetInitialRestriction
+    public UnboundedSourceRestriction<OutputT, CheckpointT> initialRestriction(
+        @Element UnboundedSource<OutputT, CheckpointT> element) {
+      return UnboundedSourceRestriction.create(element, null, BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+
+    @Setup
+    public void setUp() throws Exception {
+      restrictionCoder = restrictionCoder();
     }
 
     @SplitRestriction
