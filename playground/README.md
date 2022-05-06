@@ -26,7 +26,7 @@ build, test, and deploy the frontend and backend services.
 
 The following requirements are needed for development, testing, and deploying.
 
-- [go 1.16+](https://golang.org)
+- [go 1.18+](https://golang.org)
 - [flutter](https://flutter.dev/)
 - Go protobuf dependencies (See [Go gRPC Quickstart](https://grpc.io/docs/languages/go/quickstart/))
 - Dart protobuf dependencies (See [Dart gRPC Quickstart](https://grpc.io/docs/languages/dart/))
