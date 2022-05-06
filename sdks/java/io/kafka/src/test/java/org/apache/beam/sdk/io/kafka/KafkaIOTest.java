@@ -62,7 +62,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -1662,7 +1661,7 @@ public class KafkaIOTest {
 
     String topic = "test";
 
-    p.apply(Create.of(ImmutableList.of(KV.of(1,1L), KV.of(2,2L))))
+    p.apply(Create.of(ImmutableList.of(KV.of(1, 1L), KV.of(2, 2L))))
         .apply(
             KafkaIO.<Integer, Long>write()
                 .withBootstrapServers("none")
