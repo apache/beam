@@ -64,8 +64,7 @@ public class ReadFromKafkaDoFnTest {
 
   private final TopicPartition topicPartition = new TopicPartition("topic", 0);
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private final SimpleMockKafkaConsumer consumer =
       new SimpleMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
@@ -73,9 +72,10 @@ public class ReadFromKafkaDoFnTest {
   private final ReadFromKafkaDoFn<String, String> dofnInstance =
       new ReadFromKafkaDoFn(makeReadSourceDescriptor(consumer));
 
-  private final ExceptionMockKafkaConsumer exceptionConsumer = new ExceptionMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
+  private final ExceptionMockKafkaConsumer exceptionConsumer =
+      new ExceptionMockKafkaConsumer(OffsetResetStrategy.NONE, topicPartition);
 
-  private final ReadFromKafkaDoFn<String,String> exceptionDofnInstance =
+  private final ReadFromKafkaDoFn<String, String> exceptionDofnInstance =
       new ReadFromKafkaDoFn<>(makeReadSourceDescriptor(exceptionConsumer));
 
   private ReadSourceDescriptors<String, String> makeReadSourceDescriptor(
@@ -93,11 +93,12 @@ public class ReadFromKafkaDoFnTest {
         .withBootstrapServers("bootstrap_server");
   }
 
-  private static class ExceptionMockKafkaConsumer extends MockConsumer<byte[],byte[]> {
+  private static class ExceptionMockKafkaConsumer extends MockConsumer<byte[], byte[]> {
 
     private final TopicPartition topicPartition;
 
-    public ExceptionMockKafkaConsumer(OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
+    public ExceptionMockKafkaConsumer(
+        OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
       super(offsetResetStrategy);
       this.topicPartition = topicPartition;
     }
@@ -120,7 +121,6 @@ public class ReadFromKafkaDoFnTest {
               new PartitionInfo(
                   topicPartition.topic(), topicPartition.partition(), null, null, null)));
     }
-
   }
 
   private static class SimpleMockKafkaConsumer extends MockConsumer<byte[], byte[]> {
@@ -363,7 +363,8 @@ public class ReadFromKafkaDoFnTest {
     thrown.expect(KafkaException.class);
     thrown.expectMessage("PositionException");
 
-    exceptionDofnInstance.initialRestriction(KafkaSourceDescriptor.of(topicPartition,null,null,null,null, ImmutableList.of()));
+    exceptionDofnInstance.initialRestriction(
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, ImmutableList.of()));
   }
 
   @Test
@@ -440,14 +441,15 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testProcessElementWithException() throws Exception{
+  public void testProcessElementWithException() throws Exception {
     thrown.expect(KafkaException.class);
     thrown.expectMessage("SeekException");
 
     MockOutputReceiver receiver = new MockOutputReceiver();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
 
-    exceptionDofnInstance.processElement(KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
+    exceptionDofnInstance.processElement(
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
         tracker,
         null,
         (OutputReceiver) receiver);

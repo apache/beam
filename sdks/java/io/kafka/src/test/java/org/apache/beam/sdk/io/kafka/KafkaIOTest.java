@@ -1240,14 +1240,14 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testUnboundedReaderLogsCommitFailure() throws Exception{
+  public void testUnboundedReaderLogsCommitFailure() throws Exception {
 
     List<String> topics = ImmutableList.of("topic_a");
 
     PositionErrorConsumerFactory positionErrorConsumerFactory = new PositionErrorConsumerFactory();
 
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
-        KafkaIO.<Integer,Long>read()
+        KafkaIO.<Integer, Long>read()
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopics(topics)
             .withConsumerFactoryFn(positionErrorConsumerFactory)
@@ -1663,25 +1663,24 @@ public class KafkaIOTest {
     int numElements = 1000;
 
     p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
-          .apply(
-              KafkaIO.<Integer, Long>write()
-                  .withBootstrapServers("none")
-                  .withTopic(topic)
-                  .withKeySerializer(IntegerSerializer.class)
-                  .withValueSerializer(LongSerializer.class)
-                  .withEOS(1, "test")
-                  .withConsumerFactoryFn(
-                      new ConsumerFactoryFn(
-                          Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
-                  .withProducerFactoryFn(new SendErrorProducerFactory()));
+        .apply(
+            KafkaIO.<Integer, Long>write()
+                .withBootstrapServers("none")
+                .withTopic(topic)
+                .withKeySerializer(IntegerSerializer.class)
+                .withValueSerializer(LongSerializer.class)
+                .withEOS(1, "test")
+                .withConsumerFactoryFn(
+                    new ConsumerFactoryFn(
+                        Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                .withProducerFactoryFn(new SendErrorProducerFactory()));
 
-      try {
-        p.run();
-      } catch (PipelineExecutionException e) {
-        // throwing inner exception helps assert that first exception is thrown from the Sink
-        throw e.getCause();
-      }
-
+    try {
+      p.run();
+    } catch (PipelineExecutionException e) {
+      // throwing inner exception helps assert that first exception is thrown from the Sink
+      throw e.getCause();
+    }
   }
 
   @Test
@@ -1873,8 +1872,6 @@ public class KafkaIOTest {
       completionThread.shutdown();
     }
   }
-
-
 
   private static void verifyProducerRecords(
       MockProducer<Integer, Long> mockProducer,

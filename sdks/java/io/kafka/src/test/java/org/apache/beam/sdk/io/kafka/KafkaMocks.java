@@ -1,6 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.kafka;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -24,22 +40,22 @@ import org.apache.kafka.common.serialization.LongSerializer;
 
 public class KafkaMocks {
 
-  public static final class SendErrorProducer extends MockProducer<Integer,Long> {
+  public static final class SendErrorProducer extends MockProducer<Integer, Long> {
 
-    public SendErrorProducer(){
+    public SendErrorProducer() {
       super(false, new IntegerSerializer(), new LongSerializer());
     }
 
     @Override
     public synchronized Future<RecordMetadata> send(
-        ProducerRecord<Integer, Long> record, Callback callback){
+        ProducerRecord<Integer, Long> record, Callback callback) {
       throw new KafkaException("fakeException");
     }
-
   }
 
-  public static final class SendErrorProducerFactory implements SerializableFunction<Map<String, Object>, Producer<Integer,Long>>{
-    public SendErrorProducerFactory(){}
+  public static final class SendErrorProducerFactory
+      implements SerializableFunction<Map<String, Object>, Producer<Integer, Long>> {
+    public SendErrorProducerFactory() {}
 
     @Override
     public Producer<Integer, Long> apply(Map<String, Object> input) {
@@ -47,14 +63,14 @@ public class KafkaMocks {
     }
   }
 
-  public static final class PositionErrorConsumer extends MockConsumer<byte[],byte[]> {
+  public static final class PositionErrorConsumer extends MockConsumer<byte[], byte[]> {
 
-    public PositionErrorConsumer(){
+    public PositionErrorConsumer() {
       super(null);
     }
 
     @Override
-    public synchronized long position(TopicPartition partition){
+    public synchronized long position(TopicPartition partition) {
       throw new KafkaException("fakeException");
     }
 
@@ -63,35 +79,35 @@ public class KafkaMocks {
       return Collections.singletonList(
           new PartitionInfo("topic_a", 1, new Node(1, "myServer1", 9092), null, null));
     }
-
   }
 
-  public static final class PositionErrorConsumerFactory implements SerializableFunction<Map<String, Object>, Consumer<byte[],byte[]>>{
-    public PositionErrorConsumerFactory(){}
+  public static final class PositionErrorConsumerFactory
+      implements SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> {
+    public PositionErrorConsumerFactory() {}
 
     @Override
     public MockConsumer<byte[], byte[]> apply(Map<String, Object> input) {
       if (input.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
         return new PositionErrorConsumer();
       } else {
-        MockConsumer<byte[],byte[]> consumer = new MockConsumer<byte[],byte[]>(null){
-          @Override
-          public synchronized long position(TopicPartition partition){
-            return 1L;
-          }
+        MockConsumer<byte[], byte[]> consumer =
+            new MockConsumer<byte[], byte[]>(null) {
+              @Override
+              public synchronized long position(TopicPartition partition) {
+                return 1L;
+              }
 
-          @Override
-          public synchronized ConsumerRecords<byte[],byte[]> poll(long timeout) {
-            return ConsumerRecords.empty();
-          }
-
-        };
-        consumer.updatePartitions("topic_a",Collections.singletonList(
-            new PartitionInfo("topic_a", 1, new Node(1, "myServer1", 9092), null, null)));
+              @Override
+              public synchronized ConsumerRecords<byte[], byte[]> poll(long timeout) {
+                return ConsumerRecords.empty();
+              }
+            };
+        consumer.updatePartitions(
+            "topic_a",
+            Collections.singletonList(
+                new PartitionInfo("topic_a", 1, new Node(1, "myServer1", 9092), null, null)));
         return consumer;
       }
     }
-
   }
-
 }

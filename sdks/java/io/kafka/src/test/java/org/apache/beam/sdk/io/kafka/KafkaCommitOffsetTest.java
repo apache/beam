@@ -41,11 +41,12 @@ import org.junit.runners.JUnit4;
 public class KafkaCommitOffsetTest {
 
   private final TopicPartition partition = new TopicPartition("topic", 0);
-  @Rule
-  public ExpectedLogs expectedLogs = ExpectedLogs.none(CommitOffsetDoFn.class);
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(CommitOffsetDoFn.class);
 
-  private final KafkaCommitOffsetMockConsumer consumer = new KafkaCommitOffsetMockConsumer(null, false);
-  private final KafkaCommitOffsetMockConsumer errorConsumer = new KafkaCommitOffsetMockConsumer(null, true);
+  private final KafkaCommitOffsetMockConsumer consumer =
+      new KafkaCommitOffsetMockConsumer(null, false);
+  private final KafkaCommitOffsetMockConsumer errorConsumer =
+      new KafkaCommitOffsetMockConsumer(null, true);
 
   @Test
   public void testCommitOffsetDoFn() {
@@ -73,7 +74,7 @@ public class KafkaCommitOffsetTest {
   }
 
   @Test
-  public void testCommitOffsetError(){
+  public void testCommitOffsetError() {
     Map<String, Object> configMap = new HashMap<>();
     configMap.put(ConsumerConfig.GROUP_ID_CONFIG, "group1");
 
@@ -102,14 +103,15 @@ public class KafkaCommitOffsetTest {
     public Map<TopicPartition, OffsetAndMetadata> commit;
     private boolean throwException;
 
-    public KafkaCommitOffsetMockConsumer(OffsetResetStrategy offsetResetStrategy, boolean throwException) {
+    public KafkaCommitOffsetMockConsumer(
+        OffsetResetStrategy offsetResetStrategy, boolean throwException) {
       super(offsetResetStrategy);
       this.throwException = throwException;
     }
 
     @Override
     public synchronized void commitSync(Map<TopicPartition, OffsetAndMetadata> offsets) {
-      if (throwException){
+      if (throwException) {
         throw new RuntimeException("Test Exception");
       } else {
         commitAsync(offsets, null);
