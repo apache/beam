@@ -135,7 +135,6 @@ public class JdbcIOExceptionHandlingParameterizedTest {
           protected boolean matchesSafely(Iterable<LogRecord> logRecords) {
             int count = 0;
             for (LogRecord logRecord : logRecords) {
-              System.out.println(logRecord.getMessage());
               if (logRecord.getMessage().contains(excMessage)) {
                 count += 1;
               }
