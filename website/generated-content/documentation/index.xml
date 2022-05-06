@@ -4219,7 +4219,7 @@ programming guide, take a look at the
 &lt;/ul>
 &lt;/nav>
 &lt;p class="language-py">The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.&lt;/p>
-&lt;p class="language-go">The Go SDK supports Go v1.16+. SDK release 2.32.0 is the last experimental version.&lt;/p>
+&lt;p class="language-go">The Go SDK supports Go v1.18+. SDK release 2.32.0 is the last experimental version.&lt;/p>
 &lt;h2 id="overview">1. Overview&lt;/h2>
 &lt;p>To use Beam, you need to first create a driver program using the classes in one
 of the Beam SDKs. Your driver program &lt;em>defines&lt;/em> your pipeline, including all of
