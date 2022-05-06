@@ -63,8 +63,6 @@ public class SpannerIOWriteExceptionHandlingTest {
 
   @Captor public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
   @Captor public transient ArgumentCaptor<Options.ReadQueryUpdateTransactionOption> optionsCaptor;
-  @Captor public transient ArgumentCaptor<Iterable<MutationGroup>> mutationGroupListCaptor;
-  @Captor public transient ArgumentCaptor<MutationGroup> mutationGroupCaptor;
 
   // Using
   // https://cloud.google.com/java/docs/reference/google-cloud-spanner/latest/com.google.cloud.spanner.ErrorCode
@@ -142,15 +140,12 @@ public class SpannerIOWriteExceptionHandlingTest {
     // mock sleeper so that it does not actually sleep.
     SpannerIO.WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
-    // Respond with Aborted transaction
     when(serviceFactory
             .mockDatabaseClient()
             .writeAtLeastOnceWithOptions(
                 any(), any(Options.ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(exceptionErrorcode, errorString));
 
-    // When spanner aborts transaction for more than 5 time, pipeline execution stops with
-    // PipelineExecutionException
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage(errorString);
 
@@ -176,9 +171,7 @@ public class SpannerIOWriteExceptionHandlingTest {
     try {
       pipeline.run().waitUntilFinish();
     } finally {
-      // 0 calls to sleeper
       verify(SpannerIO.WriteToSpannerFn.sleeper, times(callsToSleeper)).sleep(anyLong());
-      // 5 write attempts for the single mutationGroup.
       verify(serviceFactory.mockDatabaseClient(), times(callsToWrite))
           .writeAtLeastOnceWithOptions(any(), any(Options.ReadQueryUpdateTransactionOption.class));
     }
@@ -192,18 +185,12 @@ public class SpannerIOWriteExceptionHandlingTest {
     // mock sleeper so that it does not actually sleep.
     SpannerIO.WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
-    // Respond with (1) Aborted transaction a couple of times (2) deadline exceeded
-    // (3) Aborted transaction 3 times (4)  deadline exceeded and finally return success.
     when(serviceFactory
             .mockDatabaseClient()
             .writeAtLeastOnceWithOptions(
                 any(), any(Options.ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(exceptionErrorcode, errorString));
-    // TODO: Eventually return a success! (?)
-    //                .thenReturn(new CommitResponse(Timestamp.now()));
 
-    // When spanner aborts transaction for more than 5 time, pipeline execution stops with
-    // PipelineExecutionException
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage(errorString);
 
@@ -230,9 +217,7 @@ public class SpannerIOWriteExceptionHandlingTest {
     try {
       pipeline.run().waitUntilFinish();
     } finally {
-      // 2 calls to sleeper
       verify(SpannerIO.WriteToSpannerFn.sleeper, times(callsToSleeper)).sleep(anyLong());
-      // 8 write attempts for the single mutationGroup.
       verify(serviceFactory.mockDatabaseClient(), times(callsToWrite))
           .writeAtLeastOnceWithOptions(any(), any(Options.ReadQueryUpdateTransactionOption.class));
     }
