@@ -62,6 +62,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -86,6 +87,7 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -1660,16 +1662,14 @@ public class KafkaIOTest {
 
     String topic = "test";
 
-    int numElements = 1000;
-
-    p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+    p.apply(Create.of(ImmutableList.of(KV.of(1,1L), KV.of(2,2L))))
         .apply(
             KafkaIO.<Integer, Long>write()
                 .withBootstrapServers("none")
                 .withTopic(topic)
                 .withKeySerializer(IntegerSerializer.class)
                 .withValueSerializer(LongSerializer.class)
-                .withEOS(1, "test")
+                .withEOS(1, "testException")
                 .withConsumerFactoryFn(
                     new ConsumerFactoryFn(
                         Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
