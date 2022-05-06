@@ -55,6 +55,7 @@ export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
       urn: Impulse.urn,
       payload: urns.IMPULSE_BUFFER,
     });
+    transformProto.environmentId = "";
     return pipeline.createPCollectionInternal(new BytesCoder());
   }
 }
@@ -134,6 +135,7 @@ export class GroupByKey<K, V> extends PTransform<
       urn: GroupByKey.urn,
       payload: undefined!,
     });
+    transformProto.environmentId = "";
 
     // TODO: (Cleanup) warn about BsonObjectCoder and (non)deterministic key ordering?
     const keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
