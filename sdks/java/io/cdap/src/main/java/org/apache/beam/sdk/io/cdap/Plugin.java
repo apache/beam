@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes",
   "unchecked",
   "assignment.type.incompatible",
-  "UnstableApiUsage",
+  "dereference.of.nullable",
   "initialization.fields.uninitialized"
 })
 public abstract class Plugin {
@@ -78,7 +78,7 @@ public abstract class Plugin {
   }
 
   /** Gets a plugin config. */
-  public PluginConfig getPluginConfig() {
+  public @Nullable PluginConfig getPluginConfig() {
     return pluginConfig;
   }
 
