@@ -78,6 +78,7 @@ from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.utils import proto_utils
+from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
@@ -559,3 +560,27 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
   def to_language_type(self, value):
     # type: (MicrosInstantRepresentation) -> Timestamp
     return Timestamp(seconds=int(value.seconds), micros=int(value.micros))
+
+
+@LogicalType.register_logical_type
+class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
+  @classmethod
+  def urn(cls):
+    return "beam:logical_type:python_callable:v1"
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return str
+
+  @classmethod
+  def language_type(cls):
+    return PythonCallableWithSource
+
+  def to_representation_type(self, value):
+    # type: (PythonCallableWithSource) -> str
+    return value.get_source()
+
+  def to_language_type(self, value):
+    # type: (str) -> PythonCallableWithSource
+    return PythonCallableWithSource(value)

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.python;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -64,6 +65,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   // We preseve the order here since Schema's care about order of fields but the order will not
   // matter when applying kwargs at the Python side.
   private SortedMap<String, Object> kwargsMap;
+  private Map<java.lang.Class<?>, Schema.FieldType> typeHints;
 
   private @Nullable Object @NonNull [] argsArray;
   private @Nullable Row providedKwargsRow;
@@ -72,6 +74,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
     this.kwargsMap = new TreeMap<>();
+    this.typeHints = new HashMap<>();
     argsArray = new Object[] {};
   }
 
@@ -162,6 +165,26 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     return this;
   }
 
+  /**
+   * Specifies the field type of arguments.
+   *
+   * <p>Type hints are especially useful for logical types since type inference does not work well
+   * for logical types.
+   *
+   * @param argType A class object for the argument type.
+   * @param fieldType A schema field type for the argument.
+   * @return updated wrapper for the cross-language transform.
+   */
+  public PythonExternalTransform<InputT, OutputT> withTypeHint(
+      java.lang.Class<?> argType, Schema.FieldType fieldType) {
+    if (typeHints.containsKey(argType)) {
+      throw new IllegalArgumentException(
+          String.format("typehint for arg type %s already exists", argType));
+    }
+    typeHints.put(argType, fieldType);
+    return this;
+  }
+
   @VisibleForTesting
   Row buildOrGetKwargsRow() {
     if (providedKwargsRow != null) {
@@ -180,15 +203,17 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   // * Java primitives
   // * Type String
   // * Type Row
-  private static boolean isCustomType(java.lang.Class<?> type) {
+  // * Any Type explicitly annotated by withTypeHint()
+  private boolean isCustomType(java.lang.Class<?> type) {
     boolean val =
         !(ClassUtils.isPrimitiveOrWrapper(type)
             || type == String.class
+            || typeHints.containsKey(type)
             || Row.class.isAssignableFrom(type));
     return val;
   }
 
-  // If the custom type has a registered schema, we use that. OTherwise we try to register it using
+  // If the custom type has a registered schema, we use that. Otherwise, we try to register it using
   // 'JavaFieldSchema'.
   private Row convertCustomValue(Object value) {
     SerializableFunction<Object, Row> toRowFunc;
@@ -239,6 +264,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       if (field instanceof Row) {
         // Rows are used as is but other types are converted to proper field types.
         builder.addRowField(fieldName, ((Row) field).getSchema());
+      } else if (typeHints.containsKey(field.getClass())) {
+        builder.addField(fieldName, typeHints.get(field.getClass()));
       } else {
         builder.addField(
             fieldName,
