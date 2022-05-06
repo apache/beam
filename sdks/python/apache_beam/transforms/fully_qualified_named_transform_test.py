@@ -18,6 +18,9 @@
 
 import unittest
 
+from mock import call
+from mock import patch
+
 import apache_beam as beam
 from apache_beam.runners.portability import expansion_service
 from apache_beam.testing.util import assert_that
@@ -115,6 +118,14 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
     with FullyQualifiedNamedTransform.with_filter('apache_beam.foo.*'):
       with self.assertRaises(ValueError):
         FullyQualifiedNamedTransform._resolve('apache_beam.Row')
+
+  @patch('importlib.import_module')
+  def test_resolve(self, mock_import_module):
+    mock_import_module.return_value = None
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      FullyQualifiedNamedTransform._resolve('a.b.c.d')
+    mock_import_module.assert_has_calls(
+        [call('a'), call('a.b'), call('a.b.c'), call('a.b.c.d')])
 
 
 class _TestTransform(beam.PTransform):
