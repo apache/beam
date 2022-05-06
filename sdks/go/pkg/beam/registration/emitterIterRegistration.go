@@ -109,7 +109,7 @@ func (e *emitNative2WithTimestamp[T]) invoke(et typex.EventTime, val T) {
 	}
 }
 
-type emitNative3[T1, T2 any]  struct {
+type emitNative3[T1, T2 any] struct {
 	n  exec.ElementProcessor
 	fn interface{}
 
@@ -143,11 +143,11 @@ func (e *emitNative3[T1, T2]) invoke(et typex.EventTime, key T1, val T2) {
 // of the function, aka:
 // registration.RegisterEmitter1[T]((*func(T))(nil))
 func RegisterEmitter1[T1 any](e *func(T1)) {
-    registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
-        gen := &emitNative1[T1]{n: n}
-        gen.fn = gen.invoke
-        return gen
-    }
+	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
+		gen := &emitNative1[T1]{n: n}
+		gen.fn = gen.invoke
+		return gen
+	}
 	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
 }
 
@@ -157,18 +157,18 @@ func RegisterEmitter1[T1 any](e *func(T1)) {
 // of the function, aka:
 // registration.RegisterEmitter2[T1, T2]((*func(T1, T2))(nil))
 func RegisterEmitter2[T1, T2 any](e *func(T1, T2)) {
-    registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
-        gen := &emitNative2[T1, T2]{n: n}
-        gen.fn = gen.invoke
-        return gen
-    }
-    if reflect.TypeOf(e).Elem().In(0) == typex.EventTimeType {
-        registerFunc = func(n exec.ElementProcessor) exec.ReusableEmitter {
-            gen := &emitNative2WithTimestamp[T2]{n: n}
-            gen.fn = gen.invoke
-            return gen
-        }
-    }
+	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
+		gen := &emitNative2[T1, T2]{n: n}
+		gen.fn = gen.invoke
+		return gen
+	}
+	if reflect.TypeOf(e).Elem().In(0) == typex.EventTimeType {
+		registerFunc = func(n exec.ElementProcessor) exec.ReusableEmitter {
+			gen := &emitNative2WithTimestamp[T2]{n: n}
+			gen.fn = gen.invoke
+			return gen
+		}
+	}
 	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
 }
 
@@ -178,11 +178,11 @@ func RegisterEmitter2[T1, T2 any](e *func(T1, T2)) {
 // of the function, aka:
 // registration.RegisterEmitter3[T1, T2, T3]((*func(T1, T2, T3))(nil))
 func RegisterEmitter3[T1, T2, T3 any](e *func(T1, T2, T3)) {
-    registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
-        gen := &emitNative3[T2, T3]{n: n}
-        gen.fn = gen.invoke
-        return gen
-    }
+	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
+		gen := &emitNative3[T2, T3]{n: n}
+		gen.fn = gen.invoke
+		return gen
+	}
 	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
 }
 
@@ -275,11 +275,11 @@ func (v *iterNative2[T1, T2]) invoke(key *T1, value *T2) bool {
 // of the function, aka:
 // registration.RegisterIter1[T]((*func(*T) bool)(nil))
 func RegisterIter1[T any](i *func(*T) bool) {
-    registerFunc := func(s exec.ReStream) exec.ReusableInput {
-        ret := &iterNative1[T]{s: s}
-        ret.fn = ret.invoke
-        return ret
-    }
+	registerFunc := func(s exec.ReStream) exec.ReusableInput {
+		ret := &iterNative1[T]{s: s}
+		ret.fn = ret.invoke
+		return ret
+	}
 	exec.RegisterInput(reflect.TypeOf(i).Elem(), registerFunc)
 }
 
@@ -289,10 +289,10 @@ func RegisterIter1[T any](i *func(*T) bool) {
 // of the function, aka:
 // registration.RegisterIter2[T1, T2]((*func(*T1, *T2) bool)(nil))
 func RegisterIter2[T1, T2 any](i *func(*T1, *T2) bool) {
-    registerFunc := func(s exec.ReStream) exec.ReusableInput {
-        ret := &iterNative2[T1, T2]{s: s}
-        ret.fn = ret.invoke
-        return ret
-    }
+	registerFunc := func(s exec.ReStream) exec.ReusableInput {
+		ret := &iterNative2[T1, T2]{s: s}
+		ret.fn = ret.invoke
+		return ret
+	}
 	exec.RegisterInput(reflect.TypeOf(i).Elem(), registerFunc)
 }
