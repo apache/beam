@@ -275,7 +275,7 @@ type extractOutput1x2[T1, T2 any] interface {
 }
 
 {{range $accum := upto 3}}{{$genericParams := (add $accum 1)}}
-// Accumulator{{$genericParams}} registers an accumulator DoFn's structural functions
+// Accumulator{{$genericParams}} registers an accumulator (CombineFn) DoFn's structural functions
 // and types and optimizes their runtime execution. There are 3 different Accumulator
 // functions, each of which should be used for a different situation.
 {{if (eq $genericParams 1)}}// Accumulator1 should be used when your accumulator, input, and output are all of the same type.

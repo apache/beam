@@ -7063,7 +7063,7 @@ type extractOutput1x2[T1, T2 any] interface {
 	ExtractOutput(a T1) (T2, error)
 }
 
-// Accumulator1 registers an accumulator DoFn's structural functions
+// Accumulator1 registers an accumulator (CombineFn) DoFn's structural functions
 // and types and optimizes their runtime execution. There are 3 different Accumulator
 // functions, each of which should be used for a different situation.
 // Accumulator1 should be used when your accumulator, input, and output are all of the same type.
@@ -7215,7 +7215,7 @@ func Accumulator1[T0 any](accum interface{}) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
 }
 
-// Accumulator2 registers an accumulator DoFn's structural functions
+// Accumulator2 registers an accumulator (CombineFn) DoFn's structural functions
 // and types and optimizes their runtime execution. There are 3 different Accumulator
 // functions, each of which should be used for a different situation.
 // Accumulator2 should be used when your accumulator, input, and output are 2 distinct types.
@@ -7415,7 +7415,7 @@ func Accumulator2[T0, T1 any](accum interface{}) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
 }
 
-// Accumulator3 registers an accumulator DoFn's structural functions
+// Accumulator3 registers an accumulator (CombineFn) DoFn's structural functions
 // and types and optimizes their runtime execution. There are 3 different Accumulator
 // functions, each of which should be used for a different situation.
 // Accumulator3 should be used when your accumulator, input, and output are 3 distinct types.
