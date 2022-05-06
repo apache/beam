@@ -178,8 +178,11 @@
   align-items: center;
 }
 
-.swiper-button-next-custom, .swiper-button-prev-custom {
-
+.swiper-button-next-custom,
+.swiper-button-prev-custom {
+  @media (max-width: $mobile) {
+    display: none;
+  }
   img {
     display: block;
     width: 100%;
