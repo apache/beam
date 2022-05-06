@@ -50,7 +50,11 @@ export class SubprocessService {
   args: string[];
   name: string;
 
-  constructor(cmd: string, args: string[], name: string | undefined = undefined) {
+  constructor(
+    cmd: string,
+    args: string[],
+    name: string | undefined = undefined
+  ) {
     this.cmd = cmd;
     this.args = args;
     this.name = name || cmd;
@@ -69,7 +73,10 @@ export class SubprocessService {
   async start() {
     const host = "localhost";
     const port = (await SubprocessService.freePort()).toString();
-    console.debug(this.cmd, this.args.map((arg) => arg.replace("{{PORT}}", port)));
+    console.debug(
+      this.cmd,
+      this.args.map((arg) => arg.replace("{{PORT}}", port))
+    );
     this.process = childProcess.spawn(
       this.cmd,
       this.args.map((arg) => arg.replace("{{PORT}}", port)),
