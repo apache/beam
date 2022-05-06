@@ -44,7 +44,6 @@ allprojects {
 }
 
 dependencies {
-    implementation library.java.avro
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
     implementation (library.java.cdap_common) {
@@ -54,7 +53,6 @@ dependencies {
     implementation library.java.cdap_etl_api_spark
     implementation library.java.cdap_hydrator_common
     implementation library.java.guava
-    implementation library.java.google_code_gson
     implementation library.java.hadoop_common
     implementation library.java.hadoop_mapred
     implementation library.java.jackson_core

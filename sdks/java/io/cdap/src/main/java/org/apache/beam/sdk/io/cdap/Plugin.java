@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.avro.reflect.Nullable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
+  private static final String PREPARE_RUN_METHOD_NAME = "prepareRun";
 
   protected @Nullable PluginConfig pluginConfig;
   protected @Nullable Configuration hadoopConfiguration;
@@ -177,11 +178,14 @@ public abstract class Plugin {
 
   public static BatchContextImpl initContext(Class<?> cdapPluginClass) {
     // Init context and determine input or output
-    Class<?> contextClass = null;
+    Class<?> contextClass;
     List<Method> methods = new ArrayList<>(Arrays.asList(cdapPluginClass.getDeclaredMethods()));
-    methods.addAll(Arrays.asList(cdapPluginClass.getSuperclass().getDeclaredMethods()));
+    Class<?> cdapPluginSuperclass = cdapPluginClass.getSuperclass();
+    if (cdapPluginSuperclass != null) {
+      methods.addAll(Arrays.asList(cdapPluginSuperclass.getDeclaredMethods()));
+    }
     for (Method method : methods) {
-      if (method.getName().equals("prepareRun")) {
+      if (method.getName().equals(PREPARE_RUN_METHOD_NAME)) {
         contextClass = method.getParameterTypes()[0];
         if (contextClass.equals(BatchSourceContext.class)) {
           return new BatchSourceContextImpl();

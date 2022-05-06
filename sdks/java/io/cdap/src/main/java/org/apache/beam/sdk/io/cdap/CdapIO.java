@@ -39,7 +39,12 @@ import org.slf4j.LoggerFactory;
  * An unbounded/bounded sources and sinks from <a
  * href="https://github.com/data-integrations">CDAP</a> plugins.
  */
-@SuppressWarnings("UnusedVariable")
+@SuppressWarnings({
+  "UnusedVariable",
+  "argument.type.incompatible",
+  "return.type.incompatible",
+  "dereference.of.nullable"
+})
 public class CdapIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CdapIO.class);

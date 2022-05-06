@@ -31,10 +31,11 @@ import io.cdap.plugin.servicenow.source.ServiceNowSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormatProvider;
+import javax.annotation.Nullable;
 
 public class MappingUtils {
 
-  public static Plugin getPluginByClass(Class<?> pluginClass) {
+  public static @Nullable Plugin getPluginByClass(Class<?> pluginClass) {
     if (pluginClass.equals(SalesforceBatchSource.class)) {
       return Plugin.create(
           pluginClass, SalesforceInputFormat.class, SalesforceInputFormatProvider.class);
