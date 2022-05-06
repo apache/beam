@@ -56,6 +56,7 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
@@ -63,6 +64,7 @@ from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.typehints import TypeConstraint
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
@@ -623,6 +625,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """
     raise NotImplementedError
 
+  def process_batch(self, batch, *args, **kwargs):
+    raise NotImplementedError
+
   def setup(self):
     """Called to prepare an instance for processing bundles of elements.
 
@@ -684,6 +689,53 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return trivial_inference.element_type(
         self._strip_output_annotations(
             trivial_inference.infer_return_type(self.process, [input_type])))
+
+  @property
+  def process_defined(self) -> bool:
+    return (
+        self.process.__func__  # type: ignore
+        if hasattr(self.process, '__self__') else self.process) != DoFn.process
+
+  @property
+  def process_batch_defined(self) -> bool:
+    return (
+        self.process_batch.__func__  # type: ignore
+        if hasattr(self.process_batch, '__self__')
+        else self.process_batch) != DoFn.process_batch
+
+  def get_input_batch_type(self) -> typing.Optional[TypeConstraint]:
+    if not self.process_batch_defined:
+      return None
+    input_type = list(
+        inspect.signature(self.process_batch).parameters.values())[0].annotation
+    if input_type == inspect.Signature.empty:
+      # TODO(BEAM-14340): Consider supporting an alternative (dynamic?) approach
+      # for declaring input type
+      raise TypeError(
+          f"{self.__class__.__name__}.process_batch() does not have a type "
+          "annotation on it's first parameter. This is reqired for "
+          "process_batch implementations.")
+    return typehints.native_type_compatibility.convert_to_beam_type(input_type)
+
+  def get_output_batch_type(self) -> typing.Optional[TypeConstraint]:
+    if not self.process_batch_defined:
+      return None
+    return_type = inspect.signature(self.process_batch).return_annotation
+    if return_type == inspect.Signature.empty:
+      # output type not annotated, try to infer it
+      return_type = trivial_inference.infer_return_type(
+          self.process_batch, [self.get_input_batch_type()])
+
+    return_type = typehints.native_type_compatibility.convert_to_beam_type(
+        return_type)
+    if isinstance(return_type, typehints.typehints.IterableTypeConstraint):
+      return return_type.inner_type
+    elif isinstance(return_type, typehints.typehints.IteratorTypeConstraint):
+      return return_type.yielded_type
+    else:
+      raise TypeError(
+          "Expected Iterator return type annotation, did you mean "
+          f"Iterator[{return_type}]")
 
   def _strip_output_annotations(self, type_hint):
     annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
@@ -1302,6 +1354,42 @@ class ParDo(PTransformWithSideInputs):
   def infer_output_type(self, input_type):
     return self.fn.infer_output_type(input_type)
 
+  def infer_batch_converters(self, input_element_type):
+    # This assumes batch input implies batch output
+    # TODO(BEAM-14293): Define and handle yields_batches and yields_elements
+    if self.fn.process_batch_defined:
+      input_batch_type = self.fn.get_input_batch_type()
+
+      if input_batch_type is None:
+        raise TypeError(
+            "process_batch method on {self.fn!r} does not have "
+            "an input type annoation")
+
+      output_batch_type = self.fn.get_output_batch_type()
+      if output_batch_type is None:
+        raise TypeError(
+            "process_batch method on {self.fn!r} does not have "
+            "a return type annoation")
+
+      # Generate a batch converter to convert between the input type and the
+      # (batch) input type of process_batch
+      self.fn.input_batch_converter = BatchConverter.from_typehints(
+          element_type=input_element_type, batch_type=input_batch_type)
+
+      # Generate a batch converter to convert between the output type and the
+      # (batch) output type of process_batch
+      output_element_type = self.infer_output_type(input_element_type)
+      self.fn.output_batch_converter = BatchConverter.from_typehints(
+          element_type=output_element_type, batch_type=output_batch_type)
+
+  def infer_output_batch_type(self):
+    # TODO(BEAM-14293): Handle process() with @yields_batch
+    if not self.fn.process_batch_defined:
+      return
+
+    batch_type = self.fn.get_output_batch_type()
+    return batch_type
+
   def make_fn(self, fn, has_side_inputs):
     if isinstance(fn, DoFn):
       return fn
@@ -1338,6 +1426,9 @@ class ParDo(PTransformWithSideInputs):
             'key types. Consider adding an input type hint for this transform.',
             key_coder,
             self)
+
+    if self.dofn.process_batch_defined:
+      self.infer_batch_converters(pcoll.element_type)
 
     return pvalue.PCollection.from_(pcoll)
 

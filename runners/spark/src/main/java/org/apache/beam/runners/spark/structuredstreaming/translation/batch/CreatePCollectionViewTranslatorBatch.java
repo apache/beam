@@ -33,7 +33,8 @@ class CreatePCollectionViewTranslatorBatch<ElemT, ViewT>
 
   @Override
   public void translateTransform(
-      PTransform<PCollection<ElemT>, PCollection<ElemT>> transform, AbstractTranslationContext context) {
+      PTransform<PCollection<ElemT>, PCollection<ElemT>> transform,
+      AbstractTranslationContext context) {
 
     Dataset<WindowedValue<ElemT>> inputDataSet = context.getDataset(context.getInput());
 

@@ -269,7 +269,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
@@ -282,7 +281,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py36:docker")
   dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
@@ -295,12 +293,6 @@ tasks.register("pythonLintPreCommit") {
 
 tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:py38:formatter")
-}
-
-tasks.register("python36PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py36:postCommitIT")
-  dependsOn(":sdks:python:test-suites:portable:py36:postCommitPy36")
 }
 
 tasks.register("python37PostCommit") {
@@ -330,12 +322,11 @@ tasks.register("python39PostCommit") {
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
+  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py36:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")

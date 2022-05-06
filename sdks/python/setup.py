@@ -159,6 +159,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
 
 REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
+    'joblib>=1.1.0',
     'mock>=1.0.1,<3.0.0',
     'pandas<2.0.0',
     'parameterized>=0.7.1,<0.8.0',
@@ -169,6 +170,7 @@ REQUIRED_TEST_PACKAGES = [
     'pytest>=4.4.0,<5.0',
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
+    'scikit-learn>=0.20.0',
     'sqlalchemy>=1.3,<2.0',
     'psycopg2-binary>=2.8.5,<3.0.0',
     'testcontainers[mysql]>=3.0.3,<4.0.0',
@@ -219,7 +221,7 @@ INTERACTIVE_BEAM_TEST = [
     'nbconvert>=6.2.0,<7',
     # headless chrome based integration tests
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=96,<97',
+    'chromedriver-binary>=100,<101',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]
@@ -255,7 +257,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.6'
+python_requires = '>=3.7'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 10:
   warnings.warn(
@@ -329,7 +331,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',

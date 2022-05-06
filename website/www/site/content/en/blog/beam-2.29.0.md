@@ -42,7 +42,7 @@ For more information on changes in 2.29.0, check out the [detailed release notes
 ### New Features / Improvements
 
 * DataFrame API now supports pandas 1.2.x ([BEAM-11531](https://issues.apache.org/jira/browse/BEAM-11531)).
-* Multiple DataFrame API bugfixes ([BEAM-12071](https://issues.apache/jira/browse/BEAM-12071), [BEAM-11929](https://issues.apache/jira/browse/BEAM-11929))
+* Multiple DataFrame API bugfixes ([BEAM-12071](https://issues.apache.org/jira/browse/BEAM-12071), [BEAM-11929](https://issues.apache.org/jira/browse/BEAM-11929))
 * DDL supported in SQL transforms ([BEAM-11850](https://issues.apache.org/jira/browse/BEAM-11850))
 * Upgrade Flink runner to Flink version 1.12.2 ([BEAM-11941](https://issues.apache.org/jira/browse/BEAM-11941))
 
