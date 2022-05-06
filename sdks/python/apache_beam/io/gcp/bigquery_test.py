@@ -499,8 +499,7 @@ class TestReadFromBigQuery(unittest.TestCase):
               gcs_location="gs://bqio_schema",
               table="beam_bigquery_io_test.dfsqltable_3c7d6fd5_16e0460dfd0",
               project="apache-beam-testing")
-          | apache_beam.io.gcp.bigquery.ReadFromBigQuery.get_pcoll_from_schema(
-              table))
+          | beam.Map(lambda values: utype(**values)).with_output_types(utype))
       assert_that(
           result,
           equal_to([
