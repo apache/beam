@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static software.amazon.awssdk.services.kinesis.model.ShardFilterType.AT_LATEST;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -33,17 +34,24 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
-import org.apache.beam.sdk.io.aws2.common.ClientPool;
+import org.apache.beam.sdk.io.aws2.common.ObjectPool;
+import org.apache.beam.sdk.io.aws2.common.ObjectPool.ClientPool;
 import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisPartitioner.ExplicitPartitioner;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -65,7 +73,9 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.DateTimeUtils;
@@ -79,7 +89,9 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
+import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
@@ -173,7 +185,8 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * utilized at all.
  *
  * <p>If you require finer control over the distribution of records, override {@link
- * KinesisPartitioner#getExplicitHashKey(Object)} according to your needs.
+ * KinesisPartitioner#getExplicitHashKey(Object)} according to your needs. However, this might
+ * impact record aggregation.
  *
  * <h4>Aggregation of records</h4>
  *
@@ -182,10 +195,29 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * href="https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html#kinesis-kpl-concepts-aggretation">aggregated
  * KPL record</a>.
  *
- * <p>However, only records with the same effective hash key are aggregated, in which the effective
- * hash key is either the explicit hash key if defined, or otherwise the hashed partition key.
+ * <p>Records of the same effective hash key get aggregated. The effective hash key is:
  *
- * <p>Record aggregation can be explicitly disabled using {@link
+ * <ol>
+ *   <li>the explicit hash key, if provided.
+ *   <li>the lower bound of the hash key range of the target shard according to the given partition
+ *       key, if available.
+ *   <li>or otherwise the hashed partition key
+ * </ol>
+ *
+ * <p>To provide shard aware aggregation in 2., hash key ranges of shards are loaded and refreshed
+ * periodically. This allows to aggregate records into a number of aggregates that matches the
+ * number of shards in the stream to max out Kinesis API limits the best possible way.
+ *
+ * <p><b>Note:</b>There's an important downside to consider when using shard aware aggregation:
+ * records get assigned to a shard (via an explicit hash key) on the client side, but respective
+ * client side state can't be guaranteed to always be up-to-date. If a shard gets split, all
+ * aggregates are mapped to the lower child shard until state is refreshed. Timing, however, will
+ * diverge between the different workers.
+ *
+ * <p>If using an {@link ExplicitPartitioner} or disabling shard refresh via {@link
+ * RecordAggregation}, no shard details will be loaded (and used).
+ *
+ * <p>Record aggregation can be entirely disabled using {@link
  * Write#withRecordAggregationDisabled()}.
  *
  * <h3>Configuration of AWS clients</h3>
@@ -536,11 +568,30 @@ public final class KinesisIO {
 
     abstract double maxBufferedTimeJitter();
 
+    abstract Duration shardRefreshInterval();
+
+    abstract double shardRefreshIntervalJitter();
+
+    Instant nextBufferTimeout() {
+      return nextInstant(maxBufferedTime(), maxBufferedTimeJitter());
+    }
+
+    Instant nextShardRefresh() {
+      return nextInstant(shardRefreshInterval(), shardRefreshIntervalJitter());
+    }
+
+    private Instant nextInstant(Duration duration, double jitter) {
+      double millis = (1 - jitter + jitter * Math.random()) * duration.getMillis();
+      return Instant.ofEpochMilli(DateTimeUtils.currentTimeMillis() + (long) millis);
+    }
+
     public static Builder builder() {
       return new AutoValue_KinesisIO_RecordAggregation.Builder()
           .maxBytes(Write.MAX_BYTES_PER_RECORD)
           .maxBufferedTimeJitter(0.7) // 70% jitter
-          .maxBufferedTime(Duration.standardSeconds(1));
+          .maxBufferedTime(Duration.millis(500))
+          .shardRefreshIntervalJitter(0.5) // 50% jitter
+          .shardRefreshInterval(Duration.standardMinutes(2));
     }
 
     @AutoValue.Builder
@@ -556,7 +607,18 @@ public final class KinesisIO {
        */
       public abstract Builder maxBufferedTime(Duration interval);
 
+      /**
+       * Refresh interval for shards.
+       *
+       * <p>This is used for shard aware record aggregation to assign all records hashed to a
+       * particular shard to the same explicit hash key. Set to {@link Duration#ZERO} to disable
+       * loading shards.
+       */
+      public abstract Builder shardRefreshInterval(Duration interval);
+
       abstract Builder maxBufferedTimeJitter(double jitter);
+
+      abstract Builder shardRefreshIntervalJitter(double jitter);
 
       abstract RecordAggregation autoBuild();
 
@@ -670,9 +732,6 @@ public final class KinesisIO {
      * Enable record aggregation that is compatible with the KPL / KCL.
      *
      * <p>https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html#kinesis-kpl-concepts-aggretation
-     *
-     * <p>Note: The aggregation is a lot simpler than the one offered by KPL. It only aggregates
-     * records with the same partition key as it's not aware of explicit hash key ranges per shard.
      */
     public Write<T> withRecordAggregation(RecordAggregation aggregation) {
       return builder().recordAggregation(aggregation).build();
@@ -682,9 +741,6 @@ public final class KinesisIO {
      * Enable record aggregation that is compatible with the KPL / KCL.
      *
      * <p>https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html#kinesis-kpl-concepts-aggretation
-     *
-     * <p>Note: The aggregation is a lot simpler than the one offered by KPL. It only aggregates
-     * records with the same partition key as it's not aware of explicit hash key ranges per shard.
      */
     public Write<T> withRecordAggregation(Consumer<RecordAggregation.Builder> aggregation) {
       RecordAggregation.Builder builder = RecordAggregation.builder();
@@ -803,14 +859,14 @@ public final class KinesisIO {
 
       private static final int PARTIAL_RETRIES = 10; // Retries for partial success (throttling)
 
-      private static final ClientPool<AwsOptions, ClientConfiguration, KinesisAsyncClient> CLIENTS =
-          ClientPool.pooledClientFactory(KinesisAsyncClient.builder());
+      private static final ClientPool<KinesisAsyncClient> CLIENTS =
+          ObjectPool.pooledClientFactory(KinesisAsyncClient.builder());
 
       protected final Write<T> spec;
       protected final Stats stats;
       protected final AsyncPutRecordsHandler handler;
+      protected final KinesisAsyncClient kinesis;
 
-      private final KinesisAsyncClient kinesis;
       private List<PutRecordsRequestEntry> requestEntries;
       private int requestBytes = 0;
 
@@ -947,25 +1003,37 @@ public final class KinesisIO {
      * with KCL to correctly implement the binary protocol, specifically {@link
      * software.amazon.kinesis.retrieval.kpl.Messages.AggregatedRecord}.
      *
-     * <p>Note: The aggregation is a lot simpler than the one offered by KPL. While the KPL is aware
-     * of effective hash key ranges assigned to each shard, we're not and don't want to be to keep
-     * complexity manageable and avoid the risk of silently loosing records in the KCL:
+     * <p>To aggregate records the best possible way, records are assigned an explicit hash key that
+     * corresponds to the lower bound of the hash key range of the target shard. In case a record
+     * has already an explicit hash key assigned, it is kept unchanged.
      *
-     * <p>{@link software.amazon.kinesis.retrieval.AggregatorUtil#deaggregate(List, BigInteger,
-     * BigInteger)} drops records not matching the expected hash key range.
+     * <p>Hash key ranges of shards are expected to be only slowly changing and get refreshed
+     * infrequently. If using an {@link ExplicitPartitioner} or disabling shard refresh via {@link
+     * RecordAggregation}, no shard details will be pulled.
      */
     static class AggregatedWriter<T> extends Writer<T> {
       private static final Logger LOG = LoggerFactory.getLogger(AggregatedWriter.class);
+      private static final ObjectPool<String, ShardRanges> SHARD_RANGES_BY_STREAM =
+          new ObjectPool<>(ShardRanges::of);
 
       private final RecordAggregation aggSpec;
       private final Map<BigInteger, RecordsAggregator> aggregators;
-      private final MessageDigest md5Digest;
+      private final PartitionKeyHasher pkHasher;
+
+      private final ShardRanges shardRanges;
 
       AggregatedWriter(PipelineOptions options, Write<T> spec, RecordAggregation aggSpec) {
         super(options, spec);
         this.aggSpec = aggSpec;
-        this.aggregators = new LinkedHashMap<>();
-        this.md5Digest = md5Digest();
+        aggregators = new LinkedHashMap<>();
+        pkHasher = new PartitionKeyHasher();
+        if (aggSpec.shardRefreshInterval().isLongerThan(Duration.ZERO)
+            && !(spec.partitioner() instanceof ExplicitPartitioner)) {
+          shardRanges = SHARD_RANGES_BY_STREAM.retain(spec.streamName());
+          shardRanges.refreshPeriodically(kinesis, aggSpec::nextShardRefresh);
+        } else {
+          shardRanges = ShardRanges.EMPTY;
+        }
       }
 
       @Override
@@ -977,20 +1045,36 @@ public final class KinesisIO {
       @Override
       protected void write(String partitionKey, @Nullable String explicitHashKey, byte[] data)
           throws Throwable {
-        BigInteger hashKey = effectiveHashKey(partitionKey, explicitHashKey);
-        RecordsAggregator agg = aggregators.computeIfAbsent(hashKey, k -> newRecordsAggregator());
+        shardRanges.refreshPeriodically(kinesis, aggSpec::nextShardRefresh);
+
+        // calculate the effective hash key used for aggregation
+        BigInteger aggKey;
+        if (explicitHashKey != null) {
+          aggKey = new BigInteger(explicitHashKey);
+        } else {
+          BigInteger hashedPartitionKey = pkHasher.hashKey(partitionKey);
+          aggKey = shardRanges.shardAwareHashKey(hashedPartitionKey);
+          if (aggKey != null) {
+            // use the shard aware aggregation key as explicit hash key for optimal aggregation
+            explicitHashKey = aggKey.toString();
+          } else {
+            aggKey = hashedPartitionKey;
+          }
+        }
+
+        RecordsAggregator agg = aggregators.computeIfAbsent(aggKey, k -> newRecordsAggregator());
         if (!agg.addRecord(partitionKey, explicitHashKey, data)) {
           // aggregated record too full, add a request entry and reset aggregator
-          addRequestEntry(agg.getAndReset(aggregationTimeoutWithJitter()));
-          aggregators.remove(hashKey);
+          addRequestEntry(agg.getAndReset(aggSpec.nextBufferTimeout()));
+          aggregators.remove(aggKey);
           if (agg.addRecord(partitionKey, explicitHashKey, data)) {
-            aggregators.put(hashKey, agg); // new aggregation started
+            aggregators.put(aggKey, agg); // new aggregation started
           } else {
             super.write(partitionKey, explicitHashKey, data); // skip aggregation
           }
         } else if (!agg.hasCapacity()) {
           addRequestEntry(agg.get());
-          aggregators.remove(hashKey);
+          aggregators.remove(aggKey);
         }
 
         // only check timeouts sporadically if concurrency is already maxed out
@@ -1001,14 +1085,7 @@ public final class KinesisIO {
 
       private RecordsAggregator newRecordsAggregator() {
         return new RecordsAggregator(
-            Math.min(aggSpec.maxBytes(), spec.batchMaxBytes()), aggregationTimeoutWithJitter());
-      }
-
-      private Instant aggregationTimeoutWithJitter() {
-        double millis =
-            (1 - aggSpec.maxBufferedTimeJitter() + aggSpec.maxBufferedTimeJitter() * Math.random())
-                * aggSpec.maxBufferedTime().getMillis();
-        return Instant.ofEpochMilli(DateTimeUtils.currentTimeMillis() + (long) millis);
+            Math.min(aggSpec.maxBytes(), spec.batchMaxBytes()), aggSpec.nextBufferTimeout());
       }
 
       private void checkAggregationTimeouts() throws Throwable {
@@ -1021,9 +1098,8 @@ public final class KinesisIO {
           if (agg.timeout().isAfter(now)) {
             break;
           }
-          LOG.debug(
-              "Adding aggregated entry after timeout [delay = {} ms]",
-              now.getMillis() - agg.timeout().getMillis());
+          long delayMillis = now.getMillis() - agg.timeout().getMillis();
+          LOG.debug("Adding aggregated entry after timeout [delay = {} ms]", delayMillis);
           addRequestEntry(agg.get());
           removals.add(e.getKey());
         }
@@ -1041,16 +1117,23 @@ public final class KinesisIO {
         super.finishBundle();
       }
 
-      private BigInteger effectiveHashKey(String partitionKey, @Nullable String explicitHashKey) {
-        return explicitHashKey == null
-            ? new BigInteger(1, md5(partitionKey.getBytes(UTF_8)))
-            : new BigInteger(explicitHashKey);
+      @Override
+      public void close() throws Exception {
+        super.close();
+        SHARD_RANGES_BY_STREAM.release(shardRanges);
       }
+    }
 
-      private byte[] md5(byte[] data) {
-        byte[] hash = md5Digest.digest(data);
+    @VisibleForTesting
+    @NotThreadSafe
+    static class PartitionKeyHasher {
+      private final MessageDigest md5Digest = md5Digest();
+
+      /** Hash partition key to 128 bit integer. */
+      BigInteger hashKey(String partitionKey) {
+        byte[] hashedBytes = md5Digest.digest(partitionKey.getBytes(UTF_8));
         md5Digest.reset();
-        return hash;
+        return new BigInteger(1, hashedBytes);
       }
 
       private static MessageDigest md5Digest() {
@@ -1058,6 +1141,99 @@ public final class KinesisIO {
           return MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
           throw new RuntimeException(e);
+        }
+      }
+    }
+
+    /** Shard hash ranges per stream to generate shard aware hash keys for record aggregation. */
+    @VisibleForTesting
+    @ThreadSafe
+    interface ShardRanges {
+      ShardRanges EMPTY = new ShardRanges() {};
+
+      static ShardRanges of(String stream) {
+        return new ShardRangesImpl(stream);
+      }
+
+      /**
+       * Align partition key hash to lower bound of key range of the target shard. If unavailable
+       * {@code null} is returned.
+       */
+      default @Nullable BigInteger shardAwareHashKey(BigInteger hashedPartitionKey) {
+        return null;
+      }
+
+      /** Check for and trigger periodic refresh if needed. */
+      default void refreshPeriodically(
+          KinesisAsyncClient kinesis, Supplier<Instant> nextRefreshFn) {}
+
+      class ShardRangesImpl implements ShardRanges {
+        private static final Logger LOG = LoggerFactory.getLogger(ShardRanges.class);
+
+        private final String streamName;
+
+        private final AtomicBoolean running = new AtomicBoolean(false);
+        private NavigableSet<BigInteger> shardBounds = ImmutableSortedSet.of();
+        private Instant nextRefresh = Instant.EPOCH;
+
+        private ShardRangesImpl(String streamName) {
+          this.streamName = streamName;
+        }
+
+        @Override
+        public @Nullable BigInteger shardAwareHashKey(BigInteger hashedPartitionKey) {
+          BigInteger lowerBound = shardBounds.floor(hashedPartitionKey);
+          if (!shardBounds.isEmpty() && lowerBound == null) {
+            LOG.warn("No shard found for {} [shards={}]", hashedPartitionKey, shardBounds.size());
+          }
+          return lowerBound;
+        }
+
+        @Override
+        public void refreshPeriodically(
+            KinesisAsyncClient client, Supplier<Instant> nextRefreshFn) {
+          if (nextRefresh.isBeforeNow() && running.compareAndSet(false, true)) {
+            refresh(client, nextRefreshFn, new TreeSet<>(), null);
+          }
+        }
+
+        @SuppressWarnings("FutureReturnValueIgnored") // safe to ignore
+        private void refresh(
+            KinesisAsyncClient client,
+            Supplier<Instant> nextRefreshFn,
+            TreeSet<BigInteger> bounds,
+            @Nullable String nextToken) {
+          ListShardsRequest.Builder reqBuilder =
+              ListShardsRequest.builder().shardFilter(f -> f.type(AT_LATEST));
+          if (nextToken != null) {
+            reqBuilder.nextToken(nextToken);
+          } else {
+            reqBuilder.streamName(streamName);
+          }
+          client
+              .listShards(reqBuilder.build())
+              .whenComplete(
+                  (resp, exc) -> {
+                    if (exc != null) {
+                      LOG.warn("Failed to refresh shards.", exc);
+                      nextRefresh = nextRefreshFn.get(); // retry later
+                      running.set(false);
+                      return;
+                    }
+                    resp.shards().forEach(shard -> bounds.add(lowerHashKey(shard)));
+                    if (resp.nextToken() != null) {
+                      refresh(client, nextRefreshFn, bounds, resp.nextToken());
+                      return;
+                    }
+                    LOG.debug("Done refreshing {} shards.", bounds.size());
+                    nextRefresh = nextRefreshFn.get();
+                    running.set(false);
+                    shardBounds = bounds; // swap key ranges
+                  });
+        }
+
+        private BigInteger lowerHashKey(Shard shard) {
+          return new BigInteger(shard.hashKeyRange().startingHashKey());
         }
       }
     }

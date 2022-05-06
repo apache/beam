@@ -569,3 +569,15 @@ coder:
 examples:
   "\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0067\u0080\u0000\u0001\u0052\u009a\u00a4\u009b\u0068\u0080\u00dd\u00db\u0001" : {window: {end: 1454293425000, span: 3600000}}
   "\u007f\u00df\u003b\u0064\u005a\u001c\u00ad\u0075\u007f\u00df\u003b\u0064\u005a\u001c\u00ad\u0076\u00ed\u0002" : {window: {end: -9223372036854410, span: 365}}
+
+
+---
+coder:
+  urn: "beam:coder:nullable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+nested: true
+
+examples:
+  "\u0001\u0003\u0061\u0062\u0063" : "abc"
+  "\u0001\u000a\u006d\u006f\u0072\u0065\u0020\u0062\u0079\u0074\u0065\u0073" : "more bytes"
+  "\u0000" : null

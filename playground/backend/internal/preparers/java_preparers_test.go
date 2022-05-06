@@ -49,20 +49,20 @@ func Test_replace(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:    "file doesn't exist",
+			name:    "File doesn't exist",
 			args:    args{[]interface{}{"someFile.java", classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantErr: true,
 		},
 		{
 			// Test that file with public class loses 'public' modifier
-			name:     "file with public class",
+			name:     "File with public class",
 			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantCode: codeWithoutPublicClass,
 			wantErr:  false,
 		},
 		{
 			// Test that file with defined package changes to import dependencies from this package
-			name:     "file with package",
+			name:     "File with package",
 			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, packagePattern, importStringPattern}},
 			wantCode: codeWithImportedPackage,
 			wantErr:  false,

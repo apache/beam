@@ -21,11 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
-import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormat;
-import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormatProvider;
-import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
-import java.util.HashMap;
+import io.cdap.plugin.common.SourceInputFormatProvider;
+import io.cdap.plugin.servicenow.source.ServiceNowInputFormat;
+import io.cdap.plugin.servicenow.source.ServiceNowSource;
+import io.cdap.plugin.servicenow.source.ServiceNowSourceConfig;
+import io.cdap.plugin.servicenow.source.util.ServiceNowConstants;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.io.MapWritable;
 import org.junit.Test;
@@ -39,79 +39,77 @@ public class PluginTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginTest.class);
 
-  private static final ImmutableMap<String, String> TEST_SALESFORCE_PARAMS_MAP =
-      ImmutableMap.<String, String>builder()
-          .put("sObjectName", "sObject")
-          .put("datetimeAfter", "datetime")
-          .put("consumerKey", "key")
-          .put("consumerSecret", "secret")
-          .put("username", "user")
-          .put("password", "password")
-          .put("loginUrl", "https://www.google.com")
-          .put("referenceName", "some reference name")
+  private static final ImmutableMap<String, Object> TEST_SERVICE_NOW_PARAMS_MAP =
+      ImmutableMap.<String, java.lang.Object>builder()
+          .put(ServiceNowConstants.PROPERTY_CLIENT_ID, "clientId")
+          .put(ServiceNowConstants.PROPERTY_CLIENT_SECRET, "clientSecret")
+          .put(ServiceNowConstants.PROPERTY_API_ENDPOINT, "https://www.google.com")
+          .put(ServiceNowConstants.PROPERTY_QUERY_MODE, "Table")
+          .put(ServiceNowConstants.PROPERTY_USER, "user")
+          .put(ServiceNowConstants.PROPERTY_PASSWORD, "password")
+          .put(ServiceNowConstants.PROPERTY_TABLE_NAME, "tableName")
+          .put(ServiceNowConstants.PROPERTY_VALUE_TYPE, "Actual")
+          .put("referenceName", "oldReference")
           .build();
-
-  private static final HashMap<String, Object> TEST_SALESFORCE_PARAMS_MAP_OBJ =
-      new HashMap<>(TEST_SALESFORCE_PARAMS_MAP);
 
   private static final String REFERENCE_NAME_PARAM_NAME = "referenceName";
 
-  /** Config for Salesforce Batch Source plugin. */
-  public SalesforceSourceConfig salesforceSourceConfig =
-      new ConfigWrapper<>(SalesforceSourceConfig.class)
-          .withParams(TEST_SALESFORCE_PARAMS_MAP_OBJ)
+  /** Config for ServiceNow Batch Source plugin. */
+  public ServiceNowSourceConfig serviceNowSourceConfig =
+      new ConfigWrapper<>(ServiceNowSourceConfig.class)
+          .withParams(TEST_SERVICE_NOW_PARAMS_MAP)
           .setParam(REFERENCE_NAME_PARAM_NAME, "some reference name")
           .build();
 
   @Test
   public void testBuildingSourcePluginWithCDAPClasses() {
     try {
-      Plugin salesforceSourcePlugin =
+      Plugin serviceNowSourcePlugin =
           Plugin.create(
-                  SalesforceBatchSource.class,
-                  SalesforceInputFormat.class,
-                  SalesforceInputFormatProvider.class)
-              .withConfig(salesforceSourceConfig)
+                  ServiceNowSource.class,
+                  ServiceNowInputFormat.class,
+                  SourceInputFormatProvider.class)
+              .withConfig(serviceNowSourceConfig)
               .withHadoopConfiguration(Schema.class, MapWritable.class);
 
-      assertEquals(SalesforceBatchSource.class, salesforceSourcePlugin.getPluginClass());
-      assertEquals(SalesforceInputFormat.class, salesforceSourcePlugin.getFormatClass());
+      assertEquals(ServiceNowSource.class, serviceNowSourcePlugin.getPluginClass());
+      assertEquals(ServiceNowInputFormat.class, serviceNowSourcePlugin.getFormatClass());
       assertEquals(
-          SalesforceInputFormatProvider.class, salesforceSourcePlugin.getFormatProviderClass());
-      assertEquals(salesforceSourceConfig, salesforceSourcePlugin.getPluginConfig());
+          SourceInputFormatProvider.class, serviceNowSourcePlugin.getFormatProviderClass());
+      assertEquals(serviceNowSourceConfig, serviceNowSourcePlugin.getPluginConfig());
       assertEquals(
-          SalesforceInputFormat.class,
-          salesforceSourcePlugin
+          ServiceNowInputFormat.class,
+          serviceNowSourcePlugin
               .getHadoopConfiguration()
               .getClass(
                   PluginConstants.Hadoop.SOURCE.getFormatClass(),
                   PluginConstants.Format.INPUT.getFormatClass()));
     } catch (Exception e) {
-      LOG.error("Error occurred while building the Salesforce Source Plugin", e);
+      LOG.error("Error occurred while building the ServiceNow Source Plugin", e);
       fail();
     }
   }
 
   @Test
   public void testSettingPluginType() {
-    Plugin salesforceSourcePlugin =
+    Plugin serviceNowSourcePlugin =
         Plugin.create(
-                SalesforceBatchSource.class,
-                SalesforceInputFormat.class,
-                SalesforceInputFormatProvider.class)
-            .withConfig(salesforceSourceConfig)
+                ServiceNowSource.class,
+                ServiceNowInputFormat.class,
+                SourceInputFormatProvider.class)
+            .withConfig(serviceNowSourceConfig)
             .withHadoopConfiguration(Schema.class, MapWritable.class);
 
-    assertEquals(PluginConstants.PluginType.SOURCE, salesforceSourcePlugin.getPluginType());
+    assertEquals(PluginConstants.PluginType.SOURCE, serviceNowSourcePlugin.getPluginType());
   }
 
   @Test
   @SuppressWarnings("UnusedVariable")
   public void testSettingPluginTypeFailed() {
     try {
-      Plugin salesforceSourcePlugin =
+      Plugin serviceNowSourcePlugin =
           Plugin.create(Object.class, Object.class, Object.class)
-              .withConfig(salesforceSourceConfig)
+              .withConfig(serviceNowSourceConfig)
               .withHadoopConfiguration(Schema.class, MapWritable.class);
       fail("This should have thrown an exception");
     } catch (Exception e) {

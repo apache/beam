@@ -44,6 +44,7 @@ allprojects {
 }
 
 dependencies {
+    implementation library.java.avro
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
     implementation (library.java.cdap_common) {
@@ -54,6 +55,7 @@ dependencies {
     implementation library.java.guava
     implementation library.java.hadoop_common
     implementation library.java.hadoop_mapred
+    implementation library.java.hadoop_mapreduce_client_core
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.slf4j_api
@@ -69,7 +71,9 @@ dependencies {
     testImplementation "io.cdap:hubspot-plugins:1.0.0-SNAPSHOT"
     testImplementation "io.cdap.plugin:zendesk-plugins:1.0.0-SNAPSHOT"
     testImplementation "io.cdap.plugin:servicenow-plugins:1.2.0-SNAPSHOT"
+    testImplementation library.java.cdap_plugin_service_now
     testImplementation library.java.cdap_etl_api
+    testImplementation library.java.hadoop_common
     testImplementation library.java.vendored_guava_26_0_jre
     testImplementation library.java.junit
     testImplementation project(":sdks:java:io:hadoop-common")

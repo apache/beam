@@ -17,6 +17,7 @@
 package textio
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
@@ -35,7 +36,7 @@ func TestReadFn(t *testing.T) {
 		receivedLines = append(receivedLines, line)
 	}
 
-	err := readFn(nil, testFilePath, getLines)
+	err := readFn(context.Background(), testFilePath, getLines)
 	if err != nil {
 		t.Fatalf("failed with %v", err)
 	}

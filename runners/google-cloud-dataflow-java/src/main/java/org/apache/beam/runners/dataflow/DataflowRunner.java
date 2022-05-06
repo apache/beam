@@ -378,6 +378,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               + "' invalid. Please make sure the value is non-negative.");
     }
 
+    // Verify that if recordJfrOnGcThrashing is set, the pipeline is at least on java 11
+    if (dataflowOptions.getRecordJfrOnGcThrashing()
+        && Environments.getJavaVersion() == Environments.JavaVersion.java8) {
+      throw new IllegalArgumentException(
+          "recordJfrOnGcThrashing is only supported on java 9 and up.");
+    }
+
     if (dataflowOptions.isStreaming() && dataflowOptions.getGcsUploadBufferSizeBytes() == null) {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
@@ -1426,23 +1433,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static void configureSdkHarnessContainerImages(
       DataflowPipelineOptions options, RunnerApi.Pipeline pipelineProto, Job newJob) {
-    if (useUnifiedWorker(options)) {
-      List<SdkHarnessContainerImage> sdkContainerList =
-          getAllEnvironmentInfo(pipelineProto).stream()
-              .map(
-                  environmentInfo -> {
-                    SdkHarnessContainerImage image = new SdkHarnessContainerImage();
-                    image.setEnvironmentId(environmentInfo.environmentId());
-                    image.setContainerImage(environmentInfo.containerUrl());
-                    if (environmentInfo.containerUrl().toLowerCase().contains("python")) {
-                      image.setUseSingleCorePerContainer(true);
-                    }
-                    return image;
-                  })
-              .collect(Collectors.toList());
-      for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
-        workerPool.setSdkHarnessContainerImages(sdkContainerList);
-      }
+    List<SdkHarnessContainerImage> sdkContainerList =
+        getAllEnvironmentInfo(pipelineProto).stream()
+            .map(
+                environmentInfo -> {
+                  SdkHarnessContainerImage image = new SdkHarnessContainerImage();
+                  image.setEnvironmentId(environmentInfo.environmentId());
+                  image.setContainerImage(environmentInfo.containerUrl());
+                  if (environmentInfo.containerUrl().toLowerCase().contains("python")) {
+                    image.setUseSingleCorePerContainer(true);
+                  }
+                  return image;
+                })
+            .collect(Collectors.toList());
+    for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
+      workerPool.setSdkHarnessContainerImages(sdkContainerList);
     }
   }
 
@@ -2319,9 +2324,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
-        || hasExperiment(options, "use_unified_worker")
-        || (hasExperiment(options, "enable_prime")
-            && !hasExperiment(options, "disable_prime_runner_v2"));
+        || hasExperiment(options, "use_unified_worker");
   }
 
   static boolean useStreamingEngine(DataflowPipelineOptions options) {

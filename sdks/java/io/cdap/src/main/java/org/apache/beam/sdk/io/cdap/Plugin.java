@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.cdap;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.reflect.TypeToken;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.batch.BatchSink;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
@@ -42,14 +44,20 @@ import org.slf4j.LoggerFactory;
 
 /** Class wrapper for a CDAP plugin. */
 @AutoValue
-@SuppressWarnings({"rawtypes", "unchecked", "assignment.type.incompatible", "UnstableApiUsage"})
+@SuppressWarnings({
+  "rawtypes",
+  "unchecked",
+  "assignment.type.incompatible",
+  "UnstableApiUsage",
+  "initialization.fields.uninitialized"
+})
 public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
 
-  protected PluginConfig pluginConfig;
-  protected Configuration hadoopConfiguration;
-  protected SubmitterLifecycle cdapPluginObj;
+  protected @Nullable PluginConfig pluginConfig;
+  protected @Nullable Configuration hadoopConfiguration;
+  protected @Nullable SubmitterLifecycle cdapPluginObj;
 
   /** Gets the context of a plugin. */
   public abstract BatchContextImpl getContext();

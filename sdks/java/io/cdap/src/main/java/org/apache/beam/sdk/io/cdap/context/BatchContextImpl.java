@@ -43,10 +43,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/**
- * Class OperationContext is a common class for Batch, Sink and Stream CDAP wrapper classes that use
- * it to provide common details.
- */
+/** Class for Batch, Sink and Stream CDAP wrapper classes that use it to provide common details. */
 @SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
 public class BatchContextImpl implements BatchContext {
 

@@ -23,15 +23,13 @@ import logging
 import socket
 import threading
 
-from oauth2client.client import GoogleCredentials
-
-from apache_beam.utils import retry
-
-# Protect against environments where apitools library is not available.
+# google.auth is only available when Beam is installed with the gcp extra.
 try:
-  from apitools.base.py.credentials_lib import GceAssertionCredentials
+  import google.auth
+  import google_auth_httplib2
+  _GOOGLE_AUTH_AVAILABLE = True
 except ImportError:
-  GceAssertionCredentials = None
+  _GOOGLE_AUTH_AVAILABLE = False
 
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False
@@ -41,18 +39,6 @@ is_running_in_gce = False
 executing_project = None
 
 _LOGGER = logging.getLogger(__name__)
-
-if GceAssertionCredentials is not None:
-
-  class _GceAssertionCredentials(GceAssertionCredentials):
-    """GceAssertionCredentials with retry wrapper.
-
-    For internal use only; no backwards-compatibility guarantees.
-    """
-    @retry.with_exponential_backoff(
-        retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-    def _do_refresh_request(self, http_request):
-      return super()._do_refresh_request(http_request)
 
 
 def set_running_in_gce(worker_executing_project):
@@ -79,10 +65,41 @@ def get_service_credentials():
   Get credentials to access Google services.
 
   Returns:
-    A ``oauth2client.client.OAuth2Credentials`` object or None if credentials
+    A ``google.auth.credentials.Credentials`` object or None if credentials
     not found. Returned object is thread-safe.
   """
   return _Credentials.get_service_credentials()
+
+
+if _GOOGLE_AUTH_AVAILABLE:
+
+  class _ApitoolsCredentialsAdapter:
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Adapter allowing use of google-auth credentials with apitools, which
+    normally expects credentials from the oauth2client library. This allows
+    upgrading the auth library used by Beam without simultaneously upgrading
+    all the GCP client libraries (a much larger change).
+    """
+    def __init__(self, google_auth_credentials):
+      self._google_auth_credentials = google_auth_credentials
+
+    def authorize(self, http):
+      """Return an http client authorized with the google-auth credentials.
+
+      Args:
+        http: httplib2.Http, an http object to be used to make the refresh
+          request.
+
+      Returns:
+        google_auth_httplib2.AuthorizedHttp: An authorized http client.
+      """
+      return google_auth_httplib2.AuthorizedHttp(
+          self._google_auth_credentials, http=http)
+
+    def __getattr__(self, attr):
+      """Delegate attribute access to underlying google-auth credentials."""
+      return getattr(self._google_auth_credentials, attr)
 
 
 class _Credentials(object):
@@ -114,29 +131,32 @@ class _Credentials(object):
 
   @staticmethod
   def _get_service_credentials():
-    if is_running_in_gce:
-      # We are currently running as a GCE taskrunner worker.
-      return _GceAssertionCredentials(user_agent='beam-python-sdk/1.0')
-    else:
-      client_scopes = [
-          'https://www.googleapis.com/auth/bigquery',
-          'https://www.googleapis.com/auth/cloud-platform',
-          'https://www.googleapis.com/auth/devstorage.full_control',
-          'https://www.googleapis.com/auth/userinfo.email',
-          'https://www.googleapis.com/auth/datastore',
-          'https://www.googleapis.com/auth/spanner.admin',
-          'https://www.googleapis.com/auth/spanner.data'
-      ]
-      try:
-        credentials = GoogleCredentials.get_application_default()
-        credentials = credentials.create_scoped(client_scopes)
-        logging.debug(
-            'Connecting using Google Application Default '
-            'Credentials.')
-        return credentials
-      except Exception as e:
-        _LOGGER.warning(
-            'Unable to find default credentials to use: %s\n'
-            'Connecting anonymously.',
-            e)
-        return None
+    if not _GOOGLE_AUTH_AVAILABLE:
+      _LOGGER.warning(
+          'Unable to find default credentials because the google-auth library '
+          'is not available. Install the gcp extra (apache_beam[gcp]) to use '
+          'Google default credentials. Connecting anonymously.')
+      return None
+
+    client_scopes = [
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/devstorage.full_control',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/datastore',
+        'https://www.googleapis.com/auth/spanner.admin',
+        'https://www.googleapis.com/auth/spanner.data'
+    ]
+    try:
+      credentials, _ = google.auth.default(scopes=client_scopes)  # pylint: disable=c-extension-no-member
+      credentials = _ApitoolsCredentialsAdapter(credentials)
+      logging.debug(
+          'Connecting using Google Application Default '
+          'Credentials.')
+      return credentials
+    except Exception as e:
+      _LOGGER.warning(
+          'Unable to find default credentials to use: %s\n'
+          'Connecting anonymously.',
+          e)
+      return None

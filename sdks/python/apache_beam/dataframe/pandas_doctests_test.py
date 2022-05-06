@@ -275,10 +275,6 @@ class DoctestTest(unittest.TestCase):
                 'df.round(decimals)',
             ],
 
-            # We should be able to support pivot and pivot_table for categorical
-            # columns
-            'pandas.core.frame.DataFrame.pivot': ['*'],
-
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
             # Difficult to determine proxy, need to inspect function
@@ -367,7 +363,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
             # Expected to raise a ValueError, but we raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot': [
-                "df.pivot(index='foo', columns='bar', values='baz')"
+                "df.pivot(index='foo', columns='bar', values='baz')",
+                "df.pivot(index='foo', columns='bar')['baz']",
+                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
+                # pylint: disable=line-too-long
+                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
+                # pylint: disable=line-too-long
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
             ],
             'pandas.core.frame.DataFrame.append': [
                 'df',
@@ -832,7 +834,6 @@ class DoctestTest(unittest.TestCase):
             'melt': ['*'],
             'merge': ["df1.merge(df2, how='cross')"],
             'merge_asof': ['*'],
-            'pivot': ['*'],
             'pivot_table': ['*'],
             'qcut': ['*'],
             'reset_option': ['*'],
@@ -845,6 +846,7 @@ class DoctestTest(unittest.TestCase):
         },
         wont_implement_ok={
             'factorize': ['*'],
+            'pivot': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'melt': [
@@ -876,7 +878,15 @@ class DoctestTest(unittest.TestCase):
                 'merge_ordered(df1, df2, fill_method="ffill", left_by="group")'
             ],
             # Expected error.
-            'pivot': ["df.pivot(index='foo', columns='bar', values='baz')"],
+            'pivot': [
+                "df.pivot(index='foo', columns='bar', values='baz')",
+                "df.pivot(index='foo', columns='bar')['baz']",
+                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
+                # pylint: disable=line-too-long
+                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
+                # pylint: disable=line-too-long
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
+            ],
             # Never written.
             'to_pickle': ['os.remove("./dummy.pkl")'],
             **skip_reads

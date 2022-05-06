@@ -18,10 +18,9 @@
 package org.apache.beam.fn.harness.state;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
@@ -45,7 +44,7 @@ import org.slf4j.LoggerFactory;
 public class BeamFnStateGrpcClientCache {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnStateGrpcClientCache.class);
 
-  private final ConcurrentMap<ApiServiceDescriptor, BeamFnStateClient> cache;
+  private final Map<ApiServiceDescriptor, BeamFnStateClient> cache;
   private final ManagedChannelFactory channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
   private final IdGenerator idGenerator;
@@ -59,7 +58,7 @@ public class BeamFnStateGrpcClientCache {
     // This showed a 1-2% improvement in the ProcessBundleBenchmark#testState* benchmarks.
     this.channelFactory = channelFactory.withDirectExecutor();
     this.outboundObserverFactory = outboundObserverFactory;
-    this.cache = new ConcurrentHashMap<>();
+    this.cache = new HashMap<>();
   }
 
   /**
@@ -67,30 +66,53 @@ public class BeamFnStateGrpcClientCache {
    * {@link ApiServiceDescriptor} currently has a {@link BeamFnStateClient} bound to the same
    * channel.
    */
-  public BeamFnStateClient forApiServiceDescriptor(ApiServiceDescriptor apiServiceDescriptor)
-      throws IOException {
-    return cache.computeIfAbsent(apiServiceDescriptor, this::createBeamFnStateClient);
-  }
-
-  private BeamFnStateClient createBeamFnStateClient(ApiServiceDescriptor apiServiceDescriptor) {
-    return new GrpcStateClient(apiServiceDescriptor);
+  public synchronized BeamFnStateClient forApiServiceDescriptor(
+      ApiServiceDescriptor apiServiceDescriptor) throws IOException {
+    // We specifically are synchronized so that we only create one GrpcStateClient at a time
+    // preventing a race where multiple GrpcStateClient objects might be constructed at the same
+    // for the same ApiServiceDescriptor.
+    BeamFnStateClient rval;
+    synchronized (cache) {
+      rval = cache.get(apiServiceDescriptor);
+    }
+    if (rval == null) {
+      // We can't be synchronized on cache while constructing the GrpcStateClient since if the
+      // connection fails, onError may be invoked from the gRPC thread which will invoke
+      // closeAndCleanUp that clears the cache.
+      rval = new GrpcStateClient(apiServiceDescriptor);
+      synchronized (cache) {
+        cache.put(apiServiceDescriptor, rval);
+      }
+    }
+    return rval;
   }
 
   /** A {@link BeamFnStateClient} for a given {@link ApiServiceDescriptor}. */
   private class GrpcStateClient implements BeamFnStateClient {
+    private final Object lock = new Object();
     private final ApiServiceDescriptor apiServiceDescriptor;
-    private final ConcurrentMap<String, CompletableFuture<StateResponse>> outstandingRequests;
+    private final Map<String, CompletableFuture<StateResponse>> outstandingRequests;
     private final StreamObserver<StateRequest> outboundObserver;
     private final ManagedChannel channel;
-    private volatile RuntimeException closed;
+    private RuntimeException closed;
+    private boolean errorDuringConstruction;
 
     private GrpcStateClient(ApiServiceDescriptor apiServiceDescriptor) {
       this.apiServiceDescriptor = apiServiceDescriptor;
-      this.outstandingRequests = new ConcurrentHashMap<>();
+      this.outstandingRequests = new HashMap<>();
       this.channel = channelFactory.forDescriptor(apiServiceDescriptor);
+      this.errorDuringConstruction = false;
       this.outboundObserver =
           outboundObserverFactory.outboundObserverFor(
               BeamFnStateGrpc.newStub(channel)::state, new InboundObserver());
+      // Due to safe object publishing, the InboundObserver may invoke closeAndCleanUp before this
+      // constructor completes. In that case there is a race where outboundObserver may have not
+      // been initialized and hence we invoke onCompleted here.
+      synchronized (lock) {
+        if (errorDuringConstruction) {
+          outboundObserver.onCompleted();
+        }
+      }
     }
 
     @Override
@@ -98,7 +120,13 @@ public class BeamFnStateGrpcClientCache {
       requestBuilder.setId(idGenerator.getId());
       StateRequest request = requestBuilder.build();
       CompletableFuture<StateResponse> response = new CompletableFuture<>();
-      outstandingRequests.put(request.getId(), response);
+      synchronized (lock) {
+        if (closed != null) {
+          response.completeExceptionally(closed);
+          return response;
+        }
+        outstandingRequests.put(request.getId(), response);
+      }
 
       // If the server closes, gRPC will throw an error if onNext is called.
       LOG.debug("Sending StateRequest {}", request);
@@ -106,27 +134,33 @@ public class BeamFnStateGrpcClientCache {
       return response;
     }
 
-    private synchronized void closeAndCleanUp(RuntimeException cause) {
-      if (closed != null) {
-        return;
-      }
-      cache.remove(apiServiceDescriptor);
-      closed = cause;
+    private void closeAndCleanUp(RuntimeException cause) {
+      synchronized (lock) {
+        if (closed != null) {
+          return;
+        }
+        closed = cause;
 
-      // Make a copy of the map to make the view of the outstanding requests consistent.
-      Map<String, CompletableFuture<StateResponse>> outstandingRequestsCopy =
-          new ConcurrentHashMap<>(outstandingRequests);
+        synchronized (cache) {
+          cache.remove(apiServiceDescriptor);
+        }
 
-      if (outstandingRequestsCopy.isEmpty()) {
-        outboundObserver.onCompleted();
-        return;
-      }
+        if (!outstandingRequests.isEmpty()) {
+          LOG.error("BeamFnState failed, clearing outstanding requests {}", outstandingRequests);
+          for (CompletableFuture<StateResponse> entry : outstandingRequests.values()) {
+            entry.completeExceptionally(cause);
+          }
+          outstandingRequests.clear();
+        }
 
-      outstandingRequests.clear();
-      LOG.error("BeamFnState failed, clearing outstanding requests {}", outstandingRequestsCopy);
-
-      for (CompletableFuture<StateResponse> entry : outstandingRequestsCopy.values()) {
-        entry.completeExceptionally(cause);
+        // Due to safe object publishing, outboundObserver may be null since InboundObserver may
+        // call closeAndCleanUp before the GrpcStateClient finishes construction. In this case
+        // we defer invoking onCompleted to the GrpcStateClient constructor.
+        if (outboundObserver == null) {
+          errorDuringConstruction = true;
+        } else {
+          outboundObserver.onCompleted();
+        }
       }
     }
 
@@ -143,7 +177,10 @@ public class BeamFnStateGrpcClientCache {
       @Override
       public void onNext(StateResponse value) {
         LOG.debug("Received StateResponse {}", value);
-        CompletableFuture<StateResponse> responseFuture = outstandingRequests.remove(value.getId());
+        CompletableFuture<StateResponse> responseFuture;
+        synchronized (lock) {
+          responseFuture = outstandingRequests.remove(value.getId());
+        }
         if (responseFuture == null) {
           LOG.warn("Dropped unknown StateResponse {}", value);
           return;
