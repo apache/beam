@@ -43,6 +43,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -74,6 +75,7 @@ public class SchemaTranslation {
           ImmutableMap.<String, Class<? extends LogicalType<?, ?>>>builder()
               .put(MicrosInstant.IDENTIFIER, MicrosInstant.class)
               .put(SchemaLogicalType.IDENTIFIER, SchemaLogicalType.class)
+              .put(PythonCallable.IDENTIFIER, PythonCallable.class)
               .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
