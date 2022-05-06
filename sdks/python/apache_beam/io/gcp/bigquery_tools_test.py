@@ -443,8 +443,8 @@ class TestBigQueryWrapper(unittest.TestCase):
           source_stream=io.BytesIO())
 
     # Neither source_uri nor source_stream specified.
-    with self.assertRaises(ValueError):
-      wrapper.perform_load_job(destination='P:D.T', job_id='J')
+    wrapper.perform_load_job(
+        destination=parse_table_reference('project:dataset.table'), job_id='J')
 
   def test_perform_load_job_with_source_stream(self):
     client = mock.Mock()
