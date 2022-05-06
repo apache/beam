@@ -17,6 +17,8 @@ package registration
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -135,6 +137,11 @@ func (e *emitNative3[T1, T2]) invoke(et typex.EventTime, key T1, val T2) {
 	}
 }
 
+// RegisterEmitter1 registers parameters from your DoFn with a
+// signature func(T) and optimizes their execution.
+// This must be done by passing in a reference to an instantiated version
+// of the function, aka:
+// registration.RegisterEmitter1[T]((*func(T))(nil))
 func RegisterEmitter1[T1 any](e *func(T1)) {
     registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
         gen := &emitNative1[T1]{n: n}
@@ -144,6 +151,11 @@ func RegisterEmitter1[T1 any](e *func(T1)) {
 	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
 }
 
+// RegisterEmitter2 registers parameters from your DoFn with a
+// signature func(T1, T2) and optimizes their execution.
+// This must be done by passing in a reference to an instantiated version
+// of the function, aka:
+// registration.RegisterEmitter2[T1, T2]((*func(T1, T2))(nil))
 func RegisterEmitter2[T1, T2 any](e *func(T1, T2)) {
     registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
         gen := &emitNative2[T1, T2]{n: n}
@@ -160,6 +172,11 @@ func RegisterEmitter2[T1, T2 any](e *func(T1, T2)) {
 	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
 }
 
+// RegisterEmitter3 registers parameters from your DoFn with a
+// signature func(T1, T2, T3) and optimizes their execution.
+// This must be done by passing in a reference to an instantiated version
+// of the function, aka:
+// registration.RegisterEmitter3[T1, T2, T3]((*func(T1, T2, T3))(nil))
 func RegisterEmitter3[T1, T2, T3 any](e *func(T1, T2, T3)) {
     registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
         gen := &emitNative3[T2, T3]{n: n}
@@ -252,6 +269,11 @@ func (v *iterNative2[T1, T2]) invoke(key *T1, value *T2) bool {
 	return true
 }
 
+// RegisterIter1 registers parameters from your DoFn with a
+// signature func(*T) bool and optimizes their execution.
+// This must be done by passing in a reference to an instantiated version
+// of the function, aka:
+// registration.RegisterIter1[T]((*func(*T) bool)(nil))
 func RegisterIter1[T any](i *func(*T) bool) {
     registerFunc := func(s exec.ReStream) exec.ReusableInput {
         ret := &iterNative1[T]{s: s}
@@ -261,6 +283,11 @@ func RegisterIter1[T any](i *func(*T) bool) {
 	exec.RegisterInput(reflect.TypeOf(i).Elem(), registerFunc)
 }
 
+// RegisterIter1 registers parameters from your DoFn with a
+// signature func(*T1, *T2) bool and optimizes their execution.
+// This must be done by passing in a reference to an instantiated version
+// of the function, aka:
+// registration.RegisterIter2[T1, T2]((*func(*T1, *T2) bool)(nil))
 func RegisterIter2[T1, T2 any](i *func(*T1, *T2) bool) {
     registerFunc := func(s exec.ReStream) exec.ReusableInput {
         ret := &iterNative2[T1, T2]{s: s}

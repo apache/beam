@@ -20,7 +20,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
@@ -152,6 +154,48 @@ func TestRegister_RegistersTypes(t *testing.T) {
 	}
 	if !schema.Registered(reflect.TypeOf(CustomType2{})) {
 		t.Errorf("schema.Registered(reflect.TypeOf(CustomType{})) = false, want true")
+	}
+}
+
+func TestRegisterEmitter1(t *testing.T) {
+	RegisterEmitter1[int]((*func(int))(nil))
+	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(int))(nil)).Elem()) {
+		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(int))(nil)).Elem()) = false, want true")
+	}
+}
+
+func TestRegisterEmitter2(t *testing.T) {
+	RegisterEmitter2[int, string]((*func(int, string))(nil))
+	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(int, string))(nil)).Elem()) {
+		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(int, string))(nil)).Elem()) = false, want true")
+	}
+}
+
+func TestRegisterEmitter2_WithTimestamp(t *testing.T) {
+	RegisterEmitter2[typex.EventTime, string]((*func(typex.EventTime, string))(nil))
+	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, string))(nil)).Elem()) {
+		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, string))(nil)).Elem()) = false, want true")
+	}
+}
+
+func TestRegisterEmitter3(t *testing.T) {
+	RegisterEmitter3[typex.EventTime, int, string]((*func(typex.EventTime, int, string))(nil))
+	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, int, string))(nil)).Elem()) {
+		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, int, string))(nil)).Elem()) = false, want true")
+	}
+}
+
+func TestRegisterIter1(t *testing.T) {
+	RegisterIter1[int]((*func(*int) bool)(nil))
+	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int) bool)(nil)).Elem()) {
+		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf(((*func(*int) bool)(nil)).Elem()) = false, want true")
+	}
+}
+
+func TestRegisterIter2(t *testing.T) {
+	RegisterIter2[int, string]((*func(*int, *string) bool)(nil))
+	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem()) {
+		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem()) = false, want true")
 	}
 }
 
