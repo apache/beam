@@ -87,7 +87,7 @@ class TestDataflowRunner(DataflowRunner):
   def wait_until_in_state(self, expected_state, timeout=WAIT_IN_STATE_TIMEOUT):
     """Wait until Dataflow pipeline enters a certain state."""
     consoleUrl = """Console URL:https://console.cloud.google.com/dataflow/jobs/
-    <regionId>/{}?project=<projectId>""".format(self.result.job_id)
+    <regionId>/{}?project=<projectId>""".format(self.result.job_id())
     if not self.result.has_job:
       _LOGGER.error(consoleUrl)
       raise IOError('Failed to get the Dataflow job id.')
