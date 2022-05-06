@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 )
 
 func sumFn(n int, a int, b []int, c func(*int) bool, d func() func(*int) bool, e func(int)) int {
@@ -301,6 +302,116 @@ func TestProcessSingleWindow_errorCase(t *testing.T) {
 
 	if len(out.Elements) != 0 {
 		t.Errorf("got %v output elements, want 0", len(out.Elements))
+	}
+}
+
+func makeInputsWithUnfinishedRestrictions(values ...interface{}) []MainInput {
+	initial := makeInput(values...)
+	var restrictedIns []MainInput
+	for _, mainIn := range initial {
+		rest := offsetrange.Restriction{Start: 0, End: 10}
+		rt := sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+		mainIn.RTracker = rt
+		restrictedIns = append(restrictedIns, mainIn)
+	}
+	return restrictedIns
+}
+
+type returnSplittable struct{}
+
+func (fn *returnSplittable) CreateInitialRestriction(_ string) offsetrange.Restriction {
+	return offsetrange.Restriction{
+		Start: 0,
+		End:   10,
+	}
+}
+
+func (fn *returnSplittable) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+}
+
+func (fn *returnSplittable) SplitRestriction(_ string, rest offsetrange.Restriction) []offsetrange.Restriction {
+	return []offsetrange.Restriction{rest}
+}
+
+func (fn *returnSplittable) RestrictionSize(_ string, rest offsetrange.Restriction) float64 {
+	return rest.Size()
+}
+
+func (fn *returnSplittable) ProcessElement(rt *sdf.LockRTracker, a string) string { return a }
+
+type noReturnSplittable struct{}
+
+func (fn *noReturnSplittable) CreateInitialRestriction(_ string) offsetrange.Restriction {
+	return offsetrange.Restriction{
+		Start: 0,
+		End:   10,
+	}
+}
+
+func (fn *noReturnSplittable) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+}
+
+func (fn *noReturnSplittable) SplitRestriction(_ string, rest offsetrange.Restriction) []offsetrange.Restriction {
+	return []offsetrange.Restriction{rest}
+}
+
+func (fn *noReturnSplittable) RestrictionSize(_ string, rest offsetrange.Restriction) float64 {
+	return rest.Size()
+}
+
+func (fn *noReturnSplittable) ProcessElement(rt *sdf.LockRTracker, a string, emit func(string)) error {
+	return nil
+}
+
+func TestProcessSingleWindow_dataLossCase(t *testing.T) {
+	tests := []struct {
+		name    string
+		inputFn interface{}
+		input   *MainInput
+	}{
+		{
+			"returned value",
+			&returnSplittable{},
+			&makeInputsWithUnfinishedRestrictions("a")[0],
+		},
+		{
+			"no returned value",
+			&noReturnSplittable{},
+			&makeInputsWithUnfinishedRestrictions("a")[0],
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fn, err := graph.NewDoFn(test.inputFn)
+			if err != nil {
+				t.Fatalf("invalid function %v", err)
+			}
+			g := graph.New()
+			nN := g.NewNode(typex.New(reflectx.String), window.DefaultWindowingStrategy(), true)
+
+			edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+			if err != nil {
+				t.Fatalf("invalid pardo: %v", err)
+			}
+
+			out := &CaptureNode{UID: 1}
+			pardo := &ParDo{UID: 2, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
+
+			if err := pardo.Up(context.Background()); err != nil {
+				t.Fatalf("up failed: %v", err)
+			}
+
+			_, err = pardo.processSingleWindow(test.input)
+			if err == nil {
+				t.Errorf("processSingleWindow(%v) succeeded when it should have failed", test.input)
+			}
+
+			if !strings.Contains(err.Error(), "DoFn terminated without fully processing restriction") {
+				t.Errorf("got unexpected error %v", err)
+			}
+		})
 	}
 }
 
