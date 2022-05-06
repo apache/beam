@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -371,7 +375,7 @@ public class CdapIOTest {
     assertEquals(HubspotOutputFormat.class, writer.getCdapPlugin().getFormatClass());
 
     Configuration hadoopConf = writer.getCdapPlugin().getHadoopConfiguration();
-    String configJson = hadoopConf.get(HubspotOutputFormatProviderImpl.PROPERTY_CONFIG_JSON);
+    String configJson = hadoopConf.get("cdap.Hubspot.sink.config");
     SinkHubspotConfig configFromJson = GSON.fromJson(configJson, SinkHubspotConfig.class);
 
     assertEquals(sinkConfig.getObjectType(), configFromJson.getObjectType());

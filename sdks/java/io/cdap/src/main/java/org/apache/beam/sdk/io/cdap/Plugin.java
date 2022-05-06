@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.cdap;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.reflect.TypeToken;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.SubmitterLifecycle;
 import io.cdap.cdap.etl.api.batch.BatchSink;

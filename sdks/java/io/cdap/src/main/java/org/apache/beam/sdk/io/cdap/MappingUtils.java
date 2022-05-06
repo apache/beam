@@ -43,8 +43,7 @@ public class MappingUtils {
     } else if (pluginClass.equals(ZendeskBatchSource.class)) {
       return Plugin.create(pluginClass, ZendeskInputFormat.class, ZendeskInputFormatProvider.class);
     } else if (pluginClass.equals(HubspotBatchSink.class)) {
-      return Plugin.create(
-          pluginClass, HubspotOutputFormat.class, HubspotOutputFormatProviderImpl.class);
+      return Plugin.create(pluginClass, HubspotOutputFormat.class, SourceInputFormatProvider.class);
     } else if (pluginClass.equals(ServiceNowSource.class)) {
       return Plugin.create(
           pluginClass, ServiceNowInputFormat.class, SourceInputFormatProvider.class);
