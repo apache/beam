@@ -81,7 +81,7 @@ func (e *emitNative2[T1, T2]) invoke(key T1, val T2) {
 	}
 }
 
-type emitNative2WithTimestamp[T any] struct {
+type emitNative1WithTimestamp[T any] struct {
 	n  exec.ElementProcessor
 	fn interface{}
 
@@ -91,25 +91,25 @@ type emitNative2WithTimestamp[T any] struct {
 	value exec.FullValue
 }
 
-func (e *emitNative2WithTimestamp[T]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
+func (e *emitNative1WithTimestamp[T]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
 	e.ws = ws
 	e.et = et
 	return nil
 }
 
-func (e *emitNative2WithTimestamp[T]) Value() interface{} {
+func (e *emitNative1WithTimestamp[T]) Value() interface{} {
 	return e.fn
 }
 
-func (e *emitNative2WithTimestamp[T]) invoke(et typex.EventTime, val T) {
+func (e *emitNative1WithTimestamp[T]) invoke(et typex.EventTime, val T) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: val}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
 }
 
-type emitNative3[T1, T2 any] struct {
+type emitNative2WithTimestamp[T1, T2 any] struct {
 	n  exec.ElementProcessor
 	fn interface{}
 
@@ -119,18 +119,18 @@ type emitNative3[T1, T2 any] struct {
 	value exec.FullValue
 }
 
-func (e *emitNative3[T1, T2]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
+func (e *emitNative2WithTimestamp[T1, T2]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
 	e.ws = ws
 	e.et = et
 	return nil
 }
 
-func (e *emitNative3[T1, T2]) Value() interface{} {
+func (e *emitNative2WithTimestamp[T1, T2]) Value() interface{} {
 	return e.fn
 }
 
-func (e *emitNative3[T1, T2]) invoke(et typex.EventTime, key T1, val T2) {
+func (e *emitNative2WithTimestamp[T1, T2]) invoke(et typex.EventTime, key T1, val T2) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
@@ -164,7 +164,7 @@ func RegisterEmitter2[T1, T2 any](e *func(T1, T2)) {
 	}
 	if reflect.TypeOf(e).Elem().In(0) == typex.EventTimeType {
 		registerFunc = func(n exec.ElementProcessor) exec.ReusableEmitter {
-			gen := &emitNative2WithTimestamp[T2]{n: n}
+			gen := &emitNative1WithTimestamp[T2]{n: n}
 			gen.fn = gen.invoke
 			return gen
 		}
@@ -179,7 +179,7 @@ func RegisterEmitter2[T1, T2 any](e *func(T1, T2)) {
 // registration.RegisterEmitter3[T1, T2, T3]((*func(T1, T2, T3))(nil))
 func RegisterEmitter3[T1, T2, T3 any](e *func(T1, T2, T3)) {
 	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
-		gen := &emitNative3[T2, T3]{n: n}
+		gen := &emitNative2WithTimestamp[T2, T3]{n: n}
 		gen.fn = gen.invoke
 		return gen
 	}
