@@ -162,7 +162,7 @@ if __name__ == '__main__':
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
   generate_protos_first()
-  # Keep all dependencies inlined in the setup call, otherwise dependabot won't
+  # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
       name=PACKAGE_NAME,
@@ -225,13 +225,15 @@ if __name__ == '__main__':
         'pymongo>=3.8.0,<4.0.0',
         'protobuf>=3.12.2,<4',
         'proto-plus>=1.7.1,<2',
-        pyarrow_dependency,
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
         'pytz>=2018.3',
         'requests>=2.24.0,<3.0.0',
         'typing-extensions>=3.7.0',
-      ],
+      # Dynamic dependencies must be specified in a separate list, otherwise
+      # Dependabot won't be able to parse the main list. Any dynamic
+      # dependencies will not receive updates from Dependabot.
+      ] + [pyarrow_dependency],
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
