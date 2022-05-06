@@ -17,12 +17,15 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -164,6 +167,140 @@ func TestParDo_WindowObservation(t *testing.T) {
 		if !equalList(out.Elements, expected) {
 			t.Errorf("pardo(windowObserverFn) = %v, want %v", extractValues(out.Elements...), extractValues(expected...))
 		}
+	}
+}
+
+func TestProcessSingleWindow_withOutputs(t *testing.T) {
+	tests := []struct {
+		name           string
+		inputFn        interface{}
+		input          []interface{}
+		expectedOutput []interface{}
+	}{
+		{
+			"forwarding case",
+			func(a string) (string, error) { return a, nil },
+			[]interface{}{"a", "b", "c"},
+			[]interface{}{"a", "b", "c"},
+		},
+		{
+			"continuation case",
+			func(a string) (string, sdf.ProcessContinuation, error) { return a, sdf.StopProcessing(), nil },
+			[]interface{}{"a", "b", "c"},
+			[]interface{}{"a", "b", "c"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fn, err := graph.NewDoFn(test.inputFn)
+			if err != nil {
+				t.Fatalf("invalid function %v", err)
+			}
+			g := graph.New()
+			nN := g.NewNode(typex.New(reflectx.String), window.DefaultWindowingStrategy(), true)
+
+			edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+			if err != nil {
+				t.Fatalf("invalid pardo: %v", err)
+			}
+
+			out := &CaptureNode{UID: 1}
+			pardo := &ParDo{UID: 2, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
+			n := &FixedRoot{UID: 3, Elements: makeInput(test.input...), Out: pardo}
+
+			p, err := NewPlan("a", []Unit{n, pardo, out})
+			if err != nil {
+				t.Fatalf("failed to construct plan: %v", err)
+			}
+
+			if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+
+			if err := p.Down(context.Background()); err != nil {
+				t.Fatalf("down failed: %v", err)
+			}
+
+			if !equalList(out.Elements, makeValues(test.expectedOutput...)) {
+				t.Errorf("got elements %v, want %v", extractValues(out.Elements...), test.expectedOutput)
+			}
+		})
+	}
+
+}
+
+func onlyPC(a string) (sdf.ProcessContinuation, error) {
+	return sdf.StopProcessing(), nil
+}
+
+func TestProcessSingleWindow_noForward(t *testing.T) {
+	fn, err := graph.NewDoFn(onlyPC)
+	if err != nil {
+		t.Fatalf("invalid function %v", err)
+	}
+	g := graph.New()
+	nN := g.NewNode(typex.New(reflectx.String), window.DefaultWindowingStrategy(), true)
+
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+	if err != nil {
+		t.Fatalf("invalid pardo: %v", err)
+	}
+
+	pardo := &ParDo{UID: 2, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{}}
+	n := &FixedRoot{UID: 3, Elements: makeInput("a"), Out: pardo}
+
+	p, err := NewPlan("a", []Unit{n, pardo})
+	if err != nil {
+		t.Fatalf("failed to construct plan: %v", err)
+	}
+
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if err := p.Down(context.Background()); err != nil {
+		t.Fatalf("down failed: %v", err)
+	}
+}
+
+var errReturned = errors.New("a unique error")
+
+func alwaysError(a string) (string, error) {
+	return a, errReturned
+}
+
+func TestProcessSingleWindow_errorCase(t *testing.T) {
+	fn, err := graph.NewDoFn(alwaysError)
+	if err != nil {
+		t.Fatalf("invalid function %v", err)
+	}
+	g := graph.New()
+	nN := g.NewNode(typex.New(reflectx.String), window.DefaultWindowingStrategy(), true)
+
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+	if err != nil {
+		t.Fatalf("invalid pardo: %v", err)
+	}
+	out := &CaptureNode{UID: 1}
+	pardo := &ParDo{UID: 2, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
+	n := &FixedRoot{UID: 3, Elements: makeInput("a"), Out: pardo}
+
+	p, err := NewPlan("a", []Unit{n, pardo, out})
+	if err != nil {
+		t.Fatalf("failed to construct plan: %v", err)
+	}
+
+	err = p.Execute(context.Background(), "1", DataContext{})
+	if err == nil {
+		t.Fatalf("plan execution succeeded when it should have failed")
+	}
+
+	if got, want := err.Error(), errReturned.Error(); !strings.Contains(got, want) {
+		t.Errorf("got error %v, want error %v", got, want)
+	}
+
+	if len(out.Elements) != 0 {
+		t.Errorf("got %v output elements, want 0", len(out.Elements))
 	}
 }
 
