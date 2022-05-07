@@ -486,6 +486,7 @@ class TestReadFromBigQuery(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_table_schema_retrieve(self):
+    from apache_beam import coders
     the_table = apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
     ).get_table(
         project_id="apache-beam-testing",
@@ -493,13 +494,16 @@ class TestReadFromBigQuery(unittest.TestCase):
         table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
     table = the_table.schema
     utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
-    with beam.Pipeline() as p:
+    with TestPipeline() as p:
       result = (
           p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
               gcs_location="gs://bqio_schema",
               table="beam_bigquery_io_test.dfsqltable_3c7d6fd5_16e0460dfd0",
               project="apache-beam-testing")
-          | beam.Map(lambda values: utype(**values)).with_output_types(utype))
+          | apache_beam.io.gcp.bigquery.ReadFromBigQuery.get_pcoll_from_schema(
+              table))
+      print(coders.registry.get_coder(utype))
+      print(result.element_type)
       assert_that(
           result,
           equal_to([
