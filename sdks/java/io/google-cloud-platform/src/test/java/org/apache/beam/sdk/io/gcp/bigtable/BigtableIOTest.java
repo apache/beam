@@ -300,8 +300,7 @@ public class BigtableIOTest {
   @Test
   public void testReadWithReaderStartFailed() throws IOException {
     FailureBigtableService failureService =
-        new FailureBigtableService(
-            new AutoValue_BigtableIOTest_FailureOptions.Builder().setFailAtStart(true).build());
+        new FailureBigtableService(FailureOptions.builder().setFailAtStart(true).build());
     BigtableConfig failureConfig =
         BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
     final String table = "TEST-TABLE";
@@ -323,8 +322,7 @@ public class BigtableIOTest {
   @Test
   public void testReadWithReaderAdvanceFailed() throws IOException {
     FailureBigtableService failureService =
-        new FailureBigtableService(
-            new AutoValue_BigtableIOTest_FailureOptions.Builder().setFailAtAdvance(true).build());
+        new FailureBigtableService(FailureOptions.builder().setFailAtAdvance(true).build());
     BigtableConfig failureConfig =
         BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
     final String table = "TEST-TABLE";
@@ -796,8 +794,7 @@ public class BigtableIOTest {
   @Test
   public void testReadingWithSplitFailed() throws Exception {
     FailureBigtableService failureService =
-        new FailureBigtableService(
-            new AutoValue_BigtableIOTest_FailureOptions.Builder().setFailAtSplit(true).build());
+        new FailureBigtableService(FailureOptions.builder().setFailAtSplit(true).build());
     BigtableConfig failureConfig =
         BigtableConfig.builder().setValidate(true).setBigtableService(failureService).build();
 
@@ -1840,19 +1837,22 @@ public class BigtableIOTest {
 
   /** Error injection options for FakeBigtableService and FakeBigtableReader. */
   @AutoValue
-  public abstract static class FailureOptions {
+  abstract static class FailureOptions {
     abstract Boolean getFailAtStart();
 
     abstract Boolean getFailAtAdvance();
 
     abstract Boolean getFailAtSplit();
 
+    static Builder builder() {
+      return new AutoValue_BigtableIOTest_FailureOptions.Builder()
+          .setFailAtStart(false)
+          .setFailAtAdvance(false)
+          .setFailAtSplit(false);
+    }
+
     @AutoValue.Builder
     abstract static class Builder {
-      public Builder() {
-        this.setFailAtStart(false).setFailAtAdvance(false).setFailAtSplit(false);
-      }
-
       abstract BigtableIOTest.FailureOptions.Builder setFailAtStart(Boolean failAtStart);
 
       abstract BigtableIOTest.FailureOptions.Builder setFailAtAdvance(Boolean failAtAdvance);
