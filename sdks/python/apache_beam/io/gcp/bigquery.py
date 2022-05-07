@@ -372,6 +372,15 @@ Template for BigQuery jobs created by BigQueryIO. This template is:
 NOTE: This job name template does not have backwards compatibility guarantees.
 """
 BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
+"""
+The maximum number of times that a bundle of rows that errors out should be
+sent for insertion into BigQuery.
+
+The default is 10,000 with exponential backoffs, so a bundle of rows may be
+tried for a very long time. You may reduce this property to reduce the number
+of retries.
+"""
+MAX_INSERT_RETRIES = 10000
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -1501,7 +1510,8 @@ class BigQueryWriteFn(DoFn):
       additional_bq_parameters=None,
       ignore_insert_ids=False,
       with_batched_input=False,
-      ignore_unknown_columns=False):
+      ignore_unknown_columns=False,
+      max_retries=MAX_INSERT_RETRIES):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1549,6 +1559,9 @@ class BigQueryWriteFn(DoFn):
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. See reference:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+      max_retries: The number of times that we will retry inserting a group of
+        rows into BigQuery. By default, we retry 10000 times with exponential
+        backoffs (effectively retry forever).
 
     """
     self.schema = schema
@@ -1586,6 +1599,7 @@ class BigQueryWriteFn(DoFn):
     self.streaming_api_logging_frequency_sec = (
         BigQueryWriteFn.STREAMING_API_LOGGING_FREQUENCY_SEC)
     self.ignore_unknown_columns = ignore_unknown_columns
+    self._max_retries = max_retries
 
   def display_data(self):
     return {
@@ -1637,7 +1651,9 @@ class BigQueryWriteFn(DoFn):
 
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
-            initial_delay_secs=0.2, num_retries=10000, max_delay_secs=1500))
+            initial_delay_secs=0.2,
+            num_retries=self._max_retries,
+            max_delay_secs=1500))
 
   def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
@@ -1750,29 +1766,37 @@ class BigQueryWriteFn(DoFn):
 
       failed_rows = [(rows[entry['index']], entry["errors"])
                      for entry in errors]
+      retry_backoff = next(self._backoff_calculator, None)
+
+      # If retry_backoff is None, then we will not retry and must log.
       should_retry = any(
           RetryStrategy.should_retry(
               self._retry_strategy, entry['errors'][0]['reason'])
-          for entry in errors)
+          for entry in errors) and retry_backoff is not None
+
       if not passed:
         self.failed_rows_metric.update(len(failed_rows))
         message = (
             'There were errors inserting to BigQuery. Will{} retry. '
             'Errors were {}'.format(("" if should_retry else " not"), errors))
-        if should_retry:
-          _LOGGER.warning(message)
-        else:
-          _LOGGER.error(message)
 
-      rows = failed_rows
+        # The log level is:
+        # - WARNING when we are continuing to retry, and have a deadline.
+        # - ERROR when we will no longer retry, or MAY retry forever.
+        log_level = (
+            logging.WARN if should_retry or
+            self._retry_strategy != RetryStrategy.RETRY_ALWAYS else
+            logging.ERROR)
+
+        _LOGGER.log(log_level, message)
 
       if not should_retry:
         break
       else:
-        retry_backoff = next(self._backoff_calculator)
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        rows = [fr[0] for fr in failed_rows]
         self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
@@ -1811,7 +1835,8 @@ class _StreamToBigQuery(PTransform):
       ignore_insert_ids,
       ignore_unknown_columns,
       with_auto_sharding,
-      test_client=None):
+      test_client=None,
+      max_retries=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
     self.schema_side_inputs = schema_side_inputs
@@ -1827,6 +1852,7 @@ class _StreamToBigQuery(PTransform):
     self.ignore_insert_ids = ignore_insert_ids
     self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
+    self.max_retries = max_retries or MAX_INSERT_RETRIES
 
   class InsertIdPrefixFn(DoFn):
     def start_bundle(self):
@@ -1852,7 +1878,8 @@ class _StreamToBigQuery(PTransform):
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
         ignore_unknown_columns=self.ignore_unknown_columns,
-        with_batched_input=self.with_auto_sharding)
+        with_batched_input=self.with_auto_sharding,
+        max_retries=self.max_retries)
 
     def _add_random_shard(element):
       key = element[0]
