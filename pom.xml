@@ -23,7 +23,7 @@
 
   <properties>
     <autovalue.version>1.8.2</autovalue.version>
-    <beam.version>2.34.0</beam.version>
+    <beam.version>2.38.0</beam.version>
     <cloud-bom.version>24.2.0</cloud-bom.version>
     <cloud-storage.version>2.2.2</cloud-storage.version>
     <java.version>1.8</java.version>
