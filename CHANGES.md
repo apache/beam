@@ -62,7 +62,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Raised Java HTTP KeepAliveCache size(http.maxConnections) to 1000 ([BEAM-14437](https://issues.apache.org/jira/browse/BEAM-14437).
 
 ## Breaking Changes
 

@@ -163,6 +163,8 @@ func main() {
 		"-XX:+UseParallelGC",
 		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
+		// Raise http keep alive cache size
+		"-Dhttp.maxConnections=1000",
 		"-cp", strings.Join(cp, ":"),
 	}
 
