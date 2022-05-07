@@ -859,7 +859,7 @@ class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
   def _create_impl(self):
     dumps = pickle.dumps
-    protocol = pickle.HIGHEST_PROTOCOL
+    protocol = pickle.DEFAULT_PROTOCOL
     return coder_impl.CallbackCoderImpl(
         lambda x: dumps(x, protocol), pickle.loads)
 
