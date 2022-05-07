@@ -55,6 +55,6 @@ func ExampleDoFn2x1() {
 	// Any function parameters (iters or emitters) must be registered separately
 	// as well to get the fully optimized experience. Since ProcessElement has
 	// an emitter with the signature func(int) we can register it. This must be
-	// done by passing in a reference to an instantiated version of the function.
-	registration.RegisterEmitter1[int]((*func(int))(nil))
+	// done by passing in the type parameters of all inputs as constraints.
+	registration.Emitter1[int]()
 }
