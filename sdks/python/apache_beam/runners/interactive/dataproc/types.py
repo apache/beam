@@ -17,15 +17,27 @@
 
 # pytype: skip-file
 
+import uuid
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Optional
+from typing import Union
+
+from apache_beam.pipeline import Pipeline
+
+
+def _default_cluster_name():
+  return f'interactive-beam-{uuid.uuid4().hex}'
 
 
 @dataclass
-class MasterURLIdentifier:
+class ClusterMetadata:
   project_id: Optional[str] = None
   region: Optional[str] = None
-  cluster_name: Optional[str] = None
+  cluster_name: Optional[str] = field(default_factory=_default_cluster_name)
+  # Derivative fields do not affect hash or comparison.
+  master_url: Optional[str] = None
+  dashboard: Optional[str] = None
 
   def __key(self):
     return (self.project_id, self.region, self.cluster_name)
@@ -34,8 +46,9 @@ class MasterURLIdentifier:
     return hash(self.__key())
 
   def __eq__(self, other):
-    if isinstance(other, MasterURLIdentifier):
+    if isinstance(other, ClusterMetadata):
       return self.__key() == other.__key()
-    raise NotImplementedError(
-        'Comparisons are only supported between '
-        'instances of MasterURLIdentifier.')
+    return False
+
+
+ClusterIdentifier = Union[str, Pipeline, ClusterMetadata]
