@@ -265,6 +265,12 @@ https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
 to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
 encoding when writing to BigQuery.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 
 # pytype: skip-file
@@ -1748,7 +1754,8 @@ class BigQueryWriteFn(DoFn):
           ignore_unknown_values=self.ignore_unknown_columns)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
-      failed_rows = [rows[entry['index']] for entry in errors]
+      failed_rows = [(rows[entry['index']], entry["errors"])
+                     for entry in errors]
       should_retry = any(
           RetryStrategy.should_retry(
               self._retry_strategy, entry['errors'][0]['reason'])
@@ -1780,8 +1787,9 @@ class BigQueryWriteFn(DoFn):
     return [
         pvalue.TaggedOutput(
             BigQueryWriteFn.FAILED_ROWS,
-            GlobalWindows.windowed_value((destination, row)))
-        for row in failed_rows
+            GlobalWindows.windowed_value((destination, row, row_errors)))
+        for row,
+        row_errors in failed_rows
     ]
 
 

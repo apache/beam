@@ -233,6 +233,13 @@ import org.slf4j.LoggerFactory;
  *      listSearchResult.getKeyedResources(); // KV<"Alice-Bob-Search", JsonArray of results>
  *
  * </pre>
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned
+ * <a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
