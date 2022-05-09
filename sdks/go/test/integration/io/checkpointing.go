@@ -36,7 +36,7 @@ type selfCheckpointingDoFn struct{}
 func (fn *selfCheckpointingDoFn) CreateInitialRestriction(_ []byte) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: int64(0),
-		End:   int64(100),
+		End:   int64(10),
 	}
 }
 
@@ -90,5 +90,5 @@ func Checkpoints(s beam.Scope, filename string) {
 
 	s.Scope("checkpoint")
 	out := beam.ParDo(s, &selfCheckpointingDoFn{}, beam.Impulse(s))
-	passert.Count(s, out, "num ints", 100)
+	passert.Count(s, out, "num ints", 10)
 }
