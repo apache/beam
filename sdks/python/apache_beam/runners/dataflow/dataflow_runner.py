@@ -1631,7 +1631,7 @@ class DataflowPipelineResult(PipelineResult):
       # is_in_terminal_state.
       terminated = self.is_in_terminal_state()
       assert duration or terminated, (
-          'Job did not reach to a terminal state after waiting indefinitely.'
+          'Job did not reach to a terminal state after waiting indefinitely. '
           '{}'.format(consoleUrl))
 
       if terminated and self.state != PipelineState.DONE:
