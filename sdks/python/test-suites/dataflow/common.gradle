@@ -358,7 +358,7 @@ task runImpersonationTest() {
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
             "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
             "impersonate": "true"
-            "gcs_location": "gs://impersonation-test"
+            "gcs_location": "gs://tmp-impersonate-test"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
