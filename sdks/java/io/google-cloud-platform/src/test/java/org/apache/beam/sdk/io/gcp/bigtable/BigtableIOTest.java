@@ -1422,6 +1422,40 @@ public class BigtableIOTest {
     p.run();
   }
 
+  /** Tests that the error happens when submitting the write request is handled. */
+  @Test
+  public void testWritingFailsAtWriteRecord() throws IOException {
+    FailureBigtableService failureService =
+        new FailureBigtableService(FailureOptions.builder().setFailAtWriteRecord(true).build());
+    BigtableIO.Write failureWrite =
+        BigtableIO.write()
+            .withInstanceId("instance")
+            .withProjectId("project")
+            .withBigtableService(failureService);
+
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    failureService.createTable(table);
+
+    p.apply("single row", Create.of(makeWrite(key, value)).withCoder(bigtableCoder))
+        .apply("write", failureWrite.withTableId(table));
+
+    // Exception will be thrown by writer.writeRecord() when BigtableWriterFn is applied.
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Fake IOException in writeRecord()");
+
+    try {
+      p.run();
+    } catch (PipelineExecutionException e) {
+      // throwing inner exception helps assert that first exception is thrown from writeRecord()
+      if (e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+    }
+  }
+
   /** Tests that when writing an element fails, the write fails. */
   @Test
   public void testWritingFailsBadElement() throws Exception {
@@ -1659,6 +1693,11 @@ public class BigtableIOTest {
     }
 
     @Override
+    public FailureBigtableWriter openForWriting(String tableId) {
+      return new FailureBigtableWriter(tableId, this, failureOptions);
+    }
+
+    @Override
     public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
       if (failureOptions.getFailAtSplit()) {
         throw new RuntimeException("Fake Exception in getSampleRowKeys()");
@@ -1756,6 +1795,7 @@ public class BigtableIOTest {
     }
   }
 
+  /** A {@link FakeBigtableReader} implementation that throw exceptions at given stage. */
   private static class FailureBigtableReader extends FakeBigtableReader {
     public FailureBigtableReader(
         BigtableSource source, FakeBigtableService service, FailureOptions options) {
@@ -1785,6 +1825,7 @@ public class BigtableIOTest {
     private long numAdvance;
     private final FailureOptions failureOptions;
   }
+
   /**
    * A {@link BigtableService.Writer} implementation that writes to the static instance of {@link
    * FakeBigtableService} stored in {@link #service}.
@@ -1797,14 +1838,20 @@ public class BigtableIOTest {
    */
   private static class FakeBigtableWriter implements BigtableService.Writer {
     private final String tableId;
+    private final FakeBigtableService service;
+
+    public FakeBigtableWriter(String tableId, FakeBigtableService service) {
+      this.tableId = tableId;
+      this.service = service;
+    }
 
     public FakeBigtableWriter(String tableId) {
-      this.tableId = tableId;
+      this(tableId, BigtableIOTest.service);
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(
-        KV<ByteString, Iterable<Mutation>> record) {
+    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+        throws IOException {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
       ByteString key = record.getKey();
@@ -1827,6 +1874,26 @@ public class BigtableIOTest {
     public void close() {}
   }
 
+  /** A {@link FakeBigtableWriter} implementation that throw exceptions at given stage. */
+  private static class FailureBigtableWriter extends FakeBigtableWriter {
+    public FailureBigtableWriter(
+        String tableId, FailureBigtableService service, FailureOptions options) {
+      super(tableId, service);
+      this.failureOptions = options;
+    }
+
+    @Override
+    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+        throws IOException {
+      if (failureOptions.getFailAtWriteRecord()) {
+        throw new IOException("Fake IOException in writeRecord()");
+      }
+      return super.writeRecord(record);
+    }
+
+    private final FailureOptions failureOptions;
+  }
+
   /** A serializable comparator for ByteString. Used to make row samples. */
   private static final class ByteStringComparator implements Comparator<ByteString>, Serializable {
     @Override
@@ -1837,29 +1904,34 @@ public class BigtableIOTest {
 
   /** Error injection options for FakeBigtableService and FakeBigtableReader. */
   @AutoValue
-  abstract static class FailureOptions {
+  abstract static class FailureOptions implements Serializable {
     abstract Boolean getFailAtStart();
 
     abstract Boolean getFailAtAdvance();
 
     abstract Boolean getFailAtSplit();
 
+    abstract Boolean getFailAtWriteRecord();
+
     static Builder builder() {
       return new AutoValue_BigtableIOTest_FailureOptions.Builder()
           .setFailAtStart(false)
           .setFailAtAdvance(false)
-          .setFailAtSplit(false);
+          .setFailAtSplit(false)
+          .setFailAtWriteRecord(false);
     }
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract BigtableIOTest.FailureOptions.Builder setFailAtStart(Boolean failAtStart);
+      abstract Builder setFailAtStart(Boolean failAtStart);
 
-      abstract BigtableIOTest.FailureOptions.Builder setFailAtAdvance(Boolean failAtAdvance);
+      abstract Builder setFailAtAdvance(Boolean failAtAdvance);
 
-      abstract BigtableIOTest.FailureOptions.Builder setFailAtSplit(Boolean failAtSplit);
+      abstract Builder setFailAtSplit(Boolean failAtSplit);
 
-      abstract BigtableIOTest.FailureOptions build();
+      abstract Builder setFailAtWriteRecord(Boolean failAtWriteRecord);
+
+      abstract FailureOptions build();
     }
   }
 }
