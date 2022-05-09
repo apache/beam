@@ -17,10 +17,18 @@
 # under the License.
 #
 
-output "network" {
+output "playground_network_id" {
+  value = google_compute_network.playground.id
+}
+
+output "playground_subnetwork_id" {
+  value = google_compute_subnetwork.playground.id
+}
+
+output "playground_network_name" {
   value = google_compute_network.playground.name
 }
 
-output "subnetwork" {
+output "playground_subnetwork_name" {
   value = google_compute_subnetwork.playground.name
 }

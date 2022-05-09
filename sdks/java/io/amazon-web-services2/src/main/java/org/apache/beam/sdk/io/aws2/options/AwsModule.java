@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.options;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -42,14 +43,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.util.NameTransformer;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
-import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -67,7 +64,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
-import software.amazon.awssdk.utils.AttributeMap;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -88,15 +84,11 @@ public class AwsModule extends SimpleModule {
   public void setupModule(SetupContext cxt) {
     cxt.setMixInAnnotations(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
     cxt.setMixInAnnotations(ProxyConfiguration.class, ProxyConfigurationMixin.class);
-    cxt.setMixInAnnotations(HttpClientConfiguration.class, HttpClientConfigurationMixin.class);
     cxt.setMixInAnnotations(
-        HttpClientConfiguration.Builder.class, HttpClientConfigurationMixin.Builder.class);
-    cxt.setMixInAnnotations(SSECustomerKey.class, SSECustomerKeyMixin.class);
-    cxt.setMixInAnnotations(SSECustomerKey.Builder.class, SSECustomerKeyMixin.Builder.class);
+        ProxyConfiguration.Builder.class, ProxyConfigurationMixin.Builder.class);
     cxt.setMixInAnnotations(Region.class, RegionMixin.class);
 
-    addValueInstantiator(HttpClientConfiguration.Builder.class, HttpClientConfiguration::builder);
-
+    addValueInstantiator(ProxyConfiguration.Builder.class, ProxyConfiguration::builder);
     super.setupModule(cxt);
   }
 
@@ -266,71 +258,11 @@ public class AwsModule extends SimpleModule {
   }
 
   /** A mixin to add Jackson annotations to {@link ProxyConfiguration}. */
-  @JsonDeserialize(using = ProxyConfigurationDeserializer.class)
-  @JsonSerialize(using = ProxyConfigurationSerializer.class)
-  private static class ProxyConfigurationMixin {}
-
-  private static class ProxyConfigurationDeserializer extends JsonDeserializer<ProxyConfiguration> {
-    @Override
-    public ProxyConfiguration deserialize(JsonParser jsonParser, DeserializationContext context)
-        throws IOException {
-      Map<String, String> asMap =
-          checkNotNull(
-              jsonParser.readValueAs(new TypeReference<Map<String, String>>() {}),
-              "Serialized ProxyConfiguration is null");
-
-      ProxyConfiguration.Builder builder = ProxyConfiguration.builder();
-      final String endpoint = asMap.get("endpoint");
-      if (endpoint != null) {
-        builder.endpoint(URI.create(endpoint));
-      }
-      final String username = asMap.get("username");
-      if (username != null) {
-        builder.username(username);
-      }
-      final String password = asMap.get("password");
-      if (password != null) {
-        builder.password(password);
-      }
-      // defaults to FALSE / disabled
-      Boolean useSystemPropertyValues = Boolean.valueOf(asMap.get("useSystemPropertyValues"));
-      return builder.useSystemPropertyValues(useSystemPropertyValues).build();
-    }
-  }
-
-  private static class ProxyConfigurationSerializer extends JsonSerializer<ProxyConfiguration> {
-    @Override
-    public void serialize(
-        ProxyConfiguration proxyConfiguration,
-        JsonGenerator jsonGenerator,
-        SerializerProvider serializer)
-        throws IOException {
-      // proxyConfiguration.endpoint() is private so we have to build it manually.
-      final String endpoint =
-          proxyConfiguration.scheme()
-              + "://"
-              + proxyConfiguration.host()
-              + ":"
-              + proxyConfiguration.port();
-      jsonGenerator.writeStartObject();
-      jsonGenerator.writeStringField("endpoint", endpoint);
-      jsonGenerator.writeStringField("username", proxyConfiguration.username());
-      jsonGenerator.writeStringField("password", proxyConfiguration.password());
-      jsonGenerator.writeEndObject();
-    }
-  }
-
-  /** A mixin to add Jackson annotations to {@link AttributeMap}. */
-  @JsonDeserialize(builder = HttpClientConfiguration.Builder.class)
+  @JsonDeserialize(builder = ProxyConfiguration.Builder.class)
   @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
+  @JsonIgnoreProperties(value = {"host", "port", "scheme"})
   @JsonInclude(value = JsonInclude.Include.NON_EMPTY)
-  private static class HttpClientConfigurationMixin {
-    @JsonPOJOBuilder(withPrefix = "")
-    static class Builder {}
-  }
-
-  @JsonDeserialize(builder = SSECustomerKey.Builder.class)
-  private static class SSECustomerKeyMixin {
+  private static class ProxyConfigurationMixin {
     @JsonPOJOBuilder(withPrefix = "")
     static class Builder {}
   }

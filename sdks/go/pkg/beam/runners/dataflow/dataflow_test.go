@@ -16,6 +16,7 @@
 package dataflow
 
 import (
+	"context"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"sort"
@@ -45,7 +46,7 @@ func TestGetJobOptions(t *testing.T) {
 	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
 	*jobopts.JobName = "testJob"
 
-	opts, err := getJobOptions(nil)
+	opts, err := getJobOptions(context.Background())
 	if err != nil {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
 	}
@@ -96,7 +97,7 @@ func TestGetJobOptions_NoExperimentsSet(t *testing.T) {
 	*jobopts.Experiments = ""
 	*jobopts.JobName = "testJob"
 
-	opts, err := getJobOptions(nil)
+	opts, err := getJobOptions(context.Background())
 
 	if err != nil {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
@@ -118,7 +119,7 @@ func TestGetJobOptions_NoStagingLocation(t *testing.T) {
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
 
-	_, err := getJobOptions(nil)
+	_, err := getJobOptions(context.Background())
 	if err == nil {
 		t.Fatalf("getJobOptions() returned error nil, want an error")
 	}
@@ -136,18 +137,9 @@ func TestGetJobOptions_InvalidAutoscaling(t *testing.T) {
 	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
 	*jobopts.JobName = "testJob"
 
-	_, err := getJobOptions(nil)
+	_, err := getJobOptions(context.Background())
 	if err == nil {
 		t.Fatalf("getJobOptions() returned error nil, want an error")
-	}
-}
-
-func TestGetJobOptions_DockerNoImage(t *testing.T) {
-	*jobopts.EnvironmentType = "docker"
-	*jobopts.EnvironmentConfig = "testContainerImage"
-
-	if got, want := getContainerImage(nil), "testContainerImage"; got != want {
-		t.Fatalf("getContainerImage() = %q, want %q", got, want)
 	}
 }
 
@@ -156,7 +148,17 @@ func TestGetJobOptions_DockerWithImage(t *testing.T) {
 	*jobopts.EnvironmentConfig = "testContainerImage"
 	*image = "testContainerImageOverride"
 
-	if got, want := getContainerImage(nil), "testContainerImageOverride"; got != want {
+	if got, want := getContainerImage(context.Background()), "testContainerImageOverride"; got != want {
+		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
+func TestGetJobOptions_DockerNoImage(t *testing.T) {
+	*jobopts.EnvironmentType = "docker"
+	*jobopts.EnvironmentConfig = "testContainerImage"
+	*image = ""
+
+	if got, want := getContainerImage(context.Background()), "testContainerImage"; got != want {
 		t.Fatalf("getContainerImage() = %q, want %q", got, want)
 	}
 }

@@ -117,4 +117,16 @@ public interface BigQueryOptions
   String getBigQueryProject();
 
   void setBigQueryProject(String value);
+
+  @Description("Specify the number of schema update retries. For internal testing only.")
+  @Default.Integer(2)
+  Integer getSchemaUpdateRetries();
+
+  void setSchemaUpdateRetries(Integer value);
+
+  @Description("Maximum (best effort) size of a single append to the storage API.")
+  @Default.Integer(2 * 1024 * 1024)
+  Integer getStorageApiAppendThresholdBytes();
+
+  void setStorageApiAppendThresholdBytes(Integer value);
 }

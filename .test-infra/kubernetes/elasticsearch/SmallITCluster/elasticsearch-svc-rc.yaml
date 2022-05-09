@@ -35,31 +35,29 @@ spec:
 ---
 # The Kubernetes deployment script for Elasticsearch replication nodes. It will create 1 node cluster.
 # To scale the cluster as desired, you can create replicas of node use 'kubectl scale --replicas=3 rc es' command
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: es
   labels:
     component: elasticsearch
 spec:
+  selector:
+    matchLabels: 
+      component: elasticsearch
   replicas: 1
   template:
     metadata:
       labels:
-        component: elasticsearch
-      annotations:
-        pod.beta.kubernetes.io/init-containers: '[
-          {
-          "name": "sysctl",
-            "image": "busybox",
-            "imagePullPolicy": "IfNotPresent",
-            "command": ["sysctl", "-w", "vm.max_map_count=262144"],
-            "securityContext": {
-              "privileged": true
-            }
-          }
-        ]'
+        component: elasticsearch     
     spec:
+      initContainers: 
+      - name: "sysctl"
+        image: busybox 
+        imagePullPolicy: IfNotPresent
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext: 
+          privileged: true
       containers:
       - name: es
         securityContext:

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.fn.channel;
 
-import avro.shaded.com.google.common.collect.ImmutableList;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +30,7 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollDomainSoc
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollEventLoopGroup;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.epoll.EpollSocketChannel;
 import org.apache.beam.vendor.grpc.v1p43p2.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** A Factory which creates {@link ManagedChannel} instances. */
 public class ManagedChannelFactory {
@@ -89,6 +89,11 @@ public class ManagedChannelFactory {
             // Set the message size to max value here. The actual size is governed by the
             // buffer size in the layers above.
             .maxInboundMessageSize(Integer.MAX_VALUE)
+            // Disable automatic retries as it introduces complexity and we send long-lived
+            // rpcs which will exceed the per-rpc retry request buffer and not be retried
+            // anyway. See
+            // https://github.com/grpc/proposal/blob/master/A6-client-retries.md#when-retries-are-valid
+            .disableRetry()
             .intercept(interceptors);
     if (directExecutor) {
       channelBuilder = channelBuilder.directExecutor();

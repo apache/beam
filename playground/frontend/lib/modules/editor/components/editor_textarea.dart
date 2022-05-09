@@ -31,7 +31,6 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 
-const kNumberOfStringsToSkip = 16;
 const kJavaRegExp = r'import\s[A-z.0-9]*\;\n\n[(\/\*\*)|(public)|(class)]';
 const kPythonRegExp = r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n';
 const kGoRegExp = r'[^\S\r\n]+\'
@@ -39,6 +38,7 @@ const kGoRegExp = r'[^\S\r\n]+\'
     r'.*'
     r'"'
     r'\n\)\n\n';
+const kAdditionalLinesForScrolling = 4;
 
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
@@ -46,7 +46,6 @@ class EditorTextArea extends StatefulWidget {
   final bool enabled;
   final void Function(String)? onSourceChange;
   final bool isEditable;
-  final bool enableScrolling;
 
   const EditorTextArea({
     Key? key,
@@ -55,7 +54,6 @@ class EditorTextArea extends StatefulWidget {
     this.onSourceChange,
     required this.enabled,
     required this.isEditable,
-    this.enableScrolling = true,
   }) : super(key: key);
 
   @override
@@ -65,6 +63,7 @@ class EditorTextArea extends StatefulWidget {
 class _EditorTextAreaState extends State<EditorTextArea> {
   CodeController? _codeController;
   var focusNode = FocusNode();
+  final GlobalKey codeFieldKey = LabeledGlobalKey('CodeFieldKey');
 
   @override
   void initState() {
@@ -86,10 +85,6 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       webSpaceFix: false,
     );
 
-    if (widget.enableScrolling) {
-      _setTextScrolling();
-    }
-
     super.didChangeDependencies();
   }
 
@@ -102,6 +97,8 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance!.addPostFrameCallback((_) => _setTextScrolling());
+
     return Semantics(
       container: true,
       textField: true,
@@ -112,6 +109,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       child: FocusScope(
         node: FocusScopeNode(canRequestFocus: widget.isEditable),
         child: CodeField(
+          key: codeFieldKey,
           focusNode: focusNode,
           enabled: widget.enabled,
           controller: _codeController!,
@@ -133,44 +131,77 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     focusNode.requestFocus();
     if (_codeController!.text.isNotEmpty) {
       _codeController!.selection = TextSelection.fromPosition(
-        TextPosition(offset: _findOffset()),
+        TextPosition(
+          offset: _getOffset(),
+        ),
       );
     }
   }
 
-  _findOffset() {
+  int _getOffset() {
+    int contextLine = _getIndexOfContextLine();
+    String pattern = _getPattern(_getQntOfStringsOnScreen());
+    if (pattern == '' || pattern == '}') {
+      return _codeController!.text.lastIndexOf(pattern);
+    }
+
     return _codeController!.text.indexOf(
-      _skipStrings(kNumberOfStringsToSkip),
-      _getPositionAfterImportsAndLicenses(widget.sdk),
+      pattern,
+      contextLine,
     );
   }
 
-  String _skipStrings(int qntOfStrings) {
-    List<String> strings = _codeController!.text
-        .substring(_getPositionAfterImportsAndLicenses(widget.sdk))
-        .split('\n');
+  String _getPattern(int qntOfStrings) {
+    int contextLineIndex = _getIndexOfContextLine();
+    List<String> stringsAfterContextLine =
+        _codeController!.text.substring(contextLineIndex).split('\n');
+
     String result =
-        strings.length > qntOfStrings ? strings[qntOfStrings] : strings.last;
-    if (result == '') {
-      return _skipStrings(qntOfStrings - 1);
-    } else {
-      return result;
-    }
+        stringsAfterContextLine.length + kAdditionalLinesForScrolling >
+                qntOfStrings
+            ? _getResultSubstring(stringsAfterContextLine, qntOfStrings)
+            : stringsAfterContextLine.last;
+
+    return result;
   }
 
-  int _getPositionAfterImportsAndLicenses(SDK sdk) {
-    switch (sdk) {
-      case SDK.java:
-        return _codeController!.text.lastIndexOf(RegExp(kJavaRegExp));
-      case SDK.python:
-        return _codeController!.text.lastIndexOf(RegExp(kPythonRegExp));
-      case SDK.go:
-        return _codeController!.text.lastIndexOf(RegExp(kGoRegExp));
-      case SDK.scio:
-        return _codeController!.text.indexOf(
-          _codeController!.text.split('\n')[0],
-        );
+  int _getQntOfStringsOnScreen() {
+    RenderBox rBox =
+        codeFieldKey.currentContext?.findRenderObject() as RenderBox;
+    double height = rBox.size.height * .75;
+
+    return height ~/ kCodeFontSize;
+  }
+
+  int _getIndexOfContextLine() {
+    int ctxLineNumber = widget.example!.contextLine;
+    String contextLine = _codeController!.text.split('\n')[ctxLineNumber];
+
+    while (contextLine == '') {
+      ctxLineNumber -= 1;
+      contextLine = _codeController!.text.split('\n')[ctxLineNumber];
     }
+
+    return _codeController!.text.indexOf(contextLine);
+  }
+
+  // This function made for more accuracy in the process of finding an exact line.
+  String _getResultSubstring(
+    List<String> stringsAfterContextLine,
+    int qntOfStrings,
+  ) {
+    StringBuffer result = StringBuffer();
+
+    for (int i = qntOfStrings - kAdditionalLinesForScrolling;
+        i < qntOfStrings + kAdditionalLinesForScrolling;
+        i++) {
+      if (i == stringsAfterContextLine.length - 1) {
+        return result.toString();
+      }
+      result.write(stringsAfterContextLine[i] + '\n');
+    }
+
+    return result.toString();
   }
 
   _getLanguageFromSdk() {

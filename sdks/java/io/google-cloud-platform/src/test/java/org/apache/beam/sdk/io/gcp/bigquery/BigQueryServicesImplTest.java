@@ -1417,17 +1417,25 @@ public class BigQueryServicesImplTest {
 
   @Test
   public void testGetErrorInfo() throws IOException {
+    HttpResponseException.Builder builder = mock(HttpResponseException.Builder.class);
+
     ErrorInfo info = new ErrorInfo();
+    info.setReason("QuotaExceeded");
     List<ErrorInfo> infoList = new ArrayList<>();
     infoList.add(info);
-    info.setReason("QuotaExceeded");
     GoogleJsonError error = new GoogleJsonError();
     error.setErrors(infoList);
-    HttpResponseException.Builder builder = mock(HttpResponseException.Builder.class);
     IOException validException = new GoogleJsonResponseException(builder, error);
+
     IOException invalidException = new IOException();
+    IOException nullDetailsException = new GoogleJsonResponseException(builder, null);
+    IOException nullErrorsException =
+        new GoogleJsonResponseException(builder, new GoogleJsonError());
+
     assertEquals(info.getReason(), DatasetServiceImpl.getErrorInfo(validException).getReason());
     assertNull(DatasetServiceImpl.getErrorInfo(invalidException));
+    assertNull(DatasetServiceImpl.getErrorInfo(nullDetailsException));
+    assertNull(DatasetServiceImpl.getErrorInfo(nullErrorsException));
   }
 
   @Test

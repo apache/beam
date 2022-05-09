@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.io.aws2.common;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
@@ -32,11 +37,14 @@ import org.checkerframework.dataflow.qual.Pure;
  *     HTTP Configuration</a>
  */
 @AutoValue
+@JsonInclude(value = JsonInclude.Include.NON_EMPTY)
+@JsonDeserialize(builder = HttpClientConfiguration.Builder.class)
 public abstract class HttpClientConfiguration implements Serializable {
 
   /**
    * Milliseconds to wait when acquiring a connection from the pool before giving up and timing out.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer connectionAcquisitionTimeout();
 
   /**
@@ -45,12 +53,14 @@ public abstract class HttpClientConfiguration implements Serializable {
    * <p>This will never close a connection that is currently in use, so long-lived connections may
    * remain open longer than this time.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer connectionMaxIdleTime();
 
   /**
    * Milliseconds to wait when initially establishing a connection before giving up and timing out.
    * A duration of 0 means infinity, and is not recommended.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer connectionTimeout();
 
   /**
@@ -60,12 +70,14 @@ public abstract class HttpClientConfiguration implements Serializable {
    * <p>This will never close a connection that is currently in use, so long-lived connections may
    * remain open longer than this time.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer connectionTimeToLive();
 
   /**
    * Milliseconds to wait for data to be transferred over an established, open connection before the
    * connection is timed out. A duration of 0 means infinity, and is not recommended.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer socketTimeout();
 
   /**
@@ -75,6 +87,7 @@ public abstract class HttpClientConfiguration implements Serializable {
    * <p>Note: Read timeout is only supported for async clients and ignored otherwise. Use {@link
    * #socketTimeout()} instead.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer readTimeout();
 
   /**
@@ -84,6 +97,7 @@ public abstract class HttpClientConfiguration implements Serializable {
    * <p>Note: Write timeout is only supported for async clients and ignored otherwise. Use {@link
    * #socketTimeout()} instead.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer writeTimeout();
 
   /**
@@ -94,14 +108,21 @@ public abstract class HttpClientConfiguration implements Serializable {
    * concurrent requests. When using HTTP/2 the number of connections that will be used depends on
    * the max streams allowed per connection.
    */
+  @JsonProperty
   public abstract @Nullable @Pure Integer maxConnections();
 
   public static Builder builder() {
-    return new AutoValue_HttpClientConfiguration.Builder();
+    return Builder.builder();
   }
 
   @AutoValue.Builder
+  @JsonPOJOBuilder(withPrefix = "")
   public abstract static class Builder {
+    @JsonCreator
+    static Builder builder() {
+      return new AutoValue_HttpClientConfiguration.Builder();
+    }
+
     /**
      * Milliseconds to wait when acquiring a connection from the pool before giving up and timing
      * out.

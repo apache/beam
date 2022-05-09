@@ -23,6 +23,72 @@ import (
 	"testing"
 )
 
+func TestGetAndSetRepositoryURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		newRepo string
+		expRepo string
+	}{
+		{
+			"correct URL",
+			"http://new.repo.org",
+			"http://new.repo.org",
+		},
+		{
+			"correct URL https",
+			"https://new.repo.org",
+			"https://new.repo.org",
+		},
+		{
+			"correct URL with trailing backslash",
+			"http://new.repo.org/",
+			"http://new.repo.org",
+		},
+		{
+			"correct URL https with trailing backslash",
+			"https://new.repo.org/",
+			"https://new.repo.org",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			j := newJarGetter()
+			err := j.setRepositoryURL(test.newRepo)
+			if err != nil {
+				t.Errorf("failed to set repository URL, got %v", err)
+			}
+			if got, want := j.getRepositoryURL(), test.expRepo; got != want {
+				t.Errorf("getRepositoryURL() got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestGetAndSetRepositoryURL_bad(t *testing.T) {
+	tests := []struct {
+		name    string
+		newRepo string
+	}{
+		{
+			"no http",
+			"new.maven.repo.com",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			j := newJarGetter()
+			err := j.setRepositoryURL(test.newRepo)
+			if err == nil {
+				t.Errorf("setRepositoryURL(%v) succeeded when it should have failed", test.newRepo)
+			}
+			// Check that the failed Set call did not change the URL.
+			if got, want := j.getRepositoryURL(), string(apacheRepository); got != want {
+				t.Errorf("getRepositoryURL() got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 func TestGetURLForBeamJar(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.io.aws2.common;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.Duration.ZERO;
 
+import org.apache.beam.sdk.io.aws2.options.SerializationTestUtil;
+import org.joda.time.Duration;
 import org.junit.Test;
 
 public class RetryConfigurationTest {
@@ -46,5 +49,24 @@ public class RetryConfigurationTest {
   public void verifyMaxBackoffLargerZero() {
     assertThatThrownBy(() -> RetryConfiguration.builder().numRetries(1).maxBackoff(ZERO).build())
         .hasMessage("maxBackoff must be greater than 0");
+  }
+
+  @Test
+  public void testJsonSerialization() {
+    RetryConfiguration config = RetryConfiguration.builder().numRetries(10).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().maxBackoff(Duration.millis(1000)).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().baseBackoff(Duration.millis(200)).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+
+    config = config.toBuilder().throttledBaseBackoff(Duration.millis(100)).build();
+    assertThat(jsonSerializeDeserialize(config)).isEqualTo(config);
+  }
+
+  private RetryConfiguration jsonSerializeDeserialize(RetryConfiguration obj) {
+    return SerializationTestUtil.serializeDeserialize(RetryConfiguration.class, obj);
   }
 }

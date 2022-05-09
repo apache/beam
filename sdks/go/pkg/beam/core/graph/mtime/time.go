@@ -65,13 +65,17 @@ func FromDuration(d time.Duration) Time {
 
 // FromTime returns a milli-second precision timestamp from a time.Time.
 func FromTime(t time.Time) Time {
-	// TODO(BEAM-13988): Replace t.UnixNano() with t.UnixMilli() for Go 1.17 or higher.
-	return Normalize(Time(t.UnixNano() / 1e6))
+	return Normalize(Time(t.UnixMilli()))
 }
 
 // Milliseconds returns the number of milli-seconds since the Unix epoch.
 func (t Time) Milliseconds() int64 {
 	return int64(t)
+}
+
+// ToTime returns the Time represented as a time.Time
+func (t Time) ToTime() time.Time {
+	return time.UnixMilli(int64(t)).UTC()
 }
 
 // Add returns the time plus the duration. Input Durations of less than one

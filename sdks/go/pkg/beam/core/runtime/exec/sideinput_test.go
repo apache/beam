@@ -67,26 +67,26 @@ func TestNewSideInputAdapter(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-				adapter := NewSideInputAdapter(test.sid, test.sideInputID, test.c, nil)
-				adapterStruct, ok := adapter.(*sideInputAdapter)
-				if !ok {
-					t.Errorf("failed to convert interface to sideInputAdapter struct in test %v", test)
-				}
-				if got, want := adapterStruct.sid, test.sid; got != want {
-					t.Errorf("got SID %v, want %v", got, want)
-				}
-				if got, want := adapterStruct.sideInputID, test.sideInputID; got != want {
-					t.Errorf("got sideInputID %v, want %v", got, want)
-				}
-				if got, want := adapterStruct.c, test.c; got != want {
-					t.Errorf("got coder %v, want %v", got, want)
-				}
-				if got, want := reflect.TypeOf(adapterStruct.kc), reflect.TypeOf(test.kc); got != want {
-					t.Errorf("got ElementEncoder type %v, want %v", got, want)
-				}
-				if got, want := reflect.TypeOf(adapterStruct.ec), reflect.TypeOf(test.ec); got != want {
-					t.Errorf("got ElementDecoder type %v, want %v", got, want)
-				}
+			adapter := NewSideInputAdapter(test.sid, test.sideInputID, test.c, nil)
+			adapterStruct, ok := adapter.(*sideInputAdapter)
+			if !ok {
+				t.Errorf("failed to convert interface to sideInputAdapter struct in test %v", test)
+			}
+			if got, want := adapterStruct.sid, test.sid; got != want {
+				t.Errorf("got SID %v, want %v", got, want)
+			}
+			if got, want := adapterStruct.sideInputID, test.sideInputID; got != want {
+				t.Errorf("got sideInputID %v, want %v", got, want)
+			}
+			if got, want := adapterStruct.c, test.c; got != want {
+				t.Errorf("got coder %v, want %v", got, want)
+			}
+			if got, want := reflect.TypeOf(adapterStruct.kc), reflect.TypeOf(test.kc); got != want {
+				t.Errorf("got ElementEncoder type %v, want %v", got, want)
+			}
+			if got, want := reflect.TypeOf(adapterStruct.ec), reflect.TypeOf(test.ec); got != want {
+				t.Errorf("got ElementDecoder type %v, want %v", got, want)
+			}
 		})
 	}
 }
@@ -149,9 +149,9 @@ func (t *testFaultyWindowMapper) MapWindow(w typex.Window) (typex.Window, error)
 
 func TestNewIterable(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testWindowMapper{})
 
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err != nil {
@@ -161,9 +161,9 @@ func TestNewIterable(t *testing.T) {
 
 func TestNewIterable_BadMapper(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testFaultyWindowMapper{})
 
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err == nil {
@@ -173,9 +173,9 @@ func TestNewIterable_BadMapper(t *testing.T) {
 
 func TestNewKeyedIterable_BadMapper(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedKVCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testFaultyWindowMapper{})
 
 	_, err := adapter.NewKeyedIterable(context.Background(), &testStateReader{}, window.GlobalWindow{}, "")
 	if err == nil {
@@ -185,9 +185,9 @@ func TestNewKeyedIterable_BadMapper(t *testing.T) {
 
 func TestNewIterable_KVType(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedKVCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testWindowMapper{})
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err != nil {
 		t.Fatalf("NewIterable() failed when it should have succeeded, got %v", err)

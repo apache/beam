@@ -17,12 +17,12 @@
 # under the License.
 #
 
-variable "examples_bucket_name" {
+variable "name" {
   description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
+  default     = "playground-examples-123321"
 }
 
-variable "examples_bucket_location" {
+variable "location" {
   description = "Location of Playground Examples Bucket"
   default     = "US"
 }
@@ -31,22 +31,8 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
-variable "examples_storage_class" {
+variable "storage_class" {
   description = "Examples Bucket Storage Class"
   default     = "STANDARD"
 }
 
-variable "terraform_bucket_name" {
-  description = "Name of Bucket to Store Terraform States"
-  default     = "playground_terraform"
-}
-
-variable "terraform_bucket_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "terraform_storage_class" {
-  description = "Terrafomr Bucket Storage Class"
-  default     = "STANDARD"
-}

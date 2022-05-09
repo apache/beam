@@ -279,9 +279,13 @@ public class BigQueryIOStorageReadTest {
         BigQueryIO.read(new TableRowParser())
             .withCoder(TableRowJsonCoder.of())
             .withMethod(Method.DIRECT_READ)
+            .withSelectedFields(ImmutableList.of("foo", "bar"))
+            .withProjectionPushdownApplied()
             .from(tableSpec);
     DisplayData displayData = DisplayData.from(typedRead);
     assertThat(displayData, hasDisplayItem("table", tableSpec));
+    assertThat(displayData, hasDisplayItem("selectedFields", "foo, bar"));
+    assertThat(displayData, hasDisplayItem("projectionPushdownApplied", true));
   }
 
   @Test
@@ -2097,6 +2101,7 @@ public class BigQueryIOStorageReadTest {
     TypedRead<Row> pushdownRead = (TypedRead<Row>) pushdownT;
     assertEquals(Method.DIRECT_READ, pushdownRead.getMethod());
     assertThat(pushdownRead.getSelectedFields().get(), Matchers.containsInAnyOrder("foo"));
+    assertTrue(pushdownRead.getProjectionPushdownApplied());
   }
 
   @Test

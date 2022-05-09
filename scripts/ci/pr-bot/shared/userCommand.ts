@@ -81,8 +81,7 @@ async function assignToNextReviewer(
     let reviewersState = await stateClient.getReviewersForLabelState(
       labelOfReviewer
     );
-    const pullAuthor =
-      payload.issue?.user?.login || payload.pull_request?.user?.login;
+    const pullAuthor = github.getPullAuthorFromPayload(payload);
     let availableReviewers = reviewerConfig.getReviewersForLabel(
       labelOfReviewer,
       [commentAuthor, pullAuthor]
@@ -187,8 +186,7 @@ async function assignReviewerSet(
   }
 
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
-  const pullAuthor =
-    payload.issue?.user?.login || payload.pull_request?.user?.login;
+  const pullAuthor = github.getPullAuthorFromPayload(payload);
   const reviewersForLabels = reviewerConfig.getReviewersForLabels(
     existingLabels,
     [pullAuthor]

@@ -195,6 +195,8 @@ abstract class BatchSpannerRead
       spannerAccessor = SpannerAccessor.getOrCreate(config);
       projectId =
           this.config.getProjectId() == null
+                  || this.config.getProjectId().get() == null
+                  || this.config.getProjectId().get().isEmpty()
               ? SpannerOptions.getDefaultProjectId()
               : this.config.getProjectId().get();
     }
@@ -218,7 +220,6 @@ abstract class BatchSpannerRead
       BatchReadOnlyTransaction batchTx =
           spannerAccessor.getBatchClient().batchReadOnlyTransaction(tx.transactionId());
 
-      serviceCallMetric.call("ok");
       Partition p = c.element();
       try (ResultSet resultSet = batchTx.execute(p)) {
         while (resultSet.next()) {
@@ -227,7 +228,9 @@ abstract class BatchSpannerRead
         }
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+        throw (e);
       }
+      serviceCallMetric.call("ok");
     }
 
     private ServiceCallMetric createServiceCallMetric(

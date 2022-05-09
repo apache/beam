@@ -38,6 +38,7 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.CommitResponse;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
@@ -76,9 +77,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -104,6 +107,7 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
+
   private static final long CELLS_PER_KEY = 7;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -133,6 +137,8 @@ public class SpannerIOWriteTest implements Serializable {
     // Simplest schema: a table with int64 key
     preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
     prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64", CELLS_PER_KEY)));
+    preparePgColumnMetadata(
+        tx, Arrays.asList(columnMetadata("tEsT", "key", "bigint", CELLS_PER_KEY)));
 
     // Setup the ProcessWideContainer for testing metrics are set.
     MetricsContainerImpl container = new MetricsContainerImpl(null);
@@ -146,7 +152,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private static Struct columnMetadata(
+  static Struct columnMetadata(
       String tableName, String columnName, String type, long cellsMutated) {
     return Struct.newBuilder()
         .set("table_name")
@@ -160,7 +166,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private static Struct pkMetadata(String tableName, String columnName, String ordering) {
+  static Struct pkMetadata(String tableName, String columnName, String ordering) {
     return Struct.newBuilder()
         .set("table_name")
         .to(tableName)
@@ -171,7 +177,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+  static void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type =
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
@@ -194,7 +200,32 @@ public class SpannerIOWriteTest implements Serializable {
         .thenReturn(ResultSets.forRows(type, rows));
   }
 
-  private void preparePkMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+  static void preparePgColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+    Type type =
+        Type.struct(
+            Type.StructField.of("table_name", Type.string()),
+            Type.StructField.of("column_name", Type.string()),
+            Type.StructField.of("spanner_type", Type.string()),
+            Type.StructField.of("cells_mutated", Type.int64()));
+    when(tx.executeQuery(
+            argThat(
+                new ArgumentMatcher<Statement>() {
+
+                  @Override
+                  public boolean matches(Statement argument) {
+                    if (!(argument instanceof Statement)) {
+                      return false;
+                    }
+                    Statement st = (Statement) argument;
+                    return st.getSql().contains("information_schema.columns")
+                        && st.getSql()
+                            .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
+                  }
+                })))
+        .thenReturn(ResultSets.forRows(type, rows));
+  }
+
+  static void preparePkMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type =
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
@@ -257,12 +288,49 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void singlePgMutationPipeline() throws Exception {
+    Mutation mutation = m(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
+
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withDialectView(pgDialectView));
+    pipeline.run();
+
+    verifyBatches(batch(m(2L)));
+  }
+
+  @Test
   public void singleMutationPipelineNoProjectId() throws Exception {
     Mutation mutation = m(2L);
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
 
     mutations.apply(
         SpannerIO.write()
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    verifyBatches(batch(m(2L)));
+  }
+
+  @Test
+  public void singleMutationPipelineNullProjectId() throws Exception {
+    Mutation mutation = m(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId((String) null)
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory));
@@ -281,6 +349,28 @@ public class SpannerIOWriteTest implements Serializable {
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
+            .grouped());
+    pipeline.run();
+
+    verifyBatches(batch(m(1L), m(2L), m(3L)));
+  }
+
+  @Test
+  public void singlePgMutationGroupPipeline() throws Exception {
+    PCollection<MutationGroup> mutations =
+        pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
+    PCollectionView<Dialect> pgDialectView =
+        pipeline
+            .apply("Create PG dialect", Create.of(Dialect.POSTGRESQL))
+            .apply(View.asSingleton());
+
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withDialectView(pgDialectView)
             .grouped());
     pipeline.run();
 
@@ -746,13 +836,15 @@ public class SpannerIOWriteTest implements Serializable {
               assertEquals(1, Iterables.size(m));
               return null;
             });
-    pipeline.run().waitUntilFinish();
-
-    // 0 calls to sleeper
-    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
-    // 5 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(5))
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+    try {
+      pipeline.run().waitUntilFinish();
+    } finally {
+      // 0 calls to sleeper
+      verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+      // 5 write attempts for the single mutationGroup.
+      verify(serviceFactory.mockDatabaseClient(), times(5))
+          .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+    }
   }
 
   @Test
@@ -803,8 +895,8 @@ public class SpannerIOWriteTest implements Serializable {
               assertEquals(0, Iterables.size(m));
               return null;
             });
-    pipeline.run().waitUntilFinish();
 
+    pipeline.run().waitUntilFinish();
     // 2 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
     // 8 write attempts for the single mutationGroup.
@@ -1376,11 +1468,11 @@ public class SpannerIOWriteTest implements Serializable {
     verify(serviceFactory.mockSpanner(), times(2)).close();
   }
 
-  private static MutationGroup g(Mutation m, Mutation... other) {
+  static MutationGroup g(Mutation m, Mutation... other) {
     return MutationGroup.create(m, other);
   }
 
-  private static Mutation m(Long key) {
+  static Mutation m(Long key) {
     return Mutation.newInsertOrUpdateBuilder("test").set("key").to(key).build();
   }
 

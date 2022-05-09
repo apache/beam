@@ -18,27 +18,26 @@
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.PartitionLookupUtils;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.testing.SerializableMatchers.SerializableSupplier;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Watch;
-import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
-import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -47,7 +46,106 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
   private final SubscriptionPath subscription;
   private final SerializableFunction<TopicPath, Integer> getPartitionCount;
   private final Duration pollDuration;
-  private final boolean terminate;
+  private final SerializableSupplier<Boolean> terminate;
+
+  private class GeneratorFn extends DoFn<byte[], SubscriptionPartition> {
+    @ProcessElement
+    public ProcessContinuation processElement(
+        RestrictionTracker<Integer, Integer> restrictionTracker,
+        OutputReceiver<SubscriptionPartition> output,
+        ManualWatermarkEstimator<Instant> estimator) {
+      int previousCount = restrictionTracker.currentRestriction();
+      int newCount = getPartitionCount.apply(topic);
+      if (!restrictionTracker.tryClaim(newCount)) {
+        return ProcessContinuation.stop();
+      }
+      if (newCount > previousCount) {
+        for (int i = previousCount; i < newCount; ++i) {
+          output.outputWithTimestamp(
+              SubscriptionPartition.of(subscription, Partition.of(i)),
+              estimator.currentWatermark());
+        }
+      }
+      estimator.setWatermark(getWatermark());
+      return ProcessContinuation.resume().withResumeDelay(pollDuration);
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant initial) {
+      // TODO: Add back when dataflow is fixed.
+      // checkArgument(initial.equals(BoundedWindow.TIMESTAMP_MIN_VALUE));
+      // return initial;
+      return Instant.EPOCH;
+    }
+
+    @GetInitialRestriction
+    public Integer getInitialRestriction() {
+      return 0;
+    }
+
+    @NewTracker
+    public RestrictionTracker<Integer, Integer> newTracker(@Restriction Integer input) {
+      return new RestrictionTracker<Integer, Integer>() {
+        private boolean terminated = false;
+        private int position = input;
+
+        @Override
+        public boolean tryClaim(Integer newPosition) {
+          checkArgument(newPosition >= position);
+          if (terminated) {
+            return false;
+          }
+          if (terminate.get()) {
+            terminated = true;
+            return false;
+          }
+          position = newPosition;
+          return true;
+        }
+
+        @Override
+        public Integer currentRestriction() {
+          return position;
+        }
+
+        @Override
+        public @Nullable SplitResult<Integer> trySplit(double fractionOfRemainder) {
+          if (fractionOfRemainder != 0) {
+            return null;
+          }
+          if (terminated) {
+            return null;
+          }
+          terminated = true;
+          return SplitResult.of(position, position);
+        }
+
+        @Override
+        public void checkDone() throws IllegalStateException {
+          checkState(terminated);
+        }
+
+        @Override
+        public IsBounded isBounded() {
+          return IsBounded.UNBOUNDED;
+        }
+      };
+    }
+
+    @NewWatermarkEstimator
+    public ManualWatermarkEstimator<Instant> newWatermarkEstimator(
+        @WatermarkEstimatorState Instant state) {
+      return new WatermarkEstimators.Manual(state);
+    }
+
+    private Instant getWatermark() {
+      return Instant.now().minus(watermarkDelay());
+    }
+
+    private Duration watermarkDelay() {
+      return pollDuration.multipliedBy(3).dividedBy(2);
+    }
+  }
 
   SubscriptionPartitionLoader(TopicPath topic, SubscriptionPath subscription) {
     this(
@@ -55,7 +153,7 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
         subscription,
         PartitionLookupUtils::numPartitions,
         Duration.standardMinutes(1),
-        false);
+        () -> false);
   }
 
   @VisibleForTesting
@@ -64,7 +162,7 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
       SubscriptionPath subscription,
       SerializableFunction<TopicPath, Integer> getPartitionCount,
       Duration pollDuration,
-      boolean terminate) {
+      SerializableSupplier<Boolean> terminate) {
     this.topic = topic;
     this.subscription = subscription;
     this.getPartitionCount = getPartitionCount;
@@ -74,28 +172,8 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
 
   @Override
   public PCollection<SubscriptionPartition> expand(PBegin input) {
-    PCollection<TopicPath> start = input.apply(Create.of(ImmutableList.of(topic)));
-    PCollection<KV<TopicPath, Partition>> partitions =
-        start.apply(
-            Watch.growthOf(
-                    new PollFn<TopicPath, Partition>() {
-                      @Override
-                      public PollResult<Partition> apply(TopicPath element, Context c) {
-                        checkArgument(element.equals(topic));
-                        int partitionCount = getPartitionCount.apply(element);
-                        List<Partition> partitions =
-                            IntStream.range(0, partitionCount)
-                                .mapToObj(Partition::of)
-                                .collect(Collectors.toList());
-                        return PollResult.incomplete(Instant.now(), partitions)
-                            .withWatermark(Instant.now());
-                      }
-                    })
-                .withPollInterval(pollDuration)
-                .withTerminationPerInput(
-                    terminate ? Watch.Growth.afterIterations(10) : Watch.Growth.never()));
-    return partitions.apply(
-        MapElements.into(TypeDescriptor.of(SubscriptionPartition.class))
-            .via(kv -> SubscriptionPartition.of(subscription, kv.getValue())));
+    return input
+        .apply("Impulse", Impulse.create())
+        .apply("Watch Partition Count", ParDo.of(new GeneratorFn()));
   }
 }
