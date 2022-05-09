@@ -28,7 +28,6 @@ import (
 func TestCheckpointing(t *testing.T) {
 	integration.CheckFilters(t)
 
-	beam.Init()
 	out := "text.txt"
 	p, s := beam.NewPipelineWithRoot()
 	Checkpoints(s, out)

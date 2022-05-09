@@ -86,6 +86,8 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 
 // Checkpoints is a small test pipeline to establish the correctness of the simple test case.
 func Checkpoints(s beam.Scope, filename string) {
+	beam.Init()
+
 	s.Scope("checkpoint")
 	out := beam.ParDo(s, &selfCheckpointingDoFn{}, beam.Impulse(s))
 	passert.Count(s, out, "num ints", 100)
