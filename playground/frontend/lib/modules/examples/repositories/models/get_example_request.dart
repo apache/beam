@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:flutter/cupertino.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 class GetExampleRequestWrapper {
@@ -23,4 +24,14 @@ class GetExampleRequestWrapper {
   final SDK sdk;
 
   GetExampleRequestWrapper(this.path, this.sdk);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GetExampleRequestWrapper &&
+          path == other.path &&
+          sdk == other.sdk;
+
+  @override
+  int get hashCode => hashValues(path.hashCode, sdk.hashCode);
 }

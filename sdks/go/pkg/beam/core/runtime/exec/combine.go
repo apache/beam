@@ -74,7 +74,7 @@ func (n *Combine) Up(ctx context.Context) error {
 
 	n.states = metrics.NewPTransformState(n.PID)
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil, nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -107,7 +107,7 @@ func (n *Combine) mergeAccumulators(ctx context.Context, a, b interface{}) (inte
 	}
 
 	in := &MainInput{Key: FullValue{Elm: a}}
-	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, nil, b)
+	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, nil, nil, b)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking MergeAccumulators"))
 	}
@@ -213,7 +213,7 @@ func (n *Combine) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -230,7 +230,7 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 		opt = &MainInput{Key: FullValue{Elm: key}}
 	}
 
-	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt, nil)
+	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt, nil, nil)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking CreateAccumulator"))
 	}
@@ -273,7 +273,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 	}
 	v := n.aiValConvert(value)
 
-	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, nil, v)
+	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, nil, nil, v)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking AddInput"))
 	}
@@ -287,7 +287,7 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 		return accum, nil
 	}
 
-	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, nil, accum)
+	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, nil, nil, accum)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking ExtractOutput"))
 	}

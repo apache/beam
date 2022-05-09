@@ -118,6 +118,8 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -678,7 +680,7 @@ public class DoFnOperator<InputT, OutputT>
   public final void processElement2(StreamRecord<RawUnionValue> streamRecord) throws Exception {
     // we finish the bundle because the newly arrived side-input might
     // make a view available that was previously not ready.
-    // The PushbackSideInputRunner will only reset it's cache of non-ready windows when
+    // The PushbackSideInputRunner will only reset its cache of non-ready windows when
     // finishing a bundle.
     invokeFinishBundle();
     checkInvokeStartBundle();
@@ -791,6 +793,12 @@ public class DoFnOperator<InputT, OutputT>
         invokeFinishBundle();
       }
 
+      if (bundleStarted) {
+        // do not update watermark in the middle of bundle, because it might cause
+        // user-buffered data to be emitted past watermark
+        return;
+      }
+
       LOG.debug("Emitting watermark {}", watermark);
       currentOutputWatermark = watermark;
       output.emitWatermark(new Watermark(watermark));
@@ -867,13 +875,14 @@ public class DoFnOperator<InputT, OutputT>
   @SuppressWarnings("NonAtomicVolatileUpdate")
   @SuppressFBWarnings("VO_VOLATILE_INCREMENT")
   private void checkInvokeFinishBundleByCount() {
-    // We do not access this statement concurrently but we want to make sure that each thread
+    // We do not access this statement concurrently, but we want to make sure that each thread
     // sees the latest value, which is why we use volatile. See the class field section above
     // for more information.
     //noinspection NonAtomicOperationOnVolatileField
     elementCount++;
     if (elementCount >= maxBundleSize) {
       invokeFinishBundle();
+      updateOutputWatermark();
     }
   }
 
@@ -882,6 +891,24 @@ public class DoFnOperator<InputT, OutputT>
     long now = getProcessingTimeService().getCurrentProcessingTime();
     if (now - lastFinishBundleTime >= maxBundleTimeMills) {
       invokeFinishBundle();
+      scheduleForCurrentProcessingTime(ts -> updateOutputWatermark());
+    }
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  protected void scheduleForCurrentProcessingTime(ProcessingTimeCallback callback) {
+    // We are scheduling a timer for advancing the watermark, to not delay finishing the bundle
+    // and temporarily release the checkpoint lock. Otherwise, we could potentially loop when a
+    // timer keeps scheduling a timer for the same timestamp.
+    ProcessingTimeService timeService = getProcessingTimeService();
+    timeService.registerTimer(timeService.getCurrentProcessingTime(), callback);
+  }
+
+  private void updateOutputWatermark() {
+    try {
+      processInputWatermark(false);
+    } catch (Exception ex) {
+      failBundleFinalization(ex);
     }
   }
 
@@ -910,6 +937,7 @@ public class DoFnOperator<InputT, OutputT>
       while (bundleStarted) {
         invokeFinishBundle();
       }
+      updateOutputWatermark();
     }
   }
 
@@ -942,14 +970,18 @@ public class DoFnOperator<InputT, OutputT>
       }
       outputManager.closeBuffer();
     } catch (Exception e) {
-      // https://jira.apache.org/jira/browse/FLINK-14653
-      // Any regular exception during checkpointing will be tolerated by Flink because those
-      // typically do not affect the execution flow. We need to fail hard here because errors
-      // in bundle execution are application errors which are not related to checkpointing.
-      throw new Error("Checkpointing failed because bundle failed to finalize.", e);
+      failBundleFinalization(e);
     }
 
     super.snapshotState(context);
+  }
+
+  private void failBundleFinalization(Exception e) {
+    // https://jira.apache.org/jira/browse/FLINK-14653
+    // Any regular exception during checkpointing will be tolerated by Flink because those
+    // typically do not affect the execution flow. We need to fail hard here because errors
+    // in bundle execution are application errors which are not related to checkpointing.
+    throw new Error("Checkpointing failed because bundle failed to finalize.", e);
   }
 
   public BundleFinalizer getBundleFinalizer() {

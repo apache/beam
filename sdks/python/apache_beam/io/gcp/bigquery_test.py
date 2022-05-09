@@ -34,6 +34,7 @@ import hamcrest as hc
 import mock
 import pytest
 import pytz
+import requests
 from parameterized import param
 from parameterized import parameterized
 
@@ -72,15 +73,19 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+
 try:
   from apitools.base.py.exceptions import HttpError
   from google.cloud import bigquery as gcp_bigquery
+  from google.api_core import exceptions
 except ImportError:
   gcp_bigquery = None
   HttpError = None
+  exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -831,6 +836,264 @@ class TestWriteToBigQuery(unittest.TestCase):
               triggering_frequency=1,
               with_auto_sharding=True,
               test_client=client))
+
+
+class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
+
+  # Using https://cloud.google.com/bigquery/docs/error-messages and
+  # https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #    /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.Forbidden,
+          error_reason='rateLimitExceeded'),
+      param(
+          exception_type=exceptions.DeadlineExceeded,
+          error_reason='somereason'),
+      param(
+          exception_type=exceptions.ServiceUnavailable,
+          error_reason='backendError'),
+      param(
+          exception_type=exceptions.InternalServerError,
+          error_reason='internalError'),
+      param(
+          exception_type=exceptions.InternalServerError,
+          error_reason='backendError'),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_retries_if_structured_retriable(
+      self,
+      mock_send,
+      unused_mock_sleep,
+      exception_type=None,
+      error_reason=None):
+    # In this test, a BATCH pipeline will retry the known RETRIABLE errors.
+    mock_send.side_effect = [
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+        exception_type(
+            'some retriable exception', errors=[{
+                'reason': error_reason
+            }]),
+    ]
+
+    with self.assertRaises(Exception) as exc:
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                method='STREAMING_INSERTS'))
+    self.assertEqual(4, mock_send.call_count)
+    self.assertIn('some retriable exception', exc.exception.args[0])
+
+  # Using https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #   /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=requests.exceptions.ConnectionError,
+          error_message='some connection error'),
+      param(
+          exception_type=requests.exceptions.Timeout,
+          error_message='some timeout error'),
+      param(
+          exception_type=ConnectionError,
+          error_message='some py connection error'),
+      param(
+          exception_type=exceptions.BadGateway,
+          error_message='some badgateway error'),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_retries_if_unstructured_retriable(
+      self,
+      mock_send,
+      unused_mock_sleep,
+      exception_type=None,
+      error_message=None):
+    # In this test, a BATCH pipeline will retry the unknown RETRIABLE errors.
+    mock_send.side_effect = [
+        exception_type(error_message),
+        exception_type(error_message),
+        exception_type(error_message),
+        exception_type(error_message),
+    ]
+
+    with self.assertRaises(Exception) as exc:
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                method='STREAMING_INSERTS'))
+    self.assertEqual(4, mock_send.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
+
+  # Using https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #   /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=retry.PermanentException,
+          error_args=('nonretriable', )),
+      param(
+          exception_type=exceptions.BadRequest,
+          error_args=(
+              'forbidden morbidden', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.BadRequest,
+          error_args=('BAD REQUEST!', [{
+              'reason': 'nonretriablereason'
+          }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed,
+          error_args=(
+              'method not allowed!', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed,
+          error_args=('method not allowed!', 'args')),
+      param(exception_type=exceptions.Unknown, error_args=('unknown!', 'args')),
+      param(
+          exception_type=exceptions.Aborted, error_args=('abortet!', 'abort')),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_unretriable_errors(
+      self, mock_send, unused_mock_sleep, exception_type=None, error_args=None):
+    # In this test, a BATCH pipeline will retry the unknown RETRIABLE errors.
+    mock_send.side_effect = [
+        exception_type(*error_args),
+        exception_type(*error_args),
+        exception_type(*error_args),
+        exception_type(*error_args),
+    ]
+
+    with self.assertRaises(Exception):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                method='STREAMING_INSERTS'))
+    self.assertEqual(1, mock_send.call_count)
+
+  # Using https://googleapis.dev/python/google-api-core/latest/_modules/google
+  #    /api_core/exceptions.html
+  # to determine error types and messages to try for retriables.
+  @parameterized.expand([
+      param(
+          exception_type=retry.PermanentException,
+          error_args=('nonretriable', )),
+      param(
+          exception_type=exceptions.BadRequest,
+          error_args=(
+              'forbidden morbidden', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.BadRequest,
+          error_args=('BAD REQUEST!', [{
+              'reason': 'nonretriablereason'
+          }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed,
+          error_args=(
+              'method not allowed!', [{
+                  'reason': 'nonretriablereason'
+              }])),
+      param(
+          exception_type=exceptions.MethodNotAllowed,
+          error_args=('method not allowed!', 'args')),
+      param(exception_type=exceptions.Unknown, error_args=('unknown!', 'args')),
+      param(
+          exception_type=exceptions.Aborted, error_args=('abortet!', 'abort')),
+      param(
+          exception_type=requests.exceptions.ConnectionError,
+          error_args=('some connection error', )),
+      param(
+          exception_type=requests.exceptions.Timeout,
+          error_args=('some timeout error', )),
+      param(
+          exception_type=ConnectionError,
+          error_args=('some py connection error', )),
+      param(
+          exception_type=exceptions.BadGateway,
+          error_args=('some badgateway error', )),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
+  def test_insert_all_unretriable_errors_streaming(
+      self, mock_send, unused_mock_sleep, exception_type=None, error_args=None):
+    # In this test, a STREAMING pipeline will retry ALL errors, and never throw
+    # an exception.
+    mock_send.side_effect = [
+        exception_type(*error_args),
+        exception_type(*error_args),
+        []  # Errors thrown twice, and then succeeded
+    ]
+
+    opt = StandardOptions()
+    opt.streaming = True
+    with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              method='STREAMING_INSERTS'))
+    self.assertEqual(3, mock_send.call_count)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

@@ -137,7 +137,14 @@ tasks.rat {
 
     // Ignore LICENSES copied onto containers
     "sdks/java/container/license_scripts/manual_licenses",
-    "sdks/python/container/license_scripts/manual_licenses"
+    "sdks/python/container/license_scripts/manual_licenses",
+
+    // Ignore autogenrated proto files.
+    "sdks/typescript/src/apache_beam/proto/**/*.ts",
+
+    // Ignore typesciript package management.
+    "sdks/typescript/package-lock.json",
+    "sdks/typescript/node_modules/**/*",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -319,6 +326,23 @@ tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
+}
+
+
+task("python36SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitSickbay")
+}
+
+task("python37SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
+}
+
+task("python38SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitSickbay")
+}
+
+task("python39SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
 }
 
 tasks.register("portablePythonPreCommit") {

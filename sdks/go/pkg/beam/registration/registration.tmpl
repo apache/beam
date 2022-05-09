@@ -1,0 +1,265 @@
+{{define "BuildWrapper_StartFinishBundle"}}
+{{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "startBundle")}}{{$lowerName = "startBundle"}}{{$upperName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$lowerName = "finishBundle"}}{{$upperName = "FinishBundle"}}{{end}}{{$startFinishBundleMaxIn := .startFinishBundleMaxIn}}{{$processElementMaxIn := .processElementMaxIn}}
+{{range $funcIn := upto $startFinishBundleMaxIn}}{{range $funcOut := upto 2}}
+func register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{(genericTypingRepresentation $funcIn $funcOut true)}}() func(interface{}) reflectx.Func {
+    reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $funcIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $funcOut}} R0{{end}})(nil)).Elem(), func(fn interface{}) reflectx.Func {
+        return &caller{{$funcIn}}x{{$funcOut}}{{(genericTypingRepresentation $funcIn $funcOut false)}}{fn: fn.(func({{range $in := upto $funcIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $funcOut}} R0{{end}})}
+    })
+
+    return func(fn interface{}) reflectx.Func {
+        return reflectx.MakeFunc(func({{range $in := upto $funcIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $funcOut}} R0{{end}} {
+            {{if $funcOut}}return {{end}}fn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{(genericTypingRepresentation $funcIn $funcOut false)}}).{{$upperName}}({{range $in := upto $funcIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
+        })
+    }
+}
+{{end}}{{end}}
+{{$numParams := $processElementMaxIn}}
+func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
+    {{$lowerName}}In := -1
+	{{$lowerName}}Out := -1
+	{{$lowerName}}Method := reflect.ValueOf(doFn).MethodByName("{{$upperName}}")
+	if !{{$lowerName}}Method.IsValid() {
+        return nil
+    }
+    {{$lowerName}}In = {{$lowerName}}Method.Type().NumIn()
+    {{$lowerName}}Out = {{$lowerName}}Method.Type().NumOut()
+    switch {
+    {{range $funcIn := upto $startFinishBundleMaxIn}}
+    case {{$lowerName}}In == {{$funcIn}}:
+            switch { {{range $funcOut := upto 2}}{{$possibleCombos := (possibleBundleLifecycleParameterCombos $funcIn $numParams)}}{{if $possibleCombos}}
+            case {{$lowerName}}Out == {{$funcOut}}:
+    {{$first := true}}{{range $funcCombo := $possibleCombos}}{{if $first}}{{$first = false}}                {{else}} else {{end}}if _, ok := doFn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}); ok {
+                    return register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{if (or $funcIn $funcOut)}}[{{(join $funcCombo ", ")}}{{if $funcOut}}{{if $funcIn}}, {{end}}error{{end}}]{{end}}()
+                } {{end}}{{end}}else {
+                    panic("Unable to infer the types of {{$upperName}}")
+                }{{end}}
+            default:
+                panic("Invalid signature for {{$upperName}}")
+            }
+    {{end}}
+    default:
+        panic("Invalid signature for {{$upperName}}")
+    }
+}
+{{end}}{{define "BuildWrapper_SetupTeardown"}}
+{{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "setup")}}{{$lowerName = "setup"}}{{$upperName = "Setup"}}{{end}}{{if (eq .func "teardown")}}{{$lowerName = "teardown"}}{{$upperName = "Teardown"}}{{end}}
+func build{{$upperName}}Wrapper(doFn interface{}) func(interface{}) reflectx.Func {
+    if _, ok := doFn.({{$lowerName}}0x0); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+            f := fn.(func())
+            return &caller0x0{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), {{$lowerName}}Caller)
+
+        return func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func() {
+                fn.({{$lowerName}}0x0).{{$upperName}}()
+            })
+        }
+    } else if _, ok := doFn.({{$lowerName}}1x0); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+            f := fn.(func(context.Context))
+            return &caller1x0[context.Context]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), {{$lowerName}}Caller)
+
+        return func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func(a0 context.Context) {
+                fn.({{$lowerName}}1x0).{{$upperName}}(a0)
+            })
+        }
+    } else if _, ok := doFn.({{$lowerName}}0x1); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+            f := fn.(func() error)
+            return &caller0x1[error]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), {{$lowerName}}Caller)
+
+        return func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func() error {
+                return fn.({{$lowerName}}0x1).{{$upperName}}()
+            })
+        }
+    } else if _, ok := doFn.({{$lowerName}}1x1); ok {
+        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+            f := fn.(func(context.Context) error)
+            return &caller1x1[context.Context, error]{fn: f}
+        }
+        reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), {{$lowerName}}Caller)
+
+        return func(fn interface{}) reflectx.Func {
+            return reflectx.MakeFunc(func(a0 context.Context) error {
+                return fn.({{$lowerName}}1x1).{{$upperName}}(a0)
+            })
+        }
+    }
+
+    return nil
+}
+{{end}}
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Code generated from registration.tmpl. DO NOT EDIT.
+
+package registration
+
+import (
+	"context"
+	"reflect"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+)
+{{$processElementMaxOut := 5}}{{$processElementMaxIn := 10}}{{$startFinishBundleOutRange := 2}}{{$startFinishBundleInRange := 8}}
+{{template "BuildWrapper_StartFinishBundle" (dict "func" "startBundle" "startFinishBundleMaxIn" $startFinishBundleInRange "processElementMaxIn" $processElementMaxIn)}}{{template "BuildWrapper_StartFinishBundle" (dict "func" "finishBundle" "startFinishBundleMaxIn" $startFinishBundleInRange "processElementMaxIn" $processElementMaxIn)}}{{template "BuildWrapper_SetupTeardown" (dict "func" "setup")}}{{template "BuildWrapper_SetupTeardown" (dict "func" "teardown")}}
+
+{{range $processElementOut := upto (add $processElementMaxOut 1)}}{{range $processElementIn := upto (add $processElementMaxIn 1)}}
+type genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} interface {
+    ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+
+type caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} struct {
+    fn func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call(args []interface{}) []interface{} {
+    {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}} := {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}args[{{$in}}].(I{{$in}}){{end}})
+	return []interface{}{ {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}}{{end}} }
+}
+
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}interface{}{{end}}){{end}} {
+    {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}{{end}})
+}
+
+func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
+    processElementCaller := func(fn interface{}) reflectx.Func {
+		f := fn.(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})
+		return &caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}{fn: f}
+	}
+	reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})(nil)).Elem(), processElementCaller)
+    processElementWrapper := func(fn interface{}) reflectx.Func {
+        return reflectx.MakeFunc(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}} {
+            {{if $processElementOut}}return {{end}}fn.(genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}).ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
+        })
+    }
+    startBundleWrapper := buildStartBundleWrapper[{{range $intFillers := upto $processElementMaxIn}}{{if (ge $intFillers $processElementIn)}}{{if (ne $intFillers $processElementIn)}}, {{end}}int{{end}}{{end}}{{range $genIn := upto $processElementIn}}{{if (or $genIn (ne $processElementIn $processElementMaxIn))}}, {{end}}I{{$genIn}}{{end}}](doFn)
+    finishBundleWrapper := buildFinishBundleWrapper[{{range $intFillers := upto $processElementMaxIn}}{{if (ge $intFillers $processElementIn)}}{{if (ne $intFillers $processElementIn)}}, {{end}}int{{end}}{{end}}{{range $genIn := upto $processElementIn}}{{if (or $genIn (ne $processElementIn $processElementMaxIn))}}, {{end}}I{{$genIn}}{{end}}](doFn)
+    setupWrapper := buildSetupWrapper(doFn)
+    teardownWrapper := buildTeardownWrapper(doFn)
+
+    wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+        m := map[string]reflectx.Func{}
+        if processElementWrapper != nil {
+            m["ProcessElement"] = processElementWrapper(fn)
+        }
+        if startBundleWrapper != nil {
+            m["StartBundle"] = startBundleWrapper(fn)
+        }
+        if finishBundleWrapper != nil {
+            m["FinishBundle"] = finishBundleWrapper(fn)
+        }
+        if setupWrapper != nil {
+            m["Setup"] = setupWrapper(fn)
+        }
+        if teardownWrapper != nil {
+            m["Teardown"] = teardownWrapper(fn)
+        }
+        
+        return m
+    }
+    reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
+}
+
+// DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} registers your DoFn to optimize execution at runtime.
+{{if (or $processElementIn $processElementOut)}}// DoFn input and output parameter types should be provided in order as the generic constraints.
+{{end}}func DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
+    registerDoFnTypes(doFn)
+    registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut false)}}(doFn)
+}{{end}}{{end}}
+
+{{range $startFinishBundleOut := upto $startFinishBundleOutRange}}{{range $startFinishBundleIn := upto $startFinishBundleInRange}}
+type startBundle{{$startFinishBundleIn}}x{{$startFinishBundleOut}}{{(genericTypingRepresentation $startFinishBundleIn $startFinishBundleOut true)}} interface {
+    StartBundle({{range $in := upto $startFinishBundleIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $startFinishBundleOut}} ({{range $out := upto $startFinishBundleOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+
+type finishBundle{{$startFinishBundleIn}}x{{$startFinishBundleOut}}{{(genericTypingRepresentation $startFinishBundleIn $startFinishBundleOut true)}} interface {
+    FinishBundle({{range $in := upto $startFinishBundleIn}}{{if $in}}, {{end}}i{{$in}} I{{$in}}{{end}}){{if $startFinishBundleOut}} ({{range $out := upto $startFinishBundleOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}}
+}
+{{end}}{{end}}
+type setup0x0 interface {
+	Setup()
+}
+
+type setup1x0 interface {
+	Setup(ctx context.Context)
+}
+
+type setup0x1 interface {
+	Setup() error
+}
+
+type setup1x1 interface {
+	Setup(ctx context.Context) error
+}
+
+type teardown0x0 interface {
+	Teardown()
+}
+
+type teardown1x0 interface {
+	Teardown(ctx context.Context)
+}
+
+type teardown0x1 interface {
+	Teardown() error
+}
+
+type teardown1x1 interface {
+	Teardown(ctx context.Context) error
+}
+
+func registerDoFnTypes(doFn interface{}) {
+   // Register the doFn
+   runtime.RegisterType(reflect.TypeOf(doFn).Elem())
+   schema.RegisterType(reflect.TypeOf(doFn).Elem())
+  
+   // Register all types in the DoFn
+   fn := reflect.ValueOf(doFn).MethodByName("ProcessElement").Type()
+   for i := 0; i < fn.NumIn(); i++ {
+       in := reflectx.SkipPtr(fn.In(i))
+       if in.Kind() == reflect.Struct {
+           runtime.RegisterType(in)
+           schema.RegisterType(in)
+       }
+   }
+   for i := 0; i < fn.NumOut(); i++ {
+       out := reflectx.SkipPtr(fn.Out(i))
+       if out.Kind() == reflect.Struct {
+           runtime.RegisterType(out)
+           schema.RegisterType(out)
+       }
+   }
+}
