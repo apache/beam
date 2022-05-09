@@ -1463,7 +1463,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
               method='STREAMING_INSERTS'))
 
       assert_that(
-          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS]
+          | beam.Map(lambda elm: (elm[0], elm[1])),
           equal_to([(full_output_table_1, bad_record)]))
 
   def tearDown(self):
