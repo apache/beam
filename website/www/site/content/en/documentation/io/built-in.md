@@ -27,11 +27,11 @@ Consult the [Programming Guide I/O section](/documentation/programming-guide#pip
 
 # In-Progress I/O Transforms
 
-This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).
+This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the GitHub Issue issue, or on the GitHub PR linked to by the GitHub Issue issue (if there is one).
 
 <table class="table table-bordered">
   <tr>
-    <th>Name</th><th>Language</th><th>JIRA</th>
+    <th>Name</th><th>Language</th><th>Issue or JIRA</th>
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>

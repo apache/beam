@@ -5,7 +5,7 @@
 Thank you for your contribution! Follow this checklist to help us incorporate your contribution quickly and easily:
 
  - [ ] [**Choose reviewer(s)**](https://beam.apache.org/contribute/#make-your-change) and mention them in a comment (`R: @username`).
- - [ ] Format the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`, where you replace `BEAM-XXX` with the appropriate JIRA issue, if applicable. This will automatically link the pull request to the issue.
+ - [ ] Add a link to the appropriate issue in your description, if applicable. This will automatically link the pull request to the issue.
  - [ ] Update `CHANGES.md` with noteworthy changes.
  - [ ] If this contribution is large, please file an Apache [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.pdf).
 
