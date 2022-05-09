@@ -20,7 +20,10 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
