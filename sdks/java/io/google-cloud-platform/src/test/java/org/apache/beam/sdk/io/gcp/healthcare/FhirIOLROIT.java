@@ -91,7 +91,7 @@ public class FhirIOLROIT {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =
         "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + new SecureRandom().nextInt(32);
-    pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
+    pipeline.apply(FhirIO.exportResources(fhirStoreName, exportGcsUriPrefix));
     pipeline.run();
   }
 

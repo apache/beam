@@ -36,6 +36,7 @@ import com.google.api.services.healthcare.v1.model.DicomStore;
 import com.google.api.services.healthcare.v1.model.Empty;
 import com.google.api.services.healthcare.v1.model.ExportResourcesRequest;
 import com.google.api.services.healthcare.v1.model.FhirStore;
+import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirBigQueryDestination;
 import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsDestination;
 import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsSource;
 import com.google.api.services.healthcare.v1.model.Hl7V2Store;
@@ -514,6 +515,23 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     gcsDst.setUriPrefix(gcsDestinationPrefix);
     ExportResourcesRequest exportRequest = new ExportResourcesRequest();
     exportRequest.setGcsDestination(gcsDst);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .export(fhirStore, exportRequest)
+        .execute();
+  }
+
+  @Override
+  public Operation exportFhirResourceToBigQuery(String fhirStore, String bigQueryDatasetUri)
+      throws IOException {
+    final GoogleCloudHealthcareV1FhirBigQueryDestination bigQueryDestination =
+        new GoogleCloudHealthcareV1FhirBigQueryDestination();
+    bigQueryDestination.setDatasetUri(bigQueryDatasetUri);
+    final ExportResourcesRequest exportRequest = new ExportResourcesRequest();
+    exportRequest.setBigqueryDestination(bigQueryDestination);
     return client
         .projects()
         .locations()

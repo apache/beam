@@ -194,11 +194,11 @@ import org.slf4j.LoggerFactory;
  * FhirIO.Write.Result writeResult =
  *     output.apply("Import FHIR Resources", FhirIO.executeBundles(options.getNewFhirStore()));
  *
- * // Export FHIR resources to Google Cloud Storage.
+ * // Export FHIR resources to Google Cloud Storage or BigQuery.
  * String fhirStoreName = ...;
- * String exportGcsUriPrefix = ...;
+ * String exportUri = ...; // "gs://..." or "bq://..."
  * PCollection<String> resources =
- *     pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
+ *     pipeline.apply(FhirIO.exportResources(fhirStoreName, exportUri));
  *
  * // De-identify FHIR resources.
  * String sourceFhirStoreName = ...;
@@ -317,14 +317,13 @@ public class FhirIO {
    *
    * @param fhirStore the fhir store, in the format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
-   * @param exportGcsUriPrefix the destination GCS dir, in the format:
-   *     gs://YOUR_BUCKET_NAME/path/to/a/dir
+   * @param exportUri the destination GCS dir or BigQuery dataset, in the format: * GCS:
+   *     gs://YOUR_BUCKET_NAME/path/to/a/dir * BigQuery: bq://PROJECT_ID.BIGQUERY_DATASET_ID
    * @return the export
    * @see Export
    */
-  public static Export exportResourcesToGcs(String fhirStore, String exportGcsUriPrefix) {
-    return new Export(
-        StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportGcsUriPrefix));
+  public static Export exportResources(String fhirStore, String exportUri) {
+    return new Export(StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportUri));
   }
 
   /**
@@ -332,14 +331,14 @@ public class FhirIO {
    *
    * @param fhirStore the fhir store, in the format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
-   * @param exportGcsUriPrefix the destination GCS dir, in the format:
-   *     gs://YOUR_BUCKET_NAME/path/to/a/dir
+   * @param exportUri the destination GCS dir or BigQuery dataset, in the format: GCS:
+   *     gs://YOUR_BUCKET_NAME/path/to/a/dir BigQuery: bq://PROJECT_ID.BIGQUERY_DATASET_ID
    * @return the export
    * @see Export
    */
-  public static Export exportResourcesToGcs(
-      ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
-    return new Export(fhirStore, exportGcsUriPrefix);
+  public static Export exportResources(
+      ValueProvider<String> fhirStore, ValueProvider<String> exportUri) {
+    return new Export(fhirStore, exportUri);
   }
 
   /**
@@ -1517,52 +1516,51 @@ public class FhirIO {
     }
   }
 
-  /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
+  /**
+   * Export FHIR resources from a FHIR store to new line delimited json files on GCS or BigQuery.
+   */
   public static class Export extends PTransform<PBegin, PCollection<String>> {
 
     private final ValueProvider<String> fhirStore;
-    private final ValueProvider<String> exportGcsUriPrefix;
+    private final ValueProvider<String> exportUri;
 
-    public Export(ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
+    public Export(ValueProvider<String> fhirStore, ValueProvider<String> exportUri) {
       this.fhirStore = fhirStore;
-      this.exportGcsUriPrefix = exportGcsUriPrefix;
+      this.exportUri = exportUri;
     }
 
     @Override
     public PCollection<String> expand(PBegin input) {
       return input
           .apply(Create.ofProvider(fhirStore, StringUtf8Coder.of()))
-          .apply(
-              "ScheduleExportOperations",
-              ParDo.of(new ExportResourcesToGcsFn(this.exportGcsUriPrefix)))
+          .apply("ScheduleExportOperations", ParDo.of(new ExportResourcesFn(this.exportUri)))
           .apply(FileIO.matchAll())
           .apply(FileIO.readMatches())
           .apply("ReadResourcesFromFiles", TextIO.readFiles());
     }
 
     /** A function that schedules an export operation and monitors the status. */
-    public static class ExportResourcesToGcsFn extends DoFn<String, String> {
-
+    public static class ExportResourcesFn extends DoFn<String, String> {
+      private static final String GCS_PREFIX = "gs://";
+      private static final String BQ_PREFIX = "bq://";
       private static final Counter EXPORT_OPERATION_SUCCESS =
           Metrics.counter(
-              ExportResourcesToGcsFn.class, BASE_METRIC_PREFIX + "export_operation_success_count");
+              ExportResourcesFn.class, BASE_METRIC_PREFIX + "export_operation_success_count");
       private static final Counter EXPORT_OPERATION_ERRORS =
           Metrics.counter(
-              ExportResourcesToGcsFn.class, BASE_METRIC_PREFIX + "export_operation_failure_count");
+              ExportResourcesFn.class, BASE_METRIC_PREFIX + "export_operation_failure_count");
       private static final Counter RESOURCES_EXPORTED_SUCCESS =
           Metrics.counter(
-              ExportResourcesToGcsFn.class,
-              BASE_METRIC_PREFIX + "resources_exported_success_count");
+              ExportResourcesFn.class, BASE_METRIC_PREFIX + "resources_exported_success_count");
       private static final Counter RESOURCES_EXPORTED_ERRORS =
           Metrics.counter(
-              ExportResourcesToGcsFn.class,
-              BASE_METRIC_PREFIX + "resources_exported_failure_count");
+              ExportResourcesFn.class, BASE_METRIC_PREFIX + "resources_exported_failure_count");
 
       private HealthcareApiClient client;
-      private final ValueProvider<String> exportGcsUriPrefix;
+      private final ValueProvider<String> exportUri;
 
-      public ExportResourcesToGcsFn(ValueProvider<String> exportGcsUriPrefix) {
-        this.exportGcsUriPrefix = exportGcsUriPrefix;
+      public ExportResourcesFn(ValueProvider<String> exportUri) {
+        this.exportUri = exportUri;
       }
 
       @Setup
@@ -1571,11 +1569,21 @@ public class FhirIO {
       }
 
       @ProcessElement
-      public void exportResourcesToGcs(ProcessContext context)
-          throws IOException, InterruptedException {
+      public void exportResources(ProcessContext context) throws IOException, InterruptedException {
         String fhirStore = context.element();
-        String gcsPrefix = this.exportGcsUriPrefix.get();
-        Operation operation = client.exportFhirResourceToGcs(fhirStore, gcsPrefix);
+        final String exportUri = this.exportUri.get();
+        Operation operation;
+        if (exportUri.startsWith(GCS_PREFIX)) {
+          operation = client.exportFhirResourceToGcs(fhirStore, exportUri);
+        } else if (exportUri.startsWith(BQ_PREFIX)) {
+          operation = client.exportFhirResourceToBigQuery(fhirStore, exportUri);
+        } else {
+          throw new RuntimeException(
+              String.format(
+                  "Export cannot be executed because export URI (%s) is not from GCS or BigQuery.",
+                  exportUri));
+        }
+
         operation = client.pollOperation(operation, 15000L);
         incrementLroCounters(
             operation,
@@ -1587,7 +1595,7 @@ public class FhirIO {
           throw new RuntimeException(
               String.format("Export operation (%s) failed.", operation.getName()));
         }
-        context.output(String.format("%s/*", gcsPrefix.replaceAll("/+$", "")));
+        context.output(String.format("%s/*", exportUri.replaceAll("/+$", "")));
       }
     }
   }
