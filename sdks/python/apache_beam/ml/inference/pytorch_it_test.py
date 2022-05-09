@@ -20,9 +20,10 @@
 """End-to-End test for Pytorch Inference"""
 
 import logging
-import pytest
 import unittest
 import uuid
+
+import pytest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
