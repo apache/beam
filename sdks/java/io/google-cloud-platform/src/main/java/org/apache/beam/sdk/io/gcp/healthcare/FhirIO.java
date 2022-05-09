@@ -317,8 +317,8 @@ public class FhirIO {
    *
    * @param fhirStore the fhir store, in the format:
    *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
-   * @param exportUri the destination GCS dir or BigQuery dataset, in the format: * GCS:
-   *     gs://YOUR_BUCKET_NAME/path/to/a/dir * BigQuery: bq://PROJECT_ID.BIGQUERY_DATASET_ID
+   * @param exportUri the destination GCS dir or BigQuery dataset, in the format:
+   *     gs://YOUR_BUCKET_NAME/path/to/a/dir | bq://PROJECT_ID.BIGQUERY_DATASET_ID
    * @return the export
    * @see Export
    */
