@@ -1608,13 +1608,12 @@ class DataflowPipelineResult(PipelineResult):
     return PipelineState.is_terminal(self._get_job_state())
 
   def wait_until_finish(self, duration=None):
-    
     if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
-    
       consoleUrl = """Console URL: 'https://console.cloud.google.com/
-      dataflow/jobs/<RegionId>/{}?project=<ProjectId>'""".format(self.job_id())    
+          dataflow/jobs/<RegionId>/{}?project=
+          <ProjectId>'""".format(self.job_id())
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
           args=(self._runner, self, duration))
