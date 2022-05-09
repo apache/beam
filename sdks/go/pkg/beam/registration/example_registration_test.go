@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/registration"
 )
 
-type myDoFn struct {}
+type myDoFn struct{}
 
 func (fn *myDoFn) ProcessElement(word string, iter func(*string) bool, emit func(int)) int {
 	var s string
@@ -50,9 +50,9 @@ func (fn *myDoFn) Teardown() error {
 	return nil
 }
 
-type myDoFn2 struct {}
+type myDoFn2 struct{}
 
-type Foo struct{
+type Foo struct {
 	s string
 }
 
