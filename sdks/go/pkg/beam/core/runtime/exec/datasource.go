@@ -598,7 +598,7 @@ func splitHelper(
 	}
 	// Printing all splits is expensive. Instead, return the current start and
 	// end indices, and fraction along with the range of the indices and how
-	// many there are. This branch requires least one split index, so we don't
+	// many there are. This branch requires at least one split index, so we don't
 	// need to bounds check the slice.
 	return -1, -1.0, fmt.Errorf("failed to split DataSource (at index: %v, last index: %v) at fraction %.4f with requested splits (%v indices from %v to %v)",
 		currIdx, endIdx, frac, len(splits), splits[0], splits[len(splits)-1])
