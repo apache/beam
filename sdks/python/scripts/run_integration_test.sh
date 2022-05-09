@@ -79,6 +79,7 @@ WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 SUITE=""
 COLLECT_MARKERS=
+IMPERSONATE_ACCOUNT=allows-impersonation@apache-beam-testing.iam.gserviceaccount.com
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -151,6 +152,11 @@ case $key in
         ;;
     --pipeline_opts)
         PIPELINE_OPTS="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --impersonate)
+        IMPERSONATE="$2"
         shift # past argument
         shift # past value
         ;;
@@ -254,6 +260,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
       opts+=("--experiments=beam_fn_api")
     fi
 
+  fi
+
+  # add impersonate_service_account if provided
+  if [[ "$IMPERSONATE" = true ]]; then
+    opts+=("--impersonate_service_account=\"$IMPERSONATE_ACCOUNT\"")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
