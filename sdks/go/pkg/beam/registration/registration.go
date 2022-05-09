@@ -7063,14 +7063,14 @@ type extractOutput1x2[T1, T2 any] interface {
 	ExtractOutput(a T1) (T2, error)
 }
 
-// Accumulator1 registers an accumulator (CombineFn) DoFn's structural functions
-// and types and optimizes their runtime execution. There are 3 different Accumulator
+// Combiner1 registers a CombineFn's structural functions
+// and types and optimizes their runtime execution. There are 3 different Combiner
 // functions, each of which should be used for a different situation.
-// Accumulator1 should be used when your accumulator, input, and output are all of the same type.
-// It can be called with register.Accumulator1[T](&CustomAccumulator{})
+// Combiner1 should be used when your accumulator, input, and output are all of the same type.
+// It can be called with register.Combiner1[T](&CustomCombiner{})
 // where T is the type of the input/accumulator/output.
-func Accumulator1[T0 any](accum interface{}) {
-	registerAccumulatorTypes(accum)
+func Combiner1[T0 any](accum interface{}) {
+	registerCombinerTypes(accum)
 	accumVal := reflect.ValueOf(accum)
 	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
 	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
@@ -7100,7 +7100,7 @@ func Accumulator1[T0 any](accum interface{}) {
 	}
 
 	if mergeAccumulatorsWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
 	}
 
 	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
@@ -7130,7 +7130,7 @@ func Accumulator1[T0 any](accum interface{}) {
 		}
 	}
 	if m := accumVal.MethodByName("CreateAccumulator"); m.IsValid() && createAccumulatorWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
 	}
 
 	var addInputWrapper func(fn interface{}) reflectx.Func
@@ -7161,7 +7161,7 @@ func Accumulator1[T0 any](accum interface{}) {
 	}
 
 	if m := accumVal.MethodByName("AddInput"); m.IsValid() && addInputWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize AddInput for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
 	}
 
 	var extractOutputWrapper func(fn interface{}) reflectx.Func
@@ -7192,7 +7192,7 @@ func Accumulator1[T0 any](accum interface{}) {
 	}
 
 	if m := accumVal.MethodByName("ExtractOutput"); m.IsValid() && extractOutputWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize ExtractOutput for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
 	}
 
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
@@ -7215,14 +7215,14 @@ func Accumulator1[T0 any](accum interface{}) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
 }
 
-// Accumulator2 registers an accumulator (CombineFn) DoFn's structural functions
-// and types and optimizes their runtime execution. There are 3 different Accumulator
+// Combiner2 registers a CombineFn's structural functions
+// and types and optimizes their runtime execution. There are 3 different Combiner
 // functions, each of which should be used for a different situation.
-// Accumulator2 should be used when your accumulator, input, and output are 2 distinct types.
-// It can be called with register.Accumulator2[T1, T2](&CustomAccumulator{})
+// Combiner2 should be used when your accumulator, input, and output are 2 distinct types.
+// It can be called with register.Combiner2[T1, T2](&CustomCombiner{})
 // where T1 is the type of the accumulator and T2 is the other type.
-func Accumulator2[T0, T1 any](accum interface{}) {
-	registerAccumulatorTypes(accum)
+func Combiner2[T0, T1 any](accum interface{}) {
+	registerCombinerTypes(accum)
 	accumVal := reflect.ValueOf(accum)
 	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
 	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
@@ -7252,7 +7252,7 @@ func Accumulator2[T0, T1 any](accum interface{}) {
 	}
 
 	if mergeAccumulatorsWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
 	}
 
 	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
@@ -7282,7 +7282,7 @@ func Accumulator2[T0, T1 any](accum interface{}) {
 		}
 	}
 	if m := accumVal.MethodByName("CreateAccumulator"); m.IsValid() && createAccumulatorWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
 	}
 
 	var addInputWrapper func(fn interface{}) reflectx.Func
@@ -7337,7 +7337,7 @@ func Accumulator2[T0, T1 any](accum interface{}) {
 	}
 
 	if m := accumVal.MethodByName("AddInput"); m.IsValid() && addInputWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize AddInput for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
 	}
 
 	var extractOutputWrapper func(fn interface{}) reflectx.Func
@@ -7392,7 +7392,7 @@ func Accumulator2[T0, T1 any](accum interface{}) {
 	}
 
 	if m := accumVal.MethodByName("ExtractOutput"); m.IsValid() && extractOutputWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize ExtractOutput for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
 	}
 
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
@@ -7415,14 +7415,14 @@ func Accumulator2[T0, T1 any](accum interface{}) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
 }
 
-// Accumulator3 registers an accumulator (CombineFn) DoFn's structural functions
-// and types and optimizes their runtime execution. There are 3 different Accumulator
+// Combiner3 registers a CombineFn's structural functions
+// and types and optimizes their runtime execution. There are 3 different Combiner
 // functions, each of which should be used for a different situation.
-// Accumulator3 should be used when your accumulator, input, and output are 3 distinct types.
-// It can be called with register.Accumulator3[T1, T2, T3](&CustomAccumulator{})
+// Combiner3 should be used when your accumulator, input, and output are 3 distinct types.
+// It can be called with register.Combiner3[T1, T2, T3](&CustomCombiner{})
 // where T1 is the type of the accumulator, T2 is the type of the input, and T3 is the type of the output.
-func Accumulator3[T0, T1, T2 any](accum interface{}) {
-	registerAccumulatorTypes(accum)
+func Combiner3[T0, T1, T2 any](accum interface{}) {
+	registerCombinerTypes(accum)
 	accumVal := reflect.ValueOf(accum)
 	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
 	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
@@ -7452,7 +7452,7 @@ func Accumulator3[T0, T1, T2 any](accum interface{}) {
 	}
 
 	if mergeAccumulatorsWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
 	}
 
 	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
@@ -7482,7 +7482,7 @@ func Accumulator3[T0, T1, T2 any](accum interface{}) {
 		}
 	}
 	if m := accumVal.MethodByName("CreateAccumulator"); m.IsValid() && createAccumulatorWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
 	}
 
 	var addInputWrapper func(fn interface{}) reflectx.Func
@@ -7561,7 +7561,7 @@ func Accumulator3[T0, T1, T2 any](accum interface{}) {
 	}
 
 	if m := accumVal.MethodByName("AddInput"); m.IsValid() && addInputWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize AddInput for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
 	}
 
 	var extractOutputWrapper func(fn interface{}) reflectx.Func
@@ -7640,7 +7640,7 @@ func Accumulator3[T0, T1, T2 any](accum interface{}) {
 	}
 
 	if m := accumVal.MethodByName("ExtractOutput"); m.IsValid() && extractOutputWrapper == nil {
-		panic(fmt.Sprintf("Failed to optimize ExtractOutput for accumulator %v. Failed to infer types", accum))
+		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
 	}
 
 	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
@@ -7663,12 +7663,12 @@ func Accumulator3[T0, T1, T2 any](accum interface{}) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
 }
 
-func registerAccumulatorTypes(accum interface{}) {
-	// Register the accumulator
+func registerCombinerTypes(accum interface{}) {
+	// Register the combiner
 	runtime.RegisterType(reflect.TypeOf(accum).Elem())
 	schema.RegisterType(reflect.TypeOf(accum).Elem())
 
-	// Register all types in the Accumulator.
+	// Register all types in the Combiner.
 	// There may be different types across MergeAccumulators, AddInput, and ExtractOutput.
 	accumVal := reflect.ValueOf(accum)
 	registerMethodTypes(accumVal.MethodByName("MergeAccumulators").Type())
