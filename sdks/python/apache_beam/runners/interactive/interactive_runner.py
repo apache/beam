@@ -23,18 +23,18 @@ This module is experimental. No backwards-compatibility guarantees.
 # pytype: skip-file
 
 import logging
-import warnings
 
 import apache_beam as beam
 from apache_beam import runners
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
-from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.utils import to_element_list
@@ -137,17 +137,11 @@ class InteractiveRunner(runners.PipelineRunner):
     watch_sources(pipeline)
 
     user_pipeline = ie.current_env().user_pipeline(pipeline)
-    if user_pipeline:
-      # When the underlying_runner is a FlinkRunner instance, create a
-      # corresponding DataprocClusterManager for it if no flink_master_url
-      # is provided.
-      master_url = self._get_dataproc_cluster_master_url_if_applicable(
-          user_pipeline)
-      if master_url:
-        flink_options = options.view_as(FlinkRunnerOptions)
-        flink_options.flink_master = master_url
-        flink_options.flink_version = ie.current_env(
-        ).clusters.DATAPROC_FLINK_VERSION
+
+    from apache_beam.runners.portability.flink_runner import FlinkRunner
+    if isinstance(self._underlying_runner, FlinkRunner):
+      self.configure_for_flink(user_pipeline, options)
+
     pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
@@ -224,77 +218,45 @@ class InteractiveRunner(runners.PipelineRunner):
 
     return main_job_result
 
-  # TODO(victorhc): Move this method somewhere else if performance is impacted
-  # by generating a cluster during runtime.
-  def _get_dataproc_cluster_master_url_if_applicable(
-      self, user_pipeline: beam.Pipeline) -> str:
-    """ Creates a Dataproc cluster if the provided user_pipeline is running
-    FlinkRunner and no flink_master_url was provided as an option. A cluster
-    is not created when a flink_master_url is detected.
-
-    Example pipeline options to enable automatic Dataproc cluster creation:
-      options = PipelineOptions([
-      '--runner=FlinkRunner',
-      '--project=my-project',
-      '--region=my-region',
-      '--environment_type=DOCKER'
-      ])
-
-    Example pipeline options to skip automatic Dataproc cluster creation:
-      options = PipelineOptions([
-      '--runner=FlinkRunner',
-      '--flink_master=example.internal:41979',
-      '--environment_type=DOCKER'
-      ])
+  def configure_for_flink(
+      self, user_pipeline: beam.Pipeline, options: PipelineOptions) -> None:
+    """Tunes the pipeline options for the setup of running a job with Flink.
     """
-    from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
-    from apache_beam.runners.portability.flink_runner import FlinkRunner
-    flink_master = user_pipeline.options.view_as(
-        FlinkRunnerOptions).flink_master
     clusters = ie.current_env().clusters
-    # Only consider this logic when both below 2 conditions apply.
-    if isinstance(self._underlying_runner,
-                  FlinkRunner) and clusters.dataproc_cluster_managers.get(
-                      str(id(user_pipeline)), None) is None:
-      if flink_master == '[auto]':
-        # The above condition is True when the user has not provided a
-        # flink_master.
-        if ie.current_env()._is_in_ipython:
-          warnings.filterwarnings(
-              'ignore',
-              'options is deprecated since First stable release. References to '
-              '<pipeline>.options will not be supported',
-              category=DeprecationWarning)
-        project_id = (user_pipeline.options.view_as(GoogleCloudOptions).project)
-        region = (user_pipeline.options.view_as(GoogleCloudOptions).region)
-        if not project_id:
-          # When a Google Cloud project is not specified, we try to set the
-          # cluster_metadata to be the default value set from the
-          # 'Manage Clusters' JupyterLab extension. If a value has not been
-          # specified, this value defaults to None.
-          cluster_metadata = ie.current_env().clusters.default_cluster_metadata
+    if clusters.pipelines.get(user_pipeline, None):
+      # Noop for a known pipeline using a known Dataproc cluster.
+      return
+    flink_master = options.view_as(FlinkRunnerOptions).flink_master
+    cluster_metadata = clusters.default_cluster_metadata
+    if flink_master == '[auto]':
+      # Try to create/reuse a cluster when no flink_master is given.
+      project_id = options.view_as(GoogleCloudOptions).project
+      region = options.view_as(GoogleCloudOptions).region
+      if project_id:
+        if clusters.default_cluster_metadata:
+          # Reuse the cluster name from default in case of a known cluster.
+          cluster_metadata = ClusterMetadata(
+              project_id=project_id,
+              region=region,
+              cluster_name=clusters.default_cluster_metadata.cluster_name)
         else:
-          cluster_name = ie.current_env().clusters.default_cluster_name
-          cluster_metadata = MasterURLIdentifier(
-              project_id=project_id, region=region, cluster_name=cluster_name)
-      else:
-        cluster_metadata = clusters.master_urls.get(flink_master, None)
-      # else noop, no need to log anything because we allow a master_url
-      # (not managed by us) provided by the user.
-      if cluster_metadata:
-        # create the cluster_manager and populate dicts in the clusters
-        # instance if the pipeline is not already mapped to an existing
-        # cluster_manager.
-        cluster_manager = DataprocClusterManager(cluster_metadata)
-        cluster_manager.create_flink_cluster()
-        clusters.master_urls[cluster_manager.master_url] = cluster_metadata
-        clusters.dataproc_cluster_managers[str(
-            id(user_pipeline))] = cluster_manager
-        clusters.master_urls_to_pipelines[cluster_manager.master_url].append(
-            str(id(user_pipeline)))
-        clusters.master_urls_to_dashboards[
-            cluster_manager.master_url] = cluster_manager.dashboard
-        return cluster_manager.master_url
+          # Generate the metadata with a new unique cluster name.
+          cluster_metadata = ClusterMetadata(
+              project_id=project_id, region=region)
+      # else use the default cluster metadata.
+    elif flink_master in clusters.master_urls:
+      cluster_metadata = clusters.cluster_metadata(flink_master)
+    else:  # Noop if a self-hosted Flink is in use.
+      return
+    if not cluster_metadata:
+      return  # Not even a default cluster to create/reuse, run Flink locally.
+    dcm = clusters.create(cluster_metadata)
+    # Side effects associated with the user_pipeline.
+    clusters.pipelines[user_pipeline] = dcm
+    dcm.pipelines.add(user_pipeline)
+    flink_options = options.view_as(FlinkRunnerOptions)
+    flink_options.flink_master = dcm.cluster_metadata.master_url
+    flink_options.flink_version = clusters.DATAPROC_FLINK_VERSION
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):
