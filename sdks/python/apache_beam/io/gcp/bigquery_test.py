@@ -42,7 +42,7 @@ from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery import TableRowJsonCoder, ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
@@ -52,6 +52,7 @@ from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -78,9 +79,11 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 try:
   from apitools.base.py.exceptions import HttpError
   from google.cloud import bigquery as gcp_bigquery
+  from google.api_core import exceptions
 except ImportError:
   gcp_bigquery = None
   HttpError = None
+  exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -481,6 +484,39 @@ class TestReadFromBigQuery(unittest.TestCase):
     delete_dataset.assert_not_called()
     delete_table.assert_called_with(
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
+
+  @parameterized.expand([
+    param(
+      exception_type=exceptions.BadRequest,
+      error_message='invalidQuery'),
+    param(
+      exception_type=exceptions.Forbidden,
+      error_message='acessDenied'),
+    param(
+      exception_type=exceptions.ServiceUnavailable,
+      error_message='backendError'),
+  ])
+  @mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Insert')
+  def test_create_temp_dataset_exception(self, mock_api, exception_type, error_message):
+    mock_api.side_effect = [
+      exception_type(error_message),
+      exception_type(error_message),
+      exception_type(error_message),
+      exception_type(error_message)
+    ]
+
+    with self.assertRaises(Exception) as exc:
+      with beam.Pipeline() as p:
+        p | ReadFromBigQuery(
+          project='google.com:clouddfe',
+          query=('SELECT number, str FROM'
+                 '`project.dataset.table`'),
+          use_standard_sql=True
+        ) | (
+          beam.Map(print)
+        )
+    self.assertEqual(4, mock_api.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
