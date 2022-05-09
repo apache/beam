@@ -51,3 +51,24 @@ func TestEncodeDecodeDouble(t *testing.T) {
 		}
 	}
 }
+
+const floatPrecision = float64(0.001)
+
+func FuzzEncodeDecodeDouble(f *testing.F) {
+	f.Add(float64(3.141))
+	f.Fuzz(func(t *testing.T, a float64) {
+		var buf bytes.Buffer
+		err := EncodeDouble(a, &buf)
+		if err != nil {
+			return
+		}
+
+		actual, err := DecodeDouble(&buf)
+		if err != nil {
+			t.Fatalf("DecodeDouble(%v) failed: %v", buf, err)
+		}
+		if math.Abs(actual-a) > floatPrecision {
+			t.Fatalf("got %f, want %f +/- %f", actual, a, floatPrecision)
+		}
+	})
+}
