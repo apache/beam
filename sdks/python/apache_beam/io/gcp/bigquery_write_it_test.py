@@ -22,7 +22,6 @@
 
 import base64
 import datetime
-import json
 import logging
 import random
 import time
@@ -43,10 +42,11 @@ from apache_beam.io.gcp.bigquery_tools import FileFormat
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
-from apache_beam.testing.util import assert_that, equal_to
 
 try:
   from apitools.base.py.exceptions import HttpError
