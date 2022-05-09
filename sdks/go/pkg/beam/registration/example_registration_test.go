@@ -24,8 +24,11 @@ import (
 type myDoFn struct {
 }
 
-func (fn *myDoFn) ProcessElement(word string, emit func(int)) int {
-	emit(len(word))
+func (fn *myDoFn) ProcessElement(word string, iter func(*string) bool, emit func(int)) int {
+	var s string
+	for iter(&s) {
+		emit(len(s))
+	}
 	return len(word)
 }
 
@@ -50,11 +53,12 @@ func ExampleDoFn2x1() {
 	// Since myDoFn's ProcessElement call has 2 inputs and 1 output, call DoFn2x1.
 	// Since the inputs to ProcessElement are (string, func(int)), and the output
 	// is int, we pass those parameter types to the function.
-	registration.DoFn2x1[string, func(int), int](&myDoFn{})
+	registration.DoFn3x1[string, func(*string) bool, func(int), int](&myDoFn{})
 
 	// Any function parameters (iters or emitters) must be registered separately
 	// as well to get the fully optimized experience. Since ProcessElement has
 	// an emitter with the signature func(int) we can register it. This must be
 	// done by passing in the type parameters of all inputs as constraints.
 	registration.Emitter1[int]()
+	registration.Iter1[string]()
 }

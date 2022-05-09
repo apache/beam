@@ -20,11 +20,12 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
-type emit1[T any] struct {
-	n exec.ElementProcessor
+type emit struct {
+	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
 	ws    []typex.Window
@@ -32,11 +33,20 @@ type emit1[T any] struct {
 	value exec.FullValue
 }
 
-func (e *emit1[T]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
+func (e *emit) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
 	e.ws = ws
 	e.et = et
 	return nil
+}
+
+func (e *emit) AttachEstimator(est *sdf.WatermarkEstimator) {
+	e.est = est
+}
+
+type emit1[T any] struct {
+	emit
+	n exec.ElementProcessor
 }
 
 func (e *emit1[T]) Value() interface{} {
@@ -45,25 +55,17 @@ func (e *emit1[T]) Value() interface{} {
 
 func (e *emit1[T]) invoke(val T) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
 }
 
 type emit2[T1, T2 any] struct {
+	emit
 	n exec.ElementProcessor
-
-	ctx   context.Context
-	ws    []typex.Window
-	et    typex.EventTime
-	value exec.FullValue
-}
-
-func (e *emit2[T1, T2]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
-	e.ctx = ctx
-	e.ws = ws
-	e.et = et
-	return nil
 }
 
 func (e *emit2[T1, T2]) Value() interface{} {
@@ -72,25 +74,17 @@ func (e *emit2[T1, T2]) Value() interface{} {
 
 func (e *emit2[T1, T2]) invoke(key T1, val T2) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
 }
 
 type emit1WithTimestamp[T any] struct {
+	emit
 	n exec.ElementProcessor
-
-	ctx   context.Context
-	ws    []typex.Window
-	et    typex.EventTime
-	value exec.FullValue
-}
-
-func (e *emit1WithTimestamp[T]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
-	e.ctx = ctx
-	e.ws = ws
-	e.et = et
-	return nil
 }
 
 func (e *emit1WithTimestamp[T]) Value() interface{} {
@@ -99,25 +93,17 @@ func (e *emit1WithTimestamp[T]) Value() interface{} {
 
 func (e *emit1WithTimestamp[T]) invoke(et typex.EventTime, val T) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
 }
 
 type emit2WithTimestamp[T1, T2 any] struct {
+	emit
 	n exec.ElementProcessor
-
-	ctx   context.Context
-	ws    []typex.Window
-	et    typex.EventTime
-	value exec.FullValue
-}
-
-func (e *emit2WithTimestamp[T1, T2]) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
-	e.ctx = ctx
-	e.ws = ws
-	e.et = et
-	return nil
 }
 
 func (e *emit2WithTimestamp[T1, T2]) Value() interface{} {
@@ -126,6 +112,9 @@ func (e *emit2WithTimestamp[T1, T2]) Value() interface{} {
 
 func (e *emit2WithTimestamp[T1, T2]) invoke(et typex.EventTime, key T1, val T2) {
 	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: key, Elm2: val}
+	if e.est != nil {
+		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(et.ToTime())
+	}
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
@@ -133,7 +122,7 @@ func (e *emit2WithTimestamp[T1, T2]) invoke(et typex.EventTime, key T1, val T2) 
 
 // Emitter1 registers parameters from your DoFn with a
 // signature func(T) and optimizes their execution.
-// This must be done by passing in type parameters of all inputs as constraints,
+// This must be done by passing in type parameters of your input as a constraint,
 // aka: registration.Emitter1[T]()
 func Emitter1[T1 any]() {
 	e := (*func(T1))(nil)
@@ -145,8 +134,9 @@ func Emitter1[T1 any]() {
 
 // Emitter2 registers parameters from your DoFn with a
 // signature func(T1, T2) and optimizes their execution.
-// This must be done by passing in type parameters of all inputs as constraints,
-// aka: registration.Emitter2[T1, T2]()
+// This must be done by passing in type parameters of all inputs (including EventTime)
+// as constraints, aka: registration.Emitter2[T1, T2](), where T2 is the type of your
+// value and T2 is either the type of your key or the eventTime.
 func Emitter2[T1, T2 any]() {
 	e := (*func(T1, T2))(nil)
 	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
@@ -163,8 +153,9 @@ func Emitter2[T1, T2 any]() {
 // Emitter3 registers parameters from your DoFn with a
 // signature func(T1, T2, T3) and optimizes their execution.
 // This must be done by passing in type parameters of all inputs as constraints,
-// aka: registration.Emitter3[T1, T2, T3]()
-func Emitter3[T1, T2, T3 any]() {
+// aka: registration.Emitter3[beam.EventTime, T1, T2](), where T1 is the type of
+// your key and T2 is the type of your value.
+func Emitter3[T1 typex.EventTime, T2, T3 any]() {
 	e := (*func(T1, T2, T3))(nil)
 	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
 		return &emit2WithTimestamp[T2, T3]{n: n}
