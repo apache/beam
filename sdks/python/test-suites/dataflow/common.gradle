@@ -364,3 +364,26 @@ task validatesContainer() {
     }
   }
 }
+
+task runImpersonationTest() {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def testOpts = basicPytestOpts
+
+  doFirst {
+    def argMap = [
+            "test_opts": testOpts + ["--numprocesses=8", "--dist=loadfile"],
+            "sdk_location": files(configurations.distTarBall.files).singleFile,
+            "runner_v2": "true",
+            "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
+            "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
+            "impersonate": "true"
+            "gcs_location": "gs://impersonation-test"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
