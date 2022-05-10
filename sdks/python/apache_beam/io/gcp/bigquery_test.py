@@ -485,39 +485,41 @@ class TestReadFromBigQuery(unittest.TestCase):
     delete_table.assert_called_with(
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
+  from apache_beam.io.iobase import BoundedSource
   @parameterized.expand([
     param(
       exception_type=exceptions.BadRequest,
       error_message='invalidQuery'),
     param(
       exception_type=exceptions.Forbidden,
-      error_message='acessDenied'),
+      error_message='accessDenied'),
     param(
       exception_type=exceptions.ServiceUnavailable,
       error_message='backendError'),
   ])
+  @mock.patch('time.sleep')
   @mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Insert')
-  def test_create_temp_dataset_exception(self, mock_api, exception_type, error_message):
+  def test_create_temp_dataset_exception(self, mock_api, unused_mock, exception_type, error_message):
     mock_api.side_effect = [
       exception_type(error_message),
-      exception_type(error_message),
-      exception_type(error_message),
-      exception_type(error_message)
     ]
 
     with self.assertRaises(Exception) as exc:
       with beam.Pipeline() as p:
         p | ReadFromBigQuery(
-          project='google.com:clouddfe',
-          query=('SELECT number, str FROM'
-                 '`project.dataset.table`'),
+          project='apache-beam-testing',
+          query=('SELECT country_code FROM'
+                 '`apache-beam-testing.bq_jsontype_test_nodelete.json_data`'),
+          gcs_location='gs://ahmedaboualsaud-test/tmp',
           use_standard_sql=True
         ) | (
           beam.Map(print)
         )
-    self.assertEqual(4, mock_api.call_count)
-    self.assertIn(error_message, exc.exception.args[0])
 
+    self.assertEqual(16, mock_api.call_count)
+    for exceptionnn in exc.exception.args:
+      print(exceptionnn)
+    # self.assertIn(error_message, exc.exception.args[0])
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
