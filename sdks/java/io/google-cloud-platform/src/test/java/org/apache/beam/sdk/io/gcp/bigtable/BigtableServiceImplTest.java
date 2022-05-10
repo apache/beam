@@ -110,6 +110,7 @@ public class BigtableServiceImplTest {
     when(mockSession.createBulkMutation(eq(TABLE_NAME))).thenReturn(mockBulkMutation);
     when(mockSession.getDataClient()).thenReturn(mockBigtableDataClient);
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+    when(mockBigtableSource.getMaxBufferElementCount()).thenReturn(100);
     // Setup the ProcessWideContainer for testing metrics are set.
     MetricsContainerImpl container = new MetricsContainerImpl(null);
     MetricsEnvironment.setProcessWideContainer(container);
@@ -162,14 +163,14 @@ public class BigtableServiceImplTest {
         .thenAnswer(mockReadRowsAnswer(Arrays.asList(expectedRow)));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(FlatRowConverter.convert(expectedRow), underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
     underTest.close();
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
   }
 
   /**
@@ -208,7 +209,7 @@ public class BigtableServiceImplTest {
         .thenAnswer(mockReadRowsAnswer(new ArrayList<FlatRow>()));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(
@@ -231,9 +232,8 @@ public class BigtableServiceImplTest {
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
    * uses two ranges with MINI_BATCH_ROW_LIMIT rows. The buffer should be refilled twice and
-   * ReadRowsAsync should be called three times. The last rpc call should return zero rows.
-   * The following test follows this example: FirstRange: [a,b1,...,b99,c)
-   * SecondRange: [c,d1,...,d99,e)
+   * ReadRowsAsync should be called three times. The last rpc call should return zero rows. The
+   * following test follows this example: FirstRange: [a,b1,...,b99,c) SecondRange: [c,d1,...,d99,e)
    *
    * @throws IOException
    */
@@ -273,7 +273,7 @@ public class BigtableServiceImplTest {
         .thenAnswer(mockReadRowsAnswer(new ArrayList<FlatRow>()));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(
@@ -299,10 +299,9 @@ public class BigtableServiceImplTest {
 
   /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
-   * uses three overlapping ranges. The logic should remove all keys that were already added to
-   * the buffer. The following test follows this example:
-   * FirstRange: [a,b1,...,b99,b100) SecondRange: [b50,b51...b100,d1,...,d199,c)
-   * ThirdRange: [b70, c)
+   * uses three overlapping ranges. The logic should remove all keys that were already added to the
+   * buffer. The following test follows this example: FirstRange: [a,b1,...,b99,b100) SecondRange:
+   * [b50,b51...b100,d1,...,d199,c) ThirdRange: [b70, c)
    *
    * @throws IOException
    */
@@ -363,7 +362,7 @@ public class BigtableServiceImplTest {
         .thenAnswer(mockReadRowsAnswer(new ArrayList<FlatRow>()));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(
@@ -427,7 +426,7 @@ public class BigtableServiceImplTest {
         .thenAnswer(mockReadRowsAnswer(new ArrayList<FlatRow>()));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
 
     underTest.start();
     Assert.assertEquals(
@@ -503,7 +502,7 @@ public class BigtableServiceImplTest {
         .thenAnswer(mockReadRowsAnswer(new ArrayList<FlatRow>()));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
 
     underTest.start();
     verify(mockBigtableDataClient, times(1))
@@ -516,7 +515,7 @@ public class BigtableServiceImplTest {
     }
     verify(mockBigtableDataClient, times(2))
         .readFlatRows(requestCaptor.capture(), any(StreamObserver.class));
-    for (int i = 0; i < MINI_BATCH_ROW_LIMIT; i++) {
+    for (int i = 0; i < MINI_BATCH_ROW_LIMIT / 2 - 1; i++) {
       underTest.advance();
     }
     Assert.assertEquals(
@@ -526,7 +525,7 @@ public class BigtableServiceImplTest {
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
   }
 
   /**
@@ -573,7 +572,7 @@ public class BigtableServiceImplTest {
                     numOfRowsInsideBuffer, expectedFirstRangeRows.size())));
 
     BigtableService.Reader underTest =
-        new BigtableServiceImpl.BigtableSegmentReaderImpl(mockSession, mockBigtableSource);
+        BigtableServiceImpl.BigtableSegmentReaderImpl.create(mockSession, mockBigtableSource);
     underTest.start();
     Assert.assertEquals(
         FlatRowConverter.convert(expectedFirstRangeRows.get(0)), underTest.getCurrentRow());
@@ -586,7 +585,7 @@ public class BigtableServiceImplTest {
     Assert.assertFalse(underTest.advance());
 
     underTest.close();
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 2);
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 3);
   }
 
   /**

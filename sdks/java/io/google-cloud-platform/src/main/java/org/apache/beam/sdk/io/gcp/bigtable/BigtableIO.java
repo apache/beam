@@ -406,7 +406,8 @@ public class BigtableIO {
 
     /**
      * Returns a new {@link BigtableIO.Read} that will break up read requests into smaller batches.
-     * This function will switch the base BigtableIO.Reader class to using the SegmentReader
+     * This function will switch the base BigtableIO.Reader class to using the SegmentReader. If
+     * null is passed, this behavior will be disabled and the stream reader will be usedf.
      *
      * <p>Does not modify this object.
      *
@@ -414,10 +415,7 @@ public class BigtableIO {
      * override the value
      */
     @Experimental(Kind.SOURCE_SINK)
-    public Read withMaxBufferElementCount(Integer maxBufferElementCount) {
-      System.out.println(maxBufferElementCount);
-      checkArgument(maxBufferElementCount != null, "maxBufferElementCount can not be null");
-      checkArgument(maxBufferElementCount > 0, "maxBufferElementCount can not be zero or negative");
+    public Read withMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(
@@ -1289,8 +1287,7 @@ public class BigtableIO {
     }
 
     public @Nullable Integer getMaxBufferElementCount() {
-      Integer bufferLimit = readOptions.getMaxBufferElementCount();
-      return bufferLimit != null ? bufferLimit : null;
+      return readOptions.getMaxBufferElementCount();
     }
 
     public ValueProvider<String> getTableId() {

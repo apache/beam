@@ -25,6 +25,7 @@ import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.bigtable.v2.SampleRowKeysRequest;
@@ -38,6 +39,7 @@ import com.google.cloud.bigtable.grpc.scanner.FlatRowConverter;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.grpc.scanner.ScanHandler;
 import com.google.cloud.bigtable.util.ByteStringComparator;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -58,7 +60,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -72,6 +73,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +86,6 @@ import org.slf4j.LoggerFactory;
 })
 class BigtableServiceImpl implements BigtableService {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
-  private static final int DEFAULT_SEGMENT_SIZE = 100;
   // Default byte limit is a percentage of the JVM's available memory
   private static final double DEFAULT_BYTE_LIMIT_PERCENTAGE = .3;
 
@@ -155,28 +156,8 @@ class BigtableServiceImpl implements BigtableService {
       String tableNameSr =
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
 
-      HashMap<String, String> baseLabels = new HashMap<>();
-      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
-      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
-      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.ReadRows");
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.RESOURCE,
-          GcpResourceIdentifiers.bigtableResource(
-              session.getOptions().getProjectId(),
-              session.getOptions().getInstanceId(),
-              source.getTableId().get()));
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.TABLE_ID,
-          GcpResourceIdentifiers.bigtableTableID(
-              session.getOptions().getProjectId(),
-              session.getOptions().getInstanceId(),
-              source.getTableId().get()));
       ServiceCallMetric serviceCallMetric =
-          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+          populateReaderCallMetric(session, source.getTableId().get());
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
@@ -234,133 +215,140 @@ class BigtableServiceImpl implements BigtableService {
   @VisibleForTesting
   static class BigtableSegmentReaderImpl implements Reader {
     private BigtableSession session;
-    private final BigtableSource source;
-    private Row currentRow;
-    private Queue<FlatRow> buffer;
-    private RowSet rowSet;
-    private ServiceCallMetric serviceCallMetric;
-    private Future<ImmutablePair<List<FlatRow>, Boolean>> future;
-    private ByteString lastFetchedRow;
-    private boolean lastFillComplete;
-    private boolean byteLimitReached;
 
-    private final int segmentLimit;
-    private final int segmentWaterMark;
-    private final String tableName;
+    @Nullable ReadRowsRequest nextRequest;
+    final Queue<Row> buffer = new ArrayDeque<>();
+    final int segmentSize;
+    final int refillSegmentWaterMark;
+    final String tableId;
+    final RowFilter filter;
+    final long bufferByteLimit;
+    private Future<UpstreamResults> future;
+    private Row currentRow;
+    private final ServiceCallMetric serviceCallMetric;
+    // private boolean upstreamResourcesExhausted;
+
+    static class UpstreamResults {
+      final List<Row> rows;
+      final @Nullable ReadRowsRequest nextRequest;
+
+      UpstreamResults(List<Row> rows, @Nullable ReadRowsRequest nextRequest) {
+        this.rows = rows;
+        this.nextRequest = nextRequest;
+      }
+    }
+
+    static BigtableSegmentReaderImpl create(BigtableSession session, BigtableSource source) {
+      RowSet set;
+      if (source.getRanges().isEmpty()) {
+        set = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
+      } else {
+        RowRange[] rowRanges = new RowRange[source.getRanges().size()];
+        for (int i = 0; i < source.getRanges().size(); i++) {
+          rowRanges[i] =
+              RowRange.newBuilder()
+                  .setStartKeyClosed(
+                      ByteString.copyFrom(source.getRanges().get(i).getStartKey().getValue()))
+                  .setEndKeyOpen(
+                      ByteString.copyFrom(source.getRanges().get(i).getEndKey().getValue()))
+                  .build();
+        }
+        // Presort the ranges so that fetch future segment can exit early when splitting the row set
+        Arrays.sort(rowRanges, RANGE_START_COMPARATOR);
+        set =
+            RowSet.newBuilder()
+                .addAllRowRanges(Arrays.stream(rowRanges).collect(Collectors.toList()))
+                .build();
+      }
+
+      RowFilter filter =
+          MoreObjects.firstNonNull(source.getRowFilter(), RowFilter.getDefaultInstance());
+      ReadRowsRequest request =
+          ReadRowsRequest.newBuilder()
+              .setTableName(
+                  session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get()))
+              .setRows(set)
+              .setFilter(filter)
+              .setRowsLimit(source.getMaxBufferElementCount())
+              .build();
+      return new BigtableSegmentReaderImpl(
+          session, request, source.getTableId().get(), filter, source.getMaxBufferElementCount());
+    }
 
     @VisibleForTesting
-    BigtableSegmentReaderImpl(BigtableSession session, BigtableSource source) {
+    BigtableSegmentReaderImpl(
+        BigtableSession session,
+        ReadRowsRequest request,
+        String tableId,
+        RowFilter filter,
+        int segmentSize) {
       this.session = session;
-      if (source.getMaxBufferElementCount() != null && source.getMaxBufferElementCount() != 0) {
-        this.segmentLimit = source.getMaxBufferElementCount();
-      } else {
-        this.segmentLimit = DEFAULT_SEGMENT_SIZE;
-      }
+      this.nextRequest = request;
+      this.tableId = tableId;
+      this.filter = filter;
+      this.segmentSize = segmentSize;
       // Asynchronously refill buffer when there is 10% of the elements are left
-      this.segmentWaterMark = segmentLimit / 10;
-      tableName = session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
-      this.source = source;
+      this.refillSegmentWaterMark = segmentSize / 10;
+      // this.upstreamResourcesExhausted = false;
+
+      long availableMemory =
+          Runtime.getRuntime().maxMemory()
+              - (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory());
+      bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * availableMemory);
+
+      serviceCallMetric = populateReaderCallMetric(session, tableId);
     }
 
     @Override
     public boolean start() throws IOException {
-      buffer = new ArrayDeque<>();
-      lastFillComplete = false;
-      byteLimitReached = false;
-      RowRange[] rowRanges = new RowRange[source.getRanges().size()];
-      for (int i = 0; i < source.getRanges().size(); i++) {
-        rowRanges[i] =
-            RowRange.newBuilder()
-                .setStartKeyClosed(
-                    ByteString.copyFrom(source.getRanges().get(i).getStartKey().getValue()))
-                .setEndKeyOpen(
-                    ByteString.copyFrom(source.getRanges().get(i).getEndKey().getValue()))
-                .build();
-      }
-      // Presort the ranges so that future segmentation can exit early when splitting the row set
-      Arrays.sort(rowRanges, RANGE_START_COMPARATOR);
-      rowSet =
-          RowSet.newBuilder()
-              .addAllRowRanges(Arrays.stream(rowRanges).collect(Collectors.toList()))
-              .build();
-
-      HashMap<String, String> baseLabels = new HashMap<>();
-      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
-      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
-      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.ReadRows");
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.RESOURCE,
-          GcpResourceIdentifiers.bigtableResource(
-              session.getOptions().getProjectId(),
-              session.getOptions().getInstanceId(),
-              source.getTableId().get()));
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
-      baseLabels.put(
-          MonitoringInfoConstants.Labels.TABLE_ID,
-          GcpResourceIdentifiers.bigtableTableID(
-              session.getOptions().getProjectId(),
-              session.getOptions().getInstanceId(),
-              source.getTableId().get()));
-      serviceCallMetric =
-          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
-
-      future = startNextSegmentRead();
+      future = fetchNextSegment();
       return advance();
     }
 
     @Override
     public boolean advance() throws IOException {
-      if (buffer.size() <= segmentWaterMark && future == null && !lastFillComplete) {
-        if (!splitRowSet(lastFetchedRow)) {
-          return false;
-        }
-        future = startNextSegmentRead();
+      if (buffer.size() < refillSegmentWaterMark
+          && future == null /*&& !upstreamResourcesExhausted*/) {
+        future = fetchNextSegment();
       }
-      if (buffer.isEmpty()) {
-        if (future == null || lastFillComplete) {
-          return false;
-        }
+      if (buffer.isEmpty() && future != null) {
         waitReadRowsFuture();
       }
       // If the last fill is equal to row limit, the lastFillComplete flag will not be true
       // until another RPC is called which will return 0 rows
-      if (buffer.isEmpty() && lastFillComplete) {
+      if (buffer.isEmpty()) {
         return false;
       }
-      currentRow = FlatRowConverter.convert(buffer.remove());
+      currentRow = buffer.remove();
       return currentRow != null;
     }
 
-    private SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> startNextSegmentRead() {
-      SettableFuture<ImmutablePair<List<FlatRow>, Boolean>> f = SettableFuture.create();
-      long availableMemory =
-          Runtime.getRuntime().maxMemory()
-              - (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory());
-      long bufferByteLimit = (long) (DEFAULT_BYTE_LIMIT_PERCENTAGE * availableMemory);
+    Future<UpstreamResults> fetchNextSegment() {
+      SettableFuture<UpstreamResults> f = SettableFuture.create();
+      if (nextRequest == null) {
+        // upstreamResourcesExhausted = true;
+        f.set(new UpstreamResults(ImmutableList.of(), null));
+        return f;
+      }
+
       // TODO(diegomez): Remove atomic ScanHandler for simpler StreamObserver/Future implementation
       AtomicReference<ScanHandler> atomic = new AtomicReference<>();
-      ScanHandler handler;
-      handler =
+      ScanHandler handler =
           session
               .getDataClient()
               .readFlatRows(
-                  buildReadRowsRequest(),
+                  nextRequest,
                   new StreamObserver<FlatRow>() {
-                    List<FlatRow> rows = new ArrayList<>();
+                    List<Row> rows = new ArrayList<>();
                     long currentByteSize = 0;
                     boolean byteLimitReached = false;
 
                     @Override
                     public void onNext(FlatRow flatRow) {
-                      rows.add(flatRow);
-                      currentByteSize +=
-                          flatRow.getRowKey().size()
-                              + flatRow.getCells().stream()
-                                  .mapToLong(c -> c.getQualifier().size() + c.getValue().size())
-                                  .sum();
+                      currentByteSize += computeRowSize(flatRow);
+                      Row row = FlatRowConverter.convert(flatRow);
+                      rows.add(row);
+
                       if (currentByteSize > bufferByteLimit) {
                         byteLimitReached = true;
                         atomic.get().cancel();
@@ -375,33 +363,27 @@ class BigtableServiceImpl implements BigtableService {
 
                     @Override
                     public void onCompleted() {
-                      f.set(ImmutablePair.of(rows, byteLimitReached));
-                      return;
+                      ReadRowsRequest nextNextRequest = null;
+
+                      if (byteLimitReached || rows.size() == segmentSize) {
+                        nextNextRequest =
+                            truncateRequest(nextRequest, rows.get(rows.size() - 1).getKey());
+                      }
+
+                      f.set(new UpstreamResults(rows, nextNextRequest));
                     }
                   });
       atomic.set(handler);
       return f;
     }
 
-    private ReadRowsRequest buildReadRowsRequest() {
-      ReadRowsRequest.Builder request =
-          ReadRowsRequest.newBuilder()
-              .setRows(rowSet)
-              .setRowsLimit(segmentLimit)
-              .setTableName(tableName);
-      if (source.getRowFilter() != null) {
-        request.setFilter(source.getRowFilter());
-      }
-      return request.build();
-    }
-
-    private void waitReadRowsFuture() throws IOException {
+    void waitReadRowsFuture() throws IOException {
       try {
-        ImmutablePair<List<FlatRow>, Boolean> results = future.get();
-        byteLimitReached = results.getRight();
+        UpstreamResults r = future.get();
+        buffer.addAll(r.rows);
+        nextRequest = r.nextRequest;
         future = null;
         serviceCallMetric.call("ok");
-        fillReadRowsBuffer(results.getLeft());
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().value());
         throw e;
@@ -413,43 +395,44 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
-    private void fillReadRowsBuffer(List<FlatRow> results) {
-      if (results.size() == 0) {
-        lastFillComplete = true;
-        return;
-      } else {
-        if (results.size() < segmentLimit && !byteLimitReached) {
-          lastFillComplete = true;
-        }
-        buffer.addAll(results.subList(0, results.size()));
-      }
-      lastFetchedRow = FlatRowConverter.convert(results.get(results.size() - 1)).getKey();
-    }
+    ReadRowsRequest truncateRequest(ReadRowsRequest request, ByteString lastKey) {
+      RowSet setFromRequest = request.getRows();
 
-    private boolean splitRowSet(ByteString splitPoint) {
-      if (rowSet.getRowRangesList().isEmpty() && rowSet.getRowKeysList().isEmpty()) {
-        rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
-      }
       RowSet.Builder segment = RowSet.newBuilder();
-      for (int i = 0; i < rowSet.getRowRangesCount(); i++) {
-        RowRange rowRange = rowSet.getRowRanges(i);
-        int startCmp = StartPoint.extract(rowRange).compareTo(new StartPoint(splitPoint, true));
-        int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(splitPoint, true));
+      for (int i = 0; i < setFromRequest.getRowRangesCount(); i++) {
+        RowRange rowRange = setFromRequest.getRowRanges(i);
+        int startCmp = StartPoint.extract(rowRange).compareTo(new StartPoint(lastKey, true));
+        int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(lastKey, true));
 
         if (startCmp > 0) {
           // If the startKey is passed the split point than add the whole range
           segment.addRowRanges(rowRange);
         } else if (endCmp > 0) {
           // Row is split, remove all read rowKeys and split RowSet at last buffered Row
-          RowRange subRange = rowRange.toBuilder().setStartKeyOpen(splitPoint).build();
+          RowRange subRange = rowRange.toBuilder().setStartKeyOpen(lastKey).build();
           segment.addRowRanges(subRange);
         }
       }
+      /* I think that this is now covered outside of this functionality
       if (segment.getRowRangesCount() == 0) {
         return false;
-      }
-      rowSet = segment.build();
-      return true;
+      } */
+      ReadRowsRequest newRequest =
+          ReadRowsRequest.newBuilder()
+              .setTableName(session.getOptions().getInstanceName().toTableNameStr(tableId))
+              .setRows(segment.build())
+              .setFilter(filter)
+              .setRowsLimit(segmentSize)
+              .build();
+
+      return newRequest;
+    }
+
+    private long computeRowSize(FlatRow row) {
+      return row.getRowKey().size()
+          + row.getCells().stream()
+              .mapToLong(c -> c.getQualifier().size() + c.getValue().size())
+              .sum();
     }
 
     @Override
@@ -592,7 +575,7 @@ class BigtableServiceImpl implements BigtableService {
   public Reader createReader(BigtableSource source) throws IOException {
     BigtableSession session = new BigtableSession(options);
     if (source.getMaxBufferElementCount() != null) {
-      return new BigtableSegmentReaderImpl(session, source);
+      return BigtableSegmentReaderImpl.create(session, source);
     } else {
       return new BigtableReaderImpl(session, source);
     }
@@ -612,6 +595,27 @@ class BigtableServiceImpl implements BigtableService {
               .build();
       return session.getDataClient().sampleRowKeys(request);
     }
+  }
+
+  private static ServiceCallMetric populateReaderCallMetric(
+      BigtableSession session, String tableId) {
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "google.bigtable.v2.ReadRows");
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.bigtableResource(
+            session.getOptions().getProjectId(), session.getOptions().getInstanceId(), tableId));
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, session.getOptions().getProjectId());
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.INSTANCE_ID, session.getOptions().getInstanceId());
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.TABLE_ID,
+        GcpResourceIdentifiers.bigtableTableID(
+            session.getOptions().getProjectId(), session.getOptions().getInstanceId(), tableId));
+    return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
   }
 
   private static final Comparator<RowRange> RANGE_START_COMPARATOR =
