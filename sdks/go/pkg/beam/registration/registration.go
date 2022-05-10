@@ -21,6 +21,7 @@ package registration
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
@@ -7030,13 +7031,665 @@ type teardown1x1 interface {
 	Teardown(ctx context.Context) error
 }
 
+type createAccumulator0x1[T any] interface {
+	CreateAccumulator() T
+}
+
+type createAccumulator0x2[T any] interface {
+	CreateAccumulator() (T, error)
+}
+
+type addInput2x1[T1, T2 any] interface {
+	AddInput(a T1, i T2) T1
+}
+
+type addInput2x2[T1, T2 any] interface {
+	AddInput(a T1, i T2) (T1, error)
+}
+
+type mergeAccumulators2x1[T any] interface {
+	MergeAccumulators(a0 T, a1 T) T
+}
+
+type mergeAccumulators2x2[T any] interface {
+	MergeAccumulators(a0 T, a1 T) (T, error)
+}
+
+type extractOutput1x1[T1, T2 any] interface {
+	ExtractOutput(a T1) T2
+}
+
+type extractOutput1x2[T1, T2 any] interface {
+	ExtractOutput(a T1) (T2, error)
+}
+
+// Combiner1 registers a CombineFn's structural functions
+// and types and optimizes their runtime execution. There are 3 different Combiner
+// functions, each of which should be used for a different situation.
+// Combiner1 should be used when your accumulator, input, and output are all of the same type.
+// It can be called with register.Combiner1[T](&CustomCombiner{})
+// where T is the type of the input/accumulator/output.
+func Combiner1[T0 any](accum interface{}) {
+	registerCombinerTypes(accum)
+	accumVal := reflect.ValueOf(accum)
+	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) (T0, error))
+			return &caller2x2[T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
+				return fn.(mergeAccumulators2x2[T0]).MergeAccumulators(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(mergeAccumulators2x1[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) T0)
+			return &caller2x1[T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
+				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
+			})
+		}
+	}
+
+	if mergeAccumulatorsWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
+	}
+
+	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(createAccumulator0x2[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() (T0, error))
+			return &caller0x2[T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() (T0, error))(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() (T0, error) {
+				return fn.(createAccumulator0x2[T0]).CreateAccumulator()
+			})
+		}
+	} else if _, ok := accum.(createAccumulator0x1[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() T0)
+			return &caller0x1[T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() T0)(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() T0 {
+				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
+			})
+		}
+	}
+	if m := accumVal.MethodByName("CreateAccumulator"); m.IsValid() && createAccumulatorWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
+	}
+
+	var addInputWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(addInput2x2[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) (T0, error))
+			return &caller2x2[T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
+				return fn.(addInput2x2[T0, T0]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x1[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) T0)
+			return &caller2x1[T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
+				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
+			})
+		}
+	}
+
+	if m := accumVal.MethodByName("AddInput"); m.IsValid() && addInputWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
+	}
+
+	var extractOutputWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(extractOutput1x2[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) (T0, error))
+			return &caller1x2[T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T0, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) (T0, error) {
+				return fn.(extractOutput1x2[T0, T0]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x1[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) T0)
+			return &caller1x1[T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T0)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) T0 {
+				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
+			})
+		}
+	}
+
+	if m := accumVal.MethodByName("ExtractOutput"); m.IsValid() && extractOutputWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
+	}
+
+	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+		m := map[string]reflectx.Func{}
+		if mergeAccumulatorsWrapper != nil {
+			m["MergeAccumulators"] = mergeAccumulatorsWrapper(fn)
+		}
+		if createAccumulatorWrapper != nil {
+			m["CreateAccumulator"] = createAccumulatorWrapper(fn)
+		}
+		if addInputWrapper != nil {
+			m["AddInput"] = addInputWrapper(fn)
+		}
+		if extractOutputWrapper != nil {
+			m["ExtractOutput"] = extractOutputWrapper(fn)
+		}
+
+		return m
+	}
+	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
+}
+
+// Combiner2 registers a CombineFn's structural functions
+// and types and optimizes their runtime execution. There are 3 different Combiner
+// functions, each of which should be used for a different situation.
+// Combiner2 should be used when your accumulator, input, and output are 2 distinct types.
+// It can be called with register.Combiner2[T1, T2](&CustomCombiner{})
+// where T1 is the type of the accumulator and T2 is the other type.
+func Combiner2[T0, T1 any](accum interface{}) {
+	registerCombinerTypes(accum)
+	accumVal := reflect.ValueOf(accum)
+	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) (T0, error))
+			return &caller2x2[T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
+				return fn.(mergeAccumulators2x2[T0]).MergeAccumulators(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(mergeAccumulators2x1[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) T0)
+			return &caller2x1[T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
+				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
+			})
+		}
+	}
+
+	if mergeAccumulatorsWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
+	}
+
+	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(createAccumulator0x2[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() (T0, error))
+			return &caller0x2[T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() (T0, error))(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() (T0, error) {
+				return fn.(createAccumulator0x2[T0]).CreateAccumulator()
+			})
+		}
+	} else if _, ok := accum.(createAccumulator0x1[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() T0)
+			return &caller0x1[T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() T0)(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() T0 {
+				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
+			})
+		}
+	}
+	if m := accumVal.MethodByName("CreateAccumulator"); m.IsValid() && createAccumulatorWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
+	}
+
+	var addInputWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(addInput2x2[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) (T0, error))
+			return &caller2x2[T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
+				return fn.(addInput2x2[T0, T0]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x1[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) T0)
+			return &caller2x1[T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
+				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x2[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T1) (T0, error))
+			return &caller2x2[T0, T1, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T1) (T0, error) {
+				return fn.(addInput2x2[T0, T1]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x1[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T1) T0)
+			return &caller2x1[T0, T1, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T1) T0 {
+				return fn.(addInput2x1[T0, T1]).AddInput(a0, a1)
+			})
+		}
+	}
+
+	if m := accumVal.MethodByName("AddInput"); m.IsValid() && addInputWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
+	}
+
+	var extractOutputWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(extractOutput1x2[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) (T0, error))
+			return &caller1x2[T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T0, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) (T0, error) {
+				return fn.(extractOutput1x2[T0, T0]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x1[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) T0)
+			return &caller1x1[T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T0)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) T0 {
+				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x2[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) (T1, error))
+			return &caller1x2[T0, T1, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T1, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) (T1, error) {
+				return fn.(extractOutput1x2[T0, T1]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x1[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) T1)
+			return &caller1x1[T0, T1]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T1)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) T1 {
+				return fn.(extractOutput1x1[T0, T1]).ExtractOutput(a0)
+			})
+		}
+	}
+
+	if m := accumVal.MethodByName("ExtractOutput"); m.IsValid() && extractOutputWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
+	}
+
+	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+		m := map[string]reflectx.Func{}
+		if mergeAccumulatorsWrapper != nil {
+			m["MergeAccumulators"] = mergeAccumulatorsWrapper(fn)
+		}
+		if createAccumulatorWrapper != nil {
+			m["CreateAccumulator"] = createAccumulatorWrapper(fn)
+		}
+		if addInputWrapper != nil {
+			m["AddInput"] = addInputWrapper(fn)
+		}
+		if extractOutputWrapper != nil {
+			m["ExtractOutput"] = extractOutputWrapper(fn)
+		}
+
+		return m
+	}
+	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
+}
+
+// Combiner3 registers a CombineFn's structural functions
+// and types and optimizes their runtime execution. There are 3 different Combiner
+// functions, each of which should be used for a different situation.
+// Combiner3 should be used when your accumulator, input, and output are 3 distinct types.
+// It can be called with register.Combiner3[T1, T2, T3](&CustomCombiner{})
+// where T1 is the type of the accumulator, T2 is the type of the input, and T3 is the type of the output.
+func Combiner3[T0, T1, T2 any](accum interface{}) {
+	registerCombinerTypes(accum)
+	accumVal := reflect.ValueOf(accum)
+	var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) (T0, error))
+			return &caller2x2[T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
+				return fn.(mergeAccumulators2x2[T0]).MergeAccumulators(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(mergeAccumulators2x1[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) T0)
+			return &caller2x1[T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
+				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
+			})
+		}
+	}
+
+	if mergeAccumulatorsWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
+	}
+
+	var createAccumulatorWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(createAccumulator0x2[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() (T0, error))
+			return &caller0x2[T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() (T0, error))(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() (T0, error) {
+				return fn.(createAccumulator0x2[T0]).CreateAccumulator()
+			})
+		}
+	} else if _, ok := accum.(createAccumulator0x1[T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func() T0)
+			return &caller0x1[T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func() T0)(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func() T0 {
+				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
+			})
+		}
+	}
+	if m := accumVal.MethodByName("CreateAccumulator"); m.IsValid() && createAccumulatorWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
+	}
+
+	var addInputWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(addInput2x2[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) (T0, error))
+			return &caller2x2[T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
+				return fn.(addInput2x2[T0, T0]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x1[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T0) T0)
+			return &caller2x1[T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
+				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x2[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T1) (T0, error))
+			return &caller2x2[T0, T1, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T1) (T0, error) {
+				return fn.(addInput2x2[T0, T1]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x1[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T1) T0)
+			return &caller2x1[T0, T1, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T1) T0 {
+				return fn.(addInput2x1[T0, T1]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x2[T0, T2]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T2) (T0, error))
+			return &caller2x2[T0, T2, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T2) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T2) (T0, error) {
+				return fn.(addInput2x2[T0, T2]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput2x1[T0, T2]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0, T2) T0)
+			return &caller2x1[T0, T2, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T2) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0, a1 T2) T0 {
+				return fn.(addInput2x1[T0, T2]).AddInput(a0, a1)
+			})
+		}
+	}
+
+	if m := accumVal.MethodByName("AddInput"); m.IsValid() && addInputWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
+	}
+
+	var extractOutputWrapper func(fn interface{}) reflectx.Func
+	if _, ok := accum.(extractOutput1x2[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) (T0, error))
+			return &caller1x2[T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T0, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) (T0, error) {
+				return fn.(extractOutput1x2[T0, T0]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x1[T0, T0]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) T0)
+			return &caller1x1[T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T0)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) T0 {
+				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x2[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) (T1, error))
+			return &caller1x2[T0, T1, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T1, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) (T1, error) {
+				return fn.(extractOutput1x2[T0, T1]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x1[T0, T1]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) T1)
+			return &caller1x1[T0, T1]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T1)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) T1 {
+				return fn.(extractOutput1x1[T0, T1]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x2[T0, T2]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) (T2, error))
+			return &caller1x2[T0, T2, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T2, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) (T2, error) {
+				return fn.(extractOutput1x2[T0, T2]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput1x1[T0, T2]); ok {
+		caller := func(fn interface{}) reflectx.Func {
+			f := fn.(func(T0) T2)
+			return &caller1x1[T0, T2]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T2)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn interface{}) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 T0) T2 {
+				return fn.(extractOutput1x1[T0, T2]).ExtractOutput(a0)
+			})
+		}
+	}
+
+	if m := accumVal.MethodByName("ExtractOutput"); m.IsValid() && extractOutputWrapper == nil {
+		panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
+	}
+
+	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+		m := map[string]reflectx.Func{}
+		if mergeAccumulatorsWrapper != nil {
+			m["MergeAccumulators"] = mergeAccumulatorsWrapper(fn)
+		}
+		if createAccumulatorWrapper != nil {
+			m["CreateAccumulator"] = createAccumulatorWrapper(fn)
+		}
+		if addInputWrapper != nil {
+			m["AddInput"] = addInputWrapper(fn)
+		}
+		if extractOutputWrapper != nil {
+			m["ExtractOutput"] = extractOutputWrapper(fn)
+		}
+
+		return m
+	}
+	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
+}
+
+func registerCombinerTypes(accum interface{}) {
+	// Register the combiner
+	runtime.RegisterType(reflect.TypeOf(accum).Elem())
+	schema.RegisterType(reflect.TypeOf(accum).Elem())
+
+	// Register all types in the Combiner.
+	// There may be different types across MergeAccumulators, AddInput, and ExtractOutput.
+	accumVal := reflect.ValueOf(accum)
+	registerMethodTypes(accumVal.MethodByName("MergeAccumulators").Type())
+	if m := accumVal.MethodByName("AddInput"); m.IsValid() {
+		registerMethodTypes(m.Type())
+	}
+	if m := accumVal.MethodByName("ExtractOutput"); m.IsValid() {
+		registerMethodTypes(m.Type())
+	}
+}
+
 func registerDoFnTypes(doFn interface{}) {
 	// Register the doFn
 	runtime.RegisterType(reflect.TypeOf(doFn).Elem())
 	schema.RegisterType(reflect.TypeOf(doFn).Elem())
 
 	// Register all types in the DoFn
-	fn := reflect.ValueOf(doFn).MethodByName("ProcessElement").Type()
+	registerMethodTypes(reflect.ValueOf(doFn).MethodByName("ProcessElement").Type())
+}
+
+func registerMethodTypes(fn reflect.Type) {
 	for i := 0; i < fn.NumIn(); i++ {
 		in := reflectx.SkipPtr(fn.In(i))
 		if in.Kind() == reflect.Struct {

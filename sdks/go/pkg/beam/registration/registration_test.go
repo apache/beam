@@ -159,6 +159,168 @@ func TestRegister_RegistersTypes(t *testing.T) {
 	}
 }
 
+func TestCombiner_CompleteCombiner3(t *testing.T) {
+	accum := &CompleteCombiner3{}
+	Combiner3[int, CustomType, CustomType2](accum)
+
+	m, ok := reflectx.WrapMethods(&CompleteCombiner3{})
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found")
+	}
+	ca, ok := m["CreateAccumulator"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for CreateAccumulator")
+	}
+	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
+	}
+	ai, ok := m["AddInput"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for AddInput")
+	}
+	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
+	}
+	ma, ok := m["MergeAccumulators"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for MergeAccumulators")
+	}
+	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
+	}
+	eo, ok := m["ExtractOutput"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for MergeAccumulators")
+	}
+	if got, want := eo.Call([]interface{}{2})[0].(CustomType2).val2, 2; got != want {
+		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
+	}
+}
+
+func TestCombiner_RegistersTypes(t *testing.T) {
+	accum := &CompleteCombiner3{}
+	Combiner3[int, CustomType, CustomType2](accum)
+
+	// Need to call FromType so that the registry will reconcile its registrations
+	schema.FromType(reflect.TypeOf(accum).Elem())
+	if !schema.Registered(reflect.TypeOf(accum).Elem()) {
+		t.Errorf("schema.Registered(reflect.TypeOf(CustomTypeDoFn1x1{})) = false, want true")
+	}
+	if !schema.Registered(reflect.TypeOf(CustomType{})) {
+		t.Errorf("schema.Registered(reflect.TypeOf(CustomType{})) = false, want true")
+	}
+	if !schema.Registered(reflect.TypeOf(CustomType2{})) {
+		t.Errorf("schema.Registered(reflect.TypeOf(CustomType{})) = false, want true")
+	}
+}
+
+func TestCombiner_CompleteCombiner2(t *testing.T) {
+	accum := &CompleteCombiner2{}
+	Combiner2[int, CustomType](accum)
+
+	m, ok := reflectx.WrapMethods(&CompleteCombiner2{})
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found")
+	}
+	ca, ok := m["CreateAccumulator"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for CreateAccumulator")
+	}
+	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
+	}
+	ai, ok := m["AddInput"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for AddInput")
+	}
+	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
+	}
+	ma, ok := m["MergeAccumulators"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for MergeAccumulators")
+	}
+	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
+	}
+	eo, ok := m["ExtractOutput"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for MergeAccumulators")
+	}
+	if got, want := eo.Call([]interface{}{2})[0].(CustomType).val, 2; got != want {
+		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
+	}
+}
+
+func TestCombiner_CompleteCombiner1(t *testing.T) {
+	accum := &CompleteCombiner1{}
+	Combiner1[int](accum)
+
+	m, ok := reflectx.WrapMethods(&CompleteCombiner1{})
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found")
+	}
+	ca, ok := m["CreateAccumulator"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for CreateAccumulator")
+	}
+	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
+	}
+	ai, ok := m["AddInput"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for AddInput")
+	}
+	if got, want := ai.Call([]interface{}{2, 3})[0].(int), 5; got != want {
+		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
+	}
+	ma, ok := m["MergeAccumulators"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for MergeAccumulators")
+	}
+	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
+	}
+	eo, ok := m["ExtractOutput"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for MergeAccumulators")
+	}
+	if got, want := eo.Call([]interface{}{2})[0].(int), 2; got != want {
+		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
+	}
+}
+
+func TestCombiner_PartialCombiner2(t *testing.T) {
+	accum := &PartialCombiner2{}
+	Combiner2[int, CustomType](accum)
+
+	m, ok := reflectx.WrapMethods(&PartialCombiner2{})
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found")
+	}
+	ca, ok := m["CreateAccumulator"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for CreateAccumulator")
+	}
+	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
+	}
+	ai, ok := m["AddInput"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for AddInput")
+	}
+	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
+	}
+	ma, ok := m["MergeAccumulators"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for MergeAccumulators")
+	}
+	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
+	}
+}
+
 func TestEmitter1(t *testing.T) {
 	Emitter1[int]()
 	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(int))(nil)).Elem()) {
@@ -437,4 +599,76 @@ type CustomTypeDoFn1x1 struct {
 
 func (fn *CustomTypeDoFn1x1) ProcessElement(t CustomType) CustomType2 {
 	return CustomType2{val2: t.val}
+}
+
+type CompleteCombiner3 struct {
+}
+
+func (fn *CompleteCombiner3) CreateAccumulator() int {
+	return 0
+}
+
+func (fn *CompleteCombiner3) AddInput(i int, c CustomType) int {
+	return i + c.val
+}
+
+func (fn *CompleteCombiner3) MergeAccumulators(i1 int, i2 int) int {
+	return i1 + i2
+}
+
+func (fn *CompleteCombiner3) ExtractOutput(i int) CustomType2 {
+	return CustomType2{val2: i}
+}
+
+type CompleteCombiner2 struct {
+}
+
+func (fn *CompleteCombiner2) CreateAccumulator() int {
+	return 0
+}
+
+func (fn *CompleteCombiner2) AddInput(i int, c CustomType) int {
+	return i + c.val
+}
+
+func (fn *CompleteCombiner2) MergeAccumulators(i1 int, i2 int) int {
+	return i1 + i2
+}
+
+func (fn *CompleteCombiner2) ExtractOutput(i int) CustomType {
+	return CustomType{val: i}
+}
+
+type CompleteCombiner1 struct {
+}
+
+func (fn *CompleteCombiner1) CreateAccumulator() int {
+	return 0
+}
+
+func (fn *CompleteCombiner1) AddInput(i1 int, i2 int) int {
+	return i1 + i2
+}
+
+func (fn *CompleteCombiner1) MergeAccumulators(i1 int, i2 int) int {
+	return i1 + i2
+}
+
+func (fn *CompleteCombiner1) ExtractOutput(i int) int {
+	return i
+}
+
+type PartialCombiner2 struct {
+}
+
+func (fn *PartialCombiner2) CreateAccumulator() int {
+	return 0
+}
+
+func (fn *PartialCombiner2) AddInput(i int, c CustomType) int {
+	return i + c.val
+}
+
+func (fn *PartialCombiner2) MergeAccumulators(i1 int, i2 int) int {
+	return i1 + i2
 }
