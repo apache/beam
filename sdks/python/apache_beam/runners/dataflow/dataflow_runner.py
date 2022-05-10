@@ -397,8 +397,7 @@ class DataflowRunner(PipelineRunner):
   def run_pipeline(self, pipeline, options, pipeline_proto=None):
     """Remotely executes entire pipeline or parts reachable from node."""
     google_cloud_options = options.view_as(GoogleCloudOptions)
-    set_impersonation_accounts(
-       google_cloud_options.impersonate_service_account)
+    set_impersonation_accounts(google_cloud_options.impersonate_service_account)
 
     # Label goog-dataflow-notebook if job is started from notebook.
     if is_in_notebook():
