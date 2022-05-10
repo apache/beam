@@ -20,7 +20,6 @@
 """Unit tests for BigQuery sources and sinks."""
 # pytype: skip-file
 
-
 import base64
 import datetime
 import logging
