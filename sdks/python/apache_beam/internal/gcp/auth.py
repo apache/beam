@@ -126,6 +126,7 @@ class _Credentials(object):
   _delegate_accounts = None
   _target_principal = None
   _impersonation_parameter_set = False
+  _impersonate_service_account = None
 
   @classmethod
   def get_service_credentials(cls):
