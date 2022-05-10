@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration
+package register
 
 import (
 	"context"
@@ -123,7 +123,7 @@ func (e *emit2WithTimestamp[T1, T2]) invoke(et typex.EventTime, key T1, val T2) 
 // Emitter1 registers parameters from your DoFn with a
 // signature func(T) and optimizes their execution.
 // This must be done by passing in type parameters of your input as a constraint,
-// aka: registration.Emitter1[T]()
+// aka: register.Emitter1[T]()
 func Emitter1[T1 any]() {
 	e := (*func(T1))(nil)
 	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
@@ -135,7 +135,7 @@ func Emitter1[T1 any]() {
 // Emitter2 registers parameters from your DoFn with a
 // signature func(T1, T2) and optimizes their execution.
 // This must be done by passing in type parameters of all inputs (including EventTime)
-// as constraints, aka: registration.Emitter2[T1, T2](), where T2 is the type of your
+// as constraints, aka: register.Emitter2[T1, T2](), where T2 is the type of your
 // value and T2 is either the type of your key or the eventTime.
 func Emitter2[T1, T2 any]() {
 	e := (*func(T1, T2))(nil)
@@ -153,7 +153,7 @@ func Emitter2[T1, T2 any]() {
 // Emitter3 registers parameters from your DoFn with a
 // signature func(T1, T2, T3) and optimizes their execution.
 // This must be done by passing in type parameters of all inputs as constraints,
-// aka: registration.Emitter3[beam.EventTime, T1, T2](), where T1 is the type of
+// aka: register.Emitter3[beam.EventTime, T1, T2](), where T1 is the type of
 // your key and T2 is the type of your value.
 func Emitter3[T1 typex.EventTime, T2, T3 any]() {
 	e := (*func(T1, T2, T3))(nil)

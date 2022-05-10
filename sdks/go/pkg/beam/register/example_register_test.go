@@ -13,14 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration_test
+package register_test
 
 import (
 	"context"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/registration"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 type myDoFn struct{}
@@ -69,19 +69,19 @@ func ExampleDoFn2x1() {
 	// Since myDoFn's ProcessElement call has 2 inputs and 1 output, call DoFn2x1.
 	// Since the inputs to ProcessElement are (string, func(int)), and the output
 	// is int, we pass those parameter types to the function.
-	registration.DoFn3x1[string, func(*string) bool, func(int), int](&myDoFn{})
+	register.DoFn3x1[string, func(*string) bool, func(int), int](&myDoFn{})
 
 	// Any function parameters (iters or emitters) must be registered separately
 	// as well to get the fully optimized experience. Since ProcessElement has
 	// an emitter with the signature func(int) we can register it. This must be
 	// done by passing in the type parameters of all inputs as constraints.
-	registration.Emitter1[int]()
-	registration.Iter1[string]()
+	register.Emitter1[int]()
+	register.Iter1[string]()
 
-	registration.DoFn3x3[string, func(**Foo, *beam.EventTime) bool, func(beam.EventTime, string, int), beam.EventTime, string, int](&myDoFn2{})
+	register.DoFn3x3[string, func(**Foo, *beam.EventTime) bool, func(beam.EventTime, string, int), beam.EventTime, string, int](&myDoFn2{})
 
 	// More complex iter/emitter registration work in the same way, even when
 	// timestamps or pointers are involved.
-	registration.Emitter3[beam.EventTime, string, int]()
-	registration.Iter2[*Foo, beam.EventTime]()
+	register.Emitter3[beam.EventTime, string, int]()
+	register.Iter2[*Foo, beam.EventTime]()
 }
