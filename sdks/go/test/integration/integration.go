@@ -162,6 +162,10 @@ var dataflowFilters = []string{
 // t.Run is used, CheckFilters should be called within the t.Run callback, so
 // that sub-tests can be skipped individually.
 func CheckFilters(t *testing.T) {
+	if !ptest.MainCalled() {
+		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
+	}
+
 	// Check for sickbaying first.
 	n := t.Name()
 	for _, f := range sickbay {
