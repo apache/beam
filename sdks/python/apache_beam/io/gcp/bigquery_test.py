@@ -38,11 +38,13 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery import TableRowJsonCoder, ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
@@ -486,7 +488,10 @@ class TestReadFromBigQuery(unittest.TestCase):
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
   @parameterized.expand([
-      param(exception_type=exceptions.BadRequest, error_message='invalidQuery'),
+      param(exception_type=exceptions.Conflict, error_message='duplicate'),
+      param(
+          exception_type=exceptions.InternalServerError,
+          error_message='internalError'),
       param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
       param(
           exception_type=exceptions.ServiceUnavailable,
@@ -496,7 +501,12 @@ class TestReadFromBigQuery(unittest.TestCase):
   @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
   @mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Insert')
   def test_create_temp_dataset_exception(
-      self, mock_api, mock_query_job, unused_mock, exception_type, error_message):
+      self,
+      mock_api,
+      unused_mock_query_job,
+      unused_mock,
+      exception_type,
+      error_message):
     mock_api.side_effect = exception_type(error_message)
 
     with self.assertRaises(Exception) as exc:
@@ -507,6 +517,43 @@ class TestReadFromBigQuery(unittest.TestCase):
             gcs_location='gs://temp_location')
 
     self.assertEqual(16, mock_api.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      param(exception_type=exceptions.BadRequest, error_message='invalidQuery'),
+      param(exception_type=exceptions.NotFound, error_message='notFound'),
+      param(
+          exception_type=exceptions.Forbidden,
+          error_message='responseTooLarge'),
+      param(
+          exception_type=exceptions.ServiceUnavailable,
+          error_message='backendError'),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch.object(
+      apache_beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size')
+  @mock.patch.object(BigQueryWrapper, 'get_query_location')
+  @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
+  def test_query_job_exception(
+      self,
+      mock_query_job,
+      mock_query_location,
+      mock_estimate,
+      unused_mock,
+      exception_type,
+      error_message):
+    mock_query_location.return_value = None
+    mock_estimate.return_value = None
+    mock_query_job.side_effect = exception_type(error_message)
+
+    with self.assertRaises(Exception) as exc:
+      with beam.Pipeline() as p:
+        _ = p | ReadFromBigQuery(
+            project='apache-beam-testing',
+            query='SELECT * FROM `project.dataset.table`',
+            gcs_location='gs://temp_location')
+
+    self.assertEqual(4, mock_query_job.call_count)
     self.assertIn(error_message, exc.exception.args[0])
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
