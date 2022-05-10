@@ -22,7 +22,6 @@
 import logging
 import socket
 import threading
-import traceback
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
@@ -179,12 +178,10 @@ class _Credentials(object):
   @classmethod
   def _add_impersonation_credentials(cls, credentials):
     if not cls._impersonation_parameter_set:
-      traceback_str = traceback.format_stack()
-      raise Exception(
-          'Impersonation credentials not yet set. \n' + str(traceback_str))
+      raise AssertionError('Impersonation credentials not yet set.')
     """Adds impersonation credentials if the client species them."""
     if cls._impersonate_service_account:
-      _LOGGER.info('Impersonating ' + str(cls._impersonate_service_account))
+      _LOGGER.info('Impersonating: ' + str(cls._impersonate_service_account))
       impersonate_accounts = cls._impersonate_service_account.split(',')
       target_principal = impersonate_accounts[-1]
       delegate_to = impersonate_accounts[0:-1]
