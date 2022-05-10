@@ -368,17 +368,21 @@ task validatesContainer() {
 task runImpersonationTest() {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  def testOpts = basicPytestOpts
+  def testOpts = [
+    "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
+    "--capture=no",    // Print stdout instantly
+    "--numprocesses=2",    // Number of tests running in parallel
+    "--timeout=1800",   // Timeout of whole command execution
+  ]
 
   doFirst {
     def argMap = [
-            "test_opts": testOpts + ["--numprocesses=8", "--dist=loadfile"],
+            "test_opts": testOpts,
             "sdk_location": files(configurations.distTarBall.files).singleFile,
             "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
-            "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
+            "collect": "impersonation_wordcount_it_test",
             "impersonate": "true"
-            "gcs_location": "gs://tmp-impersonate-test"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
