@@ -53,7 +53,8 @@ class GCSFileSystem(FileSystem):
       gcs_options = pipeline_options.view_as(GoogleCloudOptions)
       impersonate_service_account = gcs_options.impersonate_service_account
     else:
-      impersonate_service_account = pipeline_options.get('impersonate_service_account')
+      impersonate_service_account = pipeline_options.get(
+          'impersonate_service_account')
     auth.set_impersonation_accounts(impersonate_service_account)
 
   @classmethod
