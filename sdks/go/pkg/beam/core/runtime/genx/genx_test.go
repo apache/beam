@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -41,6 +42,7 @@ func TestRegisterDoFn(t *testing.T) {
 	tO := reflect.TypeOf((*O)(nil)).Elem()
 	tRt := reflect.TypeOf((*sdf.LockRTracker)(nil)).Elem()
 	tWe := reflect.TypeOf((*sdf.WallTimeWatermarkEstimator)(nil)).Elem()
+	tWes := reflect.TypeOf((*WatermarkEstimatorState)(nil)).Elem()
 
 	tests := []struct {
 		name   string
@@ -69,7 +71,7 @@ func TestRegisterDoFn(t *testing.T) {
 		{"DoFn01 pointer reflect", reflect.TypeOf(&DoFn01{}), true, false, []reflect.Type{tDoFn01, tR, tS}},
 		{"DoFn02 reflect - filtered types", tDoFn02, true, false, []reflect.Type{tDoFn02}},
 		{"CombineFn01 reflect - combine methods", tCmbFn01, true, false, []reflect.Type{tCmbFn01, tA, tI, tO}},
-		{"DoFn03 reflect - sdf methods", tDoFn03, true, false, []reflect.Type{tDoFn03, tRt, tWe, tR}},
+		{"DoFn03 reflect - sdf methods", tDoFn03, true, false, []reflect.Type{typex.EventTimeType, tDoFn03, tRt, tWe, tWes, tR}},
 		{"DoFn04 reflect - containers", tDoFn04, true, false, []reflect.Type{tDoFn04, tR, tS, tT, tA, tI, tO}},
 	}
 
@@ -225,8 +227,18 @@ func (fn *DoFn03) CreateTracker(rest R) *sdf.LockRTracker {
 	return &sdf.LockRTracker{Rt: RT{}}
 }
 
-func (fn *DoFn03) CreateWatermarkEstimator() *sdf.WallTimeWatermarkEstimator {
+type WatermarkEstimatorState struct{}
+
+func (fn *DoFn03) WatermarkEstimatorState(estimator *sdf.WallTimeWatermarkEstimator) WatermarkEstimatorState {
+	return WatermarkEstimatorState{}
+}
+
+func (fn *DoFn03) CreateWatermarkEstimator(state WatermarkEstimatorState) *sdf.WallTimeWatermarkEstimator {
 	return &sdf.WallTimeWatermarkEstimator{}
+}
+
+func (fn *DoFn03) InitialWatermarkEstimatorState(ts typex.EventTime, rest R, s string) WatermarkEstimatorState {
+	return WatermarkEstimatorState{}
 }
 
 type DoFn04 struct{}

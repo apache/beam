@@ -25,20 +25,22 @@ This module is experimental. No backwards-compatibility guarantees.
 import sys
 import unittest
 from typing import NamedTuple
-from unittest.mock import patch
 
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
-from apache_beam.runners.interactive.dataproc.types import MasterURLIdentifier
-from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import DataprocClusterManager
+from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
+from apache_beam.runners.interactive.testing.mock_env import isolated_env
+from apache_beam.runners.portability.flink_runner import FlinkRunner
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
@@ -62,6 +64,7 @@ class Record(NamedTuple):
   height: int
 
 
+@isolated_env
 class InteractiveRunnerTest(unittest.TestCase):
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_basic(self):
@@ -262,17 +265,16 @@ class InteractiveRunnerTest(unittest.TestCase):
   @unittest.skipIf(
       not ie.current_env().is_interactive_ready,
       '[interactive] dependency is not installed.')
-  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
-  def test_mark_pcollection_completed_after_successful_run(self, cell):
-    with cell:  # Cell 1
+  def test_mark_pcollection_completed_after_successful_run(self):
+    with self.cell:  # Cell 1
       p = beam.Pipeline(interactive_runner.InteractiveRunner())
       ib.watch({'p': p})
 
-    with cell:  # Cell 2
+    with self.cell:  # Cell 2
       # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(5))
 
-    with cell:  # Cell 3
+    with self.cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
       cube = init | 'Cube' >> beam.Map(lambda x: x**3)
 
@@ -414,16 +416,14 @@ class InteractiveRunnerTest(unittest.TestCase):
       not ie.current_env().is_interactive_ready,
       '[interactive] dependency is not installed.')
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
-  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
-  def test_dataframe_caching(self, cell):
-
+  def test_dataframe_caching(self):
     # Create a pipeline that exercises the DataFrame API. This will also use
     # caching in the background.
-    with cell:  # Cell 1
+    with self.cell:  # Cell 1
       p = beam.Pipeline(interactive_runner.InteractiveRunner())
       ib.watch({'p': p})
 
-    with cell:  # Cell 2
+    with self.cell:  # Cell 2
       data = p | beam.Create([
           1, 2, 3
       ]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
@@ -433,11 +433,11 @@ class InteractiveRunnerTest(unittest.TestCase):
 
       ib.collect(df)
 
-    with cell:  # Cell 3
+    with self.cell:  # Cell 3
       df['output'] = df['square'] * df['cube']
       ib.collect(df)
 
-    with cell:  # Cell 4
+    with self.cell:  # Cell 4
       df['output'] = 0
       ib.collect(df)
 
@@ -485,74 +485,105 @@ class InteractiveRunnerTest(unittest.TestCase):
       self.assertEqual(producer, prev_producer, trace_string)
       prev_producer = consumer
 
-  @unittest.skipIf(
-      not ie.current_env().is_interactive_ready,
-      '[interactive] dependency is not installed.')
-  @patch(
-      'apache_beam.runners.interactive.dataproc.dataproc_cluster_manager.'
-      'DataprocClusterManager.create_flink_cluster',
-      return_value=None)
-  @patch('apache_beam.runners.interactive.interactive_environment.current_env')
-  def test_get_master_url_no_flink_master_or_provided_master_url(
-      self, m_env, mock_create_cluster):
-    clusters = ib.Clusters()
-    m_env().clusters = clusters
 
-    from apache_beam.runners.portability.flink_runner import FlinkRunner
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@isolated_env
+class TuneForFlinkTest(unittest.TestCase):
+  def test_create_a_new_cluster_for_a_new_pipeline(self):
+    clusters = self.current_env.clusters
     runner = interactive_runner.InteractiveRunner(
         underlying_runner=FlinkRunner())
-    p = beam.Pipeline(
-        options=PipelineOptions(
-            project='test-project',
-            region='test-region',
-        ))
-    runner._get_dataproc_cluster_master_url_if_applicable(p)
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    runner.configure_for_flink(p, options)
+
+    # Fetch the metadata and assert all side effects.
+    meta = clusters.cluster_metadata(p)
+    # The metadata should have all fields populated.
+    self.assertEqual(meta.project_id, 'test-project')
+    self.assertEqual(meta.region, 'test-region')
+    self.assertTrue(meta.cluster_name.startswith('interactive-beam-'))
+    self.assertTrue(meta.master_url.startswith('test-url'))
+    self.assertEqual(meta.dashboard, 'test-dashboard')
+    # The cluster is known now.
+    self.assertIn(meta, clusters.dataproc_cluster_managers)
+    self.assertIn(meta.master_url, clusters.master_urls)
+    self.assertIn(p, clusters.pipelines)
+    # The default cluster is updated to the created cluster.
+    self.assertIs(meta, clusters.default_cluster_metadata)
+    # The pipeline options is tuned for execution on the cluster.
+    flink_options = options.view_as(FlinkRunnerOptions)
+    self.assertEqual(flink_options.flink_master, meta.master_url)
     self.assertEqual(
-        clusters.describe(p)['cluster_metadata'].project_id, 'test-project')
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
 
-  @unittest.skipIf(
-      not ie.current_env().is_interactive_ready,
-      '[interactive] dependency is not installed.')
-  @patch('apache_beam.runners.interactive.interactive_environment.current_env')
-  def test_get_master_url_no_flink_master_and_master_url_exists(self, m_env):
-    clusters = ib.Clusters()
-    m_env().clusters = clusters
-
-    from apache_beam.runners.portability.flink_runner import FlinkRunner
+  def test_reuse_a_cluster_for_a_known_pipeline(self):
+    clusters = self.current_env.clusters
     runner = interactive_runner.InteractiveRunner(
         underlying_runner=FlinkRunner())
-    p = beam.Pipeline(
-        options=PipelineOptions(
-            project='test-project',
-            region='test-region',
-        ))
-    cluster_name = clusters.default_cluster_name
-    cluster_metadata = MasterURLIdentifier(
-        project_id='test-project',
-        region='test-region',
-        cluster_name=cluster_name)
-    clusters.master_urls['test-url'] = cluster_metadata
-    clusters.master_urls_to_dashboards['test-url'] = 'test-dashboard'
-    flink_master = runner._get_dataproc_cluster_master_url_if_applicable(p)
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    meta = ClusterMetadata(project_id='test-project', region='test-region')
+    dcm = DataprocClusterManager(meta)
+    # Configure the clusters so that the pipeline is known.
+    clusters.pipelines[p] = dcm
+    runner.configure_for_flink(p, options)
+
+    # A known cluster is reused.
+    tuned_meta = clusters.cluster_metadata(p)
+    self.assertIs(tuned_meta, meta)
+
+  def test_reuse_a_known_cluster_for_unknown_pipeline(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions(project='test-project', region='test-region')
+    p = beam.Pipeline(runner=runner, options=options)
+    meta = ClusterMetadata(project_id='test-project', region='test-region')
+    dcm = DataprocClusterManager(meta)
+    # Configure the clusters so that the cluster is known.
+    clusters.dataproc_cluster_managers[meta] = dcm
+    clusters.set_default_cluster(meta)
+    runner.configure_for_flink(p, options)
+
+    # A known cluster is reused.
+    tuned_meta = clusters.cluster_metadata(p)
+    self.assertIs(tuned_meta, meta)
+    # The pipeline is known.
+    self.assertIn(p, clusters.pipelines)
+    registered_dcm = clusters.pipelines[p]
+    self.assertIn(p, registered_dcm.pipelines)
+
+  def test_reuse_default_cluster_if_not_configured(self):
+    clusters = self.current_env.clusters
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    options = PipelineOptions()
+    # Pipeline is not configured to run on Cloud.
+    p = beam.Pipeline(runner=runner, options=options)
+    meta = ClusterMetadata(project_id='test-project', region='test-region')
+    meta.master_url = 'test-url'
+    meta.dashboard = 'test-dashboard'
+    dcm = DataprocClusterManager(meta)
+    # Configure the clusters so that a default cluster is known.
+    clusters.dataproc_cluster_managers[meta] = dcm
+    clusters.set_default_cluster(meta)
+    runner.configure_for_flink(p, options)
+
+    # The default cluster is used.
+    tuned_meta = clusters.cluster_metadata(p)
+    self.assertIs(tuned_meta, clusters.default_cluster_metadata)
+    # The pipeline is known.
+    self.assertIn(p, clusters.pipelines)
+    registered_dcm = clusters.pipelines[p]
+    self.assertIn(p, registered_dcm.pipelines)
+    # The pipeline options is tuned for execution on the cluster.
+    flink_options = options.view_as(FlinkRunnerOptions)
+    self.assertEqual(flink_options.flink_master, tuned_meta.master_url)
     self.assertEqual(
-        clusters.describe(p)['cluster_metadata'].project_id, 'test-project')
-    self.assertEqual(flink_master, clusters.describe(p)['master_url'])
-
-  @unittest.skipIf(
-      not ie.current_env().is_interactive_ready,
-      '[interactive] dependency is not installed.')
-  @patch('apache_beam.runners.interactive.interactive_environment.current_env')
-  def test_get_master_url_flink_master_provided(self, m_env):
-    clusters = ib.Clusters()
-    m_env().clusters = clusters
-
-    runner = interactive_runner.InteractiveRunner()
-    from apache_beam.runners.portability.flink_runner import FlinkRunner
-    p = beam.Pipeline(
-        interactive_runner.InteractiveRunner(underlying_runner=FlinkRunner()),
-        options=PipelineOptions(flink_master='--flink_master=test.internal:1'))
-    runner._get_dataproc_cluster_master_url_if_applicable(p)
-    self.assertEqual(clusters.describe(), {})
+        flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
 
 
 if __name__ == '__main__':

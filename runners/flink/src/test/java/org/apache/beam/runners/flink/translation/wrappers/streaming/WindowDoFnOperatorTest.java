@@ -155,6 +155,10 @@ public class WindowDoFnOperatorTest {
     assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(1));
 
     assertThat(testHarness.numKeyedStateEntries(), is(6));
+    // close bundle
+    testHarness.setProcessingTime(
+        testHarness.getProcessingTime()
+            + 2 * FlinkPipelineOptions.defaults().getMaxBundleTimeMills());
     assertThat(windowDoFnOperator.getCurrentOutputWatermark(), is(1L));
 
     // close window
@@ -164,6 +168,11 @@ public class WindowDoFnOperatorTest {
     assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(0));
 
     assertThat(testHarness.numKeyedStateEntries(), is(3));
+
+    // close bundle
+    testHarness.setProcessingTime(
+        testHarness.getProcessingTime()
+            + 2 * FlinkPipelineOptions.defaults().getMaxBundleTimeMills());
     assertThat(windowDoFnOperator.getCurrentOutputWatermark(), is(100L));
 
     testHarness.processWatermark(200L);

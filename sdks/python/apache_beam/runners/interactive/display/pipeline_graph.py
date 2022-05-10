@@ -122,7 +122,7 @@ class PipelineGraph(object):
     rendered_graph = self._renderer.render_pipeline_graph(self)
     if ie.current_env().is_in_notebook:
       try:
-        from IPython.core import display
+        from IPython import display
         display.display(display.HTML(rendered_graph))
       except ImportError:  # Unlikely to happen when is_in_notebook.
         logging.warning(

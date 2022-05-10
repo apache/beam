@@ -63,6 +63,7 @@ ignore:
   - "**/*_test.py"
   - "**/*_test_py3*.py"
   - "**/*_microbenchmark.py"
+  - "sdks/go/pkg/beam/registration/registration.go"
 
 # See https://docs.codecov.com/docs/flags for options.
 flag_management:

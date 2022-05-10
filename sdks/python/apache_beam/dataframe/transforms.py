@@ -186,7 +186,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         ]
 
         if len(tabular_inputs) == 0:
-          partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
+          partitioned_pcoll = next(iter(
+              pcolls.values())).pipeline | beam.Create([{}])
 
         elif self.stage.partitioning != partitionings.Arbitrary():
           # Partitioning required for these operations.
