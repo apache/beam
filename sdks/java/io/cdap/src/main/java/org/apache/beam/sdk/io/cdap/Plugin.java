@@ -88,11 +88,15 @@ public abstract class Plugin {
    * validating connection to the CDAP sink/source and performing initial tuning.
    */
   public void prepareRun() {
+    PluginConfig pluginConfig = getPluginConfig();
+    if (pluginConfig == null) {
+      throw new IllegalArgumentException("PluginConfig should be not null!");
+    }
     if (cdapPluginObj == null) {
       for (Constructor<?> constructor : getPluginClass().getDeclaredConstructors()) {
         constructor.setAccessible(true);
         try {
-          cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(getPluginConfig());
+          cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
           LOG.error("Can not instantiate CDAP plugin class", e);
           throw new IllegalStateException("Can not call prepareRun");
