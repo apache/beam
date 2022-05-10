@@ -30,7 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Model constants for interfacing with a Beam runner.
@@ -1198,7 +1198,7 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNFixedWindowsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.FixedWindowsPayload{
-					Size: ptypes.DurationProto(w.Size),
+					Size: durationpb.New(w.Size),
 				},
 			),
 		}, nil
@@ -1207,8 +1207,8 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNSlidingWindowsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.SlidingWindowsPayload{
-					Size:   ptypes.DurationProto(w.Size),
-					Period: ptypes.DurationProto(w.Period),
+					Size:   durationpb.New(w.Size),
+					Period: durationpb.New(w.Period),
 				},
 			),
 		}, nil
@@ -1217,7 +1217,7 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 			Urn: URNSessionsWindowFn,
 			Payload: protox.MustEncode(
 				&pipepb.SessionWindowsPayload{
-					GapSize: ptypes.DurationProto(w.Gap),
+					GapSize: durationpb.New(w.Gap),
 				},
 			),
 		}, nil

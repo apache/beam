@@ -84,7 +84,7 @@ public abstract class WatermarkParameters implements Serializable {
   public WatermarkParameters withTimestampFn(
       SerializableFunction<KinesisRecord, Instant> timestampFn) {
     checkArgument(timestampFn != null, "timestampFn function is null");
-    return builder().setTimestampFn(timestampFn).build();
+    return toBuilder().setTimestampFn(timestampFn).build();
   }
 
   /**
@@ -93,6 +93,6 @@ public abstract class WatermarkParameters implements Serializable {
    */
   public WatermarkParameters withWatermarkIdleDurationThreshold(Duration idleDurationThreshold) {
     checkArgument(idleDurationThreshold != null, "watermark idle duration threshold is null");
-    return builder().setWatermarkIdleDurationThreshold(idleDurationThreshold).build();
+    return toBuilder().setWatermarkIdleDurationThreshold(idleDurationThreshold).build();
   }
 }

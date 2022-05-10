@@ -169,6 +169,25 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
   void setGcpCredential(Credentials value);
 
+  /**
+   * All API requests will be made as the given service account or target service account in an
+   * impersonation delegation chain instead of the currently selected account. You can specify
+   * either a single service account as the impersonator, or a comma-separated list of service
+   * accounts to create an impersonation delegation chain.
+   */
+  @Description(
+      "All API requests will be made as the given service account or"
+          + " target service account in an impersonation delegation chain"
+          + " instead of the currently selected account. You can specify"
+          + " either a single service account as the impersonator, or a"
+          + " comma-separated list of service accounts to create an"
+          + " impersonation delegation chain.")
+  @JsonIgnore
+  @Nullable
+  String getImpersonateServiceAccount();
+
+  void setImpersonateServiceAccount(String impersonateServiceAccount);
+
   /** Experiment to turn on the Streaming Engine experiment. */
   String STREAMING_ENGINE_EXPERIMENT = "enable_streaming_engine";
 

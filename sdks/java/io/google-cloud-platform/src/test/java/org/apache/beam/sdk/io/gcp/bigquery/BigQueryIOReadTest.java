@@ -39,6 +39,7 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -231,9 +232,9 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Before
-  public void setUp() throws IOException, InterruptedException {
+  public void setUp() throws ExecutionException, IOException, InterruptedException {
     FakeDatasetService.setUp();
-    BigQueryIO.clearCreatedTables();
+    BigQueryIO.clearStaticCaches();
     fakeDatasetService.createDataset("project-id", "dataset-id", "", "", null);
   }
 

@@ -21,10 +21,10 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -74,42 +74,64 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
+    Coder<StorageApiWritePayload> payloadCoder;
+    try {
+      payloadCoder =
+          input.getPipeline().getSchemaRegistry().getSchemaCoder(StorageApiWritePayload.class);
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
+
     if (allowInconsistentWrites) {
-      return expandInconsistent(input);
+      return expandInconsistent(input, payloadCoder);
     } else {
-      return triggeringFrequency != null ? expandTriggered(input) : expandUntriggered(input);
+      return triggeringFrequency != null
+          ? expandTriggered(input, payloadCoder)
+          : expandUntriggered(input, payloadCoder);
     }
   }
 
-  public WriteResult expandInconsistent(PCollection<KV<DestinationT, ElementT>> input) {
+  public WriteResult expandInconsistent(
+      PCollection<KV<DestinationT, ElementT>> input, Coder<StorageApiWritePayload> payloadCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
-    PCollection<KV<DestinationT, byte[]>> convertedRecords =
+
+    PCollection<KV<DestinationT, StorageApiWritePayload>> convertedRecords =
         inputInGlobalWindow
+            .apply(
+                "CreateTables",
+                new CreateTableDestinations<>(
+                    createDisposition, bqServices, dynamicDestinations, kmsKey))
             .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
-            .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
+            .setCoder(KvCoder.of(destinationCoder, payloadCoder));
     convertedRecords.apply(
         "StorageApiWriteInconsistent",
-        new StorageApiWriteRecordsInconsistent<>(
-            dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));
-
+        new StorageApiWriteRecordsInconsistent<>(dynamicDestinations, bqServices));
     return writeResult(input.getPipeline());
   }
 
-  public WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  public WriteResult expandTriggered(
+      PCollection<KV<DestinationT, ElementT>> input, Coder<StorageApiWritePayload> payloadCoder) {
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
     // First shard all the records.
     // TODO(reuvenlax): Add autosharding support so that users don't have to pick a shard count.
-    PCollection<KV<ShardedKey<DestinationT>, byte[]>> shardedRecords =
+    PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
         inputInGlobalWindow
+            .apply(
+                "CreateTables",
+                new CreateTableDestinations<>(
+                    createDisposition, bqServices, dynamicDestinations, kmsKey))
             .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
+            .setCoder(KvCoder.of(destinationCoder, payloadCoder))
             .apply(
                 "AddShard",
                 ParDo.of(
-                    new DoFn<KV<DestinationT, byte[]>, KV<ShardedKey<DestinationT>, byte[]>>() {
+                    new DoFn<
+                        KV<DestinationT, StorageApiWritePayload>,
+                        KV<ShardedKey<DestinationT>, StorageApiWritePayload>>() {
                       int shardNumber;
 
                       @Setup
@@ -119,8 +141,8 @@ public class StorageApiLoads<DestinationT, ElementT>
 
                       @ProcessElement
                       public void processElement(
-                          @Element KV<DestinationT, byte[]> element,
-                          OutputReceiver<KV<ShardedKey<DestinationT>, byte[]>> o) {
+                          @Element KV<DestinationT, StorageApiWritePayload> element,
+                          OutputReceiver<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> o) {
                         DestinationT destination = element.getKey();
                         ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
                         buffer.putInt(++shardNumber % numShards);
@@ -128,13 +150,14 @@ public class StorageApiLoads<DestinationT, ElementT>
                             KV.of(ShardedKey.of(destination, buffer.array()), element.getValue()));
                       }
                     }))
-            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), ByteArrayCoder.of()));
+            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), payloadCoder));
 
-    PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>> groupedRecords =
+    PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords =
         shardedRecords.apply(
             "GroupIntoBatches",
-            GroupIntoBatches.<ShardedKey<DestinationT>, byte[]>ofByteSize(
-                    MAX_BATCH_SIZE_BYTES, (byte[] e) -> (long) e.length)
+            GroupIntoBatches.<ShardedKey<DestinationT>, StorageApiWritePayload>ofByteSize(
+                    MAX_BATCH_SIZE_BYTES,
+                    (StorageApiWritePayload e) -> (long) e.getPayload().length)
                 .withMaxBufferingDuration(triggeringFrequency));
 
     groupedRecords.apply(
@@ -145,18 +168,22 @@ public class StorageApiLoads<DestinationT, ElementT>
     return writeResult(input.getPipeline());
   }
 
-  public WriteResult expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  public WriteResult expandUntriggered(
+      PCollection<KV<DestinationT, ElementT>> input, Coder<StorageApiWritePayload> payloadCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
-    PCollection<KV<DestinationT, byte[]>> convertedRecords =
+    PCollection<KV<DestinationT, StorageApiWritePayload>> convertedRecords =
         inputInGlobalWindow
+            .apply(
+                "CreateTables",
+                new CreateTableDestinations<>(
+                    createDisposition, bqServices, dynamicDestinations, kmsKey))
             .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
-            .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
+            .setCoder(KvCoder.of(destinationCoder, payloadCoder));
     convertedRecords.apply(
         "StorageApiWriteUnsharded",
-        new StorageApiWriteUnshardedRecords<>(
-            dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));
+        new StorageApiWriteUnshardedRecords<>(dynamicDestinations, bqServices));
     return writeResult(input.getPipeline());
   }
 

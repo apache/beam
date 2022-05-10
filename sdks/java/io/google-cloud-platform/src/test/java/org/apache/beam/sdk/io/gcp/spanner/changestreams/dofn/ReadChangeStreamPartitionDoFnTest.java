@@ -40,6 +40,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -79,6 +80,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     final DaoFactory daoFactory = mock(DaoFactory.class);
     final MapperFactory mapperFactory = mock(MapperFactory.class);
     final ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
+    final ThroughputEstimator throughputEstimator = mock(ThroughputEstimator.class);
     final ActionFactory actionFactory = mock(ActionFactory.class);
     final PartitionMetadataDao partitionMetadataDao = mock(PartitionMetadataDao.class);
     final ChangeStreamDao changeStreamDao = mock(ChangeStreamDao.class);
@@ -89,7 +91,9 @@ public class ReadChangeStreamPartitionDoFnTest {
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
     queryChangeStreamAction = mock(QueryChangeStreamAction.class);
 
-    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+    doFn =
+        new ReadChangeStreamPartitionDoFn(
+            daoFactory, mapperFactory, actionFactory, metrics, throughputEstimator);
 
     partition =
         PartitionMetadata.newBuilder()
@@ -126,7 +130,8 @@ public class ReadChangeStreamPartitionDoFnTest {
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
-            metrics))
+            metrics,
+            throughputEstimator))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup();
