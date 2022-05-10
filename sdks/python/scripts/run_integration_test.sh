@@ -43,6 +43,7 @@
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
 #                      using this flag.
+#     impersonate   -> True if the test uses impersonation.
 #
 # Test related flags:
 #     test_opts     -> List of space separated options to configure Pytest test
@@ -80,6 +81,8 @@ KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cry
 SUITE=""
 COLLECT_MARKERS=
 IMPERSONATE_ACCOUNT=allows-impersonation@apache-beam-testing.iam.gserviceaccount.com
+IMPERSONATE_RUNNER_ACCOUNT=impersonation-dataflow-worker@apache-beam-testing.iam.gserviceaccount.com
+IMPERSONATE_LOCATION=gs://impersonation-test-bucket
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -230,8 +233,6 @@ if [[ -z $PIPELINE_OPTS ]]; then
     "--project=$PROJECT"
     "--region=$REGION"
     "--staging_location=$GCS_LOCATION/staging-it"
-    "--temp_location=$GCS_LOCATION/temp-it"
-    "--output=$GCS_LOCATION/py-it-cloud/output"
     "--sdk_location=$SDK_LOCATION"
     "--requirements_file=postcommit_requirements.txt"
     "--num_workers=$NUM_WORKERS"
@@ -265,6 +266,12 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # add impersonate_service_account if provided
   if [[ "$IMPERSONATE" = true ]]; then
     opts+=("--impersonate_service_account=\"$IMPERSONATE_ACCOUNT\"")
+    opts+=("--service_account_email=\"$IMPERSONATE_RUNNER_ACCOUNT\"")
+    opts+=("--temp_location=$IMPERSONATE_LOCATION/temp-it")
+    opts+=("--output=$IMPERSONATE_LOCATION/py-it-cloud/output")
+  else
+    opts+=("--temp_location=$GCS_LOCATION/temp-it")
+    opts+=("--output=$GCS_LOCATION/py-it-cloud/output")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
