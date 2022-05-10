@@ -504,7 +504,7 @@ class TestReadFromBigQuery(unittest.TestCase):
               table))
       print(coders.registry.get_coder(utype))
       print(result.element_type)
-      print(apache_beam.coders.row_coder.RowCoder.__eq__(self, utype))
+      print(apache_beam.coders.row_coder.RowCoder.__annotations__)
       #print(apache_beam.coders.row_coder.RowCoder.key_coder())
       #print(apache_beam.coders.row_coder.RowCoder._create_impl())
       assert_that(
