@@ -493,27 +493,21 @@ class TestReadFromBigQuery(unittest.TestCase):
           error_message='backendError'),
   ])
   @mock.patch('time.sleep')
+  @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
   @mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Insert')
   def test_create_temp_dataset_exception(
-      self, mock_api, unused_mock, exception_type, error_message):
+      self, mock_api, mock_query_job, unused_mock, exception_type, error_message):
     mock_api.side_effect = exception_type(error_message)
-
-    # test_pipeline = TestPipeline(is_integration_test=True)
-    # args = test_pipeline.get_full_options_as_args()
 
     with self.assertRaises(Exception) as exc:
       with beam.Pipeline() as p:
         _ = p | ReadFromBigQuery(
             project='apache-beam-testing',
-            query=(
-                'SELECT country_code FROM'
-                '`apache-beam-testing.bq_jsontype_test_nodelete.json_data`'),
-            gcs_location="gs://ahmedabualsaud-test/tmp",
-            use_standard_sql=True)
+            query='SELECT * FROM `project.dataset.table`',
+            gcs_location='gs://temp_location')
 
     self.assertEqual(16, mock_api.call_count)
     self.assertIn(error_message, exc.exception.args[0])
-
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
