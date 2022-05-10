@@ -508,11 +508,8 @@ public class Read {
       }
 
       try {
-        for (UnboundedSource<OutputT, CheckpointT> split :
-            restriction.getSource().split(DEFAULT_DESIRED_NUM_SPLITS, pipelineOptions)) {
-          receiver.output(
-              UnboundedSourceRestriction.create(split, null, restriction.getWatermark()));
-        }
+        // TODO(BEAM-14229): Revert to use split result once duplication issue is resolved.
+        receiver.output(restriction);
       } catch (Exception e) {
         LOG.warn("Exception while splitting source. Source not split.", e);
         receiver.output(restriction);
