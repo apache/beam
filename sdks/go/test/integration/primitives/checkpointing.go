@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io
+package primitives
 
 import (
 	"reflect"
@@ -74,8 +74,8 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 			emit(position)
 			position += 1
 			return sdf.ResumeProcessingIn(1 * time.Second)
-		} else if rt.GetError() != nil {
-			// Stop processing on error
+		} else if rt.GetError() != nil || rt.IsDone() {
+			// Stop processing on error or completion
 			return sdf.StopProcessing()
 		} else {
 			// Failed to claim but no error, resume later.
@@ -85,7 +85,7 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 }
 
 // Checkpoints is a small test pipeline to establish the correctness of the simple test case.
-func Checkpoints(s beam.Scope, filename string) {
+func Checkpoints(s beam.Scope) {
 	beam.Init()
 
 	s.Scope("checkpoint")

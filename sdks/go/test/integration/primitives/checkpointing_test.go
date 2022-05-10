@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io
+package primitives
 
 import (
 	"testing"
@@ -31,8 +31,7 @@ import (
 func TestCheckpointing(t *testing.T) {
 	integration.CheckFilters(t)
 
-	out := "text.txt"
 	p, s := beam.NewPipelineWithRoot()
-	Checkpoints(s, out)
+	Checkpoints(s)
 	ptest.RunAndValidate(t, p)
 }

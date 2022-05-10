@@ -151,7 +151,8 @@ var dataflowFilters = []string{
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",
-	// Dataflow behavior with self-checkpointing is not validated
+	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
+	// complete.
 	"TestCheckpointing",
 }
 
