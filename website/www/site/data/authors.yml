@@ -161,6 +161,10 @@ mxm:
   name: Maximilian Michels
   email: mxm@apache.org
   twitter: stadtlegende
+ningk:
+  name: Ning Kang
+  email: ningkang0957@gmail.com
+  twitter: ningkang0957
 pedro:
   name: Pedro Galvan
   email: pedro@sg.com.mx
@@ -224,3 +228,6 @@ alexkosolapov:
 hermannb:
   name: Brittany Hermann
   email: hermannb@google.com
+iht:
+  name: Israel Herraiz
+  email: ihr@google.com

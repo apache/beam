@@ -131,9 +131,9 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 	return paths, nil
 }
 
-// UpdateArtifactTypeFromFileToUrl changes the type of the artifact from FILE to URL
+// UpdateArtifactTypeFromFileToURL changes the type of the artifact from FILE to URL
 // when the file path contains the suffix element ("://") of the URI scheme.
-func UpdateArtifactTypeFromFileToUrl(edges []*graph.MultiEdge) {
+func UpdateArtifactTypeFromFileToURL(edges []*graph.MultiEdge) {
 	for _, e := range edges {
 		if e.Op == graph.External && e.External != nil {
 			components, err := graphx.ExpandedComponents(e.External.Expanded)

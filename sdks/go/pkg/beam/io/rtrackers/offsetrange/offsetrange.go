@@ -148,7 +148,7 @@ func NewTracker(rest Restriction) *Tracker {
 // if a position is claimed before the start of the restriction, or if a position is claimed before
 // the latest successfully claimed.
 func (tracker *Tracker) TryClaim(rawPos interface{}) bool {
-	if tracker.stopped == true {
+	if tracker.stopped {
 		tracker.err = errors.New("cannot claim work after restriction tracker returns false")
 		return false
 	}
@@ -216,4 +216,8 @@ func (tracker *Tracker) IsDone() bool {
 // GetRestriction returns a copy of the tracker's underlying offsetrange.Restriction.
 func (tracker *Tracker) GetRestriction() interface{} {
 	return tracker.rest
+}
+
+func (tracker *Tracker) IsBounded() bool {
+	return true
 }

@@ -34,15 +34,29 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
+
+// StatusAddress is a type of status endpoint address as an optional argument to harness.Main().
+type StatusAddress string
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
-func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
+func Main(ctx context.Context, loggingEndpoint, controlEndpoint string, options ...interface{}) error {
 	hooks.DeserializeHooksFromOptions(ctx)
+
+	statusEndpoint := ""
+	for _, option := range options {
+		switch option := option.(type) {
+		case StatusAddress:
+			statusEndpoint = string(option)
+		default:
+			return errors.Errorf("unknown type %T, value %v in error call", option, option)
+		}
+	}
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
 	ctx = context.WithValue(ctx, loggingEndpointCtxKey, loggingEndpoint)
@@ -98,6 +112,18 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
+	// if the runner supports worker status api then expose SDK harness status
+	if statusEndpoint != "" {
+		statusHandler, err := newWorkerStatusHandler(ctx, statusEndpoint)
+		if err != nil {
+			log.Errorf(ctx, "error establishing connection to worker status API: %v", err)
+		} else {
+			if err := statusHandler.start(ctx); err == nil {
+				defer statusHandler.stop(ctx)
+			}
+		}
+	}
+
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
@@ -114,7 +140,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
 	}
-
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -127,7 +152,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			atomic.AddInt32(&shutdown, 1)
 			close(respc)
 			wg.Wait()
-
 			if err == io.EOF {
 				recordFooter()
 				return nil
@@ -378,21 +402,47 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				c.plans[bdID] = append(c.plans[bdID], plan)
 			}
 		}
+
+		// Check if the underlying DoFn self-checkpointed.
+		sr, delay, checkpointed, checkErr := plan.Checkpoint()
+
+		var rRoots []*fnpb.DelayedBundleApplication
+		if checkpointed {
+			rRoots = make([]*fnpb.DelayedBundleApplication, len(sr.RS))
+			for i, r := range sr.RS {
+				rRoots[i] = &fnpb.DelayedBundleApplication{
+					Application: &fnpb.BundleApplication{
+						TransformId:      sr.TId,
+						InputId:          sr.InId,
+						Element:          r,
+						OutputWatermarks: sr.OW,
+					},
+					RequestedTimeDelay: durationpb.New(delay),
+				}
+			}
+		}
+
 		delete(c.active, instID)
 		if removed, ok := c.inactive.Insert(instID); ok {
 			delete(c.failed, removed) // Also GC old failed bundles.
 		}
 		delete(c.metStore, instID)
+
 		c.mu.Unlock()
 
 		if err != nil {
 			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
 		}
 
+		if checkErr != nil {
+			return fail(ctx, instID, "process bundle failed at checkpointing for instruction %v using plan %v : %v", instID, bdID, checkErr)
+		}
+
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{
 				ProcessBundle: &fnpb.ProcessBundleResponse{
+					ResidualRoots:        rRoots,
 					MonitoringData:       pylds,
 					MonitoringInfos:      mons,
 					RequiresFinalization: requiresFinalization,
@@ -504,9 +554,10 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			for i, r := range sr.RS {
 				rRoots[i] = &fnpb.DelayedBundleApplication{
 					Application: &fnpb.BundleApplication{
-						TransformId: sr.TId,
-						InputId:     sr.InId,
-						Element:     r,
+						TransformId:      sr.TId,
+						InputId:          sr.InId,
+						Element:          r,
+						OutputWatermarks: sr.OW,
 					},
 				}
 			}

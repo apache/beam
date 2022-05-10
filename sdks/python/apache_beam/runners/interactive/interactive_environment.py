@@ -284,7 +284,8 @@ class InteractiveEnvironment(object):
       # we don't need to clean it up here.
       if cache_manager and pipeline_id not in self._recording_managers:
         cache_manager.cleanup()
-    self.clusters.cleanup()
+    # TODO(BEAM-14330): uncomment this once tests are refactored.
+    # self.clusters.cleanup()
 
   def cleanup(self, pipeline=None):
     """Cleans up cached states for the given pipeline. Noop if the given
@@ -672,8 +673,8 @@ class InteractiveEnvironment(object):
        all jQuery plugins are set.
     """
     try:
-      from IPython.core.display import Javascript
-      from IPython.core.display import display_javascript
+      from IPython.display import Javascript
+      from IPython.display import display_javascript
       display_javascript(
           Javascript(
               _JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='')))
@@ -694,8 +695,8 @@ class InteractiveEnvironment(object):
     especially the output areas of notebook cells.
     """
     try:
-      from IPython.core.display import Javascript
-      from IPython.core.display import display_javascript
+      from IPython.display import Javascript
+      from IPython.display import display_javascript
       display_javascript(
           Javascript(_HTML_IMPORT_TEMPLATE.format(hrefs=html_hrefs)))
     except ImportError:

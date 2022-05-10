@@ -76,7 +76,6 @@ import scala.Tuple2;
 public class SparkStreamingPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkStreamingTranslationContext> {
 
-
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
   interface PTransformTranslator {

@@ -135,14 +135,15 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
                 bqOptions.getJobName(), stepUuid, JobType.QUERY),
             queryTempDatasetOpt);
 
-    BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions);
-    LOG.info("Deleting temporary table with query results {}", tableToRemove);
-    tableService.deleteTable(tableToRemove);
-    boolean datasetCreatedByBeam = !queryTempDatasetOpt.isPresent();
-    if (datasetCreatedByBeam) {
-      // Remove temporary dataset only if it was created by Beam
-      LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
-      tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
+    try (BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions)) {
+      LOG.info("Deleting temporary table with query results {}", tableToRemove);
+      tableService.deleteTable(tableToRemove);
+      boolean datasetCreatedByBeam = !queryTempDatasetOpt.isPresent();
+      if (datasetCreatedByBeam) {
+        // Remove temporary dataset only if it was created by Beam
+        LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
+        tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
+      }
     }
   }
 

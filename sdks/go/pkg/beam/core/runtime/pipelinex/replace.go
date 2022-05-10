@@ -261,10 +261,7 @@ func (s idSorted) Less(i, j int) bool {
 	// We can ignore the errors here due to the regex check.
 	iN, _ := strconv.Atoi(iM[2])
 	jN, _ := strconv.Atoi(jM[2])
-	if iN < jN {
-		return true
-	}
-	return false
+	return iN < jN
 }
 
 func separateCompsAndLeaves(xforms map[string]*pipepb.PTransform) (comp, leaf []string) {
