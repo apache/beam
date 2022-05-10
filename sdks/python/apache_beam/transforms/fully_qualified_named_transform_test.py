@@ -18,6 +18,9 @@
 
 import unittest
 
+from mock import call
+from mock import patch
+
 import apache_beam as beam
 from apache_beam.runners.portability import expansion_service
 from apache_beam.testing.util import assert_that
@@ -115,6 +118,30 @@ class FullyQualifiedNamedTransformTest(unittest.TestCase):
     with FullyQualifiedNamedTransform.with_filter('apache_beam.foo.*'):
       with self.assertRaises(ValueError):
         FullyQualifiedNamedTransform._resolve('apache_beam.Row')
+
+  @patch('importlib.import_module')
+  def test_resolve_by_path_segment(self, mock_import_module):
+    mock_import_module.return_value = None
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      FullyQualifiedNamedTransform._resolve('a.b.c.d')
+    mock_import_module.assert_has_calls(
+        [call('a'), call('a.b'), call('a.b.c'), call('a.b.c.d')])
+
+  def test_resolve(self):
+    # test _resolve with the module that is not exposed to the top level
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      dataframe_transform = FullyQualifiedNamedTransform._resolve(
+          'apache_beam.dataframe.transforms.DataframeTransform')
+      from apache_beam.dataframe.transforms import DataframeTransform
+      self.assertIs(dataframe_transform, DataframeTransform)
+
+    # test _resolve with the module that will never be exposed
+    # to the top level in the future
+    with FullyQualifiedNamedTransform.with_filter('*'):
+      argument_placeholder = FullyQualifiedNamedTransform._resolve(
+          'apache_beam.internal.util.ArgumentPlaceholder')
+      from apache_beam.internal.util import ArgumentPlaceholder
+      self.assertIs(argument_placeholder, ArgumentPlaceholder)
 
 
 class _TestTransform(beam.PTransform):

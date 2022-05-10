@@ -15,7 +15,14 @@
 # limitations under the License.
 #
 
-"""GCS file system implementation for accessing files on GCS."""
+"""GCS file system implementation for accessing files on GCS.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
+"""
 
 # pytype: skip-file
 
