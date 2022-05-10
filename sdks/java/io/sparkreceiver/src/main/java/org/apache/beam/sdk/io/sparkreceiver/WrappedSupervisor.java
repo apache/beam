@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.sparkreceiver;
 
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.storage.StreamBlockId;
 import org.apache.spark.streaming.receiver.BlockGenerator;
@@ -32,24 +33,35 @@ import scala.collection.mutable.ArrayBuffer;
 @SuppressWarnings("return.type.incompatible")
 public class WrappedSupervisor extends ReceiverSupervisor {
 
-  public WrappedSupervisor(Receiver<?> receiver, SparkConf conf) {
+  private final Consumer<Object[]> storeConsumer;
+
+  public WrappedSupervisor(Receiver<?> receiver, SparkConf conf, Consumer<Object[]> consumer) {
     super(receiver, conf);
+    this.storeConsumer = consumer;
   }
 
   @Override
-  public void pushSingle(Object o) {}
+  public void pushSingle(Object o) {
+    storeConsumer.accept(new Object[] {o});
+  }
 
   @Override
   public void pushBytes(
-      ByteBuffer byteBuffer, Option<Object> option, Option<StreamBlockId> option1) {}
+      ByteBuffer byteBuffer, Option<Object> option, Option<StreamBlockId> option1) {
+    storeConsumer.accept(new Object[] {byteBuffer, option, option1});
+  }
 
   @Override
   public void pushIterator(
-      Iterator<?> iterator, Option<Object> option, Option<StreamBlockId> option1) {}
+      Iterator<?> iterator, Option<Object> option, Option<StreamBlockId> option1) {
+    storeConsumer.accept(new Object[] {iterator, option, option1});
+  }
 
   @Override
   public void pushArrayBuffer(
-      ArrayBuffer<?> arrayBuffer, Option<Object> option, Option<StreamBlockId> option1) {}
+      ArrayBuffer<?> arrayBuffer, Option<Object> option, Option<StreamBlockId> option1) {
+    storeConsumer.accept(new Object[] {arrayBuffer, option, option1});
+  }
 
   @Override
   public BlockGenerator createBlockGenerator(BlockGeneratorListener blockGeneratorListener) {
@@ -71,6 +83,6 @@ public class WrappedSupervisor extends ReceiverSupervisor {
 
   @Override
   public boolean isReceiverStopped() {
-    return super.isReceiverStopped();
+    return false;
   }
 }

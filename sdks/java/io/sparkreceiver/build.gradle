@@ -32,21 +32,12 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Spark Receiver"
 ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for streaming integration with CDAP plugins."""
 
-allprojects {
-    repositories {
-        maven { url 'https://jitpack.io' }
-    }
-}
-
 dependencies {
-    implementation library.java.cglib
     implementation library.java.commons_lang2_6
     implementation library.java.scala
-    implementation library.java.slf4j_api
     implementation library.java.spark_streaming
     implementation library.java.spark_core
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation "com.github.data-integrations:salesforce:v1.3.9"
     testImplementation project(path: ":sdks:java:io:cdap", configuration: "testRuntimeMigration")
     testImplementation library.java.junit
 }

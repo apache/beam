@@ -40,7 +40,9 @@ interface for integration with CDAP plugins."""
 dependencies {
     implementation library.java.guava
     implementation library.java.cdap_api
-    implementation library.java.cdap_common
+    implementation (library.java.cdap_common) {
+        exclude module: 'log4j-over-slf4j'
+    }
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.slf4j_api
