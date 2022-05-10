@@ -93,6 +93,7 @@ import logging
 import random
 import uuid
 from collections import namedtuple
+from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import
@@ -268,24 +269,30 @@ class MatchContinuously(beam.PTransform):
       interval=360.0,
       has_deduplication=True,
       start_timestamp=Timestamp.now(),
-      stop_timestamp=MAX_TIMESTAMP):
+      stop_timestamp=MAX_TIMESTAMP,
+      match_updated_files=False):
     """Initializes a MatchContinuously transform.
 
     Args:
-      file_pattern: The file path to read from.
+      file_pattern: The file path, or a list of file paths to read from.
       interval: Interval at which to check for files in seconds.
       has_deduplication: Whether files already read are discarded or not.
       start_timestamp: Timestamp for start file checking.
       stop_timestamp: Timestamp after which no more files will be checked.
+      match_updated_files: (When has_deduplication is set to True) whether match
+      file with timestamp changes.
     """
-
-    self.file_pattern = file_pattern
+    if isinstance(file_pattern, str):
+      self.file_patterns = [file_pattern]
+    else:
+      self.file_patterns = file_pattern
     self.interval = interval
     self.has_deduplication = has_deduplication
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
+    self.match_upd = match_updated_files
 
-  def expand(self, pcoll):
+  def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
     impulse = pcoll | PeriodicImpulse(
         start_timestamp=self.start_ts,
         stop_timestamp=self.stop_ts,
@@ -293,15 +300,18 @@ class MatchContinuously(beam.PTransform):
 
     match_files = (
         impulse
-        | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
+        | 'GetFilePattern' >> beam.FlatMap(lambda x: self.file_patterns)
         | MatchAll())
 
     if self.has_deduplication:
-      match_files = (
-          match_files
-          # Making a Key Value so each file has its own state.
-          | 'ToKV' >> beam.Map(lambda x: (x.path, x))
-          | 'RemoveAlreadyRead' >> beam.ParDo(_RemoveDuplicates()))
+      # Making a Key Value so each file has its own state.
+      match_files = match_files | 'ToKV' >> beam.Map(lambda x: (x.path, x))
+      if self.match_upd:
+        match_files = match_files | 'RemoveOldAlreadyRead' >> beam.ParDo(
+            _RemoveOldDuplicates())
+      else:
+        match_files = match_files | 'RemoveAlreadyRead' >> beam.ParDo(
+            _RemoveDuplicates())
 
     return match_files
 
@@ -837,7 +847,8 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
 
 
 class _RemoveDuplicates(beam.DoFn):
-
+  """Internal DoFn that filters out filenames already seen (even though the file
+  has updated)."""
   COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
   def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
@@ -852,3 +863,24 @@ class _RemoveDuplicates(beam.DoFn):
       yield file_metadata
     else:
       _LOGGER.debug('File %s was already read, seen %d times', path, counter)
+
+
+class _RemoveOldDuplicates(beam.DoFn):
+  """Internal DoFn that filters out filenames already seen and timestamp
+  unchanged."""
+  TIME_STATE = CombiningValueStateSpec(
+      'count', combine_fn=partial(max, default=0.0))
+
+  def process(self, element, time_state=beam.DoFn.StateParam(TIME_STATE)):
+
+    path = element[0]
+    file_metadata = element[1]
+    new_ts = file_metadata.last_updated_in_seconds
+    old_ts = time_state.read()
+
+    if old_ts < new_ts:
+      time_state.add(new_ts)
+      _LOGGER.debug('Generated entry for file %s', path)
+      yield file_metadata
+    else:
+      _LOGGER.debug('File %s was already read', path)

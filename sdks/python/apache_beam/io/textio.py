@@ -30,6 +30,7 @@ from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io.filebasedsource import ReadAllFiles
+from apache_beam.io.filebasedsource import ReadAllFilesContinuously
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -40,6 +41,7 @@ __all__ = [
     'ReadFromText',
     'ReadFromTextWithFilename',
     'ReadAllFromText',
+    'ReadAllFromTextContinuously',
     'WriteToText'
 ]
 
@@ -550,8 +552,9 @@ class ReadAllFromText(PTransform):
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
-  """
 
+  This implementation only supports batch pipeline.
+  """
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
 
   def __init__(
@@ -608,16 +611,65 @@ class ReadAllFromText(PTransform):
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
-    self._read_all_files = ReadAllFiles(
+    self._with_filename = with_filename
+    self._read_all_files = self._set_read_all_files(source_from_file)
+
+  def _set_read_all_files(self, source_from_file):
+    """Helper function to build a ReadAllFiles PTransform."""
+    return ReadAllFiles(
         True,
-        compression_type,
-        desired_bundle_size,
-        min_bundle_size,
+        self._compression_type,
+        self._desired_bundle_size,
+        self._min_bundle_size,
         source_from_file,
-        with_filename)
+        self._with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files
+
+
+class ReadAllFromTextContinuously(ReadAllFromText):
+  """A ``PTransform`` for reading text files in given file patterns.
+  This PTransform acts as a Source and produces continuously a ``PCollection``
+  of strings.
+
+  For more details, see ``ReadAllFromText`` for text parsing settings;
+  see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
+  """
+  def __init__(self, file_patterns, **kwargs):
+    """Initialize the ``ReadAllFromTextContinuously`` transform.
+
+    Accepts args for constructor args of both ``ReadAllFromText`` and
+    ``apache_beam.io.fileio.MatchContinuously``.
+    """
+    kwargs_for_match = {
+        k: v
+        for (k, v) in kwargs.items()
+        if k in ReadAllFilesContinuously.ARGS_FOR_MATCHCONTINUOUSLY
+    }
+    kwargs_for_read = {
+        k: v
+        for (k, v) in kwargs.items()
+        if k not in ReadAllFilesContinuously.ARGS_FOR_MATCHCONTINUOUSLY
+    }
+    self._file_patterns = file_patterns
+    self._kwargs_for_match = kwargs_for_match
+    super().__init__(**kwargs_for_read)
+
+  def _set_read_all_files(self, source_from_file):
+    """Overwrites ``ReadAllFromText._set_read_all_files``."""
+    return ReadAllFilesContinuously(
+        self._file_patterns,
+        True,
+        self._compression_type,
+        self._desired_bundle_size,
+        self._min_bundle_size,
+        source_from_file,
+        self._with_filename,
+        **self._kwargs_for_match)
+
+  def expand(self, pvalue):
+    return pvalue | self._read_all_files
 
 
 class ReadFromText(PTransform):

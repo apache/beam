@@ -28,7 +28,7 @@ For an example implementation of :class:`FileBasedSource` see
 
 # pytype: skip-file
 
-from typing import Callable
+from typing import Callable, Iterable
 from typing import Union
 
 from apache_beam.internal import pickler
@@ -338,15 +338,25 @@ class _SingleFileSource(iobase.BoundedSource):
 
 class _ExpandIntoRanges(DoFn):
   def __init__(
-      self, splittable, compression_type, desired_bundle_size, min_bundle_size):
+      self,
+      splittable,
+      compression_type,
+      desired_bundle_size,
+      min_bundle_size,
+      do_match=True):
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._splittable = splittable
     self._compression_type = compression_type
+    self._do_match = do_match
 
   def process(self, element, *args, **kwargs):
-    match_results = FileSystems.match([element])
-    for metadata in match_results[0].metadata_list:
+    if self._do_match:
+      match_results = FileSystems.match([element])
+      metadata_list = match_results[0].metadata_list
+    else:
+      metadata_list = [element]
+    for metadata in metadata_list:
       splittable = (
           self._splittable and _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))
@@ -397,7 +407,6 @@ class ReadAllFiles(PTransform):
   PTransform authors who wishes to implement file-based Read transforms that
   read a PCollection of files.
   """
-
   def __init__(self,
                splittable,  # type: bool
                compression_type,
@@ -449,3 +458,95 @@ class ReadAllFiles(PTransform):
         | 'ReadRange' >> ParDo(
             _ReadRange(
                 self._source_from_file, with_filename=self._with_filename)))
+
+
+class ReadAllFilesContinuously(PTransform):
+  """A Read transform that reads files continuously.
+
+  Pipeline authors should not use this directly. This is to be used by Read
+  PTransform authors who wishes to implement file-based Read transforms that
+  read files continuously.
+
+  Unlike ``ReadAllFiles``, patterns are provided as constructor parameter at
+  the pipeline definition time.
+  """
+  ARGS_FOR_MATCHCONTINUOUSLY = {
+      'interval',
+      'has_deduplication',
+      'start_timestamp',
+      'stop_timestamp',
+      'match_updated_files'
+  }
+
+  def __init__(self,
+               file_patterns, # type: Iterable[str]
+               splittable,  # type: bool
+               compression_type,
+               desired_bundle_size,  # type: int
+               min_bundle_size,  # type: int
+               source_from_file,  # type: Callable[[str], iobase.BoundedSource]
+               with_filename=False,  # type: bool
+               **kwargs  # parameters for MatchContinuously
+              ):
+    """
+    Args:
+      file_patterns: a list of file pattern to match
+      splittable: If False, files won't be split into sub-ranges. If True,
+                  files may or may not be split into data ranges.
+      compression_type: A ``CompressionType`` object that specifies the
+                  compression type of the files that will be processed. If
+                  ``CompressionType.AUTO``, system will try to automatically
+                  determine the compression type based on the extension of
+                  files.
+      desired_bundle_size: the desired size of data ranges that should be
+                           generated when splitting a file into data ranges.
+      min_bundle_size: minimum size of data ranges that should be generated when
+                           splitting a file into data ranges.
+      source_from_file: a function that produces a ``BoundedSource`` given a
+                        file name. System will use this function to generate
+                        ``BoundedSource`` objects for file paths. Note that file
+                        paths passed to this will be for individual files, not
+                        for file patterns even if the ``PCollection`` of files
+                        processed by the transform consist of file patterns.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
+
+    refer to ``MatchContinuously`` for additional args including 'interval',
+    'has_deduplication', 'start_timestamp', 'stop_timestamp',
+    'match_updated_files'.
+    """
+
+    # imported locally to avoid circular import
+    from apache_beam.io.fileio import MatchContinuously
+
+    self._splittable = splittable
+    self._compression_type = compression_type
+    self._desired_bundle_size = desired_bundle_size
+    self._min_bundle_size = min_bundle_size
+    self._source_from_file = source_from_file
+    self._with_filename = with_filename
+
+    kwargs_for_match = {
+        k: v
+        for (k, v) in kwargs.items() if k in self.ARGS_FOR_MATCHCONTINUOUSLY
+    }
+    self._matchFn = MatchContinuously(file_patterns, **kwargs_for_match)
+
+  def expand(self, pvalue):
+    return (
+        pvalue
+        | self._matchFn
+        | 'ExpandIntoRanges' >> ParDo(
+            _ExpandIntoRanges(
+                self._splittable,
+                self._compression_type,
+                self._desired_bundle_size,
+                self._min_bundle_size,
+                do_match=False))
+        | 'ReadRange' >> ParDo(
+            _ReadRange(
+                self._source_from_file, with_filename=self._with_filename))
+        # ReadAllFilesContinuously needs to read files instantly after matches,
+        # so move reshuffle to the end.
+        | 'Reshard' >> Reshuffle())

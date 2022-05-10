@@ -124,9 +124,7 @@ class PeriodicSequence(PTransform):
   PeriodicSequence guarantees that elements would not be output prior to given
   runtime timestamp.
   '''
-
-  # pylint: disable=unused-private-member
-  def __init_(self):
+  def __init__(self):
     pass
 
   def expand(self, pcoll):

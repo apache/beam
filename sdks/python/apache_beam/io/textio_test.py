@@ -25,18 +25,22 @@ import logging
 import os
 import shutil
 import tempfile
+import threading
+import time
 import unittest
 import zlib
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.io import ReadAllFromText
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.textio import _TextSink as TextSink
 from apache_beam.io.textio import _TextSource as TextSource
 # Importing following private classes for testing.
+from apache_beam.io.textio import ReadAllFromText
+from apache_beam.io.textio import ReadAllFromTextContinuously
 from apache_beam.io.textio import ReadFromText
 from apache_beam.io.textio import ReadFromTextWithFilename
 from apache_beam.io.textio import WriteToText
@@ -45,6 +49,7 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
+from apache_beam.utils.timestamp import Timestamp
 
 
 class DummyCoder(coders.Coder):
@@ -554,8 +559,76 @@ class TextSourceTest(unittest.TestCase):
           | 'ReadAll' >> ReadAllFromText())
       assert_that(pcoll, equal_to(expected_data))
 
-  def test_read_from_text_single_file_with_coder(self):
+  def test_read_all_continuously(self):
+    class _WriteFilesFn(beam.DoFn):
+      """writes a couple of files with deferral."""
+      def __init__(self, tempdir: TempDir):
+        self.tempdir = tempdir
+        self._thread = None
 
+      def create_files(self):
+        temp_path = self.tempdir.get_path()
+        time.sleep(0.5)
+        with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+          f.write('first')
+        time.sleep(0.5)
+        with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+          f.write('second')
+        with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
+          f.write('first')
+        time.sleep(0.5)
+        with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+          f.write('third')
+        with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
+          f.write('second')
+        with open(FileSystems.join(temp_path, 'file3'), 'w') as f:
+          f.write('first')
+
+      def process(self, element):
+        self._thread = threading.Thread(target=self.create_files)
+        self._thread.start()
+
+    with TempDir() as tempdir, TestPipeline() as pipeline:
+      match_pattern = FileSystems.join(tempdir.get_path(), '*')
+      interval = 0.1
+      start = Timestamp.now()
+      stop = start + 4
+      p_read_once = (
+          pipeline
+          | 'Continuously read new files' >> ReadAllFromTextContinuously(
+              match_pattern,
+              desired_bundle_size=1,
+              with_filename=True,
+              start_timestamp=start,
+              interval=interval,
+              stop_timestamp=stop,
+              match_updated_files=False)
+          | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
+      p_read_upd = (
+          pipeline
+          | 'Continuously read updated files' >> ReadAllFromTextContinuously(
+              match_pattern,
+              desired_bundle_size=1,
+              with_filename=True,
+              start_timestamp=start,
+              interval=interval,
+              stop_timestamp=stop,
+              match_updated_files=True)
+          | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
+      _ = pipeline | beam.Create([None]) | beam.ParDo(_WriteFilesFn(tempdir))
+      assert_that(
+          p_read_once,
+          equal_to([('file1', 'first'), ('file2', 'first'),
+                    ('file3', 'first')]),
+          label='assert read new files results')
+      assert_that(
+          p_read_upd,
+          equal_to([('file1', 'first'), ('file1', 'second'), ('file1', 'third'),
+                    ('file2', 'first'), ('file2', 'second'),
+                    ('file3', 'first')]),
+          label='assert read updated files results')
+
+  def test_read_from_text_single_file_with_coder(self):
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
     with TestPipeline() as pipeline:
