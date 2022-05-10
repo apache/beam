@@ -79,7 +79,7 @@ That said, if you are a committer interested in serving the community in this wa
 Before your first release, you should perform one-time configuration steps.
  This will set up your security keys for signing the release and access to various release repositories.
 
-To prepare for each release, you should audit the project status in the JIRA issue tracker, and do necessary bookkeeping.
+To prepare for each release, you should audit the project status in the GitHub issue tracker, and do necessary bookkeeping.
 Finally, you should create a release branch from which individual release candidates will be built.
 
 __NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access,
@@ -214,18 +214,15 @@ For example,
 ```
 Release managers should have push permission; request membership in the [`beammaintainers` team](https://hub.docker.com/orgs/apache/teams/beammaintainers) by filing a JIRA with the Apache Infrastructure team, like [INFRA-20900](https://issues.apache.org/jira/browse/INFRA-20900).
 
-### Create a new version in JIRA
+### Create a new milestone in GitHub
 
-When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes.
+When contributors resolve an issue in GitHub, they are tagging it with a release that will contain their changes.
 With the release currently underway, new issues should be resolved against a subsequent future release.
 Therefore, you should create a release item for this subsequent release, as follows:
 
-__Attention__: Only PMC has permission to perform this.
-If you are not a PMC, please ask for help in dev@ mailing list.
-
-1. In JIRA, navigate to [`Beam > Administration > Versions`](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions).
-1. Add a new release. Choose the next minor version number after the version currently underway, select the release cut date (today’s date) as the `Start Date`, and choose `Add`.
-1. At the end of the release, go to the same page and mark the recently released version as released. Use the `...` menu and choose `Release`.
+1. In GitHub, navigate to [`Issues > Milestones > New Milestone`](https://github.com/apache/beam/milestones).
+1. Add a new release. Choose the next minor version number after the version currently underway, select the next release due date (generally 6 weeks from today’s date) as the `Start Date`, and choose `Create Milestone`.
+1. At the end of the release, go to the same page and mark the recently released version as closed.
 
 
 **********
@@ -250,8 +247,8 @@ All Runners which publish data should be checked for the following, in both *bat
 - [IO](http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow): Runtime
 
 If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
-The role of the release manager is to file JIRA issues for each regression with the 'Fix Version' set to the to-be-released version.
-The release manager oversees these just like any other JIRA issue marked with the 'Fix Version' of the release.
+The role of the release manager is to file GitHub issues for each regression with the milestone set to the to-be-released version.
+The release manager oversees these just like any other issue marked with the milestone of the release.
 
 The mailing list should be informed to allow fixing the regressions in the course of the release.
 
@@ -400,20 +397,20 @@ versions to run Python tests. See Python installation tips in [Developer Wiki](h
       to find environment issues this way without having to wait until the full build completes.
 
 
-#### Create release-blocking issues in JIRA
+#### Create release-blocking issues in GitHub
 
 The verify_release_build.sh script may include failing or flaky tests.
-For each of the failing tests create a JIRA with the following properties:
+For each of the failing tests create a GitHub Issue with the following properties:
 
 * **Issue Type:** Bug
 
 * **Summary:** Name of failing gradle task and name of failing test (where applicable) in form of :MyGradleProject:SomeGradleTask NameOfFailedTest: Short description of failure
 
-* **Priority:** Major
+* **Priority:** P1
 
 * **Component:** "test-failures"
 
-* **Fix Version:** Release number of verified release branch
+* **Milestone:** Release number of verified release branch
 
 * **Description:** Description of failure
 
@@ -426,36 +423,36 @@ Afterwards, this list can be refined and updated by the release manager and the 
 **********
 
 
-## 7. Triage release-blocking issues in JIRA
+## 7. Triage release-blocking issues in GitHub
 
 There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
-We track them by assigning the blocked release to the issue's `Fix version` field before the issue is resolved.
+We track them by assigning the blocked release to the issue's milestone before the issue is resolved.
 
 
 The release manager should triage what does and does not block a release.
-The list of release-blocking issues is available at the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel).
+The list of release-blocking issues is available at the [milestone status page](https://github.com/apache/beam/milestones).
 Triage each unresolved issue with one of the following resolutions:
 
 * An issue should not block the release if the problem exists in the current released version or is a bug in new functionality that does not exist in the current released version.
 * An issue should be a blocker if the problem is a regression between the currently released version and the release in progress and has no easy workaround.
 
-For all JIRA issues:
+For all GitHub issues:
 
-* If the issue has been resolved and JIRA was not updated, resolve it accordingly.
+* If the issue has been resolved and the GitHub issue was not updated, resolve it accordingly.
 
-For JIRA issues with type "Bug" or labeled "flaky":
+For issues with type "Bug" or labeled "flaky":
 
 * If the issue is a known continuously failing test, it is not acceptable to defer this until the next release.
   Please work with the Beam community to resolve the issue.
 * If the issue is a known flaky test, make an attempt to delegate a fix.
   However, if the issue may take too long to fix (to the discretion of the release manager):
   * Delegate manual testing of the flaky issue to ensure no release blocking issues.
-  * Update the `Fix Version` field to the version of the next release.
+  * Update the milestone to the version of the next release.
     Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
 
-For all other JIRA issues:
+For all other GitHub issues:
 
-* If the issue has not been resolved and it is acceptable to defer this until the next release, update the `Fix Version` field to the new version you just created.
+* If the issue has not been resolved and it is acceptable to defer this until the next release, update the milestone to the new version you just created.
   Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
 * If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed.
   Instead, work with the Beam community to resolve the issue.
@@ -465,7 +462,7 @@ If there is a bug found in the RC creation process/tools, those issues should be
 ### Review cherry-picks
 
 Check if there are outstanding cherry-picks into the release branch, [e.g. for `2.14.0`](https://github.com/apache/beam/pulls?utf8=%E2%9C%93&q=is%3Apr+base%3Arelease-2.14.0).
-Make sure they have blocker JIRAs attached and are OK to get into the release by checking with community if needed.
+Make sure they have blocker Issues attached and are OK to get into the release by checking with community if needed.
 
 As the Release Manager you are empowered to accept or reject cherry-picks to the release branch.
 You are encouraged to ask the following questions to be answered on each cherry-pick PR and you can choose to reject cherry-pick requests if these questions are not satisfactorily answered:
@@ -495,9 +492,9 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 * Release Manager’s GPG key is configured in `git` configuration;
 * Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus;
 * Release Manager’s Nexus User Token is configured in `settings.xml`;
-* JIRA release item for the subsequent release has been created;
-* All test failures from branch verification have associated JIRA issues;
-* There are no release blocking JIRA issues;
+* GitHub issue release item for the subsequent release has been created;
+* All test failures from branch verification have associated GitHub issues;
+* There are no release blocking GitHub issues;
 * Release branch has been created;
 * There are no open pull requests to release branch;
 * Originating branch has the version information updated to the new version;
@@ -673,7 +670,7 @@ all major features and bug fixes, and all known issues.
 
     <{$REMOVE_FOR_VALID_SUMMARY_BREAK}!--more-->
 
-    For more information on changes in {$RELEASE_VERSION}, check out the [detailed release notes]({$JIRA_RELEASE_NOTES}).
+    For more information on changes in {$RELEASE_VERSION}, check out the [detailed release notes]({$LINK_TO_GITHUB_MILESTONE}).
 
     ## Highlights
 
@@ -708,8 +705,6 @@ all major features and bug fixes, and all known issues.
 
     * {$KNOWN_ISSUE_1}
     * {$KNOWN_ISSUE_2}
-    * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
-
 
     ## List of Contributors
 
@@ -763,7 +758,7 @@ Here’s an email template; please adjust as you see fit.
     no issues are found.
 
     The complete staging area is available for your review, which includes:
-    * JIRA release notes [1],
+    * GitHub Release notes [1],
     * the official Apache source release to be deployed to dist.apache.org [2], which is signed with the key with fingerprint FFFFFFFF [3],
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
@@ -780,7 +775,7 @@ Here’s an email template; please adjust as you see fit.
     Thanks,
     Release Manager
 
-    [1] https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=...
+    [1] https://github.com/apache/beam/milestone/1...
     [2] https://dist.apache.org/repos/dist/dev/beam/1.2.3/
     [3] https://dist.apache.org/repos/dist/release/beam/KEYS
     [4] https://repository.apache.org/content/repositories/orgapachebeam-NNNN/
@@ -1053,7 +1048,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
 ### Fix any issues
 
 Any issues identified during the community review and vote should be fixed in this step.
-Additionally, any JIRA issues created from the initial branch verification should be fixed.
+Additionally, any GitHub issues created from the initial branch verification should be fixed.
 
 Code changes should be proposed as standard pull requests to the `master` branch and reviewed using the normal contributing process.
 Then, relevant changes should be cherry-picked into the release branch proposed as pull requests against the release branch, again reviewed and merged using the normal contributing process.
@@ -1184,10 +1179,9 @@ Copy the source release from the `dev` repository to the `release` repository at
 Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`.
 This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context.
 
-#### Mark the version as released in JIRA
+#### Mark the version as released in GitHub
 
-In JIRA, inside [version management](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions), hover over the current release and a settings menu will appear.
-Click `Release`, and select today’s date.
+In GitHub, in the [milestone page](https://github.com/apache/beam/milestones), click close on the current release.
 
 #### Recordkeeping with ASF
 
@@ -1201,9 +1195,7 @@ Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to s
 * Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged.
 * The release is tagged on Github's [Tags](https://github.com/apache/beam/tags) page.
 * The release notes are published on Github's [Releases](https://github.com/apache/beam/releases) page.
-* Release version finalized in JIRA.
-  (Note: Not all committers have administrator access to JIRA.
-  If you end up getting permissions errors ask on the mailing list for assistance.)
+* Release version finalized in GitHub.
 * Release version is listed at reporter.apache.org
 
 
