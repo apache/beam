@@ -1570,13 +1570,17 @@ public class FhirIO {
 
       @ProcessElement
       public void exportResources(ProcessContext context) throws IOException, InterruptedException {
-        String fhirStore = context.element();
+        final String fhirStore = context.element();
         final String exportUri = this.exportUri.get();
+
+        final String exportResultPath;
         Operation operation;
         if (exportUri.startsWith(GCS_PREFIX)) {
           operation = client.exportFhirResourceToGcs(fhirStore, exportUri);
+          exportResultPath = String.format("%s/*", exportUri.replaceAll("/+$", ""));
         } else if (exportUri.startsWith(BQ_PREFIX)) {
           operation = client.exportFhirResourceToBigQuery(fhirStore, exportUri);
+          exportResultPath = exportUri;
         } else {
           throw new RuntimeException(
               String.format(
@@ -1595,7 +1599,7 @@ public class FhirIO {
           throw new RuntimeException(
               String.format("Export operation (%s) failed.", operation.getName()));
         }
-        context.output(String.format("%s/*", exportUri.replaceAll("/+$", "")));
+        context.output(exportResultPath);
       }
     }
   }
