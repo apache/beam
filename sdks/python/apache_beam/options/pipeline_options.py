@@ -748,8 +748,8 @@ class GoogleCloudOptions(PipelineOptions):
         '--enable_artifact_caching',
         default=False,
         action='store_true',
-        help='When true, artifacts will be cached across job submissions in the '
-        'GCS staging bucket')
+        help='When true, artifacts will be cached across job submissions in '
+        'the GCS staging bucket')
     parser.add_argument(
         '--impersonate_service_account',
         default=None,
