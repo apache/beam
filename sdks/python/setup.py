@@ -283,7 +283,7 @@ if __name__ == '__main__':
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
             'google-cloud-language>=1.3.0,<2',
-            'google-cloud-videointelligence>=1.8.0,<2',
+            'google-cloud-videointelligence>=1.8.0,<3',
             'google-cloud-vision>=0.38.0,<2',
             'google-cloud-recommendations-ai>=0.1.0,<=0.2.0'
           ],
