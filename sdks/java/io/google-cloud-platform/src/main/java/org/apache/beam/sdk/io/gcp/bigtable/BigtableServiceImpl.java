@@ -307,15 +307,13 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
-      if (buffer.size() < refillSegmentWaterMark
-          && future == null /*&& !upstreamResourcesExhausted*/) {
+      if (buffer.size() < refillSegmentWaterMark && future == null) {
         future = fetchNextSegment();
       }
       if (buffer.isEmpty() && future != null) {
         waitReadRowsFuture();
       }
-      // If the last fill is equal to row limit, the lastFillComplete flag will not be true
-      // until another RPC is called which will return 0 rows
+      // The last requst will return an empty rowSet which will mean that there are no more rows to read
       if (buffer.isEmpty()) {
         return false;
       }
@@ -326,7 +324,6 @@ class BigtableServiceImpl implements BigtableService {
     Future<UpstreamResults> fetchNextSegment() {
       SettableFuture<UpstreamResults> f = SettableFuture.create();
       if (nextRequest == null) {
-        // upstreamResourcesExhausted = true;
         f.set(new UpstreamResults(ImmutableList.of(), null));
         return f;
       }
