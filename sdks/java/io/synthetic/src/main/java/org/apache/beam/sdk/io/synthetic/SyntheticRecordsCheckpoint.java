@@ -38,26 +38,21 @@ class SyntheticRecordsCheckpoint implements UnboundedSource.CheckpointMark {
         @Override
         public void encode(SyntheticRecordsCheckpoint value, OutputStream outStream)
             throws IOException {
-          LONG_CODER.encode(value.startPosition, outStream);
-          LONG_CODER.encode(value.endPosition, outStream);
+          LONG_CODER.encode(value.currentCheckMarkPosition, outStream);
         }
 
         @Override
         public SyntheticRecordsCheckpoint decode(InputStream inStream) throws IOException {
-          long startPosition = LONG_CODER.decode(inStream);
-          long endPosition = LONG_CODER.decode(inStream);
+          long currentCheckMarkPosition = LONG_CODER.decode(inStream);
 
-          return new SyntheticRecordsCheckpoint(startPosition, endPosition);
+          return new SyntheticRecordsCheckpoint(currentCheckMarkPosition);
         }
       };
 
-  private final long startPosition;
+  private final long currentCheckMarkPosition;
 
-  private final long endPosition;
-
-  public SyntheticRecordsCheckpoint(long startPosition, long endPosition) {
-    this.startPosition = startPosition;
-    this.endPosition = endPosition;
+  public SyntheticRecordsCheckpoint(long startPosition) {
+    this.currentCheckMarkPosition = startPosition;
   }
 
   @Override
@@ -65,11 +60,7 @@ class SyntheticRecordsCheckpoint implements UnboundedSource.CheckpointMark {
     // Nothing to finalize.
   }
 
-  public long getStartPosition() {
-    return startPosition;
-  }
-
-  public long getEndPosition() {
-    return endPosition;
+  public long getCurrentCheckMarkPosition() {
+    return currentCheckMarkPosition;
   }
 }
