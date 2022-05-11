@@ -21,7 +21,7 @@ setuptools
 wheel>=0.36.0
 
 grpcio-tools==1.37.0
-mypy-protobuf==1.18
+mypy-protobuf==3.2.0
 
 # Avoid https://github.com/pypa/virtualenv/issues/2006
 distlib==0.3.1
