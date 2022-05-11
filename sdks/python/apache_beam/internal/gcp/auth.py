@@ -70,11 +70,7 @@ def set_running_in_gce(worker_executing_project):
   executing_project = worker_executing_project
 
 
-def set_impersonation_accounts(impersonate_service_account=None):
-  _Credentials.set_impersonation_accounts(impersonate_service_account)
-
-
-def get_service_credentials():
+def get_service_credentials(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
   Get credentials to access Google services.
@@ -83,7 +79,7 @@ def get_service_credentials():
     A ``google.auth.credentials.Credentials`` object or None if credentials
     not found. Returned object is thread-safe.
   """
-  return _Credentials.get_service_credentials()
+  return _Credentials.get_service_credentials(pipeline_options)
 
 
 if _GOOGLE_AUTH_AVAILABLE:
@@ -124,11 +120,9 @@ class _Credentials(object):
 
   _delegate_accounts = None
   _target_principal = None
-  _impersonation_parameter_set = False
-  _impersonate_service_account = None
 
   @classmethod
-  def get_service_credentials(cls):
+  def get_service_credentials(cls, pipeline_options):
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
@@ -141,13 +135,13 @@ class _Credentials(object):
       _LOGGER.info(
           "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
-      cls._credentials = cls._get_service_credentials()
+      cls._credentials = cls._get_service_credentials(pipeline_options)
       cls._credentials_init = True
 
     return cls._credentials
 
   @staticmethod
-  def _get_service_credentials():
+  def _get_service_credentials(pipeline_options):
     if not _GOOGLE_AUTH_AVAILABLE:
       _LOGGER.warning(
           'Unable to find default credentials because the google-auth library '
@@ -157,7 +151,7 @@ class _Credentials(object):
 
     try:
       credentials, _ = google.auth.default(scopes=CLIENT_SCOPES)  # pylint: disable=c-extension-no-member
-      credentials = _Credentials._add_impersonation_credentials(credentials)
+      credentials = _Credentials._add_impersonation_credentials(credentials, pipeline_options)
       credentials = _ApitoolsCredentialsAdapter(credentials)
       logging.debug(
           'Connecting using Google Application Default '
@@ -171,16 +165,15 @@ class _Credentials(object):
       return None
 
   @classmethod
-  def set_impersonation_accounts(cls, impersonate_service_account):
-    cls._impersonate_service_account = impersonate_service_account
-    cls._impersonation_parameter_set = True
-
-  @classmethod
-  def _add_impersonation_credentials(cls, credentials):
-    if not cls._impersonation_parameter_set:
-      raise AssertionError('Impersonation credentials not yet set.')
-    """Adds impersonation credentials if the client species them."""
-    if cls._impersonate_service_account:
+  def _add_impersonation_credentials(cls, credentials, pipeline_options):
+    impersonate_service_account = None
+    if isinstance(pipeline_options, PipelineOptions):
+      gcs_options = pipeline_options.view_as(GoogleCloudOptions)
+      impersonate_service_account = gcs_options.impersonate_service_account
+    else:
+      impersonate_service_account = pipeline_options.get(
+        'impersonate_service_account')
+    if impersonate_service_account:
       _LOGGER.info('Impersonating: %s', cls._impersonate_service_account)
       impersonate_accounts = cls._impersonate_service_account.split(',')
       target_principal = impersonate_accounts[-1]

@@ -40,7 +40,6 @@ from google.protobuf.json_format import MessageToJson
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
-from apache_beam.internal.gcp.auth import set_impersonation_accounts
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -211,9 +210,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     if self._google_cloud_options.no_auth:
       credentials = None
     else:
-      set_impersonation_accounts(
-          self._google_cloud_options.impersonate_service_account)
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,
