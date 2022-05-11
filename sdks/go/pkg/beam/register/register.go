@@ -2277,8 +2277,8 @@ func (c *caller1x0[I0]) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *caller1x0[I0]) Call1x0(arg0 I0) {
-	c.fn(arg0)
+func (c *caller1x0[I0]) Call1x0(arg0 interface{}) {
+	c.fn(arg0.(I0))
 }
 
 func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn genericDoFn1x0[I0]) {
@@ -2348,8 +2348,8 @@ func (c *caller2x0[I0, I1]) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *caller2x0[I0, I1]) Call2x0(arg0 I0, arg1 I1) {
-	c.fn(arg0, arg1)
+func (c *caller2x0[I0, I1]) Call2x0(arg0 interface{}, arg1 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn genericDoFn2x0[I0, I1]) {
@@ -2419,8 +2419,8 @@ func (c *caller3x0[I0, I1, I2]) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *caller3x0[I0, I1, I2]) Call3x0(arg0 I0, arg1 I1, arg2 I2) {
-	c.fn(arg0, arg1, arg2)
+func (c *caller3x0[I0, I1, I2]) Call3x0(arg0 interface{}, arg1 interface{}, arg2 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn genericDoFn3x0[I0, I1, I2]) {
@@ -2490,8 +2490,8 @@ func (c *caller4x0[I0, I1, I2, I3]) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *caller4x0[I0, I1, I2, I3]) Call4x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3) {
-	c.fn(arg0, arg1, arg2, arg3)
+func (c *caller4x0[I0, I1, I2, I3]) Call4x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn genericDoFn4x0[I0, I1, I2, I3]) {
@@ -2561,8 +2561,8 @@ func (c *caller5x0[I0, I1, I2, I3, I4]) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *caller5x0[I0, I1, I2, I3, I4]) Call5x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4) {
-	c.fn(arg0, arg1, arg2, arg3, arg4)
+func (c *caller5x0[I0, I1, I2, I3, I4]) Call5x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn genericDoFn5x0[I0, I1, I2, I3, I4]) {
@@ -2632,8 +2632,8 @@ func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call(args []interface{}) []interface
 	return []interface{}{}
 }
 
-func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call6x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5) {
-	c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
+func (c *caller6x0[I0, I1, I2, I3, I4, I5]) Call6x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn genericDoFn6x0[I0, I1, I2, I3, I4, I5]) {
@@ -2703,8 +2703,8 @@ func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call(args []interface{}) []inter
 	return []interface{}{}
 }
 
-func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call7x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6) {
-	c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+func (c *caller7x0[I0, I1, I2, I3, I4, I5, I6]) Call7x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6]) {
@@ -2774,8 +2774,8 @@ func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call(args []interface{}) []i
 	return []interface{}{}
 }
 
-func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call8x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7) {
-	c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+func (c *caller8x0[I0, I1, I2, I3, I4, I5, I6, I7]) Call8x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]) {
@@ -2845,8 +2845,8 @@ func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Call(args []interface{})
 	return []interface{}{}
 }
 
-func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Call9x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8) {
-	c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+func (c *caller9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) Call9x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8 any](doFn genericDoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) {
@@ -2916,8 +2916,8 @@ func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Call(args []interfa
 	return []interface{}{}
 }
 
-func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Call10x0(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8, arg9 I9) {
-	c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+func (c *caller10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) Call10x0(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) {
+	c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn genericDoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) {
@@ -3058,8 +3058,8 @@ func (c *caller1x1[I0, R0]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0}
 }
 
-func (c *caller1x1[I0, R0]) Call1x1(arg0 I0) interface{} {
-	return c.fn(arg0)
+func (c *caller1x1[I0, R0]) Call1x1(arg0 interface{}) interface{} {
+	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn genericDoFn1x1[I0, R0]) {
@@ -3129,8 +3129,8 @@ func (c *caller2x1[I0, I1, R0]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0}
 }
 
-func (c *caller2x1[I0, I1, R0]) Call2x1(arg0 I0, arg1 I1) interface{} {
-	return c.fn(arg0, arg1)
+func (c *caller2x1[I0, I1, R0]) Call2x1(arg0 interface{}, arg1 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn genericDoFn2x1[I0, I1, R0]) {
@@ -3200,8 +3200,8 @@ func (c *caller3x1[I0, I1, I2, R0]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0}
 }
 
-func (c *caller3x1[I0, I1, I2, R0]) Call3x1(arg0 I0, arg1 I1, arg2 I2) interface{} {
-	return c.fn(arg0, arg1, arg2)
+func (c *caller3x1[I0, I1, I2, R0]) Call3x1(arg0 interface{}, arg1 interface{}, arg2 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn genericDoFn3x1[I0, I1, I2, R0]) {
@@ -3271,8 +3271,8 @@ func (c *caller4x1[I0, I1, I2, I3, R0]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0}
 }
 
-func (c *caller4x1[I0, I1, I2, I3, R0]) Call4x1(arg0 I0, arg1 I1, arg2 I2, arg3 I3) interface{} {
-	return c.fn(arg0, arg1, arg2, arg3)
+func (c *caller4x1[I0, I1, I2, I3, R0]) Call4x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn genericDoFn4x1[I0, I1, I2, I3, R0]) {
@@ -3342,8 +3342,8 @@ func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call(args []interface{}) []interface
 	return []interface{}{out0}
 }
 
-func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call5x1(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4) interface{} {
-	return c.fn(arg0, arg1, arg2, arg3, arg4)
+func (c *caller5x1[I0, I1, I2, I3, I4, R0]) Call5x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn genericDoFn5x1[I0, I1, I2, I3, I4, R0]) {
@@ -3413,8 +3413,8 @@ func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call(args []interface{}) []inter
 	return []interface{}{out0}
 }
 
-func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call6x1(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5) interface{} {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
+func (c *caller6x1[I0, I1, I2, I3, I4, I5, R0]) Call6x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0]) {
@@ -3484,8 +3484,8 @@ func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call(args []interface{}) []i
 	return []interface{}{out0}
 }
 
-func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call7x1(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6) interface{} {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+func (c *caller7x1[I0, I1, I2, I3, I4, I5, I6, R0]) Call7x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]) {
@@ -3555,8 +3555,8 @@ func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call(args []interface{})
 	return []interface{}{out0}
 }
 
-func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call8x1(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7) interface{} {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+func (c *caller8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) Call8x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) {
@@ -3626,8 +3626,8 @@ func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Call(args []interfac
 	return []interface{}{out0}
 }
 
-func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Call9x1(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8) interface{} {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+func (c *caller9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) Call9x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any](doFn genericDoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) {
@@ -3697,8 +3697,8 @@ func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Call(args []int
 	return []interface{}{out0}
 }
 
-func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Call10x1(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8, arg9 I9) interface{} {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+func (c *caller10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) Call10x1(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) interface{} {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any](doFn genericDoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) {
@@ -3839,8 +3839,8 @@ func (c *caller1x2[I0, R0, R1]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0, out1}
 }
 
-func (c *caller1x2[I0, R0, R1]) Call1x2(arg0 I0) (interface{}, interface{}) {
-	return c.fn(arg0)
+func (c *caller1x2[I0, R0, R1]) Call1x2(arg0 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn genericDoFn1x2[I0, R0, R1]) {
@@ -3910,8 +3910,8 @@ func (c *caller2x2[I0, I1, R0, R1]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0, out1}
 }
 
-func (c *caller2x2[I0, I1, R0, R1]) Call2x2(arg0 I0, arg1 I1) (interface{}, interface{}) {
-	return c.fn(arg0, arg1)
+func (c *caller2x2[I0, I1, R0, R1]) Call2x2(arg0 interface{}, arg1 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn genericDoFn2x2[I0, I1, R0, R1]) {
@@ -3981,8 +3981,8 @@ func (c *caller3x2[I0, I1, I2, R0, R1]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0, out1}
 }
 
-func (c *caller3x2[I0, I1, I2, R0, R1]) Call3x2(arg0 I0, arg1 I1, arg2 I2) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2)
+func (c *caller3x2[I0, I1, I2, R0, R1]) Call3x2(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn genericDoFn3x2[I0, I1, I2, R0, R1]) {
@@ -4052,8 +4052,8 @@ func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call(args []interface{}) []interface
 	return []interface{}{out0, out1}
 }
 
-func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call4x2(arg0 I0, arg1 I1, arg2 I2, arg3 I3) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3)
+func (c *caller4x2[I0, I1, I2, I3, R0, R1]) Call4x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn genericDoFn4x2[I0, I1, I2, I3, R0, R1]) {
@@ -4123,8 +4123,8 @@ func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call(args []interface{}) []inter
 	return []interface{}{out0, out1}
 }
 
-func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call5x2(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4)
+func (c *caller5x2[I0, I1, I2, I3, I4, R0, R1]) Call5x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1]) {
@@ -4194,8 +4194,8 @@ func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call(args []interface{}) []i
 	return []interface{}{out0, out1}
 }
 
-func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call6x2(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
+func (c *caller6x2[I0, I1, I2, I3, I4, I5, R0, R1]) Call6x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]) {
@@ -4265,8 +4265,8 @@ func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call(args []interface{})
 	return []interface{}{out0, out1}
 }
 
-func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call7x2(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+func (c *caller7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) Call7x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) {
@@ -4336,8 +4336,8 @@ func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call(args []interfac
 	return []interface{}{out0, out1}
 }
 
-func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call8x2(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+func (c *caller8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) Call8x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) {
@@ -4407,8 +4407,8 @@ func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Call(args []inte
 	return []interface{}{out0, out1}
 }
 
-func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Call9x2(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+func (c *caller9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) Call9x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any](doFn genericDoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) {
@@ -4478,8 +4478,8 @@ func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Call(args [
 	return []interface{}{out0, out1}
 }
 
-func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Call10x2(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8, arg9 I9) (interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+func (c *caller10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) Call10x2(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any](doFn genericDoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) {
@@ -4620,8 +4620,8 @@ func (c *caller1x3[I0, R0, R1, R2]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller1x3[I0, R0, R1, R2]) Call1x3(arg0 I0) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0)
+func (c *caller1x3[I0, R0, R1, R2]) Call1x3(arg0 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn genericDoFn1x3[I0, R0, R1, R2]) {
@@ -4691,8 +4691,8 @@ func (c *caller2x3[I0, I1, R0, R1, R2]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller2x3[I0, I1, R0, R1, R2]) Call2x3(arg0 I0, arg1 I1) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1)
+func (c *caller2x3[I0, I1, R0, R1, R2]) Call2x3(arg0 interface{}, arg1 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn genericDoFn2x3[I0, I1, R0, R1, R2]) {
@@ -4762,8 +4762,8 @@ func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call(args []interface{}) []interface
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call3x3(arg0 I0, arg1 I1, arg2 I2) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2)
+func (c *caller3x3[I0, I1, I2, R0, R1, R2]) Call3x3(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn genericDoFn3x3[I0, I1, I2, R0, R1, R2]) {
@@ -4833,8 +4833,8 @@ func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call(args []interface{}) []inter
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call4x3(arg0 I0, arg1 I1, arg2 I2, arg3 I3) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3)
+func (c *caller4x3[I0, I1, I2, I3, R0, R1, R2]) Call4x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2]) {
@@ -4904,8 +4904,8 @@ func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call(args []interface{}) []i
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call5x3(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4)
+func (c *caller5x3[I0, I1, I2, I3, I4, R0, R1, R2]) Call5x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]) {
@@ -4975,8 +4975,8 @@ func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call(args []interface{})
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call6x3(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
+func (c *caller6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) Call6x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) {
@@ -5046,8 +5046,8 @@ func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call(args []interfac
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call7x3(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+func (c *caller7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) Call7x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) {
@@ -5117,8 +5117,8 @@ func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call(args []inte
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call8x3(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+func (c *caller8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) Call8x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) {
@@ -5188,8 +5188,8 @@ func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Call(args []
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Call9x3(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+func (c *caller9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) Call9x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any](doFn genericDoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) {
@@ -5259,8 +5259,8 @@ func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Call(ar
 	return []interface{}{out0, out1, out2}
 }
 
-func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Call10x3(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8, arg9 I9) (interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+func (c *caller10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) Call10x3(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any](doFn genericDoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) {
@@ -5401,8 +5401,8 @@ func (c *caller1x4[I0, R0, R1, R2, R3]) Call(args []interface{}) []interface{} {
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller1x4[I0, R0, R1, R2, R3]) Call1x4(arg0 I0) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0)
+func (c *caller1x4[I0, R0, R1, R2, R3]) Call1x4(arg0 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn genericDoFn1x4[I0, R0, R1, R2, R3]) {
@@ -5472,8 +5472,8 @@ func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call(args []interface{}) []interface
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call2x4(arg0 I0, arg1 I1) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1)
+func (c *caller2x4[I0, I1, R0, R1, R2, R3]) Call2x4(arg0 interface{}, arg1 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn genericDoFn2x4[I0, I1, R0, R1, R2, R3]) {
@@ -5543,8 +5543,8 @@ func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call(args []interface{}) []inter
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call3x4(arg0 I0, arg1 I1, arg2 I2) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2)
+func (c *caller3x4[I0, I1, I2, R0, R1, R2, R3]) Call3x4(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3]) {
@@ -5614,8 +5614,8 @@ func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call(args []interface{}) []i
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call4x4(arg0 I0, arg1 I1, arg2 I2, arg3 I3) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3)
+func (c *caller4x4[I0, I1, I2, I3, R0, R1, R2, R3]) Call4x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]) {
@@ -5685,8 +5685,8 @@ func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call(args []interface{})
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call5x4(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4)
+func (c *caller5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) Call5x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) {
@@ -5756,8 +5756,8 @@ func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call(args []interfac
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call6x4(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
+func (c *caller6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) Call6x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) {
@@ -5827,8 +5827,8 @@ func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call(args []inte
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call7x4(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+func (c *caller7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) Call7x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) {
@@ -5898,8 +5898,8 @@ func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call(args []
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call8x4(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+func (c *caller8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) Call8x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) {
@@ -5969,8 +5969,8 @@ func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Call(arg
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Call9x4(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+func (c *caller9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) Call9x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any](doFn genericDoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) {
@@ -6040,8 +6040,8 @@ func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Cal
 	return []interface{}{out0, out1, out2, out3}
 }
 
-func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Call10x4(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8, arg9 I9) (interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+func (c *caller10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) Call10x4(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any](doFn genericDoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) {
@@ -6182,8 +6182,8 @@ func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Call(args []interface{}) []interface
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Call1x5(arg0 I0) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0)
+func (c *caller1x5[I0, R0, R1, R2, R3, R4]) Call1x5(arg0 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0))
 }
 
 func registerDoFn1x5StructWrappersAndFuncs[I0, R0, R1, R2, R3, R4 any](doFn genericDoFn1x5[I0, R0, R1, R2, R3, R4]) {
@@ -6253,8 +6253,8 @@ func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Call(args []interface{}) []inter
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Call2x5(arg0 I0, arg1 I1) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1)
+func (c *caller2x5[I0, I1, R0, R1, R2, R3, R4]) Call2x5(arg0 interface{}, arg1 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1))
 }
 
 func registerDoFn2x5StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3, R4 any](doFn genericDoFn2x5[I0, I1, R0, R1, R2, R3, R4]) {
@@ -6324,8 +6324,8 @@ func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Call(args []interface{}) []i
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Call3x5(arg0 I0, arg1 I1, arg2 I2) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2)
+func (c *caller3x5[I0, I1, I2, R0, R1, R2, R3, R4]) Call3x5(arg0 interface{}, arg1 interface{}, arg2 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2))
 }
 
 func registerDoFn3x5StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3, R4 any](doFn genericDoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4]) {
@@ -6395,8 +6395,8 @@ func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Call(args []interface{})
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Call4x5(arg0 I0, arg1 I1, arg2 I2, arg3 I3) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3)
+func (c *caller4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) Call4x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3))
 }
 
 func registerDoFn4x5StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3, R4 any](doFn genericDoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) {
@@ -6466,8 +6466,8 @@ func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Call(args []interfac
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Call5x5(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4)
+func (c *caller5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) Call5x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4))
 }
 
 func registerDoFn5x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any](doFn genericDoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) {
@@ -6537,8 +6537,8 @@ func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Call(args []inte
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Call6x5(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5)
+func (c *caller6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) Call6x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5))
 }
 
 func registerDoFn6x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any](doFn genericDoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) {
@@ -6608,8 +6608,8 @@ func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Call(args []
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Call7x5(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+func (c *caller7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) Call7x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6))
 }
 
 func registerDoFn7x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any](doFn genericDoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) {
@@ -6679,8 +6679,8 @@ func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Call(arg
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Call8x5(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+func (c *caller8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) Call8x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7))
 }
 
 func registerDoFn8x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any](doFn genericDoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) {
@@ -6750,8 +6750,8 @@ func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Call
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Call9x5(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+func (c *caller9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) Call9x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8))
 }
 
 func registerDoFn9x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any](doFn genericDoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) {
@@ -6821,8 +6821,8 @@ func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4])
 	return []interface{}{out0, out1, out2, out3, out4}
 }
 
-func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) Call10x5(arg0 I0, arg1 I1, arg2 I2, arg3 I3, arg4 I4, arg5 I5, arg6 I6, arg7 I7, arg8 I8, arg9 I9) (interface{}, interface{}, interface{}, interface{}, interface{}) {
-	return c.fn(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+func (c *caller10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) Call10x5(arg0 interface{}, arg1 interface{}, arg2 interface{}, arg3 interface{}, arg4 interface{}, arg5 interface{}, arg6 interface{}, arg7 interface{}, arg8 interface{}, arg9 interface{}) (interface{}, interface{}, interface{}, interface{}, interface{}) {
+	return c.fn(arg0.(I0), arg1.(I1), arg2.(I2), arg3.(I3), arg4.(I4), arg5.(I5), arg6.(I6), arg7.(I7), arg8.(I8), arg9.(I9))
 }
 
 func registerDoFn10x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any](doFn genericDoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) {
