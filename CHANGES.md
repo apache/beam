@@ -163,6 +163,10 @@
   * This caused unnecessarily long pre-processing times before job submission for large complex pipelines.
 * Fix `pyarrow` version parsing (Python)([BEAM-14235](https://issues.apache.org/jira/browse/BEAM-14235))
 
+## Known Issues
+
+* Some pipelines that use Java SpannerIO may raise a NPE when the project ID is not specified ([BEAM-14405](https://issues.apache.org/jira/browse/BEAM-14405))
+
 # [2.37.0] - 2022-03-04
 
 ## Highlights
@@ -195,6 +199,9 @@
 
 ## Known Issues
 
+* On rare occations, Python Datastore source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+* On rare occations, Python GCS source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+
 # [2.36.0] - 2022-02-07
 
 ## I/Os
@@ -224,6 +231,9 @@
 * Users may encounter an unexpected java.lang.ArithmeticException when outputting a timestamp
   for an element further than allowedSkew from an allowed DoFN skew set to a value more than
   Integer.MAX_VALUE.
+* On rare occations, Python Datastore source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+* On rare occations, Python GCS source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+* On rare occations, Java SpannerIO source may swallow some exceptions. Users are adviced to upgrade to Beam 2.37.0 or later ([BEAM-14005](https://issues.apache.org/jira/browse/BEAM-14005))
 
 # [2.35.0] - 2021-12-29
 
@@ -277,6 +287,9 @@
 ## Known Issues
 
 * Users of beam-sdks-java-io-hcatalog (and beam-sdks-java-extensions-sql-hcatalog) must take care to override the transitive log4j dependency when they add a hive dependency ([BEAM-13499](https://issues.apache.org/jira/browse/BEAM-13499)).
+* On rare occations, Python Datastore source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+* On rare occations, Python GCS source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+* On rare occations, Java SpannerIO source may swallow some exceptions. Users are adviced to upgrade to Beam 2.37.0 or later ([BEAM-14005](https://issues.apache.org/jira/browse/BEAM-14005))
 
 # [2.34.0] - 2021-11-11
 
@@ -312,6 +325,12 @@
 * Fixed error while writing multiple DeferredFrames to csv (Python) ([BEAM-12701](https://issues.apache.org/jira/browse/BEAM-12701)).
 * Fixed error when importing the DataFrame API with pandas 1.0.x installed ([BEAM-12945](https://issues.apache.org/jira/browse/BEAM-12945)).
 * Fixed top.SmallestPerKey implementation in the Go SDK ([BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)).
+
+## Known Issues
+
+* On rare occations, Python Datastore source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+* On rare occations, Python GCS source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
+* On rare occations, Java SpannerIO source may swallow some exceptions. Users are adviced to upgrade to Beam 2.37.0 or later ([BEAM-14005](https://issues.apache.org/jira/browse/BEAM-14005))
 
 # [2.33.0] - 2021-10-07
 
@@ -361,6 +380,7 @@
 
 * Spark 2.x users will need to update Spark's Jackson runtime dependencies (`spark.jackson.version`) to at least version 2.9.2, due to Beam updating its dependencies.
 * Go SDK jobs may produce "Failed to deduce Step from MonitoringInfo" messages following successful job execution. The messages are benign and don't indicate job failure. These are due to not yet handling PCollection metrics.
+* On rare occations, Python GCS source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
 
 # [2.32.0] - 2021-08-25
 
@@ -415,6 +435,9 @@
 ## Bugfixes
 
 * Fixed race condition in RabbitMqIO causing duplicate acks (Java) ([BEAM-6516](https://issues.apache.org/jira/browse/BEAM-6516)))
+
+## Known Issues
+* On rare occations, Python GCS source may swallow some exceptions. Users are adviced to upgrade to Beam 2.38.0 or later ([BEAM-14282](https://issues.apache.org/jira/browse/BEAM-14282))
 
 # [2.31.0] - 2021-07-08
 
