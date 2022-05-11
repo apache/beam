@@ -146,7 +146,8 @@ def get_or_create_default_gcs_bucket(options):
         'Creating default GCS bucket for project %s: gs://%s',
         project,
         bucket_name)
-    return GcsIO(pipeline_options=options).create_bucket(bucket_name, project, location=region)
+    return GcsIO(pipeline_options=options).create_bucket(
+        bucket_name, project, location=region)
 
 
 class GcsIOError(IOError, retry.PermanentException):
