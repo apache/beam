@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Code generated from registration.tmpl. DO NOT EDIT.
+// Code generated from register.tmpl. DO NOT EDIT.
 
-package registration
+package register
 
 import (
 	"context"
