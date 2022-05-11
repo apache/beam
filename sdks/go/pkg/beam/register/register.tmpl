@@ -151,8 +151,8 @@ func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepre
 	return []interface{}{ {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}}{{end}} }
 }
 
-func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}interface{}{{end}}){{end}} {
-    {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}{{end}})
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} interface{}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}interface{}{{end}}){{end}} {
+    {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}.(I{{$in}}){{end}})
 }
 
 func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
