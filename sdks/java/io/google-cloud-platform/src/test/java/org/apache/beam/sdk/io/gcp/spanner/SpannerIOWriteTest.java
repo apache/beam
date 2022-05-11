@@ -152,7 +152,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private static Struct columnMetadata(
+  static Struct columnMetadata(
       String tableName, String columnName, String type, long cellsMutated) {
     return Struct.newBuilder()
         .set("table_name")
@@ -166,7 +166,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private static Struct pkMetadata(String tableName, String columnName, String ordering) {
+  static Struct pkMetadata(String tableName, String columnName, String ordering) {
     return Struct.newBuilder()
         .set("table_name")
         .to(tableName)
@@ -177,7 +177,7 @@ public class SpannerIOWriteTest implements Serializable {
         .build();
   }
 
-  private void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+  static void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type =
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
@@ -200,7 +200,7 @@ public class SpannerIOWriteTest implements Serializable {
         .thenReturn(ResultSets.forRows(type, rows));
   }
 
-  private void preparePgColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+  static void preparePgColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type =
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
@@ -225,7 +225,7 @@ public class SpannerIOWriteTest implements Serializable {
         .thenReturn(ResultSets.forRows(type, rows));
   }
 
-  private void preparePkMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
+  static void preparePkMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type =
         Type.struct(
             Type.StructField.of("table_name", Type.string()),
@@ -836,13 +836,15 @@ public class SpannerIOWriteTest implements Serializable {
               assertEquals(1, Iterables.size(m));
               return null;
             });
-    pipeline.run().waitUntilFinish();
-
-    // 0 calls to sleeper
-    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
-    // 5 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(5))
-        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+    try {
+      pipeline.run().waitUntilFinish();
+    } finally {
+      // 0 calls to sleeper
+      verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+      // 5 write attempts for the single mutationGroup.
+      verify(serviceFactory.mockDatabaseClient(), times(5))
+          .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+    }
   }
 
   @Test
@@ -893,8 +895,8 @@ public class SpannerIOWriteTest implements Serializable {
               assertEquals(0, Iterables.size(m));
               return null;
             });
-    pipeline.run().waitUntilFinish();
 
+    pipeline.run().waitUntilFinish();
     // 2 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
     // 8 write attempts for the single mutationGroup.
@@ -1466,11 +1468,11 @@ public class SpannerIOWriteTest implements Serializable {
     verify(serviceFactory.mockSpanner(), times(2)).close();
   }
 
-  private static MutationGroup g(Mutation m, Mutation... other) {
+  static MutationGroup g(Mutation m, Mutation... other) {
     return MutationGroup.create(m, other);
   }
 
-  private static Mutation m(Long key) {
+  static Mutation m(Long key) {
     return Mutation.newInsertOrUpdateBuilder("test").set("key").to(key).build();
   }
 
