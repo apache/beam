@@ -170,6 +170,8 @@ class _Credentials(object):
 
   @staticmethod
   def _add_impersonation_credentials(credentials, pipeline_options):
+    if not pipeline_options:
+      return credentials
     if isinstance(pipeline_options, PipelineOptions):
       gcs_options = pipeline_options.view_as(GoogleCloudOptions)
       impersonate_service_account = gcs_options.impersonate_service_account
