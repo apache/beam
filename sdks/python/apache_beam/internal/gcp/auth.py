@@ -181,7 +181,7 @@ class _Credentials(object):
       raise AssertionError('Impersonation credentials not yet set.')
     """Adds impersonation credentials if the client species them."""
     if cls._impersonate_service_account:
-      _LOGGER.info('Impersonating: ' + str(cls._impersonate_service_account))
+      _LOGGER.info('Impersonating: %s', cls._impersonate_service_account)
       impersonate_accounts = cls._impersonate_service_account.split(',')
       target_principal = impersonate_accounts[-1]
       delegate_to = impersonate_accounts[0:-1]
