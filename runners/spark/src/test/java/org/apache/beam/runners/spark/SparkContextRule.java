@@ -30,6 +30,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.rules.ExternalResource;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 
 public class SparkContextRule extends ExternalResource implements Serializable {
   private transient SparkConf sparkConf;
@@ -38,7 +40,7 @@ public class SparkContextRule extends ExternalResource implements Serializable {
   public SparkContextRule(String sparkMaster, Map<String, String> sparkConfig) {
     sparkConf = new SparkConf();
     sparkConfig.forEach(sparkConf::set);
-    sparkConf.setMaster(sparkMaster).setAppName(sparkMaster);
+    sparkConf.setMaster(sparkMaster);
   }
 
   public SparkContextRule(KV<String, String>... sparkConfig) {
@@ -68,6 +70,12 @@ public class SparkContextRule extends ExternalResource implements Serializable {
   }
 
   @Override
+  public Statement apply(Statement base, Description description) {
+    sparkConf.setAppName(description.getDisplayName());
+    return super.apply(base, description);
+  }
+
+  @Override
   protected void before() throws Throwable {
     sparkContext = new JavaSparkContext(sparkConf);
     SparkContextFactory.setProvidedSparkContext(sparkContext);
@@ -77,5 +85,6 @@ public class SparkContextRule extends ExternalResource implements Serializable {
   protected void after() {
     SparkContextFactory.clearProvidedSparkContext();
     getSparkContext().stop();
+    sparkContext = null;
   }
 }

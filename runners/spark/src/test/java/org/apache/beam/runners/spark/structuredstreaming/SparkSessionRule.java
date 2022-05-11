@@ -26,6 +26,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.sql.SparkSession;
 import org.junit.rules.ExternalResource;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 
 public class SparkSessionRule extends ExternalResource implements Serializable {
   private transient SparkSession.Builder builder;
@@ -34,7 +36,7 @@ public class SparkSessionRule extends ExternalResource implements Serializable {
   public SparkSessionRule(String sparkMaster, Map<String, String> sparkConfig) {
     builder = SparkSession.builder();
     sparkConfig.forEach(builder::config);
-    builder.master(sparkMaster).appName("test");
+    builder.master(sparkMaster);
   }
 
   public SparkSessionRule(KV<String, String>... sparkConfig) {
@@ -53,6 +55,12 @@ public class SparkSessionRule extends ExternalResource implements Serializable {
   }
 
   @Override
+  public Statement apply(Statement base, Description description) {
+    builder.appName(description.getDisplayName());
+    return super.apply(base, description);
+  }
+
+  @Override
   protected void before() throws Throwable {
     session = builder.getOrCreate();
   }
@@ -60,5 +68,6 @@ public class SparkSessionRule extends ExternalResource implements Serializable {
   @Override
   protected void after() {
     getSession().stop();
+    session = null;
   }
 }

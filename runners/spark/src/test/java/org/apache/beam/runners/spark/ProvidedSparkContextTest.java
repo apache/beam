@@ -54,7 +54,8 @@ public class ProvidedSparkContextTest {
   private static final String PROVIDED_CONTEXT_EXCEPTION =
       "The provided Spark context was not created or was stopped";
 
-  @ClassRule public static SparkContextOptionsRule contextRule = new SparkContextOptionsRule();
+  @ClassRule
+  public static SparkContextOptionsRule contextOptionsRule = new SparkContextOptionsRule();
 
   /** Provide a context and call pipeline run. */
   @Test
@@ -64,14 +65,14 @@ public class ProvidedSparkContextTest {
     result.waitUntilFinish();
     TestPipeline.verifyPAssertsSucceeded(p, result);
     // A provided context must not be stopped after execution
-    assertFalse(contextRule.getSparkContext().sc().isStopped());
+    assertFalse(contextOptionsRule.getSparkContext().sc().isStopped());
   }
 
   /** A SparkRunner with a stopped provided Spark context cannot run pipelines. */
   @Test
   public void testBWithStoppedProvidedContext() {
     // Stop the provided Spark context
-    contextRule.getSparkContext().sc().stop();
+    contextOptionsRule.getSparkContext().sc().stop();
     assertThrows(
         PROVIDED_CONTEXT_EXCEPTION,
         RuntimeException.class,
@@ -81,7 +82,7 @@ public class ProvidedSparkContextTest {
   /** Provide a context and call pipeline run. */
   @Test
   public void testCWithNullContext() {
-    contextRule.getOptions().setProvidedSparkContext(null);
+    contextOptionsRule.getOptions().setProvidedSparkContext(null);
     assertThrows(
         PROVIDED_CONTEXT_EXCEPTION,
         RuntimeException.class,
@@ -89,7 +90,7 @@ public class ProvidedSparkContextTest {
   }
 
   private Pipeline createPipeline() {
-    Pipeline p = Pipeline.create(contextRule.getOptions());
+    Pipeline p = Pipeline.create(contextOptionsRule.getOptions());
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
     PCollection<String> output =
         inputWords

@@ -44,8 +44,8 @@ public class SparkPipelineStateTest implements Serializable {
 
   @ClassRule public static SparkContextRule contextRule = new SparkContextRule();
 
-  private static class MyCustomException extends RuntimeException {
-    MyCustomException(final String message) {
+  private static class CustomException extends RuntimeException {
+    CustomException(final String message) {
       super(message);
     }
   }
@@ -53,7 +53,7 @@ public class SparkPipelineStateTest implements Serializable {
   private static class FailAlways extends SimpleFunction<String, String> {
     @Override
     public String apply(final String input) {
-      throw new MyCustomException(FAILED_THE_BATCH_INTENTIONALLY);
+      throw new CustomException(FAILED_THE_BATCH_INTENTIONALLY);
     }
   }
 
@@ -84,17 +84,18 @@ public class SparkPipelineStateTest implements Serializable {
 
     PipelineExecutionException e =
         assertThrows(PipelineExecutionException.class, () -> result.waitUntilFinish());
-    assertThat(e.getCause(), instanceOf(MyCustomException.class));
+    assertThat(e.getCause(), instanceOf(CustomException.class));
     assertThat(e.getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
     assertThat(result.getState(), is(PipelineResult.State.FAILED));
     result.cancel();
   }
 
-  private void testTimeoutPipeline(boolean isStreaming) throws Exception {
+  private void testWaitUntilFinishedTimeout(boolean isStreaming) throws Exception {
     Pipeline pipeline = createPipeline(isStreaming, null);
     SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
     result.waitUntilFinish(millis(1));
 
+    // Wait timed out, pipeline is still running
     assertThat(result.getState(), is(PipelineResult.State.RUNNING));
     result.cancel();
   }
@@ -144,12 +145,12 @@ public class SparkPipelineStateTest implements Serializable {
   }
 
   @Test
-  public void testStreamingPipelineTimeoutState() throws Exception {
-    testTimeoutPipeline(true);
+  public void testStreamingPipelineWaitTimeout() throws Exception {
+    testWaitUntilFinishedTimeout(true);
   }
 
   @Test
-  public void testBatchPipelineTimeoutState() throws Exception {
-    testTimeoutPipeline(false);
+  public void testBatchPipelineWaitTimeout() throws Exception {
+    testWaitUntilFinishedTimeout(false);
   }
 }

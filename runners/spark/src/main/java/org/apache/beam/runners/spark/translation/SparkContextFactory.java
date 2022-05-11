@@ -43,7 +43,9 @@ public final class SparkContextFactory {
 
   // Spark allows only one context for JVM so this can be static.
   private static @Nullable JavaSparkContext sparkContext;
-  private static @Nullable String sparkMaster;
+
+  // Remember spark master if TEST_REUSE_SPARK_CONTEXT is enabled.
+  private static @Nullable String reusableSparkMaster;
 
   private static boolean hasProvidedSparkContext;
 
@@ -61,7 +63,7 @@ public final class SparkContextFactory {
   public static synchronized void setProvidedSparkContext(JavaSparkContext providedSparkContext) {
     sparkContext = checkNotNull(providedSparkContext);
     hasProvidedSparkContext = true;
-    sparkMaster = null;
+    reusableSparkMaster = null;
   }
 
   public static synchronized void clearProvidedSparkContext() {
@@ -93,16 +95,17 @@ public final class SparkContextFactory {
       @Nullable JavaSparkContext jsc = sparkContext;
       if (jsc == null || jsc.sc().isStopped()) {
         sparkContext = jsc = createSparkContext(contextOptions);
-        sparkMaster = options.getSparkMaster();
+        reusableSparkMaster = options.getSparkMaster();
         hasProvidedSparkContext = false;
       } else if (hasProvidedSparkContext) {
-        throw new IllegalStateException("Usage of provided Spark context is disabled.");
-      } else if (!options.getSparkMaster().equals(sparkMaster)) {
+        throw new IllegalStateException(
+            "Usage of provided Spark context is disabled in SparkPipelineOptions.");
+      } else if (!options.getSparkMaster().equals(reusableSparkMaster)) {
         throw new IllegalStateException(
             String.format(
                 "Cannot reuse spark context "
                     + "with different spark master URL. Existing: %s, requested: %s.",
-                sparkMaster, options.getSparkMaster()));
+                reusableSparkMaster, options.getSparkMaster()));
       }
       return jsc;
     } else {
