@@ -364,3 +364,30 @@ task validatesContainer() {
     }
   }
 }
+
+task torchTests {
+    dependsOn 'installGcpTest'
+    dependsOn ':sdks:python:sdist'
+
+doFirst {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/ml/inference"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r torch_tests_requirements.txt"
+    }
+  }
+doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "suite": "postCommitIT-df${pythonVersionSuffix}",
+        "collect": "uses_pytorch and it_postcommit"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}

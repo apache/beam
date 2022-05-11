@@ -82,7 +82,8 @@ class PyTorchInference(unittest.TestCase):
         'images_dir': images_dir,
     }
     pytorch_image_classification.run(
-        test_pipeline.get_full_options_as_args(**extra_opts))
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
 
     output_file = output + '.txt'
     self.assertEqual(FileSystems().exists(output_file), True)
