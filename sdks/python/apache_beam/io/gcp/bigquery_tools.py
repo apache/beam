@@ -1360,11 +1360,6 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
           source.pipeline_options.view_as(GoogleCloudOptions).project)
     else:
       self.executing_project = None
-    if hasattr(source, 'pipeline_options'):
-      gcs_options = source.pipeline_options.view_as(GoogleCloudOptions)
-      auth.set_impersonation_accounts(gcs_options.impersonate_service_account)
-    else:
-      auth.set_impersonation_accounts(None)
 
     # TODO(silviuc): Try to automatically get it from gcloud config info.
     if not self.executing_project and test_bigquery_client is None:
