@@ -24,7 +24,7 @@ import com.pholser.junit.quickcheck.random.SourceOfRandomness;
 import java.util.concurrent.TimeUnit;
 
 public class TimestampGenerator extends Generator<Timestamp> {
-  private static final long MIN_SECONDS = Timestamp.MIN_VALUE.getSeconds();
+  private static final long MIN_SECONDS = 0;
   private static final long MAX_SECONDS = Timestamp.MAX_VALUE.getSeconds();
   private static final int NANOS_PER_SECOND = (int) TimeUnit.SECONDS.toNanos(1);
 

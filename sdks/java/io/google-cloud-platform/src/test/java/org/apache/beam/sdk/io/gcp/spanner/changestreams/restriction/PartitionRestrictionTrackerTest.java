@@ -41,13 +41,17 @@ import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.PartitionPositionGenerator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TimestampGenerator;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(JUnitQuickcheck.class)
 public class PartitionRestrictionTrackerTest {
 
   private static final String PARTITION_TOKEN = "partitionToken";
+  private static final int TOTAL_MODE_TRANSITIONS = 3;
+  private static final double DELTA = 1e-10;
 
   // Test that trySplit returns null when no position was claimed.
   @Property
@@ -663,5 +667,213 @@ public class PartitionRestrictionTrackerTest {
     final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(stoppedRestriction);
 
     tracker.checkDone();
+  }
+
+  @Property
+  public void testGetProgressWorkCompletedAndWorkRemaining(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to,
+      @From(TimestampGenerator.class) Timestamp curTimestamp) {
+    assumeThat(from, lessThan(to));
+    assumeThat(curTimestamp, greaterThanOrEqualTo(from));
+    assumeThat(curTimestamp, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.queryChangeStream(from, to)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    final PartitionPosition position = PartitionPosition.queryChangeStream(curTimestamp);
+
+    assertTrue(tracker.tryClaim(position));
+    final Progress progress = tracker.getProgress();
+
+    final long queryChangeStreamModes = 1;
+    assertEquals(
+        position.getTimestamp().get().getSeconds() + queryChangeStreamModes,
+        progress.getWorkCompleted(),
+        DELTA);
+    assertEquals(
+        to.getSeconds()
+            + TOTAL_MODE_TRANSITIONS
+            - (position.getTimestamp().get().getSeconds() + queryChangeStreamModes),
+        progress.getWorkRemaining(),
+        DELTA);
+  }
+
+  @Property
+  public void testGetProgressWaitForChildPartitions(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.queryChangeStream(from, to)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    final PartitionPosition position = PartitionPosition.waitForChildPartitions();
+
+    assertTrue(tracker.tryClaim(position));
+    final Progress progress = tracker.getProgress();
+
+    final long waitForChildPartitionsModes = 2;
+    assertEquals(to.getSeconds() + waitForChildPartitionsModes, progress.getWorkCompleted(), DELTA);
+    assertEquals(
+        TOTAL_MODE_TRANSITIONS - waitForChildPartitionsModes, progress.getWorkRemaining(), DELTA);
+  }
+
+  @Property
+  public void testGetProgressWaitForChildPartitionsNoStateClaimed(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, greaterThanOrEqualTo(Timestamp.MIN_VALUE));
+    assumeThat(from, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.waitForChildPartitions(from, to)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    final Progress progress = tracker.getProgress();
+
+    final long waitForChildPartitionsModes = 2;
+    assertEquals(to.getSeconds() + waitForChildPartitionsModes, progress.getWorkCompleted(), DELTA);
+    assertEquals(
+        TOTAL_MODE_TRANSITIONS - waitForChildPartitionsModes, progress.getWorkRemaining(), DELTA);
+  }
+
+  @Property
+  public void testGetProgressUpdateState(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.updateState(from, to)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    final PartitionPosition position = PartitionPosition.updateState();
+
+    assertTrue(tracker.tryClaim(position));
+    final Progress progress = tracker.getProgress();
+
+    assertEquals(from.getSeconds(), progress.getWorkCompleted(), DELTA);
+    assertEquals(
+        to.getSeconds() - from.getSeconds() + TOTAL_MODE_TRANSITIONS,
+        progress.getWorkRemaining(),
+        DELTA);
+  }
+
+  @Property
+  public void testGetProgressUpdateStateNoPositionClaimed(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.updateState(from, to)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    final Progress progress = tracker.getProgress();
+
+    assertEquals(from.getSeconds(), progress.getWorkCompleted(), DELTA);
+    assertEquals(
+        to.getSeconds() - from.getSeconds() + TOTAL_MODE_TRANSITIONS,
+        progress.getWorkRemaining(),
+        DELTA);
+  }
+
+  @Property
+  public void testGetProgressDone(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.waitForChildPartitions(from, to)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    final PartitionPosition position = PartitionPosition.done();
+
+    assertTrue(tracker.tryClaim(position));
+
+    final Progress progress = tracker.getProgress();
+
+    assertEquals(to.getSeconds() + TOTAL_MODE_TRANSITIONS, progress.getWorkCompleted(), DELTA);
+    assertEquals(1, progress.getWorkRemaining(), DELTA);
+  }
+
+  @Property
+  public void testGetProgressStop(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.waitForChildPartitions(from, to)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+
+    final PartitionRestriction stoppedRestriction = PartitionRestriction.stop(restriction);
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(stoppedRestriction);
+
+    final Progress progress = tracker.getProgress();
+
+    assertEquals(to.getSeconds() + TOTAL_MODE_TRANSITIONS, progress.getWorkCompleted(), DELTA);
+    assertEquals(1, progress.getWorkRemaining(), DELTA);
+  }
+
+  @Test
+  public void testGetProgressForStreaming() {
+    final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
+    final Timestamp current = Timestamp.ofTimeSecondsAndNanos(101, 0);
+    final PartitionPosition position = PartitionPosition.queryChangeStream(current);
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.queryChangeStream(from, Timestamp.MAX_VALUE)
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    tracker.setTimeSupplier(
+        () -> Timestamp.ofTimeSecondsAndNanos(position.getTimestamp().get().getSeconds() + 10, 0));
+    tracker.tryClaim(position);
+
+    final Progress progress = tracker.getProgress();
+
+    final long queryChangeStreamTransitions = 1;
+    assertTrue(progress.getWorkCompleted() >= 0);
+    assertEquals(101D + queryChangeStreamTransitions, progress.getWorkCompleted(), DELTA);
+    assertTrue(progress.getWorkRemaining() >= 0);
+    assertEquals(
+        10D + TOTAL_MODE_TRANSITIONS - queryChangeStreamTransitions,
+        progress.getWorkRemaining(),
+        DELTA);
   }
 }

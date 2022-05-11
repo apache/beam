@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
+import java.math.BigDecimal;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,24 +40,26 @@ public class PartitionRestrictionProgressCheckerTest {
   public void testRestrictionUpdateStateAndLastClaimedPositionNull() {
     final PartitionRestriction restriction =
         PartitionRestriction.updateState(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 0), Timestamp.ofTimeSecondsAndNanos(60L, 0));
 
-    final Progress progress = progressChecker.getProgress(restriction, null);
+    final Progress progress =
+        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(0D, 1D), progress);
+    assertEquals(Progress.from(0D, 63D), progress);
   }
 
   @Test
   public void testRestrictionUpdateStateAndLastClaimedPositionUpdateState() {
     final PartitionRestriction restriction =
         PartitionRestriction.updateState(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 0), Timestamp.ofTimeSecondsAndNanos(60L, 60));
 
     final PartitionPosition position = PartitionPosition.updateState();
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(0D, 1D), progress);
+    assertEquals(Progress.from(0D, 63D), progress);
   }
 
   // ------------------------
@@ -65,61 +68,66 @@ public class PartitionRestrictionProgressCheckerTest {
   public void testRestrictionQueryChangeStreamAndLastClaimedPositionNull() {
     final PartitionRestriction restriction =
         PartitionRestriction.queryChangeStream(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
 
-    final Progress progress = progressChecker.getProgress(restriction, null);
+    final Progress progress =
+        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(1D / 53D, 52D / 53D), progress);
+    assertEquals(Progress.from(1D, 62D), progress);
   }
 
   @Test
   public void testRestrictionQueryChangeStreamAndLastClaimedPositionQueryChangeStream() {
     final PartitionRestriction restriction =
         PartitionRestriction.queryChangeStream(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position =
-        PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(0L, 30));
+        PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(30L, 30));
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(21D / 53D, 32D / 53D), progress);
+    assertEquals(Progress.from(31D, 32D), progress);
   }
 
   @Test
   public void testRestrictionQueryChangeStreamAndLastClaimedPositionEndOfQueryChangeStream() {
     final PartitionRestriction restriction =
         PartitionRestriction.queryChangeStream(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position =
-        PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(0L, 60));
+        PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(60L, 60));
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(51D / 53D, 2D / 53D), progress);
+    assertEquals(Progress.from(61D, 2D), progress);
   }
 
   @Test
   public void testRestrictionQueryChangeStreamAndLastClaimedPositionWaitForChildPartitions() {
     final PartitionRestriction restriction =
         PartitionRestriction.queryChangeStream(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.waitForChildPartitions();
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(52D / 53D, 1D / 53D), progress);
+    assertEquals(Progress.from(62D, 1D), progress);
   }
 
   @Test
   public void testRestrictionQueryChangeStreamAndLastClaimedPositionDone() {
     final PartitionRestriction restriction =
         PartitionRestriction.queryChangeStream(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.done();
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(1D, 0D), progress);
+    assertEquals(Progress.from(63D, 1D), progress);
   }
 
   // ------------------------------
@@ -128,35 +136,38 @@ public class PartitionRestrictionProgressCheckerTest {
   public void testRestrictionWaitForChildPartitionsAndLastClaimedPositionNull() {
     final PartitionRestriction restriction =
         PartitionRestriction.waitForChildPartitions(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
 
-    final Progress progress = progressChecker.getProgress(restriction, null);
+    final Progress progress =
+        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(52D / 53D, 1D / 53D), progress);
+    assertEquals(Progress.from(62D, 1D), progress);
   }
 
   @Test
   public void testRestrictionWaitForChildPartitionsAndLastClaimedPositionWaitForChildPartitions() {
     final PartitionRestriction restriction =
         PartitionRestriction.waitForChildPartitions(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.waitForChildPartitions();
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(52D / 53D, 1D / 53D), progress);
+    assertEquals(Progress.from(62D, 1D), progress);
   }
 
   @Test
   public void testRestrictionWaitForChildPartitionsAndLastClaimedPositionDone() {
     final PartitionRestriction restriction =
         PartitionRestriction.waitForChildPartitions(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.done();
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(1D, 0D), progress);
+    assertEquals(Progress.from(63D, 1D), progress);
   }
 
   // ------------------------
@@ -165,12 +176,13 @@ public class PartitionRestrictionProgressCheckerTest {
   public void testRestrictionDoneAndLastClaimedPositionDone() {
     final PartitionRestriction restriction =
         PartitionRestriction.done(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.done();
 
-    final Progress progress = progressChecker.getProgress(restriction, position);
+    final Progress progress =
+        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(1D, 0D), progress);
+    assertEquals(Progress.from(63D, 1D), progress);
   }
 
   // ------------------------
@@ -179,24 +191,26 @@ public class PartitionRestrictionProgressCheckerTest {
   public void testRestrictionStopQueryChangeStream() {
     final PartitionRestriction stoppedRestriction =
         PartitionRestriction.queryChangeStream(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionRestriction restriction = PartitionRestriction.stop(stoppedRestriction);
 
-    final Progress progress = progressChecker.getProgress(restriction, null);
+    final Progress progress =
+        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(1D, 0D), progress);
+    assertEquals(Progress.from(63D, 1D), progress);
   }
 
   @Test
   public void testRestrictionStopWaitForChildPartitions() {
     final PartitionRestriction stoppedRestriction =
         PartitionRestriction.waitForChildPartitions(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionRestriction restriction = PartitionRestriction.stop(stoppedRestriction);
 
-    final Progress progress = progressChecker.getProgress(restriction, null);
+    final Progress progress =
+        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(1D, 0D), progress);
+    assertEquals(Progress.from(63D, 1D), progress);
   }
 
   @Test
@@ -206,8 +220,9 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
     final PartitionRestriction restriction = PartitionRestriction.stop(stoppedRestriction);
 
-    final Progress progress = progressChecker.getProgress(restriction, null);
+    final Progress progress =
+        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
 
-    assertEquals(Progress.from(1D, 0D), progress);
+    assertEquals(Progress.from(63D, 1D), progress);
   }
 }

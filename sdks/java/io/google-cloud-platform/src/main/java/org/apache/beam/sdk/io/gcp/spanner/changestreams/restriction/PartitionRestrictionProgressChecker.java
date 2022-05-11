@@ -23,8 +23,8 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Parti
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.STOP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.UPDATE_STATE;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.WAIT_FOR_CHILD_PARTITIONS;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.toNanos;
 
+import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,47 +55,46 @@ public class PartitionRestrictionProgressChecker {
   }
 
   public Progress getProgress(
-      PartitionRestriction restriction, @Nullable PartitionPosition lastClaimedPosition) {
+      PartitionRestriction restriction,
+      @Nullable PartitionPosition lastClaimedPosition,
+      BigDecimal totalSeconds) {
     final PartitionMode currentMode =
         Optional.ofNullable(lastClaimedPosition)
             .map(PartitionPosition::getMode)
             .orElse(restriction.getMode());
+
+    // Total work is the total number of seconds in the timestamp range plus the total number
+    // of mode transitions.
+    final BigDecimal totalWork = totalSeconds.add(TOTAL_MODE_TRANSITIONS, DECIMAL128);
     if (currentMode == STOP) {
       // Return progress indicating that there is no more work to be done for this SDF.
-      final double workCompleted = 1D;
-      final double workRemaining = 0D;
+      final double workCompleted = totalWork.doubleValue();
+      final double workRemaining = 1D;
 
       return Progress.from(workCompleted, workRemaining);
     }
+
+    // We get the current number of seconds.
+    final long currentSecondsNum =
+        Optional.ofNullable(lastClaimedPosition)
+            .flatMap(PartitionPosition::getTimestamp)
+            .map(Timestamp::getSeconds)
+            .orElse(
+                (currentMode == UPDATE_STATE || currentMode == QUERY_CHANGE_STREAM)
+                    ? restriction.getStartTimestamp().getSeconds()
+                    : restriction.getEndTimestamp().getSeconds());
+    final BigDecimal currentSeconds = BigDecimal.valueOf(currentSecondsNum);
     final BigDecimal transitionsCompleted =
         modeToTransitionsCompleted.getOrDefault(currentMode, BigDecimal.ZERO);
 
-    final BigDecimal startTimestampAsNanos = toNanos(restriction.getStartTimestamp());
-    final BigDecimal endTimestampAsNanos = toNanos(restriction.getEndTimestamp());
-    final BigDecimal currentTimestampAsNanos =
-        Optional.ofNullable(lastClaimedPosition)
-            .flatMap(PartitionPosition::getTimestamp)
-            .map(TimestampUtils::toNanos)
-            .orElse(
-                (currentMode == UPDATE_STATE || currentMode == QUERY_CHANGE_STREAM)
-                    ? startTimestampAsNanos
-                    : endTimestampAsNanos);
+    // The work completed is the current number of seconds plus the number of transitions completed.
+    final BigDecimal workCompleted = currentSeconds.add(transitionsCompleted);
 
-    final BigDecimal totalWork =
-        endTimestampAsNanos
-            .subtract(startTimestampAsNanos, DECIMAL128)
-            .add(TOTAL_MODE_TRANSITIONS, DECIMAL128);
+    // The work remaining is the total work minus the work completed.
+    // The remaining work must be greater than 0. Otherwise, it will cause an issue
+    // that the watermark does not advance.
+    final BigDecimal workRemaining = totalWork.subtract(workCompleted).max(BigDecimal.ONE);
 
-    final BigDecimal workCompleted =
-        currentTimestampAsNanos.subtract(startTimestampAsNanos).add(transitionsCompleted);
-    final BigDecimal workLeft =
-        endTimestampAsNanos
-            .subtract(startTimestampAsNanos)
-            .add(TOTAL_MODE_TRANSITIONS)
-            .subtract(workCompleted);
-
-    return Progress.from(
-        workCompleted.divide(totalWork, DECIMAL128).doubleValue(),
-        workLeft.divide(totalWork, DECIMAL128).doubleValue());
+    return Progress.from(workCompleted.doubleValue(), workRemaining.doubleValue());
   }
 }
