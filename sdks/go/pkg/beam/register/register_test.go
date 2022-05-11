@@ -743,12 +743,12 @@ func GeneratedOptimizationCalls() {
 // recommended path for most users - if these are materially better than the generic benchmarks,
 // this package requires further optimization.
 //
-// BenchmarkMethodCalls/MakeFunc_Unoptimized-16          			11480814	        88.35 ns/op
-// BenchmarkMethodCalls/NewFn_Unoptimized-16            	  		 875199	      		1385 ns/op
-// BenchmarkMethodCalls/EncodeMultiEdge_Unoptimized-16  	 		 1000000	      	1063 ns/op
+// BenchmarkMethodCalls/MakeFunc_Unoptimized-16                      11480814	        88.35 ns/op
+// BenchmarkMethodCalls/NewFn_Unoptimized-16                         875199	      		1385 ns/op
+// BenchmarkMethodCalls/EncodeMultiEdge_Unoptimized-16               1000000	      	1063 ns/op
 //
-// BenchmarkMethodCalls/MakeFunc_GenericRegistration-16  			16266259	        72.07 ns/op
-// BenchmarkMethodCalls/NewFn_GenericRegistration-16    	 		 1000000	      	1108 ns/op
+// BenchmarkMethodCalls/MakeFunc_GenericRegistration-16             16266259	        72.07 ns/op
+// BenchmarkMethodCalls/NewFn_GenericRegistration-16                 1000000	      	1108 ns/op
 // BenchmarkMethodCalls/EncodeMultiEdge_GenericRegistration-16       1000000	      	1052 ns/op
 //
 // BenchmarkMethodCalls/MakeFunc_GeneratedShims#01-16               16400914	        69.17 ns/op
