@@ -36,7 +36,8 @@ public final class SparkContextFactory {
    * context will be reused for beam pipelines. This property should only be enabled for tests.
    *
    * @deprecated Please use {@link SparkContextOptions} instead to allow for proper lifecycle
-   *     control to not leak your SparkContext.
+   *     control to not leak your SparkContext without any way to close it. Attempting to create any
+   *     new SparkContext later will fail.
    */
   @Deprecated
   public static final String TEST_REUSE_SPARK_CONTEXT = "beam.spark.test.reuseSparkContext";
@@ -47,6 +48,7 @@ public final class SparkContextFactory {
   // Remember spark master if TEST_REUSE_SPARK_CONTEXT is enabled.
   private static @Nullable String reusableSparkMaster;
 
+  // SparkContext is provided by the user instead of simply reused using TEST_REUSE_SPARK_CONTEXT
   private static boolean hasProvidedSparkContext;
 
   private SparkContextFactory() {}
@@ -90,7 +92,8 @@ public final class SparkContextFactory {
       LOG.info("Using a provided Spark Context");
       return jsc;
     } else if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
-      // This is highly discouraged as it leaks SparkContexts without any control.
+      // This is highly discouraged as it leaks the SparkContext without any way to close it.
+      // Attempting to create any new SparkContext later will fail.
       // If the context is null or stopped for some reason, re-create it.
       @Nullable JavaSparkContext jsc = sparkContext;
       if (jsc == null || jsc.sc().isStopped()) {
