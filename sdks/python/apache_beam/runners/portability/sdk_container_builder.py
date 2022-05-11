@@ -206,7 +206,6 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     self._google_cloud_options = options.view_as(GoogleCloudOptions)
     self._cloud_build_machine_type = self._get_cloud_build_machine_type_enum(
         options.view_as(SetupOptions).cloud_build_machine_type)
-
     if self._google_cloud_options.no_auth:
       credentials = None
     else:
