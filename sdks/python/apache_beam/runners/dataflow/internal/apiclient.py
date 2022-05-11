@@ -50,7 +50,6 @@ from apitools.base.py import exceptions
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
-from apache_beam.internal.gcp.auth import set_impersonation_accounts
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
@@ -349,7 +348,7 @@ class Environment(object):
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
       # not try to modify their credentials.
-      options_dict['impersonate_service_account'] = None
+      options_dict.pop('impersonate_service_account', None)
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -562,9 +561,7 @@ class DataflowApplicationClient(object):
     if self.google_cloud_options.no_auth:
       credentials = None
     else:
-      set_impersonation_accounts(
-          self.google_cloud_options.impersonate_service_account)
-      credentials = get_service_credentials()
+      credentials = get_service_credentials(options)
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
