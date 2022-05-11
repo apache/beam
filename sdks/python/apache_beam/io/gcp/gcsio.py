@@ -157,7 +157,7 @@ class GcsIOError(IOError, retry.PermanentException):
 
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
-  def __init__(self, storage_client=None, pipeline_options={}):
+  def __init__(self, storage_client=None, pipeline_options={}): # pylint: disable=dangerous-default-value
     if storage_client is None:
       storage_client = storage.StorageV1(
           credentials=auth.get_service_credentials(pipeline_options),
