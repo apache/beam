@@ -439,7 +439,7 @@ def create_var_in_main(name: str,
   return name, value
 
 
-def assert_bucket_exists(bucket_name, pipeline_options=None):
+def assert_bucket_exists(bucket_name):
   # type: (str) -> None
 
   """Asserts whether the specified GCS bucket with the name
@@ -451,12 +451,6 @@ def assert_bucket_exists(bucket_name, pipeline_options=None):
   """
   try:
     from apitools.base.py.exceptions import HttpError
-    if pipeline_options:
-      gcs_options = pipeline_options.view_as(GoogleCloudOptions)
-      impersonate_service_account = gcs_options.impersonate_service_account
-      auth.set_impersonation_accounts(impersonate_service_account)
-    else:
-      auth.set_impersonation_accounts(None)
     storage_client = storage.StorageV1(
         credentials=auth.get_service_credentials(),
         get_credentials=False,
