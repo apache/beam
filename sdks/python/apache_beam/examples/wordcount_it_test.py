@@ -53,8 +53,10 @@ class WordCountIT(unittest.TestCase):
   @pytest.mark.sickbay_flink
   def test_wordcount_impersonation_it(self):
     """Tests impersonation on dataflow."""
-    ACOUNT_TO_IMPERSONATE = 'allows-impersonation@apache-beam-testing.iam.gserviceaccount.com'
-    RUNNER_ACCOUNT = 'impersonation-dataflow-worker@apache-beam-testing.iam.gserviceaccount.com'
+    ACOUNT_TO_IMPERSONATE = \
+      'allows-impersonation@apache-beam-testing.iam.gserviceaccount.com'
+    RUNNER_ACCOUNT = 'impersonation-dataflow-worker@' \
+                     'apache-beam-testing.iam.gserviceaccount.com'
     TEMP_DIR = 'gs://impersonation-test-bucket/temp-it'
     STAGING_LOCATION = 'gs://impersonation-test-bucket/staging-it'
     extra_options = {
