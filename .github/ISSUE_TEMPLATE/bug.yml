@@ -30,7 +30,7 @@ body:
     id: what-happened
     attributes:
       label: What happened?
-      description: Please describe your issue
+      description: Please describe your issue, including the version of Beam and any other languages or tools being used.
     validations:
       required: true
   - type: dropdown
