@@ -55,13 +55,11 @@ class WordCountIT(unittest.TestCase):
     """Tests impersonation on dataflow."""
     ACOUNT_TO_IMPERSONATE = 'allows-impersonation@apache-beam-testing.iam.gserviceaccount.com'
     RUNNER_ACCOUNT = 'impersonation-dataflow-worker@apache-beam-testing.iam.gserviceaccount.com'
-    OUTPUT_DIR = 'gs://impersonation-test-bucket/py-it-cloud/output'
     TEMP_DIR = 'gs://impersonation-test-bucket/temp-it'
     STAGING_LOCATION = 'gs://impersonation-test-bucket/staging-it'
     extra_options = {
         'impersonate_service_account': ACOUNT_TO_IMPERSONATE,
         'service_account_email': RUNNER_ACCOUNT,
-        'output': OUTPUT_DIR,
         'temp_location': TEMP_DIR,
         'staging_location': STAGING_LOCATION
     }
