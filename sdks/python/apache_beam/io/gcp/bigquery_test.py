@@ -1242,7 +1242,8 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
-  def test_failure_has_same_insert_ids(self):
+  @mock.patch('time.sleep')
+  def test_failure_has_same_insert_ids(self, unused_mock_sleep):
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     file_name_1 = os.path.join(tempdir, 'file1')
     file_name_2 = os.path.join(tempdir, 'file2')
@@ -1303,8 +1304,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
       param(retry_strategy=RetryStrategy.RETRY_NEVER),
       param(retry_strategy=RetryStrategy.RETRY_ON_TRANSIENT_ERROR),
   ])
-  def test_failure_in_some_rows_does_not_duplicate(
-      self, unused_sleep_mock=None, retry_strategy=None):
+  def test_failure_in_some_rows_does_not_duplicate(self, retry_strategy=None):
     with mock.patch('time.sleep'):
       # In this test we simulate a failure to write out two out of three rows.
       # Row 0 and row 2 fail to be written on the first attempt, and then
@@ -1393,7 +1393,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
                 test_client=client))
 
         failed_values = (
-            bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS]
+            bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
             | beam.Map(lambda x: x[1]['columnA']))
 
         assert_that(
@@ -1726,9 +1726,14 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
               method='STREAMING_INSERTS'))
 
       assert_that(
-          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS]
+          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
           | beam.Map(lambda elm: (elm[0], elm[1])),
           equal_to([(full_output_table_1, bad_record)]))
+
+      assert_that(
+          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+          equal_to([(full_output_table_1, bad_record)]),
+          label='FailedRowsMatch')
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(

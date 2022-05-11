@@ -1501,6 +1501,7 @@ class BigQueryWriteFn(DoFn):
   DEFAULT_MAX_BATCH_SIZE = 500
 
   FAILED_ROWS = 'FailedRows'
+  FAILED_ROWS_WITH_ERRORS = 'FailedRowsWithErrors'
   STREAMING_API_LOGGING_FREQUENCY_SEC = 300
 
   def __init__(
@@ -1808,12 +1809,19 @@ class BigQueryWriteFn(DoFn):
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
 
-    return [
+    return itertools.chain([
         pvalue.TaggedOutput(
-            BigQueryWriteFn.FAILED_ROWS,
-            GlobalWindows.windowed_value((destination, row)))
-        for row in failed_rows
-    ]
+            BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+            GlobalWindows.windowed_value((destination, row, err))) for row,
+        err in failed_rows
+    ],
+                           [
+                               pvalue.TaggedOutput(
+                                   BigQueryWriteFn.FAILED_ROWS,
+                                   GlobalWindows.windowed_value(
+                                       (destination, row))) for row,
+                               unused_err in failed_rows
+                           ])
 
 
 # The number of shards per destination when writing via streaming inserts.
@@ -1933,7 +1941,9 @@ class _StreamToBigQuery(PTransform):
         | 'FromHashableTableRef' >> beam.Map(_restore_table_ref)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
-                BigQueryWriteFn.FAILED_ROWS, main='main'))
+                BigQueryWriteFn.FAILED_ROWS,
+                BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                main='main'))
 
 
 # Flag to be passed to WriteToBigQuery to force schema autodetection
@@ -2222,7 +2232,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client)
 
-      return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
+      return {
+          BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS],
+          BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS: outputs[
+              BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS],
+      }
     else:
       if self._temp_file_format == bigquery_tools.FileFormat.AVRO:
         if self.schema == SCHEMA_AUTODETECT:

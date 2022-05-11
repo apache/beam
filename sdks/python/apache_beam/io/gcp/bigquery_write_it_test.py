@@ -452,7 +452,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
 
       assert_that(
-          errors[BigQueryWriteFn.FAILED_ROWS]
+          errors[BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
           | 'ParseErrors' >> beam.Map(lambda err: (err[1], err[2])),
           equal_to(bq_result_errors))
 
