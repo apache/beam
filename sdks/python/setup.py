@@ -252,7 +252,7 @@ if __name__ == '__main__':
             'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
             'pyyaml>=3.12,<7.0.0',
             'requests_mock>=1.7,<2.0',
-            'tenacity>=5.0.2,<6.0',
+            'tenacity>=5.0.2,<9.0',
             'pytest>=4.4.0,<5.0',
             'pytest-xdist>=1.29.0,<2',
             'pytest-timeout>=1.3.3,<2',
