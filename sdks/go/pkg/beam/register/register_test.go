@@ -766,13 +766,13 @@ func BenchmarkMethodCalls(b *testing.B) {
 	}
 	me := MakeMultiEdge(gDoFn)
 
-	// Parameters
 	var aFunc reflectx.Func
 	var aFn *graph.Fn
 	var aME interface{}
 
-	// We need to do this registration just to get it to not panic when encoding the multi-edge with no additional optimization
-	runtime.RegisterType(reflect.TypeOf(&f).Elem())
+	// We need to do this registration just to get it to not panic when encoding the multi-edge with no additional optimization.
+	// This is currently required of users anyways
+	runtime.RegisterType(reflect.TypeOf((*Foo)(nil)))
 	tests := []struct {
 		name         string
 		fn           func()
