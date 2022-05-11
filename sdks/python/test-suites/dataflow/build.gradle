@@ -49,12 +49,6 @@ task chicagoTaxiExample {
   }
 }
 
-task impersonation {
-  getVersionsAsList('dataflow_impersonation_versions').each {
-    dependsOn.add("sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:impersonation")
-  }
-}
-
 task validatesRunnerBatchTests {
   getVersionsAsList('dataflow_validates_runner_batch_tests').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
