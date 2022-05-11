@@ -744,16 +744,22 @@ func GeneratedOptimizationCalls() {
 // this package requires further optimization.
 //
 // BenchmarkMethodCalls/MakeFunc_Unoptimized-16                      11480814	        88.35 ns/op
+// BenchmarkMethodCalls/MakeFunc.Call_Unoptimized-16                 3525211	        324.0 ns/op
+// BenchmarkMethodCalls/MakeFunc.Call1x1_Unoptimized-16              3450822	        343.0 ns/op
 // BenchmarkMethodCalls/NewFn_Unoptimized-16                         875199	      		1385 ns/op
 // BenchmarkMethodCalls/EncodeMultiEdge_Unoptimized-16               1000000	      	1063 ns/op
 //
-// BenchmarkMethodCalls/MakeFunc_GenericRegistration-16             16266259	        72.07 ns/op
+// BenchmarkMethodCalls/MakeFunc_GenericRegistration-16              16266259	        72.07 ns/op
+// BenchmarkMethodCalls/MakeFunc.Call_GenericRegistration-16         38331327	        32.70 ns/op
+// BenchmarkMethodCalls/MakeFunc.Call1x1_GenericRegistration-16      135934086	        8.434 ns/op
 // BenchmarkMethodCalls/NewFn_GenericRegistration-16                 1000000	      	1108 ns/op
 // BenchmarkMethodCalls/EncodeMultiEdge_GenericRegistration-16       1000000	      	1052 ns/op
 //
-// BenchmarkMethodCalls/MakeFunc_GeneratedShims#01-16               16400914	        69.17 ns/op
-// BenchmarkMethodCalls/NewFn_GeneratedShims#01-16                   1000000	      	1099 ns/op
-// BenchmarkMethodCalls/EncodeMultiEdge_GeneratedShims#01-16         1000000	      	1071 ns/op
+// BenchmarkMethodCalls/MakeFunc_GeneratedShims-16                   16400914	        69.17 ns/op
+// BenchmarkMethodCalls/MakeFunc.Call_GeneratedShims-16              37106445	        33.69 ns/op
+// BenchmarkMethodCalls/MakeFunc.Call1x1_GeneratedShims-16           141127965	        8.312 ns/op
+// BenchmarkMethodCalls/NewFn_GeneratedShims-16                      1000000	      	1099 ns/op
+// BenchmarkMethodCalls/EncodeMultiEdge_GeneratedShims-16            1000000	      	1071 ns/op
 func BenchmarkMethodCalls(b *testing.B) {
 	f := &Foo{A: 3}
 	g, err := graph.NewFn(&Foo{A: 5})
@@ -769,6 +775,9 @@ func BenchmarkMethodCalls(b *testing.B) {
 	var aFunc reflectx.Func
 	var aFn *graph.Fn
 	var aME interface{}
+	var aFnCall int
+	var aFunc1x1 reflectx.Func1x1
+	funcIn := []interface{}{CustomType{val: 4}}
 
 	// We need to do this registration just to get it to not panic when encoding the multi-edge with no additional optimization.
 	// This is currently required of users anyways
@@ -779,19 +788,25 @@ func BenchmarkMethodCalls(b *testing.B) {
 		registration func()
 	}{
 		// No optimization performed at all
-		{"MakeFunc_Unoptimized", func() { aFunc = reflectx.MakeFunc(f.ProcessElement) }, func() { /*No op*/ }}, // Used in graph deserialization
-		{"NewFn_Unoptimized", func() { aFn, _ = graph.NewFn(f) }, func() { /*No op*/ }},                        // Used in graph construction (less valuable)
-		{"EncodeMultiEdge_Unoptimized", func() { aME, _ = graphx.EncodeMultiEdge(&me) }, func() { /*No op*/ }}, // Used in graph serialization at execution time
+		{"MakeFunc_Unoptimized", func() { aFunc = reflectx.MakeFunc(f.ProcessElement) }, func() { /*No op*/ }},                                             // Used in graph deserialization
+		{"MakeFunc.Call_Unoptimized", func() { aFnCall = aFunc.Call(funcIn)[0].(int) }, func() { /*No op*/ }},                                              // Used to call the function repeatedly
+		{"MakeFunc.Call1x1_Unoptimized", func() { aFnCall = aFunc1x1.Call1x1(CustomType{val: 4}).(int) }, func() { aFunc1x1 = reflectx.ToFunc1x1(aFunc) }}, // Used to call the function repeatedly
+		{"NewFn_Unoptimized", func() { aFn, _ = graph.NewFn(f) }, func() { /*No op*/ }},                                                                    // Used in graph construction (less valuable)
+		{"EncodeMultiEdge_Unoptimized", func() { aME, _ = graphx.EncodeMultiEdge(&me) }, func() { /*No op*/ }},                                             // Used in graph serialization at execution time
 
 		// Perform some generic registration to optimize execution
-		{"MakeFunc_GenericRegistration", func() { aFunc = reflectx.MakeFunc(f.ProcessElement) }, func() { DoFn1x1[CustomType, int](f) }}, // Used in graph deserialization
-		{"NewFn_GenericRegistration", func() { aFn, _ = graph.NewFn(f) }, func() { DoFn1x1[CustomType, int](f) }},                        // Used in graph construction (less valuable)
-		{"EncodeMultiEdge_GenericRegistration", func() { aME, _ = graphx.EncodeMultiEdge(&me) }, func() { DoFn1x1[CustomType, int](f) }}, // Used in graph serialization at execution time
+		{"MakeFunc_GenericRegistration", func() { aFunc = reflectx.MakeFunc(f.ProcessElement) }, func() { DoFn1x1[CustomType, int](f) }},                                                        // Used in graph deserialization
+		{"MakeFunc.Call_GenericRegistration", func() { aFnCall = aFunc.Call(funcIn)[0].(int) }, func() { DoFn1x1[CustomType, int](f) }},                                                         // Used to call the function repeatedly
+		{"MakeFunc.Call1x1_GenericRegistration", func() { aFnCall = aFunc1x1.Call1x1(CustomType{val: 3}).(int) }, func() { DoFn1x1[CustomType, int](f); aFunc1x1 = reflectx.ToFunc1x1(aFunc) }}, // Used to call the function repeatedly
+		{"NewFn_GenericRegistration", func() { aFn, _ = graph.NewFn(f) }, func() { DoFn1x1[CustomType, int](f) }},                                                                               // Used in graph construction (less valuable)
+		{"EncodeMultiEdge_GenericRegistration", func() { aME, _ = graphx.EncodeMultiEdge(&me) }, func() { DoFn1x1[CustomType, int](f) }},                                                        // Used in graph serialization at execution time
 
 		// Perform some registration via copies of the code generator's shims
-		{"MakeFunc_GeneratedShims", func() { aFunc = reflectx.MakeFunc(f.ProcessElement) }, func() { GeneratedOptimizationCalls() }},   // Used in graph deserialization
-		{"NewFn_GeneratedShims", func() { aFn, _ = graph.NewFn(f) }, func() { GeneratedOptimizationCalls() }},                          // Used in graph construction (less valuable)
-		{"EncodeMultiEdge_GeneratedShims", func() { aME, err = graphx.EncodeMultiEdge(&me) }, func() { GeneratedOptimizationCalls() }}, // Used in graph serialization at execution time
+		{"MakeFunc_GeneratedShims", func() { aFunc = reflectx.MakeFunc(f.ProcessElement) }, func() { GeneratedOptimizationCalls() }},                                                        // Used in graph deserialization
+		{"MakeFunc.Call_GeneratedShims", func() { aFnCall = aFunc.Call(funcIn)[0].(int) }, func() { GeneratedOptimizationCalls() }},                                                         // Used to call the function repeatedly
+		{"MakeFunc.Call1x1_GeneratedShims", func() { aFnCall = aFunc1x1.Call1x1(CustomType{val: 5}).(int) }, func() { GeneratedOptimizationCalls(); aFunc1x1 = reflectx.ToFunc1x1(aFunc) }}, // Used to call the function repeatedly
+		{"NewFn_GeneratedShims", func() { aFn, _ = graph.NewFn(f) }, func() { GeneratedOptimizationCalls() }},                                                                               // Used in graph construction (less valuable)
+		{"EncodeMultiEdge_GeneratedShims", func() { aME, err = graphx.EncodeMultiEdge(&me) }, func() { GeneratedOptimizationCalls() }},                                                      // Used in graph serialization at execution time
 	}
 	for _, test := range tests {
 		test.registration()
@@ -802,6 +817,7 @@ func BenchmarkMethodCalls(b *testing.B) {
 		})
 	}
 	b.Log(aFunc)
+	b.Log(aFnCall)
 	b.Log(aFn)
 	b.Log(aME)
 }
