@@ -19,7 +19,6 @@
     - { title: Events, description: 'Follow our <a href="/">calendar</a> in the homepage which has the latest events organized by the community.' }
 - list:
     - { title: Read our Contribution Guide and Policies, description: 'Get familiar with our <a href="/contribute/">contribution guide</a> and <a href="/contribute/precommit-policies/">policies</a>.' }
-    # - { title: Create an Issue, description: 'Create an <a target="_blank" href="https://github.com/apache/beam/issues/new">issue</a> for any bugs you find or features you’.' }
     - { title: Create an Issue, description: 'Create an <a target="_blank" href="https://github.com/apache/beam/issues/new">issue</a> for any bugs you find or features you’d like to see added.' }
     - { title: Find an area to contribute, description: 'Beam recognizes code and non-code contributions. Check out this <a target="_blank" href="https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12335926">Jira board</a> for some inspiration.' }
     - { title: Contribute, description: 'To contribute code, you need to sign an <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License Agreement (ICLA)</a>. Learn more <a target="_blank" href="https://www.apache.org/licenses/icla.pdf">here</a>.' }
