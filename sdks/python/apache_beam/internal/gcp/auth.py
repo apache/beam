@@ -22,6 +22,7 @@
 import logging
 import socket
 import threading
+
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
