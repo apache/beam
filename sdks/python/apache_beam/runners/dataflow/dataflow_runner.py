@@ -41,7 +41,6 @@ from apache_beam import coders
 from apache_beam import error
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
-from apache_beam.internal.gcp.auth import set_impersonation_accounts
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -396,9 +395,6 @@ class DataflowRunner(PipelineRunner):
 
   def run_pipeline(self, pipeline, options, pipeline_proto=None):
     """Remotely executes entire pipeline or parts reachable from node."""
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    set_impersonation_accounts(google_cloud_options.impersonate_service_account)
-
     # Label goog-dataflow-notebook if job is started from notebook.
     if is_in_notebook():
       notebook_version = (
@@ -550,6 +546,7 @@ class DataflowRunner(PipelineRunner):
 
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.
+    google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.enable_streaming_engine:
       debug_options.add_experiment("enable_windmill_service")
       debug_options.add_experiment("enable_streaming_engine")

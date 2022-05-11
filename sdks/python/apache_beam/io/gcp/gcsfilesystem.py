@@ -137,7 +137,7 @@ class GCSFileSystem(FileSystem):
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
   def _gcsIO(self):
-    return gcsio.GcsIO(pipeline_options=self.pipeline_options)
+    return gcsio.GcsIO(pipeline_options=self._pipeline_options)
 
   def _path_open(
       self,
