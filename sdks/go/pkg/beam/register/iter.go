@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration
+package register
 
 import (
 	"fmt"
@@ -107,7 +107,7 @@ func (v *iter2[T1, T2]) invoke(key *T1, value *T2) bool {
 // Iter1 registers parameters from your DoFn with a
 // signature func(*T) bool and optimizes their execution.
 // This must be done by passing in type parameters of all inputs as constraints,
-// aka: registration.Iter1[T]()
+// aka: register.Iter1[T]()
 func Iter1[T any]() {
 	i := (*func(*T) bool)(nil)
 	registerFunc := func(s exec.ReStream) exec.ReusableInput {
@@ -119,7 +119,7 @@ func Iter1[T any]() {
 // Iter1 registers parameters from your DoFn with a
 // signature func(*T1, *T2) bool and optimizes their execution.
 // This must be done by passing in type parameters of all inputs as constraints,
-// aka: registration.Iter2[T1, T2]()
+// aka: register.Iter2[T1, T2]()
 func Iter2[T1, T2 any]() {
 	i := (*func(*T1, *T2) bool)(nil)
 	registerFunc := func(s exec.ReStream) exec.ReusableInput {
