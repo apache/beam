@@ -51,7 +51,7 @@ from fastavro.write import Writer
 
 import apache_beam as beam
 from apache_beam.io import filebasedsink
-from apache_beam.io.filebasedsource import FileBasedSource, ReadAllFiles, ReadAllFilesContinuously
+from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
@@ -181,26 +181,25 @@ class ReadAllFromAvro(PTransform):
         name and the value being the actual data. If False, it only returns
         the data.
     """
-    source_from_file = partial(
+    self._source_from_file = partial(
         _create_avro_source, min_bundle_size=min_bundle_size)
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._with_filename = with_filename
-    self._read_all_files = self._set_read_all_files(source_from_file)
     self.label = label
 
-  def _set_read_all_files(self, source_from_file):
+  def _set_read_all_files(self):
     """Helper function to set _read_all_files PTransform in constructor."""
-    return ReadAllFiles(
+    return filebasedsource.ReadAllFiles(
         True,
         CompressionTypes.AUTO,
         self._desired_bundle_size,
         self._min_bundle_size,
-        source_from_file,
+        self._source_from_file,
         self._with_filename)
 
   def expand(self, pvalue):
-    return pvalue | self.label >> self._read_all_files
+    return pvalue | self.label >> self._set_read_all_files()
 
 
 class ReadAllFromAvroContinuously(ReadAllFromAvro):
@@ -211,7 +210,7 @@ class ReadAllFromAvroContinuously(ReadAllFromAvro):
   For more details, see ``ReadAllFromAvro`` for avro parsing settings;
   see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
   """
-  def __init__(self, file_patterns, label='ReadAllFilesContinuously', **kwargs):
+  def __init__(self, file_pattern, label='ReadAllFilesContinuously', **kwargs):
     """Initialize the ``ReadAllFromAvroContinuously`` transform.
 
     Accepts args for constructor args of both ``ReadAllFromAvro`` and
@@ -220,31 +219,28 @@ class ReadAllFromAvroContinuously(ReadAllFromAvro):
     kwargs_for_match = {
         k: v
         for (k, v) in kwargs.items()
-        if k in ReadAllFilesContinuously.ARGS_FOR_MATCHCONTINUOUSLY
+        if k in filebasedsource.ReadAllFilesContinuously.ARGS_FOR_MATCH
     }
     kwargs_for_read = {
         k: v
         for (k, v) in kwargs.items()
-        if k not in ReadAllFilesContinuously.ARGS_FOR_MATCHCONTINUOUSLY
+        if k not in filebasedsource.ReadAllFilesContinuously.ARGS_FOR_MATCH
     }
-    self._file_patterns = file_patterns
-    self._kwargs_for_match = kwargs_for_match
     super().__init__(label=label, **kwargs_for_read)
+    self._file_pattern = file_pattern
+    self._kwargs_for_match = kwargs_for_match
 
-  def _set_read_all_files(self, source_from_file):
+  def _set_read_all_files(self):
     """Overwrites ``ReadAllFromText._set_read_all_files``."""
-    return ReadAllFilesContinuously(
-        self._file_patterns,
+    return filebasedsource.ReadAllFilesContinuously(
+        self._file_pattern,
         True,
         CompressionTypes.AUTO,
         self._desired_bundle_size,
         self._min_bundle_size,
-        source_from_file,
+        self._source_from_file,
         self._with_filename,
         **self._kwargs_for_match)
-
-  def expand(self, pvalue):
-    return pvalue | self.label >> self._read_all_files
 
 
 class _AvroUtils(object):
@@ -280,7 +276,7 @@ def _create_avro_source(file_pattern=None, min_bundle_size=0, validate=False):
       )
 
 
-class _FastAvroSource(FileBasedSource):
+class _FastAvroSource(filebasedsource.FileBasedSource):
   """A source for reading Avro files using the `fastavro` library.
 
   ``_FastAvroSource`` is implemented using the file-based source framework

@@ -389,20 +389,23 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     files = []
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
 
-    # Create a file to be matched before pipeline
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    # Create two files to be matched before pipeline
     files.append(self._create_temp_file(dir=tempdir))
+    writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+    writer.close()
+
     # Add file name that will be created mid-pipeline
     files.append(FileSystems.join(tempdir, 'extra'))
     files.append(FileSystems.join(tempdir, 'extra'))
 
     interval = 0.2
     start = Timestamp.now()
-    stop = start + 2 * interval + 0.1
-
-    def _create_extra_file(element):
-      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
-      writer.close()
-      return element.path
+    stop = start + interval + 0.1
 
     with TestPipeline() as p:
       match_continiously = (

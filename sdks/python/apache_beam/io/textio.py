@@ -599,7 +599,7 @@ class ReadAllFromText(PTransform):
         delimiter, can also escape itself.
     """
     super().__init__(**kwargs)
-    source_from_file = partial(
+    self._source_from_file = partial(
         _create_text_source,
         min_bundle_size=min_bundle_size,
         compression_type=compression_type,
@@ -612,20 +612,19 @@ class ReadAllFromText(PTransform):
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
     self._with_filename = with_filename
-    self._read_all_files = self._set_read_all_files(source_from_file)
 
-  def _set_read_all_files(self, source_from_file):
+  def _set_read_all_files(self):
     """Helper function to build a ReadAllFiles PTransform."""
     return ReadAllFiles(
         True,
         self._compression_type,
         self._desired_bundle_size,
         self._min_bundle_size,
-        source_from_file,
+        self._source_from_file,
         self._with_filename)
 
   def expand(self, pvalue):
-    return pvalue | 'ReadAllFiles' >> self._read_all_files
+    return pvalue | 'ReadAllFiles' >> self._set_read_all_files()
 
 
 class ReadAllFromTextContinuously(ReadAllFromText):
@@ -636,7 +635,7 @@ class ReadAllFromTextContinuously(ReadAllFromText):
   For more details, see ``ReadAllFromText`` for text parsing settings;
   see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
   """
-  def __init__(self, file_patterns, **kwargs):
+  def __init__(self, file_pattern, **kwargs):
     """Initialize the ``ReadAllFromTextContinuously`` transform.
 
     Accepts args for constructor args of both ``ReadAllFromText`` and
@@ -645,31 +644,28 @@ class ReadAllFromTextContinuously(ReadAllFromText):
     kwargs_for_match = {
         k: v
         for (k, v) in kwargs.items()
-        if k in ReadAllFilesContinuously.ARGS_FOR_MATCHCONTINUOUSLY
+        if k in ReadAllFilesContinuously.ARGS_FOR_MATCH
     }
     kwargs_for_read = {
         k: v
         for (k, v) in kwargs.items()
-        if k not in ReadAllFilesContinuously.ARGS_FOR_MATCHCONTINUOUSLY
+        if k not in ReadAllFilesContinuously.ARGS_FOR_MATCH
     }
-    self._file_patterns = file_patterns
-    self._kwargs_for_match = kwargs_for_match
     super().__init__(**kwargs_for_read)
+    self._file_pattern = file_pattern
+    self._kwargs_for_match = kwargs_for_match
 
-  def _set_read_all_files(self, source_from_file):
+  def _set_read_all_files(self):
     """Overwrites ``ReadAllFromText._set_read_all_files``."""
     return ReadAllFilesContinuously(
-        self._file_patterns,
+        self._file_pattern,
         True,
         self._compression_type,
         self._desired_bundle_size,
         self._min_bundle_size,
-        source_from_file,
+        self._source_from_file,
         self._with_filename,
         **self._kwargs_for_match)
-
-  def expand(self, pvalue):
-    return pvalue | self._read_all_files
 
 
 class ReadFromText(PTransform):

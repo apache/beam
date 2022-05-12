@@ -28,7 +28,7 @@ For an example implementation of :class:`FileBasedSource` see
 
 # pytype: skip-file
 
-from typing import Callable, Iterable
+from typing import Callable
 from typing import Union
 
 from apache_beam.internal import pickler
@@ -470,7 +470,7 @@ class ReadAllFilesContinuously(PTransform):
   Unlike ``ReadAllFiles``, patterns are provided as constructor parameter at
   the pipeline definition time.
   """
-  ARGS_FOR_MATCHCONTINUOUSLY = {
+  ARGS_FOR_MATCH = {
       'interval',
       'has_deduplication',
       'start_timestamp',
@@ -479,7 +479,7 @@ class ReadAllFilesContinuously(PTransform):
   }
 
   def __init__(self,
-               file_patterns, # type: Iterable[str]
+               file_pattern, # type: str
                splittable,  # type: bool
                compression_type,
                desired_bundle_size,  # type: int
@@ -490,7 +490,7 @@ class ReadAllFilesContinuously(PTransform):
               ):
     """
     Args:
-      file_patterns: a list of file pattern to match
+      file_pattern: a file pattern to match
       splittable: If False, files won't be split into sub-ranges. If True,
                   files may or may not be split into data ranges.
       compression_type: A ``CompressionType`` object that specifies the
@@ -516,27 +516,25 @@ class ReadAllFilesContinuously(PTransform):
     'has_deduplication', 'start_timestamp', 'stop_timestamp',
     'match_updated_files'.
     """
-
-    # imported locally to avoid circular import
-    from apache_beam.io.fileio import MatchContinuously
-
+    self._file_pattern = file_pattern
     self._splittable = splittable
     self._compression_type = compression_type
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._source_from_file = source_from_file
     self._with_filename = with_filename
-
-    kwargs_for_match = {
+    self._kwargs_for_match = {
         k: v
-        for (k, v) in kwargs.items() if k in self.ARGS_FOR_MATCHCONTINUOUSLY
+        for (k, v) in kwargs.items() if k in self.ARGS_FOR_MATCH
     }
-    self._matchFn = MatchContinuously(file_patterns, **kwargs_for_match)
 
-  def expand(self, pvalue):
+  def expand(self, pbegin):
+    # imported locally to avoid circular import
+    from apache_beam.io.fileio import MatchContinuously
+
     return (
-        pvalue
-        | self._matchFn
+        pbegin
+        | MatchContinuously(self._file_pattern, **self._kwargs_for_match)
         | 'ExpandIntoRanges' >> ParDo(
             _ExpandIntoRanges(
                 self._splittable,
@@ -548,5 +546,5 @@ class ReadAllFilesContinuously(PTransform):
             _ReadRange(
                 self._source_from_file, with_filename=self._with_filename))
         # ReadAllFilesContinuously needs to read files instantly after matches,
-        # so move reshuffle to the end.
+        # so move reshuffle at the end.
         | 'Reshard' >> Reshuffle())

@@ -113,7 +113,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
-from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.periodicsequence import ImpulseSeqGenDoFn
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
@@ -274,7 +274,7 @@ class MatchContinuously(beam.PTransform):
     """Initializes a MatchContinuously transform.
 
     Args:
-      file_pattern: The file path, or a list of file paths to read from.
+      file_pattern: The file path to read from.
       interval: Interval at which to check for files in seconds.
       has_deduplication: Whether files already read are discarded or not.
       start_timestamp: Timestamp for start file checking.
@@ -282,25 +282,19 @@ class MatchContinuously(beam.PTransform):
       match_updated_files: (When has_deduplication is set to True) whether match
       file with timestamp changes.
     """
-    if isinstance(file_pattern, str):
-      self.file_patterns = [file_pattern]
-    else:
-      self.file_patterns = file_pattern
+    self.file_pattern = file_pattern
     self.interval = interval
     self.has_deduplication = has_deduplication
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.match_upd = match_updated_files
 
-  def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
-    impulse = pcoll | PeriodicImpulse(
-        start_timestamp=self.start_ts,
-        stop_timestamp=self.stop_ts,
-        fire_interval=self.interval)
-
+  def expand(self, pbegin) -> beam.PCollection[filesystem.FileMetadata]:
     match_files = (
-        impulse
-        | 'GetFilePattern' >> beam.FlatMap(lambda x: self.file_patterns)
+        pbegin
+        | beam.Create([(self.start_ts, self.stop_ts, self.interval)])
+        | beam.ParDo(ImpulseSeqGenDoFn())
+        | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
         | MatchAll())
 
     if self.has_deduplication:
@@ -851,7 +845,11 @@ class _RemoveDuplicates(beam.DoFn):
   has updated)."""
   COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-  def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+  def process(
+      self,
+      element: Tuple[str, filesystem.FileMetadata],
+      count_state=beam.DoFn.StateParam(COUNT_STATE)
+  ) -> Iterable[filesystem.FileMetadata]:
 
     path = element[0]
     file_metadata = element[1]
@@ -871,8 +869,11 @@ class _RemoveOldDuplicates(beam.DoFn):
   TIME_STATE = CombiningValueStateSpec(
       'count', combine_fn=partial(max, default=0.0))
 
-  def process(self, element, time_state=beam.DoFn.StateParam(TIME_STATE)):
-
+  def process(
+      self,
+      element: Tuple[str, filesystem.FileMetadata],
+      time_state=beam.DoFn.StateParam(TIME_STATE)
+  ) -> Iterable[filesystem.FileMetadata]:
     path = element[0]
     file_metadata = element[1]
     new_ts = file_metadata.last_updated_in_seconds

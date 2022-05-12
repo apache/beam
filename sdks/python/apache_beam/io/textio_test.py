@@ -30,6 +30,8 @@ import time
 import unittest
 import zlib
 
+import pytest
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import iobase
@@ -559,63 +561,63 @@ class TextSourceTest(unittest.TestCase):
           | 'ReadAll' >> ReadAllFromText())
       assert_that(pcoll, equal_to(expected_data))
 
+  # to avoid timing issue of the thread created in this test
+  @pytest.mark.no_xdist
   def test_read_all_continuously(self):
     class _WriteFilesFn(beam.DoFn):
       """writes a couple of files with deferral."""
-      def __init__(self, tempdir: TempDir):
-        self.tempdir = tempdir
+      def __init__(self):
         self._thread = None
 
-      def create_files(self):
-        temp_path = self.tempdir.get_path()
-        time.sleep(0.5)
-        with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
-          f.write('first')
-        time.sleep(0.5)
+      @staticmethod
+      def create_files(temp_path):
+        time.sleep(1)
         with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
           f.write('second')
         with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
           f.write('first')
         time.sleep(0.5)
         with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
-          f.write('third')
+          f.write('thirdA\nthirdB')
         with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
           f.write('second')
         with open(FileSystems.join(temp_path, 'file3'), 'w') as f:
           f.write('first')
 
       def process(self, element):
-        self._thread = threading.Thread(target=self.create_files)
+        self._thread = threading.Thread(
+            target=self.create_files, args=(element, ))
         self._thread.start()
 
     with TempDir() as tempdir, TestPipeline() as pipeline:
+      # create a temp file at the beginning
+      with open(FileSystems.join(tempdir.get_path(), 'file1'), 'w') as f:
+        f.write('first')
       match_pattern = FileSystems.join(tempdir.get_path(), '*')
-      interval = 0.1
-      start = Timestamp.now()
-      stop = start + 4
+      interval = 0.2
+      last = 5
       p_read_once = (
           pipeline
           | 'Continuously read new files' >> ReadAllFromTextContinuously(
               match_pattern,
-              desired_bundle_size=1,
               with_filename=True,
-              start_timestamp=start,
+              start_timestamp=Timestamp.now(),
               interval=interval,
-              stop_timestamp=stop,
+              stop_timestamp=Timestamp.now() + last,
               match_updated_files=False)
           | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
       p_read_upd = (
           pipeline
           | 'Continuously read updated files' >> ReadAllFromTextContinuously(
               match_pattern,
-              desired_bundle_size=1,
               with_filename=True,
-              start_timestamp=start,
+              start_timestamp=Timestamp.now(),
               interval=interval,
-              stop_timestamp=stop,
+              stop_timestamp=Timestamp.now() + last,
               match_updated_files=True)
           | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
-      _ = pipeline | beam.Create([None]) | beam.ParDo(_WriteFilesFn(tempdir))
+      _ = pipeline | beam.Create([tempdir.get_path()]) | beam.ParDo(
+          _WriteFilesFn())
       assert_that(
           p_read_once,
           equal_to([('file1', 'first'), ('file2', 'first'),
@@ -623,7 +625,8 @@ class TextSourceTest(unittest.TestCase):
           label='assert read new files results')
       assert_that(
           p_read_upd,
-          equal_to([('file1', 'first'), ('file1', 'second'), ('file1', 'third'),
+          equal_to([('file1', 'first'), ('file1', 'second'),
+                    ('file1', 'thirdA'), ('file1', 'thirdB'),
                     ('file2', 'first'), ('file2', 'second'),
                     ('file3', 'first')]),
           label='assert read updated files results')

@@ -27,6 +27,7 @@ import unittest
 from typing import List
 
 import hamcrest as hc
+import pytest
 
 from fastavro.schema import parse_schema
 from fastavro import writer
@@ -38,8 +39,8 @@ from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 from apache_beam.io.avroio import _create_avro_sink  # For testing
-from apache_beam.io.avroio import _create_avro_source
-from apache_beam.io.filesystems import FileSystems  # For testing
+from apache_beam.io.avroio import _create_avro_source  # For testing
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -394,8 +395,9 @@ class AvroBase(object):
           | avroio.ReadAllFromAvro(with_filename=True),
           equal_to(result))
 
+  # to avoid timing issue of the thread created in this test
+  @pytest.mark.no_xdist
   def test_read_all_from_avro_continuously(self):
-    # TODO
     class _WriteFilesFn(beam.DoFn):
       """writes a couple of files with deferral."""
       def __init__(self, tempdir, SCHEMA, RECORDS):
@@ -405,20 +407,17 @@ class AvroBase(object):
         self.RECORDS = RECORDS
 
       def create_files(self):
-        time.sleep(0.5)
-        with open(FileSystems.join(self.tempdir, 'file1'), 'w+b') as f:
-          writer(f, self.SCHEMA, self.gen_records(1))
-        time.sleep(0.5)
-        with open(FileSystems.join(self.tempdir, 'file1'), 'w+b') as f:
+        time.sleep(1)
+        with open(FileSystems.join(self.tempdir, 'file1'), 'wb') as f:
           writer(f, self.SCHEMA, self.gen_records(2))
-        with open(FileSystems.join(self.tempdir, 'file2'), 'w+b') as f:
+        with open(FileSystems.join(self.tempdir, 'file2'), 'wb') as f:
           writer(f, self.SCHEMA, self.gen_records(3))
         time.sleep(0.5)
-        with open(FileSystems.join(self.tempdir, 'file1'), 'w+b') as f:
+        with open(FileSystems.join(self.tempdir, 'file1'), 'wb') as f:
           writer(f, self.SCHEMA, self.gen_records(5))
-        with open(FileSystems.join(self.tempdir, 'file2'), 'w+b') as f:
+        with open(FileSystems.join(self.tempdir, 'file2'), 'wb') as f:
           writer(f, self.SCHEMA, self.gen_records(8))
-        with open(FileSystems.join(self.tempdir, 'file3'), 'w+b') as f:
+        with open(FileSystems.join(self.tempdir, 'file3'), 'wb') as f:
           writer(f, self.SCHEMA, self.gen_records(13))
 
       def get_expect(self, match_updated_files):
@@ -444,21 +443,21 @@ class AvroBase(object):
 
     with TestPipeline() as pipeline:
       tempdir = tempfile.mkdtemp()
-      match_pattern = FileSystems.join(tempdir, '*')
-      interval = 0.1
-      start = Timestamp.now()
-      stop = start + 4
       writer_fn = _WriteFilesFn(tempdir, self.SCHEMA, self.RECORDS)
+      with open(FileSystems.join(tempdir, 'file1'), 'w+b') as f:
+        writer(f, writer_fn.SCHEMA, writer_fn.gen_records(1))
+      match_pattern = FileSystems.join(tempdir, '*')
+      interval = 0.2
+      last = 5
 
       p_read_once = (
           pipeline
           | 'Continuously read new files' >> avroio.ReadAllFromAvroContinuously(
               match_pattern,
-              desired_bundle_size=1,
               with_filename=True,
-              start_timestamp=start,
+              start_timestamp=Timestamp.now(),
               interval=interval,
-              stop_timestamp=stop,
+              stop_timestamp=Timestamp.now() + last,
               match_updated_files=False)
           | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
       p_read_upd = (
@@ -466,14 +465,13 @@ class AvroBase(object):
           | 'Continuously read updated files' >>
           avroio.ReadAllFromAvroContinuously(
               match_pattern,
-              desired_bundle_size=1,
               with_filename=True,
-              start_timestamp=start,
+              start_timestamp=Timestamp.now(),
               interval=interval,
-              stop_timestamp=stop,
+              stop_timestamp=Timestamp.now() + last,
               match_updated_files=True)
           | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
-      _ = pipeline | beam.Create([None]) | beam.ParDo(writer_fn)
+      _ = pipeline | beam.Impulse() | beam.ParDo(writer_fn)
       assert_that(
           p_read_once,
           equal_to(writer_fn.get_expect(match_updated_files=False)),
