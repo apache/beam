@@ -129,7 +129,9 @@ $(document).ready(function() {
                 $("." + pref).show();
 
                 // Fix nav-menu bug with jumping between links when switching tabs
-                $('[data-spy="scroll"]').scrollspy('refresh');
+                $('[data-spy="scroll"]').each(function () {
+                    var $spy = $(this).scrollspy('refresh')
+                })
             },
             "render": function(wrapper) {
                 this.addTabs();

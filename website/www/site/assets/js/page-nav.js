@@ -69,6 +69,10 @@ $(document).ready(function() {
         }
       });
 
+      // Fix nav-menu bug with jumping between links when switching tabs
+      $('[data-spy="scroll"]').each(function () {
+        var $spy = $(this).scrollspy('refresh')
+      })
     }
 
     return {
