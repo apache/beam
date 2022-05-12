@@ -245,14 +245,14 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(
         schema_pb2.FieldType(
             logical_type=schema_pb2.LogicalType(
-                urn=common_urns.python_callable,
+                urn=common_urns.python_callable.urn,
                 representation=typing_to_runner_api(str))),
         typing_to_runner_api(PythonCallableWithSource))
     self.assertEqual(
         typing_from_runner_api(
             schema_pb2.FieldType(
                 logical_type=schema_pb2.LogicalType(
-                    urn=common_urns.python_callable,
+                    urn=common_urns.python_callable.urn,
                     representation=typing_to_runner_api(str)))),
         PythonCallableWithSource)
 
