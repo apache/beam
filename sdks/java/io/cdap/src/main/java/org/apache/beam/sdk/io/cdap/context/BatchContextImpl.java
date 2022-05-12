@@ -43,7 +43,7 @@ import javax.annotation.Nullable;
 
 /** Class for Batch, Sink and Stream CDAP wrapper classes that use it to provide common details. */
 @SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
-public class BatchContextImpl implements BatchContext {
+public abstract class BatchContextImpl implements BatchContext {
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
 
