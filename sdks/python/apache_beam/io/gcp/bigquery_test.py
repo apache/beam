@@ -38,11 +38,9 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
-import apache_beam.io.gcp.bigquery
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
-from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -483,41 +481,6 @@ class TestReadFromBigQuery(unittest.TestCase):
     delete_dataset.assert_not_called()
     delete_table.assert_called_with(
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
-
-  @pytest.mark.it_postcommit
-  def test_table_schema_retrieve(self):
-    from apache_beam import coders
-    from apache_beam.coders.typecoders import registry as coders_registry
-    from apache_beam.typehints.schemas import typing_to_runner_api
-    the_table = apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
-    ).get_table(
-        project_id="apache-beam-testing",
-        dataset_id="beam_bigquery_io_test",
-        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
-    table = the_table.schema
-    utype = bigquery_schema_tools.produce_pcoll_with_schema(table)
-    with TestPipeline() as p:
-      result = (
-          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
-              gcs_location="gs://bqio_schema",
-              table="beam_bigquery_io_test.dfsqltable_3c7d6fd5_16e0460dfd0",
-              project="apache-beam-testing")
-          | apache_beam.io.gcp.bigquery.ReadFromBigQuery.get_pcoll_from_schema(
-              table))
-      coder = coders_registry.get_coder(utype)
-      roundtripped = pickler.loads(pickler.dumps(coder))
-      print(coder, roundtripped)
-      print(coders.RowCoder(typing_to_runner_api(utype).row_type.schema))
-      assert_that(
-          result,
-          equal_to([
-              utype(id=3, name='customer1', type='test'),
-              utype(id=1, name='customer1', type='test'),
-              utype(id=2, name='customer2', type='test'),
-              utype(id=4, name='customer2', type='test')
-          ]))
-      # TODO: svetaksundhar@, Write another test to check for
-      #  a specific pCollection/schema.
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

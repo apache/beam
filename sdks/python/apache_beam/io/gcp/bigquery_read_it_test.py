@@ -178,6 +178,31 @@ class ReadTests(BigQueryReadIntegrationTests):
               query=query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.TABLE_DATA))
 
+  @pytest.mark.it_postcommit
+  def test_table_schema_retrieve(self):
+    the_table = beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper().get_table(
+        project_id="apache-beam-testing",
+        dataset_id="beam_bigquery_io_test",
+        table_id="dfsqltable_3c7d6fd5_16e0460dfd0")
+    table = the_table.schema
+    utype = beam.io.gcp.bigquery_schema_tools.produce_pcoll_with_schema(table)
+    args = self.args + ["--experiments=save_main_session"]
+    with beam.Pipeline(argv=args) as p:
+      result = (
+          p | beam.io.gcp.bigquery.ReadFromBigQuery(
+              gcs_location="gs://bqio_schema",
+              table="beam_bigquery_io_test.dfsqltable_3c7d6fd5_16e0460dfd0",
+              project="apache-beam-testing")
+          | beam.io.gcp.bigquery.ReadFromBigQuery.get_pcoll_from_schema(table))
+      assert_that(
+          result,
+          equal_to([
+              utype(id=3, name='customer1', type='test'),
+              utype(id=1, name='customer1', type='test'),
+              utype(id=2, name='customer2', type='test'),
+              utype(id=4, name='customer2', type='test')
+          ]))
+
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   TABLE_DATA = [{
