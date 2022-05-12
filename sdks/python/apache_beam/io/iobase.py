@@ -750,6 +750,9 @@ class Sink(HasDisplayData):
   documentation at
   ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
+  # Whether Beam should skip writing any shards if all are empty.
+  skip_if_empty = False
+
   def initialize_write(self):
     """Initializes the sink before writing begins.
 
