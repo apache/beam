@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -51,8 +50,6 @@ public class SparkMetricsPusherTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
   private static final String COUNTER_NAME = "counter";
-
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
