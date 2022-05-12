@@ -560,6 +560,110 @@ func TestSdfNodes(t *testing.T) {
 			})
 		}
 	})
+
+	// Validate TruncateSizedRestriction matches its contract and properly
+	// invokes SDF methods TruncateRestriction and RestrictionSize.
+	t.Run("TruncateSizedRestriction", func(t *testing.T) {
+		tests := []struct {
+			name string
+			fn   *graph.DoFn
+			in   FullValue
+			want []FullValue
+		}{
+			{
+				name: "SingleElem",
+				fn:   dfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm: &FullValue{
+							Elm:  1,
+							Elm2: nil,
+						},
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "Sdf"},
+							Elm2: nil,
+						},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				want: []FullValue{
+					{
+						Elm: &FullValue{
+							Elm: &FullValue{
+								Elm:  1,
+								Elm2: nil,
+							},
+							Elm2: &FullValue{
+								Elm:  &VetRestriction{ID: "Sdf", CreateTracker: true, TruncateRest: true, RestSize: true, Val: 1},
+								Elm2: nil,
+							},
+						},
+						Elm2:      1.0,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+				},
+			},
+			{
+				name: "KvElem",
+				fn:   kvdfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm: &FullValue{
+							Elm:       1,
+							Elm2:      2,
+							Timestamp: testTimestamp,
+							Windows:   testWindows,
+						},
+						Elm2: &FullValue{
+							Elm:  &VetRestriction{ID: "KvSdf"},
+							Elm2: nil,
+						},
+					},
+					Elm2:      3.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				want: []FullValue{
+					{
+						Elm: &FullValue{
+							Elm: &FullValue{
+								Elm:       1,
+								Elm2:      2,
+								Timestamp: testTimestamp,
+								Windows:   testWindows,
+							},
+							Elm2: &FullValue{
+								Elm:  &VetRestriction{ID: "KvSdf", CreateTracker: true, TruncateRest: true, RestSize: true, Key: 1, Val: 2},
+								Elm2: nil,
+							},
+						},
+						Elm2:      3.0,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+				},
+			},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				capt := &CaptureNode{UID: 2}
+				node := &TruncateSizedRestriction{UID: 1, Fn: test.fn, Out: capt}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: test.in}}, Out: node}
+				units := []Unit{root, node, capt}
+				constructAndExecutePlan(t, units)
+
+				got := capt.Elements
+				if !cmp.Equal(got, test.want) {
+					t.Errorf("TruncateSizedRestriction(%v) has incorrect output: got: %v, want: %v",
+						test.in, got, test.want)
+				}
+			})
+		}
+	})
 }
 
 // TestAsSplittableUnit tests ProcessSizedElementsAndRestrictions' implementation

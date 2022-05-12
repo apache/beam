@@ -265,6 +265,12 @@ https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
 to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
 encoding when writing to BigQuery.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 
 # pytype: skip-file
@@ -2201,6 +2207,23 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           raise ValueError(
               'A schema must be provided when writing to BigQuery using '
               'Avro based file loads')
+
+      if self.schema and type(self.schema) is dict:
+
+        def find_in_nested_dict(schema):
+          for field in schema['fields']:
+            if field['type'] == 'JSON':
+              raise ValueError(
+                  'Found JSON type in table schema. JSON data '
+                  'insertion is currently not supported with '
+                  'FILE_LOADS write method. This is supported with '
+                  'STREAMING_INSERTS. For more information: '
+                  'https://cloud.google.com/bigquery/docs/reference/'
+                  'standard-sql/json-data#ingest_json_data')
+            elif field['type'] == 'STRUCT':
+              find_in_nested_dict(field)
+
+        find_in_nested_dict(self.schema)
 
       from apache_beam.io.gcp import bigquery_file_loads
       # Only cast to int when a value is given.

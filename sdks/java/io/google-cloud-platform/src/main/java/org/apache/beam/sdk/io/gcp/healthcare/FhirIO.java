@@ -233,6 +233,13 @@ import org.slf4j.LoggerFactory;
  *      listSearchResult.getKeyedResources(); // KV<"Alice-Bob-Search", JsonArray of results>
  *
  * </pre>
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned
+ * <a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
@@ -1460,7 +1467,7 @@ public class FhirIO {
 
       private void parseResponse(ProcessContext context, String inputBody, HttpBody resp)
           throws JsonProcessingException {
-        JsonObject bundle = JsonParser.parseString(resp.getData()).getAsJsonObject();
+        JsonObject bundle = JsonParser.parseString(resp.toString()).getAsJsonObject();
         String bundleType = bundle.getAsJsonPrimitive(BUNDLE_TYPE_FIELD).getAsString();
         JsonArray entries = bundle.getAsJsonArray(BUNDLE_ENTRY_FIELD).getAsJsonArray();
         if (entries == null) {

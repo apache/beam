@@ -74,7 +74,7 @@ jobs:
       - name: Run :sdks:java:core:test
         uses: ./.github/actions/gradle-command-action
         with:
-          arguments: :sdks:java:core:test
+          arguments: -p sdks/java/core/ test
       - name: Upload test logs for :sdks:java:core:test
         uses: actions/upload-artifact@v2
         if: always()
@@ -85,7 +85,7 @@ jobs:
       - name: Run :sdks:java:harness:test
         uses: ./.github/actions/gradle-command-action
         with:
-          arguments: :sdks:java:harness:test
+          arguments: -p sdks/java/harness/ test
         if: always()
       - name: Upload test logs for :sdks:java:harness:test
         uses: actions/upload-artifact@v2
@@ -97,7 +97,7 @@ jobs:
       - name: Run :runners:core-java:test
         uses: ./.github/actions/gradle-command-action
         with:
-          arguments: :runners:core-java:test
+          arguments: -p runners/core-java/ test
         if: always()
       - name: Upload test logs for :runners:core-java:test
         uses: actions/upload-artifact@v2

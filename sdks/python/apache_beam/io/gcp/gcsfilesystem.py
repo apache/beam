@@ -15,7 +15,14 @@
 # limitations under the License.
 #
 
-"""GCS file system implementation for accessing files on GCS."""
+"""GCS file system implementation for accessing files on GCS.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
+"""
 
 # pytype: skip-file
 
@@ -120,8 +127,9 @@ class GCSFileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in gcsio.GcsIO().list_prefix(dir_or_prefix).items():
-        yield FileMetadata(path, size)
+      for path, (size, updated) in gcsio.GcsIO().list_prefix(
+          dir_or_prefix, with_metadata=True).items():
+        yield FileMetadata(path, size, updated)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
@@ -310,6 +318,25 @@ class GCSFileSystem(FileSystem):
       return gcsio.GcsIO().checksum(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path: e})
+
+  def metadata(self, path):
+    """Fetch metadata fields of a file on the FileSystem.
+
+    Args:
+      path: string path of a file.
+
+    Returns:
+      :class:`~apache_beam.io.filesystem.FileMetadata`.
+
+    Raises:
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
+    try:
+      file_metadata = gcsio.GcsIO()._status(path)
+      return FileMetadata(
+          path, file_metadata['size'], file_metadata['last_updated'])
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Metadata operation failed", {path: e})
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.

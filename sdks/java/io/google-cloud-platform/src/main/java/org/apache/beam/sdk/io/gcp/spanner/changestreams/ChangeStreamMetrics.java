@@ -32,12 +32,6 @@ public class ChangeStreamMetrics implements Serializable {
 
   private static final long serialVersionUID = 8187140831756972470L;
 
-  // ----
-  // Tracing Labels
-
-  /** Cloud Tracing label for Partition Tokens. */
-  public static final String PARTITION_ID_ATTRIBUTE_LABEL = "PartitionID";
-
   // ------------------------
   // Partition record metrics
 
