@@ -35,9 +35,13 @@ public final class SparkContextFactory {
    * If the property {@code beam.spark.test.reuseSparkContext} is set to {@code true} then the Spark
    * context will be reused for beam pipelines. This property should only be enabled for tests.
    *
-   * @deprecated Please use {@link SparkContextOptions} instead to allow for proper lifecycle
-   *     control to not leak your SparkContext without any way to close it. Attempting to create any
-   *     new SparkContext later will fail.
+   * @deprecated This will leak your SparkContext, any attempt to create a new SparkContext later
+   *     will fail. Please use {@link #setProvidedSparkContext(JavaSparkContext)} / {@link
+   *     #clearProvidedSparkContext()} instead to properly control the lifecycle of your context.
+   *     Alternatively you may also provide a SparkContext using {@link
+   *     SparkContextOptions#setUsesProvidedSparkContext(boolean)} together with {@link
+   *     SparkContextOptions#setProvidedSparkContext(JavaSparkContext)} and close that one
+   *     appropriately. Tests of this module should use {@code SparkContextRule}.
    */
   @Deprecated
   public static final String TEST_REUSE_SPARK_CONTEXT = "beam.spark.test.reuseSparkContext";

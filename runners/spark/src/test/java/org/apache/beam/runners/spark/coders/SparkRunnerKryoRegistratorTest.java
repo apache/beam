@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.spark.coders;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
 import org.apache.beam.runners.spark.SparkContextRule;
+import org.apache.beam.runners.spark.coders.SparkRunnerKryoRegistratorTest.Others.TestKryoRegistrator;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -48,61 +49,45 @@ public class SparkRunnerKryoRegistratorTest {
     public static SparkContextRule contextRule =
         new SparkContextRule(
             KV.of("spark.serializer", "org.apache.spark.serializer.KryoSerializer"),
-            KV.of("spark.kryo.registrator", WrapperKryoRegistrator.class.getName()));
+            KV.of("spark.kryo.registrator", TestKryoRegistrator.class.getName()));
 
     @Test
     public void testKryoRegistration() {
+      TestKryoRegistrator.wasInitiated = false;
       runSimplePipelineWithSparkContextOptions(contextRule);
-      assertTrue(
-          "WrapperKryoRegistrator wasn't initiated, probably KryoSerializer is not set",
-          WrapperKryoRegistrator.wasInitiated);
-    }
-
-    /**
-     * A {@link SparkRunnerKryoRegistrator} that registers an internal class to validate
-     * KryoSerialization resolution. Use only for test purposes. Needs to be public for
-     * serialization.
-     */
-    public static class WrapperKryoRegistrator extends SparkRunnerKryoRegistrator {
-
-      static boolean wasInitiated = false;
-
-      public WrapperKryoRegistrator() {
-        wasInitiated = true;
-      }
-
-      @Override
-      public void registerClasses(Kryo kryo) {
-        super.registerClasses(kryo);
-        Registration registration = kryo.getRegistration(MicrobatchSource.class);
-        com.esotericsoftware.kryo.Serializer kryoSerializer = registration.getSerializer();
-        assertTrue(kryoSerializer instanceof StatelessJavaSerializer);
-      }
+      assertTrue(TestKryoRegistrator.wasInitiated);
     }
   }
 
   public static class WithoutKryoSerializer {
     @ClassRule
     public static SparkContextRule contextRule =
-        new SparkContextRule(
-            KV.of("spark.kryo.registrator", KryoRegistratorIsNotCalled.class.getName()));
+        new SparkContextRule(KV.of("spark.kryo.registrator", TestKryoRegistrator.class.getName()));
 
     @Test
     public void testDefaultSerializerNotCallingKryo() {
+      TestKryoRegistrator.wasInitiated = false;
       runSimplePipelineWithSparkContextOptions(contextRule);
+      assertFalse(TestKryoRegistrator.wasInitiated);
     }
+  }
 
-    /**
-     * A {@link SparkRunnerKryoRegistrator} that fails if called. Use only for test purposes. Needs
-     * to be public for serialization.
-     */
-    public static class KryoRegistratorIsNotCalled extends SparkRunnerKryoRegistrator {
+  // Hide TestKryoRegistrator from the Enclosed JUnit runner
+  interface Others {
+    class TestKryoRegistrator extends SparkRunnerKryoRegistrator {
+
+      static boolean wasInitiated = false;
+
+      public TestKryoRegistrator() {
+        wasInitiated = true;
+      }
 
       @Override
       public void registerClasses(Kryo kryo) {
-        fail(
-            "Default spark.serializer is JavaSerializer"
-                + " so spark.kryo.registrator shouldn't be called");
+        super.registerClasses(kryo);
+        // verify serializer for MicrobatchSource
+        Registration registration = kryo.getRegistration(MicrobatchSource.class);
+        assertTrue(registration.getSerializer() instanceof StatelessJavaSerializer);
       }
     }
   }
