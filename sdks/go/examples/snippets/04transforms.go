@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -41,7 +42,8 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 
 // DoFns must be registered with beam.
 func init() {
-	beam.RegisterType(reflect.TypeOf((*ComputeWordLengthFn)(nil)))
+	register.DoFn[string, func(int)](&ComputeWordLengthFn{}))
+	register.Emitter1[int]()
 }
 
 // [END model_pardo_pardo]
@@ -185,6 +187,7 @@ func formatCoGBKResults(key string, emailIter, phoneIter func(*string) bool) str
 
 func init() {
 	beam.RegisterFunction(formatCoGBKResults)
+	register.Iter1[string]()
 }
 
 // [END cogroupbykey_output_helpers]
@@ -258,7 +261,7 @@ func (fn *boundedSum) MergeAccumulators(a, v int) int {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*boundedSum)(nil)))
+	register.Combiner1[int](&boundedSum{})
 }
 
 func globallyBoundedSumInts(s beam.Scope, bound int, ints beam.PCollection) beam.PCollection {
@@ -295,7 +298,7 @@ func (fn *averageFn) ExtractOutput(a averageAccum) float64 {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*averageFn)(nil)))
+	register.Combiner3[averageAccum, int, float64](&averageFn{})
 }
 
 // [END combine_custom_average]
@@ -401,6 +404,8 @@ func filterWordsBelow(word string, lengthCutOff float64, emitBelowCutoff func(st
 func init() {
 	beam.RegisterFunction(filterWordsAbove)
 	beam.RegisterFunction(filterWordsBelow)
+	register.Emitter1[string]()
+	register.Iter1[float64]()
 }
 
 // [END model_pardo_side_input_dofn]
@@ -454,6 +459,7 @@ func processWordsMixed(word string, emitMarked func(string)) int {
 func init() {
 	beam.RegisterFunction(processWords)
 	beam.RegisterFunction(processWordsMixed)
+	register.Emitter1[string]()
 }
 
 // [END model_multiple_output_dofn]
@@ -498,6 +504,7 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 
 func init() {
 	beam.RegisterFunction(extractWordsFn)
+	register.Emitter1[string]()
 }
 
 // [START countwords_composite]
