@@ -17,23 +17,23 @@
 
 @import "media";
 
-.logos {
-  padding: 25px 30px 35px;
+.pipelines {
+  padding: 40px 30px 10px;
 
-  .logos-title {
+  .pipelines-title {
     @extend .component-title;
 
     text-align: center;
   }
 
-  .logos-logos {
+  .pipelines-logos {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     width: 100%;
     max-width: 1111px;
-    margin: 40px auto 0;
+    margin: 70px auto 60px;
 
-    .logos-logo {
+    .pipelines-logo {
       line-height: 0;
 
       img {
@@ -44,16 +44,16 @@
 }
 
 @media (max-width: $tablet) {
-  .logos {
-    padding: 20px 30px;
+  .pipelines {
+    padding: 20px 30px 10px;
 
-    .logos-logos {
+    .pipelines-logos {
       max-width: 360px;
       flex-wrap: wrap;
       justify-content: center;
-      margin: 50px auto 20px;
+      margin: 50px auto 0;
 
-      .logos-logo {
+      .pipelines-logo {
         margin-right: 60px;
         margin-bottom: 50px;
 
@@ -62,7 +62,7 @@
         }
       }
 
-      :nth-child(3),
+      :nth-child(2),
       :last-child {
         margin-right: 0;
       }
