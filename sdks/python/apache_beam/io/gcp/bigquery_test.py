@@ -42,6 +42,7 @@ import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -89,6 +90,14 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _load_or_default(filename):
+  try:
+    with open(filename) as f:
+      return json.load(f)
+  except:  # pylint: disable=bare-except
+    return {}
 
 
 @unittest.skipIf(
@@ -838,6 +847,7 @@ class TestWriteToBigQuery(unittest.TestCase):
               test_client=client))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
   # Using https://cloud.google.com/bigquery/docs/error-messages and
@@ -1233,7 +1243,8 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
-  def test_failure_has_same_insert_ids(self):
+  @mock.patch('time.sleep')
+  def test_failure_has_same_insert_ids(self, unused_mock_sleep):
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     file_name_1 = os.path.join(tempdir, 'file1')
     file_name_2 = os.path.join(tempdir, 'file2')
@@ -1288,6 +1299,184 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
       self.assertEqual(json.load(f1), json.load(f2))
+
+  @parameterized.expand([
+      param(retry_strategy=RetryStrategy.RETRY_ALWAYS),
+      param(retry_strategy=RetryStrategy.RETRY_NEVER),
+      param(retry_strategy=RetryStrategy.RETRY_ON_TRANSIENT_ERROR),
+  ])
+  def test_failure_in_some_rows_does_not_duplicate(self, retry_strategy=None):
+    with mock.patch('time.sleep'):
+      # In this test we simulate a failure to write out two out of three rows.
+      # Row 0 and row 2 fail to be written on the first attempt, and then
+      # succeed on the next attempt (if there is one).
+      tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+      file_name_1 = os.path.join(tempdir, 'file1_partial')
+      file_name_2 = os.path.join(tempdir, 'file2_partial')
+
+      def store_callback(table, **kwargs):
+        insert_ids = [r for r in kwargs['row_ids']]
+        colA_values = [r['columnA'] for r in kwargs['json_rows']]
+
+        # The first time this function is called, all rows are included
+        # so we need to filter out 'failed' rows.
+        json_output_1 = {
+            'insertIds': [insert_ids[1]], 'colA_values': [colA_values[1]]
+        }
+        # The second time this function is called, only rows 0 and 2 are incl
+        # so we don't need to filter any of them. We just write them all out.
+        json_output_2 = {'insertIds': insert_ids, 'colA_values': colA_values}
+
+        # The first time we try to insert, we save those insertions in
+        # file insert_calls1.
+        if not os.path.exists(file_name_1):
+          with open(file_name_1, 'w') as f:
+            json.dump(json_output_1, f)
+          return [
+              {
+                  'index': 0,
+                  'errors': [{
+                      'reason': 'i dont like this row'
+                  }, {
+                      'reason': 'its bad'
+                  }]
+              },
+              {
+                  'index': 2,
+                  'errors': [{
+                      'reason': 'i het this row'
+                  }, {
+                      'reason': 'its no gud'
+                  }]
+              },
+          ]
+        else:
+          with open(file_name_2, 'w') as f:
+            json.dump(json_output_2, f)
+            return []
+
+      client = mock.Mock()
+      client.insert_rows_json = mock.Mock(side_effect=store_callback)
+
+      # The expected rows to be inserted according to the insert strategy
+      if retry_strategy == RetryStrategy.RETRY_NEVER:
+        result = ['value3']
+      else:  # RETRY_ALWAYS and RETRY_ON_TRANSIENT_ERRORS should insert all rows
+        result = ['value1', 'value3', 'value5']
+
+      # Using the bundle based direct runner to avoid pickling problems
+      # with mocks.
+      with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+        bq_write_out = (
+            p
+            | beam.Create([{
+                'columnA': 'value1', 'columnB': 'value2'
+            }, {
+                'columnA': 'value3', 'columnB': 'value4'
+            }, {
+                'columnA': 'value5', 'columnB': 'value6'
+            }])
+            | _StreamToBigQuery(
+                table_reference='project:dataset.table',
+                table_side_inputs=[],
+                schema_side_inputs=[],
+                schema='anyschema',
+                batch_size=None,
+                triggering_frequency=None,
+                create_disposition='CREATE_NEVER',
+                write_disposition=None,
+                kms_key=None,
+                retry_strategy=retry_strategy,
+                additional_bq_parameters=[],
+                ignore_insert_ids=False,
+                ignore_unknown_columns=False,
+                with_auto_sharding=False,
+                test_client=client))
+
+        failed_values = (
+            bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
+            | beam.Map(lambda x: x[1]['columnA']))
+
+        assert_that(
+            failed_values,
+            equal_to(list({'value1', 'value3', 'value5'}.difference(result))))
+
+      data1 = _load_or_default(file_name_1)
+      data2 = _load_or_default(file_name_2)
+
+      self.assertListEqual(
+          sorted(data1.get('colA_values', []) + data2.get('colA_values', [])),
+          result)
+      self.assertEqual(len(data1['colA_values']), 1)
+
+  @parameterized.expand([
+      param(retry_strategy=RetryStrategy.RETRY_ALWAYS),
+      param(retry_strategy=RetryStrategy.RETRY_NEVER),
+      param(retry_strategy=RetryStrategy.RETRY_ON_TRANSIENT_ERROR),
+  ])
+  def test_permanent_failure_in_some_rows_does_not_duplicate(
+      self, unused_sleep_mock=None, retry_strategy=None):
+    with mock.patch('time.sleep'):
+
+      def store_callback(table, **kwargs):
+        return [
+            {
+                'index': 0,
+                'errors': [{
+                    'reason': 'invalid'
+                }, {
+                    'reason': 'its bad'
+                }]
+            },
+        ]
+
+      client = mock.Mock()
+      client.insert_rows_json = mock.Mock(side_effect=store_callback)
+
+      # The expected rows to be inserted according to the insert strategy
+      if retry_strategy == RetryStrategy.RETRY_NEVER:
+        inserted_rows = ['value3', 'value5']
+      else:  # RETRY_ALWAYS and RETRY_ON_TRANSIENT_ERRORS should insert all rows
+        inserted_rows = ['value3', 'value5']
+
+      # Using the bundle based direct runner to avoid pickling problems
+      # with mocks.
+      with beam.Pipeline(runner='BundleBasedDirectRunner') as p:
+        bq_write_out = (
+            p
+            | beam.Create([{
+                'columnA': 'value1', 'columnB': 'value2'
+            }, {
+                'columnA': 'value3', 'columnB': 'value4'
+            }, {
+                'columnA': 'value5', 'columnB': 'value6'
+            }])
+            | _StreamToBigQuery(
+                table_reference='project:dataset.table',
+                table_side_inputs=[],
+                schema_side_inputs=[],
+                schema='anyschema',
+                batch_size=None,
+                triggering_frequency=None,
+                create_disposition='CREATE_NEVER',
+                write_disposition=None,
+                kms_key=None,
+                retry_strategy=retry_strategy,
+                additional_bq_parameters=[],
+                ignore_insert_ids=False,
+                ignore_unknown_columns=False,
+                with_auto_sharding=False,
+                test_client=client,
+                max_retries=10))
+
+        failed_values = (
+            bq_write_out[beam_bq.BigQueryWriteFn.FAILED_ROWS]
+            | beam.Map(lambda x: x[1]['columnA']))
+
+        assert_that(
+            failed_values,
+            equal_to(
+                list({'value1', 'value3', 'value5'}.difference(inserted_rows))))
 
   @parameterized.expand([
       param(with_auto_sharding=False),
@@ -1353,6 +1542,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
       self.assertEqual(out2['colA_values'], ['value5'])
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
@@ -1538,8 +1728,14 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
               method='STREAMING_INSERTS'))
 
       assert_that(
-          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
+          | beam.Map(lambda elm: (elm[0], elm[1])),
           equal_to([(full_output_table_1, bad_record)]))
+
+      assert_that(
+          r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+          equal_to([(full_output_table_1, bad_record)]),
+          label='FailedRowsMatch')
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
@@ -1646,6 +1842,7 @@ class PubSubBigQueryIT(unittest.TestCase):
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
 
@@ -1676,12 +1873,12 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
     bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = 100
     elements = [
         {
-            'name': u'Negative infinity',
+            'name': 'Negative infinity',
             'value': -float('inf'),
             'timestamp': datetime.datetime(1970, 1, 1, tzinfo=pytz.utc),
         },
         {
-            'name': u'Not a number',
+            'name': 'Not a number',
             'value': float('nan'),
             'timestamp': datetime.datetime(2930, 12, 9, tzinfo=pytz.utc),
         },
