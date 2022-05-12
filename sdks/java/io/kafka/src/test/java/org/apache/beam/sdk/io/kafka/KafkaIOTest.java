@@ -72,6 +72,8 @@ import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
+import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -80,9 +82,11 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -164,6 +168,9 @@ public class KafkaIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Rule
+  public ExpectedLogs unboundedReaderExpectedLogs = ExpectedLogs.none(KafkaUnboundedReader.class);
 
   private static final Instant LOG_APPEND_START_TIME = new Instant(600 * 1000);
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
@@ -1235,6 +1242,31 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testUnboundedReaderLogsCommitFailure() throws Exception {
+
+    List<String> topics = ImmutableList.of("topic_a");
+
+    PositionErrorConsumerFactory positionErrorConsumerFactory = new PositionErrorConsumerFactory();
+
+    UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("myServer1:9092,myServer2:9092")
+            .withTopics(topics)
+            .withConsumerFactoryFn(positionErrorConsumerFactory)
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .makeSource();
+
+    UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
+
+    reader.start();
+
+    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partition");
+
+    reader.close();
+  }
+
+  @Test
   public void testSink() throws Exception {
     // Simply read from kafka source and write to kafka sink. Then verify the records
     // are correctly published to mock kafka producer.
@@ -1613,6 +1645,41 @@ public class KafkaIOTest {
       completionThread.shutdown();
 
       verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
+    }
+  }
+
+  @Test
+  public void testExactlyOnceSinkWithSendException() throws Throwable {
+
+    if (!ProducerSpEL.supportsTransactions()) {
+      LOG.warn(
+          "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
+      return;
+    }
+
+    thrown.expect(KafkaException.class);
+    thrown.expectMessage("fakeException");
+
+    String topic = "test";
+
+    p.apply(Create.of(ImmutableList.of(KV.of(1, 1L), KV.of(2, 2L))))
+        .apply(
+            KafkaIO.<Integer, Long>write()
+                .withBootstrapServers("none")
+                .withTopic(topic)
+                .withKeySerializer(IntegerSerializer.class)
+                .withValueSerializer(LongSerializer.class)
+                .withEOS(1, "testException")
+                .withConsumerFactoryFn(
+                    new ConsumerFactoryFn(
+                        Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                .withProducerFactoryFn(new SendErrorProducerFactory()));
+
+    try {
+      p.run();
+    } catch (PipelineExecutionException e) {
+      // throwing inner exception helps assert that first exception is thrown from the Sink
+      throw e.getCause();
     }
   }
 

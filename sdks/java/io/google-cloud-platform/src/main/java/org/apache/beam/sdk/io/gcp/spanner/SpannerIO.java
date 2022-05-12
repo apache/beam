@@ -353,6 +353,13 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link Write} can be used as a streaming sink, however as with batch mode note that the write
  * order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant significant updates to this I/O connector, please consider involving
+ * corresponding code reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
