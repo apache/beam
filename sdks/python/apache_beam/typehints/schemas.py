@@ -542,7 +542,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):
   @classmethod
   def urn(cls):
-    return "beam:logical_type:micros_instant:v1"
+    return common_urns.micros_instant.urn
 
   @classmethod
   def representation_type(cls):
