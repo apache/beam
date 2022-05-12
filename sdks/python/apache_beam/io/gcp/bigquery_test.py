@@ -847,6 +847,7 @@ class TestWriteToBigQuery(unittest.TestCase):
               test_client=client))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
   # Using https://cloud.google.com/bigquery/docs/error-messages and
@@ -1541,6 +1542,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
       self.assertEqual(out2['colA_values'], ['value5'])
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
@@ -1840,6 +1842,7 @@ class PubSubBigQueryIT(unittest.TestCase):
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
 
