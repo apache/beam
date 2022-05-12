@@ -201,11 +201,16 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
     registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut false)}}(doFn)
 }
 
-// Function{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} registers your non-structural DoFn to optimize execution at runtime.
+// Function{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} registers your functional DoFn to optimize execution at runtime.
 {{if (or $processElementIn $processElementOut)}}// Function input and output parameter types should be provided in order as the generic constraints.
 {{end}}func Function{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}}) {
     runtime.RegisterFunction(doFn)
     registerMethodTypes(reflect.TypeOf(doFn))
+    caller := func(fn interface{}) reflectx.Func {
+        f := fn.(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}})
+        return &caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}{fn: f}
+    }
+    reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}})(nil)).Elem(), caller)
 }{{end}}{{end}}
 
 {{range $startFinishBundleOut := upto $startFinishBundleOutRange}}{{range $startFinishBundleIn := upto $startFinishBundleInRange}}
