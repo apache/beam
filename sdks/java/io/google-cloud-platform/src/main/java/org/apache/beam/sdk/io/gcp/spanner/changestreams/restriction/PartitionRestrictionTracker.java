@@ -126,30 +126,31 @@ public class PartitionRestrictionTracker
     if (restriction.getMode() == STOP) {
       return;
     }
-    // If nothing was attempted, throws an exception
-    checkState(
-        lastClaimedPosition != null,
-        "restriction is non-empty %s and no keys have been attempted.",
-        restriction.toString());
-
-    final PartitionMode currentMode = lastClaimedPosition.getMode();
-    if (currentMode == QUERY_CHANGE_STREAM) {
-      // If the mode is QUERY_CHANGE_STREAM, and the end of the timestamp range wasn't attempted,
-      // throw an exception
-      final Timestamp nextPosition = next(lastClaimedPosition.getTimestamp().get());
-      if (nextPosition.compareTo(restriction.getEndTimestamp()) < 0) {
-        throw new IllegalStateException(
-            String.format(
-                "Last attempted key was %s in range %s, claiming work in [%s, %s) was not"
-                    + " attempted",
-                lastClaimedPosition.getTimestamp().get(),
-                restriction,
-                nextPosition,
-                restriction.getEndTimestamp()));
+    if (lastClaimedPosition != null) {
+      final PartitionMode currentMode = lastClaimedPosition.getMode();
+      if (currentMode == QUERY_CHANGE_STREAM) {
+        // If the mode is QUERY_CHANGE_STREAM, and the end of the timestamp range wasn't attempted,
+        // throw an exception
+        final Timestamp nextPosition = next(lastClaimedPosition.getTimestamp().get());
+        if (nextPosition.compareTo(restriction.getEndTimestamp()) < 0) {
+          throw new IllegalStateException(
+              String.format(
+                  "Last attempted key was %s in range %s, claiming work in [%s, %s) was not"
+                      + " attempted",
+                  lastClaimedPosition.getTimestamp().get(),
+                  restriction,
+                  nextPosition,
+                  restriction.getEndTimestamp()));
+        }
+      } else {
+        checkState(
+            currentMode == DONE, "Restriction %s does not have mode DONE", restriction.toString());
       }
     } else {
-      checkState(
-          currentMode == DONE, "Restriction %s does not have mode DONE", restriction.toString());
+      // If nothing was attempted, throws an exception
+      throw new IllegalStateException(
+          String.format(
+              "restriction is non-empty %s and no keys have been attempted.", restriction));
     }
   }
 
