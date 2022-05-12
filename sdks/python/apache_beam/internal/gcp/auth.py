@@ -77,6 +77,9 @@ def get_service_credentials(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
   Get credentials to access Google services.
+  Args:
+    pipeline_options: Pipeline options, used in creating credentials
+      like impersonated credentials.
 
   Returns:
     A ``google.auth.credentials.Credentials`` object or None if credentials
