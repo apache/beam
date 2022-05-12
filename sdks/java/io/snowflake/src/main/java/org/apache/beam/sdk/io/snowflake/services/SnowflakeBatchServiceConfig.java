@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class SnowflakeBatchServiceConfig extends ServiceConfig {
+public class SnowflakeBatchServiceConfig {
   private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
 
   private final String database;

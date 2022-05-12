@@ -51,8 +51,7 @@ sdks/python/**/*.egg
 sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
-sdks/python/apache_beam/portability/api/*pb2*.*
-sdks/python/apache_beam/portability/api/*.yaml
+sdks/python/apache_beam/portability/api/*
 sdks/python/nosetests*.xml
 sdks/python/pytest*.xml
 sdks/python/postcommit_requirements.txt
@@ -113,6 +112,9 @@ website/www/site/code_samples
 website/www/site/_config_branch_repo.toml
 website/www/yarn-error.log
 !website/www/site/content
+
+# Node
+sdks/typescript/node_modules
 
 # Dart/Flutter
 **/.dart_tool

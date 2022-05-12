@@ -41,8 +41,10 @@ from apache_beam.io.filesystem import BeamIOError
 # TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
 try:
   from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
 except ImportError as e:
   HttpError = None
+  GoogleAPICallError = None
 
 # Protect against environments where aws tools are not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -123,6 +125,14 @@ def retry_on_server_errors_filter(exception):
   """Filter allowing retries on server errors and non-HttpErrors."""
   if (HttpError is not None) and isinstance(exception, HttpError):
     return exception.status_code >= 500
+  if GoogleAPICallError is not None and isinstance(exception,
+                                                   GoogleAPICallError):
+    if exception.code >= 500:  # 500 are internal server errors
+      return True
+    else:
+      # If we have a GoogleAPICallError with a code that doesn't
+      # indicate a server error, we do not need to retry.
+      return False
   if (S3ClientError is not None) and isinstance(exception, S3ClientError):
     return exception.code is None or exception.code >= 500
   return not isinstance(exception, PermanentException)
@@ -134,12 +144,20 @@ def retry_on_server_errors_and_notfound_filter(exception):
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 404:  # 404 Not Found
       return True
+  if GoogleAPICallError is not None and isinstance(exception,
+                                                   GoogleAPICallError):
+    if exception.code == 404:  # 404 Not found
+      return True
   return retry_on_server_errors_filter(exception)
 
 
 def retry_on_server_errors_and_timeout_filter(exception):
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 408:  # 408 Request Timeout
+      return True
+  if GoogleAPICallError is not None and isinstance(exception,
+                                                   GoogleAPICallError):
+    if exception.code == 408:  # 408 Request Timeout
       return True
   if S3ClientError is not None and isinstance(exception, S3ClientError):
     if exception.code == 408:  # 408 Request Timeout
@@ -154,6 +172,10 @@ def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
   rateLimitExceeded."""
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 403:
+      return True
+  if GoogleAPICallError is not None and isinstance(exception,
+                                                   GoogleAPICallError):
+    if exception.code == 403:
       return True
   if S3ClientError is not None and isinstance(exception, S3ClientError):
     if exception.code == 403:

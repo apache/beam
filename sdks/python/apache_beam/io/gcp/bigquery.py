@@ -265,6 +265,12 @@ https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
 to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
 encoding when writing to BigQuery.
+
+**Updates to the I/O connector code**
+
+For any significant updates to this I/O connector, please consider involving
+corresponding code reviewers mentioned in
+https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 
 # pytype: skip-file
@@ -277,6 +283,7 @@ import logging
 import random
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -657,6 +664,14 @@ class _BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
+# TODO(BEAM-14331): remove the serialization restriction in transform
+# implementation once InteractiveRunner can work without runner api roundtrips.
+@dataclass
+class _BigQueryExportResult:
+  coder: beam.coders.Coder
+  paths: List[str]
+
+
 class _CustomBigQuerySource(BoundedSource):
   def __init__(
       self,
@@ -705,7 +720,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.flatten_results = flatten_results
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
-    self.split_result = None
+    self.export_result = None
     self.options = pipeline_options
     self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
@@ -789,7 +804,7 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
-  def _create_source(self, path, schema):
+  def _create_source(self, path, coder):
     if not self.use_json_exports:
       return create_avro_source(path)
     else:
@@ -798,10 +813,10 @@ class _CustomBigQuerySource(BoundedSource):
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=self.coder(schema))
+          coder=coder)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
-    if self.split_result is None:
+    if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
               self.temp_dataset.datasetId if self.temp_dataset else None))
@@ -814,15 +829,15 @@ class _CustomBigQuerySource(BoundedSource):
         self.table_reference.projectId = self._get_project()
 
       schema, metadata_list = self._export_files(bq)
-      # Sources to be created lazily within a generator as they're output.
-      self.split_result = (
-          self._create_source(metadata.path, schema)
-          for metadata in metadata_list)
+      self.export_result = _BigQueryExportResult(
+          coder=self.coder(schema),
+          paths=[metadata.path for metadata in metadata_list])
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
-    for source in self.split_result:
+    for path in self.export_result.paths:
+      source = self._create_source(path, self.export_result.coder)
       yield SourceBundle(
           weight=1.0, source=source, start_position=None, stop_position=None)
 
@@ -2007,6 +2022,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         data to BigQuery: https://cloud.google.com/bigquery/docs/loading-data.
         DEFAULT will use STREAMING_INSERTS on Streaming pipelines and
         FILE_LOADS on Batch pipelines.
+        Note: FILE_LOADS currently does not support BigQuery's JSON data type:
+        https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
       insert_retry_strategy: The strategy to use when retrying streaming inserts
         into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
         Default is to retry always. This means that whenever there are rows
@@ -2190,6 +2207,23 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               'A schema must be provided when writing to BigQuery using '
               'Avro based file loads')
 
+      if self.schema and type(self.schema) is dict:
+
+        def find_in_nested_dict(schema):
+          for field in schema['fields']:
+            if field['type'] == 'JSON':
+              raise ValueError(
+                  'Found JSON type in table schema. JSON data '
+                  'insertion is currently not supported with '
+                  'FILE_LOADS write method. This is supported with '
+                  'STREAMING_INSERTS. For more information: '
+                  'https://cloud.google.com/bigquery/docs/reference/'
+                  'standard-sql/json-data#ingest_json_data')
+            elif field['type'] == 'STRUCT':
+              find_in_nested_dict(field)
+
+        find_in_nested_dict(self.schema)
+
       from apache_beam.io.gcp import bigquery_file_loads
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads
@@ -2272,14 +2306,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   @PTransform.register_urn('beam:transform:write_to_big_query:v0', bytes)
   def from_runner_api(unused_ptransform, payload, context):
     from apache_beam.internal import pickler
-    from apache_beam.portability.api.beam_runner_api_pb2 import SideInput
+    from apache_beam.portability.api import beam_runner_api_pb2
 
     config = pickler.loads(payload)
 
     def deserialize(side_inputs):
       deserialized_side_inputs = {}
       for k, v in side_inputs.items():
-        side_input = SideInput()
+        side_input = beam_runner_api_pb2.SideInput()
         side_input.ParseFromString(v)
         deserialized_side_inputs[k] = side_input
 

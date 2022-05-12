@@ -29,7 +29,6 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -86,7 +85,6 @@ import org.junit.rules.ExpectedException;
 public class CreateStreamTest implements Serializable {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
-  @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   @Test
@@ -433,7 +431,9 @@ public class CreateStreamTest implements Serializable {
   public void testElementAtPositiveInfinityThrows() {
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())
-            .nextBatch(TimestampedValue.of(-1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L))))
+            .nextBatch(
+                TimestampedValue.of(
+                    -1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L))))
             .advanceNextBatchWatermarkToInfinity();
     thrown.expect(IllegalArgumentException.class);
     source.nextBatch(TimestampedValue.of(1, BoundedWindow.TIMESTAMP_MAX_VALUE));
@@ -452,7 +452,8 @@ public class CreateStreamTest implements Serializable {
   public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())
-            .advanceWatermarkForNextBatch(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L)));
+            .advanceWatermarkForNextBatch(
+                BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L)));
     thrown.expect(IllegalArgumentException.class);
     source.advanceWatermarkForNextBatch(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
@@ -499,8 +500,7 @@ public class CreateStreamTest implements Serializable {
   }
 
   private Duration batchDuration() {
-    return Duration.millis(
-        p.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis());
+    return Duration.millis(p.getOptions().as(SparkPipelineOptions.class).getBatchIntervalMillis());
   }
 
   private static class LifecycleDoFn extends DoFn<Integer, Integer> {

@@ -77,8 +77,7 @@ var (
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
-	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
-	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
+	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 )
 
 // flagFilter filters flags that are already represented by the above flags
@@ -234,15 +233,6 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		perf.EnableProfCaptureHook("gcs_profile_writer", *cpuProfiling)
 	}
 
-	if *sessionRecording != "" {
-		// TODO(wcn): BEAM-4017
-		// It's a bit inconvenient for GCS because the whole object is written in
-		// one pass, whereas the session logs are constantly appended. We wouldn't
-		// want to hold all the logs in memory to flush at the end of the pipeline
-		// as we'd blow out memory on the worker. The implementation of the
-		// CaptureHook should create an internal buffer and write chunks out to GCS
-		// once they get to an appropriate size (50M or so?)
-	}
 	if *autoscalingAlgorithm != "" {
 		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
 			return nil, errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")

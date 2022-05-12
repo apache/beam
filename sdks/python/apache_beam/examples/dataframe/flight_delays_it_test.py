@@ -35,6 +35,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
+@unittest.skip('BEAM-14336')
 class FlightDelaysTest(unittest.TestCase):
   EXPECTED = {
       '2012-12-23': [
