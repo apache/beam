@@ -123,4 +123,10 @@ public interface BigQueryOptions
   Integer getSchemaUpdateRetries();
 
   void setSchemaUpdateRetries(Integer value);
+
+  @Description("Maximum (best effort) size of a single append to the storage API.")
+  @Default.Integer(2 * 1024 * 1024)
+  Integer getStorageApiAppendThresholdBytes();
+
+  void setStorageApiAppendThresholdBytes(Integer value);
 }

@@ -31,6 +31,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.VarInt;
@@ -40,6 +41,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBase
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table.Cell;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -207,7 +209,11 @@ class WindmillTimerInternals implements TimerInternals {
       if (cell.getValue()) {
         // Setting the timer. If it is a user timer, set a hold.
 
-        if (needsWatermarkHold(timerData)) {
+        // Only set a hold if it's needed and if the hold is before the end of the global window.
+        if (needsWatermarkHold(timerData)
+            && timerData
+                .getOutputTimestamp()
+                .isBefore(GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1)))) {
           // Setting a timer, clear any prior hold and set to the new value
           outputBuilder
               .addWatermarkHoldsBuilder()
@@ -220,6 +226,8 @@ class WindmillTimerInternals implements TimerInternals {
       } else {
         // Deleting a timer. If it is a user timer, clear the hold
         timer.clearTimestamp();
+        // Clear the hold even if it's the end of the global window in order to maintain update
+        // compatibility.
         if (needsWatermarkHold(timerData)) {
           // We are deleting timer; clear the hold
           outputBuilder
