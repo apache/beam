@@ -487,6 +487,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_table_schema_retrieve(self):
     from apache_beam import coders
+    from apache_beam.typehints.schemas import typing_to_runner_api
     the_table = apache_beam.io.gcp.bigquery.bigquery_tools.BigQueryWrapper(
     ).get_table(
         project_id="apache-beam-testing",
@@ -504,7 +505,7 @@ class TestReadFromBigQuery(unittest.TestCase):
               table))
       print(coders.registry.get_coder(utype))
       print(result.element_type)
-      print(apache_beam.coders.row_coder.RowCoder.__annotations__)
+      print(coders.RowCoder(typing_to_runner_api(utype).row_type.schema))
       #print(apache_beam.coders.row_coder.RowCoder.key_coder())
       #print(apache_beam.coders.row_coder.RowCoder._create_impl())
       assert_that(
