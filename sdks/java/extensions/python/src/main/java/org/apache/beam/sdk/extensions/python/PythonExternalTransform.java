@@ -34,10 +34,12 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -202,12 +204,14 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   // Types that are not one of following are considered custom types.
   // * Java primitives
   // * Type String
-  // * Type Row
+  // * Type PythonCallableSource
   // * Any Type explicitly annotated by withTypeHint()
+  // * Type Row
   private boolean isCustomType(java.lang.Class<?> type) {
     boolean val =
         !(ClassUtils.isPrimitiveOrWrapper(type)
             || type == String.class
+            || type == PythonCallableSource.class
             || typeHints.containsKey(type)
             || Row.class.isAssignableFrom(type));
     return val;
@@ -264,6 +268,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       if (field instanceof Row) {
         // Rows are used as is but other types are converted to proper field types.
         builder.addRowField(fieldName, ((Row) field).getSchema());
+      } else if (field instanceof PythonCallableSource) {
+        builder.addField(fieldName, Schema.FieldType.logicalType(new PythonCallable()));
       } else if (typeHints.containsKey(field.getClass())) {
         builder.addField(fieldName, typeHints.get(field.getClass()));
       } else {

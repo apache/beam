@@ -25,6 +25,7 @@ from .api import metrics_pb2_urns
 from .api import standard_window_fns_pb2_urns
 
 BeamConstants = beam_runner_api_pb2_urns.BeamConstants
+LogicalTypes = beam_runner_api_pb2_urns.LogicalTypes
 StandardArtifacts = beam_runner_api_pb2_urns.StandardArtifacts
 StandardCoders = beam_runner_api_pb2_urns.StandardCoders
 StandardDisplayData = beam_runner_api_pb2_urns.StandardDisplayData
@@ -76,3 +77,5 @@ requirements = StandardRequirements.Enum
 displayData = StandardDisplayData.DisplayData
 
 java_class_lookup = ExpansionMethods.Enum.JAVA_CLASS_LOOKUP
+
+python_callable = LogicalTypes.Enum.PYTHON_CALLABLE

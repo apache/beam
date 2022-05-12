@@ -1094,6 +1094,13 @@ message StandardCoders {
   }
 }
 
+message LogicalTypes {
+  enum Enum {
+    // A URN for Python Callable logical type
+    PYTHON_CALLABLE = 0 [(beam_urn) = "beam:logical_type:python_callable:v1"];
+  }
+}
+
 // A windowing strategy describes the window function, triggering, allowed
 // lateness, and accumulation mode for a PCollection.
 //

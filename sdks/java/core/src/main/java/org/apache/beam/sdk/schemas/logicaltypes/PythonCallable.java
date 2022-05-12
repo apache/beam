@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.LogicalTypes;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
@@ -27,7 +29,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** A logical type for PythonCallableSource objects. */
 @Experimental(Experimental.Kind.SCHEMAS)
 public class PythonCallable implements LogicalType<PythonCallableSource, String> {
-  public static final String IDENTIFIER = "beam:logical_type:python_callable:v1";
+  public static final String IDENTIFIER =
+      LogicalTypes.Enum.PYTHON_CALLABLE
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
 
   @Override
   public String getIdentifier() {

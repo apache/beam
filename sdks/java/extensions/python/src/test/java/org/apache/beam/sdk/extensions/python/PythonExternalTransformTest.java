@@ -22,12 +22,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -187,16 +188,26 @@ public class PythonExternalTransformTest implements Serializable {
   }
 
   @Test
+  public void generateArgsWithPythonCallableSource() {
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
+            .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
+                "DummyTransform")
+            .withArgs(PythonCallableSource.of("dummy data"));
+    Row receivedRow = transform.buildOrGetArgsRow();
+    assertTrue(receivedRow.getValue("field0") instanceof PythonCallableSource);
+  }
+
+  @Test
   public void generateArgsWithTypeHint() {
     PythonExternalTransform<?, ?> transform =
         PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
-            .withArgs(PythonCallableSource.of("dummy data"))
-            .withTypeHint(
-                PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));
+            .withArgs(Instant.ofEpochSecond(0))
+            .withTypeHint(Instant.class, Schema.FieldType.logicalType(new MicrosInstant()));
     Row receivedRow = transform.buildOrGetArgsRow();
-    assertTrue(receivedRow.getValue("field0") instanceof PythonCallableSource);
+    assertTrue(receivedRow.getValue("field0") instanceof Instant);
   }
 
   @Test
@@ -290,16 +301,26 @@ public class PythonExternalTransformTest implements Serializable {
   }
 
   @Test
+  public void generateKwargsWithPythonCallableSource() {
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
+            .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
+                "DummyTransform")
+            .withKwarg("customField0", PythonCallableSource.of("dummy data"));
+    Row receivedRow = transform.buildOrGetKwargsRow();
+    assertTrue(receivedRow.getValue("customField0") instanceof PythonCallableSource);
+  }
+
+  @Test
   public void generateKwargsWithTypeHint() {
     PythonExternalTransform<?, ?> transform =
         PythonExternalTransform
             .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
                 "DummyTransform")
-            .withKwarg("customField0", PythonCallableSource.of("dummy data"))
-            .withTypeHint(
-                PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));
+            .withKwarg("customField0", Instant.ofEpochSecond(0))
+            .withTypeHint(Instant.class, Schema.FieldType.logicalType(new MicrosInstant()));
     Row receivedRow = transform.buildOrGetKwargsRow();
-    assertTrue(receivedRow.getValue("customField0") instanceof PythonCallableSource);
+    assertTrue(receivedRow.getValue("customField0") instanceof Instant);
   }
 
   @Test
