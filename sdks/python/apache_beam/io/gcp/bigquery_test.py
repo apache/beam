@@ -943,6 +943,60 @@ class TestWriteToBigQuery(unittest.TestCase):
               with_auto_sharding=True,
               test_client=client))
 
+  @parameterized.expand([
+      param(exception_type=exceptions.Forbidden, error_message='accessDenied'),
+      param(exception_type=exceptions.NotFound, error_message='notFound'),
+      param(
+          exception_type=exceptions.ServiceUnavailable,
+          error_message='backendError'),
+      param(
+          exception_type=exceptions.InternalServerError,
+          error_message='internalError'),
+  ])
+  @mock.patch('time.sleep')
+  # @mock.patch.object(
+  #   beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size')
+  @mock.patch.object(
+      beam.io.gcp.internal.clients.storage.storage_v1_client.StorageV1.
+      ObjectsService,
+      'Get')
+  @mock.patch.object(
+      beam.io.gcp.internal.clients.storage.storage_v1_client.StorageV1.
+      ObjectsService,
+      'Insert')
+  @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
+  def test_load_job_fail_exception(
+      self,
+      mock_load_job,
+      mock_get_file,
+      mock_insert_file,
+      unused_mock,
+      exception_type,
+      error_message):
+    # mock_estimate.return_value = None
+    mock_load_job.side_effect = exception_type(error_message)
+
+    with self.assertRaises(Exception) as exc:
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                custom_gcs_temp_location="gs://temp_location",
+                method='FILE_LOADS'))
+
+    self.assertEqual(4, mock_load_job.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
