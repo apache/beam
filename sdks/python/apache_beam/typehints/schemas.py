@@ -567,7 +567,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   @classmethod
   def urn(cls):
-    return common_urns.python_callable
+    return common_urns.python_callable.urn
 
   @classmethod
   def representation_type(cls):
