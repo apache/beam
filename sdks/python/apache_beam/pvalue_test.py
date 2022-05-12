@@ -21,6 +21,8 @@
 
 import unittest
 
+import pytest
+
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import PValue
 from apache_beam.pvalue import TaggedOutput
@@ -47,6 +49,11 @@ class TaggedValueTest(unittest.TestCase):
         TypeError,
         r'Attempting to create a TaggedOutput with non-string tag \(1, 2, 3\)'):
       TaggedOutput((1, 2, 3), 'value')
+
+@pytest.mark.no_xdist
+class ExpectedFailureTest(unittest.TestCase):
+  def test_expected_failure(self):
+    assert False
 
 
 if __name__ == '__main__':
