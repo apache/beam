@@ -2008,7 +2008,7 @@ Call emitter functions as needed to produce 0 or more elements for its matching
 `PCollection`. The same value can be emitted with multiple emitters.
 As normal, do not mutate values after emitting them from any emitter.
 
-All emitters should be registered using the generic `register.DoFnX[...]`
+All emitters should be registered using the generic `register.DoFnXxY[...]`
 This optimizes runtime execution of the emitter.
 {{< /paragraph >}}
 

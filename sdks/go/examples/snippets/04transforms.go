@@ -42,7 +42,7 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 
 // DoFns must be registered with beam.
 func init() {
-	register.DoFn[string, func(int)](&ComputeWordLengthFn{}))
+	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
 	register.Emitter1[int]()
 }
 
