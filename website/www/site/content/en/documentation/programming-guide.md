@@ -817,7 +817,7 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 
 func init() {
 	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
-  register.Emitter1[int]()
+	register.Emitter1[int]()
 }
 {{< /highlight >}}
 
@@ -881,7 +881,7 @@ func ComputeWordLengthFn(word string, emit func(int)) { ... }
 
 func init() {
 	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
-  register.Emitter1[int]()
+	register.Emitter1[int]()
 }
 {{< /highlight >}}
 
@@ -1355,16 +1355,17 @@ the DoFn for execution on remote runners, and optimizes the runtime execution of
 the DoFns via reflection.
 
 Combiner1 should be used when your accumulator, input, and output are all of the
-same type. It can be called with register.Combiner1[T](&CustomCombiner{}) where T
+same type. It can be called with `register.Combiner1[T](&CustomCombiner{})` where `T`
 is the type of the input/accumulator/output.
 
 Combiner2 should be used when your accumulator, input, and output are 2 distinct
-types. It can be called with register.Combiner2[T1, T2](&CustomCombiner{}) where
-T1 is the type of the accumulator and T2 is the other type.
+types. It can be called with `register.Combiner2[T1, T2]`(&CustomCombiner{}) where
+`T1` is the type of the accumulator and `T2` is the other type.
 
 Combiner3 should be used when your accumulator, input, and output are 3 distinct
-types. It can be called with register.Combiner3[T1, T2, T3](&CustomCombiner{})
-where T1 is the type of the accumulator, T2 is the type of the input, and T3 is the type of the output.
+types. It can be called with `register.Combiner3[T1, T2, T3](&CustomCombiner{})`
+where `T1` is the type of the accumulator, `T2` is the type of the input, and `T3` is
+the type of the output.
 {{< /paragraph >}}
 
 {{< highlight go >}}
