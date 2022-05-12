@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.DONE;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.QUERY_CHANGE_STREAM;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.PartitionMode.STOP;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils.next;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.Timestamp;
@@ -73,21 +75,8 @@ public class PartitionRestrictionTracker
 
   @Override
   public @Nullable SplitResult<PartitionRestriction> trySplit(double fractionOfRemainder) {
-    final String token =
-        Optional.ofNullable(restriction.getMetadata())
-            .map(PartitionRestrictionMetadata::getPartitionToken)
-            .orElse("");
     final SplitResult<PartitionRestriction> splitResult =
         splitter.trySplit(fractionOfRemainder, lastClaimedPosition, restriction);
-    LOG.debug(
-        "["
-            + token
-            + "] Try split "
-            + lastClaimedPosition
-            + ", "
-            + restriction
-            + ": "
-            + splitResult);
     if (splitResult != null) {
       PartitionRestriction restrictionFromSplit =
           Optional.ofNullable(splitResult.getPrimary()).orElse(this.restriction);
@@ -143,13 +132,24 @@ public class PartitionRestrictionTracker
         "restriction is non-empty %s and no keys have been attempted.",
         restriction.toString());
 
-    if (lastClaimedPosition != null) {
-      final PartitionMode currentMode = lastClaimedPosition.getMode();
+    final PartitionMode currentMode = lastClaimedPosition.getMode();
+    if (currentMode == QUERY_CHANGE_STREAM) {
+      // If the mode is QUERY_CHANGE_STREAM, and the end of the timestamp range wasn't attempted,
+      // throw an exception
+      final Timestamp nextPosition = next(lastClaimedPosition.getTimestamp().get());
+      if (nextPosition.compareTo(restriction.getEndTimestamp()) < 0) {
+        throw new IllegalStateException(
+            String.format(
+                "Last attempted key was %s in range %s, claiming work in [%s, %s) was not"
+                    + " attempted",
+                lastClaimedPosition.getTimestamp().get(),
+                restriction,
+                nextPosition,
+                restriction.getEndTimestamp()));
+      }
+    } else {
       checkState(
           currentMode == DONE, "Restriction %s does not have mode DONE", restriction.toString());
-    } else {
-      throw new IllegalStateException(
-          "Last claimed position is null in restriction: " + restriction.toString());
     }
   }
 

@@ -428,7 +428,27 @@ public class PartitionRestrictionTrackerTest {
     assertEquals(primary, tracker.restriction);
   }
 
-  // Test checkDone fails when mode is QUERY_CHANGE_STREAM.
+  // Test checkDone fails when mode is QUERY_CHANGE_STREAM and last timestamp was not attempted.
+  @Property
+  public void testCheckDoneFailsNotAtEndOfRange(
+      @From(TimestampGenerator.class) Timestamp from,
+      @From(TimestampGenerator.class) Timestamp to) {
+    assumeThat(from, lessThan(to));
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.queryChangeStream(from, next(to))
+            .withMetadata(
+                PartitionRestrictionMetadata.newBuilder()
+                    .withPartitionToken(PARTITION_TOKEN)
+                    .build());
+    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
+
+    final PartitionPosition position = PartitionPosition.queryChangeStream(from);
+    assertTrue(tracker.tryClaim(position));
+    assertThrows(IllegalStateException.class, tracker::checkDone);
+  }
+
+  // Test checkDone succeeds when mode is QUERY_CHANGE_STREAM and last timestamp was claimed.
   @Property
   public void testCheckDoneSucceedsAtEndOfRange(
       @From(TimestampGenerator.class) Timestamp from,
@@ -445,7 +465,7 @@ public class PartitionRestrictionTrackerTest {
 
     final PartitionPosition position = PartitionPosition.queryChangeStream(to);
     assertTrue(tracker.tryClaim(position));
-    assertThrows(IllegalStateException.class, tracker::checkDone);
+    tracker.checkDone();
   }
 
   // ---------------------------Restriction mode is WAIT_FOR_CHILD_PARTITIONS---------------------
@@ -669,6 +689,7 @@ public class PartitionRestrictionTrackerTest {
     tracker.checkDone();
   }
 
+  // ---------------------------Test progress tracking-----------------------------------------
   @Property
   public void testGetProgressWorkCompletedAndWorkRemaining(
       @From(TimestampGenerator.class) Timestamp from,
@@ -677,6 +698,7 @@ public class PartitionRestrictionTrackerTest {
     assumeThat(from, lessThan(to));
     assumeThat(curTimestamp, greaterThanOrEqualTo(from));
     assumeThat(curTimestamp, lessThan(to));
+    assumeThat(from.getSeconds(), greaterThanOrEqualTo(1L));
 
     final PartitionRestriction restriction =
         PartitionRestriction.queryChangeStream(from, to)
@@ -709,6 +731,7 @@ public class PartitionRestrictionTrackerTest {
       @From(TimestampGenerator.class) Timestamp from,
       @From(TimestampGenerator.class) Timestamp to) {
     assumeThat(from, lessThan(to));
+    assumeThat(from.getSeconds(), greaterThanOrEqualTo(1L));
 
     final PartitionRestriction restriction =
         PartitionRestriction.queryChangeStream(from, to)
@@ -735,6 +758,7 @@ public class PartitionRestrictionTrackerTest {
       @From(TimestampGenerator.class) Timestamp to) {
     assumeThat(from, greaterThanOrEqualTo(Timestamp.MIN_VALUE));
     assumeThat(from, lessThan(to));
+    assumeThat(from.getSeconds(), greaterThanOrEqualTo(1L));
 
     final PartitionRestriction restriction =
         PartitionRestriction.waitForChildPartitions(from, to)
@@ -757,6 +781,7 @@ public class PartitionRestrictionTrackerTest {
       @From(TimestampGenerator.class) Timestamp from,
       @From(TimestampGenerator.class) Timestamp to) {
     assumeThat(from, lessThan(to));
+    assumeThat(from.getSeconds(), greaterThanOrEqualTo(1L));
 
     final PartitionRestriction restriction =
         PartitionRestriction.updateState(from, to)
@@ -783,6 +808,7 @@ public class PartitionRestrictionTrackerTest {
       @From(TimestampGenerator.class) Timestamp from,
       @From(TimestampGenerator.class) Timestamp to) {
     assumeThat(from, lessThan(to));
+    assumeThat(from.getSeconds(), greaterThanOrEqualTo(1L));
 
     final PartitionRestriction restriction =
         PartitionRestriction.updateState(from, to)
@@ -806,6 +832,7 @@ public class PartitionRestrictionTrackerTest {
       @From(TimestampGenerator.class) Timestamp from,
       @From(TimestampGenerator.class) Timestamp to) {
     assumeThat(from, lessThan(to));
+    assumeThat(from.getSeconds(), greaterThanOrEqualTo(1L));
 
     final PartitionRestriction restriction =
         PartitionRestriction.waitForChildPartitions(from, to)
@@ -830,6 +857,7 @@ public class PartitionRestrictionTrackerTest {
       @From(TimestampGenerator.class) Timestamp from,
       @From(TimestampGenerator.class) Timestamp to) {
     assumeThat(from, lessThan(to));
+    assumeThat(from.getSeconds(), greaterThanOrEqualTo(1L));
 
     final PartitionRestriction restriction =
         PartitionRestriction.waitForChildPartitions(from, to)

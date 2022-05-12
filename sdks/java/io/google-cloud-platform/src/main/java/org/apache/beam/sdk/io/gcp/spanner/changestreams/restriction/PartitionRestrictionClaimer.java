@@ -119,7 +119,7 @@ public class PartitionRestrictionClaimer {
       case STOP:
         throw new IllegalArgumentException("Trying to claim STOP state is invalid");
       default:
-        throw new IllegalArgumentException("Unknown mode " + fromMode);
+        throw new IllegalArgumentException("Unknown mode " + toMode);
     }
 
     LOG.debug(

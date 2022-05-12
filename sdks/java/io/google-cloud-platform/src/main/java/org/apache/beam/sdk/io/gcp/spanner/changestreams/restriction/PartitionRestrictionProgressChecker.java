@@ -38,8 +38,8 @@ public class PartitionRestrictionProgressChecker {
 
   /**
    * Indicates how many mode transitions have been completed for the current mode. The transitions
-   * are as follows: * (1) QUERY_CHANGE_STREAM, (2) WAIT_FOR_CHILD_PARTITIONS, (3) FINISH_PARTITION,
-   * (4) WAIT_FOR_PARENT_PARTITIONS, (5) DELETE_PARTITION, (6) DONE.
+   * are as follows: * (1) UPDATE_STATE, (2) QUERY_CHANGE_STREAM, (3) WAIT_FOR_CHILD_PARTITIONS, (4)
+   * DONE.
    *
    * <p>This is used to calculate the units of work left, meaning that 1 transition = 1 unit of
    * work.
