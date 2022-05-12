@@ -539,8 +539,8 @@ class TestReadFromBigQuery(unittest.TestCase):
       mock_query_location,
       mock_estimate,
       unused_mock,
-      exception_type,
-      error_message):
+      exception_type=None,
+      error_message=None):
     mock_query_location.return_value = None
     mock_estimate.return_value = None
     mock_query_job.side_effect = exception_type(error_message)
@@ -577,8 +577,8 @@ class TestReadFromBigQuery(unittest.TestCase):
       mock_get_table,
       mock_estimate,
       unused_mock,
-      exception_type,
-      error_message):
+      exception_type=None,
+      error_message=None):
     mock_estimate.return_value = None
     mock_query_job.side_effect = exception_type(error_message)
 
