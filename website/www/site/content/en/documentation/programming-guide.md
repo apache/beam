@@ -699,10 +699,10 @@ processing function.
 </span>
 
 {{< paragraph class="language-go" >}}
-All DoFns should be registered using the generic `register.DoFnXxY[...]`
-This allows the Go SDK to infer an encoding from any inputs/outputs, registers
-the DoFn for execution on remote runners, and optimizes the runtime execution of
-the DoFns via reflection.
+All DoFns should be registered using a generic `register.DoFnXxY[...]`
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the DoFn for execution on remote runners, and optimizes the runtime
+execution of the DoFns via reflection.
 {{< /paragraph >}}
 
 {{< highlight go >}}
@@ -1349,10 +1349,10 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< /highlight >}}
 
 {{< paragraph class="language-go" >}}
-All Combiners should be registered using the generic `register.CombinerX[...]`
-This allows the Go SDK to infer an encoding from any inputs/outputs, registers
-the DoFn for execution on remote runners, and optimizes the runtime execution of
-the DoFns via reflection.
+All Combiners should be registered using a generic `register.CombinerX[...]`
+function. This allows the Go SDK to infer an encoding from any inputs/outputs,
+registers the Combiner for execution on remote runners, and optimizes the runtime
+execution of the Combiner via reflection.
 
 Combiner1 should be used when your accumulator, input, and output are all of the
 same type. It can be called with `register.Combiner1[T](&CustomCombiner{})` where `T`
@@ -1814,8 +1814,8 @@ needs to be determined at runtime (and not hard-coded). Such values might be
 determined by the input data, or depend on a different branch of your pipeline.
 
 {{< paragraph class="language-go" >}}
-All side input iters should be registered using the generic `register.IterX[...]`
-This optimizes runtime execution of the iter.
+All side input iters should be registered using a generic `register.IterX[...]`
+function. This optimizes runtime execution of the iter.
 {{< /paragraph >}}
 
 #### 4.4.1. Passing side inputs to ParDo {#side-inputs-pardo}
@@ -2009,8 +2009,8 @@ Call emitter functions as needed to produce 0 or more elements for its matching
 `PCollection`. The same value can be emitted with multiple emitters.
 As normal, do not mutate values after emitting them from any emitter.
 
-All emitters should be registered using the generic `register.DoFnXxY[...]`
-This optimizes runtime execution of the emitter.
+All emitters should be registered using a generic `register.DoFnXxY[...]`
+function. This optimizes runtime execution of the emitter.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
