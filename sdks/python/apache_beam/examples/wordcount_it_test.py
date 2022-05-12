@@ -47,7 +47,7 @@ class WordCountIT(unittest.TestCase):
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.it_postcommit_impersonation
   @pytest.mark.sickbay_direct
   @pytest.mark.sickbay_spark
   @pytest.mark.sickbay_flink
