@@ -31,6 +31,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -74,6 +75,7 @@ public class CombineRunners {
     private Coder<KeyT> keyCoder;
     private GroupingTable<WindowedValue<KeyT>, InputT, AccumT> groupingTable;
     private Coder<AccumT> accumCoder;
+    private boolean isGloballyWindowed;
 
     PrecombineRunner(
         PipelineOptions options,
@@ -81,17 +83,33 @@ public class CombineRunners {
         FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output,
         Coder<KeyT> keyCoder,
         Coder<AccumT> accumCoder) {
+      this(options, combineFn, output, keyCoder, accumCoder, false);
+    }
+
+    PrecombineRunner(
+        PipelineOptions options,
+        CombineFn<InputT, AccumT, ?> combineFn,
+        FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output,
+        Coder<KeyT> keyCoder,
+        Coder<AccumT> accumCoder,
+        boolean isGloballyWindowed) {
       this.options = options;
       this.combineFn = combineFn;
       this.output = output;
       this.keyCoder = keyCoder;
       this.accumCoder = accumCoder;
+      this.isGloballyWindowed = isGloballyWindowed;
     }
 
     void startBundle() {
       groupingTable =
           PrecombineGroupingTable.combiningAndSampling(
-              options, combineFn, keyCoder, accumCoder, 0.001 /*sizeEstimatorSampleRate*/);
+              options,
+              combineFn,
+              keyCoder,
+              accumCoder,
+              0.001 /*sizeEstimatorSampleRate*/,
+              isGloballyWindowed);
     }
 
     void processElement(WindowedValue<KV<KeyT, InputT>> elem) throws Exception {
@@ -129,6 +147,11 @@ public class CombineRunners {
       // expected KvCoder.
       Coder<?> uncastInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
       KvCoder<KeyT, InputT> inputCoder;
+      boolean isGloballyWindowed =
+          rehydratedComponents
+              .getWindowingStrategy(mainInput.getWindowingStrategyId())
+              .getWindowFn()
+              .equals(new GlobalWindows());
       if (uncastInputCoder instanceof WindowedValueCoder) {
         inputCoder =
             (KvCoder<KeyT, InputT>)
@@ -154,7 +177,12 @@ public class CombineRunners {
 
       PrecombineRunner<KeyT, InputT, AccumT> runner =
           new PrecombineRunner<>(
-              context.getPipelineOptions(), combineFn, consumer, keyCoder, accumCoder);
+              context.getPipelineOptions(),
+              combineFn,
+              consumer,
+              keyCoder,
+              accumCoder,
+              isGloballyWindowed);
 
       // Register the appropriate handlers.
       context.addStartBundleFunction(runner::startBundle);

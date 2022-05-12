@@ -29,14 +29,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
-import org.joda.time.Instant;
 
 /** Static utility methods that provide {@link GroupingTable} implementations. */
 @SuppressWarnings({
@@ -76,13 +74,16 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
           CombineFn<InputT, AccumT, ?> combineFn,
           Coder<K> keyCoder,
           Coder<? super AccumT> accumulatorCoder,
-          double sizeEstimatorSampleRate) {
+          double sizeEstimatorSampleRate,
+          boolean isGloballyWindowed) {
     Combiner<WindowedValue<K>, InputT, AccumT, ?> valueCombiner =
         new ValueCombiner<>(
             GlobalCombineFnRunners.create(combineFn), NullSideInputReader.empty(), options);
     return new PrecombineGroupingTable<>(
         getGroupingTableSizeBytes(options),
-        new WindowingCoderGroupingKeyCreator<>(keyCoder),
+        isGloballyWindowed
+            ? new GloballyWindowedCoderGroupingKeyCreator<>(keyCoder)
+            : new WindowingCoderGroupingKeyCreator<>(keyCoder),
         WindowedPairInfo.create(),
         valueCombiner,
         new SamplingSizeEstimator<>(
@@ -102,8 +103,6 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
   public static class WindowingCoderGroupingKeyCreator<K>
       implements GroupingKeyCreator<WindowedValue<K>> {
 
-    private static final Instant ignored = BoundedWindow.TIMESTAMP_MIN_VALUE;
-
     private final Coder<K> coder;
 
     WindowingCoderGroupingKeyCreator(Coder<K> coder) {
@@ -112,10 +111,27 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
 
     @Override
     public Object createGroupingKey(WindowedValue<K> key) {
-      // Ignore timestamp for grouping purposes.
+      // Timestamp and PaneInfo irrelevant for grouping purposes.
+      // Using a KV here as WindowedValues are much more expensive to hash and compare.
       // The Precombine output will inherit the timestamp of one of its inputs.
-      return WindowedValue.of(
-          coder.structuralValue(key.getValue()), ignored, key.getWindows(), key.getPane());
+      return KV.of(coder.structuralValue(key.getValue()), key.getWindows());
+    }
+  }
+
+  /** Implements Precombine GroupingKeyCreator via Coder without window. */
+  public static class GloballyWindowedCoderGroupingKeyCreator<K>
+      implements GroupingKeyCreator<WindowedValue<K>> {
+
+    private final Coder<K> coder;
+
+    GloballyWindowedCoderGroupingKeyCreator(Coder<K> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public Object createGroupingKey(WindowedValue<K> key) {
+      // For globally windowed PCollections, grouping is by key only.
+      return coder.structuralValue(key.getValue());
     }
   }
 
