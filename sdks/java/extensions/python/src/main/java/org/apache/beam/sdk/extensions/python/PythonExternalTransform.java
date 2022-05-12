@@ -77,6 +77,10 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     this.expansionService = expansionService;
     this.kwargsMap = new TreeMap<>();
     this.typeHints = new HashMap<>();
+    // TODO(BEAM-14458): remove a default type hint for PythonCallableSource when BEAM-14458 is
+    // resolved
+    this.typeHints.put(
+        PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));
     argsArray = new Object[] {};
   }
 
@@ -204,14 +208,12 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   // Types that are not one of following are considered custom types.
   // * Java primitives
   // * Type String
-  // * Type PythonCallableSource
   // * Any Type explicitly annotated by withTypeHint()
   // * Type Row
   private boolean isCustomType(java.lang.Class<?> type) {
     boolean val =
         !(ClassUtils.isPrimitiveOrWrapper(type)
             || type == String.class
-            || type == PythonCallableSource.class
             || typeHints.containsKey(type)
             || Row.class.isAssignableFrom(type));
     return val;
@@ -268,8 +270,6 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       if (field instanceof Row) {
         // Rows are used as is but other types are converted to proper field types.
         builder.addRowField(fieldName, ((Row) field).getSchema());
-      } else if (field instanceof PythonCallableSource) {
-        builder.addField(fieldName, Schema.FieldType.logicalType(new PythonCallable()));
       } else if (typeHints.containsKey(field.getClass())) {
         builder.addField(fieldName, typeHints.get(field.getClass()));
       } else {
