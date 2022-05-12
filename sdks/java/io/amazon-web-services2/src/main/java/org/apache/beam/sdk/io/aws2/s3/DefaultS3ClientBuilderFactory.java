@@ -42,7 +42,7 @@ public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
   @VisibleForTesting
   static S3ClientBuilder createBuilder(S3ClientBuilder builder, S3Options s3Options) {
     if (s3Options.getAwsRegion() == null) {
-      LOG.info(
+      LOG.debug(
           "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
               + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
