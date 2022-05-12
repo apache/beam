@@ -717,7 +717,9 @@ func (fn *ComputeWordLengthFn) ProcessElement(ctx context.Context, word string) 
 }
 
 func init() {
-	register.DoFn2x1[string, context.Context, int](&ComputeWordLengthFn{})
+  // 2 inputs and 1 output => DoFn2x1
+  // Input/output types are included in order in the brackets
+	register.DoFn2x1[context.Context, string, int](&ComputeWordLengthFn{})
 }
 {{< /highlight >}}
 
@@ -816,6 +818,9 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 }
 
 func init() {
+  // 2 inputs and 0 outputs => DoFn2x0
+  // 1 input => Emitter1
+  // Input/output types are included in order in the brackets
 	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
 	register.Emitter1[int]()
 }
@@ -880,6 +885,9 @@ Simple DoFns can also be written as functions.
 func ComputeWordLengthFn(word string, emit func(int)) { ... }
 
 func init() {
+  // 2 inputs and 0 outputs => DoFn2x0
+  // 1 input => Emitter1
+  // Input/output types are included in order in the brackets
 	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
 	register.Emitter1[int]()
 }

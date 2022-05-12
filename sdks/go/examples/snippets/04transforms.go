@@ -42,6 +42,9 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 
 // DoFns must be registered with beam.
 func init() {
+	// 2 inputs and 0 outputs => DoFn2x0
+	// 1 input => Emitter1
+	// Input/output types are included in order in the brackets
 	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
 	register.Emitter1[int]()
 }
@@ -187,6 +190,7 @@ func formatCoGBKResults(key string, emailIter, phoneIter func(*string) bool) str
 
 func init() {
 	beam.RegisterFunction(formatCoGBKResults)
+	// 1 input of type string => Iter1[string]
 	register.Iter1[string]()
 }
 
@@ -404,7 +408,9 @@ func filterWordsBelow(word string, lengthCutOff float64, emitBelowCutoff func(st
 func init() {
 	beam.RegisterFunction(filterWordsAbove)
 	beam.RegisterFunction(filterWordsBelow)
+	// 1 input of type string => Emitter1[string]
 	register.Emitter1[string]()
+	// 1 input of type float64 => Iter1[float64]
 	register.Iter1[float64]()
 }
 
@@ -459,6 +465,7 @@ func processWordsMixed(word string, emitMarked func(string)) int {
 func init() {
 	beam.RegisterFunction(processWords)
 	beam.RegisterFunction(processWordsMixed)
+	// 1 input of type string => Emitter1[string]
 	register.Emitter1[string]()
 }
 
@@ -504,6 +511,7 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 
 func init() {
 	beam.RegisterFunction(extractWordsFn)
+	// 1 input of type string => Emitter1[string]
 	register.Emitter1[string]()
 }
 
