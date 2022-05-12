@@ -69,6 +69,7 @@ from typing import Union
 import numpy as np
 from google.protobuf import text_format
 
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
 from apache_beam.typehints.native_type_compatibility import _get_args
@@ -566,7 +567,7 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   @classmethod
   def urn(cls):
-    return "beam:logical_type:python_callable:v1"
+    return common_urns.python_callable
 
   @classmethod
   def representation_type(cls):
