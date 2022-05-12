@@ -22,10 +22,10 @@
 from .api import beam_runner_api_pb2_urns
 from .api import external_transforms_pb2_urns
 from .api import metrics_pb2_urns
+from .api import schema_pb2_urns
 from .api import standard_window_fns_pb2_urns
 
 BeamConstants = beam_runner_api_pb2_urns.BeamConstants
-LogicalTypes = beam_runner_api_pb2_urns.LogicalTypes
 StandardArtifacts = beam_runner_api_pb2_urns.StandardArtifacts
 StandardCoders = beam_runner_api_pb2_urns.StandardCoders
 StandardDisplayData = beam_runner_api_pb2_urns.StandardDisplayData
@@ -40,6 +40,7 @@ ExpansionMethods = external_transforms_pb2_urns.ExpansionMethods
 MonitoringInfo = metrics_pb2_urns.MonitoringInfo
 MonitoringInfoSpecs = metrics_pb2_urns.MonitoringInfoSpecs
 MonitoringInfoTypeUrns = metrics_pb2_urns.MonitoringInfoTypeUrns
+LogicalTypes = schema_pb2_urns.LogicalTypes
 FixedWindowsPayload = standard_window_fns_pb2_urns.FixedWindowsPayload
 GlobalWindowsPayload = standard_window_fns_pb2_urns.GlobalWindowsPayload
 SessionWindowsPayload = standard_window_fns_pb2_urns.SessionWindowsPayload
