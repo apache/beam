@@ -121,9 +121,6 @@ class _Credentials(object):
   _credentials_init = False
   _credentials = None
 
-  _delegate_accounts = None
-  _target_principal = None
-
   @classmethod
   def get_service_credentials(cls, pipeline_options):
     with cls._credentials_lock:
@@ -170,14 +167,14 @@ class _Credentials(object):
 
   @staticmethod
   def _add_impersonation_credentials(credentials, pipeline_options):
-    if not pipeline_options:
-      return credentials
     if isinstance(pipeline_options, PipelineOptions):
       gcs_options = pipeline_options.view_as(GoogleCloudOptions)
       impersonate_service_account = gcs_options.impersonate_service_account
-    else:
+    elif isinstance(pipeline_options, dict):
       impersonate_service_account = pipeline_options.get(
           'impersonate_service_account')
+    else:
+      return credentials
     if impersonate_service_account:
       _LOGGER.info('Impersonating: %s', impersonate_service_account)
       impersonate_accounts = impersonate_service_account.split(',')
