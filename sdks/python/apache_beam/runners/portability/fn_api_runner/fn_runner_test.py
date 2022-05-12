@@ -297,8 +297,9 @@ class FnApiRunnerTest(unittest.TestCase):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
-      self.skipTest('BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
-                    'in non-cython environments')
+      self.skipTest(
+          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes in '
+          'non-cython environments')
     with self.create_pipeline() as p:
       res = (
           p
