@@ -117,12 +117,19 @@ message LogicalType {
 message LogicalTypes {
   enum Enum {
     // A URN for Python Callable logical type
-    // - Representation type: STRING
-    // - Language type: In Python SDK, PythonCallableWithSource.
+    //   - Representation type: STRING
+    //   - Language type: In Python SDK, PythonCallableWithSource.
     //     In any other SDKs, a wrapper object for a string which
     //     can be evaluated to a Python Callable object.
     PYTHON_CALLABLE = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
         "beam:logical_type:python_callable:v1"];
+
+    // A URN for MicrosInstant type
+    //   - Representation type: ROW<seconds: INT64, micros: INT64>
+    //   - A timestamp without a timezone where seconds + micros represents the
+    //     amount of time since the epoch.
+    MICROS_INSTANT  = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+        "beam:logical_type:micros_instant:v1"];
   }
 }
 
