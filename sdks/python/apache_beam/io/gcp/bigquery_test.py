@@ -954,8 +954,6 @@ class TestWriteToBigQuery(unittest.TestCase):
           error_message='internalError'),
   ])
   @mock.patch('time.sleep')
-  # @mock.patch.object(
-  #   beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size')
   @mock.patch.object(
       beam.io.gcp.internal.clients.storage.storage_v1_client.StorageV1.
       ObjectsService,
@@ -973,7 +971,6 @@ class TestWriteToBigQuery(unittest.TestCase):
       unused_mock,
       exception_type,
       error_message):
-    # mock_estimate.return_value = None
     mock_load_job.side_effect = exception_type(error_message)
 
     with self.assertRaises(Exception) as exc:
@@ -996,6 +993,68 @@ class TestWriteToBigQuery(unittest.TestCase):
 
     self.assertEqual(4, mock_load_job.call_count)
     self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+    param(exception_type=exceptions.Forbidden, error_message='WE MADE IT accessDenied'),
+    param(exception_type=exceptions.NotFound, error_message='notFound'),
+    param(
+      exception_type=exceptions.ServiceUnavailable,
+      error_message='backendError'),
+    param(
+      exception_type=exceptions.InternalServerError,
+      error_message='internalError'),
+  ])
+  @mock.patch('time.sleep')
+  @mock.patch.object(BigQueryWrapper, 'wait_for_bq_job')
+  @mock.patch.object(BigQueryWrapper, 'perform_load_job')
+  @mock.patch.object(
+    beam.io.gcp.internal.clients.storage.storage_v1_client.StorageV1.
+      ObjectsService,
+    'Get')
+  @mock.patch.object(
+    beam.io.gcp.internal.clients.storage.storage_v1_client.StorageV1.
+      ObjectsService,
+    'Insert')
+  @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
+  def test_copy_load_job_fail_exception(
+          self,
+          mock_insert_copy_job,
+          mock_insert_file,
+          mock_get_file,
+          mock_load_job,
+          mock_wait_for_job,
+          unused_mock,
+          exception_type,
+          error_message):
+    mock_insert_copy_job.side_effect = exception_type(error_message)
+
+    dummy_job_reference = beam.io.gcp.internal.clients.bigquery.JobReference()
+    dummy_job_reference.jobId = 'job_id'
+    dummy_job_reference.location = 'US'
+    dummy_job_reference.projectId = 'apache-beam-testing'
+
+    mock_load_job.return_value = dummy_job_reference
+
+    # with self.assertRaises(Exception) as exc:
+    with beam.Pipeline() as p:
+      _ = (
+              p
+              | beam.Create([{
+        'columnA': 'value1'
+      }])
+              | WriteToBigQuery(
+        table='project:dataset.table',
+        schema={
+          'fields': [{
+            'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+          }]
+        },
+        create_disposition='CREATE_NEVER',
+        custom_gcs_temp_location="gs://temp_location",
+        method='FILE_LOADS'))
+
+    # self.assertEqual(4, mock_insert_copy_job.call_count)
+    # self.assertIn(error_message, exc.exception.args[0])
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
