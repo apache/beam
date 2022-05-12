@@ -169,6 +169,9 @@ func TestCoder_String(t *testing.T) {
 		want: "KV<bytes,varint>",
 		c:    NewKV([]*Coder{bytes, ints}),
 	}, {
+		want: "N<bytes>",
+		c:    NewN(bytes),
+	}, {
 		want: "CoGBK<bytes,varint,bytes>",
 		c:    NewCoGBK([]*Coder{bytes, ints, bytes}),
 	}, {
@@ -277,6 +280,10 @@ func TestCoder_Equals(t *testing.T) {
 		want: true,
 		a:    NewKV([]*Coder{custom1, ints}),
 		b:    NewKV([]*Coder{customSame, ints}),
+	}, {
+		want: true,
+		a:    NewN(custom1),
+		b:    NewN(customSame),
 	}, {
 		want: true,
 		a:    NewCoGBK([]*Coder{custom1, ints, customSame}),
@@ -512,6 +519,60 @@ func TestNewKV(t *testing.T) {
 			}
 			if test.want != nil && !test.want.Equals(got) {
 				t.Fatalf("NewKV(%v) = %v, want %v", test.cs, got, test.want)
+			}
+		})
+	}
+}
+
+func TestNewNullable(t *testing.T) {
+	bytes := NewBytes()
+
+	tests := []struct {
+		name        string
+		component   *Coder
+		shouldpanic bool
+		want        *Coder
+	}{
+		{
+			name:        "nil",
+			component:   nil,
+			shouldpanic: true,
+		},
+		{
+			name:        "empty",
+			component:   &Coder{},
+			shouldpanic: true,
+		},
+		{
+			name:        "bytes",
+			component:   bytes,
+			shouldpanic: false,
+			want: &Coder{
+				Kind:       Nullable,
+				T:          typex.New(typex.NullableType, bytes.T),
+				Components: []*Coder{bytes},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			if test.shouldpanic {
+				defer func() {
+					if p := recover(); p != nil {
+						t.Log(p)
+						return
+					}
+					t.Fatalf("NewNullable(%v): want panic", test.component)
+				}()
+			}
+			got := NewN(test.component)
+			if !IsNullable(got) {
+				t.Errorf("IsNullable(%v) = false, want true", got)
+			}
+			if test.want != nil && !test.want.Equals(got) {
+				t.Fatalf("NewNullable(%v) = %v, want %v", test.component, got, test.want)
 			}
 		})
 	}

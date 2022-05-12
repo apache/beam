@@ -20,12 +20,10 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.core.ApiFuture;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions.StreamFinalizedException;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
-import com.google.protobuf.Descriptors.Descriptor;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
@@ -35,6 +33,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
+import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.DescriptorWrapper;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiFlushAndFinalizeDoFn.Operation;
 import org.apache.beam.sdk.metrics.Counter;
@@ -68,7 +68,6 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -78,7 +77,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
@@ -96,7 +94,8 @@ import org.slf4j.LoggerFactory;
 })
 public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>>, PCollection<Void>> {
+        PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>>,
+        PCollection<Void>> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWritesShardedRecords.class);
   private static final Duration DEFAULT_STREAM_IDLE_TIME = Duration.standardHours(1);
 
@@ -118,6 +117,10 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                 runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
               })
           .build();
+
+  static void clearCache() {
+    APPEND_CLIENTS.invalidateAll();
+  }
 
   // Run a closure asynchronously, ignoring failures.
   private interface ThrowingRunnable {
@@ -150,7 +153,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
   @Override
   public PCollection<Void> expand(
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>> input) {
+      PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> input) {
     String operationName = input.getName() + "/" + getName();
     // Append records to the Storage API streams.
     PCollection<KV<String, Operation>> written =
@@ -188,7 +191,8 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
   }
 
   class WriteRecordsDoFn
-      extends DoFn<KV<ShardedKey<DestinationT>, Iterable<byte[]>>, KV<String, Operation>> {
+      extends DoFn<
+          KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>, KV<String, Operation>> {
     private final Counter recordsAppended =
         Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
     private final Counter streamsCreated =
@@ -257,10 +261,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         streamsCreated.inc();
       }
       // Reset the idle timer.
-      streamIdleTimer
-          .offset(streamIdleTime)
-          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
-          .setRelative();
+      streamIdleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
 
       return stream;
     }
@@ -290,7 +291,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     public void process(
         ProcessContext c,
         final PipelineOptions pipelineOptions,
-        @Element KV<ShardedKey<DestinationT>, Iterable<byte[]>> element,
+        @Element KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>> element,
         final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
         @TimerId("idleTimer") Timer idleTimer,
@@ -308,27 +309,39 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                         + "but %s returned null for destination %s",
                     dynamicDestinations,
                     dest);
-                Supplier<TableSchema> schemaSupplier = () -> dynamicDestinations.getSchema(dest);
-                return CreateTableHelpers.possiblyCreateTable(
-                    c,
-                    tableDestination1,
-                    schemaSupplier,
-                    createDisposition,
-                    destinationCoder,
-                    kmsKey,
-                    bqServices);
+                return tableDestination1;
               });
       final String tableId = tableDestination.getTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       MessageConverter<ElementT> messageConverter =
           messageConverters.get(element.getKey().getKey(), dynamicDestinations, datasetService);
-      Descriptor descriptor = messageConverter.getSchemaDescriptor();
+      AtomicReference<DescriptorWrapper> descriptor =
+          new AtomicReference<>(messageConverter.getSchemaDescriptor());
 
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or already schema.
       final long oneMb = 1024 * 1024;
-      Iterable<ProtoRows> messages = new SplittingIterable(element.getValue(), oneMb);
+      // Called if the schema does not match.
+      Function<Long, DescriptorWrapper> updateSchemaHash =
+          (Long expectedHash) -> {
+            try {
+              LOG.info("Schema does not match. Querying BigQuery for the current table schema.");
+              // Update the schema from the table.
+              messageConverter.refreshSchema(expectedHash);
+              descriptor.set(messageConverter.getSchemaDescriptor());
+              // Force a new connection.
+              String stream = streamName.read();
+              if (stream != null) {
+                APPEND_CLIENTS.invalidate(stream);
+              }
+              return descriptor.get();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          };
+      Iterable<ProtoRows> messages =
+          new SplittingIterable(element.getValue(), oneMb, descriptor.get(), updateSchemaHash);
 
       class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
         final ShardedKey<DestinationT> key;
@@ -371,7 +384,10 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                   getOrCreateStream(tableId, streamName, streamOffset, idleTimer, datasetService);
               StreamAppendClient appendClient =
                   APPEND_CLIENTS.get(
-                      stream, () -> datasetService.getStreamAppendClient(stream, descriptor));
+                      stream,
+                      () ->
+                          datasetService.getStreamAppendClient(
+                              stream, descriptor.get().descriptor));
               for (AppendRowsContext context : contexts) {
                 context.streamName = stream;
                 appendClient.pin();
@@ -410,7 +426,9 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
                 StreamAppendClient appendClient =
                     APPEND_CLIENTS.get(
                         context.streamName,
-                        () -> datasetService.getStreamAppendClient(context.streamName, descriptor));
+                        () ->
+                            datasetService.getStreamAppendClient(
+                                context.streamName, descriptor.get().descriptor));
                 return appendClient.appendRows(context.offset, protoRows);
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -502,10 +520,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
       java.time.Duration timeElapsed = java.time.Duration.between(now, Instant.now());
       appendLatencyDistribution.update(timeElapsed.toMillis());
-      idleTimer
-          .offset(streamIdleTime)
-          .withOutputTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
-          .setRelative();
+      idleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
     }
 
     // called by the idleTimer and window-expiration handlers.
@@ -513,7 +528,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
         OutputReceiver<KV<String, Operation>> o) {
-      String stream = MoreObjects.firstNonNull(streamName.read(), null);
+      String stream = MoreObjects.firstNonNull(streamName.read(), "");
 
       if (!Strings.isNullOrEmpty(stream)) {
         // Finalize the stream

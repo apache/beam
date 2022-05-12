@@ -17,6 +17,8 @@ package beam
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -64,9 +66,16 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	}
 
 	var rc *coder.Coder
+	// Sdfs will always encode restrictions as KV<restriction, watermark state | bool(false)>
 	if fn.IsSplittable() {
 		sdf := (*graph.SplittableDoFn)(fn)
-		rc, err = inferCoder(typex.New(sdf.RestrictionT()))
+		restT := typex.New(sdf.RestrictionT())
+		// If no watermark estimator state, use boolean as a placeholder
+		weT := typex.New(reflect.TypeOf(true))
+		if sdf.IsStatefulWatermarkEstimating() {
+			weT = typex.New(sdf.WatermarkEstimatorStateT())
+		}
+		rc, err = inferCoder(typex.NewKV(restT, weT))
 		if err != nil {
 			return nil, addParDoCtx(err, s)
 		}

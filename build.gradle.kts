@@ -57,7 +57,7 @@ tasks.rat {
     // Default eclipse excludes neglect subprojects
 
     // Proto/grpc generated wrappers
-    "**/apache_beam/portability/api/*_pb2*.py",
+    "**/apache_beam/portability/api/**/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
 
     // Ignore go.sum files, which don't permit headers
@@ -137,7 +137,14 @@ tasks.rat {
 
     // Ignore LICENSES copied onto containers
     "sdks/java/container/license_scripts/manual_licenses",
-    "sdks/python/container/license_scripts/manual_licenses"
+    "sdks/python/container/license_scripts/manual_licenses",
+
+    // Ignore autogenrated proto files.
+    "sdks/typescript/src/apache_beam/proto/**/*.ts",
+
+    // Ignore typesciript package management.
+    "sdks/typescript/package-lock.json",
+    "sdks/typescript/node_modules/**/*",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -269,7 +276,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
@@ -282,7 +288,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py36:docker")
   dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
@@ -295,12 +300,6 @@ tasks.register("pythonLintPreCommit") {
 
 tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:py38:formatter")
-}
-
-tasks.register("python36PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py36:postCommitIT")
-  dependsOn(":sdks:python:test-suites:portable:py36:postCommitPy36")
 }
 
 tasks.register("python37PostCommit") {
@@ -323,20 +322,35 @@ tasks.register("python38PostCommit") {
 }
 
 tasks.register("python39PostCommit") {
-  // TODO(BEAM-12920): Enable DF suite here.
-  // dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
 }
 
+
+task("python36SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitSickbay")
+}
+
+task("python37SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitSickbay")
+}
+
+task("python38SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitSickbay")
+}
+
+task("python39SickbayPostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitSickbay")
+}
+
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
+  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py36:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
