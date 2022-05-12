@@ -25,12 +25,8 @@ import logging
 import os
 import shutil
 import tempfile
-import threading
-import time
 import unittest
 import zlib
-
-import pytest
 
 import apache_beam as beam
 from apache_beam import coders
@@ -51,6 +47,8 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
+from apache_beam.transforms.periodicsequence import ImpulseSeqGenDoFn
+from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils.timestamp import Timestamp
 
 
@@ -561,33 +559,28 @@ class TextSourceTest(unittest.TestCase):
           | 'ReadAll' >> ReadAllFromText())
       assert_that(pcoll, equal_to(expected_data))
 
-  # to avoid timing issue of the thread created in this test
-  @pytest.mark.no_xdist
   def test_read_all_continuously(self):
     class _WriteFilesFn(beam.DoFn):
       """writes a couple of files with deferral."""
-      def __init__(self):
-        self._thread = None
 
-      @staticmethod
-      def create_files(temp_path):
-        time.sleep(1)
-        with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
-          f.write('second')
-        with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
-          f.write('first')
-        time.sleep(0.5)
-        with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
-          f.write('thirdA\nthirdB')
-        with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
-          f.write('second')
-        with open(FileSystems.join(temp_path, 'file3'), 'w') as f:
-          f.write('first')
+      COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
-      def process(self, element):
-        self._thread = threading.Thread(
-            target=self.create_files, args=(element, ))
-        self._thread.start()
+      def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+        temp_path = element[1]
+        counter = count_state.read()
+        if counter == 0:
+          with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+            f.write('second')
+          with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
+            f.write('first')
+        elif counter == 1:
+          with open(FileSystems.join(temp_path, 'file1'), 'w') as f:
+            f.write('thirdA\nthirdB')
+          with open(FileSystems.join(temp_path, 'file2'), 'w') as f:
+            f.write('second')
+          with open(FileSystems.join(temp_path, 'file3'), 'w') as f:
+            f.write('first')
+        count_state.add(1)
 
     with TempDir() as tempdir, TestPipeline() as pipeline:
       # create a temp file at the beginning
@@ -595,7 +588,7 @@ class TextSourceTest(unittest.TestCase):
         f.write('first')
       match_pattern = FileSystems.join(tempdir.get_path(), '*')
       interval = 0.2
-      last = 5
+      last = 4
       p_read_once = (
           pipeline
           | 'Continuously read new files' >> ReadAllFromTextContinuously(
@@ -616,8 +609,13 @@ class TextSourceTest(unittest.TestCase):
               stop_timestamp=Timestamp.now() + last,
               match_updated_files=True)
           | beam.Map(lambda x: (os.path.basename(x[0]), x[1])))
-      _ = pipeline | beam.Create([tempdir.get_path()]) | beam.ParDo(
-          _WriteFilesFn())
+      _ = (
+          pipeline
+          | beam.Create([(Timestamp.now() + 1.0, Timestamp.now() + 2.0, 0.5)])
+          | beam.ParDo(ImpulseSeqGenDoFn())
+          | beam.Map(lambda x: (0, tempdir.get_path()))
+          | 'Write files on-the-fly' >> beam.ParDo(_WriteFilesFn()))
+
       assert_that(
           p_read_once,
           equal_to([('file1', 'first'), ('file2', 'first'),
