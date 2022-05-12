@@ -59,23 +59,3 @@ func TestEncodeDecodeBytes(t *testing.T) {
 		})
 	}
 }
-
-func FuzzEncodeDecodeBytes(f *testing.F) {
-	f.Add([]byte{10})
-	f.Fuzz(func(t *testing.T, b []byte) {
-		var buf bytes.Buffer
-		err := EncodeBytes(b, &buf)
-		if err != nil {
-			return
-		}
-
-		got, err := DecodeBytes(&buf)
-		if err != nil {
-			t.Fatalf("failed to decode bytes, got %v", err)
-		}
-
-		if d := cmp.Diff(got, b); d != "" {
-			t.Errorf("decoded output does not match input: got %v, want %v", got, b)
-		}
-	})
-}

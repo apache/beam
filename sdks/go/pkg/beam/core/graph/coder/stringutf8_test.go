@@ -120,26 +120,3 @@ func TestEncodeDecodeStringUTF8LP(t *testing.T) {
 		})
 	}
 }
-
-func FuzzEncodeDecodeStringUTF8LP(f *testing.F) {
-	for _, s := range testValues {
-		f.Add(s)
-	}
-	f.Fuzz(func(t *testing.T, b string) {
-		var build strings.Builder
-		err := EncodeStringUTF8(b, &build)
-		if err != nil {
-			return
-		}
-
-		buf := bytes.NewBufferString(build.String())
-		got, err := DecodeStringUTF8(buf)
-		if err != nil {
-			t.Fatalf("failed to decode bytes, got %v", err)
-		}
-
-		if got != b {
-			t.Errorf("decoded output does not match input: got %v, want %v", got, b)
-		}
-	})
-}
