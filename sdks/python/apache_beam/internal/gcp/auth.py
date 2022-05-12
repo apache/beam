@@ -173,6 +173,9 @@ class _Credentials(object):
     if isinstance(pipeline_options, PipelineOptions):
       gcs_options = pipeline_options.view_as(GoogleCloudOptions)
       impersonate_service_account = gcs_options.impersonate_service_account
+    elif isinstance(pipeline_options, dict):
+      impersonate_service_account = pipeline_options.get(
+          'impersonate_service_account')
     else:
       return credentials
     if impersonate_service_account:
