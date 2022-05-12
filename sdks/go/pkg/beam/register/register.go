@@ -2250,10 +2250,16 @@ func registerDoFn0x0StructWrappersAndFuncs(doFn genericDoFn0x0) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn0x0 registers your DoFn to optimize execution at runtime.
+// DoFn0x0 registers your structural DoFn to optimize execution at runtime.
 func DoFn0x0(doFn genericDoFn0x0) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x0StructWrappersAndFuncs(doFn)
+}
+
+// Function0x0 registers your non-structural DoFn to optimize execution at runtime.
+func Function0x0(doFn func()) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn1x0[I0 any] interface {
@@ -2320,11 +2326,18 @@ func registerDoFn1x0StructWrappersAndFuncs[I0 any](doFn genericDoFn1x0[I0]) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn1x0[I0 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x0[I0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn1x0[I0 any](doFn genericDoFn1x0[I0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x0StructWrappersAndFuncs[I0](doFn)
+}
+
+// Function1x0[I0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function1x0[I0 any](doFn func(I0)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn2x0[I0, I1 any] interface {
@@ -2391,11 +2404,18 @@ func registerDoFn2x0StructWrappersAndFuncs[I0, I1 any](doFn genericDoFn2x0[I0, I
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn2x0[I0, I1 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x0[I0, I1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn2x0[I0, I1 any](doFn genericDoFn2x0[I0, I1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x0StructWrappersAndFuncs[I0, I1](doFn)
+}
+
+// Function2x0[I0, I1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function2x0[I0, I1 any](doFn func(I0, I1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn3x0[I0, I1, I2 any] interface {
@@ -2462,11 +2482,18 @@ func registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2 any](doFn genericDoFn3x0[I
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn3x0[I0, I1, I2 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x0[I0, I1, I2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn3x0[I0, I1, I2 any](doFn genericDoFn3x0[I0, I1, I2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x0StructWrappersAndFuncs[I0, I1, I2](doFn)
+}
+
+// Function3x0[I0, I1, I2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function3x0[I0, I1, I2 any](doFn func(I0, I1, I2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn4x0[I0, I1, I2, I3 any] interface {
@@ -2533,11 +2560,18 @@ func registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3 any](doFn genericDoFn4
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn4x0[I0, I1, I2, I3 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x0[I0, I1, I2, I3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn4x0[I0, I1, I2, I3 any](doFn genericDoFn4x0[I0, I1, I2, I3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x0StructWrappersAndFuncs[I0, I1, I2, I3](doFn)
+}
+
+// Function4x0[I0, I1, I2, I3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function4x0[I0, I1, I2, I3 any](doFn func(I0, I1, I2, I3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn5x0[I0, I1, I2, I3, I4 any] interface {
@@ -2604,11 +2638,18 @@ func registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4 any](doFn genericD
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn5x0[I0, I1, I2, I3, I4 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x0[I0, I1, I2, I3, I4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn5x0[I0, I1, I2, I3, I4 any](doFn genericDoFn5x0[I0, I1, I2, I3, I4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x0StructWrappersAndFuncs[I0, I1, I2, I3, I4](doFn)
+}
+
+// Function5x0[I0, I1, I2, I3, I4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function5x0[I0, I1, I2, I3, I4 any](doFn func(I0, I1, I2, I3, I4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn6x0[I0, I1, I2, I3, I4, I5 any] interface {
@@ -2675,11 +2716,18 @@ func registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5 any](doFn gene
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn6x0[I0, I1, I2, I3, I4, I5 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x0[I0, I1, I2, I3, I4, I5 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn6x0[I0, I1, I2, I3, I4, I5 any](doFn genericDoFn6x0[I0, I1, I2, I3, I4, I5]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5](doFn)
+}
+
+// Function6x0[I0, I1, I2, I3, I4, I5 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function6x0[I0, I1, I2, I3, I4, I5 any](doFn func(I0, I1, I2, I3, I4, I5)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6 any] interface {
@@ -2746,11 +2794,18 @@ func registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn7x0[I0, I1, I2, I3, I4, I5, I6 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x0[I0, I1, I2, I3, I4, I5, I6 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn7x0[I0, I1, I2, I3, I4, I5, I6 any](doFn genericDoFn7x0[I0, I1, I2, I3, I4, I5, I6]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6](doFn)
+}
+
+// Function7x0[I0, I1, I2, I3, I4, I5, I6 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function7x0[I0, I1, I2, I3, I4, I5, I6 any](doFn func(I0, I1, I2, I3, I4, I5, I6)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] interface {
@@ -2817,11 +2872,18 @@ func registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn genericDoFn8x0[I0, I1, I2, I3, I4, I5, I6, I7]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7](doFn)
+}
+
+// Function8x0[I0, I1, I2, I3, I4, I5, I6, I7 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function8x0[I0, I1, I2, I3, I4, I5, I6, I7 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any] interface {
@@ -2888,11 +2950,18 @@ func registerDoFn9x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any] registers your DoFn to optimize execution at runtime.
+// DoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any](doFn genericDoFn9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8]) {
 	registerDoFnTypes(doFn)
 	registerDoFn9x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8](doFn)
+}
+
+// Function9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function9x0[I0, I1, I2, I3, I4, I5, I6, I7, I8 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any] interface {
@@ -2959,11 +3028,18 @@ func registerDoFn10x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any] registers your DoFn to optimize execution at runtime.
+// DoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn genericDoFn10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9]) {
 	registerDoFnTypes(doFn)
 	registerDoFn10x0StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9](doFn)
+}
+
+// Function10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function10x0[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn0x1[R0 any] interface {
@@ -3030,11 +3106,18 @@ func registerDoFn0x1StructWrappersAndFuncs[R0 any](doFn genericDoFn0x1[R0]) {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn0x1[R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x1[R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn0x1[R0 any](doFn genericDoFn0x1[R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x1StructWrappersAndFuncs[R0](doFn)
+}
+
+// Function0x1[R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function0x1[R0 any](doFn func() R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn1x1[I0, R0 any] interface {
@@ -3101,11 +3184,18 @@ func registerDoFn1x1StructWrappersAndFuncs[I0, R0 any](doFn genericDoFn1x1[I0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn1x1[I0, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x1[I0, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn1x1[I0, R0 any](doFn genericDoFn1x1[I0, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x1StructWrappersAndFuncs[I0, R0](doFn)
+}
+
+// Function1x1[I0, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function1x1[I0, R0 any](doFn func(I0) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn2x1[I0, I1, R0 any] interface {
@@ -3172,11 +3262,18 @@ func registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0 any](doFn genericDoFn2x1[I
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn2x1[I0, I1, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x1[I0, I1, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn2x1[I0, I1, R0 any](doFn genericDoFn2x1[I0, I1, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x1StructWrappersAndFuncs[I0, I1, R0](doFn)
+}
+
+// Function2x1[I0, I1, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function2x1[I0, I1, R0 any](doFn func(I0, I1) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn3x1[I0, I1, I2, R0 any] interface {
@@ -3243,11 +3340,18 @@ func registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0 any](doFn genericDoFn3
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn3x1[I0, I1, I2, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x1[I0, I1, I2, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn3x1[I0, I1, I2, R0 any](doFn genericDoFn3x1[I0, I1, I2, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x1StructWrappersAndFuncs[I0, I1, I2, R0](doFn)
+}
+
+// Function3x1[I0, I1, I2, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function3x1[I0, I1, I2, R0 any](doFn func(I0, I1, I2) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn4x1[I0, I1, I2, I3, R0 any] interface {
@@ -3314,11 +3418,18 @@ func registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0 any](doFn genericD
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn4x1[I0, I1, I2, I3, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x1[I0, I1, I2, I3, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn4x1[I0, I1, I2, I3, R0 any](doFn genericDoFn4x1[I0, I1, I2, I3, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x1StructWrappersAndFuncs[I0, I1, I2, I3, R0](doFn)
+}
+
+// Function4x1[I0, I1, I2, I3, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function4x1[I0, I1, I2, I3, R0 any](doFn func(I0, I1, I2, I3) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn5x1[I0, I1, I2, I3, I4, R0 any] interface {
@@ -3385,11 +3496,18 @@ func registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0 any](doFn gene
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn5x1[I0, I1, I2, I3, I4, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x1[I0, I1, I2, I3, I4, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn5x1[I0, I1, I2, I3, I4, R0 any](doFn genericDoFn5x1[I0, I1, I2, I3, I4, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0](doFn)
+}
+
+// Function5x1[I0, I1, I2, I3, I4, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function5x1[I0, I1, I2, I3, I4, R0 any](doFn func(I0, I1, I2, I3, I4) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0 any] interface {
@@ -3456,11 +3574,18 @@ func registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn6x1[I0, I1, I2, I3, I4, I5, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x1[I0, I1, I2, I3, I4, I5, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn6x1[I0, I1, I2, I3, I4, I5, R0 any](doFn genericDoFn6x1[I0, I1, I2, I3, I4, I5, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0](doFn)
+}
+
+// Function6x1[I0, I1, I2, I3, I4, I5, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function6x1[I0, I1, I2, I3, I4, I5, R0 any](doFn func(I0, I1, I2, I3, I4, I5) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] interface {
@@ -3527,11 +3652,18 @@ func registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn genericDoFn7x1[I0, I1, I2, I3, I4, I5, I6, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0](doFn)
+}
+
+// Function7x1[I0, I1, I2, I3, I4, I5, I6, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function7x1[I0, I1, I2, I3, I4, I5, I6, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] interface {
@@ -3598,11 +3730,18 @@ func registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn genericDoFn8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0](doFn)
+}
+
+// Function8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function8x1[I0, I1, I2, I3, I4, I5, I6, I7, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any] interface {
@@ -3669,11 +3808,18 @@ func registerDoFn9x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any](doFn genericDoFn9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn9x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0](doFn)
+}
+
+// Function9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function9x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any] interface {
@@ -3740,11 +3886,18 @@ func registerDoFn10x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any] registers your DoFn to optimize execution at runtime.
+// DoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any](doFn genericDoFn10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0]) {
 	registerDoFnTypes(doFn)
 	registerDoFn10x1StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0](doFn)
+}
+
+// Function10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function10x1[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) R0) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn0x2[R0, R1 any] interface {
@@ -3811,11 +3964,18 @@ func registerDoFn0x2StructWrappersAndFuncs[R0, R1 any](doFn genericDoFn0x2[R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn0x2[R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x2[R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn0x2[R0, R1 any](doFn genericDoFn0x2[R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x2StructWrappersAndFuncs[R0, R1](doFn)
+}
+
+// Function0x2[R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function0x2[R0, R1 any](doFn func() (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn1x2[I0, R0, R1 any] interface {
@@ -3882,11 +4042,18 @@ func registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1 any](doFn genericDoFn1x2[I
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn1x2[I0, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x2[I0, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn1x2[I0, R0, R1 any](doFn genericDoFn1x2[I0, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x2StructWrappersAndFuncs[I0, R0, R1](doFn)
+}
+
+// Function1x2[I0, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function1x2[I0, R0, R1 any](doFn func(I0) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn2x2[I0, I1, R0, R1 any] interface {
@@ -3953,11 +4120,18 @@ func registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1 any](doFn genericDoFn2
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn2x2[I0, I1, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x2[I0, I1, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn2x2[I0, I1, R0, R1 any](doFn genericDoFn2x2[I0, I1, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x2StructWrappersAndFuncs[I0, I1, R0, R1](doFn)
+}
+
+// Function2x2[I0, I1, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function2x2[I0, I1, R0, R1 any](doFn func(I0, I1) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn3x2[I0, I1, I2, R0, R1 any] interface {
@@ -4024,11 +4198,18 @@ func registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1 any](doFn genericD
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn3x2[I0, I1, I2, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x2[I0, I1, I2, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn3x2[I0, I1, I2, R0, R1 any](doFn genericDoFn3x2[I0, I1, I2, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x2StructWrappersAndFuncs[I0, I1, I2, R0, R1](doFn)
+}
+
+// Function3x2[I0, I1, I2, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function3x2[I0, I1, I2, R0, R1 any](doFn func(I0, I1, I2) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn4x2[I0, I1, I2, I3, R0, R1 any] interface {
@@ -4095,11 +4276,18 @@ func registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1 any](doFn gene
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn4x2[I0, I1, I2, I3, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x2[I0, I1, I2, I3, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn4x2[I0, I1, I2, I3, R0, R1 any](doFn genericDoFn4x2[I0, I1, I2, I3, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x2StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1](doFn)
+}
+
+// Function4x2[I0, I1, I2, I3, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function4x2[I0, I1, I2, I3, R0, R1 any](doFn func(I0, I1, I2, I3) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1 any] interface {
@@ -4166,11 +4354,18 @@ func registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn5x2[I0, I1, I2, I3, I4, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x2[I0, I1, I2, I3, I4, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn5x2[I0, I1, I2, I3, I4, R0, R1 any](doFn genericDoFn5x2[I0, I1, I2, I3, I4, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1](doFn)
+}
+
+// Function5x2[I0, I1, I2, I3, I4, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function5x2[I0, I1, I2, I3, I4, R0, R1 any](doFn func(I0, I1, I2, I3, I4) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] interface {
@@ -4237,11 +4432,18 @@ func registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn genericDoFn6x2[I0, I1, I2, I3, I4, I5, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1](doFn)
+}
+
+// Function6x2[I0, I1, I2, I3, I4, I5, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function6x2[I0, I1, I2, I3, I4, I5, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] interface {
@@ -4308,11 +4510,18 @@ func registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn genericDoFn7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1](doFn)
+}
+
+// Function7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function7x2[I0, I1, I2, I3, I4, I5, I6, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] interface {
@@ -4379,11 +4588,18 @@ func registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn genericDoFn8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1](doFn)
+}
+
+// Function8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function8x2[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any] interface {
@@ -4450,11 +4666,18 @@ func registerDoFn9x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any](doFn genericDoFn9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn9x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1](doFn)
+}
+
+// Function9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function9x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any] interface {
@@ -4521,11 +4744,18 @@ func registerDoFn10x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any] registers your DoFn to optimize execution at runtime.
+// DoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any](doFn genericDoFn10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1]) {
 	registerDoFnTypes(doFn)
 	registerDoFn10x2StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1](doFn)
+}
+
+// Function10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function10x2[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn0x3[R0, R1, R2 any] interface {
@@ -4592,11 +4822,18 @@ func registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2 any](doFn genericDoFn0x3[R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn0x3[R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x3[R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn0x3[R0, R1, R2 any](doFn genericDoFn0x3[R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x3StructWrappersAndFuncs[R0, R1, R2](doFn)
+}
+
+// Function0x3[R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function0x3[R0, R1, R2 any](doFn func() (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn1x3[I0, R0, R1, R2 any] interface {
@@ -4663,11 +4900,18 @@ func registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2 any](doFn genericDoFn1
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn1x3[I0, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x3[I0, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn1x3[I0, R0, R1, R2 any](doFn genericDoFn1x3[I0, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x3StructWrappersAndFuncs[I0, R0, R1, R2](doFn)
+}
+
+// Function1x3[I0, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function1x3[I0, R0, R1, R2 any](doFn func(I0) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn2x3[I0, I1, R0, R1, R2 any] interface {
@@ -4734,11 +4978,18 @@ func registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2 any](doFn genericD
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn2x3[I0, I1, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x3[I0, I1, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn2x3[I0, I1, R0, R1, R2 any](doFn genericDoFn2x3[I0, I1, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x3StructWrappersAndFuncs[I0, I1, R0, R1, R2](doFn)
+}
+
+// Function2x3[I0, I1, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function2x3[I0, I1, R0, R1, R2 any](doFn func(I0, I1) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn3x3[I0, I1, I2, R0, R1, R2 any] interface {
@@ -4805,11 +5056,18 @@ func registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2 any](doFn gene
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn3x3[I0, I1, I2, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x3[I0, I1, I2, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn3x3[I0, I1, I2, R0, R1, R2 any](doFn genericDoFn3x3[I0, I1, I2, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x3StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2](doFn)
+}
+
+// Function3x3[I0, I1, I2, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function3x3[I0, I1, I2, R0, R1, R2 any](doFn func(I0, I1, I2) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2 any] interface {
@@ -4876,11 +5134,18 @@ func registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn4x3[I0, I1, I2, I3, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x3[I0, I1, I2, I3, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn4x3[I0, I1, I2, I3, R0, R1, R2 any](doFn genericDoFn4x3[I0, I1, I2, I3, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x3StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2](doFn)
+}
+
+// Function4x3[I0, I1, I2, I3, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function4x3[I0, I1, I2, I3, R0, R1, R2 any](doFn func(I0, I1, I2, I3) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] interface {
@@ -4947,11 +5212,18 @@ func registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn genericDoFn5x3[I0, I1, I2, I3, I4, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2](doFn)
+}
+
+// Function5x3[I0, I1, I2, I3, I4, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function5x3[I0, I1, I2, I3, I4, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] interface {
@@ -5018,11 +5290,18 @@ func registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn genericDoFn6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2](doFn)
+}
+
+// Function6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function6x3[I0, I1, I2, I3, I4, I5, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] interface {
@@ -5089,11 +5368,18 @@ func registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn genericDoFn7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2](doFn)
+}
+
+// Function7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function7x3[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] interface {
@@ -5160,11 +5446,18 @@ func registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn genericDoFn8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2](doFn)
+}
+
+// Function8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function8x3[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any] interface {
@@ -5231,11 +5524,18 @@ func registerDoFn9x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any](doFn genericDoFn9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn9x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2](doFn)
+}
+
+// Function9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function9x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any] interface {
@@ -5302,11 +5602,18 @@ func registerDoFn10x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any] registers your DoFn to optimize execution at runtime.
+// DoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any](doFn genericDoFn10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2]) {
 	registerDoFnTypes(doFn)
 	registerDoFn10x3StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2](doFn)
+}
+
+// Function10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function10x3[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn0x4[R0, R1, R2, R3 any] interface {
@@ -5373,11 +5680,18 @@ func registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3 any](doFn genericDoFn0
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn0x4[R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x4[R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn0x4[R0, R1, R2, R3 any](doFn genericDoFn0x4[R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x4StructWrappersAndFuncs[R0, R1, R2, R3](doFn)
+}
+
+// Function0x4[R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function0x4[R0, R1, R2, R3 any](doFn func() (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn1x4[I0, R0, R1, R2, R3 any] interface {
@@ -5444,11 +5758,18 @@ func registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3 any](doFn genericD
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn1x4[I0, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x4[I0, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn1x4[I0, R0, R1, R2, R3 any](doFn genericDoFn1x4[I0, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x4StructWrappersAndFuncs[I0, R0, R1, R2, R3](doFn)
+}
+
+// Function1x4[I0, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function1x4[I0, R0, R1, R2, R3 any](doFn func(I0) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn2x4[I0, I1, R0, R1, R2, R3 any] interface {
@@ -5515,11 +5836,18 @@ func registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3 any](doFn gene
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn2x4[I0, I1, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x4[I0, I1, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn2x4[I0, I1, R0, R1, R2, R3 any](doFn genericDoFn2x4[I0, I1, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x4StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3](doFn)
+}
+
+// Function2x4[I0, I1, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function2x4[I0, I1, R0, R1, R2, R3 any](doFn func(I0, I1) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3 any] interface {
@@ -5586,11 +5914,18 @@ func registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn3x4[I0, I1, I2, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x4[I0, I1, I2, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn3x4[I0, I1, I2, R0, R1, R2, R3 any](doFn genericDoFn3x4[I0, I1, I2, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x4StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3](doFn)
+}
+
+// Function3x4[I0, I1, I2, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function3x4[I0, I1, I2, R0, R1, R2, R3 any](doFn func(I0, I1, I2) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] interface {
@@ -5657,11 +5992,18 @@ func registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn genericDoFn4x4[I0, I1, I2, I3, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x4StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3](doFn)
+}
+
+// Function4x4[I0, I1, I2, I3, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function4x4[I0, I1, I2, I3, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] interface {
@@ -5728,11 +6070,18 @@ func registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn genericDoFn5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3](doFn)
+}
+
+// Function5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function5x4[I0, I1, I2, I3, I4, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] interface {
@@ -5799,11 +6148,18 @@ func registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn genericDoFn6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3](doFn)
+}
+
+// Function6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function6x4[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] interface {
@@ -5870,11 +6226,18 @@ func registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn genericDoFn7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3](doFn)
+}
+
+// Function7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function7x4[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] interface {
@@ -5941,11 +6304,18 @@ func registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn genericDoFn8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3](doFn)
+}
+
+// Function8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function8x4[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any] interface {
@@ -6012,11 +6382,18 @@ func registerDoFn9x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any](doFn genericDoFn9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn9x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3](doFn)
+}
+
+// Function9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function9x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any] interface {
@@ -6083,11 +6460,18 @@ func registerDoFn10x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any] registers your DoFn to optimize execution at runtime.
+// DoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any](doFn genericDoFn10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3]) {
 	registerDoFnTypes(doFn)
 	registerDoFn10x4StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3](doFn)
+}
+
+// Function10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function10x4[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn0x5[R0, R1, R2, R3, R4 any] interface {
@@ -6154,11 +6538,18 @@ func registerDoFn0x5StructWrappersAndFuncs[R0, R1, R2, R3, R4 any](doFn genericD
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn0x5[R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn0x5[R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn0x5[R0, R1, R2, R3, R4 any](doFn genericDoFn0x5[R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn0x5StructWrappersAndFuncs[R0, R1, R2, R3, R4](doFn)
+}
+
+// Function0x5[R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function0x5[R0, R1, R2, R3, R4 any](doFn func() (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn1x5[I0, R0, R1, R2, R3, R4 any] interface {
@@ -6225,11 +6616,18 @@ func registerDoFn1x5StructWrappersAndFuncs[I0, R0, R1, R2, R3, R4 any](doFn gene
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn1x5[I0, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn1x5[I0, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn1x5[I0, R0, R1, R2, R3, R4 any](doFn genericDoFn1x5[I0, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn1x5StructWrappersAndFuncs[I0, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function1x5[I0, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function1x5[I0, R0, R1, R2, R3, R4 any](doFn func(I0) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn2x5[I0, I1, R0, R1, R2, R3, R4 any] interface {
@@ -6296,11 +6694,18 @@ func registerDoFn2x5StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3, R4 any](doFn 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn2x5[I0, I1, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn2x5[I0, I1, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn2x5[I0, I1, R0, R1, R2, R3, R4 any](doFn genericDoFn2x5[I0, I1, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn2x5StructWrappersAndFuncs[I0, I1, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function2x5[I0, I1, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function2x5[I0, I1, R0, R1, R2, R3, R4 any](doFn func(I0, I1) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4 any] interface {
@@ -6367,11 +6772,18 @@ func registerDoFn3x5StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3, R4 any](d
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4 any](doFn genericDoFn3x5[I0, I1, I2, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn3x5StructWrappersAndFuncs[I0, I1, I2, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function3x5[I0, I1, I2, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function3x5[I0, I1, I2, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any] interface {
@@ -6438,11 +6850,18 @@ func registerDoFn4x5StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3, R4 an
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any](doFn genericDoFn4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn4x5StructWrappersAndFuncs[I0, I1, I2, I3, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function4x5[I0, I1, I2, I3, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any] interface {
@@ -6509,11 +6928,18 @@ func registerDoFn5x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any](doFn genericDoFn5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn5x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function5x5[I0, I1, I2, I3, I4, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any] interface {
@@ -6580,11 +7006,18 @@ func registerDoFn6x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any](doFn genericDoFn6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn6x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function6x5[I0, I1, I2, I3, I4, I5, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any] interface {
@@ -6651,11 +7084,18 @@ func registerDoFn7x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any](doFn genericDoFn7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn7x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function7x5[I0, I1, I2, I3, I4, I5, I6, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any] interface {
@@ -6722,11 +7162,18 @@ func registerDoFn8x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any](doFn genericDoFn8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn8x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function8x5[I0, I1, I2, I3, I4, I5, I6, I7, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any] interface {
@@ -6793,11 +7240,18 @@ func registerDoFn9x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any](doFn genericDoFn9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn9x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function9x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type genericDoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any] interface {
@@ -6864,11 +7318,18 @@ func registerDoFn10x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, 
 	reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any] registers your DoFn to optimize execution at runtime.
+// DoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any] registers your structural DoFn to optimize execution at runtime.
 // DoFn input and output parameter types should be provided in order as the generic constraints.
 func DoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any](doFn genericDoFn10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4]) {
 	registerDoFnTypes(doFn)
 	registerDoFn10x5StructWrappersAndFuncs[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4](doFn)
+}
+
+// Function10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any] registers your non-structural DoFn to optimize execution at runtime.
+// Function input and output parameter types should be provided in order as the generic constraints.
+func Function10x5[I0, I1, I2, I3, I4, I5, I6, I7, I8, I9, R0, R1, R2, R3, R4 any](doFn func(I0, I1, I2, I3, I4, I5, I6, I7, I8, I9) (R0, R1, R2, R3, R4)) {
+	runtime.RegisterFunction(doFn)
+	registerMethodTypes(reflect.TypeOf(doFn))
 }
 
 type startBundle0x0 interface {

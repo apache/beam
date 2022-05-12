@@ -537,6 +537,36 @@ func TestIter2_Struct(t *testing.T) {
 	}
 }
 
+type CustomFunctionParameter struct {
+	key string
+	val int
+}
+
+type CustomFunctionReturn struct {
+	key int
+	val string
+}
+
+func customFunction(a CustomFunctionParameter) CustomFunctionReturn {
+	return CustomFunctionReturn{
+		key: a.val,
+		val: a.key,
+	}
+}
+
+func TestFunction(t *testing.T) {
+	Function1x1[CustomFunctionParameter, CustomFunctionReturn](customFunction)
+
+	// Need to call FromType so that the registry will reconcile its registrations
+	schema.FromType(reflect.TypeOf(CustomFunctionParameter{}))
+	if !schema.Registered(reflect.TypeOf(CustomFunctionParameter{})) {
+		t.Errorf("schema.Registered(reflect.TypeOf(CustomFunctionParameter{})) = false, want true")
+	}
+	if !schema.Registered(reflect.TypeOf(CustomFunctionReturn{})) {
+		t.Errorf("schema.Registered(reflect.TypeOf(CustomFunctionReturn{})) = false, want true")
+	}
+}
+
 type elementProcessor struct {
 	inFV exec.FullValue
 }
