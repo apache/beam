@@ -25,41 +25,20 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class PythonExternalTransformTest implements Serializable {
-  @Ignore("BEAM-14148")
-  @Test
-  public void trivialPythonTransform() {
-    Pipeline p = Pipeline.create();
-    PCollection<String> output =
-        p.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
-            .apply(
-                PythonExternalTransform
-                    .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
-                        from("apache_beam.GroupByKey"))
-            .apply(MapElements.into(TypeDescriptors.strings()).via(kv -> kv.getKey()));
-    PAssert.that(output).containsInAnyOrder("A", "B");
-    // TODO: Run this on a multi-language supporting runner.
-  }
-
   @Test
   public void generateArgsEmpty() {
     PythonExternalTransform<?, ?> transform =
