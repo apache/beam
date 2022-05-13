@@ -28,6 +28,6 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 public enum ModType {
   INSERT,
   UPDATE,
-  INSERT_OR_UPDATE,
-  DELETE
+  DELETE,
+  UNKNOWN
 }
