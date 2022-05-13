@@ -21,9 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-import io.cdap.plugin.salesforce.SalesforceConstants;
-import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceSourceConfig;
-import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConstants;
+import io.cdap.plugin.servicenow.source.ServiceNowSourceConfig;
+import io.cdap.plugin.servicenow.source.util.ServiceNowConstants;
 import java.io.File;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -39,43 +38,46 @@ public class ConfigWrapperTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapperTest.class);
 
-  private static final ImmutableMap<String, Object> TEST_SALESFORCE_PARAMS_MAP =
+  private static final ImmutableMap<String, Object> TEST_SERVICE_NOW_PARAMS_MAP =
       ImmutableMap.<String, java.lang.Object>builder()
-          .put("sObjectName", "sObject")
-          .put("datetimeAfter", "datetime")
-          .put("consumerKey", "key")
-          .put("consumerSecret", "secret")
-          .put("username", "user")
-          .put("password", "password")
-          .put("loginUrl", "https://www.google.com")
+          .put(ServiceNowConstants.PROPERTY_CLIENT_ID, "clientId")
+          .put(ServiceNowConstants.PROPERTY_CLIENT_SECRET, "clientSecret")
+          .put(ServiceNowConstants.PROPERTY_API_ENDPOINT, "https://www.google.com")
+          .put(ServiceNowConstants.PROPERTY_QUERY_MODE, "Table")
+          .put(ServiceNowConstants.PROPERTY_USER, "user")
+          .put(ServiceNowConstants.PROPERTY_PASSWORD, "password")
+          .put(ServiceNowConstants.PROPERTY_TABLE_NAME, "tableName")
+          .put(ServiceNowConstants.PROPERTY_VALUE_TYPE, "Actual")
           .put("referenceName", "oldReference")
           .build();
-  private static final String TEST_SALESFORCE_PARAMS_JSON_STRING =
+
+  private static final String TEST_SERVICE_NOW_PARAMS_JSON_STRING =
       "{\n"
-          + "\"sObjectName\": \"sObject\",\n"
-          + "\"datetimeAfter\": \"datetime\",\n"
-          + "\"consumerKey\": \"key\",\n"
-          + "\"consumerSecret\": \"secret\",\n"
-          + "\"username\": \"user\",\n"
+          + "\"clientId\": \"clientId\",\n"
+          + "\"clientSecret\": \"clientSecret\",\n"
+          + "\"restApiEndpoint\": \"https://www.google.com\",\n"
+          + "\"queryMode\": \"Table\",\n"
+          + "\"user\": \"user\",\n"
           + "\"password\": \"password\",\n"
-          + "\"loginUrl\": \"https://www.google.com\",\n"
-          + "\"referenceName\": \"reference\"\n"
+          + "\"tableName\": \"tableName\",\n"
+          + "\"valueType\": \"Actual\",\n"
+          + "\"referenceName\": \"oldReference\"\n"
           + "}";
-  private static final String SALESFORCE_TEST_PARAMS_JSON =
-      "src/test/resources/salesforce_test_params.json";
+  private static final String SERVICE_NOW_TEST_PARAMS_JSON =
+      "src/test/resources/service_now_test_params.json";
   public static final String REFERENCE_NAME_PARAM_NAME = "referenceName";
 
   @Test
   public void testBuildingPluginConfigFromParamsMap() {
     try {
       String newReferenceName = "new reference name";
-      SalesforceSourceConfig config =
-          new ConfigWrapper<>(SalesforceSourceConfig.class)
-              .withParams(TEST_SALESFORCE_PARAMS_MAP)
+      ServiceNowSourceConfig config =
+          new ConfigWrapper<>(ServiceNowSourceConfig.class)
+              .withParams(TEST_SERVICE_NOW_PARAMS_MAP)
               .setParam("referenceName", newReferenceName)
               .build();
       assertNotNull(config);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
+      validateServiceNowConfigObject(TEST_SERVICE_NOW_PARAMS_MAP, config);
       assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
@@ -87,13 +89,13 @@ public class ConfigWrapperTest {
   public void testBuildingPluginConfigFromJsonFile() {
     try {
       String newReferenceName = "new reference name";
-      SalesforceSourceConfig config =
-          new ConfigWrapper<>(SalesforceSourceConfig.class)
-              .fromJsonFile(new File(SALESFORCE_TEST_PARAMS_JSON))
+      ServiceNowSourceConfig config =
+          new ConfigWrapper<>(ServiceNowSourceConfig.class)
+              .fromJsonFile(new File(SERVICE_NOW_TEST_PARAMS_JSON))
               .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
               .build();
       assertNotNull(config);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
+      validateServiceNowConfigObject(TEST_SERVICE_NOW_PARAMS_MAP, config);
       assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
@@ -105,13 +107,13 @@ public class ConfigWrapperTest {
   public void testBuildingPluginConfigFromJsonString() {
     try {
       String newReferenceName = "new reference name";
-      SalesforceSourceConfig config =
-          new ConfigWrapper<>(SalesforceSourceConfig.class)
-              .fromJsonString(TEST_SALESFORCE_PARAMS_JSON_STRING)
+      ServiceNowSourceConfig config =
+          new ConfigWrapper<>(ServiceNowSourceConfig.class)
+              .fromJsonString(TEST_SERVICE_NOW_PARAMS_JSON_STRING)
               .setParam(REFERENCE_NAME_PARAM_NAME, newReferenceName)
               .build();
       assertNotNull(config);
-      validateSalesforceConfigObject(TEST_SALESFORCE_PARAMS_MAP, config);
+      validateServiceNowConfigObject(TEST_SERVICE_NOW_PARAMS_MAP, config);
       assertEquals(newReferenceName, config.referenceName);
     } catch (Exception e) {
       LOG.error("Error occurred while building the config object", e);
@@ -119,17 +121,19 @@ public class ConfigWrapperTest {
     }
   }
 
-  private static void validateSalesforceConfigObject(
-      Map<String, Object> params, SalesforceSourceConfig config) {
+  private static void validateServiceNowConfigObject(
+      Map<String, Object> params, ServiceNowSourceConfig config) {
+    assertEquals(params.get(ServiceNowConstants.PROPERTY_CLIENT_ID), config.getClientId());
+    assertEquals(params.get(ServiceNowConstants.PROPERTY_CLIENT_SECRET), config.getClientSecret());
     assertEquals(
-        params.get(SalesforceSourceConstants.PROPERTY_DATETIME_AFTER), config.getDatetimeAfter());
+        params.get(ServiceNowConstants.PROPERTY_API_ENDPOINT), config.getRestApiEndpoint());
     assertEquals(
-        params.get(SalesforceSourceConstants.PROPERTY_SOBJECT_NAME), config.getSObjectName());
-    assertEquals(params.get(SalesforceConstants.PROPERTY_CONSUMER_KEY), config.getConsumerKey());
+        params.get(ServiceNowConstants.PROPERTY_QUERY_MODE), config.getQueryMode().getValue());
+    assertEquals(params.get(ServiceNowConstants.PROPERTY_USER), config.getUser());
+    assertEquals(params.get(ServiceNowConstants.PROPERTY_PASSWORD), config.getPassword());
+    assertNotNull(config.getValueType());
     assertEquals(
-        params.get(SalesforceConstants.PROPERTY_CONSUMER_SECRET), config.getConsumerSecret());
-    assertEquals(params.get(SalesforceConstants.PROPERTY_USERNAME), config.getUsername());
-    assertEquals(params.get(SalesforceConstants.PROPERTY_PASSWORD), config.getPassword());
-    assertEquals(params.get(SalesforceConstants.PROPERTY_LOGIN_URL), config.getLoginUrl());
+        params.get(ServiceNowConstants.PROPERTY_VALUE_TYPE), config.getValueType().getValueType());
+    assertEquals(params.get(ServiceNowConstants.PROPERTY_TABLE_NAME), config.getTableName());
   }
 }

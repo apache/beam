@@ -45,11 +45,13 @@ import com.google.protobuf.Descriptors.Descriptor;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
+@Internal
 public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link JobService}. */
@@ -203,6 +205,14 @@ public interface BigQueryServices extends Serializable {
   interface StreamAppendClient extends AutoCloseable {
     /** Append rows to a Storage API write stream at the given offset. */
     ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
+
+    /**
+     * If the previous call to appendRows blocked due to flow control, returns how long the call
+     * blocked for.
+     */
+    default long getInflightWaitSeconds() {
+      return 0;
+    }
 
     /**
      * Pin this object. If close() is called before all pins are removed, the underlying resources

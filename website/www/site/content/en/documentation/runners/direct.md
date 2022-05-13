@@ -36,7 +36,7 @@ Here are some resources with information about how to test your pipelines.
   <li class="language-java">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a>.</li>
 
   <!-- Python specific links -->
-  <li class="language-py">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <a href="https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.testing.util.html#apache_beam.testing.util.assert_that">assert_that</a>.</li>
+  <li class="language-py">The <a href="/get-started/wordcount-example/#testing-your-pipeline-with-asserts">Apache Beam WordCount Walkthrough</a> contains an example of logging and testing a pipeline with <code>assert_that</code>.</li>
 </ul>
 
 ## Direct Runner prerequisites and setup

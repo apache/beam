@@ -24,12 +24,9 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.tephra.TransactionFailureException;
 
-/**
- * Class StreamingSourceContextWrapper is a class for creating context object of different CDAP
- * classes with stream source type.
- */
+/** Class for creating context object of different CDAP classes with stream source type. */
 public class StreamingSourceContextImpl extends BatchContextImpl
-    implements StreamingSourceContext, Serializable {
+        implements StreamingSourceContext, Serializable {
 
   @Override
   public void registerLineage(String referenceName, @Nullable Schema schema)

@@ -314,13 +314,18 @@ class SchemaTest(unittest.TestCase):
         fields=[
             schema_pb2.Field(
                 name="type_with_no_typeinfo", type=schema_pb2.FieldType())
-        ])
+        ],
+        id="helpful-error-uuid",
+    )
 
     # Should raise an exception referencing the problem field
     self.assertRaisesRegex(
         ValueError,
         "type_with_no_typeinfo",
-        lambda: named_tuple_from_schema(schema_proto))
+        lambda: named_tuple_from_schema(
+            schema_proto,
+            # bypass schema cache
+            schema_registry=SchemaTypeRegistry()))
 
 
 if __name__ == '__main__':

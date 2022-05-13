@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="96" height="96" rx="8" fill="#F8F8F8"/>
+<path d="M8 16C8 11.5817 11.5817 8 16 8H80C84.4183 8 88 11.5817 88 16V80C88 84.4183 84.4183 88 80 88H16C11.5817 88 8 84.4183 8 80V16Z" fill="#F8F8F8"/>
+<path d="M73.6 74.4H22.4C19.749 74.4 17.6 72.2509 17.6 69.5999V36C17.6 33.349 19.749 31.2 22.4 31.2H73.6C76.251 31.2 78.4 33.349 78.4 36V69.6C78.4 72.2509 76.251 74.4 73.6 74.4Z" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M68 74.4H28C27.5582 74.4 27.2 74.0418 27.2 73.6V32C27.2 31.5581 27.5582 31.2 28 31.2H68C68.4418 31.2 68.8 31.5581 68.8 32V73.6C68.8 74.0418 68.4418 74.4 68 74.4Z" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M59.2 31.2H36.8C36.3582 31.2 36 30.8419 36 30.4V21.6C36 21.1582 36.3582 20.8 36.8 20.8H59.2C59.6418 20.8 60 21.1582 60 21.6V30.4001C60 30.8419 59.6418 31.2 59.2 31.2Z" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M48 44.8L57.6697 50.9242C58.3466 51.3529 58.0429 52.4 57.2417 52.4H48H38.7583C37.9571 52.4 37.6534 53.4472 38.3303 53.8759L48 60" stroke="#E74D1A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -17,14 +17,15 @@
  */
 package org.apache.beam.sdk.io.cdap;
 
+import com.google.common.reflect.TypeToken;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
-import java.lang.reflect.Constructor;
+import io.cdap.cdap.common.lang.InstantiatorFactory;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,10 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class for getting any filled {@link PluginConfig} configuration object. */
-@SuppressWarnings({"unchecked", "assignment.type.incompatible"})
+@SuppressWarnings({"assignment.type.incompatible", "UnstableApiUsage", "return.type.incompatible"})
 public class PluginConfigInstantiationUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(PluginConfigInstantiationUtils.class);
+  private static final String MACRO_FIELDS_FIELD_NAME = "macroFields";
 
   /**
    * Method for instantiating {@link PluginConfig} object of specific class {@param configClass}.
@@ -58,12 +60,13 @@ public class PluginConfigInstantiationUtils {
     while (currClass != null && !currClass.equals(Object.class)) {
       allFields.addAll(
           Arrays.stream(currClass.getDeclaredFields())
-              .filter(
-                  f -> !Modifier.isStatic(f.getModifiers()) && f.isAnnotationPresent(Name.class))
+              .filter(f -> !Modifier.isStatic(f.getModifiers()))
               .collect(Collectors.toList()));
       currClass = currClass.getSuperclass();
     }
-    T config = getEmptyObjectFromDefaultValues(configClass);
+    InstantiatorFactory instantiatorFactory = new InstantiatorFactory(false);
+
+    T config = instantiatorFactory.get(TypeToken.of(configClass)).create();
 
     if (config != null) {
       for (Field field : allFields) {
@@ -81,56 +84,15 @@ public class PluginConfigInstantiationUtils {
           } catch (IllegalAccessException e) {
             LOG.error("Can not set a field with value {}", fieldValue);
           }
+        } else if (field.getName().equals(MACRO_FIELDS_FIELD_NAME)) {
+          try {
+            field.set(config, Collections.emptySet());
+          } catch (IllegalAccessException e) {
+            LOG.error("Can not set macro fields");
+          }
         }
       }
     }
     return config;
-  }
-
-  /** @return empty {@link Object} of {@param tClass} */
-  private static @Nullable <T> T getEmptyObjectFromDefaultValues(Class<T> tClass) {
-    for (Constructor<?> constructor : tClass.getDeclaredConstructors()) {
-      constructor.setAccessible(true);
-      Class<?>[] parameterTypes = constructor.getParameterTypes();
-      Object[] parameters = new Object[parameterTypes.length];
-      for (int i = 0; i < parameterTypes.length; i++) {
-        parameters[i] = getDefaultValue(parameterTypes[i]);
-      }
-      try {
-        return (T) constructor.newInstance(parameters);
-      } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-        LOG.warn("Can not instantiate an empty object", e);
-      }
-    }
-    return null;
-  }
-
-  /** @return default value for given {@param tClass} if it's primitive, otherwise returns null */
-  private static @Nullable Object getDefaultValue(@Nullable Class<?> tClass) {
-    if (Boolean.TYPE.equals(tClass)) {
-      return false;
-    }
-    if (Character.TYPE.equals(tClass)) {
-      return Character.MIN_VALUE;
-    }
-    if (Byte.TYPE.equals(tClass)) {
-      return Byte.MIN_VALUE;
-    }
-    if (Short.TYPE.equals(tClass)) {
-      return Short.MIN_VALUE;
-    }
-    if (Double.TYPE.equals(tClass)) {
-      return Double.MIN_VALUE;
-    }
-    if (Integer.TYPE.equals(tClass)) {
-      return Integer.MIN_VALUE;
-    }
-    if (Float.TYPE.equals(tClass)) {
-      return Float.MIN_VALUE;
-    }
-    if (Long.TYPE.equals(tClass)) {
-      return Long.MIN_VALUE;
-    }
-    return null;
   }
 }

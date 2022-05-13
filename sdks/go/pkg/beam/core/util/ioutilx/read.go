@@ -92,5 +92,6 @@ func ReadUnsafe(r io.Reader, b []byte) (int, error) {
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
+	//lint:ignore SA4016 see function comment
 	return unsafe.Pointer(x ^ 0)
 }
