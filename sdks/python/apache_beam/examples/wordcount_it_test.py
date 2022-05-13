@@ -63,6 +63,8 @@ class WordCountIT(unittest.TestCase):
     Jenkins and Dataflow workers both run as GCE default service account.
     So we remove that account from all the above.
     """
+    auth._Credentials._credentials_init = False
+
     ACCOUNT_TO_IMPERSONATE = (
         'allows-impersonation@apache-'
         'beam-testing.iam.gserviceaccount.com')
@@ -78,6 +80,8 @@ class WordCountIT(unittest.TestCase):
         'staging_location': STAGING_LOCATION
     }
     self._run_wordcount_it(wordcount.run, **extra_options)
+    # Reset credentials for future tests.
+    auth._Credentials._credentials_init = False
 
   @pytest.mark.it_postcommit
   @pytest.mark.it_validatescontainer
