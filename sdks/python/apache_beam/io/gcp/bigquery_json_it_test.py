@@ -100,13 +100,13 @@ class BigQueryJsonIT(unittest.TestCase):
         # Test country (JSON String)
         country_actual = json.loads(row["country"])
         country_expected = json.loads(expected["country"])
-        self.assertEqual(country_expected, country_actual)
+        self.assertTrue(country_expected == country_actual)
 
         # Test stats (JSON String in BigQuery struct)
         for stat, value in row["stats"].items():
           stats_actual = json.loads(value)
           stats_expected = json.loads(expected["stats"][stat])
-          self.assertEqual(stats_expected, stats_actual)
+          self.assertTrue(stats_expected == stats_actual)
 
         # Test cities (JSON String in BigQuery array of structs)
         for city_row in row["cities"]:
@@ -115,7 +115,7 @@ class BigQueryJsonIT(unittest.TestCase):
 
           city_actual = json.loads(city)
           city_expected = json.loads(expected["cities"][city_name])
-          self.assertEqual(city_expected, city_actual)
+          self.assertTrue(city_expected == city_actual)
 
         # Test landmarks (JSON String in BigQuery array)
         landmarks_actual = row["landmarks"]
@@ -123,7 +123,7 @@ class BigQueryJsonIT(unittest.TestCase):
         for i in range(len(landmarks_actual)):
           l_actual = json.loads(landmarks_actual[i])
           l_expected = json.loads(landmarks_expected[i])
-          self.assertEqual(l_expected, l_actual)
+          self.assertTrue(l_expected == l_actual)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--read_method')
