@@ -205,10 +205,6 @@ if __name__ == '__main__':
         # Avro 1.9.2 for python3 was broken.
         # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
-        # dataclasses backport for python_version<3.7. No version bound because
-        # this is Python standard since Python 3.7 and each Python version is
-        # compatible with a specific dataclasses version.
-        'dataclasses;python_version<"3.7"',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
         # version. Pickles created with a new version of dill may not unpickle
