@@ -831,9 +831,9 @@ func GeneratedOptimizationCalls() {
 // BenchmarkMethodCalls/MakeFunc.Call1x1_GeneratedShims-16                          141127965	        8.312 ns/op
 // BenchmarkMethodCalls/NewFn_GeneratedShims-16                                     1000000	        	1099 ns/op
 // BenchmarkMethodCalls/EncodeMultiEdge_GeneratedShims-16                           1000000 	      	1071 ns/op
-// BenchmarkMethodCalls/MakeFunc_FunctionalDoFn_Unoptimized-16                   	12444930	        90.77 ns/op
-// BenchmarkMethodCalls/MakeFunc_FunctionalDoFn.Call_Unoptimized-16              	19462878	        51.92 ns/op
-// BenchmarkMethodCalls/MakeFunc_FunctionalDoFn.Call1x1_Unoptimized-16           	85194289	        15.76 ns/op
+// BenchmarkMethodCalls/MakeFunc_FunctionalDoFn_GeneratedShims-16                   12444930	        90.77 ns/op
+// BenchmarkMethodCalls/MakeFunc_FunctionalDoFn.Call_GeneratedShims-16              19462878	        51.92 ns/op
+// BenchmarkMethodCalls/MakeFunc_FunctionalDoFn.Call2x1_GeneratedShims-16           85194289	        15.76 ns/op
 func BenchmarkMethodCalls(b *testing.B) {
 	f := &Foo{A: 3}
 	g, err := graph.NewFn(&Foo{A: 5})
@@ -872,7 +872,7 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"EncodeMultiEdge_Unoptimized", func() { aME, _ = graphx.EncodeMultiEdge(&me) }, func() { /*No op*/ }},                                                                                             // Used in graph serialization at execution time
 		{"MakeFunc_FunctionalDoFn_Unoptimized", func() { aFunc = reflectx.MakeFunc(addCustomType2) }, func() { /*No op*/ }},                                                                                // Used in graph deserialization
 		{"MakeFunc_FunctionalDoFn.Call_Unoptimized", func() { aFnCall2 = aFunc.Call(funcIn2)[0].(CustomType2) }, func() { /*No op*/ }},                                                                     // Used to call the function repeatedly
-		{"MakeFunc_FunctionalDoFn.Call1x1_Unoptimized", func() { aFnCall2 = aFunc2x1.Call2x1(CustomType2{val2: 4}, CustomType2{val2: 3}).(CustomType2) }, func() { aFunc2x1 = reflectx.ToFunc2x1(aFunc) }}, // Used to call the function repeatedly
+		{"MakeFunc_FunctionalDoFn.Call2x1_Unoptimized", func() { aFnCall2 = aFunc2x1.Call2x1(CustomType2{val2: 4}, CustomType2{val2: 3}).(CustomType2) }, func() { aFunc2x1 = reflectx.ToFunc2x1(aFunc) }}, // Used to call the function repeatedly
 
 		// Perform some generic registration to optimize execution
 		{"MakeFunc_GenericRegistration", func() { aFunc = reflectx.MakeFunc(f.ProcessElement) }, func() { DoFn1x1[CustomType, int](f) }},                                                                // Used in graph deserialization
@@ -882,7 +882,7 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"EncodeMultiEdge_GenericRegistration", func() { aME, _ = graphx.EncodeMultiEdge(&me) }, func() { DoFn1x1[CustomType, int](f) }},                                                                // Used in graph serialization at execution time
 		{"MakeFunc_FunctionalDoFn_GenericRegistration", func() { aFunc = reflectx.MakeFunc(addCustomType2) }, func() { Function2x1[CustomType2, CustomType2, CustomType2](addCustomType2) }},            // Used in graph deserialization
 		{"MakeFunc_FunctionalDoFn.Call_GenericRegistration", func() { aFnCall2 = aFunc.Call(funcIn2)[0].(CustomType2) }, func() { Function2x1[CustomType2, CustomType2, CustomType2](addCustomType2) }}, // Used to call the function repeatedly
-		{"MakeFunc_FunctionalDoFn.Call1x1_GenericRegistration", func() { aFnCall2 = aFunc2x1.Call2x1(CustomType2{val2: 4}, CustomType2{val2: 3}).(CustomType2) }, func() {
+		{"MakeFunc_FunctionalDoFn.Call2x1_GenericRegistration", func() { aFnCall2 = aFunc2x1.Call2x1(CustomType2{val2: 4}, CustomType2{val2: 3}).(CustomType2) }, func() {
 			Function2x1[CustomType2, CustomType2, CustomType2](addCustomType2)
 			aFunc2x1 = reflectx.ToFunc2x1(aFunc)
 		}}, // Used to call the function repeatedly
@@ -893,9 +893,9 @@ func BenchmarkMethodCalls(b *testing.B) {
 		{"MakeFunc.Call1x1_GeneratedShims", func() { aFnCall = aFunc1x1.Call1x1(CustomType{val: 5}).(int) }, func() { GeneratedOptimizationCalls(); aFunc1x1 = reflectx.ToFunc1x1(aFunc) }},                                              // Used to call the function repeatedly
 		{"NewFn_GeneratedShims", func() { aFn, _ = graph.NewFn(f) }, func() { GeneratedOptimizationCalls() }},                                                                                                                            // Used in graph construction (less valuable)
 		{"EncodeMultiEdge_GeneratedShims", func() { aME, err = graphx.EncodeMultiEdge(&me) }, func() { GeneratedOptimizationCalls() }},                                                                                                   // Used in graph serialization at execution time
-		{"MakeFunc_FunctionalDoFn_Unoptimized", func() { aFunc = reflectx.MakeFunc(addCustomType2) }, func() { GeneratedOptimizationCalls() }},                                                                                           // Used in graph deserialization
-		{"MakeFunc_FunctionalDoFn.Call_Unoptimized", func() { aFnCall2 = aFunc.Call(funcIn2)[0].(CustomType2) }, func() { GeneratedOptimizationCalls() }},                                                                                // Used to call the function repeatedly
-		{"MakeFunc_FunctionalDoFn.Call1x1_Unoptimized", func() { aFnCall2 = aFunc2x1.Call2x1(CustomType2{val2: 4}, CustomType2{val2: 3}).(CustomType2) }, func() { GeneratedOptimizationCalls(); aFunc2x1 = reflectx.ToFunc2x1(aFunc) }}, // Used to call the function repeatedly
+		{"MakeFunc_FunctionalDoFn_GeneratedShims", func() { aFunc = reflectx.MakeFunc(addCustomType2) }, func() { GeneratedOptimizationCalls() }},                                                                                           // Used in graph deserialization
+		{"MakeFunc_FunctionalDoFn.Call_GeneratedShims", func() { aFnCall2 = aFunc.Call(funcIn2)[0].(CustomType2) }, func() { GeneratedOptimizationCalls() }},                                                                                // Used to call the function repeatedly
+		{"MakeFunc_FunctionalDoFn.Call2x1_GeneratedShims", func() { aFnCall2 = aFunc2x1.Call2x1(CustomType2{val2: 4}, CustomType2{val2: 3}).(CustomType2) }, func() { GeneratedOptimizationCalls(); aFunc2x1 = reflectx.ToFunc2x1(aFunc) }}, // Used to call the function repeatedly
 	}
 	for _, test := range tests {
 		test.registration()
