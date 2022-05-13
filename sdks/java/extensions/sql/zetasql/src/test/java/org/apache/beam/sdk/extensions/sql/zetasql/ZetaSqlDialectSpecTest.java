@@ -3574,11 +3574,16 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Test
   public void testAnalyticOver() {
-     String sql = "select sum(Key) over () From KeyValue";
+    String sql = "select sum(f_int_1) over (ROWS BETWEEN 2 PRECEDING AND 3 FOLLOWING) From aggregate_test_table";
 
-     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-     zetaSQLQueryPlanner.convertToBeamRel(sql);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    stream.getSchema();
   }
+
+
 
   @Test
   public void testAnalyticOver2() {
@@ -3625,12 +3630,12 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
-//  @Test
-//  public void testAnalyticOver7() {
-//    String sql = "select sum(Key) over (ORDER BY Key ASC) From KeyValue";
-//    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-//    zetaSQLQueryPlanner.convertToBeamRel(sql);
-//  }
+  @Test
+  public void testAnalyticOver7() {
+    String sql = "select sum(Key) over (ORDER BY Key ASC) From KeyValue";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
 
   @Test
   public void testSubstr() {

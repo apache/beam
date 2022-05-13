@@ -107,28 +107,4 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
     Assert.assertFalse(root.getCluster().getMetadataQuery().getCumulativeCost(root).isInfinite());
   }
 
-  @Test
-  public void testAnalyticOver() {
-    String sql ="select SUM(a) over(), COUNT(b) over() From T";
-    BeamRelNode root = env.parseQuery(sql);
-    Assert.assertTrue(
-            root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
-  }
-
-  @Test
-  public void testAggregateProject() {
-    String sql ="select SUM(a+b), c from T group by c  ";
-    BeamRelNode root = env.parseQuery(sql);
-    Assert.assertTrue(
-            root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
-  }
-
-  @Test
-  public void testAggregate() {
-    String sql = "SELECT Key, COUNT(*) FROM KeyValue GROUP BY Key";
-    BeamRelNode root = env.parseQuery(sql);
-    Assert.assertTrue(
-            root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
-  }
-
 }

@@ -35,6 +35,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.*;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlAggFunction;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,6 +70,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         final RexBuilder rexBuilder = getCluster().getRexBuilder();
         List<RexNode> projects = new ArrayList<>();
         int index = 0;
+
         for(ResolvedColumn resolvedColumn: zetaNode.getInputScan().getColumnList()) {
             RelDataType type = ZetaSqlCalciteTranslationUtils.toCalciteType(resolvedColumn.getType(), false, rexBuilder);
             RexInputRef columnRef = new RexInputRef(index, type);
@@ -91,7 +93,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                 for(ResolvedOrderByItem item: group.getOrderBy().getOrderByItemList()) {
                     RexFieldCollation collation = new RexFieldCollation(
                             getExpressionConverter().convertRexNodeFromResolvedExpr(item.getColumnRef()),
-                            ImmutableSet.of());
+                            ImmutableSet.copyOf(getDirection(item.getIsDescending())));
                     orderKeys.add(collation);
                 }
             }
@@ -148,6 +150,15 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         }
 
         return ImmutableList.copyOf(fieldNames);
+    }
+
+    private ImmutableList<SqlKind> getDirection(boolean isDescending) {
+        if(isDescending) {
+            return ImmutableList.of(SqlKind.DESCENDING);
+        }
+        else {
+            return ImmutableList.of();
+        }
     }
 
     private RexWindowBound convert(ResolvedWindowFrameExpr frameExpr) {
