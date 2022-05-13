@@ -32,8 +32,6 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
  */
 public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultS3ClientBuilderFactory.class);
-
   @Override
   public S3ClientBuilder createBuilder(S3Options s3Options) {
     return createBuilder(S3Client.builder(), s3Options);
@@ -41,11 +39,6 @@ public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
 
   @VisibleForTesting
   static S3ClientBuilder createBuilder(S3ClientBuilder builder, S3Options s3Options) {
-    if (s3Options.getAwsRegion() == null) {
-      LOG.debug(
-          "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
-              + "was not specified. If you don't plan to use S3, then ignore this message.");
-    }
     return ClientBuilderFactory.getFactory(s3Options).create(builder, s3Options);
   }
 }
