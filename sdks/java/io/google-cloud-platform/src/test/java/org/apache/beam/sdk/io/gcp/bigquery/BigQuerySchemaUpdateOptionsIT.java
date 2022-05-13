@@ -28,6 +28,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -218,5 +219,69 @@ public class BigQuerySchemaUpdateOptionsIT {
 
     List<List<String>> expectedResult = Arrays.asList(Arrays.asList(value));
     runWriteTest(schemaUpdateOptions, tableName, newSchema, rowToInsert, testQuery, expectedResult);
+  }
+
+  @Test
+  public void runWriteTestTempTables() throws Exception {
+    String tableName = makeTestTable();
+
+    Set<SchemaUpdateOption> schemaUpdateOptions =
+        EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("new_field").setType("STRING"),
+                    new TableFieldSchema().setName("optional_field").setType("STRING"),
+                    new TableFieldSchema()
+                        .setName("required_field")
+                        .setType("STRING")
+                        .setMode("REQUIRED")));
+
+    String[] values = {"meow", "bark"};
+
+    String testQuery =
+        String.format(
+            "SELECT new_field, required_field FROM [%s.%s];", BIG_QUERY_DATASET_ID, tableName);
+
+    List<List<String>> expectedResult =
+        Arrays.asList(Arrays.asList(values[0], values[1]), Arrays.asList(values[1], values[0]));
+
+    Options options = TestPipeline.testingPipelineOptions().as(Options.class);
+    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+
+    Pipeline p = Pipeline.create(options);
+    Create.Values<TableRow> input =
+        Create.of(
+            Arrays.asList(
+                new TableRow().set("new_field", values[0]).set("required_field", values[1]),
+                new TableRow().set("new_field", values[1]).set("required_field", values[0])));
+
+    Write<TableRow> writer =
+        BigQueryIO.writeTableRows()
+            .to(String.format("%s:%s.%s", options.getProject(), BIG_QUERY_DATASET_ID, tableName))
+            .withSchema(schema)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(schemaUpdateOptions)
+            .withMaxBytesPerPartition(1)
+            .withMaxFilesPerPartition(1);
+
+    p.apply(input).apply(writer);
+    p.run().waitUntilFinish();
+
+    QueryResponse response = BQ_CLIENT.queryWithRetries(testQuery, project);
+
+    List<List<String>> result =
+        response.getRows().stream()
+            .map(
+                row ->
+                    row.getF().stream()
+                        .map(cell -> cell.getV().toString())
+                        .collect(Collectors.toList()))
+            .collect(Collectors.toList());
+
+    assertEquals(new HashSet<>(expectedResult), new HashSet<>(result));
   }
 }

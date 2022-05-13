@@ -62,7 +62,7 @@ encoding is used when we don't have sufficient type information.
 
 * We have added additional methods to the PCollection object, notably `map`
 and `flatmap`, [rather than only allowing apply](https://www.mail-archive.com/dev@beam.apache.org/msg06035.html).
-In addition, `apply` can accept a function argument `(PColletion) => ...` as
+In addition, `apply` can accept a function argument `(PCollection) => ...` as
 well as a PTransform subclass, which treats this callable as if it were a
 PTransform's expand.
 
@@ -102,7 +102,7 @@ We currently offer asynchronous variants of `PValue.apply(...)` (in addition
 to the synchronous ones, as they are easier to chain) as well as making
 `Runner.run` asynchronous. TBD to do this for all user callbacks as well.
 
-An example pipeline can be found at https://github.com/robertwb/beam-javascript/blob/javascript/sdks/node-ts/src/apache_beam/examples/wordcount.ts
+An example pipeline can be found at https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/examples/wordcount.ts
 
 ## TODO
 
