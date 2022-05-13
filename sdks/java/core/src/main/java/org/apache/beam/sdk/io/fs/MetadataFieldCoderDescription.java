@@ -37,8 +37,6 @@ public class MetadataFieldCoderDescription implements Serializable {
     this.setter = setter;
   }
 
-  public MetadataFieldCoderDescription() {}
-
   public Coder<?> getCoder() {
     return coder;
   }
