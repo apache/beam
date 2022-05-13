@@ -63,6 +63,8 @@ class WordCountIT(unittest.TestCase):
     Jenkins and Dataflow workers both run as GCE default service account.
     So we remove that account from all the above.
     """
+    # Credentials need to be reset or this test will fail and credentials
+    # from a previous test will be used.
     auth._Credentials._credentials_init = False
 
     ACCOUNT_TO_IMPERSONATE = (
