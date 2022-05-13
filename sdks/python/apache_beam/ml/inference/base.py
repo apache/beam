@@ -29,9 +29,7 @@ no expectation that these interfaces will not change.
 """
 
 import logging
-import os
 import pickle
-import platform
 import sys
 import time
 from typing import Any
@@ -49,11 +47,18 @@ try:
 except ImportError:
   resource = None  # type: ignore[assignment]
 
-_MICROSECOND_TO_MILLISECOND = 1000
-_NANOSECOND_TO_MICROSECOND = 1000
+_SECOND_TO_MILLISECOND = 1000
 _SECOND_TO_MICROSECOND = 1_000_000
 
 T = TypeVar('T')
+
+
+def _to_milliseconds(time_seconds):
+  return int(time_seconds * _SECOND_TO_MILLISECOND)
+
+
+def _to_microseconds(time_seconds):
+  return int(time_seconds * _SECOND_TO_MICROSECOND)
 
 
 class InferenceRunner():
@@ -158,19 +163,18 @@ class _RunInferenceDoFn(beam.DoFn):
         self._inference_runner.get_metrics_namespace())
     self._clock = clock
     if not clock:
-      self._clock = _ClockFactory.make_clock()
+      self._clock = time
     self._model = None
 
   def _load_model(self):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
-      start_time = self._clock.get_current_time_in_microseconds()
+      start_time = _to_milliseconds(self._clock.time())
       model = self._model_loader.load_model()
-      end_time = self._clock.get_current_time_in_microseconds()
+      end_time = _to_milliseconds(self._clock.time())
       memory_after = _get_current_process_memory_in_bytes()
-      load_model_latency_ms = ((end_time - start_time) /
-                               _MICROSECOND_TO_MILLISECOND)
+      load_model_latency_ms = end_time - start_time
       model_byte_size = memory_after - memory_before
       self._metrics_collector.cache_load_model_metrics(
           load_model_latency_ms, model_byte_size)
@@ -193,13 +197,12 @@ class _RunInferenceDoFn(beam.DoFn):
       examples = batch
       keys = None
 
-    start_time = self._clock.get_current_time_in_microseconds()
+    start_time = _to_microseconds(self._clock.time())
     result_generator = self._inference_runner.run_inference(
         examples, self._model)
     predictions = list(result_generator)
 
-    inference_latency = self._clock.get_current_time_in_microseconds(
-    ) - start_time
+    inference_latency = _to_microseconds(self._clock.time()) - start_time
     num_bytes = self._inference_runner.get_num_bytes(examples)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
@@ -232,33 +235,3 @@ def _get_current_process_memory_in_bytes():
         'Resource module is not available for current platform, '
         'memory usage cannot be fetched.')
   return 0
-
-
-def _is_windows() -> bool:
-  return platform.system() == 'Windows' or os.name == 'nt'
-
-
-def _is_cygwin() -> bool:
-  return platform.system().startswith('CYGWIN_NT')
-
-
-class _Clock(object):
-  def get_current_time_in_microseconds(self) -> int:
-    return int(time.time() * _SECOND_TO_MICROSECOND)
-
-
-class _FineGrainedClock(_Clock):
-  def get_current_time_in_microseconds(self) -> int:
-    return int(
-        time.clock_gettime_ns(time.CLOCK_REALTIME) /  # type: ignore[attr-defined]
-        _NANOSECOND_TO_MICROSECOND)
-
-
-#TODO(BEAM-14255): Research simplifying the internal clock and just using time.
-class _ClockFactory(object):
-  @staticmethod
-  def make_clock() -> _Clock:
-    if (hasattr(time, 'clock_gettime_ns') and not _is_windows() and
-        not _is_cygwin()):
-      return _FineGrainedClock()
-    return _Clock()

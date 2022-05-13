@@ -37,33 +37,33 @@ class FakeModel:
 
 class FakeInferenceRunner(base.InferenceRunner):
   def __init__(self, clock=None):
-    self._mock_clock = clock
+    self._fake_clock = clock
 
   def run_inference(self, batch: Any, model: Any) -> Iterable[Any]:
-    if self._mock_clock:
-      self._mock_clock.current_time += 3000
+    if self._fake_clock:
+      self._fake_clock.current_time += 3.0
     for example in batch:
       yield model.predict(example)
 
 
 class FakeModelLoader(base.ModelLoader):
   def __init__(self, clock=None):
-    self._mock_clock = clock
+    self._fake_clock = clock
 
   def load_model(self):
-    if self._mock_clock:
-      self._mock_clock.current_time += 50000
+    if self._fake_clock:
+      self._fake_clock.current_time += 0.5
     return FakeModel()
 
   def get_inference_runner(self):
-    return FakeInferenceRunner(self._mock_clock)
+    return FakeInferenceRunner(self._fake_clock)
 
 
-class MockClock(base._Clock):
+class FakeClock:
   def __init__(self):
-    self.current_time = 10000
+    self.current_time = 10.0
 
-  def get_current_time_in_microseconds(self) -> int:
+  def time(self) -> int:
     return self.current_time
 
 
@@ -122,9 +122,9 @@ class RunInferenceBaseTest(unittest.TestCase):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
     pcoll = pipeline | 'start' >> beam.Create(examples)
-    mock_clock = MockClock()
+    fake_clock = FakeClock()
     _ = pcoll | base.RunInference(
-        FakeModelLoader(clock=mock_clock), clock=mock_clock)
+        FakeModelLoader(clock=fake_clock), clock=fake_clock)
     res = pipeline.run()
     res.wait_until_finish()
 
@@ -133,14 +133,14 @@ class RunInferenceBaseTest(unittest.TestCase):
             MetricsFilter().with_name('inference_batch_latency_micro_secs')))
     batch_latency = metric_results['distributions'][0]
     self.assertEqual(batch_latency.result.count, 3)
-    self.assertEqual(batch_latency.result.mean, 3000)
+    self.assertEqual(batch_latency.result.mean, 3000000)
 
     metric_results = (
         res.metrics().query(
             MetricsFilter().with_name('load_model_latency_milli_secs')))
     load_model_latency = metric_results['distributions'][0]
     self.assertEqual(load_model_latency.result.count, 1)
-    self.assertEqual(load_model_latency.result.mean, 50)
+    self.assertEqual(load_model_latency.result.mean, 500)
 
 
 if __name__ == '__main__':
