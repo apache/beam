@@ -34,7 +34,7 @@ from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import delete_files
-
+from apache_beam.internal.gcp import auth
 
 class WordCountIT(unittest.TestCase):
 
@@ -63,6 +63,9 @@ class WordCountIT(unittest.TestCase):
     Jenkins and Dataflow workers both run as GCE default service account.
     So we remove that account from all the above.
     """
+    # Credentials are global so reset them before and after this test.
+    auth._Credentials._credentials_init = False
+
     ACCOUNT_TO_IMPERSONATE = (
         'allows-impersonation@apache-'
         'beam-testing.iam.gserviceaccount.com')
@@ -78,6 +81,9 @@ class WordCountIT(unittest.TestCase):
         'staging_location': STAGING_LOCATION
     }
     self._run_wordcount_it(wordcount.run, **extra_options)
+    # reset credentials for future tests
+    auth._Credentials._credentials_init = False
+
 
   @pytest.mark.it_postcommit
   @pytest.mark.it_validatescontainer

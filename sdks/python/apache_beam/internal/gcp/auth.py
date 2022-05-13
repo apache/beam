@@ -23,6 +23,8 @@ import logging
 import socket
 import threading
 
+import traceback #todo remove
+
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -123,6 +125,7 @@ class _Credentials(object):
   _credentials_lock = threading.Lock()
   _credentials_init = False
   _credentials = None
+  _impersonated_credentials = None
 
   @classmethod
   def get_service_credentials(cls, pipeline_options):
@@ -177,9 +180,11 @@ class _Credentials(object):
       impersonate_service_account = pipeline_options.get(
           'impersonate_service_account')
     else:
+      _LOGGER.info('Not Impersonating ' + str(traceback.format_stack())) #TODO REMOVE
+      _LOGGER.info('Not Impersonating ' + str(traceback.format_exc()))#TODO REMOVE
       return credentials
     if impersonate_service_account:
-      _LOGGER.info('Impersonating: %s', impersonate_service_account)
+      _LOGGER.info('Impersonating: %s', str(impersonate_service_account))
       impersonate_accounts = impersonate_service_account.split(',')
       target_principal = impersonate_accounts[-1]
       delegate_to = impersonate_accounts[0:-1]
@@ -189,4 +194,7 @@ class _Credentials(object):
           delegates=delegate_to,
           target_scopes=CLIENT_SCOPES,
       )
+    else:
+      _LOGGER.info('Not Impersonating 2: ' + str(traceback.format_stack())) #TODO REMOVE
+      _LOGGER.info('Not Impersonating 2: ' + str(traceback.format_exc()))#TODO REMOVE
     return credentials
