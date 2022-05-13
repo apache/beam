@@ -665,15 +665,20 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeSt
 		return []*FullValue{}, []*FullValue{}, nil
 	}
 
-	pfv, err := n.newSplitResult(p, n.elm.Windows, pWeState)
-	if err != nil {
-		return nil, nil, err
+	var primaryResult []*FullValue
+	if p != nil {
+		pfv, err := n.newSplitResult(p, n.elm.Windows, pWeState)
+		if err != nil {
+			return nil, nil, err
+		}
+		primaryResult = append(primaryResult, pfv)
 	}
+
 	rfv, err := n.newSplitResult(r, n.elm.Windows, rWeState)
 	if err != nil {
 		return nil, nil, err
 	}
-	return []*FullValue{pfv}, []*FullValue{rfv}, nil
+	return primaryResult, []*FullValue{rfv}, nil
 }
 
 // multiWindowSplit is intended for splitting multi-window elements in
