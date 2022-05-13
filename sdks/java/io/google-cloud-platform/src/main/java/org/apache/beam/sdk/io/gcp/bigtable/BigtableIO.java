@@ -407,7 +407,7 @@ public class BigtableIO {
     /**
      * Returns a new {@link BigtableIO.Read} that will break up read requests into smaller batches.
      * This function will switch the base BigtableIO.Reader class to using the SegmentReader. If
-     * null is passed, this behavior will be disabled and the stream reader will be usedf.
+     * null is passed, this behavior will be disabled and the stream reader will be used.
      *
      * <p>Does not modify this object.
      *
