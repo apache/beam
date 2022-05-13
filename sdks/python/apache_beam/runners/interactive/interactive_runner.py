@@ -29,6 +29,7 @@ from apache_beam import runners
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -220,7 +221,12 @@ class InteractiveRunner(runners.PipelineRunner):
 
   def configure_for_flink(
       self, user_pipeline: beam.Pipeline, options: PipelineOptions) -> None:
-    """Tunes the pipeline options for the setup of running a job with Flink.
+    """Configures the pipeline options for running a job with Flink.
+
+    When running with a FlinkRunner, a job server started from an uber jar
+    (locally built or remotely downloaded) hosting the beam_job_api will
+    communicate with the Flink cluster located at the given flink_master in the
+    pipeline options.
     """
     clusters = ie.current_env().clusters
     if clusters.pipelines.get(user_pipeline, None):
@@ -243,6 +249,8 @@ class InteractiveRunner(runners.PipelineRunner):
           # Generate the metadata with a new unique cluster name.
           cluster_metadata = ClusterMetadata(
               project_id=project_id, region=region)
+        # Add additional configurations.
+        self._worker_options_to_cluster_metadata(options, cluster_metadata)
       # else use the default cluster metadata.
     elif flink_master in clusters.master_urls:
       cluster_metadata = clusters.cluster_metadata(flink_master)
@@ -254,9 +262,29 @@ class InteractiveRunner(runners.PipelineRunner):
     # Side effects associated with the user_pipeline.
     clusters.pipelines[user_pipeline] = dcm
     dcm.pipelines.add(user_pipeline)
+    self._configure_flink_options(
+        options,
+        clusters.DATAPROC_FLINK_VERSION,
+        dcm.cluster_metadata.master_url)
+
+  def _worker_options_to_cluster_metadata(
+      self, options: PipelineOptions, cluster_metadata: ClusterMetadata):
+    worker_options = options.view_as(WorkerOptions)
+    if worker_options.subnetwork:
+      cluster_metadata.subnetwork = worker_options.subnetwork
+    if worker_options.num_workers:
+      cluster_metadata.num_workers = worker_options.num_workers
+    if worker_options.machine_type:
+      cluster_metadata.machine_type = worker_options.machine_type
+
+  def _configure_flink_options(
+      self, options: PipelineOptions, flink_version: str, master_url: str):
     flink_options = options.view_as(FlinkRunnerOptions)
-    flink_options.flink_master = dcm.cluster_metadata.master_url
-    flink_options.flink_version = clusters.DATAPROC_FLINK_VERSION
+    flink_options.flink_version = flink_version
+    # flink_options.flink_job_server_jar will be populated by the
+    # apache_beam.utils.subprocess_server.JavaJarServer.path_to_beam_jar,
+    # do not populate it explicitly.
+    flink_options.flink_master = master_url
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):

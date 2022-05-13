@@ -379,6 +379,12 @@ class Clusters:
       # manager without creating a new one.
       dcm = ib.clusters.create(pipeline)
 
+  To provision the cluster, use WorkerOptions. Supported configurations are::
+
+    1. subnetwork
+    2. num_workers
+    3. machine_type
+
   To configure a pipeline to run on an existing FlinkRunner deployed elsewhere,
   set the flink_master explicitly so no cluster will be created/reused.
 
@@ -418,15 +424,19 @@ class Clusters:
       raise ValueError(
           'Unknown cluster identifier: %s. Cannot create or reuse'
           'a Dataproc cluster.')
-    elif cluster_metadata.region == 'global':
-      # The global region is unsupported as it will be eventually deprecated.
-      raise ValueError('Clusters in the global region are not supported.')
-    elif not cluster_metadata.region:
+    if not cluster_metadata.region:
       _LOGGER.info(
           'No region information was detected, defaulting Dataproc cluster '
           'region to: us-central1.')
       cluster_metadata.region = 'us-central1'
+    elif cluster_metadata.region == 'global':
+      # The global region is unsupported as it will be eventually deprecated.
+      raise ValueError('Clusters in the global region are not supported.')
     # else use the provided region.
+    if cluster_metadata.num_workers and cluster_metadata.num_workers < 2:
+      _LOGGER.info(
+          'At least 2 workers are required for a cluster, defaulting to 2.')
+      cluster_metadata.num_workers = 2
     known_dcm = self.dataproc_cluster_managers.get(cluster_metadata, None)
     if known_dcm:
       return known_dcm
@@ -475,7 +485,9 @@ class Clusters:
             'options is deprecated since First stable release. References to '
             '<pipeline>.options will not be supported',
             category=DeprecationWarning)
-        p.options.view_as(FlinkRunnerOptions).flink_master = '[auto]'
+        p_flink_options = p.options.view_as(FlinkRunnerOptions)
+        p_flink_options.flink_master = '[auto]'
+        p_flink_options.flink_version = None
         # Only cleans up when there is no pipeline using the cluster.
         if not dcm.pipelines:
           self._cleanup(dcm)
@@ -558,6 +570,19 @@ class Clusters:
         meta = cluster_identifier
         if meta in self.dataproc_cluster_managers:
           meta = self.dataproc_cluster_managers[meta].cluster_metadata
+        elif (meta and self.default_cluster_metadata and
+              meta.cluster_name == self.default_cluster_metadata.cluster_name):
+          _LOGGER.warning(
+              'Cannot change the configuration of the running cluster %s. '
+              'Existing is %s, desired is %s.',
+              self.default_cluster_metadata.cluster_name,
+              self.default_cluster_metadata,
+              meta)
+          meta.rename()
+          _LOGGER.warning(
+              'To avoid conflict, issuing a new cluster name %s '
+              'for a new cluster.',
+              meta.cluster_name)
       else:
         raise TypeError(
             'A cluster_identifier should be Optional[Union[str, '
