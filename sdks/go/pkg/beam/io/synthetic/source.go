@@ -36,8 +36,6 @@ import (
 )
 
 func init() {
-	// beam.RegisterType(reflect.TypeOf((*sourceFn)(nil)).Elem())
-	// beam.RegisterType(reflect.TypeOf((*SourceConfig)(nil)).Elem())
 	register.DoFn3x1[*sdf.LockRTracker, SourceConfig, func([]byte, []byte), error]((*sourceFn)(nil))
 	register.Emitter2[[]byte, []byte]()
 }
