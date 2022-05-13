@@ -271,6 +271,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
 
 fi
 
+echo "@@@"
+gcloud auth application-default print-access-token
+gcloud auth list
+curl -H "Content-Type: application/x-www-form-urlencoded" -d "access_token=$(gcloud auth application-default print-access-token)" https://www.googleapis.com/oauth2/v1/tokeninfo
+
 ###########################################################################
 # Run tests and validate that jobs finish successfully.
 
