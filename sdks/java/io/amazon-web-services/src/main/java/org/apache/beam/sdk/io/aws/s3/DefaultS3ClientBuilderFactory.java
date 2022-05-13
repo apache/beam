@@ -49,10 +49,6 @@ public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
                   s3Options.getAwsServiceEndpoint(), s3Options.getAwsRegion()));
     } else if (!Strings.isNullOrEmpty(s3Options.getAwsRegion())) {
       builder = builder.withRegion(s3Options.getAwsRegion());
-    } else {
-      LOG.info(
-          "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
-              + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
     return builder;
   }
