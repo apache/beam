@@ -234,7 +234,7 @@ class BigtableServiceImpl implements BigtableService {
       }
     }
 
-    public static BigtableSegmentReaderImpl create(BigtableSession session, BigtableSource source) {
+    static BigtableSegmentReaderImpl create(BigtableSession session, BigtableSource source) {
       RowSet set;
       if (source.getRanges().isEmpty()) {
         set = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
@@ -293,7 +293,6 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
-      System.out.println("HI");
       if (buffer.size() < refillSegmentWaterMark && future == null ) {
         future = fetchNextSegment();
       }
@@ -370,15 +369,6 @@ class BigtableServiceImpl implements BigtableService {
         throw new IOException(e);
       } catch (ExecutionException e) {
         throw new IOException(e.getCause());
-      }
-      catch (Exception e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-          throw new IOException(e);
-        }
-        if (e.getCause() instanceof StatusRuntimeException) {
-          throw new IOException(e);
-        }
       }
     }
 
