@@ -137,7 +137,14 @@ tasks.rat {
 
     // Ignore LICENSES copied onto containers
     "sdks/java/container/license_scripts/manual_licenses",
-    "sdks/python/container/license_scripts/manual_licenses"
+    "sdks/python/container/license_scripts/manual_licenses",
+
+    // Ignore autogenrated proto files.
+    "sdks/typescript/src/apache_beam/proto/**/*.ts",
+
+    // Ignore typesciript package management.
+    "sdks/typescript/package-lock.json",
+    "sdks/typescript/node_modules/**/*",
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
