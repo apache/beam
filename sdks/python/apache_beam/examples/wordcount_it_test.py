@@ -43,11 +43,11 @@ class WordCountIT(unittest.TestCase):
   # input of WordCount example.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.it_postcommit_wordcount
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.it_postcommit_wordcount
   @pytest.mark.sickbay_direct
   @pytest.mark.sickbay_spark
   @pytest.mark.sickbay_flink
@@ -85,7 +85,7 @@ class WordCountIT(unittest.TestCase):
     auth._Credentials._credentials_init = False
 
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.it_postcommit_wordcount
   @pytest.mark.it_validatescontainer
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')

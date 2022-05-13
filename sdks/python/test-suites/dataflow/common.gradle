@@ -115,7 +115,7 @@ task postCommitIT {
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "collect": "it_postcommit"
+        "collect": "it_postcommit_wordcount"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
