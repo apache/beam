@@ -497,25 +497,25 @@ class TestReadFromBigQuery(unittest.TestCase):
           error_message='backendError'),
   ])
   @mock.patch('time.sleep')
-  @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
-  @mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Insert')
   def test_create_temp_dataset_exception(
       self,
-      mock_api,
-      unused_mock_query_job,
       unused_mock,
       exception_type,
       error_message):
-    mock_api.side_effect = exception_type(error_message)
 
-    with self.assertRaises(Exception) as exc:
-      with beam.Pipeline() as p:
-        _ = p | ReadFromBigQuery(
-            project='apache-beam-testing',
-            query='SELECT * FROM `project.dataset.table`',
-            gcs_location='gs://temp_location')
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as a,\
+          mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Insert') as mock_insert,\
+          self.assertRaises(Exception) as exc,\
+          beam.Pipeline() as p:
 
-    self.assertEqual(16, mock_api.call_count)
+      mock_insert.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          project='apache-beam-testing',
+          query='SELECT * FROM `project.dataset.table`',
+          gcs_location='gs://temp_location')
+
+    self.assertEqual(16, mock_insert.call_count)
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
@@ -529,28 +529,26 @@ class TestReadFromBigQuery(unittest.TestCase):
           error_message='backendError'),
   ])
   @mock.patch('time.sleep')
-  @mock.patch.object(
-      beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size')
-  @mock.patch.object(BigQueryWrapper, 'get_query_location')
-  @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
   def test_query_job_exception(
       self,
-      mock_query_job,
-      mock_query_location,
-      mock_estimate,
       unused_mock,
-      exception_type=None,
-      error_message=None):
-    mock_query_location.return_value = None
-    mock_estimate.return_value = None
-    mock_query_job.side_effect = exception_type(error_message)
+      exception_type,
+      error_message):
 
-    with self.assertRaises(Exception) as exc:
-      with beam.Pipeline() as p:
-        _ = p | ReadFromBigQuery(
-            project='apache-beam-testing',
-            query='SELECT * FROM `project.dataset.table`',
-            gcs_location='gs://temp_location')
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size') as mock_estimate,\
+            mock.patch.object(BigQueryWrapper, 'get_query_location') as mock_query_location,\
+            mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as mock_query_job,\
+            self.assertRaises(Exception) as exc,\
+            beam.Pipeline() as p:
+
+      mock_estimate.return_value = None
+      mock_query_location.return_value = None
+      mock_query_job.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          project='apache-beam-testing',
+          query='SELECT * FROM `project.dataset.table`',
+          gcs_location='gs://temp_location')
 
     self.assertEqual(4, mock_query_job.call_count)
     self.assertIn(error_message, exc.exception.args[0])
@@ -567,24 +565,22 @@ class TestReadFromBigQuery(unittest.TestCase):
           error_message='internalError'),
   ])
   @mock.patch('time.sleep')
-  @mock.patch.object(
-      beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size')
-  @mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get')
-  @mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert')
   def test_read_export_exception(
       self,
-      mock_query_job,
-      mock_get_table,
-      mock_estimate,
       unused_mock,
-      exception_type=None,
-      error_message=None):
-    mock_estimate.return_value = None
-    mock_query_job.side_effect = exception_type(error_message)
+      exception_type,
+      error_message):
 
-    with self.assertRaises(Exception) as exc:
-      with beam.Pipeline() as p:
-        _ = p | ReadFromBigQuery(
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource, 'estimate_size') as mock_estimate,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get') as mock_get_table,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService, 'Insert') as mock_query_job,\
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
+
+      mock_estimate.return_value = None
+      mock_query_job.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
             project='apache-beam-testing',
             method=ReadFromBigQuery.Method.EXPORT,
             table='project:dataset.table',
