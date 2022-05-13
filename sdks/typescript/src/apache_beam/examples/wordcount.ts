@@ -16,10 +16,24 @@
  * limitations under the License.
  */
 
-// TODO: Should this be in a top-level examples dir, rather than under apache_beam.
+// Run directly with
+//
+//    node dist/src/apache_beam/examples/wordcount.js
+//
+// A different runner can be chosen via a --runner argument, e.g.
+//
+//    node dist/src/apache_beam/examples/wordcount.js --runner=flink
+//
+// To run on Dataflow, pass the required arguments:
+//
+//    node dist/src/apache_beam/examples/wordcount.js --runner=dataflow --project=PROJECT_ID --tempLocation=gs://BUCKET/DIR' --region=us-central1
+
+// TODO: Should this be in a top-level examples dir, rather than under apache_beam?
+
+import * as yargs from "yargs";
 
 import * as beam from "../../apache_beam";
-import { DirectRunner } from "../runners/direct_runner";
+import { createRunner } from "../runners/runner";
 
 import { count } from "../transforms/combiners";
 import { GroupBy } from "../transforms/group_and_combine";
@@ -45,7 +59,7 @@ function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
 }
 
 async function main() {
-  await new DirectRunner().run((root) => {
+  await createRunner(yargs.argv).run((root) => {
     const lines = root.apply(
       new beam.Create([
         "In the beginning God created the heaven and the earth.",

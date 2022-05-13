@@ -44,13 +44,60 @@ import {
 } from "../values";
 import { PaneInfoCoder } from "../coders/standard_coders";
 import { Coder, Context as CoderContext } from "../coders/coders";
+import * as environments from "../internal/environments";
 import { serializeFn, deserializeFn } from "../internal/serialize";
+
+const SUPPORTED_REQUIREMENTS: string[] = [];
+
+export function directRunner(options: Object = {}): Runner {
+  return new DirectRunner(options);
+}
 
 export class DirectRunner extends Runner {
   // All the operators for a given pipeline should share the same state.
   // This global mapping allows operators to look up a shared state object for
   // a given pipeline on deserialization.
   static inMemoryStatesRefs: Map<string, InMemoryStateProvider> = new Map();
+
+  constructor(private options: Object = {}) {
+    super();
+  }
+
+  unsupportedFeatures(pipeline, options: Object = {}): string[] {
+    return [...this.unsupportedFeaturesIter(pipeline, options)];
+  }
+
+  *unsupportedFeaturesIter(pipeline, options: Object = {}) {
+    const proto: runnerApi.Pipeline = pipeline.proto;
+    for (const requirement of proto.requirements) {
+      if (!SUPPORTED_REQUIREMENTS.includes(requirement)) {
+        yield requirement;
+      }
+    }
+
+    for (const env of Object.values(proto.components!.environments)) {
+      if (
+        env.urn &&
+        env.urn != environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN
+      ) {
+        yield env.urn;
+      }
+    }
+
+    for (const windowing of Object.values(
+      proto.components!.windowingStrategies
+    )) {
+      if (
+        ![
+          runnerApi.MergeStatus_Enum.UNSPECIFIED,
+          runnerApi.MergeStatus_Enum.NON_MERGING,
+          runnerApi.MergeStatus_Enum.ALREADY_MERGED,
+        ].includes(windowing.mergeStatus)
+      ) {
+        yield "MergeStatus=" + windowing.mergeStatus;
+      }
+    }
+  }
 
   async runPipeline(p): Promise<PipelineResult> {
     // console.dir(p.proto, { depth: null });
