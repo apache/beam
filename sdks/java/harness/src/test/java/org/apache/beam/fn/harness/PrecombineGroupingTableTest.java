@@ -109,6 +109,42 @@ public class PrecombineGroupingTableTest {
       };
 
   @Test
+  public void testCombiningGroupingTableHonorsKeyWeights() throws Exception {
+    PrecombineGroupingTable<String, Integer, Long> table =
+        new PrecombineGroupingTable<>(
+            PipelineOptionsFactory.create(),
+            Caches.forMaximumBytes(2500L),
+            StringUtf8Coder.of(),
+            GlobalCombineFnRunners.create(COMBINE_FN),
+            new StringPowerSizeEstimator(),
+            new IdentitySizeEstimator());
+
+    TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
+
+    // Putting the same 1000 weight key in should not cause any eviction.
+    table.put(valueInGlobalWindow(KV.of("AAA", 1)), receiver);
+    table.put(valueInGlobalWindow(KV.of("AAA", 2)), receiver);
+    table.put(valueInGlobalWindow(KV.of("AAA", 4)), receiver);
+    assertThat(receiver.outputElems, empty());
+
+    // Putting in other large keys should cause eviction.
+    table.put(valueInGlobalWindow(KV.of("BBB", 9)), receiver);
+    table.put(valueInGlobalWindow(KV.of("CCC", 11)), receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)), valueInGlobalWindow(KV.of("BBB", 9L))));
+
+    table.flush(receiver);
+    assertThat(
+        receiver.outputElems,
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("AAA", 1L + 2 + 4)),
+            valueInGlobalWindow(KV.of("BBB", 9L)),
+            valueInGlobalWindow(KV.of("CCC", 11L))));
+  }
+
+  @Test
   public void testCombiningGroupingTableEvictsAllOnLargeEntry() throws Exception {
     PrecombineGroupingTable<String, Integer, Long> table =
         new PrecombineGroupingTable<>(
@@ -188,7 +224,7 @@ public class PrecombineGroupingTableTest {
 
     TestOutputReceiver<WindowedValue<KV<String, Long>>> receiver = new TestOutputReceiver<>();
 
-    // Insert three values which even with compaction isn't enough so we evict D & E to get
+    // Insert three values which even with compaction isn't enough so we evict A & B to get
     // under the max weight.
     table.put(valueInGlobalWindow(KV.of("A", 1001)), receiver);
     table.put(valueInGlobalWindow(KV.of("B", 1001)), receiver);

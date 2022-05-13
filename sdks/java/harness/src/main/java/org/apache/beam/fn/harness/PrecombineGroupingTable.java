@@ -17,8 +17,10 @@
  */
 package org.apache.beam.fn.harness;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
@@ -32,13 +34,19 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
-/** Static utility methods that provide a grouping table implementation. */
+/**
+ * Static utility methods that provide a grouping table implementation.
+ *
+ * <p>{@link NotThreadSafe} because the caller must use the bundle processing thread when invoking
+ * {@link #put} and {@link #flush}. {@link #shrink} may be called from any thread.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -116,7 +124,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
   private final SizeEstimator<K> keySizer;
   private final SizeEstimator<AccumT> accumulatorSizer;
   private final Cache<Key, PrecombineGroupingTable<K, InputT, AccumT>> cache;
-  private final LinkedHashMap<WindowedValue<Object>, GroupingTableEntry> lruMap;
+  private final LinkedHashMap<GroupingTableKey, GroupingTableEntry> lruMap;
   private final AtomicLong maxWeight;
   private long weight;
 
@@ -151,19 +159,93 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
     this.cache.put(Key.INSTANCE, this);
   }
 
+  private static class GroupingTableKey implements Weighted {
+    private final Object structuralKey;
+    private final Collection<? extends BoundedWindow> windows;
+    private final PaneInfo paneInfo;
+    private final long weight;
+
+    <K> GroupingTableKey(
+        K key,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        Coder<K> keyCoder,
+        SizeEstimator<K> keySizer) {
+      this.structuralKey = keyCoder.structuralValue(key);
+      this.windows = windows;
+      this.paneInfo = paneInfo;
+      // We account for the weight of the key using the keySizer if the coder's structural value
+      // is the same as its value.
+      if (structuralKey == key) {
+        weight = keySizer.estimateSize(key) + Caches.weigh(windows) + Caches.weigh(paneInfo);
+      } else {
+        weight = Caches.weigh(this);
+      }
+    }
+
+    public Object getStructuralKey() {
+      return structuralKey;
+    }
+
+    public Collection<? extends BoundedWindow> getWindows() {
+      return windows;
+    }
+
+    public PaneInfo getPaneInfo() {
+      return paneInfo;
+    }
+
+    @Override
+    public long getWeight() {
+      return weight;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof GroupingTableKey)) {
+        return false;
+      }
+      GroupingTableKey that = (GroupingTableKey) o;
+      return Objects.equals(structuralKey, that.structuralKey)
+          && windows.equals(that.windows)
+          && paneInfo.equals(that.paneInfo);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(structuralKey, windows, paneInfo);
+    }
+
+    @Override
+    public String toString() {
+      return "GroupingTableKey{"
+          + "structuralKey="
+          + structuralKey
+          + ", windows="
+          + windows
+          + ", paneInfo="
+          + paneInfo
+          + ", weight="
+          + weight
+          + '}';
+    }
+  }
+
   private class GroupingTableEntry implements Weighted {
-    private final WindowedValue<Object> groupingKey;
+    private final GroupingTableKey groupingKey;
     private final K userKey;
     private final long keySize;
     private long accumulatorSize;
     private AccumT accumulator;
     private boolean dirty;
 
-    private GroupingTableEntry(
-        WindowedValue<Object> groupingKey, K userKey, InputT initialInputValue) {
+    private GroupingTableEntry(GroupingTableKey groupingKey, K userKey, InputT initialInputValue) {
       this.groupingKey = groupingKey;
       this.userKey = userKey;
-      if (groupingKey.getValue() == userKey) {
+      if (groupingKey.getStructuralKey() == userKey) {
         // This object is only storing references to the same objects that are being stored
         // by the cache so the accounting of the size of the key is occurring already.
         this.keySize = Caches.REFERENCE_SIZE * 2;
@@ -177,7 +259,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       this.accumulatorSize = accumulatorSizer.estimateSize(accumulator);
     }
 
-    public WindowedValue<Object> getGroupingKey() {
+    public GroupingTableKey getGroupingKey() {
       return groupingKey;
     }
 
@@ -211,6 +293,24 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
               accumulator, value, options, NullSideInputReader.empty(), groupingKey.getWindows());
       accumulatorSize = accumulatorSizer.estimateSize(accumulator);
     }
+
+    @Override
+    public String toString() {
+      return "GroupingTableEntry{"
+          + "groupingKey="
+          + groupingKey
+          + ", userKey="
+          + userKey
+          + ", keySize="
+          + keySize
+          + ", accumulatorSize="
+          + accumulatorSize
+          + ", accumulator="
+          + accumulator
+          + ", dirty="
+          + dirty
+          + '}';
+    }
   }
 
   /**
@@ -223,27 +323,26 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       throws Exception {
     // Ignore timestamp for grouping purposes.
     // The Pre-combine output will inherit the timestamp of one of its inputs.
-    WindowedValue<Object> groupingKey =
-        WindowedValue.of(
-            keyCoder.structuralValue(value.getValue().getKey()),
-            IGNORED,
-            value.getWindows(),
-            value.getPane());
+    GroupingTableKey groupingKey =
+        new GroupingTableKey(
+            value.getValue().getKey(), value.getWindows(), value.getPane(), keyCoder, keySizer);
 
-    GroupingTableEntry entry =
-        lruMap.compute(
-            groupingKey,
-            (key, tableEntry) -> {
-              if (tableEntry == null) {
-                tableEntry =
-                    new GroupingTableEntry(
-                        groupingKey, value.getValue().getKey(), value.getValue().getValue());
-              } else {
-                tableEntry.add(value.getValue().getValue());
-              }
-              return tableEntry;
-            });
-    weight += entry.getWeight();
+    lruMap.compute(
+        groupingKey,
+        (key, tableEntry) -> {
+          if (tableEntry == null) {
+            weight += groupingKey.getWeight();
+            tableEntry =
+                new GroupingTableEntry(
+                    groupingKey, value.getValue().getKey(), value.getValue().getValue());
+          } else {
+            weight -= tableEntry.getWeight();
+            tableEntry.add(value.getValue().getValue());
+          }
+          weight += tableEntry.getWeight();
+          return tableEntry;
+        });
+
     // Increase the maximum only if we require it
     maxWeight.accumulateAndGet(weight, (current, update) -> current < update ? update : current);
 
@@ -253,6 +352,10 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
 
     // Get the updated weight now that the cache may have been shrunk and respect it
     long currentMax = maxWeight.get();
+
+    // Only compact and output from the bundle processing thread that is inserting elements into the
+    // grouping table. This ensures that we honor the guarantee that transforms for a single bundle
+    // execute using the same thread.
     if (weight > currentMax) {
       // Try to compact as many the values as possible and only flush values if compaction wasn't
       // enough.
@@ -266,7 +369,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
         Iterator<GroupingTableEntry> iterator = lruMap.values().iterator();
         while (iterator.hasNext()) {
           GroupingTableEntry valueToFlush = iterator.next();
-          weight -= valueToFlush.getWeight();
+          weight -= valueToFlush.getWeight() + valueToFlush.getGroupingKey().getWeight();
           iterator.remove();
           output(valueToFlush, receiver);
           if (weight <= currentMax) {
@@ -284,7 +387,12 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       GroupingTableEntry entry, FnDataReceiver<WindowedValue<KV<K, AccumT>>> receiver)
       throws Exception {
     entry.compact();
-    receiver.accept(entry.getGroupingKey().withValue(KV.of(entry.getKey(), entry.getValue())));
+    receiver.accept(
+        WindowedValue.of(
+            KV.of(entry.getKey(), entry.getValue()),
+            IGNORED,
+            entry.getGroupingKey().getWindows(),
+            entry.getGroupingKey().getPaneInfo()));
   }
 
   /** Flushes all entries in this table to output. */
@@ -294,6 +402,7 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
       output(valueToFlush, receiver);
     }
     lruMap.clear();
+    weight = 0;
   }
 
   ////////////////////////////////////////////////////////////////////////////
