@@ -88,10 +88,18 @@ export class Worker {
     this.controlChannel.on("end", () => {
       console.log("Control channel closed.");
       for (const dataChannel of this.dataChannels.values()) {
-        dataChannel.close();
+        try {
+          // Best effort.
+          dataChannel.close();
+        } finally {
+        }
       }
       for (const stateChannel of this.stateChannels.values()) {
-        stateChannel.close();
+        try {
+          // Best effort.
+          stateChannel.close();
+        } finally {
+        }
       }
     });
   }
