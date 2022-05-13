@@ -57,7 +57,9 @@ func (fn *selfCheckpointingDoFn) SplitRestriction(_ []byte, rest offsetrange.Res
 	s := rest.Start
 	var splits []offsetrange.Restriction
 	for e := s + size; e <= rest.End; s, e = e, e+size {
-		splits = append(splits, offsetrange.Restriction{Start: s, End: e})
+		if s != e {
+			splits = append(splits, offsetrange.Restriction{Start: s, End: e})
+		}
 	}
 	splits = append(splits, offsetrange.Restriction{Start: s, End: rest.End})
 	return splits
