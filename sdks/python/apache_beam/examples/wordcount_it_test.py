@@ -48,6 +48,38 @@ class WordCountIT(unittest.TestCase):
     self._run_wordcount_it(wordcount.run)
 
   @pytest.mark.it_postcommit
+  @pytest.mark.sickbay_direct
+  @pytest.mark.sickbay_spark
+  @pytest.mark.sickbay_flink
+  def test_wordcount_impersonation_it(self):
+    """Tests impersonation on dataflow.
+
+    For testing impersonation, we use three ingredients:
+    - a principal to impersonate
+    - a dataflow service account that only that principal is
+      allowed to launch jobs as
+    - a temp root that only the above two accounts have access to
+
+    Jenkins and Dataflow workers both run as GCE default service account.
+    So we remove that account from all the above.
+    """
+    ACCOUNT_TO_IMPERSONATE = (
+        'allows-impersonation@apache-'
+        'beam-testing.iam.gserviceaccount.com')
+    RUNNER_ACCOUNT = (
+        'impersonation-dataflow-worker@'
+        'apache-beam-testing.iam.gserviceaccount.com')
+    TEMP_DIR = 'gs://impersonation-test-bucket/temp-it'
+    STAGING_LOCATION = 'gs://impersonation-test-bucket/staging-it'
+    extra_options = {
+        'impersonate_service_account': ACCOUNT_TO_IMPERSONATE,
+        'service_account_email': RUNNER_ACCOUNT,
+        'temp_location': TEMP_DIR,
+        'staging_location': STAGING_LOCATION
+    }
+    self._run_wordcount_it(wordcount.run, **extra_options)
+
+  @pytest.mark.it_postcommit
   @pytest.mark.it_validatescontainer
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
