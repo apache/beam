@@ -1046,12 +1046,8 @@ message StandardCoders {
     // Nullable types in container types (ArrayType, MapType) per the
     // encoding described for general Nullable types below.
     //
-    // Well known logical types:
-    //   beam:logical_type:micros_instant:v1
-    //   - Representation type: ROW<seconds: INT64, micros: INT64>
-    //   - A timestamp without a timezone where seconds + micros represents the
-    //     amount of time since the epoch.
-    //
+    // Logical types understood by all SDKs should be defined in schema.proto.
+    // Example of well known logical types:
     //   beam:logical_type:schema:v1
     //   - Representation type: BYTES
     //   - A Beam Schema stored as a serialized proto.
