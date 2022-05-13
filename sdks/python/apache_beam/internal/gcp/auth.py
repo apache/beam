@@ -25,6 +25,7 @@ import threading
 
 # google.auth is only available when Beam is installed with the gcp extra.
 try:
+  from google.auth import impersonated_credentials
   import google.auth
   import google_auth_httplib2
   _GOOGLE_AUTH_AVAILABLE = True
@@ -39,6 +40,16 @@ is_running_in_gce = False
 executing_project = None
 
 _LOGGER = logging.getLogger(__name__)
+
+CLIENT_SCOPES = [
+    'https://www.googleapis.com/auth/bigquery',
+    'https://www.googleapis.com/auth/cloud-platform',
+    'https://www.googleapis.com/auth/devstorage.full_control',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/datastore',
+    'https://www.googleapis.com/auth/spanner.admin',
+    'https://www.googleapis.com/auth/spanner.data'
+]
 
 
 def set_running_in_gce(worker_executing_project):
@@ -57,6 +68,10 @@ def set_running_in_gce(worker_executing_project):
   global executing_project
   is_running_in_gce = True
   executing_project = worker_executing_project
+
+
+def set_impersonation_accounts(impersonate_service_account=None):
+  _Credentials.set_impersonation_accounts(impersonate_service_account)
 
 
 def get_service_credentials():
@@ -107,11 +122,13 @@ class _Credentials(object):
   _credentials_init = False
   _credentials = None
 
+  _delegate_accounts = None
+  _target_principal = None
+  _impersonation_parameter_set = False
+  _impersonate_service_account = None
+
   @classmethod
   def get_service_credentials(cls):
-    if cls._credentials_init:
-      return cls._credentials
-
     with cls._credentials_lock:
       if cls._credentials_init:
         return cls._credentials
@@ -138,17 +155,9 @@ class _Credentials(object):
           'Google default credentials. Connecting anonymously.')
       return None
 
-    client_scopes = [
-        'https://www.googleapis.com/auth/bigquery',
-        'https://www.googleapis.com/auth/cloud-platform',
-        'https://www.googleapis.com/auth/devstorage.full_control',
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/datastore',
-        'https://www.googleapis.com/auth/spanner.admin',
-        'https://www.googleapis.com/auth/spanner.data'
-    ]
     try:
-      credentials, _ = google.auth.default(scopes=client_scopes)  # pylint: disable=c-extension-no-member
+      credentials, _ = google.auth.default(scopes=CLIENT_SCOPES)  # pylint: disable=c-extension-no-member
+      credentials = _Credentials._add_impersonation_credentials(credentials)
       credentials = _ApitoolsCredentialsAdapter(credentials)
       logging.debug(
           'Connecting using Google Application Default '
@@ -160,3 +169,26 @@ class _Credentials(object):
           'Connecting anonymously.',
           e)
       return None
+
+  @classmethod
+  def set_impersonation_accounts(cls, impersonate_service_account):
+    cls._impersonate_service_account = impersonate_service_account
+    cls._impersonation_parameter_set = True
+
+  @classmethod
+  def _add_impersonation_credentials(cls, credentials):
+    if not cls._impersonation_parameter_set:
+      raise AssertionError('Impersonation credentials not yet set.')
+    """Adds impersonation credentials if the client species them."""
+    if cls._impersonate_service_account:
+      _LOGGER.info('Impersonating: %s', cls._impersonate_service_account)
+      impersonate_accounts = cls._impersonate_service_account.split(',')
+      target_principal = impersonate_accounts[-1]
+      delegate_to = impersonate_accounts[0:-1]
+      credentials = impersonated_credentials.Credentials(
+          source_credentials=credentials,
+          target_principal=target_principal,
+          delegates=delegate_to,
+          target_scopes=CLIENT_SCOPES,
+      )
+    return credentials
