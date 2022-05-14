@@ -1248,12 +1248,6 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) (string, error) {
 	}), nil
 }
 
-// makeBytesKeyedCoder returns KV<[]byte,A,> for any coder,
-// even if the coder is already a KV coder.
-func makeBytesKeyedCoder(c *coder.Coder) *coder.Coder {
-	return coder.NewKV([]*coder.Coder{coder.NewBytes(), c})
-}
-
 func edgeID(edge *graph.MultiEdge) string {
 	return fmt.Sprintf("e%v", edge.ID())
 }
