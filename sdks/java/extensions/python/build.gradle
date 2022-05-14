@@ -32,3 +32,9 @@ dependencies {
     testImplementation library.java.hamcrest
     testRuntimeOnly library.java.slf4j_simple
 }
+
+test {
+  useJUnit {
+    excludeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
+}

@@ -57,6 +57,7 @@ dependencies {
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:ml")
@@ -80,6 +81,7 @@ dependencies {
   implementation library.java.commons_io
   implementation library.java.commons_csv
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  runtimeOnly project(path: ":runners:google-cloud-dataflow-java")
   implementation library.java.vendored_grpc_1_43_2
   implementation library.java.vendored_guava_26_0_jre
   implementation "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
@@ -168,4 +170,10 @@ task wordCount(type:JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   systemProperties = System.getProperties()
   args = ["--output=/tmp/ouput.txt"]
+}
+
+task pythonDataframeWordCount(type: JavaExec) {
+  description "Run the Java word count example using external Python DataframeTransform"
+  mainClass = "org.apache.beam.examples.multilang.PythonDataframeWordCount"
+  classpath = sourceSets.main.runtimeClasspath
 }

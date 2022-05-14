@@ -34,7 +34,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
+import org.apache.beam.sdk.testing.UsesJavaExpansionService;
 import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
@@ -287,7 +287,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class SingleInputOutputTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() throws IOException {
       singleInputOutputTest(testPipeline);
     }
@@ -304,7 +308,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class MultiInputOutputWithSideInputTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() {
       multiInputOutputWithSideInputTest(testPipeline);
     }
@@ -322,7 +330,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class GroupByKeyTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() {
       groupByKeyTest(testPipeline);
     }
@@ -340,7 +352,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class CoGroupByKeyTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() {
       coGroupByKeyTest(testPipeline);
     }
@@ -357,7 +373,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class CombineGloballyTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() {
       combineGloballyTest(testPipeline);
     }
@@ -374,7 +394,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class CombinePerKeyTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() {
       combinePerKeyTest(testPipeline);
     }
@@ -391,7 +415,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class FlattenTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() {
       flattenTest(testPipeline);
     }
@@ -409,7 +437,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class PartitionTest extends ValidateRunnerXlangTestBase {
     @Test
-    @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesJavaExpansionService.class,
+      UsesPythonExpansionService.class
+    })
     public void test() {
       partitionTest(testPipeline);
     }

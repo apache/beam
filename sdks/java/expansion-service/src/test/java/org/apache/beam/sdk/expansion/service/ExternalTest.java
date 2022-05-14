@@ -30,7 +30,8 @@ import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
+import org.apache.beam.sdk.testing.UsesJavaExpansionService;
+import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -100,7 +101,11 @@ public class ExternalTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesJavaExpansionService.class,
+    UsesPythonExpansionService.class
+  })
   @RequiresNonNull("localExpansionAddr")
   public void expandSingleTest() {
     PCollection<String> col =
@@ -112,7 +117,11 @@ public class ExternalTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesJavaExpansionService.class,
+    UsesPythonExpansionService.class
+  })
   @RequiresNonNull("localExpansionAddr")
   public void expandMultipleTest() {
     PCollection<String> pcol =
@@ -129,7 +138,11 @@ public class ExternalTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesJavaExpansionService.class,
+    UsesPythonExpansionService.class
+  })
   @RequiresNonNull("localExpansionAddr")
   public void expandMultiOutputTest() {
     PCollectionTuple pTuple =
