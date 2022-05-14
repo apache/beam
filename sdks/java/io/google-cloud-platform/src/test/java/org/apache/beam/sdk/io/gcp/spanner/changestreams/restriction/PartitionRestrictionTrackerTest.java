@@ -43,7 +43,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.PartitionPositionGe
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TimestampGenerator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(JUnitQuickcheck.class)
@@ -873,35 +872,5 @@ public class PartitionRestrictionTrackerTest {
 
     assertEquals(to.getSeconds() + TOTAL_MODE_TRANSITIONS, progress.getWorkCompleted(), DELTA);
     assertEquals(1, progress.getWorkRemaining(), DELTA);
-  }
-
-  @Test
-  public void testGetProgressForStreaming() {
-    final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
-    final Timestamp current = Timestamp.ofTimeSecondsAndNanos(101, 0);
-    final PartitionPosition position = PartitionPosition.queryChangeStream(current);
-
-    final PartitionRestriction restriction =
-        PartitionRestriction.queryChangeStream(from, Timestamp.MAX_VALUE)
-            .withMetadata(
-                PartitionRestrictionMetadata.newBuilder()
-                    .withPartitionToken(PARTITION_TOKEN)
-                    .build());
-    final PartitionRestrictionTracker tracker = new PartitionRestrictionTracker(restriction);
-
-    tracker.setTimeSupplier(
-        () -> Timestamp.ofTimeSecondsAndNanos(position.getTimestamp().get().getSeconds() + 10, 0));
-    tracker.tryClaim(position);
-
-    final Progress progress = tracker.getProgress();
-
-    final long queryChangeStreamTransitions = 1;
-    assertTrue(progress.getWorkCompleted() >= 0);
-    assertEquals(101D + queryChangeStreamTransitions, progress.getWorkCompleted(), DELTA);
-    assertTrue(progress.getWorkRemaining() >= 0);
-    assertEquals(
-        10D + TOTAL_MODE_TRANSITIONS - queryChangeStreamTransitions,
-        progress.getWorkRemaining(),
-        DELTA);
   }
 }

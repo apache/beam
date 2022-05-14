@@ -29,12 +29,15 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PartitionRestrictionProgressChecker {
 
   private static final BigDecimal TOTAL_MODE_TRANSITIONS = BigDecimal.valueOf(3L);
+  protected Supplier<Timestamp> timeSupplier;
 
   /**
    * Indicates how many mode transitions have been completed for the current mode. The transitions
@@ -52,12 +55,26 @@ public class PartitionRestrictionProgressChecker {
     modeToTransitionsCompleted.put(QUERY_CHANGE_STREAM, BigDecimal.valueOf(1L));
     modeToTransitionsCompleted.put(WAIT_FOR_CHILD_PARTITIONS, BigDecimal.valueOf(2L));
     modeToTransitionsCompleted.put(DONE, BigDecimal.valueOf(3L));
+    this.timeSupplier = () -> Timestamp.now();
+  }
+
+  @VisibleForTesting
+  public void setTimeSupplier(Supplier<Timestamp> timeSupplier) {
+    this.timeSupplier = timeSupplier;
   }
 
   public Progress getProgress(
-      PartitionRestriction restriction,
-      @Nullable PartitionPosition lastClaimedPosition,
-      BigDecimal totalSeconds) {
+      PartitionRestriction restriction, @Nullable PartitionPosition lastClaimedPosition) {
+    BigDecimal totalSeconds;
+    if (restriction.getEndTimestamp().compareTo(Timestamp.MAX_VALUE) == 0) {
+      // When the given end timestamp equals to Timestamp.MAX_VALUE, this means that
+      // the end timestamp is not specified which should be a streaming job. So we
+      // use now() as the end timestamp.
+      totalSeconds = BigDecimal.valueOf(timeSupplier.get().getSeconds());
+    } else {
+      totalSeconds = BigDecimal.valueOf(restriction.getEndTimestamp().getSeconds());
+    }
+
     final PartitionMode currentMode =
         Optional.ofNullable(lastClaimedPosition)
             .map(PartitionPosition::getMode)

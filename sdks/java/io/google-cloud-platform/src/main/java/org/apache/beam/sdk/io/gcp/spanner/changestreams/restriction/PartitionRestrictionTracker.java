@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Times
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.Timestamp;
-import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -102,16 +101,7 @@ public class PartitionRestrictionTracker
         Optional.ofNullable(restriction.getMetadata())
             .map(PartitionRestrictionMetadata::getPartitionToken)
             .orElse(null);
-    BigDecimal end;
-    if (restriction.getEndTimestamp().compareTo(Timestamp.MAX_VALUE) == 0) {
-      // When the given end timestamp equals to Timestamp.MAX_VALUE, this means that
-      // the end timestamp is not specified which should be a streaming job. So we
-      // use now() as the end timestamp.
-      end = BigDecimal.valueOf(timeSupplier.get().getSeconds());
-    } else {
-      end = BigDecimal.valueOf(restriction.getEndTimestamp().getSeconds());
-    }
-    final Progress progress = progressChecker.getProgress(restriction, lastClaimedPosition, end);
+    final Progress progress = progressChecker.getProgress(restriction, lastClaimedPosition);
     LOG.debug("[" + token + "] Progress is " + progress);
     return progress;
   }

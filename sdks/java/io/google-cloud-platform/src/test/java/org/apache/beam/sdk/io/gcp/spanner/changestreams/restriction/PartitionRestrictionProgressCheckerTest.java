@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.Timestamp;
-import java.math.BigDecimal;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,8 +41,7 @@ public class PartitionRestrictionProgressCheckerTest {
         PartitionRestriction.updateState(
             Timestamp.ofTimeSecondsAndNanos(0L, 0), Timestamp.ofTimeSecondsAndNanos(60L, 0));
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, null);
 
     assertEquals(Progress.from(0D, 63D), progress);
   }
@@ -56,8 +54,7 @@ public class PartitionRestrictionProgressCheckerTest {
 
     final PartitionPosition position = PartitionPosition.updateState();
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(0D, 63D), progress);
   }
@@ -70,8 +67,7 @@ public class PartitionRestrictionProgressCheckerTest {
         PartitionRestriction.queryChangeStream(
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, null);
 
     assertEquals(Progress.from(1D, 62D), progress);
   }
@@ -84,8 +80,7 @@ public class PartitionRestrictionProgressCheckerTest {
     final PartitionPosition position =
         PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(30L, 30));
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(31D, 32D), progress);
   }
@@ -98,8 +93,7 @@ public class PartitionRestrictionProgressCheckerTest {
     final PartitionPosition position =
         PartitionPosition.queryChangeStream(Timestamp.ofTimeSecondsAndNanos(60L, 60));
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(61D, 2D), progress);
   }
@@ -111,8 +105,7 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.waitForChildPartitions();
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(62D, 1D), progress);
   }
@@ -124,8 +117,7 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.done();
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(63D, 1D), progress);
   }
@@ -138,8 +130,7 @@ public class PartitionRestrictionProgressCheckerTest {
         PartitionRestriction.waitForChildPartitions(
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, null);
 
     assertEquals(Progress.from(62D, 1D), progress);
   }
@@ -151,8 +142,7 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.waitForChildPartitions();
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(62D, 1D), progress);
   }
@@ -164,8 +154,7 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.done();
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(63D, 1D), progress);
   }
@@ -179,8 +168,7 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionPosition position = PartitionPosition.done();
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, position, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, position);
 
     assertEquals(Progress.from(63D, 1D), progress);
   }
@@ -194,8 +182,7 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionRestriction restriction = PartitionRestriction.stop(stoppedRestriction);
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, null);
 
     assertEquals(Progress.from(63D, 1D), progress);
   }
@@ -207,8 +194,7 @@ public class PartitionRestrictionProgressCheckerTest {
             Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionRestriction restriction = PartitionRestriction.stop(stoppedRestriction);
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, null);
 
     assertEquals(Progress.from(63D, 1D), progress);
   }
@@ -217,12 +203,31 @@ public class PartitionRestrictionProgressCheckerTest {
   public void testRestrictionStopDone() {
     final PartitionRestriction stoppedRestriction =
         PartitionRestriction.done(
-            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(0L, 60));
+            Timestamp.ofTimeSecondsAndNanos(0L, 10), Timestamp.ofTimeSecondsAndNanos(60L, 60));
     final PartitionRestriction restriction = PartitionRestriction.stop(stoppedRestriction);
 
-    final Progress progress =
-        progressChecker.getProgress(restriction, null, BigDecimal.valueOf(60));
+    final Progress progress = progressChecker.getProgress(restriction, null);
 
     assertEquals(Progress.from(63D, 1D), progress);
+  }
+
+  @Test
+  public void testGetProgressForStreaming() {
+    final Timestamp from = Timestamp.ofTimeSecondsAndNanos(0, 0);
+    final Timestamp current = Timestamp.ofTimeSecondsAndNanos(101, 0);
+    final PartitionPosition position = PartitionPosition.queryChangeStream(current);
+
+    final PartitionRestriction restriction =
+        PartitionRestriction.queryChangeStream(from, Timestamp.MAX_VALUE);
+
+    progressChecker.setTimeSupplier(
+        () -> Timestamp.ofTimeSecondsAndNanos(position.getTimestamp().get().getSeconds() + 10, 0));
+
+    final Progress progress = progressChecker.getProgress(restriction, position);
+
+    final long queryChangeStreamTransitions = 1;
+    assertEquals(
+        Progress.from(101D + queryChangeStreamTransitions, 13D - queryChangeStreamTransitions),
+        progress);
   }
 }
