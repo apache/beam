@@ -49,7 +49,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     // Append records to the Storage API streams.
     input.apply(
-        "WriteRecordsAtLeastOnce",
+        "Write Records",
         ParDo.of(
                 new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
                     operationName,

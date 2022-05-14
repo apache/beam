@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -81,22 +82,24 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private static final ExecutorService closeWriterExecutor = Executors.newCachedThreadPool();
 
-  // The Guava cache object is threadsafe. However our protocol requires that client pin the
-  // StreamAppendClient
-  // after looking up the cache, and we must ensure that the cache is not accessed in between the
-  // lookup and the pin
-  // (any access of the cache could trigger element expiration). Therefore most used of
-  // APPEND_CLIENTS should
-  // synchronize.
-  private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
+  /**
+   * The Guava cache object is thread-safe. However our protocol requires that client pin the
+   * StreamAppendClient after looking up the cache, and we must ensure that the cache is not
+   * accessed in between the lookup and the pin (any access of the cache could trigger element
+   * expiration). Therefore most used of APPEND_CLIENTS should synchronize.
+   */
+  private static final Cache<String, List<StreamAppendClient>> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
           .expireAfterAccess(15, TimeUnit.MINUTES)
           .removalListener(
-              (RemovalNotification<String, StreamAppendClient> removal) -> {
-                LOG.info("Expiring append client " + removal.getKey());
-                @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
-                // Close the writer in a different thread so as not to block the main one.
-                runAsyncIgnoreFailure(closeWriterExecutor, streamAppendClient::close);
+              (RemovalNotification<String, List<StreamAppendClient>> removal) -> {
+                LOG.info("Expiring append client for " + removal.getKey());
+                @Nullable final List<StreamAppendClient> streamAppendClients = removal.getValue();
+                streamAppendClients.forEach(
+                    (StreamAppendClient client) -> {
+                      // Close the writer in a different thread so as not to block the main one.
+                      runAsyncIgnoreFailure(closeWriterExecutor, client::close);
+                    });
               })
           .build();
 
@@ -204,9 +207,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return BigQueryHelpers.stripPartitionDecorator(tableUrn) + "/streams/_default";
       }
 
-      String getStreamAppendClientCacheEntryName() {
-        return getDefaultStreamName() + "-client" + clientNumber;
-      }
+      //      String getStreamAppendClientCacheEntryName() {
+      //        if (useDefaultStream) {
+      //          return getDefaultStreamName() + "-client" + clientNumber;
+      //        }
+      //        return this.streamName;
+      //      }
 
       String createStreamIfNeeded() {
         try {
@@ -224,14 +230,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return this.streamName;
       }
 
-      StreamAppendClient createStreamAppendClient() {
-        try {
-          StreamAppendClient client =
-              datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
-          return client;
-        } catch (Exception ex) {
-          throw new RuntimeException(ex);
-        }
+      List<StreamAppendClient> generateClients() {
+        return IntStream.range(0, streamAppendClientCount)
+            .mapToObj(
+                i -> {
+                  try {
+                    StreamAppendClient client =
+                        datasetService.getStreamAppendClient(
+                            streamName, descriptorWrapper.descriptor);
+                    client.pin();
+                    return client;
+                  } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                  }
+                })
+            .collect(Collectors.toList());
       }
 
       StreamAppendClient getStreamAppendClient(boolean lookupCache) {
@@ -241,12 +254,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             synchronized (APPEND_CLIENTS) {
               if (lookupCache) {
                 this.streamAppendClient =
-                    APPEND_CLIENTS.get(
-                        getStreamAppendClientCacheEntryName(), () -> createStreamAppendClient());
+                    APPEND_CLIENTS.get(streamName, () -> generateClients()).get(clientNumber);
               } else {
+                // TODO (rpablo): this dance may make connections
+                // go over quota for a short period of time, need to check
+
+                // override the clients in the cache
+                APPEND_CLIENTS.put(streamName, generateClients());
                 this.streamAppendClient =
-                    datasetService.getStreamAppendClient(streamName, descriptorWrapper.descriptor);
-                APPEND_CLIENTS.put(getStreamAppendClientCacheEntryName(), this.streamAppendClient);
+                    APPEND_CLIENTS.get(streamName, () -> generateClients()).get(clientNumber);
               }
               this.streamAppendClient.pin();
             }
@@ -262,7 +278,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       void maybeTickleCache() {
         if (streamAppendClient != null && Instant.now().isAfter(nextCacheTickle)) {
           synchronized (APPEND_CLIENTS) {
-            APPEND_CLIENTS.getIfPresent(getStreamAppendClientCacheEntryName());
+            APPEND_CLIENTS.getIfPresent(streamName);
           }
           nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
         }
@@ -281,12 +297,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             // thread has already invalidated
             // and recreated the stream).
             @Nullable
-            StreamAppendClient cachedAppendClient =
-                APPEND_CLIENTS.getIfPresent(getStreamAppendClientCacheEntryName());
-            if (cachedAppendClient != null
-                && System.identityHashCode(cachedAppendClient)
-                    == System.identityHashCode(this.streamAppendClient)) {
-              APPEND_CLIENTS.invalidate(getStreamAppendClientCacheEntryName());
+            List<StreamAppendClient> cachedAppendClients = APPEND_CLIENTS.getIfPresent(streamName);
+            if (cachedAppendClients != null
+                && System.identityHashCode(cachedAppendClients.get(clientNumber))
+                    == System.identityHashCode(streamAppendClient)) {
+              APPEND_CLIENTS.invalidate(streamName);
             }
           }
           streamAppendClient = null;
@@ -396,8 +411,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
-    // default append client count to 1
-    private int streamAppendClientCount = 1;
+    private int streamAppendClientCount;
 
     WriteRecordsDoFn(
         String operationName,
@@ -448,9 +462,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
+    @Setup
+    public void setup() {
+      if (useDefaultStream) {
+        destinations = Maps.newHashMap();
+      }
+    }
+
     @StartBundle
     public void startBundle() throws IOException {
-      destinations = Maps.newHashMap();
+      if (!useDefaultStream) {
+        destinations = Maps.newHashMap();
+      }
       numPendingRecords = 0;
       numPendingRecordBytes = 0;
     }
@@ -498,21 +521,26 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
       flushAll();
-      for (DestinationState state : destinations.values()) {
-        if (!useDefaultStream) {
+      if (!useDefaultStream) {
+        for (DestinationState state : destinations.values()) {
           context.output(
               KV.of(state.tableUrn, state.streamName),
               BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
               GlobalWindow.INSTANCE);
+          state.teardown();
         }
-        state.teardown();
+        destinations.clear();
+        destinations = null;
       }
-      destinations.clear();
-      destinations = null;
     }
 
     @Teardown
     public void teardown() {
+      if (destinations != null) {
+        for (DestinationState state : destinations.values()) {
+          state.teardown();
+        }
+      }
       destinations = null;
       try {
         if (datasetService != null) {

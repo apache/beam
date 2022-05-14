@@ -100,9 +100,10 @@ public interface BigQueryOptions
   void setNumStorageWriteApiStreams(Integer value);
 
   @Description(
-      "The number of stream append clients indicated will be allocated at a per worker and destination "
-          + "basis. A large value can cause a large pipeline to go over the BigQuery connection quota quickly. "
-          + "With low-mid volume pipelines using the default configuration should be enough.")
+      "When using the \"_default\" table stream, this option sets the number of stream append clients that will be allocated "
+          + "at a per worker and destination basis. A large value can cause a large pipeline to go over the BigQuery "
+          + "connection quota quickly on a job with large number of workers. On the case of low-mid volume pipelines "
+          + "using the default configuration should be enough.")
   @Default.Integer(1)
   Integer getNumStorageWriteApiStreamAppendClients();
 
