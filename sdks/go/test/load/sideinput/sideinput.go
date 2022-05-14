@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	register.DoFn4x0[[]byte, []byte, func(*[]byte, *[]byte) bool, func([]byte, []byte)]((*doFn)(nil))
+	register.DoFn4x0[[]byte, []byte, func(*[]byte, *[]byte) bool, func([]byte, []byte)]((*iterSideInputFn)(nil))
 	register.Emitter2[[]byte, []byte]()
 	register.Iter2[[]byte, []byte]()
 	register.Function2x0(impToKV)
@@ -60,11 +60,11 @@ func impToKV(imp []byte, emit func([]byte, []byte)) {
 	emit(imp, imp)
 }
 
-type doFn struct {
+type iterSideInputFn struct {
 	ElementsToAccess int64
 }
 
-func (fn *doFn) ProcessElement(_, _ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
+func (fn *iterSideInputFn) ProcessElement(_, _ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
 	var key, value []byte
 	var i int64
 	for values(&key, &value) {
@@ -93,7 +93,7 @@ func main() {
 
 	useSide := beam.ParDo(
 		s,
-		&doFn{ElementsToAccess: elementsToAccess},
+		&iterSideInputFn{ElementsToAccess: elementsToAccess},
 		monitored,
 		beam.SideInput{Input: src})
 

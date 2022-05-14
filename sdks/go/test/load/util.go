@@ -141,7 +141,7 @@ func PublishMetrics(results metrics.QueryResults) {
 		log.Print("No metrics returned.")
 		return
 	}
-	if options.validate() && len(ress) > 0 {
+	if options.validate() {
 		publishMetricstoInfluxDB(options, ress)
 	} else {
 		log.Print("Missing InfluxDB options. Metrics will not be published to InfluxDB")
