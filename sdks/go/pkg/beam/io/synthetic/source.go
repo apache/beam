@@ -27,17 +27,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*sourceFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*SourceConfig)(nil)).Elem())
+	register.DoFn3x1[*sdf.LockRTracker, SourceConfig, func([]byte, []byte), error]((*sourceFn)(nil))
+	register.Emitter2[[]byte, []byte]()
 }
 
 // Source creates a synthetic source transform that emits randomly
