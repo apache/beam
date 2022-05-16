@@ -151,8 +151,8 @@ func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepre
 	return []interface{}{ {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}}{{end}} }
 }
 
-func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}interface{}{{end}}){{end}} {
-    {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}{{end}})
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} interface{}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}interface{}{{end}}){{end}} {
+    {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}.(I{{$in}}){{end}})
 }
 
 func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
@@ -194,11 +194,23 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
     reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
 }
 
-// DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} registers your DoFn to optimize execution at runtime.
+// DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} registers your structural DoFn to optimize execution at runtime.
 {{if (or $processElementIn $processElementOut)}}// DoFn input and output parameter types should be provided in order as the generic constraints.
 {{end}}func DoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
     registerDoFnTypes(doFn)
     registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut false)}}(doFn)
+}
+
+// Function{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}} registers your functional DoFn to optimize execution at runtime.
+{{if (or $processElementIn $processElementOut)}}// Function input and output parameter types should be provided in order as the generic constraints.
+{{end}}func Function{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}}) {
+    runtime.RegisterFunction(doFn)
+    registerMethodTypes(reflect.TypeOf(doFn))
+    caller := func(fn interface{}) reflectx.Func {
+        f := fn.(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}})
+        return &caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}{fn: f}
+    }
+    reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}})(nil)).Elem(), caller)
 }{{end}}{{end}}
 
 {{range $startFinishBundleOut := upto $startFinishBundleOutRange}}{{range $startFinishBundleIn := upto $startFinishBundleInRange}}

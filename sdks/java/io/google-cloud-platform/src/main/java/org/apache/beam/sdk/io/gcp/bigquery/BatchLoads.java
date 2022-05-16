@@ -357,6 +357,10 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<KV<TableDestination, WriteTables.Result>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView);
 
+    List<PCollectionView<?>> sideInputsForUpdateSchema =
+        Lists.newArrayList(tempLoadJobIdPrefixView);
+    sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
+
     PCollection<TableDestination> successfulMultiPartitionWrites =
         tempTables
             // Now that the load job has happened, we want the rename to happen immediately.
@@ -368,6 +372,22 @@ class BatchLoads<DestinationT, ElementT>
             .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
             .apply("GroupByKey", GroupByKey.create())
             .apply("Extract Values", Values.create())
+            .apply(
+                ParDo.of(
+                        new UpdateSchemaDestination(
+                            bigQueryServices,
+                            tempLoadJobIdPrefixView,
+                            loadJobProjectId,
+                            WriteDisposition.WRITE_APPEND,
+                            CreateDisposition.CREATE_NEVER,
+                            maxRetryJobs,
+                            ignoreUnknownValues,
+                            kmsKey,
+                            rowWriterFactory.getSourceFormat(),
+                            useAvroLogicalTypes,
+                            schemaUpdateOptions,
+                            dynamicDestinations))
+                    .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameTriggered",
                 ParDo.of(
@@ -444,9 +464,29 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<TableDestination> successfulSinglePartitionWrites =
         writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
 
+    List<PCollectionView<?>> sideInputsForUpdateSchema =
+        Lists.newArrayList(tempLoadJobIdPrefixView);
+    sideInputsForUpdateSchema.addAll(dynamicDestinations.getSideInputs());
+
     PCollection<TableDestination> successfulMultiPartitionWrites =
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView)
             .apply("ReifyRenameInput", new ReifyAsIterable<>())
+            .apply(
+                ParDo.of(
+                        new UpdateSchemaDestination(
+                            bigQueryServices,
+                            tempLoadJobIdPrefixView,
+                            loadJobProjectId,
+                            WriteDisposition.WRITE_APPEND,
+                            CreateDisposition.CREATE_NEVER,
+                            maxRetryJobs,
+                            ignoreUnknownValues,
+                            kmsKey,
+                            rowWriterFactory.getSourceFormat(),
+                            useAvroLogicalTypes,
+                            schemaUpdateOptions,
+                            dynamicDestinations))
+                    .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameUntriggered",
                 ParDo.of(
@@ -679,17 +719,6 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
 
-    // If the final destination table exists already (and we're appending to it), then the temp
-    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
-    // with one that makes this happen.
-    @SuppressWarnings("unchecked")
-    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
-    if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
-        || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
-      destinations =
-          DynamicDestinationsHelpers.matchTableDynamicDestinations(destinations, bigQueryServices);
-    }
-
     Coder<TableDestination> tableDestinationCoder =
         clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
 
@@ -711,7 +740,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                destinations,
+                dynamicDestinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
@@ -720,7 +749,7 @@ class BatchLoads<DestinationT, ElementT>
                 useAvroLogicalTypes,
                 // Note that we can't pass through the schema update options when creating temporary
                 // tables. They also shouldn't be needed. See BEAM-12482 for additional details.
-                Collections.emptySet(),
+                schemaUpdateOptions,
                 tempDataset))
         .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
   }

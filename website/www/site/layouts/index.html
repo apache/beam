@@ -36,28 +36,17 @@ limitations under the License. See accompanying LICENSE file.
 {{ end }}
 
 {{ define "pillars-section" }}
-<div class="pillars">
-  <h2 class="pillars-title">
-    {{ T "home-pillars-title" }}
-  </h2>
-  <div class="pillars-content">
-    {{ $data := index $.Site.Data .Site.Language.Lang }}
-    {{ range $pillar := $data.pillars }}
-    {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
-    {{ end }}
-  </div>
-  <div class="pillars-social">
-    <div class="pillars-social-icons">
+  <div class="pillars">
+    <h2 class="pillars-title">
+      {{ T "home-pillars-title" }}
+    </h2>
+    <div class="pillars-content">
       {{ $data := index $.Site.Data .Site.Language.Lang }}
-      {{ range $pillars_social := $data.pillars_social }}
-      {{ partial "pillars/pillars-social" (dict "icon" $pillars_social.icon  "url" $pillars_social.url "name" $pillars_social.name) }}
+      {{ range $pillar := $data.pillars }}
+          {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
       {{ end }}
     </div>
-    <p class="pillars-social-text">
-      {{ T "home-pillars-social-text" }}
-    </p>
   </div>
-</div>
 {{ end }}
 
 {{ define "playground-section" }}
@@ -85,58 +74,24 @@ limitations under the License. See accompanying LICENSE file.
 {{ end }}
 
 {{ define "graphic-section" }}
-<div class="graphic">
-  <div class="quotes">
-    <h2 class="margin">{{ T "home-model-title1" }}</h2>
-    <div class="margin section">
-      <div class="row images desktop">
-        <img src="/images/model-sources-icon.svg" class='icon'/>
-        <img src="/images/model-ellipse.svg"/>
-        <img src="/images/model-processing-icon.svg" class='icon'/>
-        <img src="/images/model-ellipse.svg"/>
-        <img src="/images/model-sinks-icon.svg" class='icon'/>
-      </div>
-      <div class="row">
-        {{ $data := index $.Site.Data .Site.Language.Lang }}
-        {{ range $item := $data.graphic }}
-        <div class="column">
-          <img src="{{ .icon }}" class='icon mobile'/>
-          <h4>{{ .title }}</h4>
-          <p>{{ .body }}</p>
-        </div>
-        {{ end }}
-      </div>
-    </div>
-  </div>
-  <div class="section">
-    <h2 class="margin">{{ T "home-model-title2" }}</h2>
-    <div class="row margin">
-      <div class="column">
-        <div class="logos-row">
-          <img class="first_logo" src="/images/logos/runners/flink.png"/>
-          <img src="/images/logos/runners/spark.png"/>
-          <img id="last_logo" src="/images/logos/runners/amazon_kinesis.png"/>
-        </div>
-        <p class="more">{{ T "home-graphic-more" }}</p>
-        <div>
-          <h4>{{ T "home-graphic-runner-title" }}</h4>
-          <p>{{ T "home-graphic-runner-body" }}</p>
-        </div>
-      </div>
-      <div class="column">
-        <div class="logos-row">
-          <img class="first_logo" src="/images/logos/sdks/python-logo.png"/>
-          <img src="/images/logos/sdks/go.png"/>
-        </div>
-        <p class="more">{{ T "home-graphic-more" }}</p>
-        <div>
-          <h4>{{ T "home-graphic-language-title" }}</h4>
-          <p>{{ T "home-graphic-language-body" }}</p>
+  <div class="graphic">
+    <div class="quotes">
+      <h2 class="margin">{{ T "home-model-title1" }}</h2>
+      <div class="margin section">
+        <img class="row-image" src="/images/graphic-background.png">
+        <div class="row">
+          {{ $data := index $.Site.Data .Site.Language.Lang }}
+          {{ range $item := $data.graphic }}
+            <div class="column">
+              <img src="{{ .icon }}" class='icon mobile'/>
+              <h4>{{ .title }}</h4>
+              <p>{{ .body }}</p>
+            </div>
+          {{ end }}
         </div>
       </div>
     </div>
   </div>
-</div>
 {{ end }}
 
 {{ define "calendar-section" }}
@@ -260,3 +215,17 @@ limitations under the License. See accompanying LICENSE file.
 </div>
 {{ end }}
 
+{{ define "pipelines-section" }}
+<div class="pipelines">
+  <div class="pipelines-title">
+    {{ T "home-pipelines-title" }}
+  </div>
+  <div class="pipelines-logos">
+    {{ range $pipeline := $.Site.Data.pipelines }}
+    <div class="pipelines-logo">
+      <a href="{{ $pipeline.url }}"><img src="{{ $pipeline.image_url }}" alt="{{ $pipeline.title }}"></a>
+    </div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
