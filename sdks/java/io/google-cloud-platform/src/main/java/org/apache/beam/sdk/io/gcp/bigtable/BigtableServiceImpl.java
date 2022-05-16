@@ -46,8 +46,6 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -57,7 +55,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -217,42 +214,34 @@ class BigtableServiceImpl implements BigtableService {
     private BigtableSession session;
 
     @Nullable private ReadRowsRequest nextRequest;
+    @Nullable private Row currentRow;
     private final Queue<Row> buffer;
     private final long refillSegmentWaterMark;
     private final long maxSegmentByteSize;
     private Future<UpstreamResults> future;
-    private Row currentRow;
-    private static ServiceCallMetric serviceCallMetric;
+    private ServiceCallMetric serviceCallMetric;
 
     private static class UpstreamResults {
       private final List<Row> rows;
       private final @Nullable ReadRowsRequest nextRequest;
 
-      UpstreamResults(List<Row> rows, @Nullable ReadRowsRequest nextRequest) {
+      private UpstreamResults(List<Row> rows, @Nullable ReadRowsRequest nextRequest) {
         this.rows = rows;
         this.nextRequest = nextRequest;
       }
     }
 
     static BigtableSegmentReaderImpl create(BigtableSession session, BigtableSource source) {
-      RowSet set;
+      RowSet.Builder rowSetBuilder = RowSet.newBuilder();
       if (source.getRanges().isEmpty()) {
-        set = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
+        rowSetBuilder = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance());
       } else {
-        RowRange[] rowRanges = new RowRange[source.getRanges().size()];
-        for (int i = 0; i < source.getRanges().size(); i++) {
-          rowRanges[i] =
-              RowRange.newBuilder()
-                  .setStartKeyClosed(
-                      ByteString.copyFrom(source.getRanges().get(i).getStartKey().getValue()))
-                  .setEndKeyOpen(
-                      ByteString.copyFrom(source.getRanges().get(i).getEndKey().getValue()))
-                  .build();
+        for (ByteKeyRange beamRange : source.getRanges()) {
+          RowRange.Builder rangeBuilder = rowSetBuilder.addRowRangesBuilder();
+          rangeBuilder
+              .setStartKeyClosed(ByteString.copyFrom(beamRange.getStartKey().getValue()))
+              .setEndKeyOpen(ByteString.copyFrom(beamRange.getEndKey().getValue()));
         }
-        set =
-            RowSet.newBuilder()
-                .addAllRowRanges(Arrays.stream(rowRanges).collect(Collectors.toList()))
-                .build();
       }
 
       RowFilter filter =
@@ -261,25 +250,31 @@ class BigtableServiceImpl implements BigtableService {
           ReadRowsRequest.newBuilder()
               .setTableName(
                   session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get()))
-              .setRows(set)
+              .setRows(rowSetBuilder.build())
               .setFilter(filter)
               .setRowsLimit(source.getMaxBufferElementCount())
               .build();
 
-      serviceCallMetric = populateReaderCallMetric(session, source.getTableId().get());
-
       long maxSegmentByteSize =
-          (long)(Runtime.getRuntime().totalMemory()
-              * DEFAULT_BYTE_LIMIT_PERCENTAGE);
+          (long) (Runtime.getRuntime().totalMemory() * DEFAULT_BYTE_LIMIT_PERCENTAGE);
 
-      return new BigtableSegmentReaderImpl(session, request, maxSegmentByteSize);
+      return new BigtableSegmentReaderImpl(
+          session,
+          request,
+          maxSegmentByteSize,
+          populateReaderCallMetric(session, source.getTableId().get()));
     }
 
     @VisibleForTesting
-    BigtableSegmentReaderImpl(BigtableSession session, ReadRowsRequest request, long maxSegmentByteSize) {
+    BigtableSegmentReaderImpl(
+        BigtableSession session,
+        ReadRowsRequest request,
+        long maxSegmentByteSize,
+        ServiceCallMetric serviceCallMetric) {
       this.session = session;
       this.nextRequest = request;
       this.maxSegmentByteSize = maxSegmentByteSize;
+      this.serviceCallMetric = serviceCallMetric;
       this.buffer = new ArrayDeque<>();
       // Asynchronously refill buffer when there is 10% of the elements are left
       this.refillSegmentWaterMark = request.getRowsLimit() / 10;
@@ -293,7 +288,7 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
-      if (buffer.size() < refillSegmentWaterMark && future == null ) {
+      if (buffer.size() < refillSegmentWaterMark && future == null) {
         future = fetchNextSegment();
       }
       if (buffer.isEmpty() && future != null) {
@@ -368,7 +363,12 @@ class BigtableServiceImpl implements BigtableService {
         Thread.currentThread().interrupt();
         throw new IOException(e);
       } catch (ExecutionException e) {
-        throw new IOException(e.getCause());
+        Throwable cause = e.getCause();
+        if (cause instanceof StatusRuntimeException) {
+          System.out.println(cause.hashCode());
+          serviceCallMetric.call(cause.hashCode());
+        }
+        throw new IOException(cause);
       }
     }
 
@@ -391,21 +391,20 @@ class BigtableServiceImpl implements BigtableService {
       if (segment.getRowRangesCount() == 0) {
         return null;
       }
-      ReadRowsRequest newRequest =
-          ReadRowsRequest.newBuilder()
-              .setTableName(request.getTableName())
-              .setRows(segment.build())
-              .setFilter(request.getFilter())
-              .setRowsLimit(request.getRowsLimit())
-              .build();
 
-      return newRequest;
+      ReadRowsRequest.Builder requestBuilder = request.toBuilder();
+      requestBuilder.clearRows();
+      return requestBuilder
+          .setTableName(request.getTableName())
+          .setRows(segment.build())
+          .setFilter(request.getFilter())
+          .setRowsLimit(request.getRowsLimit())
+          .build();
     }
 
     @Override
     public void close() throws IOException {
       if (session == null) {
-        // Only possible when previously closed, so we know that results is also null.
         return;
       }
       session.close();
@@ -549,7 +548,8 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  private static ServiceCallMetric populateReaderCallMetric(
+  @VisibleForTesting
+  public static ServiceCallMetric populateReaderCallMetric(
       BigtableSession session, String tableId) {
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
